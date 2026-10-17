@@ -53,6 +53,8 @@ struct NewPublicGroupScreen: View {
 
                     switch model.privacy {
                     case .public:
+                        currencySection
+                            .padding(.top, 37)
                         requirementSection
                             .padding(.top, 37)
                     case .private:
@@ -97,23 +99,16 @@ struct NewPublicGroupScreen: View {
         .sheet(isPresented: $isPickingCurrency) {
             SelectCurrencyScreen(
                 isPresented: $isPickingCurrency,
+                // Dollars isn't a community currency; "Any Community Currency" is the last row.
+                excludesUSDF: true,
                 // The check follows the requirement's mint, not the wallet's denomination — this
                 // screen is picking what the gate weighs, not what the balance is shown in.
-                isSelected: { $0.stored.mint == model.currency.mint },
-                listTitle: "Specific Currency"
+                isSelected: { $0.stored.mint == model.currency.mint }
             ) { balance in
                 model.select(balance: balance)
-            } header: {
-                AllCurrenciesCard(
-                    isSelected: model.currency == .all,
-                    total: session.totalBalance.usdfValue,
-                    requirement: model.minimumBalance,
-                    meetsRequirement: model.satisfiesAllCurrencies(
-                        session: session,
-                        rates: ratesController.cachedRates
-                    )
-                ) {
-                    model.selectAllCurrencies()
+            } footer: {
+                AnyCommunityCurrencyRow(isSelected: model.currency == .anyCommunityCurrency) {
+                    model.selectAnyCommunityCurrency()
                     isPickingCurrency = false
                 }
             }
@@ -161,26 +156,43 @@ struct NewPublicGroupScreen: View {
         .background(Color.backgroundRow, in: .rect(cornerRadius: Metrics.buttonRadius))
     }
 
+    /// The holdings the requirement counts, opening the currency picker (node 11745:1054).
+    private var currencySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("Community Currency")
+
+            Group {
+                switch model.currency {
+                case .anyCommunityCurrency:
+                    CommunityCurrencyRow(name: AnyCommunityCurrency.name, action: { isPickingCurrency = true }) {
+                        AllCurrenciesIcon(size: 32)
+                    }
+                case .specific(let balance):
+                    CommunityCurrencyRow(name: balance.stored.name, action: { isPickingCurrency = true }) {
+                        TokenIcon(url: balance.stored.imageURL, monogramID: balance.stored.mint.base58, size: 32)
+                    }
+                }
+            }
+            .disabled(model.isCreating)
+            .accessibilityIdentifier("new-group-currency-row")
+        }
+    }
+
     private var requirementSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Minimum Balance Required")
-                .font(.default(size: 17, weight: .bold))
-                .foregroundStyle(Color.textMain.opacity(0.5))
-                .padding(.horizontal, 12)
+            sectionHeader("Minimum Balance Required")
 
-            VStack(alignment: .leading, spacing: 10) {
-                mintRow
-                presets
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.backgroundRow, in: .rect(cornerRadius: Metrics.buttonRadius))
+            presets
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.backgroundRow, in: .rect(cornerRadius: Metrics.buttonRadius))
 
-            Text("People won't be able to join this chat if their balance is less than this amount")
+            Text(model.requirementCaption)
                 .font(.default(size: 13, weight: .medium))
                 .foregroundStyle(Color.textMain.opacity(0.5))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 12)
+                .accessibilityIdentifier("new-group-requirement-caption")
 
             // The server refuses a chat whose creator is short of its own rules, so say so here
             // rather than spending the round trip to be told.
@@ -195,38 +207,11 @@ struct NewPublicGroupScreen: View {
         }
     }
 
-    /// The holdings the requirement counts, opening the currency picker (nodes 10127:118254 and
-    /// 10364:1059).
-    private var mintRow: some View {
-        Button { isPickingCurrency = true } label: {
-            HStack(spacing: 4) {
-                switch model.currency {
-                case .all:
-                    AllCurrenciesIcon(size: 20)
-
-                    Text("Total Balance")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-
-                case .specific(let balance):
-                    RemoteImage(url: balance.stored.imageURL)
-                        .frame(width: 20, height: 20)
-                        .clipShape(Circle())
-
-                    Text(balance.stored.name)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                }
-
-                Image.system(.chevronDown)
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(model.isCreating)
-        .accessibilityIdentifier("new-group-currency-row")
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.default(size: 17, weight: .bold))
+            .foregroundStyle(Color.textMain.opacity(0.5))
+            .padding(.horizontal, 12)
     }
 
     private var presets: some View {

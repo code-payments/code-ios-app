@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct SelectCurrencyScreen<Header: View>: View {
+struct SelectCurrencyScreen<Footer: View>: View {
 
     @Binding var isPresented: Bool
 
@@ -19,39 +19,40 @@ struct SelectCurrencyScreen<Header: View>: View {
     let action: (ExchangedBalance) -> Void
     let isEnabled: (ExchangedBalance) -> Bool
     let isSelected: ((ExchangedBalance) -> Bool)?
-    private let header: Header?
-    private let listTitle: String?
+    let excludesUSDF: Bool
+    private let footer: Footer?
 
     private var balances: [ExchangedBalance] {
-        session.balances(for: ratesController.rateForBalanceCurrency())
+        let giveable = session.balances(for: ratesController.rateForBalanceCurrency())
             .giveable()
+        return excludesUSDF ? giveable.excludingUSDF() : giveable
     }
 
-    /// Creates a picker with `header` drawn above the currency list, and `listTitle` labelling the
-    /// list beneath it.
+    /// Creates a picker with `footer` drawn as the last item of the currency list.
     ///
-    /// The header spans the list's full width and sets its own margins. It stays on screen when
-    /// there is nothing giveable to list, since it is a choice of its own rather than one of the
-    /// list's rows.
+    /// The footer is a row of its own and sets its own margins. It stays on screen when there is
+    /// nothing giveable to list, since it is a choice of its own rather than one of the balances.
     ///
     /// - Parameter isSelected: which row draws its checkmark. Defaults to the currency the wallet is
     ///   denominated in, which is what picking one here changes. Pass a closure when the screen is
     ///   picking for something else — a group chat's balance requirement, say — so the check follows
     ///   that choice instead of the wallet's.
+    /// - Parameter excludesUSDF: drops Dollars from the list, for a screen that picks a community
+    ///   currency. Defaults to showing every giveable balance.
     init(
         isPresented: Binding<Bool>,
+        excludesUSDF: Bool = false,
         isEnabled: @escaping (ExchangedBalance) -> Bool = { _ in true },
         isSelected: ((ExchangedBalance) -> Bool)? = nil,
-        listTitle: String,
         action: @escaping (ExchangedBalance) -> Void,
-        @ViewBuilder header: () -> Header
+        @ViewBuilder footer: () -> Footer
     ) {
         self._isPresented = isPresented
+        self.excludesUSDF = excludesUSDF
         self.isEnabled = isEnabled
         self.isSelected = isSelected
         self.action = action
-        self.header = header()
-        self.listTitle = listTitle
+        self.footer = footer()
     }
 
     var body: some View {
@@ -61,7 +62,7 @@ struct SelectCurrencyScreen<Header: View>: View {
 
         NavigationStack {
             Background(color: .backgroundMain) {
-                if balances.isEmpty && header == nil {
+                if balances.isEmpty && footer == nil {
                     Text("No currencies to give")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
@@ -71,24 +72,6 @@ struct SelectCurrencyScreen<Header: View>: View {
                         .accessibilityIdentifier("give-picker-empty")
                 } else {
                     List {
-                        if let header {
-                            header
-                                .listRowInsets(EdgeInsets())
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-
-                            if let listTitle, !balances.isEmpty {
-                                Text(listTitle)
-                                    .font(.default(size: 15, weight: .semibold))
-                                    .foregroundStyle(Color.textMain.opacity(0.5))
-                                    .padding(.top, 24)
-                                    .padding(.bottom, 4)
-                                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparator(.hidden)
-                            }
-                        }
-
                         Section {
                             ForEach(balances) { balance in
                                 let enabled = isEnabled(balance)
@@ -108,6 +91,13 @@ struct SelectCurrencyScreen<Header: View>: View {
                             }
                         }
                         .listRowInsets(EdgeInsets())
+
+                        if let footer {
+                            footer
+                                .listRowInsets(EdgeInsets())
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
@@ -124,7 +114,7 @@ struct SelectCurrencyScreen<Header: View>: View {
     }
 }
 
-extension SelectCurrencyScreen where Header == EmptyView {
+extension SelectCurrencyScreen where Footer == EmptyView {
 
     /// Creates a picker listing only the giveable currencies.
     ///
@@ -137,11 +127,11 @@ extension SelectCurrencyScreen where Header == EmptyView {
         action: @escaping (ExchangedBalance) -> Void
     ) {
         self._isPresented = isPresented
+        self.excludesUSDF = false
         self.isEnabled = isEnabled
         self.isSelected = isSelected
         self.action = action
-        self.header = nil
-        self.listTitle = nil
+        self.footer = nil
     }
 }
 
