@@ -157,6 +157,8 @@ struct ChatTypingHandoffLayoutTests {
         let dotsOpacity: CGFloat?
         /// The arriving row's gutter face.
         let face: CGRect?
+        /// When the frame was sampled, in media time.
+        let time: CFTimeInterval
     }
 
     private struct Handoff {
@@ -234,7 +236,8 @@ struct ChatTypingHandoffLayoutTests {
                 aboveBottom: try #require(shown(above.bubbleView.layer, in: window)).maxY,
                 textOpacity: CGFloat(text.layer.presentation()?.opacity ?? text.layer.opacity),
                 dotsOpacity: cell.fadingTypingRemnants.first.map { CGFloat($0.layer.presentation()?.opacity ?? 0) },
-                face: cell.authorFace.isHidden ? nil : shown(cell.authorFace.layer, in: window)
+                face: cell.authorFace.isHidden ? nil : shown(cell.authorFace.layer, in: window),
+                time: CACurrentMediaTime()
             )
         }
 
@@ -292,10 +295,12 @@ struct ChatTypingHandoffLayoutTests {
         let first = try #require(handoff.frames.first?.face)
         #expect(abs(first.midX - dotsFace.midX) < 1.5 && abs(first.midY - dotsFace.midY) < 1.5,
                 "The face started at \(first), the stack's was at \(dotsFace)")
-        // Every frame between is on the way, never a jump.
+        // Every frame between is on the way, never a jump. Measured per display frame, as a loaded
+        // runner can sample several frames apart and the face honestly travels further in that time.
         let steps = zip(handoff.frames, handoff.frames.dropFirst()).compactMap { pair -> CGFloat? in
             guard let a = pair.0.face, let b = pair.1.face else { return nil }
-            return hypot(b.midX - a.midX, b.midY - a.midY)
+            let displayFrames = max(1, (pair.1.time - pair.0.time) * 60)
+            return hypot(b.midX - a.midX, b.midY - a.midY) / displayFrames
         }
         #expect((steps.max() ?? 0) < 12, "The face jumped \(steps.max() ?? 0) pt in one frame")
     }

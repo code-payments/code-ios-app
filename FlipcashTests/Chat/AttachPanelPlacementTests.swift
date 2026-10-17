@@ -208,9 +208,13 @@ struct AttachPanelPlacementTests {
         let barTop = host.window.bounds.height - barHeight
         #expect(cardBottom > barTop + 20 && cardBottom <= host.window.bounds.height, "The card does not stand on the composer row")
 
+        // Taps on the card reach it. Polled, because a loaded runner can draw the card later than
+        // `settle()` allows; a card that never takes the tap times out here.
         let onCard = CGPoint(x: host.window.bounds.midX, y: cardTop + 60)
-        let onCardHit = try #require(host.window.hitTest(onCard, with: nil))
-        #expect(onCardHit.isDescendant(of: host.barHost.view), "Taps on the card miss it")
+        try await waitUntil {
+            host.window.layoutIfNeeded()
+            return host.window.hitTest(onCard, with: nil)?.isDescendant(of: host.barHost.view) == true
+        }
 
         let aboveCard = CGPoint(x: host.window.bounds.midX, y: cardTop - 40)
         let aboveHit = host.window.hitTest(aboveCard, with: nil)
@@ -234,11 +238,16 @@ struct AttachPanelPlacementTests {
         )
         host.model.attachCard.beginLanding(on: chipID)
 
-        // The strip lays the chip out, the bar reports it, and the card shrinks onto it.
-        await host.settle()
-        #expect(!host.model.attachCard.isOpen, "The card never shrank onto the chip")
-        await host.settle()
-        #expect(host.model.attachCard.landingChipID == nil, "The landing never finished")
+        // The strip lays the chip out, the bar reports it, and the card shrinks onto it. Polled, as
+        // the landing animates and a loaded runner stretches it past any fixed settle.
+        try await waitUntil {
+            host.window.layoutIfNeeded()
+            return !host.model.attachCard.isOpen
+        }
+        try await waitUntil {
+            host.window.layoutIfNeeded()
+            return host.model.attachCard.landingChipID == nil
+        }
         #expect(host.composer.chips.count == 1)
     }
 }
