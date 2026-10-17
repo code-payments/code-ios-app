@@ -32,11 +32,10 @@ struct TipsUIScreen {
     /// The empty state, shown until the first tip conversation exists.
     var emptyState: XCUIElement { app.staticTexts["No Chats Yet"] }
 
-    /// The conversation rows, tip DMs and groups alike, matched by their `chat-row-*` identifier —
-    /// the list also holds the filter chips and the archived row, so a bare cell query lands on those.
-    private var conversationRows: XCUIElementQuery {
-        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'chat-row-'"))
-    }
+    /// The name on the DM the sending suites post in: the XCTests account's tip DM with Brandon McAnsh.
+    /// The account's groups can be public, so a send anywhere else (bar the "XCTest Bed" group)
+    /// reaches real people.
+    static let sendTargetName = "Brandon McAnsh"
 
     // MARK: - Actions
 
@@ -49,11 +48,14 @@ struct TipsUIScreen {
         )
     }
 
-    /// The first conversation's row button, once at least one exists. Waits
-    /// because the conversations hydrate asynchronously after the tab opens.
-    /// Returns `nil` when the account has no conversation — the caller skips.
-    func firstConversationRow(timeout: TimeInterval = 15) -> XCUIElement? {
-        let row = conversationRows.firstMatch
+    /// The row of the tip DM with `sendTargetName`, the only conversation a suite may send into.
+    /// Waits out the list's hydration, then returns `nil` when that DM is missing — the caller
+    /// skips, and never falls back to another chat.
+    func sendTargetDMRow(timeout: TimeInterval = 15) -> XCUIElement? {
+        let row = app.buttons.matching(NSPredicate(
+            format: "identifier == 'chat-row-tip-dm' AND label BEGINSWITH %@",
+            Self.sendTargetName
+        )).firstMatch
         return row.waitForExistence(timeout: timeout) ? row : nil
     }
 
