@@ -101,7 +101,7 @@ struct ChatListLaunchSyncTests {
         controller.start()
 
         try await waitUntil { ids(controller) == [.test(2), .test(1)] }
-        #expect(mock.groupFeedCalls == 1)
+        try await waitUntil { mock.groupFeedCalls == 1 }
         mock.releaseGroupFeed()
         try await waitUntil { ids(controller) == [.test(9), .test(2), .test(1)] }
         controller.stop()
