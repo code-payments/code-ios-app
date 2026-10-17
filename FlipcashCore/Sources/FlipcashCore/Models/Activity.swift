@@ -28,6 +28,10 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     /// withdrawals). Used to resolve an avatar and a richer name in feed rows.
     public let counterparty: Counterparty?
 
+    /// The reaction this payment boosted, when it was a boost. Not persisted: an activity restored
+    /// from the local database reports `nil` until the server's copy refreshes it.
+    public let boostedReaction: BoostedReaction?
+
     public var cancellableCashLinkMetadata: CashLinkMetadata? {
         switch state {
         case .pending:
@@ -48,7 +52,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         return nil
     }
 
-    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = [], counterparty: Counterparty? = nil) {
+    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = [], counterparty: Counterparty? = nil, boostedReaction: BoostedReaction? = nil) {
         self.id = id
         self.state = state
         self.kind = kind
@@ -58,6 +62,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         self.metadata = metadata
         self.textSubstitutions = textSubstitutions
         self.counterparty = counterparty
+        self.boostedReaction = boostedReaction
     }
 }
 
@@ -217,7 +222,8 @@ extension Activity {
             date: proto.ts.date,
             metadata: .init(proto.additionalMetadata),
             textSubstitutions: substitutions,
-            counterparty: .init(proto.additionalMetadata)
+            counterparty: .init(proto.additionalMetadata),
+            boostedReaction: .init(proto.additionalMetadata)
         )
     }
 

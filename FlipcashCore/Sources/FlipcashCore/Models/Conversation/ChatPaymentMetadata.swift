@@ -20,6 +20,10 @@ public enum ChatPaymentMetadata: Sendable {
     /// A Send Cash payment to a member of a group chat. The destination owner account names the
     /// recipient; the server denies a tip, so the action is always `SEND`.
     case groupPayment(chatID: ConversationID)
+    /// A payment that boosts the payer's own reaction with `emoji` on a message in a group chat.
+    /// The payer must already have reacted; the server splits the payment between the message's
+    /// sender and the group's creator and posts no message into the chat.
+    case reactionBoost(chatID: ConversationID, messageID: MessageID, emoji: String)
 
     /// The chat this payment posts into.
     public var chatID: ConversationID {
@@ -30,6 +34,8 @@ public enum ChatPaymentMetadata: Sendable {
             return chatID
         case .groupPayment(let chatID):
             return chatID
+        case .reactionBoost(let chatID, _, _):
+            return chatID
         }
     }
 
@@ -38,7 +44,7 @@ public enum ChatPaymentMetadata: Sendable {
     /// carries instead of re-deriving it.
     public var isTip: Bool {
         switch self {
-        case .contactDm, .groupPayment:
+        case .contactDm, .groupPayment, .reactionBoost:
             return false
         case .tipDm(_, _, let action):
             return action == .tip
@@ -64,6 +70,11 @@ public enum ChatPaymentMetadata: Sendable {
                     }
                 case .groupPayment:
                     $0.groupPayment = .with { $0.action = .send }
+                case .reactionBoost(_, let messageID, let emoji):
+                    $0.reactionBoost = .with {
+                        $0.messageID = messageID.proto
+                        $0.emoji = .with { $0.value = emoji }
+                    }
                 }
             }
         }.serializedData()

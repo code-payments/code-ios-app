@@ -138,3 +138,44 @@ extension Activity.SwapMetadata {
         )
     }
 }
+
+extension Activity {
+    /// The reaction a payment boosted: the payer's reaction with `emoji` on a message in a group
+    /// chat. Describes what the payment was for when it was made; the message may since have been
+    /// deleted and the viewer may no longer be a member of the chat.
+    public struct BoostedReaction: Sendable, Equatable, Hashable {
+        public let conversationID: ConversationID
+        public let messageID: MessageID
+        public let emoji: String
+
+        public init(conversationID: ConversationID, messageID: MessageID, emoji: String) {
+            self.conversationID = conversationID
+            self.messageID = messageID
+            self.emoji = emoji
+        }
+    }
+}
+
+extension Activity.BoostedReaction {
+    init(_ proto: Flipcash_Activity_V1_BoostedReaction) {
+        self.init(
+            conversationID: ConversationID(proto.chatID),
+            messageID: MessageID(proto.messageID),
+            emoji: proto.emoji.value
+        )
+    }
+
+    /// The boosted reaction a send or receive notification carries; `nil` for other kinds and for
+    /// payments that boosted nothing.
+    init?(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
+        switch proto {
+        case .directlySentCrypto(let metadata) where metadata.hasBoostedReaction:
+            self.init(metadata.boostedReaction)
+        case .receivedCrypto(let metadata) where metadata.hasBoostedReaction:
+            self.init(metadata.boostedReaction)
+        case .directlySentCrypto, .receivedCrypto, .withdrewCrypto, .indirectlySentCrypto,
+             .depositedCrypto, .boughtCrypto, .soldCrypto, .swappedCrypto, .none:
+            return nil
+        }
+    }
+}

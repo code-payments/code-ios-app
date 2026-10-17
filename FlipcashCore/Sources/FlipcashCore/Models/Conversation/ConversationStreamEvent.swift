@@ -76,21 +76,31 @@ public struct DecodedReactionUpdate: Hashable, Sendable {
     public let messageID: MessageID
     public let emoji: String
     public let actor: UserID
-    /// True for an add, false for a remove.
+    /// True for an add or a boost, false for a remove. A boost adds the actor's reaction when it is
+    /// absent, so it applies to reaction state as an add.
     public let added: Bool
+    /// True when the actor paid to boost the emoji. Such a reaction cannot be removed afterwards.
+    public let boosted: Bool
     /// The emoji's total reactor count after the change.
     public let count: UInt64
     public let version: UInt64
     public let reactedAt: Date?
+    /// The emoji's total boost after the change, in USD.
+    public let boostUSD: Double
+    /// The actor's own total boost on the emoji after the change, in USD; 0 unless `boosted`.
+    public let actorBoostUSD: Double
 
-    public init(messageID: MessageID, emoji: String, actor: UserID, added: Bool, count: UInt64, version: UInt64, reactedAt: Date?) {
+    public init(messageID: MessageID, emoji: String, actor: UserID, added: Bool, boosted: Bool = false, count: UInt64, version: UInt64, reactedAt: Date?, boostUSD: Double = 0, actorBoostUSD: Double = 0) {
         self.messageID = messageID
         self.emoji = emoji
         self.actor = actor
         self.added = added
+        self.boosted = boosted
         self.count = count
         self.version = version
         self.reactedAt = reactedAt
+        self.boostUSD = boostUSD
+        self.actorBoostUSD = actorBoostUSD
     }
 }
 
@@ -98,9 +108,11 @@ extension DecodedReactionUpdate {
     /// Nil for an update whose action this client does not know or whose actor does not parse.
     init?(_ proto: Flipcash_Messaging_V1_ReactionUpdate) {
         let added: Bool
+        let boosted: Bool
         switch proto.action {
-        case .added: added = true
-        case .removed: added = false
+        case .added: (added, boosted) = (true, false)
+        case .removed: (added, boosted) = (false, false)
+        case .boosted: (added, boosted) = (true, true)
         case .unknown, .UNRECOGNIZED: return nil
         }
         guard let actor = try? UUID(data: proto.actor.value) else { return nil }
@@ -109,9 +121,12 @@ extension DecodedReactionUpdate {
             emoji: proto.emoji.value,
             actor: actor,
             added: added,
+            boosted: boosted,
             count: proto.count,
             version: proto.version,
-            reactedAt: proto.hasReactedTs ? proto.reactedTs.date : nil
+            reactedAt: proto.hasReactedTs ? proto.reactedTs.date : nil,
+            boostUSD: proto.boostUsd,
+            actorBoostUSD: proto.actorBoostUsd
         )
     }
 }
