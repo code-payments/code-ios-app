@@ -43,9 +43,12 @@ struct SettingsUIScreen {
     /// version footer has unlocked beta access.
     var switchAccountsRow: XCUIElement { app.buttons["account-switch-accounts-row"] }
 
-    /// The version string at the foot of Settings, which doubles as the
-    /// beta-access easter egg.
-    var versionFooter: XCUIElement { app.buttons["you-version-footer"] }
+    /// The version card at the foot of Settings, which doubles as the
+    /// beta-access easter egg. A tap-gesture container rather than a button, so
+    /// it is matched on identifier alone.
+    var versionFooter: XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "you-version-footer").firstMatch
+    }
 
     /// The toast the version footer raises, matched on the message it carries.
     ///
