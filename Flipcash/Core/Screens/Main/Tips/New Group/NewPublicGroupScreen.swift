@@ -99,6 +99,8 @@ struct NewPublicGroupScreen: View {
         .sheet(isPresented: $isPickingCurrency) {
             SelectCurrencyScreen(
                 isPresented: $isPickingCurrency,
+                // Dollars isn't a community currency; "Any Community Currency" is the last row.
+                excludesUSDF: true,
                 // The check follows the requirement's mint, not the wallet's denomination — this
                 // screen is picking what the gate weighs, not what the balance is shown in.
                 isSelected: { $0.stored.mint == model.currency.mint }

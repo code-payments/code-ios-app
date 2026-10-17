@@ -312,6 +312,20 @@ struct NewPublicGroupModelTests {
         ))
     }
 
+    // MARK: - The currency picker -
+
+    @Test("The picker's list drops Dollars and keeps every other balance")
+    func excludingUSDFDropsOnlyDollars() {
+        let balances: [ExchangedBalance] = [
+            .makeTest(mint: .usdf, quarks: 1_000_000),
+            .makeTest(mint: .jeffy),
+        ]
+
+        let listed = balances.excludingUSDF()
+
+        #expect(listed.map(\.stored.mint) == [.jeffy])
+    }
+
     // MARK: - The creator's own balance -
 
     @Test("Create stays disabled while the creator is short of the bar they drew")
