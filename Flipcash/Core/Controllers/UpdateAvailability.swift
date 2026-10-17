@@ -14,8 +14,8 @@ nonisolated private let logger = Logger(label: "flipcash.update-availability")
 /// Whether a newer App Store version exists, and whether the one-time "New version available" toast
 /// may show for it.
 ///
-/// Checks the App Store lookup and the repo's release manifest when the app becomes active, at most
-/// once per ``UpdatePolicy/checkInterval``, and keeps the last result across launches. Only a store
+/// Checks the App Store lookup and the repo's release manifest when the app becomes active: every time
+/// it returns from the background, otherwise at most once per ``UpdatePolicy/checkInterval``. Keeps the last result across launches. Only a store
 /// build looks up the store, so debug, TestFlight and other builds never report a store update; every
 /// build reads the manifest for the newest TestFlight build.
 @MainActor
@@ -55,6 +55,8 @@ final class UpdateAvailability {
     @ObservationIgnored private let fetch: @Sendable (URL) async throws -> Data
     @ObservationIgnored private let installChannel: () async -> InstallChannel
     @ObservationIgnored private var lastManifestCheck: Date?
+    /// Set while the app is in the background, so the next ``refresh()`` skips the interval.
+    @ObservationIgnored private var resumesFromBackground = false
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var storeDelegate: StoreProductDelegate?
     @ObservationIgnored private var shownToastID: ToastController.Toast.ID?
@@ -86,18 +88,28 @@ final class UpdateAvailability {
 
     // MARK: - Check -
 
-    /// Starts a store check unless one ran within ``UpdatePolicy/checkInterval`` or one is under way.
-    func refresh() {
-        guard refreshTask == nil else { return }
+    /// Marks the app as gone to the background, so the check on its return runs whenever the last one did.
+    func appDidEnterBackground() {
+        resumesFromBackground = true
+    }
+
+    /// Starts a store check unless one is under way or, outside a return from the background, one ran
+    /// within ``UpdatePolicy/checkInterval``. Returns whether it started one.
+    @discardableResult
+    func refresh() -> Bool {
+        guard refreshTask == nil else { return false }
         #if DEBUG
-        if Self.hasDebugOverride { return }
+        if Self.hasDebugOverride { return false }
         #endif
-        if let lastCheck = result?.checkedAt ?? lastManifestCheck,
-           now().timeIntervalSince(lastCheck) < UpdatePolicy.checkInterval { return }
+        if !resumesFromBackground,
+           let lastCheck = result?.checkedAt ?? lastManifestCheck,
+           now().timeIntervalSince(lastCheck) < UpdatePolicy.checkInterval { return false }
+        resumesFromBackground = false
         refreshTask = Task {
             await check()
             refreshTask = nil
         }
+        return true
     }
 
     /// Runs one check and records what it found. Every build reads the manifest for the newest TestFlight
