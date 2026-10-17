@@ -1,5 +1,31 @@
 What to test in this build
 
+New in this release — verify each end to end:
+• Create private groups.
+• Share photos and text into chats from other apps.
+• Paste or drop images into the message composer.
+• Forward a message through the share sheet.
+• Links in messages show a preview card with the page's image and title.
+• Links to messages open the linked message and appear as a message card.
+• Jump to the newest message with a button that shows how many you missed.
+• Skip the leaving-Flipcash warning for sites you trust.
+• Flipcash tells you when a newer version is on the App Store, checking each time you return to the app.
+• Settings shows your app version and flags when an update is available.
+• Trusted Websites always appears in Settings.
+• Tap the photo viewer to hide its buttons.
+• Tapping the avatar beside a photo opens that person's profile.
+• The unread dot in the chat list is blue and smaller.
+• Leave Chat stays clear of the bottom edge while you scroll a profile.
+• The attach menu, card, and camera preview work reliably again.
+• System messages appear in chats.
+• Opening a group's profile from an invite card works.
+• The mention picker works when the cursor sits inside an emoji or accented character.
+• Link previews in the composer load for restored drafts and come back if you edit the link out.
+• The reply strip no longer shows through the jump-to-bottom button.
+• Unselected tab icons and labels are white on every iOS version.
+• Sharing some web links into Flipcash works.
+• The share extension and some captions use the app font.
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
