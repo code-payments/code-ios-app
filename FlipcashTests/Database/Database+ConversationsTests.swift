@@ -500,6 +500,31 @@ struct DatabaseConversationsTests {
         #expect(ciphertext == Data([0x01, 0x02, 0x03, 0x04]))
     }
 
+    @Test("System messages round-trip their join event, and plain system text reads back with none")
+    func systemMessageRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let joiner = UUID()
+        let admitter = UUID()
+        func system(_ n: UInt64, _ event: ConversationMessage.SystemEvent?) -> ConversationMessage {
+            ConversationMessage(id: MessageID(value: n), senderID: nil, content: .system(fallbackText: "notice \(n)", event: event),
+                                date: Date(timeIntervalSince1970: TimeInterval(n)), unreadSeq: n)
+        }
+        try database.upsertConversationMessages(
+            [system(1, .userJoined(userID: joiner, admittedBy: nil)),
+             system(2, .userJoined(userID: joiner, admittedBy: admitter)),
+             system(3, nil)],
+            conversationID: id
+        )
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded.map(\.content) == [
+            .system(fallbackText: "notice 1", event: .userJoined(userID: joiner, admittedBy: nil)),
+            .system(fallbackText: "notice 2", event: .userJoined(userID: joiner, admittedBy: admitter)),
+            .system(fallbackText: "notice 3", event: nil),
+        ])
+    }
+
     @Test("A media message round-trips its attachment, caption, and reply target")
     func mediaMessageRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

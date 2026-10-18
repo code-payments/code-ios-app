@@ -384,6 +384,11 @@ nonisolated public struct ConversationMessageTable: Sendable {
     public let mediaJson      = Expression <Data?>         ("mediaJson")
     // JSON-encoded `MessageLinkPreview` of a `.text` row; nil when it carries none.
     public let linkPreviewJson = Expression <Data?>        ("linkPreviewJson")
+    // A `kind` 6 row's `SystemEvent.userJoined`: the user who joined and, when admitted, who admitted
+    // them. Both nil for plain system text and every other row; a row decodes an event only when
+    // `systemUserId` is set.
+    public let systemUserId   = Expression <UUID?>         ("systemUserId")
+    public let systemAdmittedBy = Expression <UUID?>       ("systemAdmittedBy")
 }
 
 
@@ -666,6 +671,8 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.reactionsJson)
                     t.column(conversationMessageTable.mediaJson)
                     t.column(conversationMessageTable.linkPreviewJson)
+                    t.column(conversationMessageTable.systemUserId)
+                    t.column(conversationMessageTable.systemAdmittedBy)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
                 })
             }

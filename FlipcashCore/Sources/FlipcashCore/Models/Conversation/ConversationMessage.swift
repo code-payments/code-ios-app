@@ -60,8 +60,28 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         /// ``ConversationMessage/redacted`` saying its bytes may not be fetched.
         case media([MediaAttachment], caption: String?)
         /// A server-authored notice (for example "Alex joined the group"), drawn as a transcript row
-        /// rather than a bubble. Blank text is stored as `""` and draws nothing.
-        case system(fallbackText: String)
+        /// rather than a bubble. Blank text is stored as `""` and draws nothing. `event` is the
+        /// structured fact behind the notice, when the server sent one this build understands.
+        case system(fallbackText: String, event: SystemEvent?)
+    }
+
+    /// The structured fact a system notice reports, which lets the client name the users involved
+    /// instead of showing the server's fallback text.
+    public enum SystemEvent: Hashable, Sendable {
+        /// `userID` joined the group, directly or, when `admittedBy` is set, admitted by that user.
+        case userJoined(userID: UserID, admittedBy: UserID?)
+
+        /// The users this event names, in reading order, without duplicates and without `selfID`.
+        public func namedUserIDs(excluding selfID: UserID?) -> [UserID] {
+            switch self {
+            case .userJoined(let userID, let admittedBy):
+                var ids: [UserID] = []
+                for id in [admittedBy, userID].compactMap({ $0 }) where id != selfID && !ids.contains(id) {
+                    ids.append(id)
+                }
+                return ids
+            }
+        }
     }
 
     /// The widget a `.widget` message carries. Sent in the clear only: the E2EE allow-list is text,
@@ -298,7 +318,17 @@ extension ConversationMessage {
 extension ConversationMessage {
     /// `true` for a system message with no text, which draws nothing and has nothing to preview.
     public var isBlankSystem: Bool {
-        if case .system("") = content { true } else { false }
+        if case .system("", _) = content { true } else { false }
+    }
+
+    /// The users a system notice names, deduplicated and without `selfID`; empty for every other message.
+    public func systemNoticeUserIDs(excluding selfID: UserID?) -> [UserID] {
+        switch content {
+        case .system(_, let event):
+            event?.namedUserIDs(excluding: selfID) ?? []
+        case .text, .cash, .deleted, .encrypted, .widget, .media:
+            []
+        }
     }
 }
 
@@ -476,11 +506,31 @@ extension ConversationMessage.Content {
     }
 
     /// The `.system` content `proto` describes. Blank text becomes `""` and is kept, not dropped, so the
-    /// message still anchors the read pointer and the unread divider. Only `fallback_text` is read, so
-    /// every `type` variant (`UserJoined` today) and an unset one render as their fallback text.
+    /// message still anchors the read pointer and the unread divider. A `user_joined` with a valid
+    /// `user_id` becomes an event; an unset or unknown `type`, or an invalid `user_id`, leaves only the
+    /// fallback text.
     init(_ proto: Flipcash_Messaging_V1_SystemContent) {
         let text = proto.fallbackText
-        self = .system(fallbackText: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : text)
+        self = .system(
+            fallbackText: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : text,
+            event: Self.event(for: proto)
+        )
+    }
+
+    private static func event(for proto: Flipcash_Messaging_V1_SystemContent) -> ConversationMessage.SystemEvent? {
+        switch proto.type {
+        case .userJoined(let joined):
+            guard joined.hasUserID, let userID = try? UUID(data: joined.userID.value) else { return nil }
+            switch joined.method {
+            case .admitted(let admitted):
+                let admitter = admitted.hasAdmittedBy ? try? UUID(data: admitted.admittedBy.value) : nil
+                return .userJoined(userID: userID, admittedBy: admitter)
+            case .direct, .none:
+                return .userJoined(userID: userID, admittedBy: nil)
+            }
+        case .none:
+            return nil
+        }
     }
 
     /// The `.media` content `proto` describes, or `nil` when its first item has no ORIGINAL rendition.
