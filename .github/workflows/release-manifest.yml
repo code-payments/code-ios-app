@@ -3,7 +3,9 @@ name: Update release manifest
 # Raise testflight.build in main's .well-known/release-manifest.json to the
 # newest processed TestFlight build, without deploying. deploy.yml does the
 # same after a waited deploy; this covers builds that reached TestFlight some
-# other way. Commits straight to main, so it needs a PAT.
+# other way, such as the Xcode Cloud build a release tag starts. Runs every 30
+# minutes so those land without anyone dispatching it; a run that finds no newer
+# build commits nothing. Commits straight to main, so it needs a PAT.
 #
 # Required repository secrets:
 #   ASC_KEY_ID       - App Store Connect API Key ID
@@ -15,6 +17,8 @@ name: Update release manifest
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
 
 concurrency:
   group: release-manifest
