@@ -113,6 +113,8 @@ Run from the repo root.
 
 Act on an already-built build without triggering a new one: `fastlane distribute group:'<Group>' [build:<number>] [notes_file:<path>]` — `group:` and `notes_file:` are independently optional, so this also re-writes the notes on a build that's already with its testers. Dry-run the upload half with `fastlane distribute group:'<Group>' dry_run:true` — it confirms the group resolves and reports which build it would act on (and whether it's processed), without changing anything and without blocking.
 
+**The release manifest records the build by itself.** Every real `fastlane deploy` dispatches `release-manifest.yml` (through `gh`), which waits for the build to process and commits its number to `main`, so TestFlight installs see it. If the lane prints that the dispatch failed, run the command it gives once the build processes.
+
 **From GitHub instead of locally:** the same flow is exposed as the `Deploy to TestFlight (Xcode Cloud)` workflow (`.github/workflows/deploy.yml`) — Actions tab → Run workflow → pick a branch. It runs the lane on an ubuntu runner using the repo's ASC secrets, and assigns to the `TESTFLIGHT_GROUP` secret when the group field is left blank. Its `notes` field is the "What to Test" — a single-line box, so line breaks go in as literal `\n` and the workflow expands them. Point users there when they can't or don't want to run fastlane locally.
 
 ## Report

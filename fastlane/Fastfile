@@ -197,6 +197,7 @@ platform :ios do
 
     UI.success("🚀 Started '#{workflow_name}' build ##{run[:number]} for #{branch}")
     UI.message("Track it in App Store Connect → Xcode Cloud → Builds.")
+    dispatch_release_manifest_update
 
     next if group_name.nil? && notes.nil?
 
@@ -741,13 +742,49 @@ platform :ios do
 
   desc "Raise testflight.build in .well-known/release-manifest.json to the newest processed build"
   desc "Usage: fastlane update_release_manifest"
-  desc "Edits the working tree only; the deploy workflow commits it to main. Never lowers the build."
-  lane :update_release_manifest do
-    build_number = newest_processed_build_number(asc_app)
+  desc "       fastlane update_release_manifest wait:true   # first wait for a build newer than the manifest's"
+  desc "Edits the working tree only; the release-manifest workflow commits it to main. Never lowers the build."
+  lane :update_release_manifest do |options|
+    build_number =
+      if options[:wait].to_s == "true"
+        wait_for_newer_processed_build(manifest_testflight_build)
+      else
+        newest_processed_build_number(asc_app)
+      end
     UI.message("Newest processed TestFlight build: #{build_number || '(none)'}")
 
     manifest, changed = ReleaseManifest.update_file(RELEASE_MANIFEST_PATH, testflight_build: build_number)
     UI.message(changed ? "Release manifest now: #{JSON.generate(manifest)}" : "Release manifest already current")
+  end
+
+  # The testflight.build the committed manifest names, or nil when it names none.
+  def manifest_testflight_build
+    JSON.parse(File.read(RELEASE_MANIFEST_PATH)).dig("testflight", "build")
+  end
+
+  # Polls until a processed build newer than `current` exists and returns its number. Fetches
+  # through `asc_app` each poll so the token is re-minted, as in `wait_for_build_run`.
+  def wait_for_newer_processed_build(current, timeout: 75 * 60, interval: 30)
+    waited = 0
+    loop do
+      newest = newest_processed_build_number(asc_app)
+      return newest if newest && (current.nil? || newest.to_i > current.to_i)
+
+      UI.message("Waiting for a processed build newer than #{current || '(none)'} (newest: #{newest || '(none)'})")
+      UI.user_error!("Timed out after #{timeout / 60} min waiting for a newer processed build") if waited >= timeout
+      sleep(interval)
+      waited += interval
+    end
+  end
+
+  # Starts the release-manifest workflow, which waits for this build to process and records it on
+  # main. Best-effort: a failed dispatch prints the command to run instead of failing the deploy.
+  def dispatch_release_manifest_update
+    command = "gh workflow run release-manifest.yml --ref main -f wait=true"
+    sh(command, log: false)
+    UI.message("Started the release-manifest workflow; it records the build once it processes.")
+  rescue StandardError => e
+    UI.important("Couldn't start the release-manifest workflow (#{e.message.lines.first&.strip}). Run `#{command}` once the build processes.")
   end
 
   # Records the version being released as production.version and resets production.priority to 0.

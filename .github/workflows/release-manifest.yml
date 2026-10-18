@@ -1,9 +1,12 @@
 name: Update release manifest
 
 # Raise testflight.build in main's .well-known/release-manifest.json to the
-# newest processed TestFlight build, without deploying. deploy.yml does the
-# same after a waited deploy; this covers builds that reached TestFlight some
-# other way. Commits straight to main, so it needs a PAT.
+# newest processed TestFlight build. Every route to TestFlight starts it:
+#   - a pushed flipcash-* tag, whose Xcode Cloud build this waits for;
+#   - `fastlane deploy`, locally or from deploy.yml, which dispatches it with wait;
+#   - an hourly schedule, catching a dispatch the concurrency group dropped or a
+#     wait that timed out. A run that finds nothing newer commits nothing.
+# Commits straight to main, so it needs a PAT.
 #
 # Required repository secrets:
 #   ASC_KEY_ID       - App Store Connect API Key ID
@@ -14,7 +17,17 @@ name: Update release manifest
 #                      cannot push to main here)
 
 on:
+  push:
+    tags: ['flipcash-*']
   workflow_dispatch:
+    inputs:
+      wait:
+        description: Wait for a build newer than the manifest's to finish processing
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "0 * * * *"
 
 concurrency:
   group: release-manifest
@@ -23,7 +36,7 @@ concurrency:
 jobs:
   update-manifest:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 90
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -45,7 +58,8 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
           APP_IDENTIFIER: ${{ secrets.APP_IDENTIFIER }}
-        run: fastlane update_release_manifest
+          WAIT: ${{ github.event_name == 'push' || inputs.wait }}
+        run: fastlane update_release_manifest wait:"$WAIT"
 
       - name: Commit & push release manifest to main
         env:
