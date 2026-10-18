@@ -133,6 +133,17 @@ extension RatesController {
 
 Place test support extensions in `FlipcashTests/TestSupport/` using the naming pattern `{Type}+TestSupport.swift`.
 
+## UI Tests That Send Messages
+
+UI test sends are real: they reach the server and every member of the chat. The standing XCTests
+account belongs to public groups, so a send there posts to real people.
+
+- Send only into the XCTests ↔ Brandon McAnsh tip DM (opened through
+  `TipsUIScreen.sendTargetDMRow()`) or the "XCTest Bed" group. Find the target by name; when it
+  is missing, skip, and never fall back to another row.
+- Never post to any other group from a test, or while driving the app on the standing account,
+  unless the user approves that send.
+
 ## CI Compatibility
 
 **All tests must work on both Xcode Cloud and locally.** Never use APIs that are sandboxed or unavailable on Xcode Cloud:

@@ -96,12 +96,13 @@ struct ChatListLaunchSyncTests {
         let mock = MockConversations()
         mock.feed = [tipDm(1, activity: 100), tipDm(2, activity: 200)]
         mock.groupFeed = [group(9, activity: 300)]
-        mock.groupFeedDelay = .milliseconds(800)
+        mock.holdGroupFeed()
         let controller = makeController(mock, database: db, timing: .init(feedCap: .milliseconds(100), unreadCap: .milliseconds(100)))
         controller.start()
 
         try await waitUntil { ids(controller) == [.test(2), .test(1)] }
-        #expect(mock.groupFeedCalls == 1)
+        try await waitUntil { mock.groupFeedCalls == 1 }
+        mock.releaseGroupFeed()
         try await waitUntil { ids(controller) == [.test(9), .test(2), .test(1)] }
         controller.stop()
     }
@@ -266,13 +267,12 @@ private final class ListObserver {
 @Suite("BoundedWait", .timingSensitive)
 struct BoundedWaitTests {
 
-    @Test("returns when every unit has signalled, ahead of the cap")
+    // The cap is far past the time limit, so returning at all means the signals ended the wait.
+    @Test("returns when every unit has signalled, ahead of the cap", .timeLimit(.minutes(1)))
     func returnsWhenDone() async {
         let wait = BoundedWait(expecting: 2)
         Task { wait.signal(); wait.signal() }
-        let start = ContinuousClock.now
-        await wait.wait(upTo: .seconds(10))
-        #expect(ContinuousClock.now - start < .seconds(5))
+        await wait.wait(upTo: .seconds(3600))
         #expect(wait.isClosed)
     }
 

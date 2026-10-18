@@ -12,8 +12,8 @@ import XCTest
 /// Every message is one the test account sends into an existing DM, so the suite needs no second
 /// device — a message you sent carries `.reply` like any other.
 ///
-/// **Prerequisites:** the `FLIPCASH_UI_TEST_ACCESS_KEY` account needs at least one chat
-/// conversation. With none, each test skips rather than fails.
+/// **Prerequisites:** the `FLIPCASH_UI_TEST_ACCESS_KEY` account (XCTests) has a tip DM with Brandon
+/// McAnsh. Every send goes there and nowhere else; without it, each test skips rather than fails.
 ///
 /// **Not covered here:** the anchor move behind "tap a quote to jump to the original". Proving it
 /// needs the original far enough off-screen that a jump is observable, which costs a dozen network
@@ -161,17 +161,16 @@ final class ChatReplySmokeTests: BaseUITestCase {
 
     // MARK: - Helpers
 
-    /// Opens the account's first chat, skipping the test when it has none — the suite drives an
-    /// existing conversation rather than creating one, so an empty list is a missing fixture and
-    /// not a defect.
+    /// Opens the DM with `TipsUIScreen.sendTargetName`, skipping the test when it is missing — the
+    /// suite sends only there, so a missing DM is a missing fixture and not a defect.
     private func openConversation() throws {
         assertMainScreenReached()
 
         let chats = TipsUIScreen(app: app)
         chats.open(from: self)
 
-        guard let row = chats.firstConversationRow(timeout: 30) else {
-            throw XCTSkip("The test account has no chat conversation — skipping the reply suite. On screen: [\(visibleText())]")
+        guard let row = chats.sendTargetDMRow(timeout: 30) else {
+            throw XCTSkip("No DM with \(TipsUIScreen.sendTargetName) — skipping the reply suite. On screen: [\(visibleText())]")
         }
         row.tap()
 
@@ -201,8 +200,8 @@ final class ChatReplySmokeTests: BaseUITestCase {
     /// Opens the same chat again from the list, so a persisted draft has to be read back off disk.
     private func reopenConversation() throws {
         let chats = TipsUIScreen(app: app)
-        guard let row = chats.firstConversationRow(timeout: 30) else {
-            throw XCTSkip("The chat list came back empty after leaving the conversation")
+        guard let row = chats.sendTargetDMRow(timeout: 30) else {
+            throw XCTSkip("The DM with \(TipsUIScreen.sendTargetName) left the list after leaving it")
         }
         row.tap()
 

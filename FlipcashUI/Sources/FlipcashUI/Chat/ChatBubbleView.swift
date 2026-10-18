@@ -63,7 +63,10 @@ public final class ChatBubbleView: UIView {
     /// The action capsule sits under the body and takes over the body's bottom inset.
     private var actionTop: NSLayoutConstraint!
     private var actionBottom: NSLayoutConstraint!
+    /// Active only while the capsule shows: a hidden button keeps its intrinsic width and would
+    /// hold every text bubble at least that wide.
     private var actionLeading: NSLayoutConstraint!
+    private var actionTrailing: NSLayoutConstraint!
     /// Whether the row currently draws bare, so `maskingPath` can decline to clip a lift preview to
     /// a bubble that is not drawn.
     private var isBare = false
@@ -166,6 +169,7 @@ public final class ChatBubbleView: UIView {
         actionTop = actionButton.topAnchor.constraint(equalTo: detailLabel.bottomAnchor, constant: Self.updateSpacing)
         actionBottom = actionButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.updateInsetVertical)
         actionLeading = actionButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.updateInsetHorizontal)
+        actionTrailing = actionButton.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -Self.updateInsetHorizontal)
 
         NSLayoutConstraint.activate(quoteCollapse + [
             background.topAnchor.constraint(equalTo: topAnchor),
@@ -187,9 +191,6 @@ public final class ChatBubbleView: UIView {
             detailLabel.topAnchor.constraint(equalTo: label.bottomAnchor, constant: Self.updateSpacing),
             detailLabel.leadingAnchor.constraint(equalTo: label.leadingAnchor),
             detailLabel.trailingAnchor.constraint(equalTo: label.trailingAnchor),
-
-            actionLeading,
-            actionButton.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -Self.updateInsetHorizontal),
 
             // Bottom-trailing corner: the body's reservation run keeps the space clear, so the
             // marker lands on the last line where it fits and on the wrapped line where it doesn't.
@@ -245,12 +246,13 @@ public final class ChatBubbleView: UIView {
         detailLabel.text = isUpdateBubble ? ChatMessage.UnavailableHint.updateApp.text : nil
         detailLabel.isHidden = !isUpdateBubble
         NSLayoutConstraint.deactivate([
-            labelBottom, hintBottom, detailBottom, actionTop, actionBottom, backgroundBottomToLabel, backgroundBottomToBounds,
+            labelBottom, hintBottom, detailBottom, actionTop, actionBottom, actionLeading, actionTrailing,
+            backgroundBottomToLabel, backgroundBottomToBounds,
         ])
         if hint != nil {
             NSLayoutConstraint.activate([backgroundBottomToLabel, hintBottom])
         } else if showsAction {
-            NSLayoutConstraint.activate([backgroundBottomToBounds, actionTop, actionBottom])
+            NSLayoutConstraint.activate([backgroundBottomToBounds, actionTop, actionBottom, actionLeading, actionTrailing])
         } else if isUpdateBubble {
             NSLayoutConstraint.activate([backgroundBottomToBounds, detailBottom])
         } else {
