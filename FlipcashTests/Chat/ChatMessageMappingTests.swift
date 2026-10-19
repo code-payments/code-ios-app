@@ -126,6 +126,40 @@ struct ChatMessageMappingTests {
         #expect(messageRows(items).map(\.content) == [.unavailable(.updateApp)])
     }
 
+    private func joinNotice(_ event: ConversationMessage.SystemEvent?) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: 1), senderID: nil,
+            content: .system(fallbackText: "Server fallback", event: event),
+            date: base, unreadSeq: 1
+        )
+    }
+
+    private func systemTexts(_ items: [ChatItem]) -> [String] {
+        items.compactMap { if case .systemMessage(_, let text) = $0 { text } else { nil } }
+    }
+
+    @Test("a join notice renders the names it is about")
+    func systemJoinRendersNames() {
+        let items = ChatItem.from(
+            [joinNotice(.userJoined(userID: them, admittedBy: nil))],
+            selfUserID: me,
+            nameOf: { $0 == self.them ? "Ada" : nil }
+        )
+        #expect(systemTexts(items) == ["Ada joined the group"])
+    }
+
+    @Test("a join notice with an unknown name renders the server's fallback text")
+    func systemJoinFallsBack() {
+        let items = ChatItem.from([joinNotice(.userJoined(userID: them, admittedBy: nil))], selfUserID: me)
+        #expect(systemTexts(items) == ["Server fallback"])
+    }
+
+    @Test("the viewer's own join reads as You")
+    func systemJoinViewer() {
+        let items = ChatItem.from([joinNotice(.userJoined(userID: me, admittedBy: nil))], selfUserID: me)
+        #expect(systemTexts(items) == ["You joined the group"])
+    }
+
     @Test("a group's resend hint names the message's author, not the empty DM counterpart")
     func decryptFailureHintNamesGroupAuthor() {
         let items = ChatItem.from(

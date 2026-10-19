@@ -1756,6 +1756,68 @@ struct ConversationControllerTests {
         #expect(controller.unnamedLastMessageSenders(in: conversations, knownAuthors: knownAuthors) == [unknown])
     }
 
+    private func noticeConversation(
+        _ event: ConversationMessage.SystemEvent?,
+        members: [ConversationMember] = []
+    ) -> Conversation {
+        Conversation(
+            id: ConversationID.test(1),
+            members: members,
+            lastMessage: ConversationMessage(
+                id: MessageID(value: 1),
+                senderID: nil,
+                content: .system(fallbackText: "Someone joined", event: event),
+                date: Date(timeIntervalSince1970: 1),
+                unreadSeq: 1
+            ),
+            lastActivity: Date(timeIntervalSince1970: 1),
+            type: .group
+        )
+    }
+
+    @Test("a join notice previews with the names of the users it is about")
+    func systemJoinPreviewNamesUsers() {
+        let me = UUID(), ada = UUID(), bob = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+        let roster = [member(ada, named: "Ada")]
+        let known = KnownAuthorDirectory.Snapshot(membersByUserID: [bob: member(bob, named: "Bob")])
+
+        let direct = noticeConversation(.userJoined(userID: ada, admittedBy: nil), members: roster)
+        #expect(controller.lastMessagePreview(for: direct, knownAuthors: known) { _ in nil } == "Ada joined the group")
+
+        let admitted = noticeConversation(.userJoined(userID: bob, admittedBy: ada), members: roster)
+        #expect(controller.lastMessagePreview(for: admitted, knownAuthors: known) { _ in nil } == "Ada added Bob")
+    }
+
+    @Test("a join notice with an unknown name previews the server's fallback text")
+    func systemJoinPreviewFallsBack() {
+        let controller = makeController(MockConversations(), selfUserID: UUID())
+        let conversation = noticeConversation(.userJoined(userID: UUID(), admittedBy: nil))
+        #expect(controller.lastMessagePreview(for: conversation) { _ in nil } == "Someone joined")
+    }
+
+    @Test("a joiner with no name or handle previews as the generic Flipcash User")
+    func systemJoinPreviewBlankProfile() {
+        let joiner = UUID()
+        let controller = makeController(MockConversations(), selfUserID: UUID())
+        let conversation = noticeConversation(
+            .userJoined(userID: joiner, admittedBy: nil), members: [member(joiner, named: "")]
+        )
+        #expect(controller.lastMessagePreview(for: conversation) { _ in nil } == "Flipcash User joined the group")
+    }
+
+    @Test("a join notice asks for the users nothing can name, never the viewer")
+    func unnamedLastMessageSendersIncludesJoinNotices() {
+        let me = UUID(), known = UUID(), unknown = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+        let knownAuthors = KnownAuthorDirectory.Snapshot(membersByUserID: [known: member(known, named: "Bob")])
+        let conversations = [
+            noticeConversation(.userJoined(userID: unknown, admittedBy: known)),
+            noticeConversation(.userJoined(userID: me, admittedBy: unknown)),
+        ]
+        #expect(controller.unnamedLastMessageSenders(in: conversations, knownAuthors: knownAuthors) == [unknown])
+    }
+
     @Test("an empty body has nothing to preview, rather than a bare prefix")
     func textPreviewSkipsEmptyBody() {
         let me = UUID()

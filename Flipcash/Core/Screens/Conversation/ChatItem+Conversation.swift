@@ -90,6 +90,9 @@ extension ChatItem {
         quotedMessage: (MessageID) -> ConversationMessage? = { _ in nil },
         author: (ConversationMessage) -> ChatAuthor? = { _ in nil },
         namesAuthors: Bool = false,
+        /// The display name of a user a system notice names, or nil when none is known yet, which
+        /// leaves the notice on the server's fallback text.
+        nameOf: (UserID) -> String? = { _ in nil },
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
         /// they have not joined, or who fails a reaction-blocking speaker rule (see `ChatMessage.canReact`).
         canReact: Bool = true,
@@ -264,7 +267,13 @@ extension ChatItem {
 
             let content: ChatMessage.Content
             switch message.content {
-            case .system(let text):
+            case .system(let fallbackText, let event):
+                let text = SystemNoticeStrings.text(
+                    for: event,
+                    fallbackText: fallbackText,
+                    selfID: selfUserID,
+                    nameOf: nameOf
+                )
                 items.append(.systemMessage(id: "sys-\(message.stableID)", text: text))
                 continue
             case .text(let text):

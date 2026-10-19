@@ -138,7 +138,7 @@ struct UnreadBelowCountTests {
         let notice = ConversationMessage(
             id: MessageID(value: 4),
             senderID: nil,
-            content: .system(fallbackText: "Alex joined"),
+            content: .system(fallbackText: "Alex joined", event: nil),
             date: UnreadFixtures.base.addingTimeInterval(240),
             unreadSeq: 4
         )
