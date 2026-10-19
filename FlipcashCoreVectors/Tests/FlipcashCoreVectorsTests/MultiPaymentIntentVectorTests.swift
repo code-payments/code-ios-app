@@ -170,11 +170,7 @@ import FlipcashAPI
             #expect(proto.hasDestinationOwner)
             #expect(proto.destinationOwner == (try Self.key(expected.destinationOwnerSeed)).solanaAccountID)
             #expect(String(proto.clientExchangeData.quarks) == expected.quarks)
-            // `native_amount` is a double on the wire; `Decimal.doubleValue` divides by ten per
-            // digit, so it can land an ulp or so from the correctly rounded value.
-            let native = try #require(Double(expected.nativeAmount))
-            #expect(abs(proto.clientExchangeData.nativeAmount - native) <= native * 1e-12,
-                    "native \(proto.clientExchangeData.nativeAmount) vs \(expected.nativeAmount)")
+            #expect(proto.clientExchangeData.nativeAmount == (try #require(Double(expected.nativeAmount))))
             #expect(proto.clientExchangeData.coreMintFiatExchangeRate.exchangeRate.currencyCode == expected.currency)
         }
     }
