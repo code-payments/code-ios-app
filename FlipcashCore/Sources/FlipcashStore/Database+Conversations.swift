@@ -612,6 +612,8 @@ nonisolated extension Database {
             var encryptedCiphertext: Data?
             var mediaJson: Data?
             var linkPreviewJson: Data?
+            var systemUserId: UUID?
+            var systemAdmittedBy: UUID?
             if let sealed = message.sealed {
                 encryptedScheme = sealed.scheme
                 encryptedNonce = sealed.nonce
@@ -645,9 +647,16 @@ nonisolated extension Database {
                 case .shareProfile(let share): text = share.username.value
                 case .unrecognized:            text = nil
                 }
-            case .system(let fallbackText):
+            case .system(let fallbackText, let event):
                 kind = 6
                 text = fallbackText
+                switch event {
+                case .userJoined(let userID, let admittedBy):
+                    systemUserId = userID
+                    systemAdmittedBy = admittedBy
+                case nil:
+                    break
+                }
             case .media(let attachments, let caption):
                 kind = 5
                 mediaJson = try JSONEncoder().encode(
@@ -688,7 +697,9 @@ nonisolated extension Database {
                     m.decryptFailure      <- message.decryptFailure?.rawValue,
                     m.reactionsJson       <- Self.encodeReactions(message.reactionState),
                     m.mediaJson           <- mediaJson,
-                    m.linkPreviewJson     <- linkPreviewJson
+                    m.linkPreviewJson     <- linkPreviewJson,
+                    m.systemUserId        <- systemUserId,
+                    m.systemAdmittedBy    <- systemAdmittedBy
                 )
             )
         }
@@ -908,7 +919,10 @@ nonisolated extension Database {
             redacted = media.redacted
         case 6:
             guard let text = row[m.text] else { return nil }
-            content = .system(fallbackText: text)
+            let event = row[m.systemUserId].map {
+                ConversationMessage.SystemEvent.userJoined(userID: $0, admittedBy: row[m.systemAdmittedBy])
+            }
+            content = .system(fallbackText: text, event: event)
         default:
             return nil
         }

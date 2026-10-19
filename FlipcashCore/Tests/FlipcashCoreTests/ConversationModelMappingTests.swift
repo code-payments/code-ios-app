@@ -40,9 +40,90 @@ struct ConversationModelMappingTests {
         }
 
         let message = try #require(ConversationMessage(proto))
-        #expect(message.content == .system(fallbackText: "Alex joined the group"))
+        #expect(message.content == .system(fallbackText: "Alex joined the group", event: nil))
         #expect(message.senderID == nil)
         #expect(message.isBlankSystem == false)
+    }
+
+    private func systemMessage(_ build: @escaping @Sendable (inout Flipcash_Messaging_V1_SystemContent) -> Void) throws -> ConversationMessage {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 9 }
+            $0.content = [.with { $0.system = .with { build(&$0); $0.fallbackText = "fallback" } }]
+        }
+        return try #require(ConversationMessage(proto))
+    }
+
+    @Test("A direct join maps to a userJoined event with no admitter")
+    func directJoin() throws {
+        let joiner = UUID()
+        let message = try systemMessage {
+            $0.userJoined = .with { $0.userID = .with { $0.value = joiner.data }; $0.direct = .init() }
+        }
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoined(userID: joiner, admittedBy: nil)))
+    }
+
+    @Test("An admitted join maps to a userJoined event carrying the admitter")
+    func admittedJoin() throws {
+        let joiner = UUID()
+        let admitter = UUID()
+        let message = try systemMessage {
+            $0.userJoined = .with {
+                $0.userID = .with { $0.value = joiner.data }
+                $0.admitted = .with { $0.admittedBy = .with { $0.value = admitter.data } }
+            }
+        }
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoined(userID: joiner, admittedBy: admitter)))
+    }
+
+    @Test("A join with no method is a direct join")
+    func joinWithoutMethod() throws {
+        let joiner = UUID()
+        let message = try systemMessage {
+            $0.userJoined = .with { $0.userID = .with { $0.value = joiner.data } }
+        }
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoined(userID: joiner, admittedBy: nil)))
+    }
+
+    @Test("An admitted join without admitted_by is a direct join")
+    func admittedWithoutAdmitter() throws {
+        let joiner = UUID()
+        let message = try systemMessage {
+            $0.userJoined = .with {
+                $0.userID = .with { $0.value = joiner.data }
+                $0.admitted = .init()
+            }
+        }
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoined(userID: joiner, admittedBy: nil)))
+    }
+
+    @Test("An unset type carries no event")
+    func unsetType() throws {
+        let message = try systemMessage { _ in }
+        #expect(message.content == .system(fallbackText: "fallback", event: nil))
+    }
+
+    @Test("A join with a missing or invalid user_id carries no event")
+    func joinWithoutUserID() throws {
+        let missing = try systemMessage { $0.userJoined = .with { $0.direct = .init() } }
+        #expect(missing.content == .system(fallbackText: "fallback", event: nil))
+        let invalid = try systemMessage {
+            $0.userJoined = .with { $0.userID = .with { $0.value = Data([1, 2, 3]) } }
+        }
+        #expect(invalid.content == .system(fallbackText: "fallback", event: nil))
+    }
+
+    @Test("A notice names its users once, in reading order, without the viewer")
+    func noticeUserIDs() {
+        let me = UUID(), a = UUID(), b = UUID()
+        func ids(_ content: ConversationMessage.Content) -> [UUID] {
+            ConversationMessage(id: MessageID(value: 1), senderID: nil, content: content, date: .now, unreadSeq: 1)
+                .systemNoticeUserIDs(excluding: me)
+        }
+        #expect(ids(.system(fallbackText: "x", event: .userJoined(userID: b, admittedBy: a))) == [a, b])
+        #expect(ids(.system(fallbackText: "x", event: .userJoined(userID: a, admittedBy: a))) == [a])
+        #expect(ids(.system(fallbackText: "x", event: .userJoined(userID: me, admittedBy: a))) == [a])
+        #expect(ids(.system(fallbackText: "x", event: nil)).isEmpty)
+        #expect(ids(.text("hi")).isEmpty)
     }
 
     @Test("Blank system text maps to an empty .system rather than dropping the message", arguments: ["", "   ", "\n\t", "\u{85}", "\u{A0}"])
@@ -53,7 +134,7 @@ struct ConversationModelMappingTests {
         }
 
         let message = try #require(ConversationMessage(proto))
-        #expect(message.content == .system(fallbackText: ""))
+        #expect(message.content == .system(fallbackText: "", event: nil))
         #expect(message.isBlankSystem)
     }
 
@@ -65,7 +146,7 @@ struct ConversationModelMappingTests {
         }
 
         let message = try #require(ConversationMessage(proto))
-        #expect(message.content == .system(fallbackText: "\u{1F}"))
+        #expect(message.content == .system(fallbackText: "\u{1F}", event: nil))
     }
 
     @Test("Non-blank system text is not trimmed")
@@ -75,7 +156,7 @@ struct ConversationModelMappingTests {
             $0.content = [.with { $0.system = .with { $0.fallbackText = "  Alex joined \n" } }]
         }
 
-        #expect(try #require(ConversationMessage(proto)).content == .system(fallbackText: "  Alex joined \n"))
+        #expect(try #require(ConversationMessage(proto)).content == .system(fallbackText: "  Alex joined \n", event: nil))
     }
 
     @Test("A system message never buzzes; someone else's text does, your own does not")
@@ -85,8 +166,8 @@ struct ConversationModelMappingTests {
         func message(_ content: ConversationMessage.Content, from sender: UUID?) -> ConversationMessage {
             ConversationMessage(id: MessageID(value: 1), senderID: sender, content: content, date: .now, unreadSeq: 1)
         }
-        #expect(message(.system(fallbackText: "Alex joined the group"), from: nil).buzzesOnReceive(selfUserID: me) == false)
-        #expect(message(.system(fallbackText: "Alex joined the group"), from: them).buzzesOnReceive(selfUserID: me) == false)
+        #expect(message(.system(fallbackText: "Alex joined the group", event: nil), from: nil).buzzesOnReceive(selfUserID: me) == false)
+        #expect(message(.system(fallbackText: "Alex joined the group", event: nil), from: them).buzzesOnReceive(selfUserID: me) == false)
         #expect(message(.text("hi"), from: them).buzzesOnReceive(selfUserID: me))
         #expect(message(.text("hi"), from: me).buzzesOnReceive(selfUserID: me) == false)
     }
@@ -94,7 +175,7 @@ struct ConversationModelMappingTests {
     @Test("System content cannot be re-encoded for sending")
     func systemContentHasNoProto() {
         #expect(throws: ConversationMessageContentEncodingError.self) {
-            try ConversationMessage.Content.system(fallbackText: "x").asProto()
+            try ConversationMessage.Content.system(fallbackText: "x", event: nil).asProto()
         }
     }
 

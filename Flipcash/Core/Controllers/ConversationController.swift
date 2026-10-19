@@ -1677,9 +1677,15 @@ final class ConversationController {
         case .deleted:
             return nil
 
-        case .system(let text):
+        case .system(let fallbackText, let event):
             // Server-authored, so no sender prefix; a blank one previews as nothing, like an empty body.
-            return text.isEmpty ? nil : text
+            guard !fallbackText.isEmpty else { return nil }
+            return SystemNoticeStrings.text(
+                for: event,
+                fallbackText: fallbackText,
+                selfID: selfUserID,
+                nameOf: { noticeUserName(for: $0, in: conversation, knownAuthors: knownAuthors) }
+            )
 
         case .widget(.shareProfile):
             // The server sends it; no user is the sender to name.
@@ -1697,22 +1703,49 @@ final class ConversationController {
 
     /// The group senders of `conversations`' last messages that neither their chat's roster nor
     /// `knownAuthors` can name, in feed order and without repeats — what the Chats list asks
-    /// ``KnownAuthorDirectory/resolve(_:)`` for.
+    /// ``KnownAuthorDirectory/resolve(_:)`` for. A system notice has no sender, so the users it names
+    /// count in their place.
     func unnamedLastMessageSenders(
         in conversations: [Conversation],
         knownAuthors: KnownAuthorDirectory.Snapshot
     ) -> [UserID] {
         var seen: Set<UserID> = []
-        return conversations.compactMap { conversation in
-            guard conversation.type == .group,
-                  let message = conversation.lastMessage,
-                  let senderID = message.senderID,
+        return conversations.flatMap { conversation -> [UserID] in
+            guard conversation.type == .group, let message = conversation.lastMessage else { return [] }
+            let noticeIDs = message.systemNoticeUserIDs(excluding: selfUserID).filter { userID in
+                let member = noticeMember(for: userID, in: conversation, knownAuthors: knownAuthors)
+                return member?.displayName.isEmpty ?? true
+            }
+            if !noticeIDs.isEmpty { return noticeIDs.filter { seen.insert($0).inserted } }
+            guard let senderID = message.senderID,
                   !message.isFromSelf(selfUserID),
                   groupSenderName(for: message, in: conversation, isFromSelf: false, knownAuthors: knownAuthors) == nil,
                   seen.insert(senderID).inserted
-            else { return nil }
-            return senderID
+            else { return [] }
+            return [senderID]
         }
+    }
+
+    /// The name a system notice calls `userID`, or `nil` when neither the chat's roster nor
+    /// `knownAuthors` has them; a member with no name or handle gets the generic fallback.
+    private func noticeUserName(
+        for userID: UserID,
+        in conversation: Conversation,
+        knownAuthors: KnownAuthorDirectory.Snapshot
+    ) -> String? {
+        noticeMember(for: userID, in: conversation, knownAuthors: knownAuthors)
+            .map(ConversationLoadCoordinator.attributionName(for:))
+    }
+
+    /// The roster's member for `userID`, else the directory's, preferring whichever has a name.
+    private func noticeMember(
+        for userID: UserID,
+        in conversation: Conversation,
+        knownAuthors: KnownAuthorDirectory.Snapshot
+    ) -> ConversationMember? {
+        let rostered = conversation.members.first { $0.userID == userID }
+        if let rostered, !rostered.displayName.isEmpty { return rostered }
+        return knownAuthors.membersByUserID[userID] ?? rostered
     }
 
     /// The name a group row attributes its last message to, or `nil` when it should carry no

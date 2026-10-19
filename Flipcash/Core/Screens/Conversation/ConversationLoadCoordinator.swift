@@ -332,6 +332,7 @@ final class ConversationLoadCoordinator {
             // draws as it does in a DM rather than under a blank name.
             author: { message in message.senderID.flatMap { authors[$0] } },
             namesAuthors: inputs.namesAuthors,
+            nameOf: { authors[$0]?.name },
             canReact: inputs.canReact,
             // Classification is pure and host-gated, and that is all mapping does with a link: the
             // card is the link's identity, and the card view looks it up for itself. So nothing
@@ -372,7 +373,9 @@ final class ConversationLoadCoordinator {
         var seen: Set<UserID> = []
         var members: [ConversationMember] = []
         var unnamed: [UserID] = []
-        for senderID in inputs.messages.compactMap(\.senderID) + inputs.typists {
+        // A system notice has no sender but names the users it is about, so those need profiles too.
+        let noticeIDs = inputs.messages.flatMap { $0.systemNoticeUserIDs(excluding: inputs.selfUserID) }
+        for senderID in inputs.messages.compactMap(\.senderID) + noticeIDs + inputs.typists {
             guard seen.insert(senderID).inserted else { continue }
             // The viewer's own rows are never attributed, so their id is not worth a round trip.
             guard senderID != inputs.selfUserID else { continue }

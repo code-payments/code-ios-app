@@ -72,7 +72,7 @@ struct MessageCapabilityTests {
     func systemNoticeCantBeForwarded() {
         let notice = ConversationMessage(
             id: MessageID(value: 7), senderID: nil,
-            content: .system(fallbackText: "Alex joined"), date: now, unreadSeq: 1, eventSequence: 2
+            content: .system(fallbackText: "Alex joined", event: nil), date: now, unreadSeq: 1, eventSequence: 2
         )
         #expect(resolve(notice).isEmpty)
     }
