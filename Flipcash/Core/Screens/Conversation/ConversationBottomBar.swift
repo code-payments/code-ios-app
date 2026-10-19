@@ -79,9 +79,9 @@ import FlipcashUI
         attachLogger.info("Attach opened", metadata: details.merging(["host": "\(host)"]) { $1 })
     }
 
-    /// Logs the attach surface closing in the host it was opened in.
-    func attachDidClose() {
-        attachLogger.info("Attach closed", metadata: ["host": "\(attachHost)"])
+    /// Logs the attach surface closing in the host it was opened in, with `details` about why.
+    func attachDidClose(details: Logger.Metadata = [:]) {
+        attachLogger.info("Attach closed", metadata: details.merging(["host": "\(attachHost)"]) { $1 })
     }
 
     /// Takes the panel and the card down at once, with nothing to animate out: the keyboard they were
@@ -157,7 +157,10 @@ struct BarOverflowReporting: ViewModifier {
 
     func body(content: Content) -> some View {
         content.onChange(of: model.overflow) { _, overflow in
-            guard let screen = screen() else { return }
+            guard let screen = screen() else {
+                attachLogger.warning("Attach overflow not applied", metadata: ["overflows": "\(overflow.overflows)"])
+                return
+            }
             // The band first, so the bar never overflows with the last one's touches.
             screen.barOverflowTouchTop = overflow.touchTop
             screen.barOverflowsTop = overflow.overflows
@@ -586,6 +589,19 @@ struct ConversationBottomBar: View {
         }
         .onDisappear {
             model.attachWarmUp.update(wanted: false)
+            if model.attachSurfaceIsMounted {
+                model.attachDidClose(details: ["reason": "barDisappeared"])
+            }
+        }
+        // Once per card, when the bar draws it: where the bar takes touches for it.
+        .onChange(of: surfaceFrames[.card]) { _, card in
+            guard let card, model.attachCard.isOpen, !model.overKeyboard.isActive else { return }
+            attachLogger.info("Attach bar hit rects", metadata: [
+                "card": "\(card)",
+                "hitRects": "\(barSurfaceHitRects)",
+                "barOrigin": "\(barOrigin)",
+                "touchTop": "\(model.overflow.touchTop.map { "\($0)" } ?? "everywhere")",
+            ])
         }
         // Typing takes the attach panel down, as a tap outside it does.
         .onChange(of: composer.draft) {

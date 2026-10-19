@@ -19,11 +19,22 @@ import FlipcashUI
 final class AttachPhotosPick {
 
     var selection: [PhotosPickerItem] = [] {
-        didSet { preloader.update(selection: selection) }
+        didSet {
+            preloader.update(selection: selection)
+            if selection.count != oldValue.count {
+                attachLogger.info("Attach photo selection changed", metadata: ["count": "\(selection.count)"])
+            }
+        }
     }
 
     /// Whether the full system picker is up as a sheet over the card.
-    var showsLibrary = false
+    var showsLibrary = false {
+        didSet {
+            if showsLibrary, !oldValue {
+                attachLogger.info("Attach library shown")
+            }
+        }
+    }
 
     private(set) var preloader = AttachPhotosPick.makePreloader()
 
@@ -60,6 +71,8 @@ final class AttachPhotosPick {
 struct ChatPhotosCard: View {
 
     let pick: AttachPhotosPick
+    /// Where the card is drawn, for the log line All Photos writes.
+    let host: AttachHost
     /// The most photos one pick may hold, so the strip never passes `ComposerModel.maxAttachments`.
     let selectionLimit: Int
     /// Receives the selection, in the order it was made, with the loader already reading it.
@@ -143,6 +156,11 @@ struct ChatPhotosCard: View {
             // One or the other, cross-faded in place as the first pick arrives and the last leaves.
             if pick.selection.isEmpty {
                 Button {
+                    attachLogger.info("Attach row tapped", metadata: [
+                        "row": "allPhotos",
+                        "host": "\(host)",
+                        "handsOff": "\(onAllPhotos != nil)",
+                    ])
                     if let onAllPhotos {
                         onAllPhotos()
                     } else {

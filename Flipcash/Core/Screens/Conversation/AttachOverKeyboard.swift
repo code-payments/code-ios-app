@@ -131,8 +131,13 @@ nonisolated enum AttachOverlayLayout {
     /// The card's corner radius before iOS 26, or on a screen without rounded corners.
     static let minimumCardCornerRadius: CGFloat = 24
 
+    /// The largest card corner radius on iOS 26, where clipping the inline photo picker any rounder
+    /// makes it drop every touch: on an iPhone 17 Pro, 40pt still selects and 50pt doesn't.
+    static let iOS26MaximumCardCornerRadius: CGFloat = 40
+
     /// The card's corner radius: the screen's corner radius less ``cardInset``, so the card's corners
-    /// run parallel to the screen's, and never under ``minimumCardCornerRadius``.
+    /// run parallel to the screen's, never under ``minimumCardCornerRadius``, and on iOS 26 never
+    /// over ``iOS26MaximumCardCornerRadius``.
     @MainActor static var cardCornerRadius: CGFloat {
         if let resolvedCardCornerRadius { return resolvedCardCornerRadius }
         guard #available(iOS 26, *), let window = UIApplication.shared.currentKeyWindow else {
@@ -143,8 +148,11 @@ nonisolated enum AttachOverlayLayout {
         probe.isHidden = true
         probe.cornerConfiguration = .uniformCorners(radius: .containerConcentric(minimum: minimumCardCornerRadius))
         window.addSubview(probe)
-        let radius = probe.effectiveRadius(corner: .bottomLeft)
+        var radius = probe.effectiveRadius(corner: .bottomLeft)
         probe.removeFromSuperview()
+        if #unavailable(iOS 27) {
+            radius = min(radius, iOS26MaximumCardCornerRadius)
+        }
         resolvedCardCornerRadius = radius
         return radius
     }

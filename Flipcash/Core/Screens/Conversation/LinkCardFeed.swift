@@ -33,6 +33,10 @@ final class LinkCardFeed: LinkCardSource {
     private let claims: CashLinkClaimLog
     private let groups: any GroupLinkPresenting
     private let users: any UserLinkPresenting
+    /// Mints a message card photo's download URL, and its decryption for an encrypted chat.
+    private let messagePhotos: @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation?
+    private let chatAvatars: @MainActor (ConversationID) async -> Data?
+    private let cachedChatAvatars: @MainActor (ConversationID) -> Data?
 
     /// What a group or person link's lookup fetched.
     private enum Fetched {
@@ -49,6 +53,10 @@ final class LinkCardFeed: LinkCardSource {
     /// Group and person keys whose presentation is being observed, so each is watched once however
     /// many rows show it.
     private var observedPictures: Set<String> = []
+
+    /// What each message link last answered, in memory only. Never the memo: that persists to the
+    /// database, and a card can hold a decrypted excerpt of an end-to-end encrypted chat.
+    private var messageStates: [String: LinkCard.State] = [:]
 
     /// Who is listening to each key. A link quoted by two rows has two continuations and one query.
     private var listeners: [String: [UUID: AsyncStream<LinkCard.State>.Continuation]] = [:]
@@ -74,13 +82,19 @@ final class LinkCardFeed: LinkCardSource {
         memo: LinkCardMemo,
         claims: CashLinkClaimLog,
         groups: any GroupLinkPresenting,
-        users: any UserLinkPresenting
+        users: any UserLinkPresenting,
+        messagePhotos: @escaping @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation? = { _, _ in nil },
+        chatAvatars: @escaping @MainActor (ConversationID) async -> Data? = { _ in nil },
+        cachedChatAvatars: @escaping @MainActor (ConversationID) -> Data? = { _ in nil }
     ) {
         self.resolver = resolver
         self.memo = memo
         self.claims = claims
         self.groups = groups
         self.users = users
+        self.messagePhotos = messagePhotos
+        self.chatAvatars = chatAvatars
+        self.cachedChatAvatars = cachedChatAvatars
         observeSettledClaims()
         startClaimableRefresh()
     }
@@ -107,7 +121,21 @@ final class LinkCardFeed: LinkCardSource {
             fetched[card.resolutionKey].map(present)
         case .web:
             nil
+        case .message:
+            messageStates[card.resolutionKey]
         }
+    }
+
+    func messagePhoto(_ photo: LinkCard.Message.Photo, in chatID: ConversationID) async -> ChatMediaLocation? {
+        await messagePhotos(photo, chatID)
+    }
+
+    func chatAvatar(for chatID: ConversationID) async -> Data? {
+        await chatAvatars(chatID)
+    }
+
+    func cachedChatAvatar(for chatID: ConversationID) -> Data? {
+        cachedChatAvatars(chatID)
     }
 
     func states(for card: LinkCard) -> AsyncStream<LinkCard.State> {
@@ -157,6 +185,13 @@ final class LinkCardFeed: LinkCardSource {
             Task { [resolver] in
                 let facts = await resolver.user(user.identity)
                 deliverFetched(facts.map(Fetched.user), missing: .user(.notFound), for: key)
+            }
+        case .message(let message):
+            Task { [resolver] in
+                let state = LinkCard.State.message(await resolver.message(message))
+                // A lookup that came back with nothing is forgotten, so the next appearance asks again.
+                if state.isResolved { messageStates[key] = state }
+                listeners[key]?.values.forEach { $0.yield(state) }
             }
         case .web:
             // Its page came with the message; there is nothing to ask.

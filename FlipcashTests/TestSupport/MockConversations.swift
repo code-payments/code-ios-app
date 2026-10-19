@@ -318,16 +318,35 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     /// How many `GetGroupChatFeed` calls have been made.
     var groupFeedCalls: Int { lock.withLock { _groupFeedCalls } }
     private var _groupFeedCalls = 0
-    /// Held on every group feed call before it answers.
-    var groupFeedDelay: Duration {
-        get { lock.withLock { _groupFeedDelay } }
-        set { lock.withLock { _groupFeedDelay = newValue } }
+    private var _holdsGroupFeed = false
+    private var _groupFeedWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Parks every group feed call until `releaseGroupFeed()`, so a test can see the other feeds
+    /// apply first however slowly the runner schedules the cap.
+    func holdGroupFeed() {
+        lock.withLock { _holdsGroupFeed = true }
     }
-    private var _groupFeedDelay: Duration = .zero
+
+    /// Answers the parked group feed calls and lets later ones straight through.
+    func releaseGroupFeed() {
+        let waiters = lock.withLock {
+            _holdsGroupFeed = false
+            defer { _groupFeedWaiters = [] }
+            return _groupFeedWaiters
+        }
+        for waiter in waiters { waiter.resume() }
+    }
 
     func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] {
         lock.withLock { _groupFeedCalls += 1 }
-        if groupFeedDelay > .zero { try? await Task.sleep(for: groupFeedDelay) }
+        await withCheckedContinuation { continuation in
+            let parked = lock.withLock { () -> Bool in
+                guard _holdsGroupFeed else { return false }
+                _groupFeedWaiters.append(continuation)
+                return true
+            }
+            if !parked { continuation.resume() }
+        }
         return groupFeed
     }
 
@@ -392,7 +411,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     }
     private var _messagesError: Error?
 
-    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationMessage? {
+    func getMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, viewMode: ConversationViewMode) async throws -> ConversationMessage? {
         lock.withLock { _singleMessageQueries.append(messageID) }
         if singleMessageDelay > .zero { try? await Task.sleep(for: singleMessageDelay) }
         if let error = singleMessageError { throw error }

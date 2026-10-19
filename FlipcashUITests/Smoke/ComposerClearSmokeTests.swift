@@ -12,8 +12,8 @@ import XCTest
 /// message, so a single send proves nothing either way. Each test sends a run of them and checks
 /// the field after every one.
 ///
-/// **Prerequisites:** the `FLIPCASH_UI_TEST_ACCESS_KEY` account needs at least one chat
-/// conversation. With none, each test skips rather than fails.
+/// **Prerequisites:** the `FLIPCASH_UI_TEST_ACCESS_KEY` account (XCTests) has a tip DM with Brandon
+/// McAnsh. Every send goes there and nowhere else; without it, each test skips rather than fails.
 @MainActor
 final class ComposerClearSmokeTests: BaseUITestCase {
 
@@ -83,17 +83,16 @@ final class ComposerClearSmokeTests: BaseUITestCase {
 
     // MARK: - Helpers
 
-    /// Opens the account's first chat, skipping the test when it has none — the suite drives an
-    /// existing conversation rather than creating one, so an empty list is a missing fixture and
-    /// not a defect.
+    /// Opens the DM with `TipsUIScreen.sendTargetName`, skipping the test when it is missing — the
+    /// suite sends only there, so a missing DM is a missing fixture and not a defect.
     private func openConversation() throws {
         assertMainScreenReached()
 
         let chats = TipsUIScreen(app: app)
         chats.open(from: self)
 
-        guard let row = chats.firstConversationRow(timeout: 30) else {
-            throw XCTSkip("The test account has no chat conversation — skipping the composer suite")
+        guard let row = chats.sendTargetDMRow(timeout: 30) else {
+            throw XCTSkip("No DM with \(TipsUIScreen.sendTargetName) — skipping the composer suite")
         }
         row.tap()
 

@@ -265,6 +265,10 @@ struct AttachSurface: View {
             y: menu.height > 0 ? (plus.midY - menu.minY) / menu.height : 1
         )
         return AttachMenuRows(items: items, onSelect: { item in
+            attachLogger.info("Attach row tapped", metadata: [
+                "row": "\(item)",
+                "host": "\(model.attachHost)",
+            ])
             panel.select(item, warmUp: model.attachWarmUp, onCash: actions.onCash, onCamera: actions.onCamera, onPhotos: actions.onPhotos)
         }) {
             panel.animate { $0.dismiss() }
@@ -291,6 +295,7 @@ struct AttachSurface: View {
             if items.contains(.photos) {
                 ChatPhotosCard(
                     pick: model.photosPick,
+                    host: model.attachHost,
                     selectionLimit: selectionLimit,
                     onAdd: actions.onPhotosAdd,
                     onBack: actions.onPhotosBack,

@@ -313,9 +313,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 screen?.focusComposer()
             case .reply:
                 screen?.focusComposer()
-            // Both raise a sheet over the transcript, so the keyboard goes down first.
-            case .delete, .report: screen?.dismissKeyboard()
-            case .copy:            break
+            // Each raises a sheet over the transcript, so the keyboard goes down first.
+            case .delete, .report, .forward: screen?.dismissKeyboard()
+            case .copy:               break
             }
         }
     }
@@ -436,7 +436,16 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             if overlay.mode == nil {
                 screen?.dismissKeyboard()
             }
-            model.attachCard.open(content, screen: screen.map { $0.view.window?.bounds ?? $0.view.bounds } ?? .zero)
+            let bounds = screen.map { $0.view.window?.bounds ?? $0.view.bounds } ?? .zero
+            model.attachCard.open(content, screen: bounds)
+            attachLogger.info("Attach card opened", metadata: [
+                "content": "\(content)",
+                "host": "\(model.attachHost)",
+                "mode": "\(overlay.mode?.rawValue ?? "none")",
+                "frame": "\(model.attachCard.frame)",
+                "screenIsZero": "\(bounds == .zero)",
+                "screenFound": "\(screen != nil)",
+            ])
         }
 
         /// Takes the card down into the chip `stage` returns, and puts focus back in the field so the

@@ -165,6 +165,7 @@ final class AttachKeyboardOverlay {
             guard let model = self?.model else { return false }
             return model.attachPanel.isOpen && !model.attachCard.isOpen
         }
+        container.cardIsUp = { [weak self] in self?.model.attachCard.isOpen ?? false }
         container.onOutsideTouch = { [weak self] in
             self?.model.attachPanel.animate { $0.dismiss() }
         }
@@ -265,9 +266,14 @@ final class AttachOverlayContainer: UIView {
     var dismissesOnOutsideTouch: () -> Bool = { false }
     /// Fired by a touch outside the panel and card while `dismissesOnOutsideTouch` holds.
     var onOutsideTouch: () -> Void = {}
+    /// Whether a card is up, so a touch that misses it can be logged.
+    var cardIsUp: () -> Bool = { false }
+    /// The touch the last miss was logged for; hit-testing runs more than once per touch.
+    private var loggedMissTimestamp: TimeInterval?
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard hitRects.values.contains(where: { $0.contains(point) }) else {
+            logMiss(at: point, event: event)
             // The touch is swallowed, not typed: it only closes the menu, as with the keyboard down.
             return dismissesOnOutsideTouch() ? self : nil
         }
@@ -276,6 +282,19 @@ final class AttachOverlayContainer: UIView {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         onOutsideTouch()
+    }
+
+    /// Logs a touch inside the overlay that misses every region while a card is up, once per touch.
+    private func logMiss(at point: CGPoint, event: UIEvent?) {
+        guard bounds.contains(point), cardIsUp() else { return }
+        let timestamp = event?.timestamp
+        guard timestamp == nil || timestamp != loggedMissTimestamp else { return }
+        loggedMissTimestamp = timestamp
+        attachLogger.info("Attach touch missed overlay", metadata: [
+            "point": "\(point)",
+            "bounds": "\(bounds)",
+            "hitRects": "\(hitRects.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: " "))",
+        ])
     }
 
     override func didMoveToWindow() {

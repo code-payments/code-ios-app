@@ -28,15 +28,15 @@ struct MessageCapabilityTests {
         MessageCapability.resolve(for: message, in: nil, as: me, isMember: isMember, canPost: canPost, policy: policy, now: now)
     }
 
-    @Test("A viewer who can't post loses Reply but keeps copy and report")
+    @Test("A viewer who can't post loses Reply but keeps copy, report and Forward")
     func cannotPost_losesReplyOnly() {
-        #expect(resolve(text("hi", from: them), canPost: false) == [.copy, .report])
-        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report])
+        #expect(resolve(text("hi", from: them), canPost: false) == [.copy, .report, .forward])
+        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report, .forward])
     }
 
     @Test("My own confirmed text can be copied, edited, and deleted")
     func ownTextIsFullyActionable() {
-        #expect(resolve(text("hi", from: me)) == [.copy, .reply, .edit, .delete])
+        #expect(resolve(text("hi", from: me)) == [.copy, .reply, .edit, .delete, .forward])
     }
 
     @Test("An unconfirmed message of mine offers nothing — it has no sequence to send as expected")
@@ -46,7 +46,40 @@ struct MessageCapabilityTests {
 
     @Test("Someone else's text can be copied, replied to, and reported")
     func otherPersonsTextIsReportable() {
-        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report])
+        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report, .forward])
+    }
+
+    @Test("An unconfirmed cash message of mine can't be forwarded: it has no sequence to point at")
+    func unconfirmedCashCantBeForwarded() {
+        let pending = ConversationMessage(
+            id: MessageID(value: 3), senderID: me,
+            content: .cash(ExchangedFiat(nativeAmount: .usd(20), rate: .oneToOne)),
+            cashAction: .sent, date: now, unreadSeq: 1, eventSequence: 0
+        )
+        #expect(resolve(pending) == [.reply])
+    }
+
+    @Test("A message this client could not decrypt offers no Forward")
+    func undecryptableMessageCantBeForwarded() {
+        let encrypted = ConversationMessage(
+            id: MessageID(value: 6), senderID: them,
+            content: .encrypted(scheme: 1, nonce: Data(), ciphertext: Data()), date: now, unreadSeq: 1, eventSequence: 2
+        )
+        #expect(resolve(encrypted).isEmpty)
+    }
+
+    @Test("A system notice offers no Forward")
+    func systemNoticeCantBeForwarded() {
+        let notice = ConversationMessage(
+            id: MessageID(value: 7), senderID: nil,
+            content: .system(fallbackText: "Alex joined"), date: now, unreadSeq: 1, eventSequence: 2
+        )
+        #expect(resolve(notice).isEmpty)
+    }
+
+    @Test("Forward has no window")
+    func forwardIsNeverWindowed() {
+        #expect(windows(edit: 60, delete: 60).window(for: .forward) == nil)
     }
 
     @Test("A tombstone offers nothing")
@@ -59,34 +92,34 @@ struct MessageCapabilityTests {
         #expect(resolve(tombstone).isEmpty)
     }
 
-    @Test("My own cash message offers Reply and nothing else")
+    @Test("My own cash message offers Reply and Forward, nothing else")
     func ownCashMessageOffersReplyOnly() {
-        #expect(resolve(cash(from: me)) == [.reply])
+        #expect(resolve(cash(from: me)) == [.reply, .forward])
     }
 
     @Test("Someone else's cash message can be reported — a payment is a thing a person did to you")
     func otherPersonsCashIsReportable() {
-        #expect(resolve(cash(from: them)) == [.reply, .report])
+        #expect(resolve(cash(from: them)) == [.reply, .report, .forward])
     }
 
-    @Test("A non-member reading a group can copy and report someone's text, but not reply")
+    @Test("A non-member reading a group can copy, forward and report someone's text, but not reply")
     func nonMemberCannotReplyToText() {
-        #expect(resolve(text("hi", from: them), isMember: false) == [.copy, .report])
+        #expect(resolve(text("hi", from: them), isMember: false) == [.copy, .report, .forward])
     }
 
-    @Test("A non-member reading a group can report a payment, but not reply to it")
+    @Test("A non-member reading a group can forward and report a payment, but not reply to it")
     func nonMemberCannotReplyToCash() {
-        #expect(resolve(cash(from: them), isMember: false) == [.report])
+        #expect(resolve(cash(from: them), isMember: false) == [.report, .forward])
     }
 
     @Test("My own photo can be replied to and deleted, but has no text to copy or edit")
     func ownMediaOffersReplyAndDelete() {
-        #expect(resolve(media(from: me)) == [.reply, .delete])
+        #expect(resolve(media(from: me)) == [.reply, .delete, .forward])
     }
 
     @Test("Someone else's photo can be replied to and reported, but not copied")
     func otherPersonsMediaIsReportable() {
-        #expect(resolve(media(from: them)) == [.reply, .report])
+        #expect(resolve(media(from: them)) == [.reply, .report, .forward])
     }
 
     private func media(from sender: UUID) -> ConversationMessage {
@@ -133,20 +166,20 @@ struct MessageCapabilityTests {
     @Test("The speaker rule removes Reply from text and cash, and nothing else")
     func speakerRuleGatesReplyOnEveryMessage() {
         // Can speak: the usual menus.
-        #expect(resolve(text("hi", from: them), canPost: true) == [.copy, .reply, .report])
-        #expect(resolve(cash(from: them), canPost: true) == [.reply, .report])
+        #expect(resolve(text("hi", from: them), canPost: true) == [.copy, .reply, .report, .forward])
+        #expect(resolve(cash(from: them), canPost: true) == [.reply, .report, .forward])
         // Cannot speak: Reply goes; Copy and Report stay.
-        #expect(resolve(text("hi", from: them), canPost: false) == [.copy, .report])
-        #expect(resolve(cash(from: them), canPost: false) == [.report])
+        #expect(resolve(text("hi", from: them), canPost: false) == [.copy, .report, .forward])
+        #expect(resolve(cash(from: them), canPost: false) == [.report, .forward])
         // Own messages keep Copy, Edit and Delete.
-        #expect(resolve(text("hi", from: me), canPost: false) == [.copy, .edit, .delete])
-        #expect(resolve(cash(from: me), canPost: false) == [])
+        #expect(resolve(text("hi", from: me), canPost: false) == [.copy, .edit, .delete, .forward])
+        #expect(resolve(cash(from: me), canPost: false) == [.forward])
     }
 
     @Test("A DM is never gated: canPost defaults to true")
     func dmIsUngated() {
-        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report])
-        #expect(resolve(cash(from: them)) == [.reply, .report])
+        #expect(resolve(text("hi", from: them)) == [.copy, .reply, .report, .forward])
+        #expect(resolve(cash(from: them)) == [.reply, .report, .forward])
     }
 
     // MARK: - Windows -
@@ -158,19 +191,19 @@ struct MessageCapabilityTests {
     @Test("A message inside both windows keeps every action")
     func messageInsideBothWindowsIsFullyActionable() {
         let policy = windows(edit: 900, delete: 172_800)
-        #expect(resolve(text("hi", from: me, sentAgo: 600), policy: policy) == [.copy, .reply, .edit, .delete])
+        #expect(resolve(text("hi", from: me, sentAgo: 600), policy: policy) == [.copy, .reply, .edit, .delete, .forward])
     }
 
     @Test("A message past the edit window but inside the delete window can still be deleted")
     func messagePastEditWindowIsDeleteOnly() {
         let policy = windows(edit: 900, delete: 172_800)
-        #expect(resolve(text("hi", from: me, sentAgo: 1_200), policy: policy) == [.copy, .reply, .delete])
+        #expect(resolve(text("hi", from: me, sentAgo: 1_200), policy: policy) == [.copy, .reply, .delete, .forward])
     }
 
-    @Test("A message past both windows can only be copied")
+    @Test("A message past both windows can only be copied, replied to and forwarded")
     func messagePastBothWindowsIsCopyOnly() {
         let policy = windows(edit: 900, delete: 172_800)
-        #expect(resolve(text("hi", from: me, sentAgo: 200_000), policy: policy) == [.copy, .reply])
+        #expect(resolve(text("hi", from: me, sentAgo: 200_000), policy: policy) == [.copy, .reply, .forward])
     }
 
     @Test("A message past the delete window loses delete even while it is still editable")
@@ -178,21 +211,21 @@ struct MessageCapabilityTests {
         // A delete window shorter than the edit window is not the configuration we ship, but it is
         // what proves the two gates are independent rather than one implying the other.
         let policy = windows(edit: 900, delete: 60)
-        #expect(resolve(text("hi", from: me, sentAgo: 300), policy: policy) == [.copy, .reply, .edit])
+        #expect(resolve(text("hi", from: me, sentAgo: 300), policy: policy) == [.copy, .reply, .edit, .forward])
     }
 
     @Test("At exactly the window length both actions are still offered — the boundary is inclusive")
     func boundaryIsInclusive() {
         let policy = windows(edit: 900, delete: 172_800)
-        #expect(resolve(text("hi", from: me, sentAgo: 900), policy: policy) == [.copy, .reply, .edit, .delete])
-        #expect(resolve(text("hi", from: me, sentAgo: 172_800), policy: policy) == [.copy, .reply, .delete])
+        #expect(resolve(text("hi", from: me, sentAgo: 900), policy: policy) == [.copy, .reply, .edit, .delete, .forward])
+        #expect(resolve(text("hi", from: me, sentAgo: 172_800), policy: policy) == [.copy, .reply, .delete, .forward])
     }
 
     @Test("A hair past the boundary the action is gone")
     func justPastBoundaryDropsTheAction() {
         let policy = windows(edit: 900, delete: 172_800)
-        #expect(resolve(text("hi", from: me, sentAgo: 900.001), policy: policy) == [.copy, .reply, .delete])
-        #expect(resolve(text("hi", from: me, sentAgo: 172_800.001), policy: policy) == [.copy, .reply])
+        #expect(resolve(text("hi", from: me, sentAgo: 900.001), policy: policy) == [.copy, .reply, .delete, .forward])
+        #expect(resolve(text("hi", from: me, sentAgo: 172_800.001), policy: policy) == [.copy, .reply, .forward])
     }
 
     @Test("Report has no window — it is a limit on mutating a message, and reporting mutates nothing")
@@ -210,7 +243,7 @@ struct MessageCapabilityTests {
     @Test("A nil window never lapses")
     func nilWindowNeverLapses() {
         let policy = windows(edit: nil, delete: nil)
-        #expect(resolve(text("hi", from: me, sentAgo: 10_000_000), policy: policy) == [.copy, .reply, .edit, .delete])
+        #expect(resolve(text("hi", from: me, sentAgo: 10_000_000), policy: policy) == [.copy, .reply, .edit, .delete, .forward])
     }
 
     // MARK: - Fallbacks -
@@ -234,9 +267,9 @@ struct MessageCapabilityTests {
         // assigns — so this is the no-flags path, and it must not be more permissive than the
         // fallback.
         let policy = MessagePolicy(userFlags: nil)
-        #expect(resolve(text("hi", from: me, sentAgo: 600), policy: policy) == [.copy, .reply, .edit, .delete])
-        #expect(resolve(text("hi", from: me, sentAgo: 1_200), policy: policy) == [.copy, .reply, .delete])
-        #expect(resolve(text("hi", from: me, sentAgo: 200_000), policy: policy) == [.copy, .reply])
+        #expect(resolve(text("hi", from: me, sentAgo: 600), policy: policy) == [.copy, .reply, .edit, .delete, .forward])
+        #expect(resolve(text("hi", from: me, sentAgo: 1_200), policy: policy) == [.copy, .reply, .delete, .forward])
+        #expect(resolve(text("hi", from: me, sentAgo: 200_000), policy: policy) == [.copy, .reply, .forward])
     }
 
     @Test("Flags that arrived with both windows unset fall back too")
@@ -259,14 +292,14 @@ struct MessageCapabilityTests {
         let policy = MessagePolicy(userFlags: flags)
         #expect(policy.editWindow == 60)
         #expect(policy.deleteWindow == 120)
-        #expect(resolve(text("hi", from: me, sentAgo: 90), policy: policy) == [.copy, .reply, .delete])
+        #expect(resolve(text("hi", from: me, sentAgo: 90), policy: policy) == [.copy, .reply, .delete, .forward])
     }
 
     @Test("The default policy is the fallback policy")
     func defaultPolicyCarriesTheFallbacks() {
         #expect(MessagePolicy.default.editWindow == MessagePolicy.fallbackEditWindow)
         #expect(MessagePolicy.default.deleteWindow == MessagePolicy.fallbackDeleteWindow)
-        #expect(resolve(text("hi", from: me, sentAgo: 86_400)) == [.copy, .reply, .delete])
+        #expect(resolve(text("hi", from: me, sentAgo: 86_400)) == [.copy, .reply, .delete, .forward])
     }
 
     // MARK: - Expiry scheduling -

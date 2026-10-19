@@ -18,6 +18,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
     case cash(Cash)
     case token(Token)
     case group(Group)
+    case message(Message)
     case user(User)
     case web(Web)
 
@@ -27,6 +28,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case .cash(let cash): cash.url
         case .token(let token): token.url
         case .group(let group): group.url
+        case .message(let message): message.url
         case .user(let user): user.url
         case .web(let web): web.url
         }
@@ -42,6 +44,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case .cash(let cash): cash.range
         case .token(let token): token.range
         case .group(let group): group.range
+        case .message(let message): message.range
         case .user(let user): user.range
         case .web(let web): web.range
         }
@@ -55,6 +58,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
         case cash(Cash.State)
         case token(Token.State)
         case group(Group.State)
+        case message(Message.State)
         case user(User.State)
 
         /// Whether the lookup came back with something. A failure of any kind is `unresolved` (or
@@ -64,6 +68,7 @@ public enum LinkCard: Hashable, Sendable, Codable {
             switch self {
             case .cash(.resolved), .token(.resolved), .group(.resolved), .user(.resolved):  true
             case .cash(.unresolved), .token(.unresolved), .group(.unavailable), .user(.notFound): false
+            case .message(let state): state.isResolved
             }
         }
     }
@@ -261,6 +266,197 @@ extension LinkCard {
     }
 }
 
+// MARK: - Message -
+
+extension LinkCard {
+
+    /// A link to one message, `app.flipcash.com/chat/{chatId}/m/{seq}`.
+    public struct Message: Hashable, Sendable, Codable {
+
+        public let url: URL
+        /// The chat id's bytes. Stored raw because `ConversationID` is not `Codable`.
+        public let chatIDData: Data
+        /// The message's sequence in its chat, `MessageID.value`.
+        public let sequence: UInt64
+        /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
+        public let location: Int
+        public let length: Int
+
+        public var range: NSRange { NSRange(location: location, length: length) }
+
+        /// The chat the message lives in.
+        public var chatID: ConversationID { ConversationID(data: chatIDData) }
+
+        /// The message the link points at.
+        public var messageID: MessageID { MessageID(value: sequence) }
+
+        public init(url: URL, chatID: ConversationID, messageID: MessageID, range: NSRange) {
+            self.url = url
+            self.chatIDData = chatID.data
+            self.sequence = messageID.value
+            self.location = range.location
+            self.length = range.length
+        }
+
+        /// Which of the card's eight faces to draw. `unavailable` and a card not yet looked up both
+        /// draw as the URL-only Unresolved face.
+        public enum State: Hashable, Sendable, Codable {
+            /// Not found, denied with nothing else to show, or the lookup failed. Not remembered.
+            case unavailable
+            /// A member reading the message, or any viewer of a source the card may unfurl.
+            case resolved(Resolved)
+            /// Public group, non-member who meets the listener rules: the excerpt and Join.
+            case gatedReadable(Resolved)
+            /// Public group, non-member below the requirement: a blurred placeholder and Buy.
+            case gatedRedacted(Redacted)
+            /// Private group, non-member: its public preview and Request.
+            case lockedGroup(LockedGroup)
+            /// DM, non-member: the chat kind only.
+            case lockedDirect
+            /// The source is cash: the amount and the verb.
+            case cash(Cash)
+            /// The chat is known and the message is gone: the chat header over a dim notice.
+            case deleted(Deleted)
+
+            /// Whether the lookup came back with something worth remembering.
+            public var isResolved: Bool {
+                switch self {
+                case .unavailable: false
+                case .resolved, .gatedReadable, .gatedRedacted, .lockedGroup, .lockedDirect, .cash, .deleted: true
+                }
+            }
+        }
+
+        /// What sort of chat the message lives in, drawn beside the chat title.
+        public enum Kind: String, Hashable, Sendable, Codable {
+            case publicGroup, privateGroup, directMessage
+        }
+
+        /// The chat header over a message that no longer exists.
+        public struct Deleted: Hashable, Sendable, Codable {
+            public let chatTitle: String
+            public let kind: Kind
+            public let avatarID: String
+
+            public init(chatTitle: String, kind: Kind, avatarID: String) {
+                self.chatTitle = chatTitle
+                self.kind = kind
+                self.avatarID = avatarID
+            }
+        }
+
+        /// A message the viewer may read, already worded for display.
+        public struct Resolved: Hashable, Sendable, Codable {
+            public let chatTitle: String
+            public let kind: Kind
+            public let authorName: String
+            /// Pre-formatted time, e.g. "2:41 PM".
+            public let time: String
+            public let excerpt: String
+            /// The total of every reaction on the message; paid-reaction totals are never carried.
+            public let reactionCount: Int
+            /// Stable identity for the author's avatar.
+            public let avatarID: String
+            /// The message's first photo, drawn beside the excerpt; nil for anything but a photo.
+            public let photo: Photo?
+
+            public init(chatTitle: String, kind: Kind, authorName: String, time: String, excerpt: String, reactionCount: Int, avatarID: String, photo: Photo? = nil) {
+                self.chatTitle = chatTitle
+                self.kind = kind
+                self.authorName = authorName
+                self.time = time
+                self.excerpt = excerpt
+                self.reactionCount = reactionCount
+                self.avatarID = avatarID
+                self.photo = photo
+            }
+        }
+
+        /// A photo the card may draw. A card whose viewer may see the bytes carries the blob; one
+        /// whose viewer may not carries only the BlurHash, so nothing here can fetch them.
+        public struct Photo: Hashable, Sendable, Codable {
+            /// Nil when the viewer may not fetch the photo: the card then draws its BlurHash alone.
+            public let blobID: BlobID?
+            public let sealed: SealedBlob?
+            public let blurHash: String?
+
+            public init(blobID: BlobID?, sealed: SealedBlob?, blurHash: String?) {
+                self.blobID = blobID
+                self.sealed = sealed
+                self.blurHash = blurHash
+            }
+        }
+
+        /// The placeholder for a message the viewer may not read. Carries no message text: the
+        /// view draws a fixed filler under the blur, and nothing here can be copied or quoted.
+        public struct Redacted: Hashable, Sendable, Codable {
+            public let chatTitle: String
+            public let authorName: String
+            public let time: String
+            /// The group card's requirement wording, e.g. "Balance Requirement: $10 of MOONY".
+            public let requirement: String?
+            /// A photo message's BlurHash, which the server sends even under redaction; never its bytes.
+            public let photoBlurHash: String?
+
+            public init(chatTitle: String, authorName: String, time: String, requirement: String?, photoBlurHash: String? = nil) {
+                self.chatTitle = chatTitle
+                self.authorName = authorName
+                self.time = time
+                self.requirement = requirement
+                self.photoBlurHash = photoBlurHash
+            }
+        }
+
+        public struct LockedGroup: Hashable, Sendable, Codable {
+            public let title: String
+            /// "1 person" / "12 people".
+            public let memberCount: String
+            public let hostName: String?
+            public let avatarID: String
+            public let imageData: Data?
+            public let blurHash: String?
+
+            public init(title: String, memberCount: String, hostName: String?, avatarID: String, imageData: Data?, blurHash: String?) {
+                self.title = title
+                self.memberCount = memberCount
+                self.hostName = hostName
+                self.avatarID = avatarID
+                self.imageData = imageData
+                self.blurHash = blurHash
+            }
+        }
+
+        public struct Cash: Hashable, Sendable, Codable {
+            public enum Verb: String, Hashable, Sendable, Codable {
+                case sent = "SENT"
+                case tipped = "TIPPED"
+                /// A text message that is a cash link and nothing else.
+                case cashLink = "CASH_LINK"
+            }
+
+            public let chatTitle: String
+            public let kind: Kind
+            public let authorName: String
+            public let time: String
+            /// Pre-formatted, e.g. "$15.00".
+            public let amount: String
+            public let verb: Verb
+            /// Where a cash link's claim stands; nil for a payment, which settles when sent.
+            public let claim: LinkCard.Cash.Claim?
+
+            public init(chatTitle: String, kind: Kind, authorName: String, time: String, amount: String, verb: Verb, claim: LinkCard.Cash.Claim? = nil) {
+                self.chatTitle = chatTitle
+                self.kind = kind
+                self.authorName = authorName
+                self.time = time
+                self.amount = amount
+                self.verb = verb
+                self.claim = claim
+            }
+        }
+    }
+}
+
 // MARK: - User -
 
 extension LinkCard {
@@ -408,6 +604,7 @@ nonisolated extension LinkCard {
         case .cash(let cash):   .cash(Cash(url: cash.url, entropy: cash.entropy, range: range))
         case .token(let token): .token(Token(url: token.url, mint: token.mint, range: range))
         case .group(let group): .group(Group(url: group.url, chatID: group.chatID, range: range))
+        case .message(let message): .message(Message(url: message.url, chatID: message.chatID, messageID: message.messageID, range: range))
         case .user(let user):   .user(User(url: user.url, identity: user.identity, range: range))
         case .web(let web):     .web(Web(url: web.url, range: range, page: web.page))
         }

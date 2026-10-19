@@ -15,6 +15,8 @@ public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable
     case edit
     case delete
     case report
+    /// Send a link to the message into other chats, or out through the system share sheet.
+    case forward
 }
 
 extension MessageCapability {
@@ -27,6 +29,7 @@ extension MessageCapability {
         case .edit:   "Edit"
         case .delete: "Delete"
         case .report: "Report"
+        case .forward: "Forward"
         }
     }
 
@@ -34,7 +37,7 @@ extension MessageCapability {
     public var isDestructive: Bool {
         switch self {
         // Report is red to match Report on the profile menus, though nothing is destroyed.
-        case .copy, .reply, .edit: false
+        case .copy, .reply, .edit, .forward: false
         case .delete, .report:     true
         }
     }
@@ -57,6 +60,12 @@ extension MessageCapability {
     /// | Own message, unconfirmed | no |
     /// | A tombstone | no |
     ///
+    /// Forward is granted wherever Android grants `Link`: any
+    /// text, photo or cash message a participant sent and the server confirmed, since only those
+    /// have a sequence to point at. A tombstone, a system notice, a widget, and a message this client
+    /// could not decrypt don't get it. Like Report, it survives `isMember` and `canPost`: a reader
+    /// outside a group can still pass a message along.
+    ///
     /// `conversation` is accepted but unread today: it is the seam a group-chat permissions model
     /// plugs into (an admin deleting another member's message, a read-only channel), and taking it
     /// now means adding that model does not change every call site. It is optional because the
@@ -67,8 +76,8 @@ extension MessageCapability {
     /// the Join panel stands where the composer would, so there is nothing to reply with.
     ///
     /// `canPost` is false when the viewer fails a speaker rule (with membership). Reply goes with the
-    /// composer, since a reply is a post, matching Android. Copy, Report and the sender's own
-    /// Edit/Delete are not posting and stay. Reactions are not decided here.
+    /// composer, since a reply is a post, matching Android. Copy, Report, the link rows and the
+    /// sender's own Edit/Delete are not posting and stay. Reactions are not decided here.
     ///
     /// `now` is a parameter rather than `Date.now` so the result stays a function of its inputs.
     public static func resolve(
@@ -105,7 +114,8 @@ extension MessageCapability {
             // authored it so there is nothing to edit, and delete is deliberately withheld from
             // a payment record. Someone else's payment is still reportable — a payment is a thing
             // a person did to you.
-            return message.isFromSelf(selfUserID) ? [.reply] : [.reply, .report]
+            guard message.isFromSelf(selfUserID) else { return [.reply, .report, .forward] }
+            return message.eventSequence > 0 ? [.reply, .forward] : [.reply]
         case .widget(.unrecognized):
             // Drawn as an unsupported message: nothing this client can act on.
             return []
@@ -121,7 +131,9 @@ extension MessageCapability {
         }
 
         guard message.isFromSelf(selfUserID) else {
-            return hasText ? [.copy, .reply, .report] : [.reply, .report]
+            return hasText
+                ? [.copy, .reply, .report, .forward]
+                : [.reply, .report, .forward]
         }
 
         // An unconfirmed message has no `eventSequence` to send as `expected_event_sequence`, so no
@@ -131,7 +143,7 @@ extension MessageCapability {
             return []
         }
 
-        var capabilities: Set<MessageCapability> = [.reply]
+        var capabilities: Set<MessageCapability> = [.reply, .forward]
         if hasText {
             capabilities.insert(.copy)
             if isWithin(policy.editWindow, of: message, at: now) {

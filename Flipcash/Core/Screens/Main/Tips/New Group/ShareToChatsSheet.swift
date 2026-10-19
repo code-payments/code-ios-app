@@ -23,6 +23,9 @@ enum ShareToChatsSubject {
         preview: TipCodePreview? = nil,
         directChatID: ConversationID?
     )
+    /// A link to one message, `/chat/{chatId}/m/{seq}`. The recipient's app draws the message card
+    /// from it, so the link is all that goes out.
+    case message(URL)
 }
 
 /// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a link by Share or Copy,
@@ -65,6 +68,7 @@ struct ShareToChatsSheet: View {
         let url: URL = switch subject {
         case .group(let id): .groupChatInvite(for: id)
         case .user(let userID, let username, _, _, _): .tipcard(for: userID, username: username)
+        case .message(let url): url
         }
         self._model = State(initialValue: InvitePeopleViewModel(url: url))
     }
@@ -73,7 +77,7 @@ struct ShareToChatsSheet: View {
     private var groupID: ConversationID? {
         switch subject {
         case .group(let id): id
-        case .user: nil
+        case .user, .message: nil
         }
     }
 
@@ -82,6 +86,8 @@ struct ShareToChatsSheet: View {
         switch subject {
         case .group(let id): id
         case .user(_, _, _, _, let directChatID): directChatID
+        // The message's own chat stays: a link sent there points at something further up.
+        case .message: nil
         }
     }
 
@@ -89,7 +95,7 @@ struct ShareToChatsSheet: View {
     /// display name, who has no card.
     private var card: ProfileCardScreen.Card? {
         switch subject {
-        case .group:
+        case .group, .message:
             return nil
         case .user(let userID, let username, let displayName, _, _):
             guard let displayName, !displayName.isEmpty else { return nil }
@@ -101,20 +107,21 @@ struct ShareToChatsSheet: View {
         switch subject {
         case .group: "Invite People"
         case .user: "Share Profile"
+        case .message: "Share Message"
         }
     }
 
     private var copyTitle: String {
         switch subject {
         case .group: "Copy Invite Link"
-        case .user: "Copy Link"
+        case .user, .message: "Copy Link"
         }
     }
 
     private var sendTitle: String {
         switch subject {
         case .group: "Invite"
-        case .user: "Send"
+        case .user, .message: "Send"
         }
     }
 
@@ -149,13 +156,17 @@ struct ShareToChatsSheet: View {
             .flatMap(UIImage.init(data:))
     }
 
-    /// What Share hands the system share sheet: the group's preview card, or the person's.
-    private func shareItem() -> UIActivityItemSource {
+    /// What Share hands the system share sheet: the group's preview card, the person's, or a message's bare link.
+    private func shareItems() -> [Any] {
         switch subject {
         case .group:
-            GroupInviteShareItem(url: model.url, title: title, icon: icon())
+            [GroupInviteShareItem(url: model.url, title: title, icon: icon())]
         case .user(_, _, let displayName, let preview, _):
-            TipCodeShareItem.profile(url: model.url, displayName: displayName, preview: preview)
+            [TipCodeShareItem.profile(url: model.url, displayName: displayName, preview: preview)]
+        case .message:
+            // The URL itself, not an item source: the system builds the preview card from the link
+            // rather than from a group invite's fallback title.
+            [model.url]
         }
     }
 
@@ -267,7 +278,7 @@ struct ShareToChatsSheet: View {
                     .scaledToFit()
             } action: {
                 if groupID != nil { Analytics.groupInviteShared(method: .share) }
-                ShareSheet.present(activityItem: shareItem()) { _ in }
+                ShareSheet.present(activityItems: shareItems()) { _ in }
             }
             .accessibilityIdentifier("group-invite-send")
 

@@ -157,7 +157,7 @@ extension ChatLinkMessageCell {
     /// bubble and gives its own width instead.
     static func cardFillsWidth(_ card: LinkCard?) -> Bool {
         switch card {
-        case .cash, .token, .group: true
+        case .cash, .token, .group, .message: true
         case .user, nil:            false
         // In its text bubble it widens only while a preview draws, which the card's own width
         // constraint handles; bare, it fills the width like the other cards.

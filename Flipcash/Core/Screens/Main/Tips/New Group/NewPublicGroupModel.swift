@@ -32,9 +32,9 @@ final class NewPublicGroupModel {
     /// leaves the blob unset for a group with no picture.
     private(set) var picture: UIImage?
 
-    /// Which holdings count toward the requirement. Opens on ``CurrencyChoice/all``, the rule every
+    /// Which holdings count toward the requirement. Opens on ``CurrencyChoice/anyCommunityCurrency``, the rule every
     /// creator can draw without first having to pick a token.
-    private(set) var currency: CurrencyChoice = .all
+    private(set) var currency: CurrencyChoice = .anyCommunityCurrency
 
     /// The minimum balance a member must hold, in USD.
     private(set) var minimumBalance: FiatAmount?
@@ -87,8 +87,8 @@ final class NewPublicGroupModel {
         currency = .specific(balance)
     }
 
-    func selectAllCurrencies() {
-        currency = .all
+    func selectAnyCommunityCurrency() {
+        currency = .anyCommunityCurrency
     }
 
     func select(minimumBalance: FiatAmount) {
@@ -125,12 +125,14 @@ final class NewPublicGroupModel {
         return Self.rules(minimumBalance: minimumBalance, currency: currency)
     }
 
-    /// Whether the user's holdings added together clear the amount picked, whatever
-    /// ``currency`` is — what the picker's Total Balance card states. True while no amount is
-    /// picked.
-    func satisfiesAllCurrencies(session: some ConversationGateReading, rates: [CurrencyCode: Rate]) -> Bool {
-        let rules = minimumBalance.map { Self.rules(minimumBalance: $0, currency: .all) }
-        return conversationGate(session: session, rules: rules, rates: rates).listener.isSatisfied
+    /// What sits under the presets: who can join, and with how much of which currency.
+    var requirementCaption: String {
+        let currencyName: String
+        switch currency {
+        case .anyCommunityCurrency: currencyName = "any community currency"
+        case .specific(let balance): currencyName = balance.stored.name
+        }
+        return "People need this amount of \(currencyName) to join this chat."
     }
 
     /// The contract caps the mint list at one entry, and an empty list is the requirement applying
@@ -306,8 +308,9 @@ extension NewPublicGroupModel {
 
     /// The holdings a group's balance requirement counts.
     enum CurrencyChoice: Equatable {
-        /// Every holding added together.
-        case all
+        /// Every holding added together, sent as an empty mint list. The contract can't say
+        /// "community currencies only", so USDF counts too.
+        case anyCommunityCurrency
         /// One holding, kept whole so the form's row can draw the token's name and icon. Only
         /// ``ExchangedBalance/stored``'s mint reaches the wire.
         case specific(ExchangedBalance)
@@ -315,7 +318,7 @@ extension NewPublicGroupModel {
         /// The mint of the chosen holding, or nil when every holding counts.
         var mint: PublicKey? {
             switch self {
-            case .all:                   return nil
+            case .anyCommunityCurrency:  return nil
             case .specific(let balance): return balance.stored.mint
             }
         }

@@ -170,6 +170,7 @@ public final class ChatMediaCell: ChatColumnCell {
     public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         stack.convert(stack.bounds, to: self).contains(point)
             || (!reactionRow.isHidden && reactionRow.convert(reactionRow.bounds, to: self).contains(point))
+            || authorAvatarContains(point)
     }
 
     public override func prepareForReuse() {

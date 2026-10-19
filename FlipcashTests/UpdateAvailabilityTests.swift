@@ -220,6 +220,15 @@ import FlipcashUI
         #expect(urgent.isToastEligible)
     }
 
+    @Test func refreshWithinTheIntervalSkipsUnlessResumingFromBackground() async {
+        let updates = sut()
+        await updates.check()
+        #expect(!updates.refresh())
+
+        updates.appDidEnterBackground()
+        #expect(updates.refresh())
+    }
+
     @Test func resultSurvivesRelaunch() async {
         await sut().check()
         #expect(sut().newerVersion == AppVersion("2026.10.4"))

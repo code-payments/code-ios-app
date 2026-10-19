@@ -136,6 +136,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.session.didEnterBackground()
             sessionContainer?.conversationController.handleBackground()
             container.preferences.appDidEnterBackground()
+            container.updateAvailability.appDidEnterBackground()
             sessionContainer?.pushController.clearBadgeCount()
             shutDownForBackground()
             flushLogsForBackground()
