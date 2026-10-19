@@ -65,6 +65,10 @@
     "fastlane/.env*",
     "**/.env*"
   ],
+  "claude_sandbox": {
+    "allow_mach_lookup": ["com.apple.CoreSimulator.*"],
+    "excluded_commands": ["./Scripts/build.sh", "./Scripts/build.sh *", "./Scripts/test.sh *"]
+  },
   "defaults": {
     "on_unavailable": "claude",
     "max_depth": 1,
