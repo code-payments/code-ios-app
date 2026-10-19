@@ -14,11 +14,15 @@ public struct Reactor: Hashable, Sendable {
     public let reactedAt: Date?
     /// The emoji aggregate's version when this reactor last toggled; orders a reactor list.
     public let version: UInt64
+    /// The total this user has paid to boost the emoji, in USD at each payment's market value; 0
+    /// when they have only reacted. The primary order of a reactor list, ahead of `version`.
+    public let boostUSD: Double
 
-    public init(userID: UserID, reactedAt: Date?, version: UInt64) {
+    public init(userID: UserID, reactedAt: Date?, version: UInt64, boostUSD: Double = 0) {
         self.userID = userID
         self.reactedAt = reactedAt
         self.version = version
+        self.boostUSD = boostUSD
     }
 }
 
@@ -30,13 +34,17 @@ public struct EmojiReaction: Hashable, Sendable {
     public let selfReactor: Reactor?
     public let sampleReactors: [Reactor]
     public let version: UInt64
+    /// The total paid to boost this emoji on the message, in USD; 0 when no one has boosted it. The
+    /// primary sort key of a message's reaction summary, ahead of `count`.
+    public let boostUSD: Double
 
-    public init(emoji: String, count: UInt64, selfReactor: Reactor?, sampleReactors: [Reactor], version: UInt64) {
+    public init(emoji: String, count: UInt64, selfReactor: Reactor?, sampleReactors: [Reactor], version: UInt64, boostUSD: Double = 0) {
         self.emoji = emoji
         self.count = count
         self.selfReactor = selfReactor
         self.sampleReactors = sampleReactors
         self.version = version
+        self.boostUSD = boostUSD
     }
 
     /// The summary entry `ReactionState` accepts.
@@ -76,7 +84,7 @@ extension Reactor {
     /// Builds a reactor from its proto, or nil when the user id does not parse.
     public init?(_ proto: Flipcash_Messaging_V1_Reactor) {
         guard let userID = try? UUID(data: proto.userID.value) else { return nil }
-        self.init(userID: userID, reactedAt: proto.hasReactedTs ? proto.reactedTs.date : nil, version: proto.version)
+        self.init(userID: userID, reactedAt: proto.hasReactedTs ? proto.reactedTs.date : nil, version: proto.version, boostUSD: proto.boostUsd)
     }
 }
 
@@ -88,7 +96,8 @@ extension EmojiReaction {
             count: proto.count,
             selfReactor: proto.hasSelfReactor ? Reactor(proto.selfReactor) : nil,
             sampleReactors: proto.sampleReactors.compactMap(Reactor.init),
-            version: proto.version
+            version: proto.version,
+            boostUSD: proto.boostUsd
         )
     }
 }

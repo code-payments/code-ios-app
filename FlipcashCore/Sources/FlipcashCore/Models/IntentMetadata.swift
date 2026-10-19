@@ -52,6 +52,11 @@ extension IntentMetadata {
                 throw Error.unsupportedMetadataType
             }
 
+        case .sendPublicMultiPayment:
+            // Multi-payment intents are only issued for reaction boosts, which the app does not
+            // surface as a payment through the intent metadata poll.
+            throw Error.unsupportedMetadataType
+
         case .publicDistribution:
             throw Error.unsupportedMetadataType
         }
