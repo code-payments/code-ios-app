@@ -26,6 +26,12 @@ extension Array where Element == ExchangedBalance {
         fundable()
     }
 
+    /// These balances without Dollars, for a picker that names a community currency: dollars
+    /// is the stable token, not one.
+    func excludingUSDF() -> [ExchangedBalance] {
+        filter { $0.stored.mint != .usdf }
+    }
+
     /// Balances eligible to withdraw.
     func withdrawable() -> [ExchangedBalance] {
         fundable()

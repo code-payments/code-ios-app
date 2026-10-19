@@ -205,38 +205,56 @@ struct NewPublicGroupModelTests {
 
     // MARK: - Currency choice -
 
-    @Test("The form opens on Total Balance")
+    @Test("The form opens on Any Community Currency")
     func opensOnAllCurrencies() {
         let model = NewPublicGroupModel()
 
-        #expect(model.currency == .all)
+        #expect(model.currency == .anyCommunityCurrency)
         #expect(model.currency.mint == nil, "No token row reads as selected in the picker")
     }
 
-    @Test("Picking a token replaces Total Balance")
+    @Test("Picking a token replaces Any Community Currency")
     func pickingATokenReplacesAll() {
         let model = NewPublicGroupModel()
 
         model.select(balance: .makeTest(mint: .jeffy))
 
-        #expect(model.currency != .all)
+        #expect(model.currency != .anyCommunityCurrency)
         #expect(model.currency.mint == .jeffy)
     }
 
-    @Test("Choosing Total Balance after a token clears the token")
+    @Test("Choosing Any Community Currency after a token clears the token")
     func choosingAllClearsTheToken() {
         let model = NewPublicGroupModel()
         model.select(balance: .makeTest(mint: .jeffy))
 
-        model.selectAllCurrencies()
+        model.selectAnyCommunityCurrency()
 
-        #expect(model.currency == .all)
+        #expect(model.currency == .anyCommunityCurrency)
         #expect(model.currency.mint == nil)
+    }
+
+    @Test("The caption names the picked token")
+    func captionNamesTheToken() {
+        let model = filledModel()
+
+        guard case .specific(let balance) = model.currency else {
+            Issue.record("filledModel picks a token")
+            return
+        }
+        #expect(model.requirementCaption == "People need this amount of \(balance.stored.name) to join this chat.")
+    }
+
+    @Test("The caption says any community currency while that is picked")
+    func captionForAnyCommunityCurrency() {
+        let model = NewPublicGroupModel()
+
+        #expect(model.requirementCaption == "People need this amount of any community currency to join this chat.")
     }
 
     // MARK: - Rules -
 
-    @Test("Total Balance maps to a requirement with no mints")
+    @Test("Any Community Currency maps to a requirement with no mints")
     func allCurrenciesRulesCarryNoMints() {
         let model = NewPublicGroupModel()
         model.select(minimumBalance: .usd(100))
@@ -259,11 +277,11 @@ struct NewPublicGroupModelTests {
         #expect(model.rules?.speaker.isEmpty == true)
     }
 
-    @Test("Switching back to Total Balance drops the mint from the rules")
+    @Test("Switching back to Any Community Currency drops the mint from the rules")
     func switchingBackToAllDropsTheMint() {
         let model = filledModel()
 
-        model.selectAllCurrencies()
+        model.selectAnyCommunityCurrency()
 
         #expect(model.rules == ConversationRules(
             listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(100), mints: []))]
@@ -280,7 +298,7 @@ struct NewPublicGroupModelTests {
         #expect(model.rules != nil)
     }
 
-    @Test("Create sends a Total Balance group with no mints")
+    @Test("Create sends a Any Community Currency group with no mints")
     func createSendsEmptyMints() async throws {
         let model = NewPublicGroupModel()
         model.title = "Ballers"
@@ -292,6 +310,20 @@ struct NewPublicGroupModelTests {
         #expect(creator.startChatCalls.first?.rules == ConversationRules(
             listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(100), mints: []))]
         ))
+    }
+
+    // MARK: - The currency picker -
+
+    @Test("The picker's list drops Dollars and keeps every other balance")
+    func excludingUSDFDropsOnlyDollars() {
+        let balances: [ExchangedBalance] = [
+            .makeTest(mint: .usdf, quarks: 1_000_000),
+            .makeTest(mint: .jeffy),
+        ]
+
+        let listed = balances.excludingUSDF()
+
+        #expect(listed.map(\.stored.mint) == [.jeffy])
     }
 
     // MARK: - The creator's own balance -
@@ -319,7 +351,7 @@ struct NewPublicGroupModelTests {
         #expect(model.canCreate(session: StubHoldings(usd: 10_000), rates: noRates) == false)
     }
 
-    @Test("Total Balance counts every holding toward the creator's own requirement")
+    @Test("Any Community Currency counts every holding toward the creator's own requirement")
     func allCurrenciesSumsTheCreatorsHoldings() {
         let model = NewPublicGroupModel()
         model.title = "Ballers"
@@ -332,7 +364,7 @@ struct NewPublicGroupModelTests {
         #expect(model.canCreate(session: spread, rates: noRates))
     }
 
-    @Test("Total Balance stays short when the holdings added together are short")
+    @Test("Any Community Currency stays short when the holdings added together are short")
     func allCurrenciesShortWhenTheTotalIsShort() {
         let model = NewPublicGroupModel()
         model.title = "Ballers"
@@ -350,14 +382,6 @@ struct NewPublicGroupModelTests {
         let spread = StubHoldings(usd: 40, otherUSD: 60)
 
         #expect(model.satisfiesOwnRules(session: spread, rates: noRates) == false)
-    }
-
-    @Test("The Total Balance card weighs the total even while a token is picked")
-    func allCurrenciesCardWeighsTheTotal() {
-        let model = filledModel(minimum: 100)
-
-        #expect(model.satisfiesAllCurrencies(session: StubHoldings(usd: 40, otherUSD: 60), rates: noRates))
-        #expect(model.satisfiesAllCurrencies(session: StubHoldings(usd: 40, otherUSD: 59), rates: noRates) == false)
     }
 
     @Test("An incomplete requirement keeps Create disabled")
