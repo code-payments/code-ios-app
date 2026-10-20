@@ -106,6 +106,32 @@ struct ChatReplyReturnTests {
         _ = window
     }
 
+    @Test("A quote jump between rows near the bottom keeps the origin and shows the button")
+    func quoteJumpNearBottom_keepsOrigin() async {
+        let (controller, window) = await host()
+        var visible = false
+        controller.onJumpButtonVisibilityChange = { visible = $0 }
+        tapQuote(controller, quoted: 38, in: 39)
+        #expect(controller.replyReturns.origins == ["msg-39"])
+        #expect(visible)
+        _ = window
+    }
+
+    @Test("Returning to an origin near the bottom keeps the origins under it")
+    func popToOriginNearBottom_keepsRest() async {
+        let (controller, window) = await host()
+        var visible = false
+        controller.onJumpButtonVisibilityChange = { visible = $0 }
+        tapQuote(controller, quoted: 38, in: 39)
+        tapQuote(controller, quoted: 20, in: 38)
+        try? await Task.sleep(for: .milliseconds(800))
+        controller.jumpFromJumpButton()
+        try? await Task.sleep(for: .milliseconds(800))
+        #expect(controller.replyReturns.origins == ["msg-39"])
+        #expect(visible)
+        _ = window
+    }
+
     @Test("Reaching the bottom clears every origin and hides the button")
     func reachingBottom_clears() async {
         let (controller, window) = await host()

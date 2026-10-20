@@ -206,11 +206,7 @@ public final class ChatViewController: UICollectionViewController {
     /// scrolls, so content settling or the keyboard can't flip it — it's the gate for following
     /// the keyboard (an inset change) without yanking a reader who scrolled up.
     private var wasAtBottom = true {
-        didSet {
-            // Reaching the bottom passes every origin on the way down.
-            if wasAtBottom { replyReturns.clear() }
-            publishJumpButtonState()
-        }
+        didSet { publishJumpButtonState() }
     }
     /// Where the jump button returns to before the bottom: the messages this visit tapped reply
     /// quotes in.
@@ -1065,6 +1061,7 @@ public final class ChatViewController: UICollectionViewController {
         // The reader is headed to the bottom, and these programmatic moves don't pass through the
         // drag tracking that normally sets this.
         wasAtBottom = true
+        replyReturns.clear()
         guard animated else {
             chatLayout.restoreContentOffset(with: snapshot)
             // The first restore positions by the estimate; once the bottom cells self-size, re-anchor
@@ -1127,6 +1124,14 @@ public final class ChatViewController: UICollectionViewController {
         scrollToBottomFromJumpButton()
     }
 
+    /// Re-reads ``wasAtBottom`` after a scroll the reader drove. Only the reader reaching the bottom
+    /// clears the reply origins: a quote jump or a return to an origin can land within the bottom
+    /// threshold of a short transcript, and that must not empty the stack it is walking.
+    private func trackUserScrollPosition() {
+        wasAtBottom = isNearBottomByGeometry
+        if wasAtBottom { replyReturns.clear() }
+    }
+
     /// Drops the reply origins the reader has scrolled down to or past.
     private func dropReachedReplyReturns() {
         // Mid-update the index paths can outrun `items`.
@@ -1164,15 +1169,15 @@ public final class ChatViewController: UICollectionViewController {
     // A scroll that no drag drives (status-bar tap, deceleration's end, a programmatic animation) never
     // passes the drag check in `scrollViewDidScroll`, so each path that ends one re-reads the offset.
     public override func scrollViewDidScrollToTop(_ scrollView: UIScrollView) {
-        wasAtBottom = isNearBottomByGeometry
+        trackUserScrollPosition()
     }
 
     public override func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        wasAtBottom = isNearBottomByGeometry
+        trackUserScrollPosition()
     }
 
     public override func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        if !decelerate { wasAtBottom = isNearBottomByGeometry }
+        if !decelerate { trackUserScrollPosition() }
     }
 
     public override func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
@@ -1185,7 +1190,7 @@ public final class ChatViewController: UICollectionViewController {
         // Track "at the bottom" only from real user scrolling, so an inset change (keyboard) or
         // content settling doesn't flip it.
         if scrollView.isDragging || scrollView.isDecelerating {
-            wasAtBottom = isNearBottomByGeometry
+            trackUserScrollPosition()
             dropReachedReplyReturns()
         }
         // Don't paginate while a batch update animates, or before the opening scroll-to-bottom has
