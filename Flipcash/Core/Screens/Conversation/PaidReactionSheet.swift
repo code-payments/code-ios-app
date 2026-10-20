@@ -52,7 +52,7 @@ private struct PaidReactionSheetContent: View {
     }
 
     var body: some View {
-        PartialSheet(background: .clear) {
+        PartialSheet(background: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(spacing: 16) {
                     Text("Paid Reactions")
