@@ -58,14 +58,22 @@ private struct PaidReactionSheetContent: View {
                     Text("Paid Reactions")
                         .font(.appDisplaySmall)
                         .foregroundStyle(Color.textMain)
-                    Button {
-                        viewModel.cycleEmoji()
-                    } label: {
-                        EmojiPill(emoji: viewModel.emoji ?? "")
+                    VStack(spacing: 6) {
+                        Button {
+                            viewModel.cycleEmoji()
+                        } label: {
+                            EmojiPill(emoji: viewModel.emoji ?? "")
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!viewModel.canCycleEmoji)
+                        .accessibilityHint(viewModel.canCycleEmoji ? "Switches to your next reaction" : "")
+                        if viewModel.canCycleEmoji {
+                            Text("Tap to change")
+                                .font(.default(size: 12, weight: .medium))
+                                .foregroundStyle(Color.textSecondary)
+                                .accessibilityHidden(true)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .disabled(!viewModel.canCycleEmoji)
-                    .accessibilityHint(viewModel.canCycleEmoji ? "Switches to your next reaction" : "")
                     Text(viewModel.splitDescription)
                         .font(.default(size: 14, weight: .medium))
                         .foregroundStyle(Color.textSecondary)
