@@ -426,7 +426,7 @@ struct ConversationScreen: View {
             onReactionTap: toggleReaction,
             onReactionLongPress: openReactors,
             onReactionAdd: openReactionPicker,
-            onReactionBoost: openBoostPicker,
+            onReactionBoost: openPaidReactions,
             reactionStripEntries: reactionStripEntries,
             onReactionStripSelect: toggleReaction,
             onReactionStripAdd: openReactionPicker,
@@ -596,21 +596,16 @@ struct ConversationScreen: View {
             EmojiPickerSheet(
                 recents: sessionContainer.recentReactions.row(limit: RecentReactionsStore.pickerRowLimit, undrawable: undrawableEmoji)
             ) { emoji in
-                if let boost = request.boost {
-                    reactionPickerRequest = nil
-                    paidReactionTarget = boost(emoji)
-                } else {
-                    if let conversationID {
-                        conversationController.reactions.toggle(emoji, messageID: request.messageID, in: conversationID)
-                    }
-                    reactionPickerRequest = nil
+                if let conversationID {
+                    conversationController.reactions.toggle(emoji, messageID: request.messageID, in: conversationID)
                 }
+                reactionPickerRequest = nil
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
         .sheet(item: $paidReactionTarget) { target in
-            PaidReactionSheet(target: target)
+            PaidReactionSheet(target: target, selfReactions: selfReactions(on: target.messageID))
         }
         .sheet(item: $reactorsRequest, onDismiss: {
             guard let userID = pendingReactorProfile else { return }
@@ -1105,22 +1100,25 @@ struct ConversationScreen: View {
         reactionPickerRequest = ReactionPickerRequest(id: stableID, messageID: messageID)
     }
 
-    /// Opens the picker for the row's leading "$"; the chosen emoji opens the Paid Reactions sheet.
-    private func openBoostPicker(_ stableID: String) {
+    /// Opens the Paid Reactions sheet for the row's leading "$", which boosts one of the user's own
+    /// reactions on the message.
+    private func openPaidReactions(_ stableID: String) {
         guard let conversationID, let creator = groupConversation?.creator,
               let message = coordinator?.loader.messages.first(where: { $0.stableID == stableID }),
               let sender = message.senderID,
-              !message.isFromSelf(conversationController.selfUserID) else { return }
-        let messageID = message.id
-        reactionPickerRequest = ReactionPickerRequest(id: stableID, messageID: messageID) { emoji in
-            ReactionBoostTarget(
-                conversationID: conversationID,
-                messageID: messageID,
-                emoji: emoji,
-                messageSender: sender,
-                creator: creator
-            )
-        }
+              !message.isFromSelf(conversationController.selfUserID),
+              !selfReactions(on: message.id).isEmpty else { return }
+        paidReactionTarget = ReactionBoostTarget(
+            conversationID: conversationID,
+            messageID: message.id,
+            messageSender: sender,
+            creator: creator
+        )
+    }
+
+    /// The user's reactions on a loaded message, as the transcript shows them.
+    private func selfReactions(on messageID: MessageID) -> [SelfReaction] {
+        coordinator?.loader.messages.first(where: { $0.id == messageID })?.reactionState?.selfReactions ?? []
     }
 
     /// The long-press strip's content: the six defaults, always first and in place, then the user's
@@ -1185,8 +1183,6 @@ struct ConversationScreen: View {
     private struct ReactionPickerRequest: Identifiable {
         let id: String
         let messageID: MessageID
-        /// Builds the paid reaction for the chosen emoji, or nil for a plain reaction.
-        var boost: ((String) -> ReactionBoostTarget)? = nil
     }
 
     private struct ReactorsRequest: Identifiable {

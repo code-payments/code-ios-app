@@ -11,8 +11,9 @@ import FlipcashCore
 /// Thrown to reset the SwipeControl knob without its success checkmark when the boost doesn't complete.
 private struct PaidReactionNotPaid: Error {}
 
-/// Pays for a reaction (node 10330:17698): the emoji, how the payment is split, the currency it's paid
-/// from, a preset or custom USD amount, and a swipe.
+/// Boosts one of the user's reactions (node 10330:17698): the emoji, how the payment is split, the
+/// currency it's paid from, a preset or custom USD amount, and a swipe. Tapping the emoji moves to the
+/// user's next reaction on the message; the sheet closes once they have none left.
 ///
 /// Thin environment-reading wrapper that hands the session container to ``PaidReactionSheetContent``,
 /// whose `init` seeds the `@State` view model synchronously.
@@ -21,9 +22,11 @@ struct PaidReactionSheet: View {
     @Environment(SessionContainer.self) private var sessionContainer
 
     let target: ReactionBoostTarget
+    /// The user's current reactions on the message.
+    let selfReactions: [SelfReaction]
 
     var body: some View {
-        PaidReactionSheetContent(sessionContainer: sessionContainer, target: target)
+        PaidReactionSheetContent(sessionContainer: sessionContainer, target: target, selfReactions: selfReactions)
     }
 }
 
@@ -37,16 +40,30 @@ private struct PaidReactionSheetContent: View {
     @State private var customCents: UInt64?
     @State private var didSucceed = false
 
-    init(sessionContainer: SessionContainer, target: ReactionBoostTarget) {
-        _viewModel = State(initialValue: ReactionBoostViewModel(sessionContainer: sessionContainer, target: target))
+    let selfReactions: [SelfReaction]
+
+    init(sessionContainer: SessionContainer, target: ReactionBoostTarget, selfReactions: [SelfReaction]) {
+        self.selfReactions = selfReactions
+        _viewModel = State(initialValue: ReactionBoostViewModel(
+            sessionContainer: sessionContainer,
+            target: target,
+            selfReactions: selfReactions
+        ))
     }
 
     var body: some View {
         PartialSheet(background: .clear) {
             VStack(spacing: 25) {
                 VStack(spacing: 12) {
-                    Text(viewModel.target.emoji)
-                        .font(.appDisplayLarge)
+                    Button {
+                        viewModel.cycleEmoji()
+                    } label: {
+                        Text(viewModel.emoji ?? "")
+                            .font(.appDisplayLarge)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!viewModel.canCycleEmoji)
+                    .accessibilityHint(viewModel.canCycleEmoji ? "Switches to your next reaction" : "")
                     Text("Paid Reactions")
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
@@ -81,6 +98,10 @@ private struct PaidReactionSheetContent: View {
             .padding(.horizontal, 20)
             .padding(.top, 30)
             .padding(.bottom, bottomPadding)
+        }
+        .onChange(of: selfReactions) { _, reactions in
+            viewModel.updateSelfReactions(reactions)
+            if reactions.isEmpty && !didSucceed { dismiss() }
         }
         .task(id: didSucceed) {
             guard didSucceed else { return }

@@ -411,7 +411,9 @@ extension ChatItem {
                     reactions: isLast ? message.reactionState?.pills ?? [] : [],
                     selfReactions: message.reactionState?.selfReactions ?? [],
                     canReact: canReact,
-                    canBoost: canBoost && !isFromSelf && message.senderID != nil && !message.isDeleted && !isUnsent,
+                    // "$" boosts a reaction the viewer already has, so it waits for one.
+                    canBoost: canBoost && !isFromSelf && message.senderID != nil && !message.isDeleted && !isUnsent
+                        && !(message.reactionState?.selfReactions.isEmpty ?? true),
                     isUnsent: isUnsent
                 )))
             }

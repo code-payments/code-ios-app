@@ -6,10 +6,8 @@
 import Foundation
 import FlipcashCore
 
-/// The reaction calls a boost makes around its payment.
+/// The reaction state a boost reads and records around its payment.
 protocol ReactionBoostReacting: AnyObject {
-    func addForBoost(_ emoji: String, messageID: MessageID, in conversationID: ConversationID, at date: Date) async -> ConversationReactions.BoostAdd
-    func toggle(_ emoji: String, messageID: MessageID, in conversationID: ConversationID, at date: Date)
     func selfBoostCents(_ emoji: String, messageID: MessageID, in conversationID: ConversationID) -> UInt64
     func recordOwnBoost(_ emoji: String, selfTotalCents: UInt64, messageID: MessageID, in conversationID: ConversationID)
 }
@@ -20,15 +18,14 @@ extension ConversationReactions: ReactionBoostReacting {}
 struct ReactionBoostTarget: Hashable, Identifiable {
     let conversationID: ConversationID
     let messageID: MessageID
-    let emoji: String
     let messageSender: UserID
     let creator: UserID
 
     var id: Self { self }
 }
 
-/// Pays a paid reaction: adds the reaction, then pays its one or two payees in USD at one verified rate.
-/// A payment that fails or is cancelled takes back the reaction it added.
+/// Boosts one of the user's existing reactions on a message: pays its one or two payees in USD at one
+/// verified rate. The reaction itself is never added or removed here.
 @Observable
 final class ReactionBoostViewModel {
 
@@ -55,6 +52,20 @@ final class ReactionBoostViewModel {
 
     let target: ReactionBoostTarget
 
+    /// The user's reactions on the message, most recent first; kept current by the sheet.
+    private(set) var selfReactions: [String] = []
+
+    @ObservationIgnored private var chosenEmoji: String?
+
+    /// The reaction being boosted: the one the user cycled to, or their most recent while that one stands.
+    var emoji: String? {
+        if let chosenEmoji, selfReactions.contains(chosenEmoji) { return chosenEmoji }
+        return selfReactions.first
+    }
+
+    /// Whether tapping the emoji has another reaction to move to.
+    var canCycleEmoji: Bool { selfReactions.count > 1 }
+
     @ObservationIgnored let session: Session
     @ObservationIgnored let ratesController: RatesController
     @ObservationIgnored let sender: any DirectSending
@@ -78,13 +89,14 @@ final class ReactionBoostViewModel {
     }
 
     var canSubmit: Bool {
-        guard let selectedCents, let minimumCents else { return false }
+        guard emoji != nil, let selectedCents, let minimumCents else { return false }
         return selectedCents >= minimumCents
     }
 
     init(
         sessionContainer: SessionContainer,
         target: ReactionBoostTarget,
+        selfReactions: [SelfReaction],
         sender: (any DirectSending)? = nil,
         multiSender: (any MultiSending)? = nil,
         resolver: (any RecipientResolving)? = nil,
@@ -101,6 +113,20 @@ final class ReactionBoostViewModel {
         self.resolver = resolver ?? session
         self.reactions = reactions ?? sessionContainer.conversationController.reactions
         self.selectedBalance = ratesController.resolveInitialBalance(mint: nil, session: session)
+        updateSelfReactions(selfReactions)
+    }
+
+    /// Takes the user's current reactions on the message; a boosted one that was removed drops out.
+    func updateSelfReactions(_ reactions: [SelfReaction]) {
+        selfReactions = reactions
+            .sorted { ($0.reactedAt, $0.emoji) > ($1.reactedAt, $1.emoji) }
+            .map(\.emoji)
+    }
+
+    /// Moves to the user's next reaction on the message, wrapping after the oldest.
+    func cycleEmoji() {
+        guard canCycleEmoji, let emoji, let index = selfReactions.firstIndex(of: emoji) else { return }
+        chosenEmoji = selfReactions[(index + 1) % selfReactions.count]
     }
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
@@ -110,10 +136,9 @@ final class ReactionBoostViewModel {
 
     // MARK: - Submit -
 
-    /// Adds the reaction, then pays the selected amount; on a failed or cancelled payment the reaction it
-    /// added is removed again.
+    /// Pays the selected amount as a boost on the shown reaction.
     func submit() async -> Outcome {
-        guard let cents = selectedCents else { return .failed }
+        guard let cents = selectedCents, let emoji else { return .failed }
 
         let split: ReactionBoostSplit
         do {
@@ -137,7 +162,7 @@ final class ReactionBoostViewModel {
             ErrorReporting.captureError(
                 Error.noSpendableBalance,
                 reason: "No spendable balance at boost submission",
-                metadata: ["emoji": target.emoji]
+                metadata: ["emoji": emoji]
             )
             session.dialogItem = .error(
                 title: "Balance Unavailable",
@@ -197,16 +222,8 @@ final class ReactionBoostViewModel {
             }
         }
 
-        let added = await reactions.addForBoost(target.emoji, messageID: target.messageID, in: target.conversationID, at: .now)
-        switch added {
-        case .failed:
-            return .failed
-        case .added, .alreadyReacted:
-            break
-        }
-
-        let previousCents = reactions.selfBoostCents(target.emoji, messageID: target.messageID, in: target.conversationID)
-        let chat = ChatPaymentMetadata.reactionBoost(chatID: target.conversationID, messageID: target.messageID, emoji: target.emoji)
+        let previousCents = reactions.selfBoostCents(emoji, messageID: target.messageID, in: target.conversationID)
+        let chat = ChatPaymentMetadata.reactionBoost(chatID: target.conversationID, messageID: target.messageID, emoji: emoji)
         do {
             if payments.count == 1, let payment = payments.first {
                 try await sender.send(amount: payment.amount, verifiedState: pin, to: payment.recipientOwner, chat: chat)
@@ -214,9 +231,6 @@ final class ReactionBoostViewModel {
                 try await multiSender.sendMultiple(payments, verifiedState: pin, chat: chat)
             }
         } catch {
-            if added == .added {
-                reactions.toggle(target.emoji, messageID: target.messageID, in: target.conversationID, at: .now)
-            }
             if !(error is CancellationError) {
                 showSendError()
             }
@@ -224,7 +238,7 @@ final class ReactionBoostViewModel {
         }
 
         reactions.recordOwnBoost(
-            target.emoji,
+            emoji,
             selfTotalCents: previousCents + cents,
             messageID: target.messageID,
             in: target.conversationID

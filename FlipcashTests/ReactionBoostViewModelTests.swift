@@ -31,7 +31,7 @@ struct ReactionBoostViewModelTests {
         #expect(multi.map(\.amount.nativeAmount.value) == [8, 2])
         #expect(multi.map(\.recipientOwner) == [payments.key(for: author), payments.key(for: host)])
         #expect(viewModel.splitDescription.hasPrefix("80%"))
-        #expect(reactions.calls == [.add, .record(1000)])
+        #expect(reactions.calls == [.record("💯", 1000)])
     }
 
     @Test("Boosting the host's own message pays the whole amount to the host")
@@ -89,49 +89,99 @@ struct ReactionBoostViewModelTests {
         #expect(reactions.calls.isEmpty)
     }
 
-    // MARK: - Add, then pay
+    // MARK: - Boosting an existing reaction
 
-    @Test("A failed payment removes the reaction the boost just added")
-    func failedPaymentRollsBackAdd() async throws {
-        let (viewModel, payments, reactions) = try await make(sender: author, creator: host, cents: 1000)
-        payments.failure = URLError(.notConnectedToInternet)
+    @Test("A boost pays for the reaction the user already has and never adds one")
+    func boostNeverAddsReaction() async throws {
+        let (viewModel, payments, reactions) = try await make(sender: author, creator: host, cents: 500)
 
-        #expect(await viewModel.submit() == .failed)
+        #expect(await viewModel.submit() == .success)
 
-        #expect(reactions.calls == [.add, .remove])
+        #expect(payments.multiSends.count == 1)
+        #expect(reactions.calls == [.record("💯", 500)])
     }
 
-    @Test("A failed payment leaves a reaction the user already had")
-    func failedPaymentKeepsExistingReaction() async throws {
+    @Test("A failed payment records nothing and leaves the reaction alone")
+    func failedPaymentRecordsNothing() async throws {
         let (viewModel, payments, reactions) = try await make(sender: author, creator: host, cents: 1000)
-        reactions.addResult = .alreadyReacted
         payments.failure = URLError(.notConnectedToInternet)
 
         #expect(await viewModel.submit() == .failed)
 
-        #expect(reactions.calls == [.add])
+        #expect(reactions.calls.isEmpty)
     }
 
     @Test("A boost on top of an earlier one records the new self total")
     func recordsRunningSelfTotal() async throws {
         let (viewModel, _, reactions) = try await make(sender: author, creator: host, cents: 500)
-        reactions.addResult = .alreadyReacted
         reactions.priorSelfCents = 100
 
         #expect(await viewModel.submit() == .success)
 
-        #expect(reactions.calls == [.add, .record(600)])
+        #expect(reactions.calls == [.record("💯", 600)])
     }
 
-    @Test("A failed add never pays")
-    func failedAddNeverPays() async throws {
-        let (viewModel, payments, reactions) = try await make(sender: author, creator: host, cents: 1000)
-        reactions.addResult = .failed
+    @Test("The sheet starts on the user's most recent reaction")
+    func defaultsToMostRecentReaction() async throws {
+        let (viewModel, _, _) = try await make(
+            sender: author,
+            creator: host,
+            cents: 500,
+            selfReactions: [Self.reaction("👍", at: 100), Self.reaction("🔥", at: 300), Self.reaction("💯", at: 200)]
+        )
 
+        #expect(viewModel.emoji == "🔥")
+        #expect(viewModel.canCycleEmoji)
+    }
+
+    @Test("Tapping the emoji cycles through the user's reactions, newest to oldest, and the boost follows")
+    func cyclesReactions() async throws {
+        let (viewModel, _, reactions) = try await make(
+            sender: author,
+            creator: host,
+            cents: 500,
+            selfReactions: [Self.reaction("👍", at: 100), Self.reaction("🔥", at: 300), Self.reaction("💯", at: 200)]
+        )
+
+        viewModel.cycleEmoji()
+        #expect(viewModel.emoji == "💯")
+        viewModel.cycleEmoji()
+        #expect(viewModel.emoji == "👍")
+        viewModel.cycleEmoji()
+        #expect(viewModel.emoji == "🔥")
+
+        viewModel.cycleEmoji()
+        #expect(await viewModel.submit() == .success)
+        #expect(reactions.calls == [.record("💯", 500)])
+    }
+
+    @Test("One reaction has nothing to cycle to")
+    func singleReactionDoesNotCycle() async throws {
+        let (viewModel, _, _) = try await make(sender: author, creator: host, cents: 500)
+
+        #expect(!viewModel.canCycleEmoji)
+        viewModel.cycleEmoji()
+        #expect(viewModel.emoji == "💯")
+    }
+
+    @Test("Removing the shown reaction moves to the next, and removing all of them stops the swipe")
+    func removedReactionsDropOut() async throws {
+        let (viewModel, payments, _) = try await make(
+            sender: author,
+            creator: host,
+            cents: 500,
+            selfReactions: [Self.reaction("👍", at: 100), Self.reaction("🔥", at: 300)]
+        )
+
+        viewModel.updateSelfReactions([Self.reaction("👍", at: 100)])
+        #expect(viewModel.emoji == "👍")
+        #expect(viewModel.canSubmit)
+
+        viewModel.updateSelfReactions([])
+        #expect(viewModel.emoji == nil)
+        #expect(!viewModel.canSubmit)
         #expect(await viewModel.submit() == .failed)
-
-        #expect(payments.multiSends.isEmpty && payments.singleSends.isEmpty)
-        #expect(reactions.calls == [.add])
+        #expect(payments.multiSends.isEmpty)
     }
 
     // MARK: - Helpers
@@ -140,7 +190,8 @@ struct ReactionBoostViewModelTests {
         container: SessionContainer? = nil,
         sender: UserID,
         creator: UserID,
-        cents: UInt64
+        cents: UInt64,
+        selfReactions: [SelfReaction] = [ReactionBoostViewModelTests.reaction("💯", at: 100)]
     ) async throws -> (ReactionBoostViewModel, FakeBoostPayments, FakeBoostReactions) {
         let container = if let container { container } else { try await SendAmountViewModelTests.makeReadyToSendContainer() }
         let payments = FakeBoostPayments()
@@ -150,10 +201,10 @@ struct ReactionBoostViewModelTests {
             target: ReactionBoostTarget(
                 conversationID: .test(1),
                 messageID: MessageID(value: 1),
-                emoji: "💯",
                 messageSender: sender,
                 creator: creator
             ),
+            selfReactions: selfReactions,
             sender: payments,
             multiSender: payments,
             resolver: payments,
@@ -162,6 +213,10 @@ struct ReactionBoostViewModelTests {
         #expect(viewModel.selectedBalance != nil)
         viewModel.selectedCents = cents
         return (viewModel, payments, reactions)
+    }
+
+    private static func reaction(_ emoji: String, at seconds: TimeInterval) -> SelfReaction {
+        SelfReaction(emoji: emoji, reactedAt: Date(timeIntervalSince1970: seconds))
     }
 }
 
@@ -203,29 +258,17 @@ private final class FakeBoostPayments: DirectSending, MultiSending, RecipientRes
 private final class FakeBoostReactions: ReactionBoostReacting {
 
     enum Call: Equatable {
-        case add
-        case remove
-        case record(UInt64)
+        case record(String, UInt64)
     }
 
     private(set) var calls: [Call] = []
-    var addResult: ConversationReactions.BoostAdd = .added
     var priorSelfCents: UInt64 = 0
-
-    func addForBoost(_ emoji: String, messageID: MessageID, in conversationID: ConversationID, at date: Date) async -> ConversationReactions.BoostAdd {
-        calls.append(.add)
-        return addResult
-    }
-
-    func toggle(_ emoji: String, messageID: MessageID, in conversationID: ConversationID, at date: Date) {
-        calls.append(.remove)
-    }
 
     func selfBoostCents(_ emoji: String, messageID: MessageID, in conversationID: ConversationID) -> UInt64 {
         priorSelfCents
     }
 
     func recordOwnBoost(_ emoji: String, selfTotalCents: UInt64, messageID: MessageID, in conversationID: ConversationID) {
-        calls.append(.record(selfTotalCents))
+        calls.append(.record(emoji, selfTotalCents))
     }
 }
