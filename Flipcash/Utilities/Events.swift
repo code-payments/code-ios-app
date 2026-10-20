@@ -15,6 +15,12 @@ extension Analytics {
         case autoLoginComplete     = "Auto-login complete"
     }
 
+    /// Group events the shared contract does not carry yet, with the wire names it will use.
+    enum GroupCardEvent: String, AnalyticsEvent {
+        case cardShown    = "Group: Card Shown"
+        case inviteShared = "Group: Invite Shared"
+    }
+
     enum AccountEvent: String, AnalyticsEvent {
         case createAccount = "Create Account"
     }
@@ -487,6 +493,17 @@ extension Analytics {
         track(GroupEvents.shared.inviteShared(method: method))
     }
 
+    /// The group card appeared. Not in the shared contract at the pinned release, so it is named here.
+    static func groupCardShown(memberCount: UInt64) {
+        track(event: GroupCardEvent.cardShown, properties: [.memberCount: Double(memberCount)])
+    }
+
+    /// The QR was exported as a PNG or SVG and handed to the share sheet. `Method: Download` is not
+    /// in the shared contract's `GroupInviteMethod` at the pinned release.
+    static func groupInviteDownloaded() {
+        track(event: GroupCardEvent.inviteShared, properties: [.method: "Download"])
+    }
+
     /// A group opened from an invite.
     static func groupInviteFollowed(source: GroupInviteSource) {
         track(GroupEvents.shared.inviteFollowed(source: source))
@@ -796,6 +813,7 @@ extension Analytics {
 
         case state             = "State"
         case method            = "Method"
+        case memberCount       = "Member Count"
         case quarks            = "Quarks"
         case mint              = "Mint"
         case paymentMint       = "Payment Mint"

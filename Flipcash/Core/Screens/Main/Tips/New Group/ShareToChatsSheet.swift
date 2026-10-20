@@ -55,6 +55,7 @@ struct ShareToChatsSheet: View {
     @State private var didCopy = false
     @State private var headerHeight: CGFloat = 0
     @State private var isShowingCard = false
+    @State private var isShowingGroupCard = false
     @FocusState private var isMessageFocused: Bool
 
     init(
@@ -101,6 +102,27 @@ struct ShareToChatsSheet: View {
             guard let displayName, !displayName.isEmpty else { return nil }
             return ProfileCardScreen.Card(userID: userID, displayName: displayName, username: username)
         }
+    }
+
+    /// Whether the sheet offers the group card tile: for every group subject, and for nothing else.
+    nonisolated static func showsGroupCardTile(for subject: ShareToChatsSubject) -> Bool {
+        switch subject {
+        case .group: true
+        case .user, .message: false
+        }
+    }
+
+    /// The group card's content, from the conversation this sheet's host already holds.
+    private var groupCard: GroupCardScreen.Card? {
+        guard let groupID else { return nil }
+        let conversation = conversation
+        return GroupCardScreen.Card(
+            id: groupID,
+            title: conversation?.title,
+            avatar: sessionContainer.profileAvatars.data(for: .chat(groupID)),
+            blurhash: conversation?.picture?.thumbnailBlurhash,
+            memberCount: conversation?.rosterSummary.memberCount ?? 0
+        )
     }
 
     private var sheetTitle: String {
@@ -237,6 +259,11 @@ struct ShareToChatsSheet: View {
                     withAnimation(ProfileCardScreen.fade) { isShowingCard = false }
                 }
                 .transition(.asymmetric(insertion: .identity, removal: .opacity))
+            } else if isShowingGroupCard, let groupCard {
+                GroupCardScreen(card: groupCard) {
+                    withAnimation(GroupCardScreen.fade) { isShowingGroupCard = false }
+                }
+                .transition(.asymmetric(insertion: .identity, removal: .opacity))
             }
         }
         .presentationBackground(Color.backgroundMain)
@@ -311,6 +338,19 @@ struct ShareToChatsSheet: View {
                     isShowingCard = true
                 }
                 .accessibilityIdentifier("profile-card-tile")
+            }
+
+            if Self.showsGroupCardTile(for: subject) {
+                ShareTile(title: "Show Group Card") {
+                    Image(HomeTab.scan.iconName(isSelected: false))
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                } action: {
+                    isMessageFocused = false
+                    isShowingGroupCard = true
+                }
+                .accessibilityIdentifier("group-card-tile")
             }
         }
         .fixedSize(horizontal: false, vertical: true)

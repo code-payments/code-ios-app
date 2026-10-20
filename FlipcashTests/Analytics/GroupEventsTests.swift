@@ -225,6 +225,18 @@ struct GroupEventsTests {
         #expect((nil as ConversationRules?).gateMint == nil)
     }
 
+    @Test("Group: Card Shown carries the member count")
+    func cardShown() throws {
+        let sent = Analytics.recordingSends { Analytics.groupCardShown(memberCount: 7) }
+        try expectEvent(sent, "Group: Card Shown", ["Member Count": .number(7)])
+    }
+
+    @Test("Group: Invite Shared sends Method: Download for an exported card")
+    func inviteDownloaded() throws {
+        let sent = Analytics.recordingSends { Analytics.groupInviteDownloaded() }
+        try expectEvent(sent, "Group: Invite Shared", ["Method": .text("Download")])
+    }
+
     // MARK: - Helpers -
 
     /// A property value as Mixpanel receives it.
