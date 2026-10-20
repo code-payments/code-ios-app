@@ -121,7 +121,11 @@ private struct PaidReactionSheetContent: View {
             dismiss()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
+            SelectCurrencyScreen(
+                isPresented: $isShowingTokenSelection,
+                // The initial balance skips Dollars, so the wallet's selected token can differ.
+                isSelected: { $0.stored.mint == viewModel.selectedBalance?.stored.mint }
+            ) { balance in
                 viewModel.selectCurrencyAction(exchangedBalance: balance)
             }
         }
