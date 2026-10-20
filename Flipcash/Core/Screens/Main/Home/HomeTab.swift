@@ -54,7 +54,7 @@ enum HomeTab: Int, CaseIterable, Identifiable, Hashable {
         switch self {
         case .scan:    return String(localized: "Scan", comment: "Home tab bar label")
         case .chat:    return String(localized: "Chat", comment: "Home tab bar label")
-        case .wallet:  return String(localized: "Wallet", comment: "Home tab bar label")
+        case .wallet:  return String(localized: "Money", comment: "Home tab bar label")
         case .tipCard: return String(localized: "You", comment: "Home tab bar label")
         }
     }

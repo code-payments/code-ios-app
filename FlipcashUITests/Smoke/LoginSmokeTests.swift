@@ -10,13 +10,13 @@ final class LoginSmokeTests: BaseUITestCase {
 
     func testLoginViaAccessKey_reachesMainScreen() {
         assertMainScreenReached(
-            "Expected to reach the main screen with the Wallet tab after login"
+            "Expected to reach the main screen with the Money tab after login"
         )
 
-        let walletButton = app.buttons["Wallet"]
+        let walletButton = app.buttons["Money"]
         XCTAssertTrue(
             walletButton.exists,
-            "Expected to see the Wallet button on the main screen"
+            "Expected to see the Money button on the main screen"
         )
     }
 
