@@ -99,6 +99,16 @@ protocol DirectSending: AnyObject {
     ) async throws
 }
 
+/// One payment to several resolved recipients in a single intent.
+protocol MultiSending: AnyObject {
+
+    func sendMultiple(
+        _ payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)],
+        verifiedState: VerifiedState,
+        chat: ChatPaymentMetadata?
+    ) async throws
+}
+
 // MARK: - Cash links
 
 /// Funds and voids cash links that the app posts itself rather than showing on a bill.
@@ -118,4 +128,5 @@ extension Session: AccountProviding,
                     CurrencyLaunching,
                     RecipientResolving,
                     DirectSending,
+                    MultiSending,
                     CashLinkSending {}

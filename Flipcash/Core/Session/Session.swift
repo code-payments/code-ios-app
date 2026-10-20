@@ -1126,6 +1126,61 @@ class Session {
         }
     }
 
+    /// Pays two or more resolved recipients in one intent, every amount priced from `verifiedState`.
+    func sendMultiple(_ payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)], verifiedState: VerifiedState, chat: ChatPaymentMetadata?) async throws {
+        guard let first = payments.first else { return }
+        let mint = first.amount.mint
+        try assertFresh(verifiedState, operation: "sendMultiple", currency: first.amount.nativeAmount.currency, mint: mint)
+
+        guard let vmAuthority = try database.getVMAuthority(mint: mint) else {
+            throw Error.vmMetadataMissing
+        }
+
+        let destinations = payments.map { payment in
+            (
+                destination: TimelockDerivedAccounts(owner: payment.recipientOwner, mint: mint, timeAuthority: vmAuthority).vault.publicKey,
+                destinationOwner: payment.recipientOwner,
+                exchangedFiat: payment.amount
+            )
+        }
+
+        let rendezvous = PublicKey.generate()!
+
+        logger.info("Sending multi-recipient transfer", metadata: [
+            "recipients": "\(payments.count)",
+            "mint": "\(mint.base58)",
+            "rendezvous": "\(rendezvous.base58)",
+            "hasChatMetadata": "\(chat != nil)",
+        ])
+
+        do {
+            try await client.transferMultiple(
+                payments: destinations,
+                verifiedState: verifiedState,
+                owner: owner.use(mint: mint, timeAuthority: vmAuthority),
+                chatMetadata: chat,
+                rendezvous: rendezvous
+            )
+
+            updatePostTransaction()
+
+        } catch {
+            guard !(error is CancellationError) else { throw error }
+            logger.error("Multi-recipient send failed", metadata: [
+                "recipients": "\(payments.count)",
+                "rendezvous": "\(rendezvous.base58)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.capturePayment(
+                error: error,
+                rendezvous: rendezvous,
+                exchangedFiat: first.amount,
+                userFacing: true
+            )
+            throw error
+        }
+    }
+
     // MARK: - Cash -
 
     /// Completes a face-to-face bill grab after the camera scans a cash code.
