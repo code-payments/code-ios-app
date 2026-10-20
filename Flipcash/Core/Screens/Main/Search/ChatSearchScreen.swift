@@ -88,6 +88,9 @@ struct ChatSearchScreen: View {
             loadMessages: { try await database.searchableMessages() },
             currencySearch: LocalCurrencyNameSearch(candidates: { @MainActor in held() + discovered.mints }),
             chatName: { controller.displayName(for: $0) },
+            chatHandles: { conversation in
+                conversation.members.compactMap { $0.userID == controller.selfUserID ? nil : $0.username?.value }
+            },
             senderName: { senderID, conversationID in
                 if senderID == controller.selfUserID { return "you" }
                 return controller.conversation(withID: conversationID)?

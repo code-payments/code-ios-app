@@ -51,6 +51,7 @@ final class ChatSearchModel {
     @ObservationIgnored private let loadMessages: () async throws -> [SearchableMessage]
     @ObservationIgnored private let currencySearch: any CurrencyNameSearching
     @ObservationIgnored private let chatName: (Conversation) -> String
+    @ObservationIgnored private let chatHandles: (Conversation) -> [String]
     @ObservationIgnored private let senderName: (UUID, ConversationID) -> String?
 
     @ObservationIgnored private var messages: [SearchableMessage] = []
@@ -62,12 +63,14 @@ final class ChatSearchModel {
         loadMessages: @escaping () async throws -> [SearchableMessage],
         currencySearch: any CurrencyNameSearching,
         chatName: @escaping (Conversation) -> String,
+        chatHandles: @escaping (Conversation) -> [String] = { _ in [] },
         senderName: @escaping (UUID, ConversationID) -> String?
     ) {
         self.conversations = conversations
         self.loadMessages = loadMessages
         self.currencySearch = currencySearch
         self.chatName = chatName
+        self.chatHandles = chatHandles
         self.senderName = senderName
     }
 
@@ -116,7 +119,11 @@ final class ChatSearchModel {
     }
 
     private func search(_ query: String) async -> Results {
-        let chats = conversations().filter { !$0.isHidden && ChatSearchQuery.matches(chatName($0), query) }
+        let chats = conversations().filter { conversation in
+            !conversation.isHidden && ([chatName(conversation)] + chatHandles(conversation)).contains {
+                ChatSearchQuery.matches($0, query)
+            }
+        }
         let messageHits = ChatSearchMessages.hits(in: messages, query: query)
         let linkHits = ChatSearchLinks.filter(links, query: query) { [self] link in
             [name(of: link.senderID, in: link.conversationID), chatName(for: link.conversationID)].compactMap { $0 }
