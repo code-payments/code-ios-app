@@ -37,7 +37,9 @@ final class ReactionPillView: UIView {
     private static let selfReactedFill = UIColor.white.withAlphaComponent(0.12)
     private static let restingFill = UIColor.white.withAlphaComponent(0.06)
     private static let selfReactedBorder = UIColor.white.withAlphaComponent(0.24)
-    private static let boostedBorder = UIColor(red: 247 / 255, green: 200 / 255, blue: 83 / 255, alpha: 1)
+    /// The boosted pill's border and amount; its fill is this at 10%.
+    private static let boosted = UIColor(red: 255 / 255, green: 200 / 255, blue: 40 / 255, alpha: 1)
+    private static let boostedFill = boosted.withAlphaComponent(0.1)
     /// Android's `thickBorder`.
     private static let selfReactedBorderWidth: CGFloat = 2
 
@@ -58,7 +60,7 @@ final class ReactionPillView: UIView {
         countLabel.textColor = UIColor(Color.textMain)
         countLabel.textAlignment = .center
         boostLabel.font = Self.countFont
-        boostLabel.textColor = UIColor(Color.textMain)
+        boostLabel.textColor = Self.boosted
         boostLabel.isHidden = true
         stack.addArrangedSubview(emojiLabel)
         stack.addArrangedSubview(boostLabel)
@@ -100,9 +102,10 @@ final class ReactionPillView: UIView {
         boostLabel.isHidden = boostText == nil
         countLabel.isHidden = boostText != nil && pill.count <= 1
 
-        let fill = pill.selfReacted ? Self.selfReactedFill : Self.restingFill
-        let borderWidth = pill.selfReacted ? Self.selfReactedBorderWidth : 0
-        if animated, let previous, previous.selfReacted != pill.selfReacted {
+        let isBoosted = pill.boost != nil
+        let fill = isBoosted ? Self.boostedFill : pill.selfReacted ? Self.selfReactedFill : Self.restingFill
+        let borderWidth = isBoosted || pill.selfReacted ? Self.selfReactedBorderWidth : 0
+        if animated, let previous, previous.selfReacted != pill.selfReacted || (previous.boost != nil) != isBoosted {
             let border = CABasicAnimation(keyPath: "borderWidth")
             border.fromValue = layer.presentation()?.borderWidth ?? layer.borderWidth
             border.toValue = borderWidth
@@ -113,7 +116,7 @@ final class ReactionPillView: UIView {
         } else {
             backgroundColor = fill
         }
-        layer.borderColor = (pill.boost == nil ? Self.selfReactedBorder : Self.boostedBorder).cgColor
+        layer.borderColor = (isBoosted ? Self.boosted : Self.selfReactedBorder).cgColor
         layer.borderWidth = borderWidth
 
         isUserInteractionEnabled = true
