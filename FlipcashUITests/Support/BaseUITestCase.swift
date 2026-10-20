@@ -167,7 +167,7 @@ class BaseUITestCase: XCTestCase {
     /// means at every call site.
     func assertMainScreenReached(timeout: TimeInterval = 30, _ message: String = "Expected to reach the main screen") {
         XCTAssertTrue(
-            app.buttons["Wallet"].waitForExistence(timeout: timeout),
+            app.buttons["Money"].waitForExistence(timeout: timeout),
             message
         )
     }
@@ -265,7 +265,7 @@ class BaseUITestCase: XCTestCase {
         // outcome, and checking for it each round ends the wait immediately when
         // the screen was skipped.
         while !okButton.waitForExistence(timeout: 1) {
-            if app.buttons["Wallet"].exists { return }
+            if app.buttons["Money"].exists { return }
             if Date() >= deadline { return }
         }
 
