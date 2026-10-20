@@ -53,25 +53,25 @@ private struct PaidReactionSheetContent: View {
 
     var body: some View {
         PartialSheet(background: .clear) {
-            VStack(spacing: 25) {
-                VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(spacing: 16) {
+                    Text("Paid Reactions")
+                        .font(.appDisplaySmall)
+                        .foregroundStyle(Color.textMain)
                     Button {
                         viewModel.cycleEmoji()
                     } label: {
-                        Text(viewModel.emoji ?? "")
-                            .font(.appDisplayLarge)
+                        EmojiPill(emoji: viewModel.emoji ?? "")
                     }
                     .buttonStyle(.plain)
                     .disabled(!viewModel.canCycleEmoji)
                     .accessibilityHint(viewModel.canCycleEmoji ? "Switches to your next reaction" : "")
-                    Text("Paid Reactions")
-                        .font(.appTextLarge)
-                        .foregroundStyle(Color.textMain)
                     Text(viewModel.splitDescription)
-                        .font(.appTextBody)
+                        .font(.default(size: 14, weight: .medium))
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
                 }
+                .frame(maxWidth: .infinity)
 
                 HStack(spacing: 8) {
                     Text("Pay with:")
@@ -82,8 +82,11 @@ private struct PaidReactionSheetContent: View {
                     }
                     .id(viewModel.selectedBalance?.stored.mint)
                 }
+                .padding(.top, 40)
+                .padding(.bottom, 18)
 
                 presets
+                    .padding(.bottom, 25)
 
                 SwipeControl(text: "Swipe to Pay") {
                     switch await viewModel.submit() {
@@ -95,8 +98,8 @@ private struct PaidReactionSheetContent: View {
                 }
                 .disabled(!viewModel.canSubmit)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 30)
+            .padding(.horizontal, 16)
+            .padding(.top, 40)
             .padding(.bottom, bottomPadding)
         }
         .onChange(of: selfReactions) { _, reactions in
@@ -165,9 +168,24 @@ private struct PaidReactionSheetContent: View {
         return NSDecimalNumber(decimal: rounded).uint64Value
     }
 
-    /// The design's 20 under the swipe, less whatever the sheet already holds back for the home indicator.
+    /// The design's 55 under the swipe, less whatever the sheet already holds back for the home indicator.
     private var bottomPadding: CGFloat {
         let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
-        return max(0, 20 - reserved)
+        return max(0, 55 - reserved)
+    }
+}
+
+/// The reaction being boosted, drawn as a selected reaction pill at sheet scale.
+private struct EmojiPill: View {
+
+    let emoji: String
+
+    var body: some View {
+        Text(emoji)
+            .font(.default(size: 24, weight: .medium))
+            .padding(.horizontal, 17)
+            .padding(.vertical, 8.5)
+            .background(Color.white.opacity(0.1), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.38), lineWidth: 2.8))
     }
 }
