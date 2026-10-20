@@ -282,8 +282,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // target and the update that brings it in positions on it instead of at the bottom.
         perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
-        if appendedOwn, !wasAtBottom {
-            screen.scrollToBottom(animated: true)
+        if appendedOwn {
+            // A send ends the walk back through reply quotes, wherever the reader was.
+            screen.clearReplyReturns()
+            if !wasAtBottom {
+                screen.scrollToBottom(animated: true)
+            }
         }
         context.coordinator.lastMessageID = newLastMessageID
     }
@@ -292,6 +296,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     private func perform(_ jump: MessageJump?, on screen: ChatScreenViewController, coordinator: Coordinator) {
         guard let jump, jump.token != coordinator.lastJumpToken else { return }
         coordinator.lastJumpToken = jump.token
+        // A link landing isn't a quote tap, so it leaves nothing to return to.
+        screen.clearReplyReturns()
         screen.scrollToMessage(id: jump.stableID)
     }
 

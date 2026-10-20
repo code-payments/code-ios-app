@@ -982,7 +982,7 @@ public final class ChatScreenViewController: UIViewController {
     }
 
     private func wireJumpButton() {
-        jump.onTap = { [weak self] in self?.transcript.scrollToBottomFromJumpButton() }
+        jump.onTap = { [weak self] in self?.transcript.jumpFromJumpButton() }
         transcript.onJumpButtonVisibilityChange = { [weak self] visible in
             self?.jump.isVisible = visible
         }
@@ -1001,6 +1001,9 @@ public final class ChatScreenViewController: UIViewController {
 
     /// Brings a row into view, deferring until the update that contains it lands.
     public func scrollToMessage(id: String) { transcript.scrollToMessage(id: id) }
+
+    /// Forgets the reply-quote origins the jump button would return to.
+    public func clearReplyReturns() { transcript.clearReplyReturns() }
 
     // MARK: - Bar inset
 

@@ -14,7 +14,8 @@ import FlipcashCore
 /// read by the bar, which draws the button above its trailing control so one transaction moves both.
 @MainActor @Observable
 public final class JumpToBottomModel {
-    /// Whether the reader is off the bottom of a transcript whose opening scroll has landed.
+    /// Whether the reader is off the bottom of a transcript whose opening scroll has landed, or has a
+    /// reply origin to go back to.
     public var isVisible = false
     /// Whether something drawn over the transcript (a blur, a spotlighted edit) means the button must
     /// not show, since the bar's view stands above those.
