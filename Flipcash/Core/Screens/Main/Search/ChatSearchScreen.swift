@@ -19,10 +19,41 @@ struct ChatSearchScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
 
+    /// Where the search field lives.
+    enum Chrome {
+        /// Pushed onto the Chat tab, with its own field and buttons at the bottom.
+        case pushed
+        /// The iOS 26 search tab, whose field is the system one in the tab bar.
+        case tab
+    }
+
+    var chrome: Chrome = .pushed
+
+    /// Where a result opens. Nil pushes onto the stack this screen is on.
+    var navigate: ((AppRouter.Destination) -> Void)?
+
     @State private var model: ChatSearchModel?
     @FocusState private var isFieldFocused: Bool
 
     var body: some View {
+        switch chrome {
+        case .pushed:
+            screen {
+                SearchBar(
+                    query: queryBinding,
+                    isFocused: $isFieldFocused,
+                    onChats: { dismiss() },
+                    onClose: close
+                )
+            }
+        case .tab:
+            screen { EmptyView() }
+                .searchable(text: queryBinding, prompt: "Search")
+                .searchFocused($isFieldFocused)
+        }
+    }
+
+    private func screen(@ViewBuilder bottomBar: () -> some View) -> some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 if let model {
@@ -30,12 +61,7 @@ struct ChatSearchScreen: View {
                 } else {
                     Spacer()
                 }
-                SearchBar(
-                    query: queryBinding,
-                    isFocused: $isFieldFocused,
-                    onChats: { dismiss() },
-                    onClose: close
-                )
+                bottomBar()
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -114,7 +140,11 @@ struct ChatSearchScreen: View {
     /// back behind the keyboard.
     private func push(_ destination: AppRouter.Destination) {
         isFieldFocused = false
-        router.push(destination)
+        if let navigate {
+            navigate(destination)
+        } else {
+            router.push(destination)
+        }
     }
 
     private func open(_ conversation: Conversation) {

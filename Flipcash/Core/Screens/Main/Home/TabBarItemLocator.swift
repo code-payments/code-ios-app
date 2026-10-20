@@ -45,14 +45,15 @@ enum TabBarItemLocator {
     }
 
     /// The tab whose item holds `point` (in the bar's coordinates), or nil
-    /// when the bar's buttons do not pair up with `tabs` or none holds the point.
+    /// when the bar has fewer buttons than `tabs` or none holds the point.
     ///
     /// iOS 26 lays the buttons out wider than their pitch — 114pt buttons every
     /// 85pt on a 402pt bar — so neighbours overlap and a press near a boundary
     /// falls inside two. The nearer centre wins, which is the item the press
     /// looks like it is on.
     static func tab(at point: CGPoint, in bar: UITabBar, tabs: [HomeTab]) -> HomeTab? {
-        let frames = itemFrames(in: bar)
+        // A trailing search tab adds one frame past the shared tabs.
+        let frames = Array(itemFrames(in: bar).prefix(tabs.count))
         guard frames.count == tabs.count else { return nil }
 
         let holding = frames.indices.filter { frames[$0].contains(point) }

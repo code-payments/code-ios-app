@@ -14,6 +14,9 @@ struct TipConversationsScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
+    /// Whether the toolbar offers Search. Off where the iOS 26 tab bar has its own search tab.
+    var showsSearchButton = true
+
     @State private var muteTarget: MuteTarget?
     @State private var filter: ChatListFilter = .all
     @Environment(ToastController.self) private var toasts
@@ -119,14 +122,16 @@ struct TipConversationsScreen: View {
         .navigationTitle("Chat")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    router.push(.chatSearch)
-                } label: {
-                    Image(systemName: "magnifyingglass")
+            if showsSearchButton {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        router.push(.chatSearch)
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel("Search")
+                    .accessibilityIdentifier("chat-search-button")
                 }
-                .accessibilityLabel("Search")
-                .accessibilityIdentifier("chat-search-button")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
