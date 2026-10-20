@@ -50,7 +50,7 @@ private struct PaidReactionSheetContent: View {
                     Text("Paid Reactions")
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
-                    Text("80% goes to the person who wrote the message, 20% goes to the group host")
+                    Text(viewModel.splitDescription)
                         .font(.appTextBody)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
@@ -97,7 +97,7 @@ private struct PaidReactionSheetContent: View {
             MinimumBalanceAmountSheet(
                 isPresented: $isEnteringCustomAmount,
                 title: "Paid Reaction",
-                hint: "80% goes to the person who wrote the message, 20% goes to the group host"
+                hint: viewModel.splitDescription
             ) { amount in
                 let cents = Self.cents(amount)
                 customCents = cents

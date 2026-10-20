@@ -30,6 +30,7 @@ struct ReactionBoostViewModelTests {
         #expect(payments.multiSends.count == 1)
         #expect(multi.map(\.amount.nativeAmount.value) == [8, 2])
         #expect(multi.map(\.recipientOwner) == [payments.key(for: author), payments.key(for: host)])
+        #expect(viewModel.splitDescription.hasPrefix("80%"))
         #expect(reactions.calls == [.add, .record(1000)])
     }
 
@@ -58,6 +59,7 @@ struct ReactionBoostViewModelTests {
 
         #expect(payments.multiSends.isEmpty)
         #expect(payments.singleSends.map(\.recipientOwner) == [payments.key(for: author)])
+        #expect(viewModel.splitDescription == "100% goes to the person who wrote the message")
     }
 
     @Test("A boost on your own message can't be submitted")
