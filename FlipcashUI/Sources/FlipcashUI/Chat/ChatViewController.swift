@@ -206,6 +206,15 @@ public final class ChatViewController: UICollectionViewController {
     /// scrolls, so content settling or the keyboard can't flip it — it's the gate for following
     /// the keyboard (an inset change) without yanking a reader who scrolled up.
     private var wasAtBottom = true {
+        didSet {
+            // Reaching the bottom passes every origin on the way down.
+            if wasAtBottom { replyReturns.clear() }
+            publishJumpButtonState()
+        }
+    }
+    /// Where the jump button returns to before the bottom: the messages this visit tapped reply
+    /// quotes in.
+    private(set) var replyReturns = ReplyReturnStack() {
         didSet { publishJumpButtonState() }
     }
     /// True until the first non-empty content has been scrolled to the bottom. The open is
@@ -690,7 +699,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
             cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
             cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card, message.messageID) }
-            cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
+            cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
@@ -703,7 +712,7 @@ public final class ChatViewController: UICollectionViewController {
                 updateAction: updateAction
             )
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
-            cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
+            cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
@@ -736,7 +745,7 @@ public final class ChatViewController: UICollectionViewController {
                 quoteThumbnail: quoteThumbnail(for: message),
                 authorImageData: authorImageData
             )
-            cell.onQuoteTap = { [weak self] id in self?.onQuoteTap?(id) }
+            cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onImageTap = { [weak self, weak cell] in
                 guard let self, let request = ChatMediaViewerRequest(
                     message: message,
@@ -1089,10 +1098,52 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     private func publishJumpButtonState() {
-        let visible = hasPositioned && !wasAtBottom
+        let visible = hasPositioned && (!wasAtBottom || !replyReturns.isEmpty)
         guard visible != isJumpButtonVisible else { return }
         isJumpButtonVisible = visible
         onJumpButtonVisibilityChange?(visible)
+    }
+
+    /// Records the quote tap in `origin` so the jump button can come back to it, then hands the
+    /// quoted message's id on for the jump.
+    func quoteTapped(_ quotedID: String, in origin: String) {
+        replyReturns.push(origin: origin)
+        onQuoteTap?(quotedID)
+    }
+
+    /// Forgets every reply origin, for a jump the reader didn't make through a quote.
+    public func clearReplyReturns() {
+        replyReturns.clear()
+    }
+
+    /// The jump button's tap: back to the newest reply origin still in the transcript, with the
+    /// quote jump's scroll and flash, or to the newest message once there are none.
+    func jumpFromJumpButton() {
+        let items = items
+        if let origin = replyReturns.popOrigin(exists: { id in items.contains { $0.messageID == id } }) {
+            scrollToRow(id: origin, animated: true)
+            return
+        }
+        scrollToBottomFromJumpButton()
+    }
+
+    /// Drops the reply origins the reader has scrolled down to or past.
+    private func dropReachedReplyReturns() {
+        // Mid-update the index paths can outrun `items`.
+        guard !replyReturns.isEmpty, !isUpdating else { return }
+        let visibleBounds = chatLayout.visibleBounds
+        replyReturns.dropReached { id in
+            guard let index = items.firstIndex(where: { $0.messageID == id }),
+                  let frame = chatLayout.layoutAttributesForItem(at: IndexPath(item: index, section: 0))?.frame
+            else { return false }
+            return Self.isReached(frame, in: visibleBounds)
+        }
+    }
+
+    /// Whether a row at `frame` is on screen or above it: its top edge is above the visible area's
+    /// bottom.
+    static func isReached(_ frame: CGRect, in visibleBounds: CGRect) -> Bool {
+        frame.minY < visibleBounds.maxY
     }
 
     /// Scrolls to the newest message for the jump button: a jump when more than
@@ -1135,6 +1186,7 @@ public final class ChatViewController: UICollectionViewController {
         // content settling doesn't flip it.
         if scrollView.isDragging || scrollView.isDecelerating {
             wasAtBottom = isNearBottomByGeometry
+            dropReachedReplyReturns()
         }
         // Don't paginate while a batch update animates, or before the opening scroll-to-bottom has
         // run — on open the content sits at the top for a beat, which would otherwise fire a stray
