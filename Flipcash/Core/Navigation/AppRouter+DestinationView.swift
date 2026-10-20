@@ -222,6 +222,9 @@ struct DestinationView: View {
         case .archivedChats:
             ArchivedChatsScreen()
 
+        case .chatSearch:
+            ChatSearchScreen()
+
         case .requests:
             RequestsScreen()
 

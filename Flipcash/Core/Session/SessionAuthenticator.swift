@@ -613,6 +613,12 @@ final class SessionContainer {
     /// The public groups the signed-in user features on their profile.
     let featuredGroups: FeaturedGroups
 
+    /// The chats the signed-in user opened from Chats Search, for its Recent row.
+    let chatSearchRecents: ChatSearchRecents
+
+    /// The currencies `Discover` last returned, which Chats Search filters by name.
+    let discoveredCurrencies: DiscoveredCurrencies
+
     init(
         session: Session,
         database: Database,
@@ -773,6 +779,8 @@ final class SessionContainer {
         }
         let recentReactions = RecentReactionsStore(owner: owner.publicKey)
         self.recentReactions = recentReactions
+        self.chatSearchRecents = ChatSearchRecents(owner: owner.publicKey)
+        self.discoveredCurrencies = DiscoveredCurrencies(discover: { client.discoverCurrencies(category: $0) })
         self.featuredGroups = FeaturedGroups(fetching: { [weak flipClient] username in
             guard let flipClient else { return [] }
             return try await flipClient.getFeaturedGroups(owner: owner, username: username)

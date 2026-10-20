@@ -120,8 +120,22 @@ struct TipConversationsScreen: View {
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    router.push(.chatSearch)
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .accessibilityLabel("Search")
+                .accessibilityIdentifier("chat-search-button")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
             }
+        }
+        // Search filters currencies by name over what Discover returned; fetched here so the
+        // Currencies results are ready by the time Search opens.
+        .task {
+            await sessionContainer.discoveredCurrencies.refresh()
         }
         // Takes a finished cache read before the first frame, instead of drawing empty until launch
         // work lets the controller's own hydration run.
