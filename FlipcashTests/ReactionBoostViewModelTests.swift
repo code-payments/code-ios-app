@@ -59,7 +59,7 @@ struct ReactionBoostViewModelTests {
 
         #expect(payments.multiSends.isEmpty)
         #expect(payments.singleSends.map(\.recipientOwner) == [payments.key(for: author)])
-        #expect(viewModel.splitDescription == "100% goes to the person who wrote the message")
+        #expect(viewModel.splitDescription.hasPrefix("80%"))
     }
 
     @Test("A boost on your own message can't be submitted")

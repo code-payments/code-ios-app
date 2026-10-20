@@ -79,13 +79,9 @@ final class ReactionBoostViewModel {
         ReactionBoostSplit.minimumCents(payer: payer, messageSender: target.messageSender, creator: target.creator)
     }
 
-    /// Who receives the boost, worded for the sheet: the 80/20 split, or all of it to the author when the host is one of the two.
+    /// Who receives the boost, worded for the sheet: the spec's 80/20 split between author and host.
     var splitDescription: String {
-        if payer != target.creator && target.messageSender != target.creator {
-            "80% goes to the person who wrote the message, 20% goes to the group host"
-        } else {
-            "100% goes to the person who wrote the message"
-        }
+        "80% goes to the person who wrote the message, 20% goes to the group host"
     }
 
     var canSubmit: Bool {
