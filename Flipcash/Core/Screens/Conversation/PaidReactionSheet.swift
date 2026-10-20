@@ -46,7 +46,7 @@ private struct PaidReactionSheetContent: View {
             VStack(spacing: 25) {
                 VStack(spacing: 12) {
                     Text(viewModel.target.emoji)
-                        .font(.system(size: 56))
+                        .font(.appDisplayLarge)
                     Text("Paid Reactions")
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)

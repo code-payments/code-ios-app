@@ -20,7 +20,7 @@ struct AmountPresetButton<Label: View>: View {
     var body: some View {
         Button(action: action) {
             label()
-                .font(.default(size: 22, weight: .bold))
+                .font(.appTextXL)
                 .tracking(-0.88)
                 // Four chips share the row, so a custom amount wider than a preset shrinks to fit
                 // rather than wrapping or clipping.

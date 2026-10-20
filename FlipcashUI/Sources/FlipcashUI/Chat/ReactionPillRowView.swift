@@ -666,8 +666,8 @@ private final class ReactionAddButton: UIControl {
     convenience init(title: String, accessibilityLabel: String) {
         let label = UILabel()
         label.text = title
-        label.font = .systemFont(ofSize: 16, weight: .semibold)
-        label.textColor = .white
+        label.font = .appTextMedium
+        label.textColor = UIColor(Color.textMain)
         label.textAlignment = .center
         self.init(icon: nil, label: label, accessibilityLabel: accessibilityLabel)
     }
