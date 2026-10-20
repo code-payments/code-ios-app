@@ -274,7 +274,7 @@ extension ChatItem {
                     selfID: selfUserID,
                     nameOf: nameOf
                 )
-                items.append(.systemMessage(id: "sys-\(message.stableID)", text: text))
+                items.append(.systemMessage(id: "sys-\(message.stableID)", text: text, serverID: message.id))
                 continue
             case .text(let text):
                 content = .text(text)
