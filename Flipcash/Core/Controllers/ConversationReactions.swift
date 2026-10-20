@@ -65,6 +65,48 @@ final class ConversationReactions {
         }
     }
 
+    /// What `addForBoost` did with the user's reaction.
+    enum BoostAdd: Equatable {
+        /// The reaction was added, so a failed payment should take it back.
+        case added
+        /// The user already reacts with the emoji; nothing was sent.
+        case alreadyReacted
+        /// The add failed, or a call for the emoji was already on the wire. `error` is set when the
+        /// user should be told.
+        case failed
+    }
+
+    /// Adds the user's reaction with `emoji` ahead of a boost and waits for the server.
+    func addForBoost(_ emoji: String, messageID: MessageID, in conversationID: ConversationID, at date: Date = .now) async -> BoostAdd {
+        let key = Key(conversationID: conversationID, messageID: messageID)
+        var state = current(key)
+        guard !state.selfReactions.contains(where: { $0.emoji == emoji }) else { return .alreadyReacted }
+        guard let call = state.tap(emoji, at: date) else { return .failed }
+        recents?.record(emoji, at: date)
+        hold(state, for: key)
+        let result = await perform(call, for: key)
+        complete(call, with: result, for: key)
+        switch result {
+        case .ok:     return .added
+        case .failed: return .failed
+        }
+    }
+
+    /// The user's own boost total on `emoji`, in USD cents.
+    func selfBoostCents(_ emoji: String, messageID: MessageID, in conversationID: ConversationID) -> UInt64 {
+        current(Key(conversationID: conversationID, messageID: messageID)).confirmed[emoji]?.selfBoostCents ?? 0
+    }
+
+    /// Records a boost the user just paid until the stream confirms it; see `ReactionState.recordOwnBoost`.
+    func recordOwnBoost(_ emoji: String, selfTotalCents: UInt64, messageID: MessageID, in conversationID: ConversationID) {
+        let key = Key(conversationID: conversationID, messageID: messageID)
+        if var state = held[key] {
+            state.recordOwnBoost(emoji, selfTotalCents: selfTotalCents)
+            held[key] = state
+        }
+        write([messageID: { $0.recordOwnBoost(emoji, selfTotalCents: selfTotalCents) }], in: conversationID, operation: "record-boost")
+    }
+
     /// Applies reaction updates the stream delivered for one conversation.
     func apply(_ updates: [DecodedReactionUpdate], in conversationID: ConversationID) {
         let byMessage = Dictionary(grouping: updates, by: \.messageID)
@@ -79,7 +121,9 @@ final class ConversationReactions {
                         added: update.added,
                         count: update.count,
                         version: update.version,
-                        reactedAt: update.reactedAt
+                        reactedAt: update.reactedAt,
+                        boostCents: ReactionBoost.cents(usd: update.boostUSD),
+                        actorBoostCents: ReactionBoost.cents(usd: update.actorBoostUSD)
                     )
                 }
             }
@@ -189,26 +233,30 @@ final class ConversationReactions {
     }
 
     private func send(_ call: ReactionCall, for key: Key) {
-        Task { [weak self, messaging, owner] in
-            let result: ReactionResult
-            do {
-                let reaction = switch call.op {
-                case .add:
-                    try await messaging.addReaction(owner: owner, conversationID: key.conversationID, messageID: key.messageID, emoji: call.emoji)
-                case .remove:
-                    try await messaging.removeReaction(owner: owner, conversationID: key.conversationID, messageID: key.messageID, emoji: call.emoji)
-                }
-                result = reaction.result
-            } catch {
-                logger.error("Failed to change message reaction", metadata: [
-                    "conversationID": "\(key.conversationID)",
-                    "messageID": "\(key.messageID)",
-                    "error": "\(error)",
-                ])
-                ErrorReporting.captureError(error, reason: "Failed to change message reaction")
-                result = .failed(Self.failure(for: error))
+        Task { [weak self] in
+            guard let self else { return }
+            let result = await perform(call, for: key)
+            complete(call, with: result, for: key)
+        }
+    }
+
+    private func perform(_ call: ReactionCall, for key: Key) async -> ReactionResult {
+        do {
+            let reaction = switch call.op {
+            case .add:
+                try await messaging.addReaction(owner: owner, conversationID: key.conversationID, messageID: key.messageID, emoji: call.emoji)
+            case .remove:
+                try await messaging.removeReaction(owner: owner, conversationID: key.conversationID, messageID: key.messageID, emoji: call.emoji)
             }
-            self?.complete(call, with: result, for: key)
+            return reaction.result
+        } catch {
+            logger.error("Failed to change message reaction", metadata: [
+                "conversationID": "\(key.conversationID)",
+                "messageID": "\(key.messageID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to change message reaction")
+            return .failed(Self.failure(for: error))
         }
     }
 

@@ -26,12 +26,18 @@ public struct ReactionState: Hashable, Sendable, Codable {
         /// When the user reacted with this emoji, if they have; orders the strip and takes no part in
         /// the merge.
         public var selfReactedAt: Date?
+        /// The total paid to boost this emoji, in USD cents.
+        public var boostCents: UInt64
+        /// What the user has paid to boost this emoji, in USD cents; a boosted reaction cannot be removed.
+        public var selfBoostCents: UInt64
 
-        public init(count: UInt64, selfReacted: Bool, version: UInt64, selfReactedAt: Date?) {
+        public init(count: UInt64, selfReacted: Bool, version: UInt64, selfReactedAt: Date?, boostCents: UInt64 = 0, selfBoostCents: UInt64 = 0) {
             self.count = count
             self.selfReacted = selfReacted
             self.version = version
             self.selfReactedAt = selfReactedAt
+            self.boostCents = boostCents
+            self.selfBoostCents = selfBoostCents
         }
     }
 
@@ -42,13 +48,17 @@ public struct ReactionState: Hashable, Sendable, Codable {
         public let selfReacted: Bool
         public let version: UInt64
         public let selfReactedAt: Date?
+        public let boostCents: UInt64
+        public let selfBoostCents: UInt64
 
-        public init(emoji: String, count: UInt64, selfReacted: Bool, version: UInt64, selfReactedAt: Date?) {
+        public init(emoji: String, count: UInt64, selfReacted: Bool, version: UInt64, selfReactedAt: Date?, boostCents: UInt64 = 0, selfBoostCents: UInt64 = 0) {
             self.emoji = emoji
             self.count = count
             self.selfReacted = selfReacted
             self.version = version
             self.selfReactedAt = selfReactedAt
+            self.boostCents = boostCents
+            self.selfBoostCents = selfBoostCents
         }
     }
 
@@ -77,28 +87,52 @@ public struct ReactionState: Hashable, Sendable, Codable {
         for entry in reactions {
             accept(
                 entry.emoji,
-                Confirmed(count: entry.count, selfReacted: entry.selfReacted, version: entry.version, selfReactedAt: entry.selfReactedAt)
+                Confirmed(
+                    count: entry.count,
+                    selfReacted: entry.selfReacted,
+                    version: entry.version,
+                    selfReactedAt: entry.selfReactedAt,
+                    boostCents: entry.boostCents,
+                    selfBoostCents: entry.selfBoostCents
+                )
             )
         }
         for (emoji, held) in confirmed where !present.contains(emoji) && desired[emoji] == nil && held.count > 0 {
             confirmed[emoji]?.count = 0
             confirmed[emoji]?.selfReacted = false
             confirmed[emoji]?.selfReactedAt = nil
+            confirmed[emoji]?.boostCents = 0
+            confirmed[emoji]?.selfBoostCents = 0
         }
     }
 
-    /// Accepts one stream update; `count` is the emoji's new total, not a delta.
-    public mutating func applyUpdate(emoji: String, actorIsSelf: Bool, added: Bool, count: UInt64, version: UInt64, reactedAt: Date?) {
+    /// Accepts one stream update; `count` and `boostCents` are the emoji's new totals, not deltas, and
+    /// `actorBoostCents` is the actor's own boost total.
+    public mutating func applyUpdate(emoji: String, actorIsSelf: Bool, added: Bool, count: UInt64, version: UInt64, reactedAt: Date?, boostCents: UInt64 = 0, actorBoostCents: UInt64 = 0) {
+        let held = confirmed[emoji]
         let selfReacted: Bool
         let selfReactedAt: Date?
+        let selfBoostCents: UInt64
         if actorIsSelf {
             selfReacted = added
             selfReactedAt = added ? reactedAt : nil
+            selfBoostCents = added ? max(actorBoostCents, held?.selfBoostCents ?? 0) : 0
         } else {
-            selfReacted = confirmed[emoji]?.selfReacted ?? false
-            selfReactedAt = confirmed[emoji]?.selfReactedAt
+            selfReacted = held?.selfReacted ?? false
+            selfReactedAt = held?.selfReactedAt
+            selfBoostCents = held?.selfBoostCents ?? 0
         }
-        accept(emoji, Confirmed(count: count, selfReacted: selfReacted, version: version, selfReactedAt: selfReactedAt))
+        accept(
+            emoji,
+            Confirmed(
+                count: count,
+                selfReacted: selfReacted,
+                version: version,
+                selfReactedAt: selfReactedAt,
+                boostCents: boostCents,
+                selfBoostCents: selfBoostCents
+            )
+        )
     }
 
     /// Accepts every emoji `other` has confirmed, each by version as any server state is, and
@@ -113,7 +147,15 @@ public struct ReactionState: Hashable, Sendable, Codable {
     public var summaryEntries: [SummaryEntry] {
         confirmed.compactMap { emoji, state in
             guard state.count > 0 else { return nil }
-            return SummaryEntry(emoji: emoji, count: state.count, selfReacted: state.selfReacted, version: state.version, selfReactedAt: state.selfReactedAt)
+            return SummaryEntry(
+                emoji: emoji,
+                count: state.count,
+                selfReacted: state.selfReacted,
+                version: state.version,
+                selfReactedAt: state.selfReactedAt,
+                boostCents: state.boostCents,
+                selfBoostCents: state.selfBoostCents
+            )
         }
     }
 
@@ -128,6 +170,7 @@ public struct ReactionState: Hashable, Sendable, Codable {
     /// for it is already on the wire and the response will send any follow-up.
     public mutating func tap(_ emoji: String, at date: Date) -> ReactionCall? {
         let on = !displayedSelf(emoji)
+        guard on || !isSelfBoosted(emoji) else { return nil }
         desired[emoji] = on
         desiredAt[emoji] = on ? date : nil
         guard !inFlight.contains(emoji) else { return nil }
@@ -140,7 +183,18 @@ public struct ReactionState: Hashable, Sendable, Codable {
         guard inFlight.remove(emoji) != nil else { return (nil, nil) }
         switch result {
         case .ok(let count, let selfReacted, let version, let selfReactedAt):
-            accept(emoji, Confirmed(count: count, selfReacted: selfReacted, version: version, selfReactedAt: selfReactedAt))
+            let held = confirmed[emoji]
+            accept(
+                emoji,
+                Confirmed(
+                    count: count,
+                    selfReacted: selfReacted,
+                    version: version,
+                    selfReactedAt: selfReactedAt,
+                    boostCents: held?.boostCents ?? 0,
+                    selfBoostCents: selfReacted ? held?.selfBoostCents ?? 0 : 0
+                )
+            )
             if let wanted = desired[emoji], wanted != (confirmed[emoji]?.selfReacted ?? false) {
                 return (send(emoji), nil)
             }
@@ -160,7 +214,15 @@ public struct ReactionState: Hashable, Sendable, Codable {
         let pills = emoji.compactMap { emoji -> ReactionPill? in
             let (count, shown) = displayed(emoji)
             guard count > 0 else { return nil }
-            return ReactionPill(emoji: emoji, count: UInt64(count), selfReacted: shown, pending: desired[emoji] != nil)
+            let boostCents = confirmed[emoji]?.boostCents ?? 0
+            return ReactionPill(
+                emoji: emoji,
+                count: UInt64(count),
+                selfReacted: shown,
+                pending: desired[emoji] != nil,
+                boost: boostCents > 0 ? ReactionBoost(total: boostCents) : nil,
+                selfBoosted: shown && isSelfBoosted(emoji)
+            )
         }
         return ReactionOrdering.sorted(pills)
     }
@@ -189,6 +251,21 @@ public struct ReactionState: Hashable, Sendable, Codable {
     private mutating func clearDesired(_ emoji: String) {
         desired[emoji] = nil
         desiredAt[emoji] = nil
+    }
+
+    /// Records a boost the user just paid, raising their own total on `emoji` to `selfTotalCents` and
+    /// the emoji's total by the same amount, so the pill shows it before the stream's update arrives.
+    /// Does nothing once the held total is already that high, as it is after the update.
+    public mutating func recordOwnBoost(_ emoji: String, selfTotalCents: UInt64) {
+        guard var held = confirmed[emoji], held.selfBoostCents < selfTotalCents else { return }
+        held.boostCents += selfTotalCents - held.selfBoostCents
+        held.selfBoostCents = selfTotalCents
+        confirmed[emoji] = held
+    }
+
+    /// Whether the user's confirmed reaction with `emoji` is boosted, which the server will not remove.
+    public func isSelfBoosted(_ emoji: String) -> Bool {
+        (confirmed[emoji]?.selfBoostCents ?? 0) > 0
     }
 
     private func displayedSelf(_ emoji: String) -> Bool {
