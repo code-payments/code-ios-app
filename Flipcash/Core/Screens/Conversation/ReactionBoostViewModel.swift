@@ -55,7 +55,7 @@ final class ReactionBoostViewModel {
     /// The user's reactions on the message, most recent first; kept current by the sheet.
     private(set) var selfReactions: [String] = []
 
-    @ObservationIgnored private var chosenEmoji: String?
+    private var chosenEmoji: String?
 
     /// The reaction being boosted: the one the user cycled to, or their most recent while that one stands.
     var emoji: String? {
