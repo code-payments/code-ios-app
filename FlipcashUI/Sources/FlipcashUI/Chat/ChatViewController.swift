@@ -645,7 +645,7 @@ public final class ChatViewController: UICollectionViewController {
         case .encryptionMarker:
             let tap: (() -> Void)? = onEncryptionMarkerTap == nil ? nil : { [weak self] in self?.onEncryptionMarkerTap?() }
             (cell as! ChatEncryptionMarkerCell).configure(onTap: tap)
-        case .systemMessage(_, let text):
+        case .systemMessage(_, let text, _):
             (cell as! ChatSystemMessageCell).configure(text: text)
         case .message(let message):
             configure(cell, with: message)
@@ -1189,16 +1189,30 @@ public final class ChatViewController: UICollectionViewController {
         let visible = (chatLayout.layoutAttributesForElements(in: visibleBounds) ?? []).compactMap { attributes -> ReadProgress.VisibleMessage? in
             guard attributes.representedElementCategory == .cell,
                   Self.isSeen(attributes.frame, in: visibleBounds),
-                  let message = message(at: attributes.indexPath),
-                  let serverID = message.serverID else { return nil }
+                  items.indices.contains(attributes.indexPath.item) else { return nil }
+            return Self.readCandidate(items[attributes.indexPath.item])
+        }
+        guard let seen = readProgress.advance(seeing: visible) else { return }
+        onMessagesSeen?(seen)
+    }
+
+    /// The message a row on screen lets the READ pointer move past, or nil for a row with no
+    /// confirmed server id. A system notice counts as inbound: left out, a chat whose newest
+    /// message is a notice could never be read.
+    static func readCandidate(_ item: ChatItem) -> ReadProgress.VisibleMessage? {
+        switch item {
+        case .message(let message):
+            guard let serverID = message.serverID else { return nil }
             let isFromSelf = switch message.sender {
             case .me:    true
             case .other: false
             }
             return ReadProgress.VisibleMessage(id: serverID, isFromSelf: isFromSelf)
+        case .systemMessage(_, _, let serverID):
+            return serverID.map { ReadProgress.VisibleMessage(id: $0, isFromSelf: false) }
+        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker:
+            return nil
         }
-        guard let seen = readProgress.advance(seeing: visible) else { return }
-        onMessagesSeen?(seen)
     }
 
     /// Whether a row at `frame` has been seen: any part of it inside the unobscured area counts, as

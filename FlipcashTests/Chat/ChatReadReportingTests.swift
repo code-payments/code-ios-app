@@ -114,6 +114,30 @@ struct ChatReadReportingTests {
         #expect(reported.last == MessageID(value: 21))
     }
 
+    @Test("A system notice at the bottom is reported, so a chat ending in one can be read")
+    func systemNoticeAtBottomIsReported() async {
+        let controller = ChatViewController()
+        var reported: [MessageID] = []
+        controller.onMessagesSeen = { reported.append($0) }
+        let window = host(controller)
+        defer { window.isHidden = true }
+
+        let notice = ChatItem.systemMessage(id: "sys-21", text: "Ada joined the group", serverID: MessageID(value: 21))
+        controller.update(items: transcript(count: 20, sender: .me) + [notice])
+        await settle(controller)
+
+        #expect(reported == [MessageID(value: 21)])
+    }
+
+    @Test("Only rows with a confirmed server id are read candidates")
+    func readCandidates() {
+        let notice = ChatItem.systemMessage(id: "sys-3", text: "notice", serverID: MessageID(value: 3))
+        #expect(ChatViewController.readCandidate(notice) == ReadProgress.VisibleMessage(id: MessageID(value: 3), isFromSelf: false))
+        #expect(ChatViewController.readCandidate(.systemMessage(id: "sys-x", text: "notice", serverID: nil)) == nil)
+        #expect(ChatViewController.readCandidate(message(4, .me)) == ReadProgress.VisibleMessage(id: MessageID(value: 4), isFromSelf: true))
+        #expect(ChatViewController.readCandidate(.unreadDivider(count: 2)) == nil)
+    }
+
     @Test("With reporting off, nothing is reported until it turns back on")
     func reportingOffHoldsReports() async {
         let controller = ChatViewController()
