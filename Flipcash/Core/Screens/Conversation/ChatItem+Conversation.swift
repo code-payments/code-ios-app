@@ -96,6 +96,8 @@ extension ChatItem {
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
         /// they have not joined, or who fails a reaction-blocking speaker rule (see `ChatMessage.canReact`).
         canReact: Bool = true,
+        /// Whether others' rows offer the leading "$" for a paid reaction. The viewer's own rows never do.
+        canBoost: Bool = false,
         /// The card, if any, for a message's detected links. Injected like the other collaborators
         /// so the mapper stays pure; the screen supplies classification and nothing else, and it
         /// defaults to no card. Takes the detected links rather than the text so the detector runs
@@ -409,6 +411,7 @@ extension ChatItem {
                     reactions: isLast ? message.reactionState?.pills ?? [] : [],
                     selfReactions: message.reactionState?.selfReactions ?? [],
                     canReact: canReact,
+                    canBoost: canBoost && !isFromSelf && message.senderID != nil && !message.isDeleted && !isUnsent,
                     isUnsent: isUnsent
                 )))
             }

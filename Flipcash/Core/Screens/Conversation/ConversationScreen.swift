@@ -85,6 +85,8 @@ struct ConversationScreen: View {
     @State private var didReportGate = false
     /// The stable id and pill set the picker sheet is open for, or nil.
     @State private var reactionPickerRequest: ReactionPickerRequest?
+    /// The paid reaction whose sheet is open, once the "$" picker has chosen its emoji.
+    @State private var paidReactionTarget: ReactionBoostTarget?
     /// The stable id, pill set, and long-pressed emoji the reactors sheet is open for, or nil.
     @State private var reactorsRequest: ReactorsRequest?
     /// A reactor whose profile opens once the reactors sheet has finished dismissing.
@@ -424,6 +426,7 @@ struct ConversationScreen: View {
             onReactionTap: toggleReaction,
             onReactionLongPress: openReactors,
             onReactionAdd: openReactionPicker,
+            onReactionBoost: openBoostPicker,
             reactionStripEntries: reactionStripEntries,
             onReactionStripSelect: toggleReaction,
             onReactionStripAdd: openReactionPicker,
@@ -593,13 +596,21 @@ struct ConversationScreen: View {
             EmojiPickerSheet(
                 recents: sessionContainer.recentReactions.row(limit: RecentReactionsStore.pickerRowLimit, undrawable: undrawableEmoji)
             ) { emoji in
-                if let conversationID {
-                    conversationController.reactions.toggle(emoji, messageID: request.messageID, in: conversationID)
+                if let boost = request.boost {
+                    reactionPickerRequest = nil
+                    paidReactionTarget = boost(emoji)
+                } else {
+                    if let conversationID {
+                        conversationController.reactions.toggle(emoji, messageID: request.messageID, in: conversationID)
+                    }
+                    reactionPickerRequest = nil
                 }
-                reactionPickerRequest = nil
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $paidReactionTarget) { target in
+            PaidReactionSheet(target: target)
         }
         .sheet(item: $reactorsRequest, onDismiss: {
             guard let userID = pendingReactorProfile else { return }
@@ -1094,6 +1105,24 @@ struct ConversationScreen: View {
         reactionPickerRequest = ReactionPickerRequest(id: stableID, messageID: messageID)
     }
 
+    /// Opens the picker for the row's leading "$"; the chosen emoji opens the Paid Reactions sheet.
+    private func openBoostPicker(_ stableID: String) {
+        guard let conversationID, let creator = groupConversation?.creator,
+              let message = coordinator?.loader.messages.first(where: { $0.stableID == stableID }),
+              let sender = message.senderID,
+              !message.isFromSelf(conversationController.selfUserID) else { return }
+        let messageID = message.id
+        reactionPickerRequest = ReactionPickerRequest(id: stableID, messageID: messageID) { emoji in
+            ReactionBoostTarget(
+                conversationID: conversationID,
+                messageID: messageID,
+                emoji: emoji,
+                messageSender: sender,
+                creator: creator
+            )
+        }
+    }
+
     /// The long-press strip's content: the six defaults, always first and in place, then the user's
     /// most used, then the row's own reactions, then the start of the catalog, filtered to what the
     /// current OS build can draw. Empty suppresses the strip.
@@ -1156,6 +1185,8 @@ struct ConversationScreen: View {
     private struct ReactionPickerRequest: Identifiable {
         let id: String
         let messageID: MessageID
+        /// Builds the paid reaction for the chosen emoji, or nil for a plain reaction.
+        var boost: ((String) -> ReactionBoostTarget)? = nil
     }
 
     private struct ReactorsRequest: Identifiable {

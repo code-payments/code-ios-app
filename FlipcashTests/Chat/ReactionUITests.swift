@@ -300,6 +300,21 @@ struct ReactionUITests {
         #expect(await source.calls.count == 2)
     }
 
+    @MainActor
+    @Test("A row sums what the person paid across every emoji they boosted, in cents")
+    func rowsSumBoosts() async {
+        let userA = UUID()
+        let now = Date.now
+        let source = StubReactorsSource(pages: [
+            "🔥": [ReactorPage(reactors: [Reactor(userID: userA, reactedAt: now, version: 1, boostUSD: 5)], nextPageToken: nil, version: 1)],
+            "👍": [ReactorPage(reactors: [Reactor(userID: userA, reactedAt: now, version: 1, boostUSD: 0.25)], nextPageToken: nil, version: 1)],
+        ])
+        let model = makeModel(source)
+        await model.loadMoreIfNeeded()
+
+        #expect(model.rows == [.init(userID: userA, emojis: ["🔥", "👍"], boostCents: 525)])
+    }
+
     /// Answers 🔥 at once and holds 👍 until `release()`.
     private actor HeldReactorsSource: ReactorsSource {
         let reactor: Reactor

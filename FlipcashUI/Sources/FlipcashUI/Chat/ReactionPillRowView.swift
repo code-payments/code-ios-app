@@ -29,6 +29,9 @@ final class ReactionPillRowView: UIView {
     /// Fired when the trailing "+" is tapped, to open the picker. The button is never shown when the
     /// viewer cannot react (see `configure(pills:canReact:)`).
     var onAdd: (() -> Void)?
+    /// Fired when the leading "$" is tapped, to pick an emoji to boost. The button is shown only when
+    /// `configure(pills:canReact:canBoost:)` allows it.
+    var onBoost: (() -> Void)?
 
     /// The width the cell gives this row, known before the row has been laid out. A freshly configured
     /// cell is measured before its first layout pass, so the line count has to come from this.
@@ -42,7 +45,8 @@ final class ReactionPillRowView: UIView {
     }
 
     private var pillViews: [ReactionPillView] = []
-    private let addButton = ReactionAddButton()
+    private let addButton = ReactionAddButton(icon: .asset(.addReaction), accessibilityLabel: "Add reaction")
+    private let boostButton = ReactionAddButton(title: "$", accessibilityLabel: "Paid reaction")
     private let overflowButton = ReactionOverflowButton()
 
     /// Whether the viewer has opened the "N more" pill, lifting the two-line cap until the cell is reused.
@@ -51,10 +55,13 @@ final class ReactionPillRowView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         addButton.addTarget(self, action: #selector(addTapped), for: .touchUpInside)
+        boostButton.addTarget(self, action: #selector(boostTapped), for: .touchUpInside)
         overflowButton.addTarget(self, action: #selector(overflowTapped), for: .touchUpInside)
         addButton.isHidden = true
+        boostButton.isHidden = true
         overflowButton.isHidden = true
         addSubview(addButton)
+        addSubview(boostButton)
         addSubview(overflowButton)
         // On the row rather than each pill: a 28 pt pill is easy to miss, and a press in the gaps
         // around it lands on the row, which the transcript's own long press leaves alone.
@@ -74,8 +81,10 @@ final class ReactionPillRowView: UIView {
     ///   - canReact: false withholds the trailing "+" and disables tap-to-toggle on existing pills,
     ///     but every pill still draws and long-press still opens the reactors sheet — a group
     ///     previewer's read of a message's reactions is otherwise unchanged.
-    func configure(pills: [ReactionPill], canReact: Bool) {
+    ///   - canBoost: whether the leading "$" shows; never without `canReact`.
+    func configure(pills: [ReactionPill], canReact: Bool, canBoost: Bool = false) {
         self.canReact = canReact
+        self.canBoost = canReact && canBoost
         if settler == nil {
             settler = ReactionSettler(pills: pills, clock: Self.now)
         } else {
@@ -112,6 +121,7 @@ final class ReactionPillRowView: UIView {
             }
         }
         showsAdd = canReact && !pills.isEmpty
+        showsBoost = canBoost && !pills.isEmpty
         isEmpty = pills.isEmpty
         if animatesChanges { pendingChange = true }
         animatesChanges = true
@@ -132,13 +142,15 @@ final class ReactionPillRowView: UIView {
         exiting.forEach { $0.removeFromSuperview() }
         exiting = []
         entering = []
-        for view in [addButton, overflowButton] as [UIView] {
+        for view in [addButton, boostButton, overflowButton] as [UIView] {
             view.layer.removeAllAnimations()
             view.alpha = 1
             view.transform = .identity
         }
         showsAdd = false
+        showsBoost = false
         addButton.isHidden = true
+        boostButton.isHidden = true
         overflowButton.isHidden = true
         isEmpty = true
         isExpanded = false
@@ -152,6 +164,7 @@ final class ReactionPillRowView: UIView {
     /// Where the row's order and widths come from; nil until the row first draws a message.
     private var settler: ReactionSettler?
     private var canReact = false
+    private var canBoost = false
     private var beatTask: Task<Void, Never>?
 
     /// Where the pills and the "+" sit in the latest layout, and where they sat before the last beat
@@ -164,11 +177,13 @@ final class ReactionPillRowView: UIView {
     private struct SlotFrames {
         var pills: [CGRect] = []
         var add: CGRect?
+        var boost: CGRect?
     }
 
     private enum TapTarget {
         case emoji(String)
         case add
+        case boost
     }
 
     private static let clockOrigin = ContinuousClock.now
@@ -222,6 +237,7 @@ final class ReactionPillRowView: UIView {
             return settler?.hit(slot: slot).map(TapTarget.emoji)
         }
         if let add = graceSlotFrames.add, add.contains(point) { return .add }
+        if let boost = graceSlotFrames.boost, boost.contains(point) { return .boost }
         return nil
     }
 
@@ -233,12 +249,16 @@ final class ReactionPillRowView: UIView {
             if canReact { onToggle?(emoji) }
         case .add:
             if canReact { onAdd?() }
+        case .boost:
+            if canBoost { onBoost?() }
         }
     }
 
     /// Whether the "+" belongs in the row. Its visibility follows this in `layoutSubviews`, where an
     /// appearance or disappearance can animate at the button's own frame.
     private var showsAdd = false
+    /// Whether the "$" leads the row; follows the same rule as `showsAdd`.
+    private var showsBoost = false
 
     /// Set by a reconfigure of a row already on screen and consumed by the next layout pass, which
     /// then animates the difference. Any other pass — a cell resize, a scroll — places items directly.
@@ -298,16 +318,18 @@ final class ReactionPillRowView: UIView {
         }
         if let frame = layout.overflowFrame { placed.append((overflowButton, frame)) }
         if let frame = layout.addFrame { placed.append((addButton, frame)) }
+        if let frame = layout.boostFrame { placed.append((boostButton, frame)) }
         if bounds.width > 0 {
             slotFrames = SlotFrames(
                 pills: layout.pillFrames.map { $0.offsetBy(dx: 0, dy: Self.topGap) },
-                add: layout.addFrame?.offsetBy(dx: 0, dy: Self.topGap)
+                add: layout.addFrame?.offsetBy(dx: 0, dy: Self.topGap),
+                boost: layout.boostFrame?.offsetBy(dx: 0, dy: Self.topGap)
             )
         }
 
         // The buttons leave the way a pill does; a pill folded into "N more" just goes, since the
         // "N more" count changing is what shows where it went.
-        for (button, shown) in [(overflowButton as UIView, layout.overflowFrame != nil), (addButton, layout.addFrame != nil)] where !shown && !button.isHidden {
+        for (button, shown) in [(overflowButton as UIView, layout.overflowFrame != nil), (addButton, layout.addFrame != nil), (boostButton, layout.boostFrame != nil)] where !shown && !button.isHidden {
             if animating, button.alpha > 0 {
                 exit(button, removing: false)
             } else if !animating {
@@ -387,6 +409,7 @@ final class ReactionPillRowView: UIView {
     private func currentLayout(width: CGFloat) -> ReactionRowLayout {
         guard !isEmpty else { return ReactionRowLayout(pillFrames: [], overflowFrame: nil, addFrame: nil, hiddenCount: 0, height: 0) }
         return ReactionRowLayout.make(
+            leadingSize: showsBoost ? Self.buttonSize : nil,
             pillSizes: pillViews.map { $0.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize) },
             addSize: showsAdd ? Self.buttonSize : nil,
             overflowSize: { ReactionOverflowButton.size(for: $0) },
@@ -427,6 +450,10 @@ final class ReactionPillRowView: UIView {
         resolveTap(.add)
     }
 
+    @objc private func boostTapped() {
+        resolveTap(.boost)
+    }
+
     @objc private func longPressed(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began,
               let emoji = longPressEmoji(at: recognizer.location(in: self)) else { return }
@@ -436,7 +463,7 @@ final class ReactionPillRowView: UIView {
     /// The emoji a long press at `point` opens the reactors sheet for: the pill under the finger, or
     /// the nearest one. Nil on the "+" or "N more", which keep their own touches.
     func longPressEmoji(at point: CGPoint) -> String? {
-        for button in [addButton, overflowButton] as [UIView] where !button.isHidden && button.frame.contains(point) {
+        for button in [addButton, boostButton, overflowButton] as [UIView] where !button.isHidden && button.frame.contains(point) {
             return nil
         }
         return pillViews
@@ -492,6 +519,8 @@ struct ReactionRowLayout: Equatable {
     var pillFrames: [CGRect]
     var overflowFrame: CGRect?
     var addFrame: CGRect?
+    /// Where the leading "$" goes, when the row shows one.
+    var boostFrame: CGRect? = nil
     /// How many pills the "N more" pill stands in for; zero when every pill is shown.
     var hiddenCount: Int
     var height: CGFloat
@@ -500,8 +529,9 @@ struct ReactionRowLayout: Equatable {
 
     /// Lays the pills out within `maxLines` lines of `width`, or on as many lines as they need when
     /// `maxLines` is nil. When they don't all fit, as many pills as leave room for the "N more" pill (and
-    /// the "+", if given) stay, and the rest collapse into it.
+    /// the "+", if given) stay, and the rest collapse into it. A `leadingSize` item, if given, goes first.
     static func make(
+        leadingSize: CGSize? = nil,
         pillSizes: [CGSize],
         addSize: CGSize?,
         overflowSize: (Int) -> CGSize,
@@ -509,38 +539,31 @@ struct ReactionRowLayout: Equatable {
         maxLines: Int?,
         trailing: Bool
     ) -> ReactionRowLayout {
+        let leader = leadingSize.map { [$0] } ?? []
         let trailer = addSize.map { [$0] } ?? []
-        if let full = flow(pillSizes + trailer, width: width, maxLines: maxLines, trailing: trailing) {
+        let lead = leader.count
+        func layout(_ fit: (frames: [CGRect], height: CGFloat), shown: Int, overflow: Bool) -> ReactionRowLayout {
+            let body = Array(fit.frames.dropFirst(lead))
             return ReactionRowLayout(
-                pillFrames: Array(full.frames.prefix(pillSizes.count)),
-                overflowFrame: nil,
-                addFrame: addSize == nil ? nil : full.frames.last,
-                hiddenCount: 0,
-                height: full.height
-            )
-        }
-        for shown in stride(from: pillSizes.count - 1, through: 0, by: -1) {
-            let hidden = pillSizes.count - shown
-            let sizes = Array(pillSizes.prefix(shown)) + [overflowSize(hidden)] + trailer
-            guard let fit = flow(sizes, width: width, maxLines: maxLines, trailing: trailing) else { continue }
-            return ReactionRowLayout(
-                pillFrames: Array(fit.frames.prefix(shown)),
-                overflowFrame: fit.frames[shown],
+                pillFrames: Array(body.prefix(shown)),
+                overflowFrame: overflow ? body[shown] : nil,
                 addFrame: addSize == nil ? nil : fit.frames.last,
-                hiddenCount: hidden,
+                boostFrame: leadingSize == nil ? nil : fit.frames.first,
+                hiddenCount: pillSizes.count - shown,
                 height: fit.height
             )
         }
+        if let full = flow(leader + pillSizes + trailer, width: width, maxLines: maxLines, trailing: trailing) {
+            return layout(full, shown: pillSizes.count, overflow: false)
+        }
+        for shown in stride(from: pillSizes.count - 1, through: 0, by: -1) {
+            let sizes = leader + Array(pillSizes.prefix(shown)) + [overflowSize(pillSizes.count - shown)] + trailer
+            guard let fit = flow(sizes, width: width, maxLines: maxLines, trailing: trailing) else { continue }
+            return layout(fit, shown: shown, overflow: true)
+        }
         // Narrower than a single "N more" and "+": show only those rather than nothing.
-        let sizes = [overflowSize(pillSizes.count)] + trailer
-        let fit = flow(sizes, width: width, maxLines: nil, trailing: trailing)!
-        return ReactionRowLayout(
-            pillFrames: [],
-            overflowFrame: fit.frames[0],
-            addFrame: addSize == nil ? nil : fit.frames.last,
-            hiddenCount: pillSizes.count,
-            height: fit.height
-        )
+        let fit = flow(leader + [overflowSize(pillSizes.count)] + trailer, width: width, maxLines: nil, trailing: trailing)!
+        return layout(fit, shown: 0, overflow: true)
     }
 
     /// Flows `sizes` left to right, wrapping whenever the next item would overflow `width`, or `nil`
@@ -625,17 +648,31 @@ private final class ReactionOverflowButton: UIControl {
     }
 }
 
-/// The trailing "+" that opens the picker: the reaction strip's icon on a glass circle, at pill
-/// height. Built from a glass effect view rather than `UIButton.Configuration.glass()`, whose platter
-/// lays itself out larger than a 28pt frame.
+/// The row's round glass button at pill height: the trailing "+" that opens the picker, or the leading
+/// "$" that starts a paid reaction. Built from a glass effect view rather than
+/// `UIButton.Configuration.glass()`, whose platter lays itself out larger than a 28pt frame.
 private final class ReactionAddButton: UIControl {
 
     private static let iconSize: CGFloat = 20
 
     private let surface: UIView
-    private let icon = UIImageView(image: .asset(.addReaction))
+    private let icon: UIImageView?
+    private let label: UILabel?
 
-    override init(frame: CGRect) {
+    convenience init(icon image: UIImage?, accessibilityLabel: String) {
+        self.init(icon: UIImageView(image: image), label: nil, accessibilityLabel: accessibilityLabel)
+    }
+
+    convenience init(title: String, accessibilityLabel: String) {
+        let label = UILabel()
+        label.text = title
+        label.font = .systemFont(ofSize: 16, weight: .semibold)
+        label.textColor = .white
+        label.textAlignment = .center
+        self.init(icon: nil, label: label, accessibilityLabel: accessibilityLabel)
+    }
+
+    private init(icon: UIImageView?, label: UILabel?, accessibilityLabel: String) {
         if #available(iOS 26, *) {
             let glass = UIVisualEffectView(effect: UIGlassEffect(style: .regular))
             glass.cornerConfiguration = .capsule()
@@ -645,14 +682,19 @@ private final class ReactionAddButton: UIControl {
             surface.backgroundColor = UIColor.white.withAlphaComponent(0.18)
             surface.clipsToBounds = true
         }
-        super.init(frame: frame)
+        self.icon = icon
+        self.label = label
+        super.init(frame: .zero)
         surface.isUserInteractionEnabled = false
         addSubview(surface)
-        icon.contentMode = .scaleAspectFit
-        addSubview(icon)
+        if let icon {
+            icon.contentMode = .scaleAspectFit
+            addSubview(icon)
+        }
+        if let label { addSubview(label) }
         isAccessibilityElement = true
         accessibilityTraits = .button
-        accessibilityLabel = "Add reaction"
+        self.accessibilityLabel = accessibilityLabel
     }
 
     @available(*, unavailable)
@@ -666,10 +708,11 @@ private final class ReactionAddButton: UIControl {
         super.layoutSubviews()
         surface.frame = bounds
         surface.layer.cornerRadius = bounds.height / 2
-        icon.frame = CGRect(
+        icon?.frame = CGRect(
             x: (bounds.width - Self.iconSize) / 2, y: (bounds.height - Self.iconSize) / 2,
             width: Self.iconSize, height: Self.iconSize
         )
+        label?.frame = bounds
     }
 }
 #endif

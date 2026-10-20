@@ -22,6 +22,18 @@ struct ChatMessageMappingTests {
     private let base = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 1_000_000))
         .addingTimeInterval(9 * 60 * 60)
 
+    @Test("Only someone else's row offers the paid-reaction $, and only when the chat allows boosts")
+    func canBoostOnlyOnOthersRows() {
+        let messages = [text(1, them, "theirs", after: 0), text(2, me, "mine", after: 60)]
+        func boostable(_ canBoost: Bool) -> [String: Bool] {
+            let rows = ChatItem.from(messages, selfUserID: me, canBoost: canBoost)
+                .compactMap { if case .message(let m) = $0, case .text(let body) = m.content { (body, m.canBoost) } else { nil } }
+            return Dictionary(uniqueKeysWithValues: rows)
+        }
+        #expect(boostable(true) == ["theirs": true, "mine": false])
+        #expect(boostable(false) == ["theirs": false, "mine": false])
+    }
+
     private func text(_ id: UInt64, _ sender: UUID, _ body: String, after offset: TimeInterval) -> ConversationMessage {
         ConversationMessage(
             id: MessageID(value: id),

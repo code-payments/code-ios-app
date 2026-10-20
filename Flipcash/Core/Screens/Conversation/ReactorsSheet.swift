@@ -130,9 +130,16 @@ struct ReactorsSheet: View {
         HStack(spacing: 4) {
             Text(pill.emoji)
                 .font(.system(size: 17))
-            Text("\(pill.count)")
-                .font(.default(size: 13, weight: .medium))
-                .foregroundStyle(Color.textMain.opacity(0.5))
+            if let boost = pill.boost {
+                Text(FiatAmount.usd(Decimal(boost.total) / 100).formatted())
+                    .font(.default(size: 13, weight: .medium))
+                    .foregroundStyle(Color.textMain)
+            }
+            if pill.boost == nil || pill.count > 1 {
+                Text("\(pill.count)")
+                    .font(.default(size: 13, weight: .medium))
+                    .foregroundStyle(Color.textMain.opacity(0.5))
+            }
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
@@ -209,6 +216,11 @@ struct ReactorsSheet: View {
                             Text(handle)
                                 .font(.default(size: 13, weight: .medium))
                                 .foregroundStyle(Color.textMain.opacity(0.5))
+                        }
+                        if reactor.boostCents > 0 {
+                            Text("Paid \(FiatAmount.usd(Decimal(reactor.boostCents) / 100).formatted())")
+                                .font(.default(size: 13, weight: .medium))
+                                .foregroundStyle(Color.textMain)
                         }
                     }
                     .lineLimit(1)

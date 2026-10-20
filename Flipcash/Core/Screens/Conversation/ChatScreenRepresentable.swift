@@ -72,6 +72,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onReactionLongPress: (String, String) -> Void
     /// Fired when a row's trailing "+" reaction pill is tapped, with the row's stable id.
     let onReactionAdd: (String) -> Void
+    /// Fired when a row's leading "$" is tapped, with the row's stable id.
+    let onReactionBoost: (String) -> Void
     /// Supplies the long-press strip's content for a message — see
     /// `ChatScreenViewController.reactionStripEntries`.
     let reactionStripEntries: (ChatMessage) -> [ReactionStrip.Entry]
@@ -199,6 +201,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReactionTap = onReactionTap
         screen.onReactionLongPress = onReactionLongPress
         screen.onReactionAdd = onReactionAdd
+        screen.onReactionBoost = onReactionBoost
         screen.reactionStripEntries = reactionStripEntries
         screen.onReactionStripSelect = onReactionStripSelect
         screen.onReactionStripAdd = onReactionStripAdd
@@ -252,6 +255,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReactionTap = onReactionTap
         screen.onReactionLongPress = onReactionLongPress
         screen.onReactionAdd = onReactionAdd
+        screen.onReactionBoost = onReactionBoost
         screen.reactionStripEntries = reactionStripEntries
         screen.onReactionStripSelect = onReactionStripSelect
         screen.onReactionStripAdd = onReactionStripAdd
