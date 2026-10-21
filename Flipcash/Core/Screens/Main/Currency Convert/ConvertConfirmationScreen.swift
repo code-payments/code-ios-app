@@ -13,6 +13,7 @@ struct ConvertConfirmationScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(AppRouter.self) private var router
+    @Environment(\.dismissParentContainer) private var dismissParentContainer
 
     // MARK: - Init -
 
@@ -100,7 +101,7 @@ struct ConvertConfirmationScreen: View {
             .padding(20)
         }
         .interactiveDismissDisabled(!viewModel.canDismissSheet)
-        .navigationBarBackButtonHidden(viewModel.actionButtonState == .loading)
+        .navigationBarBackButtonHidden(!viewModel.actionButtonState.isNormal)
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Convert")
         .toolbarTitleDisplayMode(.inline)
@@ -109,6 +110,6 @@ struct ConvertConfirmationScreen: View {
     // MARK: - Actions -
 
     private func performConvert() {
-        viewModel.performConvert(session: session, router: router)
+        viewModel.performConvert(session: session, router: router, dismiss: dismissParentContainer)
     }
 }

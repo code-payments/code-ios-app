@@ -59,8 +59,7 @@ final class ConvertFromDollarsRegressionTests: BaseUITestCase {
             "A covered amount must route straight to the swap, not the Add Money sheet"
         )
 
-        processing.assertReached()
-        processing.waitForCompletionAndDismiss()
+        processing.waitForCompletionAndDismiss(confirmAnchor: convert.confirmButton)
 
         assertMainScreenReached("Expected the Wallet root after a completed convert")
     }

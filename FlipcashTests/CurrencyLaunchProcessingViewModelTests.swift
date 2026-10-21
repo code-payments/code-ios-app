@@ -19,7 +19,8 @@ struct CurrencyLaunchProcessingViewModelTests {
             launchedMint: .usdf,
             currencyName: currencyName,
             launchAmount: ExchangedFiat.mockOne,
-            paymentMint: .usdf
+            paymentMint: .usdf,
+            attemptsUsed: 0
         )
     }
 
@@ -52,4 +53,26 @@ struct CurrencyLaunchProcessingViewModelTests {
         #expect(vm.actionTitle == "OK")
     }
 
+    // MARK: - Inline window
+
+    @Test("Inline wait: a failed swap stays in the wizard")
+    func inlineFailure() async throws {
+        let container = try SessionContainer.makeTest(holdings: [])
+        let vm = makeViewModel()
+        let outcome = await vm.awaitInline(session: container.session, ratesController: container.ratesController) { _, _ in .makeTest(state: .failed) }
+        #expect(outcome == .failed)
+    }
+
+    @Test("Inline wait: a swap still in flight hands over to the processing screen with its budget reduced")
+    func inlinePending() async throws {
+        let container = try SessionContainer.makeTest(holdings: [])
+        let vm = makeViewModel()
+        let outcome = await vm.awaitInline(session: container.session, ratesController: container.ratesController) { attempts, interval in
+            #expect(attempts == InlineCompletion.maxAttempts)
+            #expect(interval == InlineCompletion.pollInterval)
+            return .makeTest(state: .funding)
+        }
+        #expect(outcome == .pending)
+        #expect(CurrencyLaunchProcessingViewModel.maxSwapAttempts - InlineCompletion.maxAttempts == 100)
+    }
 }

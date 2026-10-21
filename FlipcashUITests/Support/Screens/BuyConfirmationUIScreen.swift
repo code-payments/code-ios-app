@@ -36,4 +36,10 @@ struct BuyConfirmationUIScreen {
             "Expected the Buy summary screen"
         )
     }
+
+    /// Waits for a submitted buy to finish on either path (see
+    /// `SwapProcessingUIScreen.waitForCompletionAndDismiss`).
+    func waitForCompletion() {
+        SwapProcessingUIScreen(app: app).waitForCompletionAndDismiss(confirmAnchor: buyButton)
+    }
 }

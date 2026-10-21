@@ -702,6 +702,11 @@ class Session {
         historyController.sync()
     }
     
+    /// Polls a swap this session submitted until it is terminal or the budget is spent.
+    func pollSwapState(swapId: SwapId, maxAttempts: Int, interval: Duration) async throws -> SwapMetadata {
+        try await client.pollSwapState(swapId: swapId, owner: ownerKeyPair, maxAttempts: maxAttempts, pollInterval: interval)
+    }
+
     func fetchMintMetadata(mint: PublicKey) async throws -> StoredMintMetadata {
         if let metadata = try database.getMintMetadata(mint: mint) {
             return metadata

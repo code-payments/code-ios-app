@@ -318,6 +318,7 @@ extension Client {
     ///   - swapId: The swap to poll
     ///   - owner: Owner keypair for authentication
     ///   - maxAttempts: Maximum number of poll attempts
+    ///   - pollInterval: Delay between attempts; one second unless the caller needs a tighter loop
     ///   - onStateChange: Optional callback for state changes (called on each poll)
     /// - Returns: Final SwapMetadata when a terminal state is reached, or the
     ///   last-fetched metadata when the poll budget is exhausted — callers
@@ -328,11 +329,13 @@ extension Client {
         swapId: SwapId,
         owner: KeyPair,
         maxAttempts: Int,
+        pollInterval: Duration = .seconds(1),
         onStateChange: (@Sendable (SwapState) -> Void)? = nil
     ) async throws -> SwapMetadata {
         try await pollSwapTerminalState(
             swapId: swapId,
             maxAttempts: maxAttempts,
+            pollInterval: pollInterval,
             onStateChange: onStateChange,
             fetch: { try await self.fetchSwapMetadata(swapId: swapId, owner: owner) }
         )

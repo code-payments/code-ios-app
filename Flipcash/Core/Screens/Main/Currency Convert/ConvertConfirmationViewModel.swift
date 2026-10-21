@@ -28,6 +28,11 @@ final class ConvertConfirmationViewModel {
     @ObservationIgnored let pinnedState: VerifiedState
 
     var dialogItem: DialogItem?
+    /// Replaces the session poll in tests.
+    @ObservationIgnored var swapPoller: ((SwapId) -> SwapPoller)?
+    @ObservationIgnored var notificationPrompt = NotificationPrompt()
+    @ObservationIgnored var successHold: Duration = InlineCompletion.successHold
+    @ObservationIgnored var dismissDelay: Duration = AppRouter.dismissAnimationDuration
     private(set) var actionButtonState: ButtonState = .normal
     var canDismissSheet: Bool = false
 
@@ -86,7 +91,8 @@ final class ConvertConfirmationViewModel {
 
     // MARK: - Actions -
 
-    func performConvert(session: Session, router: AppRouter) {
+    /// Runs the conversion. `dismiss` closes the convert flow once the swap finalizes in place.
+    func performConvert(session: Session, router: AppRouter, dismiss: @escaping () -> Void = {}) {
         guard actionButtonState == .normal else { return }
         actionButtonState = .loading
 
@@ -105,13 +111,7 @@ final class ConvertConfirmationViewModel {
                     // Token → token is buy-with-currency.
                     swapId = try await session.buy(amount: amount, with: sourceMint, verifiedState: pinnedState, of: destinationMint)
                 }
-                actionButtonState = .normal
-                router.pushAny(ConvertFlowPath.processing(
-                    swapId: swapId,
-                    destinationMint: destinationMint,
-                    destinationName: destinationName,
-                    amount: amountAfterFee
-                ))
+                await completeInline(swapId: swapId, session: session, router: router, dismiss: dismiss)
             } catch Session.Error.verifiedStateStale {
                 // Session.assertFresh already logged this. The pin can't refresh
                 // here (quarks are tied to it), so give the user a way out.
@@ -148,6 +148,42 @@ final class ConvertConfirmationViewModel {
                 actionButtonState = .normal
                 showErrorDialog(error: error)
             }
+        }
+    }
+
+    /// Waits for the swap on this screen. A terminal result resolves here; anything still
+    /// pending after the inline window continues on the processing screen.
+    func completeInline(swapId: SwapId, session: Session, router: AppRouter, dismiss: @escaping () -> Void) async {
+        let poller = swapPoller?(swapId) ?? { attempts, interval in
+            try await session.pollSwapState(swapId: swapId, maxAttempts: attempts, interval: interval)
+        }
+        let completion = InlineSwapCompletion(
+            reporter: SwapCompletionReporter(swapId: swapId, swapType: .convert, targetMint: destinationMint, amount: amountAfterFee),
+            poll: poller
+        )
+        switch await completion.awaitOutcome() {
+        case .succeeded:
+            await InlineSuccess.complete(
+                hold: successHold,
+                dismissDelay: dismissDelay,
+                setButtonState: { actionButtonState = $0 },
+                updatePostTransaction: { session.updatePostTransaction() },
+                finish: { dismiss() },
+                notifications: notificationPrompt,
+                present: { session.dialogItem = $0 }
+            )
+        case .failed:
+            actionButtonState = .normal
+            dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+        case .pending:
+            actionButtonState = .normal
+            router.pushAny(ConvertFlowPath.processing(
+                swapId: swapId,
+                destinationMint: destinationMint,
+                destinationName: destinationName,
+                amount: amountAfterFee,
+                attemptsUsed: InlineCompletion.maxAttempts
+            ))
         }
     }
 

@@ -62,8 +62,7 @@ final class ConvertBetweenTokensRegressionTests: BaseUITestCase {
         convert.assertConfirmationReached()
         waitUntilHittableAndTap(convert.confirmButton)
 
-        processing.assertReached()
-        processing.waitForCompletionAndDismiss()
+        processing.waitForCompletionAndDismiss(confirmAnchor: convert.confirmButton)
 
         assertMainScreenReached("Expected the Wallet root after a completed convert")
     }

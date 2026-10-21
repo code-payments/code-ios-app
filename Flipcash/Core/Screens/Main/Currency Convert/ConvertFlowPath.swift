@@ -22,5 +22,5 @@ enum ConvertFlowPath: Hashable, Sendable {
         sellFeeBps: Int?,
         pinnedState: VerifiedState
     )
-    case processing(swapId: SwapId, destinationMint: PublicKey, destinationName: String, amount: ExchangedFiat)
+    case processing(swapId: SwapId, destinationMint: PublicKey, destinationName: String, amount: ExchangedFiat, attemptsUsed: Int)
 }

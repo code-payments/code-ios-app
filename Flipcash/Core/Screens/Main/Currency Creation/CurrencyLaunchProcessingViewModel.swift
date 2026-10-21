@@ -33,10 +33,16 @@ class CurrencyLaunchProcessingViewModel {
     // MARK: - Private -
 
     private let swapId: SwapId
+    /// Polls the inline window already spent on the wizard, deducted from the swap budget here.
+    private let attemptsUsed: Int
+
+    /// Total slow-path swap poll budget, one poll per second.
+    static let maxSwapAttempts = 120
 
     // MARK: - Init -
 
-    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat, paymentMint: PublicKey) {
+    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat, paymentMint: PublicKey, attemptsUsed: Int = 0) {
+        self.attemptsUsed = attemptsUsed
         self.swapId = swapId
         self.launchedMint = launchedMint
         self.currencyName = currencyName
@@ -109,7 +115,7 @@ class CurrencyLaunchProcessingViewModel {
             let metadata = try await client.pollSwapState(
                 swapId: swapId,
                 owner: session.ownerKeyPair,
-                maxAttempts: 120
+                maxAttempts: max(1, Self.maxSwapAttempts - attemptsUsed)
             ) { [weak self] state in
                 Task { @MainActor in
                     self?.currentState = state
@@ -125,20 +131,20 @@ class CurrencyLaunchProcessingViewModel {
                 // doesn't race the streamed wallet update.
                 if await awaitBalance(session: session) {
                     displayState = .success
-                    Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: true)
+                    trackLaunch(successful: true)
                 } else {
                     reportLaunchFailure(state: metadata.state, reason: "Launched currency balance did not land within budget")
                     displayState = .failed
-                    Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: false)
+                    trackLaunch(successful: false)
                 }
             case .failed, .cancelled:
                 reportLaunchFailure(state: metadata.state, reason: "Launch swap completed with failure state")
                 displayState = .failed
-                Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: false)
+                trackLaunch(successful: false)
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
                 reportLaunchFailure(state: metadata.state, reason: "Launch swap timed out in intermediate state")
                 displayState = .failed
-                Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: false)
+                trackLaunch(successful: false)
             }
         } catch is CancellationError {
             // Task was cancelled (e.g., by SwiftUI during navigation
@@ -148,10 +154,84 @@ class CurrencyLaunchProcessingViewModel {
             // No swap state was ever fetched within the poll budget
             logger.error("Launch swap polling failed", metadata: ["error": "\(error)"])
             displayState = .failed
-            Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: false, error: error)
+            trackLaunch(successful: false, error: error)
         }
 
         isPolling = false
+    }
+
+    // MARK: - Inline polling -
+
+    /// Waits for the launch on the wizard that submitted it, covering the swap poll and the
+    /// balance check in one shared inline window. Terminal results are reported; `.pending`
+    /// means this view model should be handed to the processing screen to continue.
+    func awaitInline(
+        session: Session,
+        ratesController: RatesController,
+        poll: SwapPoller? = nil
+    ) async -> InlineSwapCompletion.Outcome {
+        ratesController.ensureMintSubscribed(launchedMint)
+
+        let clock = ContinuousClock()
+        let deadline = clock.now + InlineCompletion.window
+        let swapId = swapId
+        let poll = poll ?? { attempts, interval in
+            try await session.pollSwapState(swapId: swapId, maxAttempts: attempts, interval: interval)
+        }
+
+        do {
+            let metadata = try await poll(InlineCompletion.maxAttempts, InlineCompletion.pollInterval)
+            switch metadata.state {
+            case .finalized:
+                let remaining = max(1, Int(((deadline - clock.now) / InlineCompletion.pollInterval).rounded(.up)))
+                guard await awaitBalance(session: session, maxAttempts: remaining, interval: InlineCompletion.pollInterval) else {
+                    return .pending
+                }
+                displayState = .success
+                trackLaunch(successful: true)
+                return .succeeded
+            case .failed, .cancelled:
+                reportLaunchFailure(state: metadata.state, reason: "Launch swap completed with failure state")
+                displayState = .failed
+                trackLaunch(successful: false)
+                return .failed
+            case .unknown, .created, .funding, .funded, .submitting, .cancelling:
+                return .pending
+            }
+        } catch is CancellationError {
+            // Already submitted; the processing screen resumes polling rather than risking a resubmit.
+            return .pending
+        } catch ClientError.pollLimitReached {
+            return .pending
+        } catch {
+            logger.error("Launch swap polling failed", metadata: ["error": "\(error)"])
+            displayState = .failed
+            trackLaunch(successful: false, error: error)
+            return .failed
+        }
+    }
+
+    /// Builds the bill for the new currency, dismisses the flow, then shows the bill once the
+    /// dismiss animation has finished.
+    func receiveLaunchedCurrency(
+        session: Session,
+        ratesController: RatesController,
+        dismiss: () -> Void,
+        dismissDelay: Duration = AppRouter.dismissAnimationDuration
+    ) async {
+        let description = await prepareBillHandoff(session: session, ratesController: ratesController)
+        dismiss()
+        // Wait for the dismiss animation to finish before mutating bill state,
+        // so ScanScreen renders the bill as a fresh entrance instead of
+        // revealing it underneath the closing sheet.
+        try? await Task.sleep(for: dismissDelay)
+        if let description {
+            session.showCashBill(description)
+        }
+    }
+
+    private func trackLaunch(successful: Bool, error: Error? = nil) {
+        Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: successful, error: error)
     }
 
     /// Polls `session.balance(for: launchedMint)` until the launched currency
