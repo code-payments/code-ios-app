@@ -38,7 +38,7 @@ final class ReactionPillView: UIView {
     private static let restingFill = UIColor.white.withAlphaComponent(0.06)
     private static let selfReactedBorder = UIColor.white.withAlphaComponent(0.24)
     /// The boosted pill's border and amount; its fill is this at 10%.
-    private static let boosted = UIColor(red: 255 / 255, green: 200 / 255, blue: 40 / 255, alpha: 1)
+    private static let boosted = UIColor(Color.reactionBoost)
     private static let boostedFill = boosted.withAlphaComponent(0.1)
     /// Android's `thickBorder`.
     private static let selfReactedBorderWidth: CGFloat = 2

@@ -30,7 +30,8 @@ public final class ReactorsListModel {
         }
     }
 
-    /// The rows loaded so far, newest reaction first. Updated once per round of pages rather than
+    /// The rows loaded so far: whoever paid first, most paid first, then everyone else newest
+    /// reaction first. Updated once per round of pages rather than
     /// as each emoji's page lands, so a row never shows some of a person's emoji and then gains
     /// the rest.
     public private(set) var rows: [Row] = []
@@ -49,7 +50,7 @@ public final class ReactorsListModel {
         }
         return reacted
             .map { userID, set in Row(userID: userID, emojis: emojis.filter(set.contains), boostCents: boosts[userID] ?? 0) }
-            .sorted { (latest[$0.userID] ?? .distantPast, $0.userID.uuidString) > (latest[$1.userID] ?? .distantPast, $1.userID.uuidString) }
+            .sorted { ($0.boostCents, latest[$0.userID] ?? .distantPast, $0.userID.uuidString) > ($1.boostCents, latest[$1.userID] ?? .distantPast, $1.userID.uuidString) }
     }
 
     /// Whether a page is in flight.

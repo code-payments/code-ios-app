@@ -119,6 +119,9 @@ struct ReactorsSheet: View {
 
     private var pillStack: some View {
         HStack(spacing: 8) {
+            if paidCents > 0 {
+                BoostAmountPill(cents: paidCents, count: paidReactorCount)
+            }
             ForEach(pills) { pill in
                 filterPill(pill)
             }
@@ -126,20 +129,24 @@ struct ReactorsSheet: View {
         .fixedSize()
     }
 
+    /// Everything paid on the message, from its pills, so it agrees with the bubble.
+    private var paidCents: UInt64 {
+        pills.reduce(0) { $0 + ($1.boost?.total ?? 0) }
+    }
+
+    /// How many of the loaded reactors paid; nil until one has loaded.
+    private var paidReactorCount: Int? {
+        let count = model.rows.count { $0.boostCents > 0 }
+        return count > 0 ? count : nil
+    }
+
     private func filterPill(_ pill: ReactionPill) -> some View {
         HStack(spacing: 4) {
             Text(pill.emoji)
                 .font(.system(size: 17))
-            if let boost = pill.boost {
-                Text(FiatAmount.usd(Decimal(boost.total) / 100).formatted())
-                    .font(.default(size: 13, weight: .medium))
-                    .foregroundStyle(Color.textMain)
-            }
-            if pill.boost == nil || pill.count > 1 {
-                Text("\(pill.count)")
-                    .font(.default(size: 13, weight: .medium))
-                    .foregroundStyle(Color.textMain.opacity(0.5))
-            }
+            Text("\(pill.count)")
+                .font(.default(size: 13, weight: .medium))
+                .foregroundStyle(Color.textMain.opacity(0.5))
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
@@ -191,6 +198,8 @@ struct ReactorsSheet: View {
 
     /// The least room the emoji keep, so a long name truncates instead of squeezing them out.
     private static let minEmojiWidth: CGFloat = 140
+    /// The same for a row that also carries a paid amount.
+    private static let minPaidWidth: CGFloat = 200
 
     private func row(for reactor: ReactorsListModel.Row) -> some View {
         let identity = identities[reactor.userID]
@@ -217,11 +226,6 @@ struct ReactorsSheet: View {
                                 .font(.default(size: 13, weight: .medium))
                                 .foregroundStyle(Color.textMain.opacity(0.5))
                         }
-                        if reactor.boostCents > 0 {
-                            Text("Paid \(FiatAmount.usd(Decimal(reactor.boostCents) / 100).formatted())")
-                                .font(.default(size: 13, weight: .medium))
-                                .foregroundStyle(Color.textMain)
-                        }
                     }
                     .lineLimit(1)
                 }
@@ -229,8 +233,8 @@ struct ReactorsSheet: View {
             }
             .buttonStyle(.plain)
             .layoutPriority(1)
-            ReactorEmojis(emojis: reactor.emojis)
-                .frame(minWidth: Self.minEmojiWidth, maxWidth: .infinity)
+            ReactorEmojis(emojis: reactor.emojis, boostCents: reactor.boostCents)
+                .frame(minWidth: reactor.boostCents > 0 ? Self.minPaidWidth : Self.minEmojiWidth, maxWidth: .infinity)
         }
         .padding(.leading, 20)
         .padding(.vertical, 8.5)
@@ -278,11 +282,39 @@ private extension View {
     }
 }
 
-/// A reactor's emoji, trailing-aligned in whatever the name leaves. When there are more than fit
-/// they scroll sideways and run off the screen edge instead of stopping at the row's margin.
+/// A paid amount in gold, with an optional count after it.
+private struct BoostAmountPill: View {
+
+    let cents: UInt64
+    var count: Int? = nil
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(FiatAmount.usd(Decimal(cents) / 100).formatted())
+                .font(.default(size: 15, weight: .semibold))
+            if let count {
+                Text("\(count)")
+                    .font(.default(size: 13, weight: .medium))
+                    .opacity(0.5)
+            }
+        }
+        .foregroundStyle(Color.reactionBoost)
+        .padding(.horizontal, 12)
+        .frame(height: 34)
+        .background(Capsule().fill(Color.reactionBoost.opacity(0.1)))
+        .overlay(Capsule().strokeBorder(Color.reactionBoost, lineWidth: 2))
+        .fixedSize()
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A reactor's emoji, trailing-aligned in whatever the name leaves, after what they paid if they
+/// paid. When there are more than fit they scroll sideways and run off the screen edge instead of
+/// stopping at the row's margin.
 private struct ReactorEmojis: View {
 
     let emojis: [String]
+    let boostCents: UInt64
 
     /// Also the gap to the name, so an emoji scrolled back fades out before it reaches it.
     private static let leadingMargin: CGFloat = 16
@@ -304,14 +336,25 @@ private struct ReactorEmojis: View {
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(emojis.joined(separator: " "))
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        let emojiText = emojis.joined(separator: " ")
+        guard boostCents > 0 else { return emojiText }
+        return "Paid \(FiatAmount.usd(Decimal(boostCents) / 100).formatted()), \(emojiText)"
     }
 
     private var glyphs: some View {
-        HStack(spacing: 2) {
-            ForEach(Array(emojis.enumerated()), id: \.offset) { _, emoji in
-                Text(emoji)
-                    .font(.system(size: 30))
+        HStack(spacing: 16) {
+            if boostCents > 0 {
+                BoostAmountPill(cents: boostCents)
+            }
+            HStack(spacing: 2) {
+                ForEach(Array(emojis.enumerated()), id: \.offset) { _, emoji in
+                    Text(emoji)
+                        .font(.system(size: 30))
+                }
             }
         }
         .fixedSize()

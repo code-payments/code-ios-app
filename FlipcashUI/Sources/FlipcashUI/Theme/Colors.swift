@@ -48,6 +48,9 @@ extension ShapeStyle where Self == Color {
 
     public static var checkmarkBackground: Color         { Color.white }
 
+    /// `#FFC828` — a paid reaction's amount and border; its fill is this at 10%.
+    public static var reactionBoost: Color               { Color(r: 255, g: 200, b: 40) }
+
     /// `#1AC86A` — the shared success fill (switch tracks, bubbles, filled icons), the same
     /// green Android uses. Success text uses `textSuccess` (`#73EAA4`). Backed by the `success` asset.
     public static var success: Color                     { Color("success") }

@@ -315,6 +315,26 @@ struct ReactionUITests {
         #expect(model.rows == [.init(userID: userA, emojis: ["🔥", "👍"], boostCents: 525)])
     }
 
+    @MainActor
+    @Test("Whoever paid comes first, most paid first, ahead of newer unpaid reactions")
+    func paidRowsSortFirst() async {
+        let unpaid = UUID()
+        let paidLess = UUID()
+        let paidMore = UUID()
+        let now = Date.now
+        let source = StubReactorsSource(pages: [
+            "🔥": [ReactorPage(reactors: [
+                Reactor(userID: unpaid, reactedAt: now, version: 3),
+                Reactor(userID: paidLess, reactedAt: now.addingTimeInterval(-60), version: 2, boostUSD: 1),
+                Reactor(userID: paidMore, reactedAt: now.addingTimeInterval(-120), version: 1, boostUSD: 9),
+            ], nextPageToken: nil, version: 3)],
+        ])
+        let model = makeModel(source, emojis: ["🔥"])
+        await model.loadMoreIfNeeded()
+
+        #expect(model.rows.map(\.userID) == [paidMore, paidLess, unpaid])
+    }
+
     /// Answers 🔥 at once and holds 👍 until `release()`.
     private actor HeldReactorsSource: ReactorsSource {
         let reactor: Reactor
