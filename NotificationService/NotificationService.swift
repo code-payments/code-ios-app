@@ -242,6 +242,8 @@ final class NotificationService: UNNotificationServiceExtension {
             for: conversationID,
             embedded: NotificationPayload.chatMessage(request.content.userInfo),
             messageID: NotificationPayload.chatMessageID(request.content.userInfo),
+            isGroup: NotificationPayload.chatType(request.content.userInfo) == .group,
+            pushedSenderName: NotificationPayload.senderName(request.content.userInfo),
             viewerUsername: promotableContent != nil ? archiveFile?.viewerUsername : nil,
             classifyForArchive: promotableContent != nil
         )
@@ -255,6 +257,8 @@ final class NotificationService: UNNotificationServiceExtension {
         for conversationID: ConversationID,
         embedded: ConversationMessage?,
         messageID: MessageID?,
+        isGroup: Bool,
+        pushedSenderName: String?,
         viewerUsername: String?,
         classifyForArchive: Bool
     ) {
@@ -263,6 +267,8 @@ final class NotificationService: UNNotificationServiceExtension {
                 for: conversationID,
                 embedded: embedded,
                 messageID: messageID,
+                isGroup: isGroup,
+                pushedSenderName: pushedSenderName,
                 viewerUsername: viewerUsername,
                 classifyForArchive: classifyForArchive,
                 replaceBody: { delivery.replaceBody($0) },
@@ -382,12 +388,16 @@ final class NotificationService: UNNotificationServiceExtension {
     /// banner isn't gated on the slower branding round-trip. Best-effort: any failure just leaves the
     /// content extension to fetch live.
     ///
-    /// An end-to-end-encrypted DM's push arrives with the server's generic body; once the message it
-    /// is about decrypts, `replaceBody` swaps in the plaintext. On any failure the server's body stays.
+    /// An end-to-end-encrypted chat's push arrives with the server's generic body; once the message it
+    /// is about decrypts, `replaceBody` swaps in its preview. A group's title is the group, so the
+    /// preview leads with the sender's name: the one the push carried, else the shared store's. On any
+    /// failure the server's body stays.
     private static func cachePreview(
         for conversationID: ConversationID,
         embedded: ConversationMessage?,
         messageID: MessageID?,
+        isGroup: Bool,
+        pushedSenderName: String?,
         viewerUsername: String?,
         classifyForArchive: Bool,
         replaceBody: @Sendable (String) -> Void,
@@ -417,7 +427,20 @@ final class NotificationService: UNNotificationServiceExtension {
             )
             let messages = Array(opened.prefix(fetched.count))
             if embedded != nil { embedded = opened.last }
-            if let body = NotificationPayload.decryptedBody(of: messageID, in: messages + (embedded.map { [$0] } ?? [])) {
+            let senderName: (UserID) -> String? = { senderID in
+                guard isGroup, senderID != account.userID else { return nil }
+                if let pushedSenderName { return pushedSenderName }
+                var name: String?
+                ExtensionStore.perform(owner: account.keyAccount.ownerPublicKey) { database in
+                    name = try database.knownMembers()[senderID]?.displayName
+                }
+                return name
+            }
+            if let body = NotificationPayload.decryptedBody(
+                of: messageID,
+                in: messages + (embedded.map { [$0] } ?? []),
+                senderName: senderName
+            ) {
                 replaceBody(body)
             }
             if classifyForArchive {

@@ -336,4 +336,69 @@ struct NotificationPayloadTests {
         #expect(NotificationPayload.decryptedBody(of: MessageID(value: 9), in: messages) == nil)
         #expect(NotificationPayload.decryptedBody(of: nil, in: messages) == nil)
     }
+
+    private static let photo = MediaAttachment(blobID: nil, width: 4, height: 3, blurhash: nil)
+
+    @Test("decryptedBody previews a decrypted photo with its caption, or as a photo without one")
+    func decryptedBodyPreviewsPhoto() {
+        let messages = [
+            Self.message(1, .media([Self.photo], caption: nil)),
+            Self.message(2, .media([Self.photo], caption: "the view")),
+        ]
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 1), in: messages) == "📷 Photo")
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 2), in: messages) == "📷 the view")
+    }
+
+    @Test("decryptedBody leads with the sender's name when one is given")
+    func decryptedBodyNamesSender() {
+        let messages = [Self.message(1, .text("on my way")), Self.message(2, .media([Self.photo], caption: nil))]
+        let sender = messages[0].senderID
+        let named: (UserID) -> String? = { $0 == sender ? "Kevin" : "Neil" }
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 1), in: messages, senderName: named) == "Kevin: on my way")
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 2), in: messages, senderName: named) == "Neil: 📷 Photo")
+    }
+
+    @Test("decryptedBody has no prefix when the sender's name is unknown or empty")
+    func decryptedBodyUnnamedSender() {
+        let messages = [Self.message(1, .text("on my way"))]
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 1), in: messages, senderName: { _ in nil }) == "on my way")
+        #expect(NotificationPayload.decryptedBody(of: MessageID(value: 1), in: messages, senderName: { _ in "" }) == "on my way")
+    }
+
+    // MARK: - senderName -
+
+    private static func senderPush(sender: UUID, substitutions: [Flipcash_Common_V1_Substitution]) throws -> [String: String] {
+        let payload = Flipcash_Push_V1_Payload.with {
+            $0.category = .chat
+            $0.bodySubstitutions = substitutions
+            $0.chatMetadata = .with {
+                $0.type = .group
+                $0.sendingUserID = .with { $0.value = sender.data }
+            }
+        }
+        return [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+    }
+
+    private static func nameSubstitution(_ userID: UUID, _ fallback: String) -> Flipcash_Common_V1_Substitution {
+        .with {
+            $0.fallback = fallback
+            $0.userIDToDisplayName = .with { $0.value = userID.data }
+        }
+    }
+
+    @Test("senderName is the fallback of the substitution naming the sending user")
+    func senderNameFromSubstitution() throws {
+        let sender = UUID()
+        let userInfo = try Self.senderPush(
+            sender: sender,
+            substitutions: [Self.nameSubstitution(UUID(), "Someone Else"), Self.nameSubstitution(sender, "Kevin")]
+        )
+        #expect(NotificationPayload.senderName(userInfo) == "Kevin")
+    }
+
+    @Test("senderName is nil when no substitution names the sending user")
+    func senderNameMissing() throws {
+        let userInfo = try Self.senderPush(sender: UUID(), substitutions: [Self.nameSubstitution(UUID(), "Someone Else")])
+        #expect(NotificationPayload.senderName(userInfo) == nil)
+    }
 }
