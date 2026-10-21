@@ -90,6 +90,7 @@ private struct PaidReactionSheetContent: View {
                     payWithButton
                         .id(viewModel.selectedBalance?.stored.mint)
                 }
+                .frame(maxWidth: .infinity)
                 .padding(.top, 40)
                 .padding(.bottom, 18)
 
