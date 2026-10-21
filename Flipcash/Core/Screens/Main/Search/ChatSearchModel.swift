@@ -33,6 +33,7 @@ final class ChatSearchModel {
     var query = "" {
         didSet {
             guard query != oldValue else { return }
+            if isIdle { scope = .all }
             scheduleSearch()
         }
     }

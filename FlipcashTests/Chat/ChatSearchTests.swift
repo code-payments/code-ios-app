@@ -214,6 +214,23 @@ struct ChatSearchTests {
         #expect(try await search.currencies(matching: "jef").map(\.name) == ["Jeffy"])
     }
 
+    @Test("Clearing the query puts the chip back on All")
+    func clearingResetsScope() {
+        let model = ChatSearchModel(
+            conversations: { [] },
+            loadMessages: { [] },
+            currencySearch: LocalCurrencyNameSearch(candidates: { [] }),
+            chatName: { _ in "" },
+            senderName: { _, _ in nil }
+        )
+        model.query = "jeff"
+        model.scope = .links
+        model.query = "jef"
+        #expect(model.scope == .links)
+        model.query = " "
+        #expect(model.scope == .all)
+    }
+
     @Test("A currency card shows weekly change and new members only from Discover's weekly metrics")
     func currencyCardLines() {
         let withMetrics = mint(Self.mintA, name: "Jeffy", withMetrics: true)
