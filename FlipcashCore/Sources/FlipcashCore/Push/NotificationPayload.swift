@@ -84,19 +84,47 @@ public enum NotificationPayload {
         }
     }
 
-    /// The banner body for an end-to-end-encrypted push: the plaintext of message `messageID` when it
-    /// arrived encrypted and decrypted to text. Nil keeps the server's body — the message is missing,
-    /// was never encrypted, isn't text, or didn't decrypt.
-    public static func decryptedBody(of messageID: MessageID?, in messages: [ConversationMessage]) -> String? {
+    /// The banner body for an end-to-end-encrypted push: the preview of message `messageID` when it
+    /// arrived encrypted and decrypted to text or a photo, led by `senderName(senderID)` as
+    /// "Name: …" when that returns a name. Nil keeps the server's body — the message is missing, was
+    /// never encrypted, is neither text nor a photo, or didn't decrypt.
+    public static func decryptedBody(
+        of messageID: MessageID?,
+        in messages: [ConversationMessage],
+        senderName: (UserID) -> String? = { _ in nil }
+    ) -> String? {
         guard let messageID, let message = messages.first(where: { $0.id == messageID }), message.isEncrypted else {
             return nil
         }
+        let preview: String
         switch message.content {
         case .text(let text):
-            return text
-        case .cash, .deleted, .encrypted, .widget, .media, .system:
+            preview = text
+        case .media(_, let caption):
+            preview = ChatMediaStrings.listPreview(caption: caption)
+        case .cash, .deleted, .encrypted, .widget, .system:
             return nil
         }
+        guard let name = message.senderID.flatMap(senderName), !name.isEmpty else { return preview }
+        return "\(name): \(preview)"
+    }
+
+    /// The sender's display name as the server spelled it in a CHAT push: the `fallback` of the
+    /// user-ID substitution naming `chatMetadata.sendingUserID`. Nil when the push names no sender
+    /// that way.
+    public static func senderName(_ userInfo: [AnyHashable: Any]) -> String? {
+        guard let payload = decode(userInfo), payload.category == .chat, payload.hasChatMetadata,
+              payload.chatMetadata.hasSendingUserID
+        else {
+            return nil
+        }
+        let senderID = payload.chatMetadata.sendingUserID.value
+        let substitution = (payload.titleSubstitutions + payload.bodySubstitutions).first { substitution in
+            guard case .userIDToDisplayName(let userID) = substitution.kind else { return false }
+            return userID.value == senderID
+        }
+        guard let name = substitution?.fallback, !name.isEmpty else { return nil }
+        return name
     }
 
     /// Whether the recipient had the chat muted when a CHAT push was sent. The push is still
