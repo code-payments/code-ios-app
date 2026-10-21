@@ -78,6 +78,8 @@ private struct PaidReactionSheetContent: View {
                         .font(.default(size: 14, weight: .medium))
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
+                        // The sheet re-measures after the picker closes and would otherwise truncate to one line.
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -85,10 +87,8 @@ private struct PaidReactionSheetContent: View {
                     Text("Pay with:")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
-                    TokenSelectorButton(selectedBalance: viewModel.selectedBalance) {
-                        isShowingTokenSelection = true
-                    }
-                    .id(viewModel.selectedBalance?.stored.mint)
+                    payWithButton
+                        .id(viewModel.selectedBalance?.stored.mint)
                 }
                 .padding(.top, 40)
                 .padding(.bottom, 18)
@@ -121,13 +121,18 @@ private struct PaidReactionSheetContent: View {
             dismiss()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(
-                isPresented: $isShowingTokenSelection,
+            let options = viewModel.paymentOptions
+            CurrencyPickerSheet(
+                options: options,
                 // The initial balance skips Dollars, so the wallet's selected token can differ.
-                isSelected: { $0.stored.mint == viewModel.selectedBalance?.stored.mint }
-            ) { balance in
-                viewModel.selectCurrencyAction(exchangedBalance: balance)
-            }
+                selectedMint: viewModel.selectedBalance?.stored.mint ?? .usdf,
+                onSelect: { mint in
+                    if let balance = options.first(where: { $0.stored.mint == mint }) {
+                        viewModel.selectCurrencyAction(exchangedBalance: balance)
+                    }
+                    isShowingTokenSelection = false
+                }
+            )
         }
         .sheet(isPresented: $isEnteringCustomAmount) {
             MinimumBalanceAmountSheet(
@@ -166,6 +171,31 @@ private struct PaidReactionSheetContent: View {
                 customCents.map { "Custom amount, \(Self.usd($0).formattedDroppingZeroFraction())" } ?? "Custom amount"
             )
         }
+    }
+
+    /// The selected currency in a filled capsule, matching Android's pill.
+    private var payWithButton: some View {
+        Button {
+            isShowingTokenSelection = true
+        } label: {
+            HStack(spacing: 4) {
+                if let balance = viewModel.selectedBalance {
+                    TokenIconWithName(
+                        url: balance.stored.imageURL,
+                        monogramID: balance.stored.mint.base58,
+                        name: balance.stored.name,
+                        iconSize: 16
+                    )
+                }
+                Image.system(.chevronDown)
+                    .font(.default(size: 12, weight: .bold))
+                    .foregroundStyle(Color.textMain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color.white.opacity(0.1), in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private static func usd(_ cents: UInt64) -> FiatAmount {
