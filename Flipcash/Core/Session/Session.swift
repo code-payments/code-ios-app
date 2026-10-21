@@ -181,6 +181,18 @@ class Session {
         updateableBalances.value.first { $0.mint == mint }
     }
 
+    /// Whether the server has already listed a token account for `mint`. Balances are
+    /// written from `fetchPrimaryAccounts` (zero-quark accounts included) and accounts
+    /// are never removed, so a hit means the account exists; a miss only means "not
+    /// seen yet" and falls back to the idempotent create-account intent.
+    func hasAccount(for mint: PublicKey) -> Bool {
+        Self.hasAccount(for: mint, knownMints: updateableBalances.value.map(\.mint))
+    }
+
+    nonisolated static func hasAccount(for mint: PublicKey, knownMints: [PublicKey]) -> Bool {
+        knownMints.contains(mint)
+    }
+
     /// Locally-cached metadata for any known mint, held or not. Nil when the mint
     /// has never been synced — a swap's counterpart currency may not be a balance.
     func storedMintMetadata(for mint: PublicKey) -> StoredMintMetadata? {
@@ -795,7 +807,7 @@ class Session {
             "symbol": "\(token.symbol)"
         ])
 
-        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner)
+        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint))
     }
 
     /// Buys `mint` paying with another launchpad currency. `amount` is denominated
@@ -836,7 +848,7 @@ class Session {
             "symbol": "\(token.symbol)"
         ])
 
-        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner)
+        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint))
     }
 
     @discardableResult
