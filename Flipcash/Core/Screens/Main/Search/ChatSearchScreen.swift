@@ -43,7 +43,7 @@ struct ChatSearchScreen: View {
                     query: queryBinding,
                     isFocused: $isFieldFocused,
                     onChats: { dismiss() },
-                    onClose: close
+                    onClose: { dismiss() }
                 )
             }
         case .tab:
@@ -127,14 +127,6 @@ struct ChatSearchScreen: View {
         )
     }
 
-    private func close() {
-        if model?.query.isEmpty == false {
-            model?.query = ""
-        } else {
-            dismiss()
-        }
-    }
-
     /// Drops focus before pushing: UIKit otherwise restores the field as first responder on the way
     /// back, while the chat that ignores the keyboard safe area is still on top, and the bar comes
     /// back behind the keyboard.
@@ -172,7 +164,7 @@ private extension String {
 
 // MARK: - Search bar -
 
-/// The bottom bar: back to Chats, the query field, and close.
+/// The bottom bar: back to Chats, the query field with its clear button, and close.
 private struct SearchBar: View {
 
     @Binding var query: String
@@ -195,6 +187,13 @@ private struct SearchBar: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .accessibilityIdentifier("chat-search-field")
+
+                if !query.isEmpty {
+                    Button("Clear", systemImage: "xmark.circle.fill") { query = "" }
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(Color.textSecondary)
+                        .accessibilityIdentifier("chat-search-clear")
+                }
             }
             .padding(.horizontal, 16)
             .frame(height: 52)
