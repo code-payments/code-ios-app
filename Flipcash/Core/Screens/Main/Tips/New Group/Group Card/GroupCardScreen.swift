@@ -218,7 +218,7 @@ struct GroupCardScreen: View {
             return
         }
 
-        Analytics.groupInviteDownloaded()
+        Analytics.groupInviteShared(method: .download)
         ShareSheet.present(activityItems: [file]) { _ in
             GroupCardExport.discard(file)
         }

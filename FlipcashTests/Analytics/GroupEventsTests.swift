@@ -83,6 +83,7 @@ struct GroupEventsTests {
     @Test("Group: Invite Shared carries its method", arguments: [
         (GroupInviteMethod.share, "Share"),
         (.theCopy, "Copy"),
+        (.download, "Download"),
     ])
     func inviteShared(_ method: GroupInviteMethod, _ expected: String) throws {
         let sent = Analytics.recordingSends { Analytics.groupInviteShared(method: method) }
@@ -229,12 +230,6 @@ struct GroupEventsTests {
     func cardShown() throws {
         let sent = Analytics.recordingSends { Analytics.groupCardShown(memberCount: 7) }
         try expectEvent(sent, "Group: Card Shown", ["Member Count": .number(7)])
-    }
-
-    @Test("Group: Invite Shared sends Method: Download for an exported card")
-    func inviteDownloaded() throws {
-        let sent = Analytics.recordingSends { Analytics.groupInviteDownloaded() }
-        try expectEvent(sent, "Group: Invite Shared", ["Method": .text("Download")])
     }
 
     // MARK: - Helpers -
