@@ -42,15 +42,6 @@ private struct ScanScreenContent: View {
         CameraPrompt(status: cameraAuthorizer.status, cameraEnabled: preferences.cameraEnabled)
     }
     
-    /// How far the gallery button sits in from the trailing edge — the same margin
-    /// the rest of the app's content uses.
-    private static let glyphTrailingMargin: CGFloat = 20
-
-    /// The gap between the top safe area and the gallery button. Measured from the
-    /// inset rather than the screen edge: the camera preview ignores the safe area
-    /// and runs under the status bar, but the button must stay clear of it.
-    private static let glyphTopGap: CGFloat = 12
-
     private let sessionContainer: SessionContainer
 
     // MARK: - Init -
@@ -68,8 +59,17 @@ private struct ScanScreenContent: View {
     // MARK: - Body -
     
     var body: some View {
+        // No path: Scan has no push stack. The stack exists so the gallery button is a
+        // real toolbar item, placed and sized by the system like the other tabs' buttons.
+        NavigationStack {
+            content
+                .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        }
+    }
+
+    private var content: some View {
         let showControls = session.billState.bill == nil
-        ZStack {
+        return ZStack {
             if cameraPrompt == nil {
                 cameraViewport()
                     .transition(.identity)
@@ -86,15 +86,6 @@ private struct ScanScreenContent: View {
                     .zIndex(1)
                     .transition(.opacity)
                 }
-
-                // Outside the `cameraPrompt` branch on purpose: a photo can be scanned
-                // whether or not the camera is available, so the glyph outlives the viewport.
-                GalleryScanButton(selection: $pickedItem)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(.trailing, Self.glyphTrailingMargin)
-                    .padding(.top, Self.glyphTopGap)
-                    .zIndex(2)
-                    .transition(.opacity)
             }
         }
         // Fill the tab's full width and height. The iOS 26 native `TabView` does
@@ -104,6 +95,15 @@ private struct ScanScreenContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
+        .toolbar {
+            // Outside the `cameraPrompt` branch on purpose: a photo can be scanned
+            // whether or not the camera is available, so the glyph outlives the viewport.
+            if showControls {
+                ToolbarItem(placement: .topBarTrailing) {
+                    GalleryScanButton(selection: $pickedItem)
+                }
+            }
+        }
         .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
         .onChange(of: pickedItem) { _, item in
             guard let item else { return }
@@ -135,7 +135,6 @@ private struct ScanScreenContent: View {
         // shows a black frame. See `ScanViewModel.isPreviewReady`.
         .opacity(viewModel.isPreviewReady ? 1 : 0)
         .animation(.easeInOut(duration: 0.25), value: viewModel.isPreviewReady)
-        .toolbarVisibility(.hidden, for: .navigationBar)
         .onAppear {
             viewModel.configureCameraSession()
         }
