@@ -56,13 +56,18 @@ struct ChatSearchScreen: View {
     private func screen(@ViewBuilder bottomBar: () -> some View) -> some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                if let model {
-                    content(model)
+                // Recent reads the recents store, not the model, so it draws on the first frame
+                // instead of popping in once the model has loaded.
+                if let model, !model.isIdle {
+                    results(model)
+                        .transition(.opacity)
                 } else {
-                    Spacer()
+                    RecentSection(conversations: recentConversations, onOpen: open)
+                        .transition(.opacity)
                 }
                 bottomBar()
             }
+            .animation(.easeInOut(duration: 0.2), value: model?.isIdle ?? true)
         }
         .toolbar(.hidden, for: .navigationBar)
         .task {
@@ -73,23 +78,18 @@ struct ChatSearchScreen: View {
         }
     }
 
-    @ViewBuilder
-    private func content(_ model: ChatSearchModel) -> some View {
-        if model.isIdle {
-            RecentSection(conversations: recentConversations, onOpen: open)
+    /// Results under the chips, which ride the scroll view's top edge so rows blur out beneath them.
+    private func results(_ model: ChatSearchModel) -> some View {
+        ScrollView {
+            ChatSearchResults(model: model, onOpenChat: open, onOpenMessage: open, onOpenLink: open, onOpenCurrency: openCurrency)
+                .id(model.scope)
                 .transition(.opacity)
-        } else {
-            VStack(spacing: 0) {
-                ScopeChips(selection: Binding(get: { model.scope }, set: { model.scope = $0 }))
-                ScrollView {
-                    ChatSearchResults(model: model, onOpenChat: open, onOpenMessage: open, onOpenLink: open, onOpenCurrency: openCurrency)
-                        .id(model.scope)
-                        .transition(.opacity)
-                }
-                .scrollDismissesKeyboard(.immediately)
-                .animation(.easeInOut(duration: 0.2), value: model.scope)
-            }
         }
+        .scrollEdgeBar(.top) {
+            ScopeChips(selection: Binding(get: { model.scope }, set: { model.scope = $0 }))
+        }
+        .scrollDismissesKeyboard(.immediately)
+        .animation(.easeInOut(duration: 0.2), value: model.scope)
     }
 
     private var queryBinding: Binding<String> {
@@ -243,6 +243,22 @@ private struct ScopeChips: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
+        }
+        // The unselected chips are outlines only, so rows scrolling under them need a backdrop that
+        // fades them out before they reach the chips.
+        .background {
+            LinearGradient(
+                stops: [
+                    .init(color: .backgroundMain, location: 0),
+                    .init(color: .backgroundMain, location: 0.65),
+                    .init(color: .backgroundMain.opacity(0), location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .padding(.bottom, -32)
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
         }
         .sensoryFeedback(.selection, trigger: selection)
     }
