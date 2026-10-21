@@ -11,12 +11,14 @@ import SwiftUI
 import FlipcashCore
 
 /// One reaction pill: emoji + count, capsule-shaped over the same wash a received bubble sits on.
-/// A self-reacted pill draws a grey outline, which never changes its width. Tap toggles the reaction; the row it
+/// A boosted pill adds its dollar total after the emoji and shows the count only above one.
+/// A self-reacted pill draws an outline (gold when boosted), which never changes its width. Tap toggles the reaction; the row it
 /// sits in owns the long press, so a press just off the pill still opens the reactors sheet.
 final class ReactionPillView: UIView {
 
     private let stack = UIStackView()
     private let emojiLabel = UILabel()
+    private let boostLabel = UILabel()
     private let countLabel = UILabel()
     /// Holds the count label at the width its reserved digits need, so a count change inside that
     /// room never resizes the pill.
@@ -35,6 +37,9 @@ final class ReactionPillView: UIView {
     private static let selfReactedFill = UIColor.white.withAlphaComponent(0.12)
     private static let restingFill = UIColor.white.withAlphaComponent(0.06)
     private static let selfReactedBorder = UIColor.white.withAlphaComponent(0.24)
+    /// The boosted pill's border and amount; its fill is this at 10%.
+    private static let boosted = UIColor(Color.reactionBoost)
+    private static let boostedFill = boosted.withAlphaComponent(0.1)
     /// Android's `thickBorder`.
     private static let selfReactedBorderWidth: CGFloat = 2
 
@@ -54,7 +59,11 @@ final class ReactionPillView: UIView {
         countLabel.font = Self.countFont
         countLabel.textColor = UIColor(Color.textMain)
         countLabel.textAlignment = .center
+        boostLabel.font = Self.countFont
+        boostLabel.textColor = Self.boosted
+        boostLabel.isHidden = true
         stack.addArrangedSubview(emojiLabel)
+        stack.addArrangedSubview(boostLabel)
         stack.addArrangedSubview(countLabel)
 
         NSLayoutConstraint.activate([
@@ -88,10 +97,15 @@ final class ReactionPillView: UIView {
         }
         countLabel.text = "\(pill.count)"
         countWidth.constant = Self.countWidth(digits: max(countDigits, "\(pill.count)".count))
+        let boostText = pill.boost.map { FiatAmount.usd(Decimal($0.total) / 100).formatted() }
+        boostLabel.text = boostText
+        boostLabel.isHidden = boostText == nil
+        countLabel.isHidden = boostText != nil && pill.count <= 1
 
-        let fill = pill.selfReacted ? Self.selfReactedFill : Self.restingFill
-        let borderWidth = pill.selfReacted ? Self.selfReactedBorderWidth : 0
-        if animated, let previous, previous.selfReacted != pill.selfReacted {
+        let isBoosted = pill.boost != nil
+        let fill = isBoosted ? Self.boostedFill : pill.selfReacted ? Self.selfReactedFill : Self.restingFill
+        let borderWidth = isBoosted || pill.selfReacted ? Self.selfReactedBorderWidth : 0
+        if animated, let previous, previous.selfReacted != pill.selfReacted || (previous.boost != nil) != isBoosted {
             let border = CABasicAnimation(keyPath: "borderWidth")
             border.fromValue = layer.presentation()?.borderWidth ?? layer.borderWidth
             border.toValue = borderWidth
@@ -102,12 +116,14 @@ final class ReactionPillView: UIView {
         } else {
             backgroundColor = fill
         }
-        layer.borderColor = Self.selfReactedBorder.cgColor
+        layer.borderColor = (isBoosted ? Self.boosted : Self.selfReactedBorder).cgColor
         layer.borderWidth = borderWidth
 
         isUserInteractionEnabled = true
         isAccessibilityElement = true
-        accessibilityLabel = "\(pill.emoji), \(pill.count) reaction\(pill.count == 1 ? "" : "s")"
+        accessibilityLabel = [pill.emoji, boostText, "\(pill.count) reaction\(pill.count == 1 ? "" : "s")"]
+            .compactMap { $0 }
+            .joined(separator: ", ")
         accessibilityTraits = canReact ? .button : []
     }
 

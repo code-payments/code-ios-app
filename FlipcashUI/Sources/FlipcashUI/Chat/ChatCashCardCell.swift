@@ -85,6 +85,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
         reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
+        reactionRow.onBoost = { [weak self] in self?.onReactionBoost?() }
 
         // Below required so the card height yields to the cell's self-sizing height instead of fighting it.
         let cardHeight = card.heightAnchor.constraint(equalToConstant: Self.cardHeight)
@@ -125,6 +126,8 @@ public final class ChatCashCardCell: ChatColumnCell {
     var onReactionLongPress: ((String) -> Void)?
     /// Fired when the trailing "+" is tapped, to open the picker.
     var onReactionAdd: (() -> Void)?
+    /// Called when the viewer taps the leading "$" to pay for a reaction.
+    var onReactionBoost: (() -> Void)?
 
     private func configureCircle(_ imageView: UIImageView, diameter: CGFloat) {
         imageView.contentMode = .scaleAspectFill
@@ -172,7 +175,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         )
         reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = message.sender == .me
-        reactionRow.configure(pills: message.reactions, canReact: message.canReact)
+        reactionRow.configure(pills: message.reactions, canReact: message.canReact, canBoost: message.canBoost)
         updateColumn(for: message, authorImageData: authorImageData)
 
         // Resting alpha lives here, not just in prepareForReuse: an in-place reconfigure (a new

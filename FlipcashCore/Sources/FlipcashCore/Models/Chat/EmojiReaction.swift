@@ -54,7 +54,9 @@ public struct EmojiReaction: Hashable, Sendable {
             count: count,
             selfReacted: selfReactor != nil,
             version: version,
-            selfReactedAt: selfReactor?.reactedAt
+            selfReactedAt: selfReactor?.reactedAt,
+            boostCents: ReactionBoost.cents(usd: boostUSD),
+            selfBoostCents: ReactionBoost.cents(usd: selfReactor?.boostUSD ?? 0)
         )
     }
 

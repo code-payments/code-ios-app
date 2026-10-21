@@ -137,6 +137,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// have not joined. They still see the pills other members left; the trailing "+" is withheld
     /// and a tap on an existing pill is inert, but a long-press still opens the reactors sheet.
     public let canReact: Bool
+    /// Whether the leading "$" offers a paid reaction — only on someone else's message in a group the
+    /// viewer may react in.
+    public let canBoost: Bool
     /// Whether this is the viewer's own row that the server has not confirmed — still sending, or
     /// failed. Only an earlier-confirmed row's `receipt` is withheld, so a nil receipt doesn't say this.
     public let isUnsent: Bool
@@ -232,6 +235,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         reactions: [ReactionPill] = [],
         selfReactions: [SelfReaction] = [],
         canReact: Bool = true,
+        canBoost: Bool = false,
         isUnsent: Bool = false
     ) {
         self.id = id
@@ -254,6 +258,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.reactions = reactions
         self.selfReactions = selfReactions
         self.canReact = canReact
+        self.canBoost = canBoost
         self.isUnsent = isUnsent
     }
 
@@ -279,6 +284,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         reactions: [ReactionPill] = [],
         selfReactions: [SelfReaction] = [],
         canReact: Bool = true,
+        canBoost: Bool = false,
         isUnsent: Bool = false
     ) {
         self.init(
@@ -302,6 +308,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             reactions: reactions,
             selfReactions: selfReactions,
             canReact: canReact,
+            canBoost: canBoost,
             isUnsent: isUnsent
         )
     }

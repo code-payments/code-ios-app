@@ -22,14 +22,49 @@ struct ChatMessageMappingTests {
     private let base = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 1_000_000))
         .addingTimeInterval(9 * 60 * 60)
 
-    private func text(_ id: UInt64, _ sender: UUID, _ body: String, after offset: TimeInterval) -> ConversationMessage {
-        ConversationMessage(
+    @Test("Only someone else's row the viewer reacted to offers the paid-reaction $, and only when the chat allows boosts")
+    func canBoostOnlyOnOthersReactedRows() {
+        let messages = [
+            text(1, them, "theirs", after: 0, reaction: (count: 1, selfReacted: true)),
+            text(2, me, "mine", after: 60, reaction: (count: 1, selfReacted: true)),
+            text(3, them, "others reacted", after: 120, reaction: (count: 2, selfReacted: false)),
+            text(4, them, "unreacted", after: 180),
+        ]
+        func boostable(_ canBoost: Bool) -> [String: Bool] {
+            let rows = ChatItem.from(messages, selfUserID: me, canBoost: canBoost)
+                .compactMap { if case .message(let m) = $0, case .text(let body) = m.content { (body, m.canBoost) } else { nil } }
+            return Dictionary(uniqueKeysWithValues: rows)
+        }
+        #expect(boostable(true) == ["theirs": true, "mine": false, "others reacted": false, "unreacted": false])
+        #expect(boostable(false).values.allSatisfy { !$0 })
+    }
+
+    private func text(
+        _ id: UInt64,
+        _ sender: UUID,
+        _ body: String,
+        after offset: TimeInterval,
+        reaction: (count: UInt64, selfReacted: Bool)? = nil
+    ) -> ConversationMessage {
+        var message = ConversationMessage(
             id: MessageID(value: id),
             senderID: sender,
             content: .text(body),
             date: base.addingTimeInterval(offset),
             unreadSeq: id
         )
+        if let reaction {
+            var state = ReactionState()
+            state.applySummary([ReactionState.SummaryEntry(
+                emoji: "👍",
+                count: reaction.count,
+                selfReacted: reaction.selfReacted,
+                version: 1,
+                selfReactedAt: reaction.selfReacted ? base : nil
+            )])
+            message.reactionState = state
+        }
+        return message
     }
 
     private func reply(_ id: UInt64, _ sender: UUID, _ body: String, to repliedTo: UInt64, after offset: TimeInterval) -> ConversationMessage {

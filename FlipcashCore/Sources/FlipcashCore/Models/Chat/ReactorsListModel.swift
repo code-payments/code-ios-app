@@ -19,15 +19,19 @@ public final class ReactorsListModel {
         public let userID: UserID
         /// Every emoji they reacted with, in the message's pill order.
         public let emojis: [String]
+        /// What they paid to boost those emoji, in whole USD cents; 0 when they boosted none.
+        public let boostCents: UInt64
         public var id: UserID { userID }
 
-        public init(userID: UserID, emojis: [String]) {
+        public init(userID: UserID, emojis: [String], boostCents: UInt64 = 0) {
             self.userID = userID
             self.emojis = emojis
+            self.boostCents = boostCents
         }
     }
 
-    /// The rows loaded so far, newest reaction first. Updated once per round of pages rather than
+    /// The rows loaded so far: whoever paid first, most paid first, then everyone else newest
+    /// reaction first. Updated once per round of pages rather than
     /// as each emoji's page lands, so a row never shows some of a person's emoji and then gains
     /// the rest.
     public private(set) var rows: [Row] = []
@@ -35,16 +39,18 @@ public final class ReactorsListModel {
     private func mergedRows() -> [Row] {
         var latest: [UserID: Date] = [:]
         var reacted: [UserID: Set<String>] = [:]
+        var boosts: [UserID: UInt64] = [:]
         for emoji in emojis {
             for reactor in lists[emoji]?.reactors ?? [] {
                 reacted[reactor.userID, default: []].insert(emoji)
+                boosts[reactor.userID, default: 0] += ReactionBoost.cents(usd: reactor.boostUSD)
                 let date = reactor.reactedAt ?? .distantPast
                 latest[reactor.userID] = max(latest[reactor.userID] ?? .distantPast, date)
             }
         }
         return reacted
-            .map { userID, set in Row(userID: userID, emojis: emojis.filter(set.contains)) }
-            .sorted { (latest[$0.userID] ?? .distantPast, $0.userID.uuidString) > (latest[$1.userID] ?? .distantPast, $1.userID.uuidString) }
+            .map { userID, set in Row(userID: userID, emojis: emojis.filter(set.contains), boostCents: boosts[userID] ?? 0) }
+            .sorted { ($0.boostCents, latest[$0.userID] ?? .distantPast, $0.userID.uuidString) > ($1.boostCents, latest[$1.userID] ?? .distantPast, $1.userID.uuidString) }
     }
 
     /// Whether a page is in flight.

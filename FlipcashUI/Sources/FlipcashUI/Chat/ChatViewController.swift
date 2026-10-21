@@ -122,6 +122,8 @@ public final class ChatViewController: UICollectionViewController {
     /// Fired when a message row's trailing "+" reaction pill is tapped, to open the picker for that
     /// row's stable id.
     public var onReactionAdd: ((String) -> Void)?
+    /// Fired when a message row's leading "$" is tapped, to start a paid reaction on that row's id.
+    public var onReactionBoost: ((String) -> Void)?
     /// Fired when a photo row's image is tapped, to open the full-screen viewer. Never fires for a
     /// BlurHash-only or failed row, or one with nothing to show yet.
     public var onMediaTap: ((ChatMediaViewerRequest) -> Void)?
@@ -699,6 +701,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatMessageCell:
             cell.configure(
                 with: message,
@@ -712,11 +715,13 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatCashCardCell:
             cell.configure(with: message, maxWidth: cashCardWidth(available: available), authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatShareProfileCell:
             cell.linkCardSource = linkCardSource
             cell.ownProfile = ownProfile
@@ -726,6 +731,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatMediaCell:
             guard case .media(let media) = message.content else { return }
             let remote = mediaURLResolver?.location(for: media, canReact: message.canReact) { [weak self] _ in
@@ -756,6 +762,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         default:
             assertionFailure("Unhandled chat cell class for message row")
         }

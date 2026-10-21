@@ -118,4 +118,57 @@ struct ReactionStateTests {
 
         #expect(state.selfReactions == [SelfReaction(emoji: "👍", reactedAt: Date(timeIntervalSince1970: 100))])
     }
+
+    // MARK: - Boost
+
+    @Test("A boost sets the emoji's total and the user's own boost on the pill")
+    func boost_ownUpdate_marksPillBoosted() {
+        var state = ReactionState()
+        state.applyUpdate(emoji: "💯", actorIsSelf: true, added: true, count: 1, version: 1, reactedAt: Date(timeIntervalSince1970: 10), boostCents: 500, actorBoostCents: 500)
+
+        #expect(state.pills.map(\.boost) == [ReactionBoost(total: 500)])
+        #expect(state.pills.map(\.selfBoosted) == [true])
+    }
+
+    @Test("A plain add after a boost keeps the total, and our own later add keeps our boost")
+    func boost_laterAdds_keepTotals() {
+        var state = ReactionState()
+        state.applyUpdate(emoji: "💯", actorIsSelf: true, added: true, count: 1, version: 1, reactedAt: nil, boostCents: 500, actorBoostCents: 500)
+        state.applyUpdate(emoji: "💯", actorIsSelf: false, added: true, count: 2, version: 2, reactedAt: nil, boostCents: 500)
+        state.applyUpdate(emoji: "💯", actorIsSelf: true, added: true, count: 2, version: 3, reactedAt: nil, boostCents: 500)
+
+        #expect(state.confirmed["💯"]?.boostCents == 500)
+        #expect(state.confirmed["💯"]?.selfBoostCents == 500)
+    }
+
+    @Test("Tapping a reaction the user boosted does not remove it")
+    func boost_tapOwnBoosted_sendsNothing() {
+        var state = ReactionState()
+        state.applySummary([ReactionState.SummaryEntry(emoji: "💯", count: 1, selfReacted: true, version: 1, selfReactedAt: nil, boostCents: 100, selfBoostCents: 100)])
+
+        #expect(state.tap("💯", at: Date()) == nil)
+        #expect(state.pills.map(\.selfReacted) == [true])
+    }
+
+    @Test("Someone else's boost does not stop the user removing their own plain reaction")
+    func boost_tapOthersBoosted_removes() {
+        var state = ReactionState()
+        state.applySummary([ReactionState.SummaryEntry(emoji: "💯", count: 2, selfReacted: true, version: 1, selfReactedAt: nil, boostCents: 100, selfBoostCents: 0)])
+
+        #expect(state.tap("💯", at: Date()) == ReactionCall(op: .remove, emoji: "💯"))
+    }
+
+    @Test("A locally recorded boost shows at once and is not counted twice once the stream confirms it")
+    func boost_recordOwn_thenStream_countsOnce() {
+        var state = ReactionState()
+        state.applySummary([ReactionState.SummaryEntry(emoji: "💯", count: 2, selfReacted: true, version: 1, selfReactedAt: nil, boostCents: 100, selfBoostCents: 0)])
+
+        state.recordOwnBoost("💯", selfTotalCents: 500)
+        #expect(state.confirmed["💯"]?.boostCents == 600)
+        #expect(state.tap("💯", at: Date()) == nil)
+
+        state.applyUpdate(emoji: "💯", actorIsSelf: true, added: true, count: 2, version: 2, reactedAt: nil, boostCents: 600, actorBoostCents: 500)
+        state.recordOwnBoost("💯", selfTotalCents: 500)
+        #expect(state.confirmed["💯"]?.boostCents == 600)
+    }
 }

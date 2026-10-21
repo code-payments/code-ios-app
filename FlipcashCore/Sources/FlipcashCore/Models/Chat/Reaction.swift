@@ -18,22 +18,32 @@ public struct ReactionPill: Hashable, Sendable, Codable, Identifiable {
     /// True while the user's last tap on this emoji has not been reconciled with the server.
     public let pending: Bool
     public let boost: ReactionBoost?
+    /// True when the user's own reaction is boosted, so a tap must not remove it.
+    public let selfBoosted: Bool
 
-    public init(emoji: String, count: UInt64, selfReacted: Bool, pending: Bool, boost: ReactionBoost? = nil) {
+    public init(emoji: String, count: UInt64, selfReacted: Bool, pending: Bool, boost: ReactionBoost? = nil, selfBoosted: Bool = false) {
         self.emoji = emoji
         self.count = count
         self.selfReacted = selfReacted
         self.pending = pending
         self.boost = boost
+        self.selfBoosted = selfBoosted
     }
 }
 
-/// The paid boost on a pill, a phase-2 seam that nothing creates in phase 1.
+/// The paid boost on a pill.
 public struct ReactionBoost: Hashable, Sendable, Codable {
+    /// The total paid, in USD cents.
     public let total: UInt64
 
     public init(total: UInt64) {
         self.total = total
+    }
+
+    /// Converts a server USD amount to whole cents, the only unit boosts are held in.
+    public static func cents(usd: Double) -> UInt64 {
+        guard usd.isFinite, usd > 0 else { return 0 }
+        return UInt64((usd * 100).rounded())
     }
 }
 

@@ -78,6 +78,8 @@ public final class ChatMediaCell: ChatColumnCell {
     var onReactionLongPress: ((String) -> Void)?
     /// Fired when the trailing "+" is tapped, to open the picker.
     var onReactionAdd: (() -> Void)?
+    /// Called when the viewer taps the leading "$" to pay for a reaction.
+    var onReactionBoost: (() -> Void)?
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -122,6 +124,7 @@ public final class ChatMediaCell: ChatColumnCell {
         reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
         reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
+        reactionRow.onBoost = { [weak self] in self?.onReactionBoost?() }
 
         imageWidthConstraint = imageBubble.widthAnchor.constraint(equalToConstant: 240)
         // Below required so the photo yields to the cell's self-sizing height instead of fighting it.
@@ -265,7 +268,7 @@ public final class ChatMediaCell: ChatColumnCell {
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = isFromSelf
-        reactionRow.configure(pills: blurhashOnly ? [] : message.reactions, canReact: message.canReact && !blurhashOnly)
+        reactionRow.configure(pills: blurhashOnly ? [] : message.reactions, canReact: message.canReact && !blurhashOnly, canBoost: message.canBoost)
         reactionRow.isHidden = blurhashOnly
         updateColumn(for: message, authorImageData: authorImageData)
     }

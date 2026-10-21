@@ -343,6 +343,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onReactionAdd = newValue }
     }
 
+    /// Forwards a tap on a row's leading "$", with the row's id, to start a paid reaction.
+    public var onReactionBoost: ((String) -> Void)? {
+        get { transcript.onReactionBoost }
+        set { transcript.onReactionBoost = newValue }
+    }
+
     /// Supplies the long-press reaction strip's content for a message — recents plus the viewer's own
     /// reactions, per `ReactionStrip.entries`. The owner supplies this because the ranking source
     /// (`RecentReactionsStore`) lives above this module. Nil or an empty array suppresses the strip.

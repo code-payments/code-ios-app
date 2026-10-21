@@ -25,6 +25,11 @@ struct MinimumBalanceAmountSheet: View {
 
     @Binding var isPresented: Bool
 
+    var title: String = "Balance Requirement"
+
+    /// The sentence under the amount saying what it does.
+    var hint: String = "People won't be able to join this chat if their balance is less than this amount"
+
     let onSelect: (FiatAmount) -> Void
 
     @Environment(RatesController.self) private var ratesController
@@ -51,16 +56,14 @@ struct MinimumBalanceAmountSheet: View {
                         // The same sentence the form prints under the preset row: the sheet is
                         // setting the figure that sentence is about, and it is the only thing on
                         // screen saying what the amount does.
-                        hint: .description(
-                            "People won't be able to join this chat if their balance is less than this amount"
-                        )
+                        hint: .description(hint)
                     ))
                 )
                 .foregroundStyle(.textMain)
                 .padding(20)
             }
             .ignoresSafeArea(.keyboard)
-            .navigationTitle("Balance Requirement")
+            .navigationTitle(title)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

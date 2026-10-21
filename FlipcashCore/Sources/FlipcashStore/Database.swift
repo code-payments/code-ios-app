@@ -221,7 +221,7 @@ nonisolated open class Database: @unchecked Sendable {
     /// the notification service extension needs the same number to decide whether the store on disk
     /// is one it understands, and an extension cannot read the app's `Info.plist` — separate bundles.
     /// Both targets link this module, so they cannot disagree.
-    public static let schemaVersion = 53
+    public static let schemaVersion = 54
 
     /// Removes the store and the write-ahead log files beside it.
     ///

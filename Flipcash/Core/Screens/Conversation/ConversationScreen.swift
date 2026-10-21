@@ -85,6 +85,8 @@ struct ConversationScreen: View {
     @State private var didReportGate = false
     /// The stable id and pill set the picker sheet is open for, or nil.
     @State private var reactionPickerRequest: ReactionPickerRequest?
+    /// The paid reaction whose sheet is open, once the "$" picker has chosen its emoji.
+    @State private var paidReactionTarget: ReactionBoostTarget?
     /// The stable id, pill set, and long-pressed emoji the reactors sheet is open for, or nil.
     @State private var reactorsRequest: ReactorsRequest?
     /// A reactor whose profile opens once the reactors sheet has finished dismissing.
@@ -424,6 +426,7 @@ struct ConversationScreen: View {
             onReactionTap: toggleReaction,
             onReactionLongPress: openReactors,
             onReactionAdd: openReactionPicker,
+            onReactionBoost: openPaidReactions,
             reactionStripEntries: reactionStripEntries,
             onReactionStripSelect: toggleReaction,
             onReactionStripAdd: openReactionPicker,
@@ -600,6 +603,9 @@ struct ConversationScreen: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $paidReactionTarget) { target in
+            PaidReactionSheet(target: target, selfReactions: selfReactions(on: target.messageID))
         }
         .sheet(item: $reactorsRequest, onDismiss: {
             guard let userID = pendingReactorProfile else { return }
@@ -1092,6 +1098,27 @@ struct ConversationScreen: View {
     private func openReactionPicker(_ stableID: String) {
         guard let messageID = coordinator?.loader.messages.first(where: { $0.stableID == stableID })?.id else { return }
         reactionPickerRequest = ReactionPickerRequest(id: stableID, messageID: messageID)
+    }
+
+    /// Opens the Paid Reactions sheet for the row's leading "$", which boosts one of the user's own
+    /// reactions on the message.
+    private func openPaidReactions(_ stableID: String) {
+        guard let conversationID, let creator = groupConversation?.creator,
+              let message = coordinator?.loader.messages.first(where: { $0.stableID == stableID }),
+              let sender = message.senderID,
+              !message.isFromSelf(conversationController.selfUserID),
+              !selfReactions(on: message.id).isEmpty else { return }
+        paidReactionTarget = ReactionBoostTarget(
+            conversationID: conversationID,
+            messageID: message.id,
+            messageSender: sender,
+            creator: creator
+        )
+    }
+
+    /// The user's reactions on a loaded message, as the transcript shows them.
+    private func selfReactions(on messageID: MessageID) -> [SelfReaction] {
+        coordinator?.loader.messages.first(where: { $0.id == messageID })?.reactionState?.selfReactions ?? []
     }
 
     /// The long-press strip's content: the six defaults, always first and in place, then the user's
