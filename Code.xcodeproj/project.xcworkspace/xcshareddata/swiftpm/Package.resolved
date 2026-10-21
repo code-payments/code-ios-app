@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/flipcash-shared-core-spm",
       "state" : {
-        "revision" : "1a1830788d96e64fb554aa7c994230dd8d2bf71c",
-        "version" : "0.15.0"
+        "revision" : "67c3d2781883e25fdc9dad3b134aa42c3081cfa3",
+        "version" : "0.15.1"
       }
     },
     {

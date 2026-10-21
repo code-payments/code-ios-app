@@ -487,6 +487,11 @@ extension Analytics {
         track(GroupEvents.shared.inviteShared(method: method))
     }
 
+    /// The group card appeared.
+    static func groupCardShown(memberCount: UInt64) {
+        track(GroupEvents.shared.cardShown(memberCount: Int32(clamping: memberCount)))
+    }
+
     /// A group opened from an invite.
     static func groupInviteFollowed(source: GroupInviteSource) {
         track(GroupEvents.shared.inviteFollowed(source: source))
