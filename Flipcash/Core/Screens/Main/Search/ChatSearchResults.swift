@@ -13,6 +13,8 @@ import FlipcashCore
 struct ChatSearchResults: View {
 
     let model: ChatSearchModel
+    /// The chip whose results are on screen, which trails `model.scope` while the results fade through.
+    let scope: ChatSearchScope
     let onOpenChat: (Conversation) -> Void
     let onOpenMessage: (ChatSearchMessageHit) -> Void
     let onOpenLink: (ChatSearchLink) -> Void
@@ -22,7 +24,7 @@ struct ChatSearchResults: View {
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
-            switch model.scope {
+            switch scope {
             case .all:
                 allSections
             case .chats:
@@ -47,7 +49,7 @@ struct ChatSearchResults: View {
     }
 
     private var isEmpty: Bool {
-        switch model.scope {
+        switch scope {
         case .all:        results.chats.isEmpty && results.currencies.isEmpty && results.messages.isEmpty
         case .chats:      results.chats.isEmpty
         case .currencies: results.currencies.isEmpty

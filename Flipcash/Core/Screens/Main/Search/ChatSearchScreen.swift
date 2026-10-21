@@ -33,6 +33,10 @@ struct ChatSearchScreen: View {
     var navigate: ((AppRouter.Destination) -> Void)?
 
     @State private var model: ChatSearchModel?
+    /// The chip whose results are showing; trails the selected chip while they fade through.
+    @State private var shownScope: ChatSearchScope = .all
+    @State private var resultsOpacity = 1.0
+    @State private var resultsScroll = ScrollPosition(edge: .top)
     @FocusState private var isFieldFocused: Bool
 
     var body: some View {
@@ -81,15 +85,31 @@ struct ChatSearchScreen: View {
     /// Results under the chips, which ride the scroll view's top edge so rows blur out beneath them.
     private func results(_ model: ChatSearchModel) -> some View {
         ScrollView {
-            ChatSearchResults(model: model, onOpenChat: open, onOpenMessage: open, onOpenLink: open, onOpenCurrency: openCurrency)
-                .id(model.scope)
-                .transition(.opacity)
+            ChatSearchResults(model: model, scope: shownScope, onOpenChat: open, onOpenMessage: open, onOpenLink: open, onOpenCurrency: openCurrency)
+                .opacity(resultsOpacity)
         }
+        .scrollPosition($resultsScroll)
         .scrollEdgeBar(.top) {
             ScopeChips(selection: Binding(get: { model.scope }, set: { model.scope = $0 }))
+                .animation(.easeInOut(duration: 0.2), value: model.scope)
         }
         .scrollDismissesKeyboard(.immediately)
-        .animation(.easeInOut(duration: 0.2), value: model.scope)
+        .onChange(of: model.scope) { _, scope in fadeResults(to: scope) }
+    }
+
+    /// Fades the old results out before the new ones come in, matching Android, so rows in the
+    /// same place never show through each other. A later chip tap wins over an earlier one.
+    private func fadeResults(to scope: ChatSearchScope) {
+        withAnimation(.easeIn(duration: 0.09)) {
+            resultsOpacity = 0
+        } completion: {
+            guard model?.scope == scope else { return }
+            shownScope = scope
+            resultsScroll.scrollTo(edge: .top)
+            withAnimation(.easeOut(duration: 0.15)) {
+                resultsOpacity = 1
+            }
+        }
     }
 
     private var queryBinding: Binding<String> {
