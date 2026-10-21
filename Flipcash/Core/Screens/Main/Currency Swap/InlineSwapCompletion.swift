@@ -30,7 +30,7 @@ nonisolated enum InlineCompletion {
     static let slowPathCredit = Int(window / .seconds(1))
 
     /// How long the confirm button shows its success state before the flow dismisses.
-    static let successHold: Duration = .seconds(1)
+    static let successHold: Duration = .milliseconds(400)
 }
 
 // MARK: - SwapPoller -

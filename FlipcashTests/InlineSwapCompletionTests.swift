@@ -39,7 +39,7 @@ struct InlineSwapCompletionTests {
         #expect(InlineCompletion.window == .seconds(5))
         #expect(InlineCompletion.maxAttempts == 20)
         #expect(InlineCompletion.slowPathCredit == 5)
-        #expect(InlineCompletion.successHold == .seconds(1))
+        #expect(InlineCompletion.successHold == .milliseconds(400))
     }
 
     @Test("A finalized swap succeeds and polls at the fast interval")
