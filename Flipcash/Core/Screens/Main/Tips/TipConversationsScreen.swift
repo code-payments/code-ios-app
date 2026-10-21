@@ -14,11 +14,15 @@ struct TipConversationsScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
+    /// Whether the toolbar offers Search. Off where the iOS 26 tab bar has its own search tab.
+    var showsSearchButton = true
+
     @State private var muteTarget: MuteTarget?
     @State private var filter: ChatListFilter = .all
     @Environment(ToastController.self) private var toasts
     /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
     @State private var chipsRevealed = false
+    @State private var isTabBarOnSide = false
     /// The chip row's height: while hidden, the list rests scrolled down by exactly this much.
     @State private var chipsHeight: CGFloat = 0
     /// The hidden chips' fade, set per frame by the scroll view. Only the chip row reads it, so a
@@ -101,6 +105,15 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    // With the tab bar on a side edge nothing sits along the bottom, and the blur
+                    // the search field adds there would otherwise linger after Search closes.
+                    // `tabBarPlacement` still reads `.bottomBar` there, so this goes by which
+                    // edge the bar's inset lands on.
+                    .hidesBottomScrollEdge(isTabBarOnSide)
+                    .onGeometryChange(for: Bool.self) { proxy in
+                        let insets = proxy.safeAreaInsets
+                        return max(insets.leading, insets.trailing) > insets.bottom
+                    } action: { isTabBarOnSide = $0 }
                     .overlay {
                         // Over the List rather than a row in it, so it centres in the whole
                         // screen and the List keeps the pull that reveals the chips.
@@ -119,9 +132,25 @@ struct TipConversationsScreen: View {
         .navigationTitle("Chat")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
+            if showsSearchButton {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        router.push(.chatSearch)
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel("Search")
+                    .accessibilityIdentifier("chat-search-button")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
             }
+        }
+        // Search filters currencies by name over what Discover returned; fetched here so the
+        // Currencies results are ready by the time Search opens.
+        .task {
+            await sessionContainer.discoveredCurrencies.refresh()
         }
         // Takes a finished cache read before the first frame, instead of drawing empty until launch
         // work lets the controller's own hydration run.

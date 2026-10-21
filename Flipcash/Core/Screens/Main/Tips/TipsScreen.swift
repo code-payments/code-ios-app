@@ -18,6 +18,11 @@ struct TipsScreen: View {
     /// profile, so there it leads with ``TipsIntroScreen``.
     var isEmbedded: Bool = false
 
+    /// The iOS 26 tab bar carries a search tab; the legacy pill does not.
+    private var hasSearchTab: Bool {
+        if #available(iOS 26, *) { true } else { false }
+    }
+
     var body: some View {
         // The Chats tab is chats, whatever the profile says. A name-less
         // account can still send tips, so it can still hold conversations —
@@ -26,7 +31,7 @@ struct TipsScreen: View {
         // invitation the tip-card tab already makes. The sheet keeps the
         // intro: it is that flow's only door into profile creation.
         if isEmbedded || sessionContainer.session.profile?.isTippable == true {
-            TipConversationsScreen()
+            TipConversationsScreen(showsSearchButton: !(isEmbedded && hasSearchTab))
         } else {
             TipsIntroScreen()
         }

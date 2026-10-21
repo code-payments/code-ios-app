@@ -138,6 +138,8 @@ extension AppRouter {
         case editGroupDescription(ConversationID)
         /// The list of archived chats, pushed from the Archived row on the Chats tab.
         case archivedChats
+        /// Chats Search, pushed from the Chats tab's search button.
+        case chatSearch
         /// Join requests in both directions, pushed from the Chats tab's leading bar item.
         case requests
         /// The pending requests to join a private group the user hosts, pushed from its profile card,
@@ -170,7 +172,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .chatMessage, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats, .requests, .joinRequests, .groupMembers:
+                 .editGroupDescription, .archivedChats, .chatSearch, .requests, .joinRequests, .groupMembers:
                 return .tips
             }
         }
@@ -233,6 +235,7 @@ extension AppRouter {
             case .editGroupCover:               "editGroupCover"
             case .editGroupDescription:         "editGroupDescription"
             case .archivedChats:                "archivedChats"
+            case .chatSearch:                   "chatSearch"
             case .requests:                     "requests"
             case .joinRequests:                 "joinRequests"
             case .groupMembers:                 "groupMembers"
@@ -282,7 +285,7 @@ extension AppRouter {
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
-                 .archivedChats, .requests:
+                 .archivedChats, .chatSearch, .requests:
                 return nil
             }
         }

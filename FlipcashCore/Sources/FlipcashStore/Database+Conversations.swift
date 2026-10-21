@@ -853,7 +853,7 @@ nonisolated extension Database {
 
     /// Returns nil for rows this client can't represent (unknown kind, a text
     /// row missing its text, or a cash row missing its amount columns).
-    private func conversationMessage(from row: RowIterator.Element) -> ConversationMessage? {
+    func conversationMessage(from row: RowIterator.Element) -> ConversationMessage? {
         let m = ConversationMessageTable()
 
         let cashAction: CashAction? = switch row[m.cashAction] {

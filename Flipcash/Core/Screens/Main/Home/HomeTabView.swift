@@ -26,6 +26,9 @@ struct HomeTabView: View {
 
     @State private var selection: HomeTab
 
+    /// Whether the iOS 26 search tab is in front. `selection` keeps the tab it was opened from.
+    @State private var isSearchSelected = false
+
     /// Whether Chat has been selected yet. Gates its first build; see
     /// ``tabContent(for:)``.
     @State private var hasOpenedChat: Bool
@@ -76,13 +79,15 @@ struct HomeTabView: View {
     @State private var returnedToHome = false
 
     private var hasPushedScreen: Bool {
-        selection.pushStack.map { !router[$0].isEmpty } ?? false
+        guard !isSearchSelected else { return false }
+        return selection.pushStack.map { !router[$0].isEmpty } ?? false
     }
 
     /// When the update toast may show on this view: the Chats or Wallet home, with nothing pushed or
     /// covering it.
     private var updateToastMoment: UpdateToastMoment? {
         guard selection == .chat || selection == .wallet,
+              !isSearchSelected,
               !hasPushedScreen,
               !container.toasts.isCovered,
               !sessionContainer.session.isShowingBill,
@@ -92,7 +97,8 @@ struct HomeTabView: View {
     }
 
     private var isTabBarHidden: Bool {
-        selection.hidesTabBar(
+        if isSearchSelected { return sessionContainer.session.isShowingBill }
+        return selection.hidesTabBar(
             isWalletCardExpanded: cardExpansion.isExpanded,
             isShowingBill: sessionContainer.session.isShowingBill,
             hasPushedScreen: hasPushedScreen
@@ -119,8 +125,11 @@ struct HomeTabView: View {
             }
             .onChange(of: router.requestedTabStack) { _, _ in selectRequestedTab() }
             .onChange(of: selection) { _, tab in
-                router.activeTabStack = tab.pushStack
+                router.activeTabStack = isSearchSelected ? nil : tab.pushStack
                 if tab == .chat { hasOpenedChat = true }
+            }
+            .onChange(of: isSearchSelected) { _, isSearching in
+                router.activeTabStack = isSearching ? nil : selection.pushStack
             }
             .onDisappear { router.activeTabStack = nil }
             .onChange(of: router.presentedSheet != nil || sessionContainer.session.isShowingBill, initial: true) { _, covered in
@@ -220,6 +229,7 @@ struct HomeTabView: View {
               let tab = HomeTab.allCases.first(where: { $0.pushStack == requested })
         else { return }
         selection = tab
+        isSearchSelected = false
         router.requestedTabStack = nil
     }
 
@@ -236,12 +246,12 @@ struct HomeTabView: View {
     /// bill-showing behavior matches the legacy pill.
     @available(iOS 26, *)
     private var nativeTabs: some View {
-        TabView(selection: $selection) {
+        TabView(selection: nativeSelection) {
             ForEach(HomeTab.allCases) { tab in
-                Tab(value: tab) {
+                Tab(value: NativeTab.home(tab)) {
                     tabContent(for: tab)
                         // Every tab stays alive, so only the selected one draws the toast.
-                        .toastHost(container.toasts, isEnabled: selection == tab)
+                        .toastHost(container.toasts, isEnabled: !isSearchSelected && selection == tab)
                         .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
                         // The system bar's inset, measured on a 402pt-wide iPhone.
                         .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: 21))
@@ -250,9 +260,19 @@ struct HomeTabView: View {
                         .accessibilityLabel(tab.title)
                 }
             }
+            Tab(value: NativeTab.search, role: .search) {
+                NavigationStack {
+                    ChatSearchScreen(chrome: .tab, navigate: openFromSearch)
+                }
+                .toastHost(container.toasts, isEnabled: isSearchSelected)
+                .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
+            } label: {
+                Label("Search", systemImage: "magnifyingglass")
+            }
         }
         // Selected-tab highlight over a lightly tinted glass bar — echoes the old
         // pill's white indicator on a translucent capsule.
+        .tabViewSearchActivation(.searchTabSelection)
         .tint(Color.textMain)
         .toolbarBackground(Color.backgroundMain.opacity(0.5), for: .tabBar)
         // Gives each item both of its glyphs. The tab bar knows which item the
@@ -266,6 +286,34 @@ struct HomeTabView: View {
             chatBadgeCount: chatBadgeCount,
             onLongPress: handleLongPress(on:)
         ))
+    }
+
+    /// A tab in the iOS 26 bar: one of the shared tabs, or the search tab that sits apart from them.
+    private enum NativeTab: Hashable {
+        case home(HomeTab)
+        case search
+    }
+
+    @available(iOS 26, *)
+    private var nativeSelection: Binding<NativeTab> {
+        Binding {
+            isSearchSelected ? .search : .home(selection)
+        } set: { tab in
+            switch tab {
+            case .home(let tab):
+                isSearchSelected = false
+                selection = tab
+            case .search:
+                isSearchSelected = true
+            }
+        }
+    }
+
+    /// Opens a search result on the Chat tab, the stack its chats and currencies live on.
+    private func openFromSearch(_ destination: AppRouter.Destination) {
+        router.pushAny(destination, on: .tips)
+        isSearchSelected = false
+        selection = .chat
     }
 
     /// The unselected icon for a tab. The filled counterpart is handed to UIKit
@@ -535,7 +583,8 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
         /// of the runloop, because the bar's items do not exist yet on the pass
         /// where this controller is first added.
         func apply() {
-            guard let bar = resolvedTabBar, let items = bar.items, items.count == tabs.count else {
+            // The search tab, when there is one, is the last item and keeps its system glyph.
+            guard let bar = resolvedTabBar, let items = bar.items, items.count >= tabs.count else {
                 scheduleRetry()
                 return
             }
