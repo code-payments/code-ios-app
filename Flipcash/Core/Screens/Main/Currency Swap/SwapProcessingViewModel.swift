@@ -95,7 +95,7 @@ class SwapProcessingViewModel {
     private let swapId: SwapId
     private let swapType: SwapType
     private let reporter: SwapCompletionReporter
-    /// Polls the inline window already spent on the source screen, deducted from the budget here.
+    /// One-second polls' worth of the inline window already spent on the source screen, deducted from the budget here.
     private let attemptsUsed: Int
     /// The token being bought, or a convert's destination. Feeds analytics, and
     /// the success title's check for a conversion landing in the reserve.

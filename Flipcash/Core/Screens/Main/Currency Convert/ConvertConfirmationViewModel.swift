@@ -182,7 +182,7 @@ final class ConvertConfirmationViewModel {
                 destinationMint: destinationMint,
                 destinationName: destinationName,
                 amount: amountAfterFee,
-                attemptsUsed: InlineCompletion.maxAttempts
+                attemptsUsed: InlineCompletion.slowPathCredit
             ))
         }
     }

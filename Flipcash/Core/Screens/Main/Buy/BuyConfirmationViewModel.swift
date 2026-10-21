@@ -218,7 +218,7 @@ final class BuyConfirmationViewModel {
                 currencyName: targetName,
                 amount: amountToBuy,
                 swapType: swapType,
-                attemptsUsed: InlineCompletion.maxAttempts
+                attemptsUsed: InlineCompletion.slowPathCredit
             ))
         }
     }

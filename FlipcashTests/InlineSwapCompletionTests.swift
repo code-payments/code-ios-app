@@ -38,6 +38,7 @@ struct InlineSwapCompletionTests {
         #expect(InlineCompletion.pollInterval == .milliseconds(250))
         #expect(InlineCompletion.window == .seconds(5))
         #expect(InlineCompletion.maxAttempts == 20)
+        #expect(InlineCompletion.slowPathCredit == 5)
         #expect(InlineCompletion.successHold == .seconds(1))
     }
 

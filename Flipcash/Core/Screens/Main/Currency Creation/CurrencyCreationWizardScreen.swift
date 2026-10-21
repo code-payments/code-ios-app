@@ -642,7 +642,7 @@ struct CurrencyCreationWizardScreen: View {
             currencyName: currencyName,
             launchAmount: amount,
             paymentMint: paymentMint,
-            attemptsUsed: InlineCompletion.maxAttempts
+            attemptsUsed: InlineCompletion.slowPathCredit
         )
 
         switch await launch.awaitInline(session: session, ratesController: ratesController) {

@@ -73,6 +73,16 @@ struct CurrencyLaunchProcessingViewModelTests {
             return .makeTest(state: .funding)
         }
         #expect(outcome == .pending)
-        #expect(CurrencyLaunchProcessingViewModel.maxSwapAttempts - InlineCompletion.maxAttempts == 100)
+        #expect(CurrencyLaunchProcessingViewModel.maxSwapAttempts - InlineCompletion.slowPathCredit == 115)
+        #expect(SwapProcessingViewModel.maxAttempts - InlineCompletion.slowPathCredit == 85)
+    }
+
+    @Test("Balance budget shrinks by the inline window's time, not its poll count")
+    func balanceBudgetIsTimeBased() {
+        let vm = CurrencyLaunchProcessingViewModel(
+            swapId: .generate(), launchedMint: .usdf, currencyName: "T",
+            launchAmount: .mockOne, paymentMint: .usdf, attemptsUsed: InlineCompletion.slowPathCredit
+        )
+        #expect(vm.remainingBalanceAttempts == 58)
     }
 }

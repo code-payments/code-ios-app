@@ -33,11 +33,21 @@ class CurrencyLaunchProcessingViewModel {
     // MARK: - Private -
 
     private let swapId: SwapId
-    /// Polls the inline window already spent on the wizard, deducted from the swap budget here.
+    /// One-second polls' worth of the inline window already spent on the wizard, deducted from the swap budget here.
     private let attemptsUsed: Int
 
     /// Total slow-path swap poll budget, one poll per second.
     static let maxSwapAttempts = 120
+
+    /// Total balance poll budget, one poll per `balancePollInterval`.
+    static let maxBalanceAttempts = 60
+    static let balancePollInterval: Duration = .seconds(2)
+
+    /// Balance polls left once the inline window's time is deducted.
+    var remainingBalanceAttempts: Int {
+        let spent = Int(Duration.seconds(attemptsUsed) / Self.balancePollInterval)
+        return max(1, Self.maxBalanceAttempts - spent)
+    }
 
     // MARK: - Init -
 
@@ -129,7 +139,7 @@ class CurrencyLaunchProcessingViewModel {
                 // typically arrives within a few seconds. Gate success on
                 // the real balance landing so the "Receive My X" handoff
                 // doesn't race the streamed wallet update.
-                if await awaitBalance(session: session) {
+                if await awaitBalance(session: session, maxAttempts: remainingBalanceAttempts) {
                     displayState = .success
                     trackLaunch(successful: true)
                 } else {
@@ -244,7 +254,7 @@ class CurrencyLaunchProcessingViewModel {
     /// zero-quarks entry before the real balance/supply values follow,
     /// which causes downstream bill creation to build a $0 bill that the
     /// server rejects with "Quarks must be greater than 0".
-    private func awaitBalance(session: Session, maxAttempts: Int = 60, interval: Duration = .seconds(2)) async -> Bool {
+    private func awaitBalance(session: Session, maxAttempts: Int = maxBalanceAttempts, interval: Duration = balancePollInterval) async -> Bool {
         for i in 0..<maxAttempts {
             if Task.isCancelled { return false }
             if i > 0 {

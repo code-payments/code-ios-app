@@ -22,8 +22,12 @@ nonisolated enum InlineCompletion {
     /// How long the source screen waits before handing over to the processing screen.
     static let window: Duration = .seconds(5)
 
-    /// Polls that fit in `window`; the processing screen's budget shrinks by this much.
+    /// Polls that fit in `window` at the fast interval.
     static let maxAttempts = Int(window / pollInterval)
+
+    /// The window expressed in the processing screen's one-second polls; its budget shrinks by
+    /// this much so total wall time stays what it was before the inline window.
+    static let slowPathCredit = Int(window / .seconds(1))
 
     /// How long the confirm button shows its success state before the flow dismisses.
     static let successHold: Duration = .seconds(1)
