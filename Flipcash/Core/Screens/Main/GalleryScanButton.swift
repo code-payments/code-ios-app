@@ -10,21 +10,17 @@ import FlipcashUI
 
 /// The Scan tab's gallery entry point: a photo glyph that opens the system picker.
 ///
-/// A Liquid Glass circle in the scanner's top-trailing corner, clear of both the
-/// viewfinder and the tab bar.
+/// Meant for a `.topBarTrailing` toolbar item, so the system draws the Liquid Glass
+/// circle and places it exactly where the Chat and You tabs place theirs.
 ///
 /// `PhotosPicker` is out of process, so tapping this never prompts for anything. Only the
 /// recent-photo thumbnail needs library access, which is why it is drawn when access
 /// happens to exist and never asked for — see ``GalleryThumbnail``.
 struct GalleryScanButton: View {
 
-    /// Matches `HomeTabBar.iconSize`, so the glyph reads as the same weight of control as a
-    /// tab icon.
-    private static let glyphSize: CGFloat = 32
-
-    /// The glass circle. Well above the 44pt minimum so it stays legible as a control
-    /// over a moving camera frame instead of reading as a status glyph.
-    private static let surfaceSize: CGFloat = 58
+    /// Roughly the footprint of a toolbar symbol, so the thumbnail sits in the glass
+    /// circle like a glyph would.
+    private static let thumbnailSize: CGFloat = 30
 
     @Binding var selection: PhotosPickerItem?
 
@@ -36,24 +32,16 @@ struct GalleryScanButton: View {
             matching: .images,
             photoLibrary: .shared()
         ) {
-            Group {
-                if let image = thumbnail.image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: Self.glyphSize, height: Self.glyphSize)
-                        .clipShape(Circle())
-                } else {
-                    Image(systemName: "photo.on.rectangle")
-                        .font(.system(size: 24, weight: .regular))
-                        .foregroundStyle(.white)
-                        .frame(width: Self.glyphSize, height: Self.glyphSize)
-                }
+            if let image = thumbnail.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
+                    .clipShape(Circle())
+            } else {
+                Image(systemName: "photo.on.rectangle")
             }
-            .frame(width: Self.surfaceSize, height: Self.surfaceSize)
-            .contentShape(Circle())
         }
-        .capsuleGlassBackground()
         .accessibilityLabel(Text("Scan a code from a photo"))
         .task {
             await thumbnail.loadIfAlreadyAuthorized()
