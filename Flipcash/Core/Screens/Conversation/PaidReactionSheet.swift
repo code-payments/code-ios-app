@@ -59,19 +59,22 @@ private struct PaidReactionSheetContent: View {
                         .font(.appDisplaySmall)
                         .foregroundStyle(Color.textMain)
                     VStack(spacing: 6) {
-                        Button {
-                            viewModel.cycleEmoji()
-                        } label: {
-                            EmojiPill(emoji: viewModel.emoji ?? "")
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!viewModel.canCycleEmoji)
-                        .accessibilityHint(viewModel.canCycleEmoji ? "Switches to your next reaction" : "")
+                        // A disabled Button dims its label, so a single reaction shows the pill
+                        // on its own rather than as a disabled button.
                         if viewModel.canCycleEmoji {
+                            Button {
+                                viewModel.cycleEmoji()
+                            } label: {
+                                EmojiPill(emoji: viewModel.emoji ?? "")
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Switches to your next reaction")
                             Text("Tap to change")
                                 .font(.default(size: 12, weight: .medium))
                                 .foregroundStyle(Color.textSecondary)
                                 .accessibilityHidden(true)
+                        } else {
+                            EmojiPill(emoji: viewModel.emoji ?? "")
                         }
                     }
                     Text(viewModel.splitDescription)
