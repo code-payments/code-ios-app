@@ -117,8 +117,8 @@ struct BuyConfirmationViewModelTests {
 
     // MARK: - USDF variant
 
-    @Test("USDF payments buy the entered amount and add the 1% fee on top of the debit")
-    func usdfVariant_feeOnTop() async throws {
+    @Test("USDF payments are fee-free: the debit equals the entered amount and no fee row shows")
+    func usdfVariant_feeFree() async throws {
         let container = try await Self.makeContainer(holdings: [
             SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
         ])
@@ -129,12 +129,31 @@ struct BuyConfirmationViewModelTests {
         let viewModel = Self.makeViewModel(payment: usdfBalance, paymentAmount: paymentAmount, pin: pin)
 
         #expect(viewModel.isUSDF)
-        #expect(viewModel.feeBps == 100)
-        // The entered amount is what gets purchased; the fee is charged on top,
-        // so only the debit grows.
+        #expect(viewModel.feeBps == LaunchpadFee.dollarsFeeBps)
+        #expect(viewModel.feeBps == 0)
+        #expect(!viewModel.hasFee)
+        // The fee is zero quarks, which keeps the swap on the no-fee
+        // `TransferForSwap` rather than `TransferForSwapWithFee`.
+        #expect(viewModel.fee.onChainAmount.quarks == 0)
         #expect(viewModel.amountToBuy == viewModel.paymentAmount)
-        #expect(viewModel.grossDebit.onChainAmount.quarks > paymentAmount.onChainAmount.quarks)
-        #expect(viewModel.grossDebit == paymentAmount.adding(viewModel.fee))
+        #expect(viewModel.grossDebit == paymentAmount)
+    }
+
+    @Test("A token payment still charges its pool's sell fee and shows the fee row")
+    func tokenVariant_chargesPoolFee() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            SessionContainer.Holding(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+        ])
+        let jeffyBalance = try #require(container.session.balance(for: .jeffy))
+        let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .jeffy))
+        let paymentAmount = try Self.makePaymentAmount(entered: 1, balance: jeffyBalance, pin: pin, container: container)
+
+        let viewModel = Self.makeViewModel(payment: jeffyBalance, paymentAmount: paymentAmount, pin: pin)
+
+        #expect(!viewModel.isUSDF)
+        #expect(viewModel.feeBps == LaunchpadFee.poolSellFeeBps(jeffyBalance.sellFeeBps))
+        #expect(viewModel.feeBps > 0)
+        #expect(viewModel.hasFee)
     }
 
     @Test("An underfunded USDF payment surfaces the insufficient sheet")
