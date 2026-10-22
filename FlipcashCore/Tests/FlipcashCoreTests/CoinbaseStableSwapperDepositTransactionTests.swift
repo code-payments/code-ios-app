@@ -15,12 +15,10 @@ import Testing
 /// offset in `PoolAccount` yields a valid-looking `PublicKey` and a transaction that encodes
 /// fine, so only the end-to-end bytes catch it.
 ///
-/// The deposit swap is `swap_v2` (15 accounts). The expected bytes are
-/// builder-derived: there is no on-chain `swap_v2` capture for this transaction yet. The
-/// previous `swap` (v1) version of these bytes was accepted by `simulateTransaction` on mainnet
-/// (no error, 68922 compute units, `Swapped 5000000 tokens`), and reading `fee_recipient` at the
-/// offset the published IDL implies instead failed that simulation with `ConstraintAddress`
-/// (2012). Re-simulate the v2 bytes before relying on them as a mainnet-accepted vector.
+/// The deposit swap is `swap_v2` (15 accounts). These bytes were accepted by
+/// `simulateTransaction` on mainnet (no error, 34752 compute units, `Swapped 5000000 tokens`).
+/// Reading `fee_recipient` at the offset the published IDL implies instead failed that
+/// simulation with `ConstraintAddress` (2012).
 @Suite("CoinbaseStableSwapper deposit transaction bytes")
 struct CoinbaseStableSwapperDepositTransactionTests {
 
@@ -41,7 +39,7 @@ struct CoinbaseStableSwapperDepositTransactionTests {
     private static let amount: UInt64 = 5_000_000
 
     /// Any change here is a wire-format change on the deposit path. Re-simulate before updating.
-    /// Builder-derived `swap_v2` bytes; see the suite comment.
+    /// Mainnet-simulated `swap_v2` bytes; see the suite comment.
     private static let expectedBase64 = """
     AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAA4VAKL0PLpNizvAoz6QRhxwuE+0xI1gTXBS8xC2iFAT9YAIIEbBeYxANDSqQKEPw/bim+87xyfndOcR1Z8MXipwRQhN3zo5EjvB3buXfyApNPeiOya5xLRmU4amnmybe8G0ZvC2QXkvoK+rzDvts+c808FFOCj9M+Gw1VaTwlFFQuCIGuzkYUNbUsQHluSoCkWyRnCKUYxj6p9wIBIqXQISoIsQLEV0nZ6/A9+EnNdx0SgwdXMN9srCBKAsQrgkmUgy/UHEeoQ9iL75ZI2OJCdbgb8cuXN12zjqg9u576KCFfMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAABUpTUPhdyILWFKVWcniKKW3fHqur0KYGeIhJMvTu9qAGp9UXGSxcUSGMyUw9SvF/WNruCJuh/UTj29mKAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpDEFZLOrgP4XlL2Cp/OoiptfGnqhwN8d2wUpZw0Pc/EQXrHn35X2ZhEB0QDeeHO4EVQ94zdMsrvVy1q+XDO+XnCuKEXJELwMYhHcwB4CqMwj+zD6MwkrlErJ/0Le6FUYqNPjPxJe2tVN8GFmPsvNI9OAKkeiLpyN8+pe9+U4m9EE908SAij1Ps5+uycukm1pjSlLt4RVI9SSqIPLNRu+AcYyXJY9OJInxuz0QKRSODYMLWhOZ2v8QhASOe9jb6fhZsAv1H/nJezKQ1MsvZdgtk2ADZkchGXY0muvR9OrxRba9RisE/6dQ2FdZLElujNnDg858Wn5R9em05xQ2Tb0ZL8b6evO+2606PWXzaqvJdDGxu+TC0vbg5HymAgNFL11hY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MICAAFAkANAwAIAAkD6AMAAAAAAAARBwAEABAHCwoBAREHAAUTEAcLCgEBEQcAAwAUBwsKAQEJACtjR2ZIaUM2S2dnM0ZwRlp2Z3dHY3N3c0NSdHA0YUJQMmZ6dVhSUVBpenVODA8SDQ4BAgMEBg8UEAALEQcYKwTtCxrJHmJAS0wAAAAAAEBLTAAAAAAACwMEBQAJA0BLTAAAAAAA
     """
