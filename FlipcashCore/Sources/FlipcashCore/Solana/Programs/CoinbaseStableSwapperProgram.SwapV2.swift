@@ -9,7 +9,7 @@ extension CoinbaseStableSwapperProgram {
 
     /// Anchor-format instruction for the Coinbase Stable Swapper's `swap_v2` handler.
     ///
-    /// Same arguments as `Swap`, minus the deprecated whitelist account.
+    /// Takes no whitelist account (the retired v1 `swap` handler had one).
     ///
     ///   Account list (15, in this exact order):
     ///   0. [] pool

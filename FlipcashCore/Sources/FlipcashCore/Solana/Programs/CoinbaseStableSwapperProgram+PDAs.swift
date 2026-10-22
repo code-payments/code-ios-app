@@ -38,14 +38,6 @@ extension CoinbaseStableSwapperProgram {
         )
     }
 
-    /// PDA: ["address_whitelist"] @ CoinbaseStableSwapperProgram
-    public static func deriveWhitelistAddress() -> ProgramDerivedAccount? {
-        ProgramDerivedAccount.findProgramAddress(
-            seeds: [Data("address_whitelist".utf8)],
-            program: address
-        )
-    }
-
     /// The pool-side accounts a `SwapV2` instruction targets for a mint pair.
     public struct SwapAccounts: Equatable, Sendable {
         public let pool: PublicKey

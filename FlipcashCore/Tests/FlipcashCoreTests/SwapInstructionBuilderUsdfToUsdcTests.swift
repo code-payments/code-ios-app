@@ -251,9 +251,7 @@ struct SwapInstructionBuilderUsdfToUsdcTests {
     @Test("Swap has 15 accounts and no whitelist; programs follow the user")
     func swap_accountsHaveNoWhitelist() {
         let ix = Self.makeInstructions()[7]
-        let whitelist = CoinbaseStableSwapperProgram.deriveWhitelistAddress()!.publicKey
         #expect(ix.accounts.count == 15)
-        #expect(!ix.accounts.contains { $0.publicKey == whitelist })
         #expect(ix.accounts[12].publicKey == TokenProgram.address)
         #expect(ix.accounts[13].publicKey == AssociatedTokenProgram.address)
         #expect(ix.accounts[14].publicKey == SystemProgram.address)

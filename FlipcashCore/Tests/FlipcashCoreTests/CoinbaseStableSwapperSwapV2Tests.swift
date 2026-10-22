@@ -21,17 +21,6 @@ struct CoinbaseStableSwapperSwapV2Tests {
     private static let amountIn: UInt64 = 1_500_000
     private static let minAmountOut: UInt64 = 1_490_000
 
-    private static var v1: Instruction {
-        CoinbaseStableSwapperProgram.Swap(
-            pool: key(0), inVault: key(1), outVault: key(2),
-            inVaultTokenAccount: key(3), outVaultTokenAccount: key(4),
-            userFromTokenAccount: key(5), toTokenAccount: key(6),
-            feeRecipientTokenAccount: key(7), feeRecipient: key(8),
-            fromMint: key(9), toMint: key(10), user: key(11), whitelist: key(12),
-            amountIn: amountIn, minAmountOut: minAmountOut
-        ).instruction()
-    }
-
     private static var v2: Instruction {
         CoinbaseStableSwapperProgram.SwapV2(
             pool: key(0), inVault: key(1), outVault: key(2),
@@ -53,24 +42,14 @@ struct CoinbaseStableSwapperSwapV2Tests {
         #expect(Array(Self.v2.data) == expected)
     }
 
-    @Test("Args are identical to v1")
-    func data_matchesV1Args() {
-        #expect(Self.v1.data.dropFirst(8) == Self.v2.data.dropFirst(8))
-    }
-
-    @Test("Accounts are v1's with the whitelist (index 12) removed")
-    func accounts_v1WithoutWhitelist() {
-        let v1 = Self.v1.accounts
-        let v2 = Self.v2.accounts
-        #expect(v1.count == 16)
-        #expect(v1[12].publicKey == Self.key(12))
-        #expect(v2.count == 15)
-
-        var expected = v1
-        expected.remove(at: 12)
-        #expect(v2.map(\.publicKey) == expected.map(\.publicKey))
-        #expect(v2.map(\.isSigner) == expected.map(\.isSigner))
-        #expect(v2.map(\.isWritable) == expected.map(\.isWritable))
+    @Test("Accounts match the golden 15-account list, in order, with only the user signing")
+    func accounts_golden() {
+        let accounts = Self.v2.accounts
+        #expect(accounts.map(\.publicKey) == (0...11).map(Self.key) + [
+            TokenProgram.address, AssociatedTokenProgram.address, SystemProgram.address,
+        ])
+        #expect(accounts.map(\.isSigner) == (0..<15).map { $0 == 11 })
+        #expect(accounts.map(\.isWritable) == (0..<15).map { [3, 4, 5, 6, 7, 11].contains($0) })
     }
 
     @Test("Targets the Coinbase Stable Swapper program")
