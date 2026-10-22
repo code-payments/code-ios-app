@@ -76,10 +76,12 @@ private struct StartChattingSheetContent: View {
     // MARK: - Body -
 
     /// The floor the view model will enforce on the swipe, so the amount shown
-    /// and the amount submitted can't drift. Falls back to the fee the sheet was
-    /// opened with, which is what's left once the send creates the chat.
+    /// and the amount submitted can't drift. Read from the snapshot taken at the
+    /// swipe: once the send creates the chat the live floor falls to the regional
+    /// minimum for a tip card, so the live value would flip the amount mid-send.
+    /// Falls back to the fee the sheet was opened with when no floor resolves.
     private var amount: FiatAmount {
-        viewModel.tipMinimum ?? fee
+        viewModel.displayedTipMinimum ?? fee
     }
 
     var body: some View {

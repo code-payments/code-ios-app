@@ -1145,4 +1145,36 @@ struct SendAmountViewModelTests {
         #expect(viewModel.swipeLabel == "Swipe to Tip")
         #expect(viewModel.displayedTipMinimum == .usd(5))
     }
+
+    @Test("A tip card send that opens the DM keeps the recipient's fee displayed once the floor drops to the preset")
+    func sendingSnapshot_tipcardOpeningDM_holdsFeeWhileLiveFloorDrops() async throws {
+        let container = try await Self.makeFloorContainer()
+        let recipientID = UUID()
+        container.session.cacheUserProfile(
+            Self.makeRecipientProfile(fee: .usd(2)),
+            for: recipientID
+        )
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        // Sending creates the DM, so the entry stops being the one that opens it.
+        mock.sendHandler = { _, _, _ in
+            try await Self.seedTipDM(in: container, with: recipientID)
+        }
+        let viewModel = Self.makeTipViewModel(
+            container: container,
+            recipientID: recipientID,
+            origin: .tipcard,
+            mock: mock
+        )
+        viewModel.enteredAmount = "2"
+        #expect(viewModel.displayedTipMinimum == .usd(2))
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(!viewModel.opensTipDM)
+        // The live floor is now the regional preset, which is what the sheet used to show.
+        #expect(viewModel.tipMinimum == .usd(1))
+        #expect(viewModel.displayedTipMinimum == .usd(2))
+    }
 }
