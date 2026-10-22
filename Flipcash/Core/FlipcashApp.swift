@@ -36,6 +36,9 @@ struct FlipcashApp: App {
 
     private var mainScene: some View {
         ContainerScreen()
+            #if DEBUG
+            .hotSwapIdentity()
+            #endif
             // Applied once for the whole app: the style reaches every scrollable
             // view below it, pushed destinations and sheet content included, so
             // no screen has to opt in. The effect is drawn by a bar's own

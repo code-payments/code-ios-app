@@ -36,8 +36,13 @@ enum HotSwap {
     }
 
     /// Called after a patch loads, on the main actor. A replaced `body` only takes effect when SwiftUI
-    /// next evaluates it, so every hosting controller is handed its root view again.
+    /// next evaluates it. Handing a hosting controller its root view again re-evaluates only the views
+    /// whose stored properties compare unequal, which in practice means views holding a closure; a view
+    /// with no stored properties, such as `ForceUpgradeScreen`, is skipped. So the root's identity is
+    /// bumped too (`hotSwapIdentity()`), which re-evaluates every view and resets the state SwiftUI
+    /// holds below the root: `@State`, navigation paths, scroll positions and presented sheets.
     fileprivate static func refresh() {
+        HotSwapState.shared.generation += 1
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             for window in scene.windows {
                 refresh(window.rootViewController)
@@ -124,6 +129,25 @@ enum HotSwap {
             req.httpBody = try? JSONSerialization.data(withJSONObject: fields)
             _ = try? await URLSession.shared.data(for: req)
         }
+    }
+}
+
+@MainActor @Observable
+final class HotSwapState {
+    static let shared = HotSwapState()
+    var generation = 0
+}
+
+extension View {
+    /// Gives the view a new identity each time a patch loads. See `HotSwap.refresh()`.
+    func hotSwapIdentity() -> some View {
+        modifier(HotSwapIdentity())
+    }
+}
+
+private struct HotSwapIdentity: ViewModifier {
+    func body(content: Content) -> some View {
+        content.id(HotSwapState.shared.generation)
     }
 }
 

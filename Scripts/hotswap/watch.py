@@ -11,18 +11,25 @@
 #
 # Needs a Debug device build in .build/dd (see Scripts/hotswap/flags.sh for how the compile flags
 # are recovered from it) and `server.py` running on the same port.
+#
+# HOTSWAP_SDK=iphonesimulator builds for a simulator instead, against a Debug build in .build/ds and
+# the flags in .build/hotswap/flags-iphonesimulator.txt. A simulator takes an ad-hoc signature, so
+# the identity can be `-`.
 import json, os, shutil, subprocess, sys, threading, time, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "../.."))
 SRC = os.path.join(HERE, "Live.swift")
-PRODUCTS = os.path.join(REPO, ".build/dd/Build/Products/Debug-iphoneos")
+SDK = os.environ.get("HOTSWAP_SDK") or "iphoneos"
+SIM = SDK == "iphonesimulator"
+PRODUCTS = os.path.join(REPO, ".build/ds/Build/Products/Debug-iphonesimulator" if SIM
+                        else ".build/dd/Build/Products/Debug-iphoneos")
 BASE = os.path.join(REPO, ".build/hotswap")
 OUT = os.path.join(BASE, "out")
 SERVE = os.environ.get("HOTSWAP_PATCHES") or os.path.join(BASE, "serve/patches")
 REPORTS = os.path.join(BASE, "serve/reports.jsonl")
 LOOP = os.path.join(BASE, "serve/loop.jsonl")
-FLAGS = os.path.join(BASE, "flags.txt")
+FLAGS = os.path.join(BASE, "flags-iphonesimulator.txt" if SIM else "flags.txt")
 ONCE = "--once" in sys.argv
 argv = [a for a in sys.argv[1:] if a != "--once"]
 identity = argv[0]
@@ -39,7 +46,7 @@ def build(seq):
     flags = open(FLAGS).read().split("\n")
     flags = [f for f in flags if f]
     t0 = ms()
-    r = subprocess.run(["xcrun", "--sdk", "iphoneos", "swiftc", "-emit-library", "-Onone",
+    r = subprocess.run(["xcrun", "--sdk", SDK, "swiftc", "-emit-library", "-Onone",
                         "-module-name", f"Live_{seq}", *flags,
                         "-Xlinker", "-install_name", "-Xlinker", f"@rpath/{name}",
                         os.path.join(PRODUCTS, "Flipcash.app/Flipcash.debug.dylib"),

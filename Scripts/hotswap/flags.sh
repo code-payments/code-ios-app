@@ -2,6 +2,8 @@
 # Recovers the Flipcash target's Swift compile flags from an xcodebuild log into
 # .build/hotswap/flags.txt, one per line, for watch.py. Run after a Debug build:
 #   xcodebuild build ... > .build/build.log; Scripts/hotswap/flags.sh .build/build.log
+# A second argument names the output instead, e.g. .build/hotswap/flags-iphonesimulator.txt for a
+# simulator build (watch.py with HOTSWAP_SDK=iphonesimulator reads that one).
 # Drops what a patch must not inherit: the file list, coverage, index and batch flags.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -21,5 +23,5 @@ while i < len(a):
     if x == "-Xfrontend" and a[i + 1] in ("-serialize-debugging-options", "-enable-implicit-dynamic"): i += 2; continue
     out.append(x); i += 1
 print("\n".join(out))
-' > .build/hotswap/flags.txt
-wc -l .build/hotswap/flags.txt
+' > "${2:-.build/hotswap/flags.txt}"
+wc -l "${2:-.build/hotswap/flags.txt}"
