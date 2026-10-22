@@ -173,8 +173,17 @@ struct ChatSearchScreen: View {
         ExternalLinkOpener(session: session, trustedWebsites: container.trustedWebsites).open(link.url)
     }
 
+    /// Currencies live on the wallet, so the Money tab comes forward with the currency as its only
+    /// screen, and back lands on the wallet rather than on Search.
     private func openCurrency(_ mint: MintMetadata) {
-        push(.currencyInfo(mint.address))
+        isFieldFocused = false
+        // Pushed on the Chat tab (iOS < 26, and wherever the search tab isn't used), Search is the
+        // top of that stack; pop it so the Chat tab doesn't come back showing Search. The iOS 26
+        // search tab has its own stack the router doesn't track, and the tab switch leaves it.
+        if chrome == .pushed {
+            router.pop(on: .tips)
+        }
+        router.navigate(to: .currencyInfo(mint.address))
     }
 }
 
