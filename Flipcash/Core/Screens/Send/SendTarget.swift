@@ -23,7 +23,8 @@ nonisolated struct TipRecipient: Hashable, Sendable {
     /// The recipient's public handle, shown under their name on the card.
     /// Defaulted for the test fixtures only — both production sites pass one.
     let username: Username?
-    /// The surface this tip is being sent from — reported to the server.
+    /// The surface this payment is being sent from — reported to the server,
+    /// and the only thing that makes it a tip rather than a send.
     let origin: TipOrigin
 
     // A hand-written init rather than the synthesized memberwise one: a `let`

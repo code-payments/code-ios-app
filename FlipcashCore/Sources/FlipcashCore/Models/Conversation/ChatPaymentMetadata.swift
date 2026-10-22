@@ -86,10 +86,10 @@ public enum ChatPaymentMetadata: Sendable {
 /// `TipOrigin`.
 public enum TipOrigin: Sendable {
 
-    /// Sent from a resolved tipcard (scan or deep link).
+    /// Sent from a scanned Flipcard, by camera or its profile QR link.
     case tipcard
 
-    /// Sent from the Send Cash action inside an existing tip DM thread.
+    /// Sent from a chat or a profile, anywhere but a scanned Flipcard.
     case chat
 
     var proto: Flipcash_Intent_V1_ChatMetadata.DmPayment.Location {
@@ -112,10 +112,11 @@ public enum TipOrigin: Sendable {
 /// that deliberately declared a tip — `DEFAULT` and `FLIPCARD` are both 0.
 public enum TipDmAction: Sendable, CaseIterable {
 
-    /// A Send Cash payment inside an already-initialized tip DM.
+    /// A Send Cash payment to the DM's counterpart, including the one that
+    /// opens the DM when it wasn't sent from a scanned Flipcard.
     case send
 
-    /// A payment from a tip card, or the payment that opens the tip DM.
+    /// A payment sent from a scanned Flipcard.
     case tip
 
     var proto: Flipcash_Intent_V1_PaymentAction {

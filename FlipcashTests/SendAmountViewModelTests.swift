@@ -5,6 +5,7 @@
 
 import Foundation
 import Testing
+import FlipcashAPI
 @testable import FlipcashCore
 @testable import Flipcash
 
@@ -582,7 +583,7 @@ struct SendAmountViewModelTests {
 
     // MARK: - Tip targets
 
-    @Test("A tip send resolves by user id and attaches the derived tip-DM chat metadata")
+    @Test("A Flipcard-scan payment that opens the DM resolves by user id and sends a tip")
     func sendAction_tipTarget_attachesTipDmMetadata() async throws {
         let container = try await Self.makeReadyToSendContainer()
         let recipientID = UUID()
@@ -607,17 +608,25 @@ struct SendAmountViewModelTests {
         #expect(action == .tip)
     }
 
-    @Test("The tip that opens the DM reports as tipcard even when it's composed in a chat")
-    func sendAction_tipOpeningDMFromChat_reportsTipcard() async throws {
-        let container = try await Self.makeReadyToSendContainer()
+    @Test("The payment that opens the DM sends cash unless it came from a scanned Flipcard")
+    func sendAction_openingDMFromChat_sendsCash() async throws {
+        let container = try await Self.makeFloorContainer()
         let recipientID = UUID()
+        container.session.cacheUserProfile(
+            Self.makeRecipientProfile(fee: .usd(5)),
+            for: recipientID
+        )
         let mock = MockSession()
         mock.resolveUserIDHandler = { _ in Self.recipient }
         mock.sendHandler = { _, _, _ in }
-        // What the username lookup pushes: a tip DM screen for someone the feed
-        // holds no conversation for, so its Send Cash target says `.chat`.
+        // What a chat, a profile reached any way but a scan, and the username
+        // lookup all build: a `.chat` target for someone with no DM yet.
         let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, origin: .chat, mock: mock)
         viewModel.enteredAmount = "5"
+
+        // The recipient's fee still buys the conversation, whatever the verb.
+        #expect(viewModel.opensTipDM)
+        #expect(viewModel.tipFloor(in: .usd) == .recipientFee(.usd(5)))
 
         let outcome = await viewModel.sendAction()
 
@@ -627,12 +636,27 @@ struct SendAmountViewModelTests {
             Issue.record("Expected tipDm metadata, got \(chat)")
             return
         }
-        // A send is what the server rejects with "tip dm has not been
-        // initialized" — there is no thread yet for this payment to be sent
-        // from, so the opening payment has to resolve to a tip.
+        // A `CHAT` location was denied with "tip dm has not been initialized"
+        // before the thread existed, so the opening payment keeps `FLIPCARD`.
         #expect(origin == .tipcard)
-        // The DM-opening payment is always a tip, however it was composed.
-        #expect(action == .tip)
+        #expect(action == .send)
+        #expect(!chat.isTip)
+        let proto = try Flipcash_Intent_V1_AppMetadata(serializedBytes: chat.serializedAppMetadata())
+        #expect(proto.chat.dmPayment.action == .send)
+    }
+
+    @Test("Only a profile reached by scanning a Flipcard sends a tip", arguments: [
+        (UserProfileOrigin.scan, TipOrigin.tipcard),
+        (.directMessage, .chat),
+        (.groupMember, .chat),
+        (.mention, .chat),
+        (.deeplink, .chat),
+        (.usernameLookup, .chat),
+        (.transaction, .chat),
+        (.joinRequest, .chat),
+    ])
+    func profileOrigin_mapsToTipOrigin(profileOrigin: UserProfileOrigin, expected: TipOrigin) {
+        #expect(profileOrigin.tipOrigin == expected)
     }
 
     @Test("Once the DM exists, an in-chat send still reports as chat")
@@ -1013,7 +1037,7 @@ struct SendAmountViewModelTests {
         #expect(container.session.dialogItem?.title == "$5.00 Minimum Tip")
     }
 
-    @Test("A contact send has no tip floor and never says Swipe to Tip")
+    @Test("A contact send has no tip floor and never says Swipe to Chat")
     func tipFloor_contactTarget_isNil() async throws {
         let container = try await Self.makeFloorContainer()
 
@@ -1134,7 +1158,7 @@ struct SendAmountViewModelTests {
             mock: mock
         )
         viewModel.enteredAmount = "10"
-        #expect(viewModel.swipeLabel == "Swipe to Tip")
+        #expect(viewModel.swipeLabel == "Swipe to Chat")
         #expect(viewModel.displayedTipMinimum == .usd(5))
 
         let outcome = await viewModel.sendAction()
@@ -1142,7 +1166,7 @@ struct SendAmountViewModelTests {
         #expect(outcome == .success)
         #expect(!viewModel.opensTipDM)
         #expect(viewModel.tipMinimum == nil)
-        #expect(viewModel.swipeLabel == "Swipe to Tip")
+        #expect(viewModel.swipeLabel == "Swipe to Chat")
         #expect(viewModel.displayedTipMinimum == .usd(5))
     }
 
