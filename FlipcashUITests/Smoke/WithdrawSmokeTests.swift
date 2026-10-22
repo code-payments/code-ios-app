@@ -9,7 +9,7 @@ final class WithdrawSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    /// The Wallet tab's "Withdraw Money" tile lands directly on the "Select
+    /// The Wallet tab's "Withdraw Dollars" tile lands directly on the "Select
     /// Currency" picker, which lists every balance (Dollars included). USDF no
     /// longer gets a dedicated intro-first entry; the "Withdraw as USDC" screen
     /// is reached by picking Dollars.

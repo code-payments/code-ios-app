@@ -25,7 +25,7 @@ struct CurrencyDiscoveryScreen: View {
             }
         }
         .background(Color.backgroundMain)
-        .navigationTitle("Discover Currencies")
+        .navigationTitle("Currency Leaderboard")
         .toolbarTitleDisplayMode(.inline)
     }
 }

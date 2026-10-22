@@ -589,23 +589,23 @@ private struct WalletScreenContent: View {
     private var walletTiles: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                // `.deposit`/`.withdraw` are the app's canonical design-system
-                // glyphs for these actions — a matched arrow-to-baseline pair,
-                // not SF Symbols.
-                walletTile(icon: .asset(.deposit), title: "Add Money", identifier: "wallet-tile-add-money") {
-                    router.presentAddMoney(.general, source: .balance)
+                walletTile(icon: .asset(.coinsAdd), title: "Create Your Own Currency", identifier: "wallet-tile-create-currency") {
+                    router.push(.currencyCreationSummary)
                 }
-                // A nil mint opens the currency picker (all balances).
-                walletTile(icon: .asset(.withdraw), title: "Withdraw Money", identifier: "wallet-tile-withdraw-money") {
-                    router.push(.withdrawCurrency(nil))
+                walletTile(icon: .symbol("globe"), title: "Currency Leaderboard", identifier: "wallet-tile-discover-currencies") {
+                    router.push(.discoverCurrencies)
                 }
             }
             HStack(spacing: 12) {
-                walletTile(icon: .symbol("globe"), title: "Discover Currencies", identifier: "wallet-tile-discover-currencies") {
-                    router.push(.discoverCurrencies)
+                // `.deposit`/`.withdraw` are the app's canonical design-system
+                // glyphs for these actions — a matched arrow-to-baseline pair,
+                // not SF Symbols.
+                walletTile(icon: .asset(.deposit), title: "Add Dollars", identifier: "wallet-tile-add-money") {
+                    router.presentAddMoney(.general, source: .balance)
                 }
-                walletTile(icon: .asset(.coinsAdd), title: "Create a Currency", identifier: "wallet-tile-create-currency") {
-                    router.push(.currencyCreationSummary)
+                // A nil mint opens the currency picker (all balances).
+                walletTile(icon: .asset(.withdraw), title: "Withdraw Dollars", identifier: "wallet-tile-withdraw-money") {
+                    router.push(.withdrawCurrency(nil))
                 }
             }
         }
