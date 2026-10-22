@@ -55,7 +55,7 @@ private struct PaidReactionSheetContent: View {
         PartialSheet(background: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(spacing: 16) {
-                    Text("Paid Reactions")
+                    Text("Boost Reaction")
                         .font(.appDisplaySmall)
                         .foregroundStyle(Color.textMain)
                     VStack(spacing: 6) {
