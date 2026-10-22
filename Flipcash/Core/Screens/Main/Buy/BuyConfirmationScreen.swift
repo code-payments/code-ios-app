@@ -42,17 +42,25 @@ struct BuyConfirmationScreen: View {
                         )
                         .padding(.top, 24)
 
-                        VStack(spacing: 10) {
-                            ConfirmationBreakdownRow(
-                                title: "Amount to convert",
-                                value: viewModel.amountToBuy.nativeAmount.formatted()
-                            )
-                            ConfirmationBreakdownRow(
-                                title: "Conversion fee",
-                                value: viewModel.feeFormatted
-                            )
+                        // Hidden when there is no fee: the breakdown would only
+                        // repeat the total.
+                        if viewModel.hasFee {
+                            VStack(spacing: 10) {
+                                ConfirmationBreakdownRow(
+                                    title: "Amount to convert",
+                                    value: viewModel.amountToBuy.nativeAmount.formatted()
+                                )
+                                ConfirmationBreakdownRow(
+                                    title: "Conversion fee",
+                                    value: viewModel.feeFormatted
+                                )
+                            }
+                            .padding()
+                        } else {
+                            // Keep the room the breakdown's padding (16 above and
+                            // below) would give, so the two amounts don't crowd.
+                            Color.clear.frame(height: 32)
                         }
-                        .padding()
 
                         ConfirmationAmountRow(
                             title: "You Get",

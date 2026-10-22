@@ -150,13 +150,13 @@ final class BuyAmountViewModel {
     /// top* of the entry rather than being skimmed out of it.
     ///
     /// A token-funded buy pays the pool's sell fee out of the sale, so the debit
-    /// is the entry grossed up; a Dollars buy adds a flat 1% on top.
+    /// is the entry grossed up; a Dollars buy adds `LaunchpadFee.dollarsFeeBps` on top.
     private var paymentFee: (bps: UInt64, chargedOnTop: Bool) {
         guard let selected = session.balance(for: paymentMint) else { return (0, false) }
         guard selected.mint == .usdf else {
-            return (UInt64(max(0, selected.sellFeeBps ?? 100)), false)
+            return (LaunchpadFee.poolSellFeeBps(selected.sellFeeBps), false)
         }
-        return (100, true)
+        return (LaunchpadFee.dollarsFeeBps, true)
     }
 
     /// Drops the entry to the most the payment balance can fund once its fee is
@@ -218,7 +218,7 @@ final class BuyAmountViewModel {
         // Deliberately uncapped: the entry has already been corrected to what the
         // balance can fund, so any remaining overrun is a real shortfall the
         // confirmation's gate must surface rather than something to clamp away.
-        let gross = entered.grossingUpLaunchpadSellFee(bps: UInt64(max(0, balance.sellFeeBps ?? 100)))
+        let gross = entered.grossingUpLaunchpadSellFee(bps: LaunchpadFee.poolSellFeeBps(balance.sellFeeBps))
         return ExchangedFiat.compute(
             fromEntered: gross,
             rate: pin.rate,

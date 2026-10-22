@@ -48,9 +48,9 @@ struct ConvertAmountViewModelTests {
         )
     }
 
-    // MARK: - Converting out of Dollars (fee charged on top)
+    // MARK: - Converting out of Dollars (fee-free)
 
-    @Test("Converting the whole Dollars balance drops the entry to what the on-top fee leaves")
+    @Test("Converting the whole Dollars balance is left alone — Dollars carry no fee")
     func wholeDollarsBalance_isCorrected() async throws {
         let container = try await Self.makeContainer(holdings: [
             SessionContainer.Holding(mint: .usdf, quarks: 10_000_000), // $10.00
@@ -62,8 +62,8 @@ struct ConvertAmountViewModelTests {
 
         viewModel.correctEntryToAffordable()
 
-        // $10.00 / 1.01 = $9.90099, floored to the cent so the debit fits.
-        #expect(viewModel.enteredAmount == "9.90")
+        // Nothing is charged on top, so the full balance is convertible.
+        #expect(viewModel.enteredAmount == "10")
     }
 
     @Test("A Dollars entry with room for its fee is left exactly as typed")
@@ -81,7 +81,7 @@ struct ConvertAmountViewModelTests {
         #expect(viewModel.enteredAmount == "5")
     }
 
-    @Test("The corrected entry clears the gate that the uncorrected one failed")
+    @Test("The whole Dollars balance clears the affordability gate with no fee on top")
     func correctedEntry_passesTheAffordabilityGate() async throws {
         let container = try await Self.makeContainer(holdings: [
             SessionContainer.Holding(mint: .usdf, quarks: 10_000_000), // $10.00
@@ -92,14 +92,14 @@ struct ConvertAmountViewModelTests {
         viewModel.enteredAmount = "10"
         viewModel.correctEntryToAffordable()
 
-        // The debit is the entry plus its own 1% — it must now fit the balance.
+        // The debit is the entry plus its on-top Dollars fee — it must fit the balance.
         let entered = try #require(viewModel.enteredFiat)
-        let debit = entered.adding(entered.launchpadSellFee(bps: 100))
+        let debit = entered.adding(entered.launchpadSellFee(bps: LaunchpadFee.dollarsFeeBps))
         switch container.session.hasSufficientFunds(for: debit) {
         case .sufficient:
             break
         case .insufficient:
-            Issue.record("The corrected entry must cover its own fee")
+            Issue.record("The whole Dollars balance must be spendable")
         }
     }
 
