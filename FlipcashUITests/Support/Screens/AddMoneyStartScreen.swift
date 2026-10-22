@@ -6,7 +6,7 @@
 import XCTest
 
 /// Page object for the standalone Add Money flow: "No Balance Yet" →
-/// "Add Money With" → the per-method screens.
+/// "Add Dollars With" → the per-method screens.
 @MainActor
 struct AddMoneyStartScreen {
 
@@ -29,12 +29,12 @@ struct AddMoneyStartScreen {
         app.otherElements["No Balance Yet"].buttons["Add Money"]
     }
 
-    // MARK: - Add Money With
+    // MARK: - Add Dollars With
 
-    /// The method picker's heading. The tab-bar UI titles it "Add Money With";
+    /// The method picker's heading. The tab-bar UI titles it "Add Dollars With";
     /// "Select Method" was the pre-tab-bar heading.
     var methodPickerTitle: XCUIElement {
-        app.staticTexts["Add Money With"]
+        app.staticTexts["Add Dollars With"]
     }
 
     /// Debit card (Coinbase) row, matched by identifier — the row carries the
@@ -73,7 +73,7 @@ struct AddMoneyStartScreen {
     func assertMethodPickerReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
             methodPickerTitle.waitForExistence(timeout: timeout),
-            "Expected the 'Add Money With' sheet"
+            "Expected the 'Add Dollars With' sheet"
         )
     }
 

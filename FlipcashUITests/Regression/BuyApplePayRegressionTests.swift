@@ -14,7 +14,7 @@ import XCTest
 /// either. Stops short of completing verification — SMS / email links are
 /// out of scope for the simulator.
 ///
-/// Entry is the Wallet tab's own Add Money tile — buy entry is capped
+/// Entry is the Wallet tab's own Add Dollars tile — buy entry is capped
 /// at the highest spendable balance, so the old buy-shortfall vehicle into
 /// Add Money no longer exists.
 ///
@@ -36,7 +36,7 @@ final class BuyApplePayRegressionTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Navigate: Wallet tab → Add Money tile → Add Money With → Debit Card.
+        // Navigate: Wallet tab → Add Dollars tile → Add Dollars With → Debit Card.
         wallet.open(from: self)
         wallet.tapAddMoneyTile(from: self)
         addMoney.assertMethodPickerReached()

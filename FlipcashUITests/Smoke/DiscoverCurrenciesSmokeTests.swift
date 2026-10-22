@@ -32,8 +32,8 @@ final class DiscoverCurrenciesSmokeTests: BaseUITestCase {
         wallet.tapDiscoverCurrenciesTile(from: self)
 
         XCTAssertTrue(
-            app.navigationBars["Discover Currencies"].waitForExistence(timeout: 10),
-            "Expected the Discover Currencies leaderboard after tapping its tile"
+            app.navigationBars["Currency Leaderboard"].waitForExistence(timeout: 10),
+            "Expected the Currency Leaderboard after tapping its tile"
         )
         XCTAssertTrue(
             app.buttons.matching(identifier: "discover-leaderboard-row").firstMatch

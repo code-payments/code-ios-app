@@ -57,7 +57,7 @@ final class CurrencyCreationGateRegressionTests: BaseUITestCase {
             "Expected the create-context subtitle on the No Balance prompt"
         )
 
-        // Add Money → the Add Money With picker.
+        // Add Money → the Add Dollars With picker.
         addMoney.tapAddMoney(from: self)
         addMoney.assertMethodPickerReached()
     }
