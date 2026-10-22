@@ -427,8 +427,20 @@ final class NotificationService: UNNotificationServiceExtension {
             )
             let messages = Array(opened.prefix(fetched.count))
             if embedded != nil { embedded = opened.last }
-            let knownNames = isGroup ? knownMemberNames(owner: account.keyAccount.ownerPublicKey) : [:]
             let pushedSenderID = (embedded ?? messages.first { $0.id == messageID })?.senderID
+            var knownNames = isGroup ? knownMemberNames(owner: account.keyAccount.ownerPublicKey) : [:]
+            if isGroup {
+                // A private group's cached roster holds only the viewer, so a member met only there
+                // is fetched, as the app does when it renders the chat.
+                let senders: [ConversationMessage] = messages + (embedded.map { [$0] } ?? [])
+                let unnamed: Set<UserID> = Set(senders.compactMap(\.senderID)).filter { userID in
+                    let namedByPush = userID == pushedSenderID && pushedSenderName != nil
+                    return userID != account.userID && knownNames[userID] == nil && !namedByPush
+                }
+                for (userID, name) in await fetchMemberNames(unnamed, owner: owner, client: client) {
+                    knownNames[userID] = name
+                }
+            }
             // Names another member: the push's own substitution for its sender, else the shared store.
             let memberName: (UserID) -> String? = { userID in
                 guard isGroup, userID != account.userID else { return nil }
@@ -511,6 +523,39 @@ final class NotificationService: UNNotificationServiceExtension {
             }
         }
         return names
+    }
+
+    /// Display names for `userIDs` from their profiles, saved to the shared store so the next push
+    /// from the same member reads them locally. A failed or nameless fetch is left out.
+    private nonisolated static func fetchMemberNames(
+        _ userIDs: Set<UserID>,
+        owner: KeyPair,
+        client: ChatNotificationClient
+    ) async -> [UserID: String] {
+        guard !userIDs.isEmpty else { return [:] }
+        let profiles = await withTaskGroup(of: (UserID, Profile)?.self) { group in
+            for userID in userIDs {
+                group.addTask {
+                    guard let profile = try? await client.fetchProfile(userID: userID, owner: owner) else { return nil }
+                    return (userID, profile)
+                }
+            }
+            var profiles: [UserID: Profile] = [:]
+            for await case let (userID, profile)? in group {
+                profiles[userID] = profile
+            }
+            return profiles
+        }
+        guard !profiles.isEmpty else { return [:] }
+        ExtensionStore.perform(owner: owner.publicKey) { database in
+            for (userID, profile) in profiles {
+                try database.upsertUserProfile(profile, userID: userID)
+            }
+        }
+        return profiles.compactMapValues { profile in
+            guard let name = profile.displayName, !name.isEmpty else { return nil }
+            return name
+        }
     }
 
     /// Mention and reply signals for the pushed message. The reply target's author comes from the
