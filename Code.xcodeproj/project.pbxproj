@@ -149,6 +149,7 @@
 			membershipExceptions = (
 				"Supporting Files/apple-app-site-association",
 				"Supporting Files/GoogleService-Info.plist",
+				"Supporting Files/Info-Debug.plist",
 				"Supporting Files/Info.plist",
 			);
 			target = 9A516F792D9B12E800AF478B /* Flipcash */;
@@ -1297,7 +1298,7 @@
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Flipcash/Supporting Files/Info.plist";
+				INFOPLIST_FILE = "Flipcash/Supporting Files/Info-Debug.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
@@ -1313,6 +1314,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 2026.10.3;
+				OTHER_SWIFT_FLAGS = "$(inherited) -Xfrontend -enable-implicit-dynamic";
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

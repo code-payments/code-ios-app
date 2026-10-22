@@ -49,6 +49,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         #endif
 
+        #if DEBUG
+        HotSwap.start()
+        #endif
+
         FontBook.registerApplicationFonts()
         setupAppearance()
         RemoteImageCache.install()
