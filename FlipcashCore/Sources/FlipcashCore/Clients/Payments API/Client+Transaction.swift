@@ -330,7 +330,8 @@ extension Client {
     ///   last-fetched metadata when the poll budget is exhausted — callers
     ///   treat a returned non-terminal state as a timeout.
     /// - Throws: ClientError.pollLimitReached if max attempts are exceeded
-    ///   without ever fetching swap state
+    ///   without ever fetching swap state; ``ClientError/swapDenied`` or
+    ///   ``ClientError/swapRejected`` immediately on a permanent server refusal
     public func pollSwapState(
         swapId: SwapId,
         owner: KeyPair,
@@ -411,6 +412,15 @@ func pollSwapTerminalState(
             // Swap not yet visible — service layer already logs this at
             // debug level. Continue polling.
             continue
+        } catch ErrorGetSwap.denied {
+            // The swap exists under another owner; no retry can change that.
+            logger.error("Swap poll denied, stopping", metadata: ["swapId": "\(swapId.publicKey.base58)"])
+            throw ClientError.swapDenied
+        } catch ErrorGetSwap.rejected {
+            // Deterministic gRPC refusal (unauthenticated, permission denied,
+            // invalid argument); the identical request can never succeed.
+            logger.error("Swap poll rejected, stopping", metadata: ["swapId": "\(swapId.publicKey.base58)"])
+            throw ClientError.swapRejected
         } catch {
             // Log but continue polling for transient errors
             logger.warning("Swap poll error, continuing", metadata: ["error": "\(error)"])
@@ -435,5 +445,19 @@ func pollSwapTerminalState(
 public enum ClientError: Error {
     case pollLimitReached
     case denied
+    /// The server reported the swap belongs to a different owner. Terminal: polling stops.
+    case swapDenied
+    /// The server definitively refused the poll request (e.g. authentication failed). Terminal: polling stops.
+    case swapRejected
     case vmMetadataMissing
+}
+
+public extension ClientError {
+    /// Whether this error is a permanent refusal of a swap poll, after which the swap's state is unknowable.
+    var isSwapPollRefusal: Bool {
+        switch self {
+        case .swapDenied, .swapRejected: true
+        case .pollLimitReached, .denied, .vmMetadataMissing: false
+        }
+    }
 }

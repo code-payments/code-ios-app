@@ -70,6 +70,11 @@ struct InlineSwapCompletionTests {
         #expect(await completion { throw CancellationError() }.awaitOutcome() == .pending)
     }
 
+    @Test("A denied or rejected poll fails inline rather than falling back to pending", arguments: [ClientError.swapDenied, .swapRejected])
+    func pollRefusalFails(_ error: ClientError) async {
+        #expect(await completion { throw error }.awaitOutcome() == .failed)
+    }
+
     @Test("An RPC error fails inline")
     func rpcErrorFails() async {
         struct Boom: Error {}

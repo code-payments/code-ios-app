@@ -160,6 +160,10 @@ class CurrencyLaunchProcessingViewModel {
             // Task was cancelled (e.g., by SwiftUI during navigation
             // transitions on iOS 18). Don't treat as failure — the view
             // will restart the task if still visible.
+        } catch let error as ClientError where error.isSwapPollRefusal {
+            reportLaunchPollRefusal(error)
+            displayState = .failed
+            trackLaunch(successful: false, error: error)
         } catch {
             // No swap state was ever fetched within the poll budget
             logger.error("Launch swap polling failed", metadata: ["error": "\(error)"])
@@ -213,6 +217,11 @@ class CurrencyLaunchProcessingViewModel {
             return .pending
         } catch ClientError.pollLimitReached {
             return .pending
+        } catch let error as ClientError where error.isSwapPollRefusal {
+            reportLaunchPollRefusal(error)
+            displayState = .failed
+            trackLaunch(successful: false, error: error)
+            return .failed
         } catch {
             logger.error("Launch swap polling failed", metadata: ["error": "\(error)"])
             displayState = .failed
@@ -350,6 +359,23 @@ class CurrencyLaunchProcessingViewModel {
     }
 
     // MARK: - Reporting -
+
+    private func reportLaunchPollRefusal(_ error: ClientError) {
+        logger.error("Launch swap poll refused", metadata: [
+            "swapId": "\(swapId.publicKey.base58)",
+            "mint": "\(launchedMint.base58)",
+            "error": "\(error)",
+        ])
+        ErrorReporting.captureError(
+            error,
+            reason: "Launch swap poll refused by server",
+            metadata: [
+                "swapId": swapId.publicKey.base58,
+                "mint": launchedMint.base58,
+                "amount": launchAmount.nativeAmount.formatted(),
+            ]
+        )
+    }
 
     private func reportLaunchFailure(state: SwapState, reason: String) {
         logger.error("Launch swap failed", metadata: [

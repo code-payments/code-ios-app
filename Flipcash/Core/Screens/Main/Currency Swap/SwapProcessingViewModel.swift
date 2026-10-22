@@ -159,6 +159,10 @@ class SwapProcessingViewModel {
             // Task was cancelled (e.g., by SwiftUI during navigation
             // transitions on iOS 18). Don't treat as failure — the view
             // will restart the task if still visible.
+        } catch let error as ClientError where error.isSwapPollRefusal {
+            reporter.reportPollRefusal(error)
+            reporter.trackTransaction(successful: false)
+            displayState = .failed
         } catch {
             // No swap state was ever fetched within the poll budget
             logger.error("Swap polling failed", metadata: ["error": "\(error)"])

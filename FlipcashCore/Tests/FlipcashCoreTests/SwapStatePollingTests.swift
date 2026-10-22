@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import GRPCCore
 import Testing
 @testable import FlipcashCore
 
@@ -94,6 +95,82 @@ struct SwapStatePollingTests {
                 }
             )
         }
+        #expect(attemptLog.count == 3)
+    }
+
+    // MARK: - Permanent refusals
+
+    @Test("A denied swap stops after one attempt")
+    func deniedStopsImmediately() async {
+        let attemptLog = AttemptLog()
+
+        await #expect(throws: ClientError.swapDenied) {
+            _ = try await pollSwapTerminalState(
+                swapId: Self.swapId,
+                maxAttempts: 5,
+                pollInterval: .milliseconds(1),
+                fetch: {
+                    _ = attemptLog.incrementAndGet()
+                    throw ErrorGetSwap.denied
+                }
+            )
+        }
+        #expect(attemptLog.count == 1)
+    }
+
+    @Test("A deterministic gRPC rejection such as an auth failure stops after one attempt")
+    func rejectedStopsImmediately() async {
+        let attemptLog = AttemptLog()
+
+        await #expect(throws: ClientError.swapRejected) {
+            _ = try await pollSwapTerminalState(
+                swapId: Self.swapId,
+                maxAttempts: 5,
+                pollInterval: .milliseconds(1),
+                fetch: {
+                    _ = attemptLog.incrementAndGet()
+                    throw ErrorGetSwap.from(transportError: RPCError(code: .unauthenticated, message: ""))
+                }
+            )
+        }
+        #expect(attemptLog.count == 1)
+    }
+
+    // MARK: - Retried errors
+
+    @Test("Keeps polling through notFound until the swap finalizes")
+    func notFoundThenFinalized() async throws {
+        let attemptLog = AttemptLog()
+
+        let result = try await pollSwapTerminalState(
+            swapId: Self.swapId,
+            maxAttempts: 5,
+            pollInterval: .milliseconds(1),
+            fetch: {
+                if attemptLog.incrementAndGet() < 3 { throw ErrorGetSwap.notFound }
+                return Self.metadata(state: .finalized)
+            }
+        )
+
+        #expect(result.state == .finalized)
+        #expect(attemptLog.count == 3)
+    }
+
+    @Test("Keeps polling through transient errors until the swap finalizes", arguments: [ErrorGetSwap.transportFailure, .unknown])
+    func transientThenFinalized(_ error: ErrorGetSwap) async throws {
+        let attemptLog = AttemptLog()
+
+        let result = try await pollSwapTerminalState(
+            swapId: Self.swapId,
+            maxAttempts: 5,
+            pollInterval: .milliseconds(1),
+            fetch: {
+                if attemptLog.incrementAndGet() < 3 { throw error }
+                return Self.metadata(state: .finalized)
+            }
+        )
+
+        #expect(result.state == .finalized)
         #expect(attemptLog.count == 3)
     }
 

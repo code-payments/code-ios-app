@@ -62,6 +62,25 @@ struct SwapCompletionReporter {
         }
     }
 
+    /// Reports a permanent poll refusal (denied or rejected), which the server will never recover from.
+    func reportPollRefusal(_ error: ClientError) {
+        logger.error("Swap poll refused", metadata: [
+            "swapId": "\(swapId.publicKey.base58)",
+            "swapType": "\(swapType)",
+            "error": "\(error)",
+        ])
+        ErrorReporting.captureError(
+            error,
+            reason: "Swap poll refused by server",
+            metadata: [
+                "swapId": swapId.publicKey.base58,
+                "swapType": "\(swapType)",
+                "amount": amount.nativeAmount.formatted(),
+                "quarks": "\(amount.onChainAmount.quarks)",
+            ]
+        )
+    }
+
     func reportSwapFailure(state: SwapState, reason: String) {
         logger.error("Swap failed", metadata: [
             "swapId": "\(swapId.publicKey.base58)",
@@ -122,6 +141,10 @@ struct InlineSwapCompletion {
         } catch ClientError.pollLimitReached {
             // No state was ever fetched, which is an unknown state rather than a failure.
             return .pending
+        } catch let error as ClientError where error.isSwapPollRefusal {
+            reporter.reportPollRefusal(error)
+            reporter.trackTransaction(successful: false)
+            return .failed
         } catch {
             logger.error("Swap polling failed", metadata: ["error": "\(error)"])
             reporter.trackTransaction(successful: false)
