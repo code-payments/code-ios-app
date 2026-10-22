@@ -62,4 +62,37 @@ struct WalletTabRoutingTests {
         #expect(router[.balance].isEmpty)
         #expect(router.requestedTabStack == .balance)
     }
+
+    private static func path(_ destination: AppRouter.Destination) -> NavigationPath {
+        var path = NavigationPath()
+        path.append(destination)
+        return path
+    }
+
+    @Test("a currency opened from Search on the Chat tab brings the Wallet tab forward with it as the only screen")
+    func navigateToCurrencyInfo_fromChatSearch_landsOnWalletRoot() {
+        let router = AppRouter()
+        router.activeTabStack = .tips
+        router.push(.chatSearch)
+
+        // What ChatSearchScreen.openCurrency does in its pushed presentation.
+        router.pop(on: .tips)
+        router.navigate(to: .currencyInfo(.usdc))
+
+        #expect(router[.tips].isEmpty, "Search must not stay on the Chat stack")
+        #expect(router.requestedTabStack == .balance)
+        #expect(router[.balance] == Self.path(.currencyInfo(.usdc)))
+    }
+
+    @Test("a currency opened from the Search tab, which has no active stack, still lands on the Wallet")
+    func navigateToCurrencyInfo_fromSearchTab_landsOnWalletRoot() {
+        let router = AppRouter()
+        router.activeTabStack = nil
+        router.setPath([.discoverCurrencies], on: .balance)
+
+        router.navigate(to: .currencyInfo(.usdc))
+
+        #expect(router.requestedTabStack == .balance)
+        #expect(router[.balance] == Self.path(.currencyInfo(.usdc)))
+    }
 }
