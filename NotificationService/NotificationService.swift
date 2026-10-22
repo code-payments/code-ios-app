@@ -427,14 +427,17 @@ final class NotificationService: UNNotificationServiceExtension {
             )
             let messages = Array(opened.prefix(fetched.count))
             if embedded != nil { embedded = opened.last }
+            let knownNames = isGroup ? knownMemberNames(owner: account.keyAccount.ownerPublicKey) : [:]
+            let pushedSenderID = (embedded ?? messages.first { $0.id == messageID })?.senderID
+            // Names another member: the push's own substitution for its sender, else the shared store.
+            let memberName: (UserID) -> String? = { userID in
+                guard isGroup, userID != account.userID else { return nil }
+                if userID == pushedSenderID, let pushedSenderName { return pushedSenderName }
+                return knownNames[userID]
+            }
             let senderName: (UserID) -> String? = { senderID in
                 guard isGroup, senderID != account.userID else { return nil }
-                if let pushedSenderName { return pushedSenderName }
-                var name: String?
-                ExtensionStore.perform(owner: account.keyAccount.ownerPublicKey) { database in
-                    name = try database.knownMembers()[senderID]?.displayName
-                }
-                return name
+                return pushedSenderName ?? knownNames[senderID]
             }
             if let body = NotificationPayload.decryptedBody(
                 of: messageID,
@@ -469,7 +472,8 @@ final class NotificationService: UNNotificationServiceExtension {
                     from: messages,
                     selfUserID: account.userID,
                     limit: NotificationPreviewCache.previewLimit,
-                    mintBranding: branding
+                    mintBranding: branding,
+                    authorName: memberName
                 )
             }
             // Cache the messages (currency-code fallback) and release the banner before the branding
@@ -495,6 +499,18 @@ final class NotificationService: UNNotificationServiceExtension {
             await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
             deliver()
         }
+    }
+
+    /// Display names of every member the shared store knows, empty names dropped. Empty when the
+    /// store can't be read (no store yet, busy, schema mismatch), which leaves rows unnamed.
+    private nonisolated static func knownMemberNames(owner: PublicKey) -> [UserID: String] {
+        var names: [UserID: String] = [:]
+        ExtensionStore.perform(owner: owner) { database in
+            for (userID, member) in try database.knownMembers() where !member.displayName.isEmpty {
+                names[userID] = member.displayName
+            }
+        }
+        return names
     }
 
     /// Mention and reply signals for the pushed message. The reply target's author comes from the

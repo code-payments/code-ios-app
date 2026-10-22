@@ -27,10 +27,10 @@ struct NotificationTranscriptView: View {
                     // same-sender bubbles for separation; the preview does neither, so it needs a
                     // larger gap to read comfortably.
                     VStack(spacing: 10) {
-                        ForEach(items) { item in
+                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                             switch item {
                             case .message(let message):
-                                NotificationMessageRow(message: message)
+                                NotificationMessageRow(message: message, showsAuthor: startsAuthorRun(at: index))
                                     .transition(.opacity)
                             case .dateSeparator(_, let text):
                                 NotificationDateSeparator(text: text)
@@ -64,6 +64,14 @@ struct NotificationTranscriptView: View {
             }
         }
     }
+
+    /// Whether the row at `index` opens a run by its author, so the name labels the first bubble
+    /// of each run like the in-app transcript. A date separator ends a run.
+    private func startsAuthorRun(at index: Int) -> Bool {
+        guard case .message(let message) = items[index], let author = message.author else { return false }
+        guard index > 0, case .message(let previous) = items[index - 1] else { return true }
+        return previous.author?.id != author.id
+    }
 }
 
 /// Aligns a message to its sender's side — `.me` trailing, `.other` leading — and renders the
@@ -71,27 +79,41 @@ struct NotificationTranscriptView: View {
 private struct NotificationMessageRow: View {
 
     let message: ChatMessage
+    let showsAuthor: Bool
 
     var body: some View {
         HStack(spacing: 0) {
             if message.sender == .me { Spacer(minLength: 44) }
-            switch message.content {
-            case .text(let text):
-                NotificationTextBubble(text: text, isFromSelf: message.sender == .me)
-            case .deleted(let placeholder):
-                NotificationTextBubble(text: placeholder, isFromSelf: message.sender == .me)
-            case .unavailable:
-                NotificationTextBubble(text: ChatMessage.unavailableCopy, isFromSelf: message.sender == .me)
-            case .cash(let cash):
-                NotificationCashCard(cash: cash, isFromSelf: message.sender == .me)
-            case .shareProfile(let profile):
-                // The extension has no profile lookup; the handle is what the widget names.
-                NotificationTextBubble(text: profile.linkedHandle ?? "Shared a profile", isFromSelf: message.sender == .me)
-            case .media(let media):
-                // The extension draws no photos; a text line stands in, like the chat list's preview.
-                NotificationTextBubble(text: ChatMediaStrings.listPreview(caption: media.caption), isFromSelf: message.sender == .me)
+            VStack(alignment: .leading, spacing: 4) {
+                if showsAuthor, let author = message.author {
+                    // The in-app transcript's label: 12pt medium at 50% white (node 9764:15123).
+                    Text(author.name)
+                        .font(.default(size: 12, weight: .medium))
+                        .foregroundStyle(Color.textMain.opacity(0.5))
+                }
+                bubble
             }
             if message.sender == .other { Spacer(minLength: 44) }
+        }
+    }
+
+    @ViewBuilder
+    private var bubble: some View {
+        switch message.content {
+        case .text(let text):
+            NotificationTextBubble(text: text, isFromSelf: message.sender == .me)
+        case .deleted(let placeholder):
+            NotificationTextBubble(text: placeholder, isFromSelf: message.sender == .me)
+        case .unavailable:
+            NotificationTextBubble(text: ChatMessage.unavailableCopy, isFromSelf: message.sender == .me)
+        case .cash(let cash):
+            NotificationCashCard(cash: cash, isFromSelf: message.sender == .me)
+        case .shareProfile(let profile):
+            // The extension has no profile lookup; the handle is what the widget names.
+            NotificationTextBubble(text: profile.linkedHandle ?? "Shared a profile", isFromSelf: message.sender == .me)
+        case .media(let media):
+            // The extension draws no photos; a text line stands in, like the chat list's preview.
+            NotificationTextBubble(text: ChatMediaStrings.listPreview(caption: media.caption), isFromSelf: message.sender == .me)
         }
     }
 }

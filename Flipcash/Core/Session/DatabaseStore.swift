@@ -29,7 +29,7 @@ final class DatabaseStore {
     private let writeGuard = BackgroundStoreWriteGuard()
 
     /// The owner's `Database`, opened on first use: resolves the store location, migrates a legacy
-    /// store into the App Group container, and rebuilds the file when its schema is outdated.
+    /// store into the App Group container, and rebuilds the file when its schema doesn't match this build's.
     func database(for owner: PublicKey) throws -> Database {
         if let database = databases[owner] {
             return database
@@ -69,13 +69,17 @@ final class DatabaseStore {
         }
 
         // Currently we don't do migrations so every time
-        // the user version is outdated, we'll rebuild the
-        // database during sync.
+        // the user version differs, we'll rebuild the
+        // database during sync. A newer recorded version
+        // (a downgrade) counts too: the notification
+        // extension reads only a store that matches its
+        // own schema exactly, so keeping one silently
+        // blanks every sender name in pushes.
         let userVersion = (try? Database.userVersion(files: files)) ?? 0
         let currentVersion = Database.schemaVersion
-        if currentVersion > userVersion {
+        if currentVersion != userVersion {
             try Database.deleteStore(files: files)
-            logger.error("Outdated user version, deleted database.")
+            logger.error("Mismatched user version, deleted database.")
             try Database.setUserVersion(version: currentVersion, files: files)
         }
 
