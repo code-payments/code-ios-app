@@ -15,7 +15,7 @@ import Testing
 /// offset in `PoolAccount` yields a valid-looking `PublicKey` and a transaction that encodes
 /// fine, so only the end-to-end bytes catch it.
 ///
-/// The deposit swap is `swap_v2` (15 accounts, no whitelist). The expected bytes are
+/// The deposit swap is `swap_v2` (15 accounts). The expected bytes are
 /// builder-derived: there is no on-chain `swap_v2` capture for this transaction yet. The
 /// previous `swap` (v1) version of these bytes was accepted by `simulateTransaction` on mainnet
 /// (no error, 68922 compute units, `Swapped 5000000 tokens`), and reading `fee_recipient` at the
