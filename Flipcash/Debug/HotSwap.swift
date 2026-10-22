@@ -36,11 +36,11 @@ enum HotSwap {
     }
 
     /// Called after a patch loads, on the main actor. A replaced `body` only takes effect when SwiftUI
-    /// next evaluates it. Handing a hosting controller its root view again re-evaluates only the views
-    /// whose stored properties compare unequal, which in practice means views holding a closure; a view
-    /// with no stored properties, such as `ForceUpgradeScreen`, is skipped. So the root's identity is
-    /// bumped too (`hotSwapIdentity()`), which re-evaluates every view and resets the state SwiftUI
-    /// holds below the root: `@State`, navigation paths, scroll positions and presented sheets.
+    /// next evaluates it, and SwiftUI skips a view whose stored properties compare equal to last time.
+    /// Two things make it evaluate again without touching identity, so `@State`, navigation and focus
+    /// survive: handing each hosting controller its root view, which reaches views holding a closure,
+    /// and bumping `HotSwapState.generation`, which invalidates every view declaring `@HotSwappable`.
+    /// A view with neither keeps its old body until something else redraws it.
     fileprivate static func refresh() {
         HotSwapState.shared.generation += 1
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
@@ -132,23 +132,20 @@ enum HotSwap {
     }
 }
 
-@MainActor @Observable
-final class HotSwapState {
+@MainActor
+final class HotSwapState: ObservableObject {
     static let shared = HotSwapState()
-    var generation = 0
+    @Published var generation = 0
 }
 
-extension View {
-    /// Gives the view a new identity each time a patch loads. See `HotSwap.refresh()`.
-    func hotSwapIdentity() -> some View {
-        modifier(HotSwapIdentity())
-    }
-}
-
-private struct HotSwapIdentity: ViewModifier {
-    func body(content: Content) -> some View {
-        content.id(HotSwapState.shared.generation)
-    }
+/// Declared on a view a patch may replace: `@HotSwappable private var hotSwap`. It subscribes the view
+/// to each patch, so its `body` runs again in place. An `@Observable` read would not do: Observation
+/// tracks only what `body` reads, and the old `body` never read it.
+@MainActor @propertyWrapper
+struct HotSwappable: DynamicProperty {
+    @ObservedObject private var state = HotSwapState.shared
+    var wrappedValue: Int { state.generation }
+    init() {}
 }
 
 enum HotSwapHosting {

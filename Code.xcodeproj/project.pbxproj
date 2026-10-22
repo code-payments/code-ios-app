@@ -1314,7 +1314,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 2026.10.3;
-				OTHER_SWIFT_FLAGS = "$(inherited) -Xfrontend -enable-implicit-dynamic";
+				OTHER_SWIFT_FLAGS = "$(inherited) -Xfrontend -enable-implicit-dynamic -Xfrontend -enable-private-imports";
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
