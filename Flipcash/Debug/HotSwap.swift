@@ -37,26 +37,32 @@ enum HotSwap {
 
     /// Called after a patch loads, on the main actor. A replaced `body` only takes effect when SwiftUI
     /// next evaluates it, and SwiftUI skips a view whose stored properties compare equal to last time.
-    /// Two things make it evaluate again without touching identity, so `@State`, navigation and focus
-    /// survive: handing each hosting controller its root view, which reaches views holding a closure,
-    /// and bumping `HotSwapState.generation`, which invalidates every view declaring `@HotSwappable`.
-    /// A view with neither keeps its old body until something else redraws it.
-    fileprivate static func refresh() {
-        HotSwapState.shared.generation += 1
+    /// So each hosting view's AttributeGraph is told that every value in it is out of date, which makes
+    /// every `body` run again without touching identity: `@State`, navigation, focus and scroll survive,
+    /// and no view has to declare anything. Returns `graph` when that ran on every hosting view, or
+    /// `fallback` when a graph or the symbol was not found and only the root views were handed back,
+    /// which reaches views holding a closure and no others.
+    @discardableResult
+    fileprivate static func refresh() -> String {
+        var redraw = HotSwapGraph.available ? "graph" : "fallback"
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             for window in scene.windows {
-                refresh(window.rootViewController)
+                refresh(window.rootViewController, &redraw)
             }
         }
         CATransaction.flush()
+        return redraw
     }
 
-    private static func refresh(_ vc: UIViewController?) {
+    private static func refresh(_ vc: UIViewController?, _ redraw: inout String) {
         guard let vc else { return }
         vc.view.setNeedsLayout()
-        for child in vc.children { refresh(child) }
-        refresh(vc.presentedViewController)
-        HotSwapHosting.invalidate(vc)
+        for child in vc.children { refresh(child, &redraw) }
+        refresh(vc.presentedViewController, &redraw)
+        if let host = vc as? any HotSwapRefreshable {
+            if !HotSwapGraph.invalidate(vc.view) { redraw = "fallback" }
+            host.hotSwapRefresh()
+        }
     }
 
     private final class Poller: @unchecked Sendable {
@@ -115,11 +121,11 @@ enum HotSwap {
                 return
             }
             let loadMs = Int(Date().timeIntervalSince(t0) * 1000)
-            await MainActor.run { HotSwap.refresh() }
+            let redraw = await MainActor.run { HotSwap.refresh() }
             let shownMs = Int(Date().timeIntervalSince(started) * 1000)
             NSLog("hotswap: %@ applied, %d bytes, download %dms, dlopen %dms", name, data.count, downloadMs, loadMs)
             await report(["event": "patch", "seq": seq, "name": name, "ok": true, "bytes": data.count,
-                          "downloadMs": downloadMs, "loadMs": loadMs, "shownMs": shownMs])
+                          "downloadMs": downloadMs, "loadMs": loadMs, "shownMs": shownMs, "redraw": redraw])
         }
 
         private func report(_ fields: [String: Any]) async {
@@ -132,25 +138,48 @@ enum HotSwap {
     }
 }
 
-@MainActor
-final class HotSwapState: ObservableObject {
-    static let shared = HotSwapState()
-    @Published var generation = 0
-}
+/// SwiftUI's private AttributeGraph, reached from a `_UIHostingView`. Nothing here is API: the path
+/// `_base.viewGraph.viewGraph` comes from `Mirror` on iOS 27.0, and `ViewGraph` keeps its graph in a
+/// field `Mirror` does not show, so it is found by scanning the object's first words for a CF object
+/// whose type is `AGGraph`. Every step that misses returns false, and `refresh` falls back.
+enum HotSwapGraph {
+    private typealias TypeIDFn = @convention(c) () -> UInt
+    private typealias GraphFn = @convention(c) (UnsafeRawPointer) -> Void
 
-/// Declared on a view a patch may replace: `@HotSwappable private var hotSwap`. It subscribes the view
-/// to each patch, so its `body` runs again in place. An `@Observable` read would not do: Observation
-/// tracks only what `body` reads, and the old `body` never read it.
-@MainActor @propertyWrapper
-struct HotSwappable: DynamicProperty {
-    @ObservedObject private var state = HotSwapState.shared
-    var wrappedValue: Int { state.generation }
-    init() {}
-}
+    private static let symbols: (typeID: UInt, invalidateAll: GraphFn)? = {
+        let rtld = UnsafeMutableRawPointer(bitPattern: -2) // RTLD_DEFAULT
+        guard let t = dlsym(rtld, "AGGraphGetTypeID"), let i = dlsym(rtld, "AGGraphInvalidateAllValues") else {
+            NSLog("hotswap: AttributeGraph symbols not found; patched views redraw only through their root")
+            return nil
+        }
+        return (unsafeBitCast(t, to: TypeIDFn.self)(), unsafeBitCast(i, to: GraphFn.self))
+    }()
 
-enum HotSwapHosting {
-    @MainActor static func invalidate(_ vc: UIViewController) {
-        (vc as? any HotSwapRefreshable)?.hotSwapRefresh()
+    static var available: Bool { symbols != nil }
+
+    @MainActor static func invalidate(_ view: UIView) -> Bool {
+        guard let symbols,
+              let base = Mirror(reflecting: view).descendant("_base"),
+              let host = Mirror(reflecting: base).descendant("viewGraph"),
+              let graph = Mirror(reflecting: host).descendant("viewGraph"),
+              type(of: graph) is AnyClass else { return false }
+        let found = graphs(in: graph as AnyObject, typeID: symbols.typeID)
+        for g in found { symbols.invalidateAll(g) }
+        return !found.isEmpty
+    }
+
+    private static func graphs(in object: AnyObject, typeID: UInt) -> [UnsafeRawPointer] {
+        let base = Unmanaged.passUnretained(object).toOpaque()
+        var out: [UnsafeRawPointer] = []
+        for offset in stride(from: 16, to: 160, by: 8) {
+            let word = base.load(fromByteOffset: offset, as: UInt.self)
+            guard word > 0x1_0000_0000, word & 7 == 0,
+                  let p = UnsafeRawPointer(bitPattern: word), malloc_size(p) > 0 else { continue }
+            // A Swift-native object has no CF type; asking it for one is an unrecognised selector.
+            guard Unmanaged<AnyObject>.fromOpaque(p).takeUnretainedValue() is NSObject else { continue }
+            if CFGetTypeID(Unmanaged<CFTypeRef>.fromOpaque(p).takeUnretainedValue()) == typeID { out.append(p) }
+        }
+        return out
     }
 }
 

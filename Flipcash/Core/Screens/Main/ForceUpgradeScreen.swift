@@ -11,10 +11,6 @@ import FlipcashCore
 
 struct ForceUpgradeScreen: View {
 
-    #if DEBUG
-    @HotSwappable private var hotSwap
-    #endif
-
     // MARK: - Body -
 
     var body: some View {

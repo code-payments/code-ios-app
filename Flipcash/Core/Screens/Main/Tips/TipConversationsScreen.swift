@@ -308,10 +308,6 @@ struct TipConversationRow: View {
     @Environment(Session.self) private var session
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    #if DEBUG
-    @HotSwappable private var hotSwap
-    #endif
-
     /// What the row's avatar is of: the chat itself for a group, whose roster subset has no single
     /// face to stand for it, and the counterpart for a DM.
     private var avatarSubject: ProfileAvatarStore.AvatarSubject {

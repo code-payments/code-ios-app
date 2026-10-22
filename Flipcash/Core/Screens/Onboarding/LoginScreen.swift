@@ -18,10 +18,6 @@ struct LoginScreen: View {
     @State private var autocompleteResults: [String] = []
 
     @FocusState private var isFocused: Bool
-
-    #if DEBUG
-    @HotSwappable private var hotSwap
-    #endif
     
     private let language = Mnemonic.Language.english
     
