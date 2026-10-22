@@ -5,9 +5,9 @@
 
 import XCTest
 
-/// Covers the two currency-discovery tiles on the Wallet tab: Discover
-/// Currencies opens the leaderboard, and Create a Currency opens the creation
-/// summary.
+/// Covers the two currency-discovery tiles on the Wallet tab: Currency
+/// Leaderboard opens the leaderboard, and Create Your Own Currency opens the
+/// creation summary.
 ///
 /// The v1 pair was one route — Discover, opened as a sheet off the scanner, with
 /// currency creation reached from the promo card at the top of its list. The
@@ -27,7 +27,7 @@ final class DiscoverCurrenciesSmokeTests: BaseUITestCase {
     func testWalletTiles_openDiscoverAndCurrencyCreation() throws {
         let wallet = WalletScreen(app: app)
 
-        // MARK: Discover Currencies → the leaderboard.
+        // MARK: Currency Leaderboard → the leaderboard.
         wallet.open(from: self)
         wallet.tapDiscoverCurrenciesTile(from: self)
 
@@ -45,7 +45,7 @@ final class DiscoverCurrenciesSmokeTests: BaseUITestCase {
             "The promo card belongs to v1 — creation has its own Wallet tile now"
         )
 
-        // MARK: Create a Currency → the creation summary.
+        // MARK: Create Your Own Currency → the creation summary.
         // Discover is a push onto the wallet's stack, so back out to the tab
         // root; the tab bar is hidden while the stack is non-empty.
         waitAndTap(app.navigationBars.buttons.firstMatch)

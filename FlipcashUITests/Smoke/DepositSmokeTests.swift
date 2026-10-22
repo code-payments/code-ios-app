@@ -52,7 +52,7 @@ final class DepositSmokeTests: BaseUITestCase {
 
     // MARK: - Helpers
 
-    /// Wallet tile → Add Money → Other Wallet, landing on the USDC education
+    /// Wallet "Add Dollars" tile → Add Money → Other Wallet, landing on the USDC education
     /// screen the old Settings Deposit row used to open directly.
     private func openDeposit() {
         let wallet = WalletScreen(app: app)
