@@ -69,28 +69,21 @@ final class AddMoneyProcessingViewModel {
 
     // MARK: - Private
 
-    /// Onramp fees deliver slightly less than the requested amount, so accept
-    /// a small shortfall rather than poll forever for the exact figure.
-    private static let completionTolerance: Decimal = 0.98
-
     private let input: AddMoneyProcessingInput
     private let pollInterval: Duration
     private let timeout: Duration
-
-    private var requiredDelta: FiatAmount {
-        input.amount.usdfValue * Self.completionTolerance
-    }
 
     // MARK: - Init
 
     init(
         input: AddMoneyProcessingInput,
-        pollInterval: Duration = .seconds(2),
-        timeout: Duration = .seconds(120)
+        pollInterval: Duration = AddMoneyTiming.balancePollInterval,
+        timeout: Duration = AddMoneyTiming.settlementTimeout
     ) {
         self.input = input
         self.pollInterval = pollInterval
-        self.timeout = timeout
+        // Time already spent waiting inline on the amount screen comes off the budget.
+        self.timeout = max(timeout - input.elapsed, .zero)
     }
 
     // MARK: - Run
@@ -102,7 +95,7 @@ final class AddMoneyProcessingViewModel {
         guard displayState == .processing else { return }
 
         let baseline = settlement.balance(for: .usdf)?.usdf ?? .zero(in: .usd)
-        let target = baseline + requiredDelta
+        let target = AddMoneyBalanceTarget.target(baseline: baseline, amount: input.amount)
 
         switch input.method {
         case .coinbase, .otherWallet:

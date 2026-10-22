@@ -15,6 +15,7 @@ struct AddMoneyAmountScreen: View {
     @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(VerificationCoordinator.self) private var verificationCoordinator
     @Environment(WalletConnection.self) private var walletConnection
+    @Environment(\.dismissParentContainer) private var dismissParentContainer
 
     /// Called once the deposit operation is under way.
     private let onProceed: (AddMoneyProcessingInput) -> Void
@@ -47,6 +48,7 @@ struct AddMoneyAmountScreen: View {
                         coinbaseService: coinbaseService,
                         verificationCoordinator: verificationCoordinator,
                         walletConnection: walletConnection,
+                        dismiss: dismissParentContainer,
                         onProceed: onProceed
                     )
                 },
