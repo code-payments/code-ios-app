@@ -64,6 +64,10 @@ struct ConvertConfirmationScreen: View {
                                 )
                             }
                             .padding()
+                        } else {
+                            // Keep the room the breakdown's padding (16 above and
+                            // below) would give, so the two amounts don't crowd.
+                            Color.clear.frame(height: 32)
                         }
 
                         ConfirmationAmountRow(
