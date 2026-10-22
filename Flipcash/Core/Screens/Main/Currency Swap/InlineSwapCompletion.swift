@@ -210,7 +210,7 @@ struct NotificationPrompt {
         let authorize = authorize
         present(.info(
             title: "Get Notified",
-            subtitle: "We'll let you know when your transactions complete, even if you leave the app.",
+            subtitle: "We'll let you know when your transactions complete, even if you leave the app",
             actions: {
                 .standard("Turn On Notifications") { Task { await authorize() } };
                 .notNow()
