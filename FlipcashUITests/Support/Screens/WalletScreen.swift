@@ -54,11 +54,11 @@ struct WalletScreen {
     /// wallet's own stack.
     var withdrawMoneyTile: XCUIElement { app.buttons["wallet-tile-withdraw-money"] }
 
-    /// The "Discover Currencies" tile, which pushes the leaderboard onto the
+    /// The "Currency Leaderboard" tile, which pushes the leaderboard onto the
     /// wallet's own stack — v1 opened it as a sheet off the scanner.
     var discoverCurrenciesTile: XCUIElement { app.buttons["wallet-tile-discover-currencies"] }
 
-    /// The "Create a Currency" tile, which pushes the creation summary directly.
+    /// The "Create Your Own Currency" tile, which pushes the creation summary directly.
     /// It replaces Discover's promo card, which the tab-bar UI hides
     /// (`CurrencyDiscoveryScreen.hidesPromo`).
     var createCurrencyTile: XCUIElement { app.buttons["wallet-tile-create-currency"] }

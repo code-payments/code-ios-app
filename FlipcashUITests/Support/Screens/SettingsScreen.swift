@@ -8,7 +8,7 @@ import XCTest
 /// Page object for the settings list and its sub-screens.
 ///
 /// Settings is pushed from the gear on the You tab, so "open settings" is the
-/// You tab plus the gear. Add Money and Withdraw Money live on the Wallet tab's
+/// You tab plus the gear. Add Dollars and Withdraw Dollars live on the Wallet tab's
 /// tiles, on `WalletScreen`.
 @MainActor
 struct SettingsUIScreen {

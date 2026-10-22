@@ -47,7 +47,7 @@ extension AppRouter {
         /// finish). `nil` starts on the currency picker; a mint skips the picker
         /// pre-selected — Dollars (USDF) lands on the "Withdraw as USDC" intro,
         /// any other currency on the amount screen. Pushed from the Wallet
-        /// "Withdraw Money" tile (`nil`) and Currency Info (a mint).
+        /// "Withdraw Dollars" tile (`nil`) and Currency Info (a mint).
         case withdrawCurrency(PublicKey?)
         /// USDC → USDF deposit education screen.
         case usdcDepositEducation

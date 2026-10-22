@@ -9,7 +9,7 @@ import FlipcashUI
 
 private let logger = Logger(label: "flipcash.phantom-education")
 
-/// "Add Money With Phantom" pre-flight — the root of the Phantom deposit flow.
+/// "Add Dollars With Phantom" pre-flight — the root of the Phantom deposit flow.
 struct PhantomEducationScreen: View {
 
     @Environment(WalletConnection.self) private var walletConnection
@@ -28,14 +28,14 @@ struct PhantomEducationScreen: View {
 
                 PhantomHero()
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Add money with Phantom using Solana USDC")
+                    .accessibilityLabel("Add dollars with Phantom using Solana USDC")
 
                 VStack(spacing: 8) {
-                    Text("Add Money With Phantom")
+                    Text("Add Dollars With Phantom")
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
 
-                    Text("Add money using Solana USDC in Phantom. Simply connect your wallet and confirm the transaction.")
+                    Text("Add dollars using Solana USDC in Phantom. Simply connect your wallet and confirm the transaction.")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
