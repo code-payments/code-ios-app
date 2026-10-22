@@ -14,12 +14,14 @@ protocol ReactionBoostReacting: AnyObject {
 
 extension ConversationReactions: ReactionBoostReacting {}
 
-/// The message a boost is for: where it is, who wrote it, and who owns the group.
+/// The message a boost is for: where it is, who wrote it, and what kind of chat it is in.
 struct ReactionBoostTarget: Hashable, Identifiable {
     let conversationID: ConversationID
     let messageID: MessageID
     let messageSender: UserID
-    let creator: UserID
+    let chat: ReactionBoostSplit.Chat
+    /// The DM's other member, for the sheet's copy; nil falls back to "them". Unused in a group.
+    var counterpartName: String? = nil
 
     var id: Self { self }
 }
@@ -76,15 +78,20 @@ final class ReactionBoostViewModel {
 
     /// The smallest amount this user can boost the message with, in cents; nil when it is their own.
     var minimumCents: UInt64? {
-        ReactionBoostSplit.minimumCents(payer: payer, messageSender: target.messageSender, creator: target.creator)
+        ReactionBoostSplit.minimumCents(payer: payer, messageSender: target.messageSender, chat: target.chat)
     }
 
-    /// Who receives the boost, worded for the sheet: the 80/20 split, or all of it to the author when the host is one of the two.
+    /// Who receives the boost, worded for the sheet: all of it to the other person in a DM, the 80/20 split
+    /// in a group, or all of it to the author when the host is one of the two.
     var splitDescription: String {
-        if payer != target.creator && target.messageSender != target.creator {
-            "80% goes to the person who wrote the message, 20% goes to the group host"
-        } else {
-            "100% goes to the person who wrote the message"
+        switch target.chat {
+        case .dm:
+            return "100% goes to \(target.counterpartName ?? "them")"
+        case .group(let creator):
+            if payer != creator && target.messageSender != creator {
+                return "80% goes to the person who wrote the message, 20% goes to the group host"
+            }
+            return "100% goes to the person who wrote the message"
         }
     }
 
@@ -151,7 +158,7 @@ final class ReactionBoostViewModel {
                 totalCents: cents,
                 payer: payer,
                 messageSender: target.messageSender,
-                creator: target.creator
+                chat: target.chat
             )
         } catch {
             switch error {

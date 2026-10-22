@@ -25,6 +25,7 @@ import Testing
         }
 
         let name: String
+        let chat: String
         let payer: String
         let messageSender: String
         let total: String
@@ -58,8 +59,13 @@ import Testing
         default: Self.member
         }
         let total = try Self.cents(vector.total)
+        let chat: ReactionBoostSplit.Chat = switch vector.chat {
+        case "group": .group(creator: Self.creator)
+        case "dm": .dm
+        default: fatalError("unknown chat \(vector.chat)")
+        }
         let result = Result { () throws(ReactionBoostSplit.Rejection) in
-            try ReactionBoostSplit.split(totalCents: total, payer: payer, messageSender: messageSender, creator: Self.creator)
+            try ReactionBoostSplit.split(totalCents: total, payer: payer, messageSender: messageSender, chat: chat)
         }
 
         switch vector.expected.intent {
@@ -86,11 +92,18 @@ import Testing
         }
     }
 
+    @Test func everyVectorIsRun() {
+        #expect(Self.fixture.vectors.count == 24)
+        #expect(Self.fixture.vectors.filter { $0.chat == "dm" }.count == 5)
+    }
+
     @Test func minimumFollowsThePayeeCount() {
-        #expect(ReactionBoostSplit.minimumCents(payer: Self.member, messageSender: Self.otherMember, creator: Self.creator) == 3)
-        #expect(ReactionBoostSplit.minimumCents(payer: Self.member, messageSender: Self.creator, creator: Self.creator) == 1)
-        #expect(ReactionBoostSplit.minimumCents(payer: Self.creator, messageSender: Self.member, creator: Self.creator) == 1)
-        #expect(ReactionBoostSplit.minimumCents(payer: Self.member, messageSender: Self.member, creator: Self.creator) == nil)
+        let group = ReactionBoostSplit.Chat.group(creator: Self.creator)
+        #expect(ReactionBoostSplit.minimumCents(payer: Self.member, messageSender: Self.otherMember, chat: group) == 3)
+        #expect(ReactionBoostSplit.minimumCents(payer: Self.member, messageSender: Self.creator, chat: group) == 1)
+        #expect(ReactionBoostSplit.minimumCents(payer: Self.creator, messageSender: Self.member, chat: group) == 1)
+        #expect(ReactionBoostSplit.minimumCents(payer: Self.member, messageSender: Self.member, chat: group) == nil)
+        #expect(ReactionBoostSplit.minimumCents(payer: Self.member, messageSender: Self.otherMember, chat: .dm) == 1)
     }
 
     /// Parses a two-place USD string such as "9.99" to cents without going through `Double`.

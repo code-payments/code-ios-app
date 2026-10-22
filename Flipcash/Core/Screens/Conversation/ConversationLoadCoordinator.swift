@@ -272,7 +272,7 @@ final class ConversationLoadCoordinator {
             now: capabilityClock,
             namesAuthors: namesAuthors,
             canReact: access?.canReact ?? true,
-            canBoost: conversation?.type == .group,
+            canBoost: conversation != nil,
             // Only a transcript that attributes its rows has anything to resolve, so a DM never
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,

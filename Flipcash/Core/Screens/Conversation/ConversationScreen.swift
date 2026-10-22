@@ -1103,16 +1103,25 @@ struct ConversationScreen: View {
     /// Opens the Paid Reactions sheet for the row's leading "$", which boosts one of the user's own
     /// reactions on the message.
     private func openPaidReactions(_ stableID: String) {
-        guard let conversationID, let creator = groupConversation?.creator,
+        guard let conversationID,
               let message = coordinator?.loader.messages.first(where: { $0.stableID == stableID }),
               let sender = message.senderID,
               !message.isFromSelf(conversationController.selfUserID),
               !selfReactions(on: message.id).isEmpty else { return }
+        let chat: ReactionBoostSplit.Chat
+        if let group = groupConversation {
+            guard let creator = group.creator else { return }
+            chat = .group(creator: creator)
+        } else {
+            chat = .dm
+        }
+        let counterpartName = coordinator?.counterpartName ?? ""
         paidReactionTarget = ReactionBoostTarget(
             conversationID: conversationID,
             messageID: message.id,
             messageSender: sender,
-            creator: creator
+            chat: chat,
+            counterpartName: counterpartName.isEmpty ? nil : counterpartName
         )
     }
 

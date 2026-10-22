@@ -39,6 +39,17 @@ struct ChatMessageMappingTests {
         #expect(boostable(false).values.allSatisfy { !$0 })
     }
 
+    @Test("In a DM the other member's reacted message is boostable and the viewer's own is not")
+    func dmBoostIsOnTheOtherMembersMessage() {
+        let messages = [
+            text(1, them, "from them", after: 0, reaction: (count: 1, selfReacted: true)),
+            text(2, me, "from me", after: 60, reaction: (count: 1, selfReacted: true)),
+        ]
+        let rows = ChatItem.from(messages, selfUserID: me, canBoost: true)
+            .compactMap { if case .message(let m) = $0, case .text(let body) = m.content { (body, m.canBoost) } else { nil } }
+        #expect(Dictionary(uniqueKeysWithValues: rows) == ["from them": true, "from me": false])
+    }
+
     private func text(
         _ id: UInt64,
         _ sender: UUID,

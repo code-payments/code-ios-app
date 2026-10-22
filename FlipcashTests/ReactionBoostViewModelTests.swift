@@ -21,7 +21,7 @@ struct ReactionBoostViewModelTests {
 
     @Test("A member boosting another member's message pays author and host 80/20 in one intent")
     func twoPayeesUseOneMultiTransfer() async throws {
-        let (viewModel, payments, reactions) = try await make(sender: author, creator: host, cents: 1000)
+        let (viewModel, payments, reactions) = try await make(sender: author, chat: .group(creator: host), cents: 1000)
 
         #expect(await viewModel.submit() == .success)
 
@@ -36,7 +36,7 @@ struct ReactionBoostViewModelTests {
 
     @Test("Boosting the host's own message pays the whole amount to the host")
     func hostsMessageIsOnePayee() async throws {
-        let (viewModel, payments, _) = try await make(sender: host, creator: host, cents: 500)
+        let (viewModel, payments, _) = try await make(sender: host, chat: .group(creator: host), cents: 500)
 
         #expect(await viewModel.submit() == .success)
 
@@ -51,7 +51,7 @@ struct ReactionBoostViewModelTests {
         let (viewModel, payments, _) = try await make(
             container: container,
             sender: author,
-            creator: container.session.userID,
+            chat: .group(creator: container.session.userID),
             cents: 500
         )
 
@@ -62,13 +62,43 @@ struct ReactionBoostViewModelTests {
         #expect(viewModel.splitDescription == "100% goes to the person who wrote the message")
     }
 
+    @Test("A DM boost pays the whole amount to the other member in one payment, from 1¢")
+    func dmBoostIsOnePayment() async throws {
+        let (viewModel, payments, _) = try await make(sender: author, chat: .dm, cents: 1)
+
+        #expect(viewModel.minimumCents == 1)
+        #expect(viewModel.canSubmit)
+        #expect(await viewModel.submit() == .success)
+
+        #expect(payments.multiSends.isEmpty)
+        #expect(payments.singleSends.map(\.recipientOwner) == [payments.key(for: author)])
+        #expect(viewModel.splitDescription == "100% goes to them")
+    }
+
+    @Test("A DM's sheet names the other member when it knows them")
+    func dmDescriptionNamesCounterpart() async throws {
+        let container = try await SendAmountViewModelTests.makeReadyToSendContainer()
+        let viewModel = ReactionBoostViewModel(
+            sessionContainer: container,
+            target: ReactionBoostTarget(
+                conversationID: .test(1),
+                messageID: MessageID(value: 1),
+                messageSender: author,
+                chat: .dm,
+                counterpartName: "Sam"
+            ),
+            selfReactions: [Self.reaction("💯", at: 100)]
+        )
+        #expect(viewModel.splitDescription == "100% goes to Sam")
+    }
+
     @Test("A boost on your own message can't be submitted")
     func selfBoostIsRefused() async throws {
         let container = try await SendAmountViewModelTests.makeReadyToSendContainer()
         let (viewModel, payments, reactions) = try await make(
             container: container,
             sender: container.session.userID,
-            creator: host,
+            chat: .group(creator: host),
             cents: 500
         )
 
@@ -80,7 +110,7 @@ struct ReactionBoostViewModelTests {
 
     @Test("Two payees need the fixture's 3¢ minimum")
     func twoPayeeMinimum() async throws {
-        let (viewModel, payments, reactions) = try await make(sender: author, creator: host, cents: 2)
+        let (viewModel, payments, reactions) = try await make(sender: author, chat: .group(creator: host), cents: 2)
 
         #expect(viewModel.minimumCents == 3)
         #expect(!viewModel.canSubmit)
@@ -93,7 +123,7 @@ struct ReactionBoostViewModelTests {
 
     @Test("A boost pays for the reaction the user already has and never adds one")
     func boostNeverAddsReaction() async throws {
-        let (viewModel, payments, reactions) = try await make(sender: author, creator: host, cents: 500)
+        let (viewModel, payments, reactions) = try await make(sender: author, chat: .group(creator: host), cents: 500)
 
         #expect(await viewModel.submit() == .success)
 
@@ -103,7 +133,7 @@ struct ReactionBoostViewModelTests {
 
     @Test("A failed payment records nothing and leaves the reaction alone")
     func failedPaymentRecordsNothing() async throws {
-        let (viewModel, payments, reactions) = try await make(sender: author, creator: host, cents: 1000)
+        let (viewModel, payments, reactions) = try await make(sender: author, chat: .group(creator: host), cents: 1000)
         payments.failure = URLError(.notConnectedToInternet)
 
         #expect(await viewModel.submit() == .failed)
@@ -113,7 +143,7 @@ struct ReactionBoostViewModelTests {
 
     @Test("A boost on top of an earlier one records the new self total")
     func recordsRunningSelfTotal() async throws {
-        let (viewModel, _, reactions) = try await make(sender: author, creator: host, cents: 500)
+        let (viewModel, _, reactions) = try await make(sender: author, chat: .group(creator: host), cents: 500)
         reactions.priorSelfCents = 100
 
         #expect(await viewModel.submit() == .success)
@@ -125,7 +155,7 @@ struct ReactionBoostViewModelTests {
     func defaultsToMostRecentReaction() async throws {
         let (viewModel, _, _) = try await make(
             sender: author,
-            creator: host,
+            chat: .group(creator: host),
             cents: 500,
             selfReactions: [Self.reaction("👍", at: 100), Self.reaction("🔥", at: 300), Self.reaction("💯", at: 200)]
         )
@@ -138,7 +168,7 @@ struct ReactionBoostViewModelTests {
     func cyclesReactions() async throws {
         let (viewModel, _, reactions) = try await make(
             sender: author,
-            creator: host,
+            chat: .group(creator: host),
             cents: 500,
             selfReactions: [Self.reaction("👍", at: 100), Self.reaction("🔥", at: 300), Self.reaction("💯", at: 200)]
         )
@@ -157,7 +187,7 @@ struct ReactionBoostViewModelTests {
 
     @Test("One reaction has nothing to cycle to")
     func singleReactionDoesNotCycle() async throws {
-        let (viewModel, _, _) = try await make(sender: author, creator: host, cents: 500)
+        let (viewModel, _, _) = try await make(sender: author, chat: .group(creator: host), cents: 500)
 
         #expect(!viewModel.canCycleEmoji)
         viewModel.cycleEmoji()
@@ -168,7 +198,7 @@ struct ReactionBoostViewModelTests {
     func removedReactionsDropOut() async throws {
         let (viewModel, payments, _) = try await make(
             sender: author,
-            creator: host,
+            chat: .group(creator: host),
             cents: 500,
             selfReactions: [Self.reaction("👍", at: 100), Self.reaction("🔥", at: 300)]
         )
@@ -189,7 +219,7 @@ struct ReactionBoostViewModelTests {
     private func make(
         container: SessionContainer? = nil,
         sender: UserID,
-        creator: UserID,
+        chat: ReactionBoostSplit.Chat,
         cents: UInt64,
         selfReactions: [SelfReaction] = [ReactionBoostViewModelTests.reaction("💯", at: 100)]
     ) async throws -> (ReactionBoostViewModel, FakeBoostPayments, FakeBoostReactions) {
@@ -202,7 +232,7 @@ struct ReactionBoostViewModelTests {
                 conversationID: .test(1),
                 messageID: MessageID(value: 1),
                 messageSender: sender,
-                creator: creator
+                chat: chat
             ),
             selfReactions: selfReactions,
             sender: payments,

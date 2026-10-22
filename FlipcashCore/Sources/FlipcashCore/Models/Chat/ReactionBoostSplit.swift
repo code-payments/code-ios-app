@@ -11,13 +11,22 @@ import Foundation
 ///
 /// Mirrors `test-vectors/reaction-boost-split.json`: a member boosting another member's message
 /// pays the group creator 20% of the whole, rounded half-even to the cent, and the message's sender
-/// the rest. When the creator pays, or wrote the message, the one other party is paid the whole.
+/// the rest. When the creator pays, or wrote the message, the one other party is paid the whole. In a
+/// DM there is no creator: the message's sender is paid the whole, as one payment.
 public enum ReactionBoostSplit: Hashable, Sendable {
 
     /// One payment to the message's sender, or to the creator when they wrote it.
     case single(Share)
     /// Two payments in one intent, listed sender then creator.
     case multi(sender: Share, creator: Share)
+
+    /// The kind of chat a boost is paid in.
+    public enum Chat: Hashable, Sendable {
+        /// A group, whose creator takes a share unless they are the payer or the author.
+        case group(creator: UserID)
+        /// A DM, with no creator and no fee.
+        case dm
+    }
 
     /// The creator's percentage of a two-payee boost.
     public static let creatorPercent: UInt64 = 20
@@ -66,18 +75,19 @@ public enum ReactionBoostSplit: Hashable, Sendable {
     }
 
     /// The smallest total, in cents, this payer can boost this message with; nil for a self-boost.
-    public static func minimumCents(payer: UserID, messageSender: UserID, creator: UserID) -> UInt64? {
+    public static func minimumCents(payer: UserID, messageSender: UserID, chat: Chat) -> UInt64? {
         guard payer != messageSender else { return nil }
-        return isTwoPayee(payer: payer, messageSender: messageSender, creator: creator) ? minimumTwoPayeeCents : minimumShareCents
+        return creatorShare(payer: payer, messageSender: messageSender, chat: chat) != nil ? minimumTwoPayeeCents : minimumShareCents
     }
 
-    /// Splits `totalCents` paid by `payer` for a message `messageSender` wrote in a group `creator` owns.
-    public static func split(totalCents: UInt64, payer: UserID, messageSender: UserID, creator: UserID) throws(Rejection) -> ReactionBoostSplit {
+    /// Splits `totalCents` paid by `payer` for a message `messageSender` wrote in `chat`.
+    public static func split(totalCents: UInt64, payer: UserID, messageSender: UserID, chat: Chat) throws(Rejection) -> ReactionBoostSplit {
         guard payer != messageSender else { throw .selfBoost }
 
-        guard isTwoPayee(payer: payer, messageSender: messageSender, creator: creator) else {
+        guard let creator = creatorShare(payer: payer, messageSender: messageSender, chat: chat) else {
             guard totalCents >= minimumShareCents else { throw .shareBelowMinimum }
-            let role: Role = messageSender == creator ? .creator : .sender
+            var role: Role = .sender
+            if case .group(let creator) = chat, messageSender == creator { role = .creator }
             return .single(Share(role: role, userID: messageSender, cents: totalCents))
         }
 
@@ -92,8 +102,14 @@ public enum ReactionBoostSplit: Hashable, Sendable {
         )
     }
 
-    private static func isTwoPayee(payer: UserID, messageSender: UserID, creator: UserID) -> Bool {
-        payer != creator && messageSender != creator
+    /// The creator who takes a share of this boost, or nil when it pays one payee.
+    private static func creatorShare(payer: UserID, messageSender: UserID, chat: Chat) -> UserID? {
+        switch chat {
+        case .dm:
+            return nil
+        case .group(let creator):
+            return payer != creator && messageSender != creator ? creator : nil
+        }
     }
 
     private static func roundHalfEven(_ value: UInt64, divisor: UInt64) -> UInt64 {
