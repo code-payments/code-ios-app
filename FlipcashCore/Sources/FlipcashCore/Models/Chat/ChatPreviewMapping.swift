@@ -36,12 +36,15 @@ extension ChatItem {
     ///     and illustrate cash rows (e.g. "Jeffy" with its icon). The caller resolves these over
     ///     the network; a cash row whose mint is absent shows no token label or icon.
     ///   - counterpartName: The other party's name, for the hint under a message that failed to decrypt.
+    ///   - authorName: The name to label another member's row with in a group, or nil (or empty)
+    ///     to leave the row unattributed. Never asked about the viewer's own rows.
     public static func preview(
         from messages: [ConversationMessage],
         selfUserID: UserID,
         limit: Int = 3,
         mintBranding: [PublicKey: MintBrandingInfo] = [:],
-        counterpartName: String = ""
+        counterpartName: String = "",
+        authorName: (UserID) -> String? = { _ in nil }
     ) -> [ChatItem] {
         // Drop tombstones before slicing so the preview keeps the newest `limit` *visible* messages —
         // filtering after `.suffix` would let a recent delete crowd out a real message (or blank the
@@ -123,13 +126,26 @@ extension ChatItem {
             case .cash, .deleted, .encrypted, .widget, .media, .system: isEmojiOnly = false
             }
 
+            let author: ChatAuthor?
+            switch sender {
+            case .me:
+                author = nil
+            case .other:
+                if let id = message.senderID, let name = authorName(id), !name.isEmpty {
+                    author = ChatAuthor(id: id, name: name)
+                } else {
+                    author = nil
+                }
+            }
+
             items.append(.message(ChatMessage(
                 id: String(message.id.value),
                 content: content,
                 sender: sender,
                 isContinuationFromPrevious: false,
                 isContinuedByNext: false,
-                isEmojiOnly: isEmojiOnly
+                isEmojiOnly: isEmojiOnly,
+                author: author
             )))
             previous = message
         }

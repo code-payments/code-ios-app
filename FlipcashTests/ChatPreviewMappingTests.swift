@@ -312,4 +312,36 @@ struct ChatPreviewMappingTests {
             .media(ChatMediaContent(blobID: blobID, width: 30, height: 20, blurhash: "LEHV6nWB2yk8", caption: nil, isRedacted: true)),
         ])
     }
+
+    // MARK: - Authors
+
+    @Test("Another member's row is attributed with the name the lookup returns")
+    func otherRowGetsAuthor() {
+        let items = ChatItem.preview(
+            from: [textMessage(id: 1, senderID: otherID, text: "Hi")],
+            selfUserID: meID,
+            authorName: { $0 == otherID ? "XCTests" : nil }
+        )
+        #expect(messageRows(items).first?.author == ChatAuthor(id: otherID, name: "XCTests"))
+    }
+
+    @Test("The viewer's own row is never attributed, and the lookup is not asked")
+    func ownRowHasNoAuthor() {
+        var asked: [UUID] = []
+        let items = ChatItem.preview(
+            from: [textMessage(id: 1, senderID: meID, text: "Hi")],
+            selfUserID: meID,
+            authorName: { asked.append($0); return "Me" }
+        )
+        #expect(messageRows(items).first?.author == nil)
+        #expect(asked.isEmpty)
+    }
+
+    @Test("An unknown or empty name leaves the row unattributed")
+    func unknownOrEmptyNameHasNoAuthor() {
+        let unknown = ChatItem.preview(from: [textMessage(id: 1, senderID: otherID, text: "Hi")], selfUserID: meID)
+        let empty = ChatItem.preview(from: [textMessage(id: 1, senderID: otherID, text: "Hi")], selfUserID: meID, authorName: { _ in "" })
+        #expect(messageRows(unknown).first?.author == nil)
+        #expect(messageRows(empty).first?.author == nil)
+    }
 }

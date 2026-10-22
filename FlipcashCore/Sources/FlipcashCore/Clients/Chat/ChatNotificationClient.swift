@@ -22,6 +22,7 @@ public final class ChatNotificationClient: Sendable {
     private let messagingService: ChatMessagingService
     private let chatService: ChatService
     private let resolverService: ResolverService
+    private let profileService: ProfileService
     private let coreClient: GRPCClient<AppTransport>
     /// The core client's connection loop; retained for its lifetime — dropping it makes the client
     /// inert and every RPC hangs.
@@ -47,6 +48,7 @@ public final class ChatNotificationClient: Sendable {
         self.messagingService = ChatMessagingService(client: coreClient)
         self.chatService = ChatService(client: coreClient)
         self.resolverService = ResolverService(client: coreClient)
+        self.profileService = ProfileService(client: coreClient)
     }
 
     deinit {
@@ -104,6 +106,15 @@ public final class ChatNotificationClient: Sendable {
                 try await groupKeys.groupKey(for: conversationID, creator: creator)
             }
         )
+    }
+
+    // MARK: - Profiles -
+
+    /// Fetches the profile of `userID`, for naming a group member the shared store doesn't know.
+    public func fetchProfile(userID: UserID, owner: KeyPair) async throws -> Profile {
+        try await withCheckedThrowingContinuation { continuation in
+            profileService.fetchProfile(.userID(userID), owner: owner) { continuation.resume(with: $0) }
+        }
     }
 
     // MARK: - Encryption -

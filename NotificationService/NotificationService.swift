@@ -427,14 +427,29 @@ final class NotificationService: UNNotificationServiceExtension {
             )
             let messages = Array(opened.prefix(fetched.count))
             if embedded != nil { embedded = opened.last }
+            let pushedSenderID = (embedded ?? messages.first { $0.id == messageID })?.senderID
+            var knownNames = isGroup ? knownMemberNames(owner: account.keyAccount.ownerPublicKey) : [:]
+            if isGroup {
+                // A private group's cached roster holds only the viewer, so a member met only there
+                // is fetched, as the app does when it renders the chat.
+                let senders: [ConversationMessage] = messages + (embedded.map { [$0] } ?? [])
+                let unnamed: Set<UserID> = Set(senders.compactMap(\.senderID)).filter { userID in
+                    let namedByPush = userID == pushedSenderID && pushedSenderName != nil
+                    return userID != account.userID && knownNames[userID] == nil && !namedByPush
+                }
+                for (userID, name) in await fetchMemberNames(unnamed, owner: owner, client: client) {
+                    knownNames[userID] = name
+                }
+            }
+            // Names another member: the push's own substitution for its sender, else the shared store.
+            let memberName: (UserID) -> String? = { userID in
+                guard isGroup, userID != account.userID else { return nil }
+                if userID == pushedSenderID, let pushedSenderName { return pushedSenderName }
+                return knownNames[userID]
+            }
             let senderName: (UserID) -> String? = { senderID in
                 guard isGroup, senderID != account.userID else { return nil }
-                if let pushedSenderName { return pushedSenderName }
-                var name: String?
-                ExtensionStore.perform(owner: account.keyAccount.ownerPublicKey) { database in
-                    name = try database.knownMembers()[senderID]?.displayName
-                }
-                return name
+                return pushedSenderName ?? knownNames[senderID]
             }
             if let body = NotificationPayload.decryptedBody(
                 of: messageID,
@@ -469,7 +484,8 @@ final class NotificationService: UNNotificationServiceExtension {
                     from: messages,
                     selfUserID: account.userID,
                     limit: NotificationPreviewCache.previewLimit,
-                    mintBranding: branding
+                    mintBranding: branding,
+                    authorName: memberName
                 )
             }
             // Cache the messages (currency-code fallback) and release the banner before the branding
@@ -494,6 +510,51 @@ final class NotificationService: UNNotificationServiceExtension {
             ExtensionReporting.capture(error, reason: "Notification preview prefetch failed")
             await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
             deliver()
+        }
+    }
+
+    /// Display names of every member the shared store knows, empty names dropped. Empty when the
+    /// store can't be read (no store yet, busy, schema mismatch), which leaves rows unnamed.
+    private nonisolated static func knownMemberNames(owner: PublicKey) -> [UserID: String] {
+        var names: [UserID: String] = [:]
+        ExtensionStore.perform(owner: owner) { database in
+            for (userID, member) in try database.knownMembers() where !member.displayName.isEmpty {
+                names[userID] = member.displayName
+            }
+        }
+        return names
+    }
+
+    /// Display names for `userIDs` from their profiles, saved to the shared store so the next push
+    /// from the same member reads them locally. A failed or nameless fetch is left out.
+    private nonisolated static func fetchMemberNames(
+        _ userIDs: Set<UserID>,
+        owner: KeyPair,
+        client: ChatNotificationClient
+    ) async -> [UserID: String] {
+        guard !userIDs.isEmpty else { return [:] }
+        let profiles = await withTaskGroup(of: (UserID, Profile)?.self) { group in
+            for userID in userIDs {
+                group.addTask {
+                    guard let profile = try? await client.fetchProfile(userID: userID, owner: owner) else { return nil }
+                    return (userID, profile)
+                }
+            }
+            var profiles: [UserID: Profile] = [:]
+            for await case let (userID, profile)? in group {
+                profiles[userID] = profile
+            }
+            return profiles
+        }
+        guard !profiles.isEmpty else { return [:] }
+        ExtensionStore.perform(owner: owner.publicKey) { database in
+            for (userID, profile) in profiles {
+                try database.upsertUserProfile(profile, userID: userID)
+            }
+        }
+        return profiles.compactMapValues { profile in
+            guard let name = profile.displayName, !name.isEmpty else { return nil }
+            return name
         }
     }
 
