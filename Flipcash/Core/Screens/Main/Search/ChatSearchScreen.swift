@@ -175,8 +175,20 @@ struct ChatSearchScreen: View {
 
     /// Currencies live on the wallet, so the Money tab comes forward with the currency as its only
     /// screen, and back lands on the wallet rather than on Search.
+    ///
+    /// The keyboard goes down first, so it doesn't slide away over the currency.
     private func openCurrency(_ mint: MintMetadata) {
-        isFieldFocused = false
+        guard isFieldFocused else {
+            showCurrency(mint)
+            return
+        }
+        Task {
+            await KeyboardHideWaiter().wait { isFieldFocused = false }
+            showCurrency(mint)
+        }
+    }
+
+    private func showCurrency(_ mint: MintMetadata) {
         // Pushed on the Chat tab (iOS < 26, and wherever the search tab isn't used), Search is the
         // top of that stack; pop it so the Chat tab doesn't come back showing Search. The iOS 26
         // search tab has its own stack the router doesn't track, and the tab switch leaves it.
@@ -189,6 +201,50 @@ struct ChatSearchScreen: View {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+/// Runs `resign` and returns once the keyboard is out of sight. `keyboardDidHide` lands well after
+/// that, since the hide is a spring whose tail runs on unseen below the screen, so this waits on
+/// `keyboardWillHide` plus part of its animation instead. A hardware keyboard posts neither, so it
+/// gives up after `timeout`.
+@MainActor
+private final class KeyboardHideWaiter {
+    /// The share of the hide animation after which the keyboard is visually gone.
+    private static let visibleShare = 0.6
+
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var observer: NSObjectProtocol?
+
+    func wait(timeout: Duration = .milliseconds(450), resign: () -> Void) async {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            observer = NotificationCenter.default.addObserver(
+                forName: UIResponder.keyboardWillHideNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0
+                MainActor.assumeIsolated { self?.finish(after: .seconds(duration * Self.visibleShare)) }
+            }
+            resign()
+            finish(after: timeout)
+        }
+    }
+
+    private func finish(after delay: Duration) {
+        Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            self?.finish()
+        }
+    }
+
+    private func finish() {
+        guard let continuation else { return }
+        self.continuation = nil
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+        observer = nil
+        continuation.resume()
+    }
 }
 
 // MARK: - Search bar -
