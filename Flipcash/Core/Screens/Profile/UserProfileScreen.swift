@@ -126,7 +126,7 @@ private struct UserProfileContent: View {
     }
 
     private var sendTarget: SendTarget {
-        .tip(TipRecipient(userID: model.userID, displayName: model.displayName, username: model.username, origin: .tipcard))
+        .tip(TipRecipient(userID: model.userID, displayName: model.displayName, username: model.username, origin: origin.tipOrigin))
     }
 
     // MARK: - Body -
@@ -453,6 +453,17 @@ nonisolated enum UserProfileOrigin: Hashable {
             return true
         case .directMessage, .groupMember, .mention, .scan, .usernameLookup:
             return false
+        }
+    }
+
+    /// Where a payment sent from this profile reports as coming from. Only a scanned Flipcard is a
+    /// tip; every other way onto the profile sends cash.
+    var tipOrigin: TipOrigin {
+        switch self {
+        case .scan:
+            return .tipcard
+        case .directMessage, .groupMember, .mention, .deeplink, .usernameLookup, .transaction, .joinRequest:
+            return .chat
         }
     }
 }

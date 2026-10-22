@@ -84,17 +84,11 @@ final class SendAmountViewModel {
     /// Where this send reports as coming from, which is not always the surface
     /// that composed it.
     ///
-    /// The payment that opens the DM always reports as `TIPCARD`, however it was
-    /// composed — a scanned card, or the chat the username lookup pushes before
-    /// the thread is real. Matches Android's rule, which reads the same flag off
-    /// a bottom bar still showing "Send a Tip".
-    ///
-    /// What the server actually enforces is the verb, not this field: a send is
-    /// denied with `tip dm has not been initialized` unless the chat already
-    /// exists, and only a tip may open one. Since `action` is derived from this
-    /// value, keeping it `TIPCARD` here is what makes the opening payment
-    /// resolve to a tip on a server that reads `action` and on one that predates
-    /// it alike.
+    /// The payment that opens the DM reports its location as `FLIPCARD`, however
+    /// it was composed: a `CHAT` location was denied with `tip dm has not been
+    /// initialized` before the thread existed. The location says nothing about
+    /// the verb — `action` follows the recipient's own origin, so only a scanned
+    /// Flipcard sends a tip.
     private var effectiveTipOrigin: TipOrigin? {
         guard case .tip(let recipient) = target else { return nil }
         return opensTipDM ? .tipcard : recipient.origin
@@ -104,7 +98,7 @@ final class SendAmountViewModel {
     /// `currency`, or nil when it has none.
     ///
     /// A fee the recipient sets buys the conversation, so it applies to exactly
-    /// one payment: the tip that opens the DM. Past that the tip card falls back
+    /// one payment: the one that opens the DM. Past that the tip card falls back
     /// to the regional minimum every tip carries, and an in-chat send — a plain
     /// send into an open thread — carries no floor at all.
     func tipFloor(in currency: CurrencyCode) -> TipFloor? {
@@ -437,10 +431,9 @@ final class SendAmountViewModel {
                 return await sendCashLink(amount: amountToSend, verifiedState: pinnedState, into: conversationID)
             }
 
-            // Both the scanned tipcard flow and the Send Cash action inside a tip
-            // thread submit here; `chat` is the single source for whether this
-            // reports as a tip, so the wire `action` and the analytics event
-            // never drift apart.
+            // Every tip-DM payment submits here, the opening one included; `chat`
+            // is the single source for whether this reports as a tip, so the
+            // wire `action` and the analytics event never drift apart.
             let chat = chatPaymentMetadata()
             let transferEvent: Analytics.TransferEvent = (chat?.isTip ?? false) ? .sentTip : .sentCash
 
@@ -504,11 +497,10 @@ final class SendAmountViewModel {
                 destinationPhoneE164: contact.phoneE164
             )
         case .tip(let recipient):
-            let origin = effectiveTipOrigin ?? recipient.origin
             return .tipDm(
                 chatID: .tipDm(between: session.userID, and: recipient.userID),
-                origin: origin,
-                action: origin == .tipcard ? .tip : .send
+                origin: effectiveTipOrigin ?? recipient.origin,
+                action: recipient.origin == .tipcard ? .tip : .send
             )
         case .group:
             return nil
