@@ -58,6 +58,9 @@ final class SessionAuthenticator {
     }
 
     var requiresUpgrade: Bool {
+        #if DEBUG
+        return false // Debug builds never show the forced-upgrade gate.
+        #else
         guard let minBuildNumber = unauthenticatedUserFlags?.minBuildNumber, minBuildNumber > 0 else {
             return false // No minimum requirement or server didn't provide one
         }
@@ -67,6 +70,7 @@ final class SessionAuthenticator {
         }
 
         return currentBuild < minBuildNumber
+        #endif
     }
 
     @ObservationIgnored private let container: Container
