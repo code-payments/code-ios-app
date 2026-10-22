@@ -75,23 +75,6 @@ struct ReactionBoostViewModelTests {
         #expect(viewModel.splitDescription == "100% goes to them")
     }
 
-    @Test("A DM's sheet names the other member when it knows them")
-    func dmDescriptionNamesCounterpart() async throws {
-        let container = try await SendAmountViewModelTests.makeReadyToSendContainer()
-        let viewModel = ReactionBoostViewModel(
-            sessionContainer: container,
-            target: ReactionBoostTarget(
-                conversationID: .test(1),
-                messageID: MessageID(value: 1),
-                messageSender: author,
-                chat: .dm,
-                counterpartName: "Sam"
-            ),
-            selfReactions: [Self.reaction("💯", at: 100)]
-        )
-        #expect(viewModel.splitDescription == "100% goes to Sam")
-    }
-
     @Test("A boost on your own message can't be submitted")
     func selfBoostIsRefused() async throws {
         let container = try await SendAmountViewModelTests.makeReadyToSendContainer()

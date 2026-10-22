@@ -20,8 +20,6 @@ struct ReactionBoostTarget: Hashable, Identifiable {
     let messageID: MessageID
     let messageSender: UserID
     let chat: ReactionBoostSplit.Chat
-    /// The DM's other member, for the sheet's copy; nil falls back to "them". Unused in a group.
-    var counterpartName: String? = nil
 
     var id: Self { self }
 }
@@ -86,7 +84,7 @@ final class ReactionBoostViewModel {
     var splitDescription: String {
         switch target.chat {
         case .dm:
-            return "100% goes to \(target.counterpartName ?? "them")"
+            return "100% goes to them"
         case .group(let creator):
             if payer != creator && target.messageSender != creator {
                 return "80% goes to the person who wrote the message, 20% goes to the group host"

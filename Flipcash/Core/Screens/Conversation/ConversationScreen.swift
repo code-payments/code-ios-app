@@ -1115,13 +1115,11 @@ struct ConversationScreen: View {
         } else {
             chat = .dm
         }
-        let counterpartName = coordinator?.counterpartName ?? ""
         paidReactionTarget = ReactionBoostTarget(
             conversationID: conversationID,
             messageID: message.id,
             messageSender: sender,
-            chat: chat,
-            counterpartName: counterpartName.isEmpty ? nil : counterpartName
+            chat: chat
         )
     }
 
