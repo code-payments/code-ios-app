@@ -170,7 +170,7 @@ final class SendAmountViewModel {
     /// opens the DM doesn't flip to "Swipe to Send" once the DM exists.
     var swipeLabel: String {
         let opensTipDM = if let sendingSnapshot { sendingSnapshot.opensTipDM } else { opensTipDM }
-        return opensTipDM ? "Swipe to Tip" : "Swipe to Send"
+        return opensTipDM ? "Swipe to Chat" : "Swipe to Send"
     }
 
     /// The keypad buffer parsed to a positive amount, or nil.

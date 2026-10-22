@@ -1037,7 +1037,7 @@ struct SendAmountViewModelTests {
         #expect(container.session.dialogItem?.title == "$5.00 Minimum Tip")
     }
 
-    @Test("A contact send has no tip floor and never says Swipe to Tip")
+    @Test("A contact send has no tip floor and never says Swipe to Chat")
     func tipFloor_contactTarget_isNil() async throws {
         let container = try await Self.makeFloorContainer()
 
@@ -1158,7 +1158,7 @@ struct SendAmountViewModelTests {
             mock: mock
         )
         viewModel.enteredAmount = "10"
-        #expect(viewModel.swipeLabel == "Swipe to Tip")
+        #expect(viewModel.swipeLabel == "Swipe to Chat")
         #expect(viewModel.displayedTipMinimum == .usd(5))
 
         let outcome = await viewModel.sendAction()
@@ -1166,7 +1166,7 @@ struct SendAmountViewModelTests {
         #expect(outcome == .success)
         #expect(!viewModel.opensTipDM)
         #expect(viewModel.tipMinimum == nil)
-        #expect(viewModel.swipeLabel == "Swipe to Tip")
+        #expect(viewModel.swipeLabel == "Swipe to Chat")
         #expect(viewModel.displayedTipMinimum == .usd(5))
     }
 
