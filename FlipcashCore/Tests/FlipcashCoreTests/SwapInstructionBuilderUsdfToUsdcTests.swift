@@ -159,7 +159,7 @@ struct SwapInstructionBuilderUsdfToUsdcTests {
         #expect(ix.accounts[6].publicKey == Self.feeDestination)
     }
 
-    @Test("Instruction 7 is CoinbaseStableSwapper Swap")
+    @Test("Instruction 7 is CoinbaseStableSwapper SwapV2")
     func instruction7_isCoinbaseSwap() {
         let ix = Self.makeInstructions()[7]
         #expect(ix.program == CoinbaseStableSwapperProgram.address)
@@ -248,11 +248,13 @@ struct SwapInstructionBuilderUsdfToUsdcTests {
         #expect(ix.accounts[11].isSigner  == true)
     }
 
-    @Test("Swap whitelist (account 12) is the Coinbase whitelist PDA")
-    func swap_whitelist() {
+    @Test("Swap has 15 accounts and no whitelist; programs follow the user")
+    func swap_accountsHaveNoWhitelist() {
         let ix = Self.makeInstructions()[7]
-        let expected = CoinbaseStableSwapperProgram.deriveWhitelistAddress()!.publicKey
-        #expect(ix.accounts[12].publicKey == expected)
+        #expect(ix.accounts.count == 15)
+        #expect(ix.accounts[12].publicKey == TokenProgram.address)
+        #expect(ix.accounts[13].publicKey == AssociatedTokenProgram.address)
+        #expect(ix.accounts[14].publicKey == SystemProgram.address)
     }
 
     // MARK: - Discriminator + data layout (24 bytes)
@@ -260,7 +262,7 @@ struct SwapInstructionBuilderUsdfToUsdcTests {
     @Test("Swap instruction data starts with the Anchor discriminator")
     func swap_discriminator() {
         let ix = Self.makeInstructions()[7]
-        let expected: [UInt8] = [248, 198, 158, 145, 225, 117, 135, 200]
+        let expected: [UInt8] = [43, 4, 237, 11, 26, 201, 30, 98]
         #expect(Array(ix.data.prefix(8)) == expected)
     }
 

@@ -16,7 +16,7 @@ extension SwapInstructionBuilder {
     /// 2. [Optional] ComputeBudget::SetComputeUnitPrice
     /// 3. [Optional] Memo::Memo
     /// 4. AssociatedTokenAccount::CreateIdempotent (open owner's to_mint VM Deposit ATA)
-    /// 5. CoinbaseStableSwapper::Swap (owner's from_mint ATA -> owner's to_mint VM Deposit ATA)
+    /// 5. CoinbaseStableSwapper::SwapV2 (owner's from_mint ATA -> owner's to_mint VM Deposit ATA)
     /// ```
     ///
     /// Used by the on-app-open USDC → USDF sweep: source is the owner's plain
@@ -122,13 +122,13 @@ extension SwapInstructionBuilder {
             ).instruction()
         )
 
-        // 5. CoinbaseStableSwapper::Swap — owner's from-mint ATA → owner's to-mint VM Deposit ATA.
+        // 5. CoinbaseStableSwapper::SwapV2 — owner's from-mint ATA → owner's to-mint VM Deposit ATA.
         //    `minAmountOut: amount` enforces a 1:1 rate; the Coinbase Stable
         //    Swapper is a stable pair so any slippage indicates a misconfigured
         //    pool and the swap should fail server-side rather than silently
         //    lose value.
         instructions.append(
-            CoinbaseStableSwapperProgram.Swap(
+            CoinbaseStableSwapperProgram.SwapV2(
                 pool: swapAccounts.pool,
                 inVault: swapAccounts.inVault,
                 outVault: swapAccounts.outVault,
@@ -141,7 +141,6 @@ extension SwapInstructionBuilder {
                 fromMint: fromMint.address,
                 toMint: toMint.address,
                 user: owner,
-                whitelist: swapAccounts.whitelist,
                 amountIn: amount,
                 minAmountOut: amount
             ).instruction()

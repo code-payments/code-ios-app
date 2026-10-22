@@ -115,7 +115,8 @@ extension SwapInstructionBuilder {
             MemoProgram.Memo(message: swapId.base58).instruction()
         )
 
-        // 7. Swap (sender's USDC ATA → sender's USDF ATA)
+        // 7. Swap (sender's USDC ATA → sender's USDF ATA). The Coinbase pool uses
+        // `swap_v2`, which dropped the whitelist account.
         switch pool {
         case .usdf:
             instructions.append(
@@ -151,7 +152,7 @@ extension SwapInstructionBuilder {
             // misconfigured pool and the swap should fail rather than
             // silently lose value.
             instructions.append(
-                CoinbaseStableSwapperProgram.Swap(
+                CoinbaseStableSwapperProgram.SwapV2(
                     pool: swapAccounts.pool,
                     inVault: swapAccounts.inVault,
                     outVault: swapAccounts.outVault,
@@ -164,7 +165,6 @@ extension SwapInstructionBuilder {
                     fromMint: .usdc,
                     toMint: .usdf,
                     user: sender,
-                    whitelist: swapAccounts.whitelist,
                     amountIn: amount,
                     minAmountOut: amount
                 ).instruction()

@@ -1,5 +1,5 @@
 //
-//  CoinbaseStableSwapperProgram.Swap.swift
+//  CoinbaseStableSwapperProgram.SwapV2.swift
 //  FlipcashCore
 //
 
@@ -7,9 +7,11 @@ import Foundation
 
 extension CoinbaseStableSwapperProgram {
 
-    /// Anchor-format instruction for the Coinbase Stable Swapper's `swap` handler.
+    /// Anchor-format instruction for the Coinbase Stable Swapper's `swap_v2` handler.
     ///
-    ///   Account list (16, in this exact order):
+    /// Takes no whitelist account (the retired v1 `swap` handler had one).
+    ///
+    ///   Account list (15, in this exact order):
     ///   0. [] pool
     ///   1. [] inVault
     ///   2. [] outVault
@@ -22,12 +24,14 @@ extension CoinbaseStableSwapperProgram {
     ///   9. [] fromMint
     ///   10. [] toMint
     ///   11. [WRITE, SIGNER] user
-    ///   12. [] whitelist
-    ///   13. [] TokenProgram
-    ///   14. [] AssociatedTokenProgram
-    ///   15. [] SystemProgram
+    ///   12. [] TokenProgram
+    ///   13. [] AssociatedTokenProgram
+    ///   14. [] SystemProgram
     ///
-    public struct Swap {
+    public struct SwapV2 {
+
+        /// The `swap_version` a request must carry so the server builds the same instruction.
+        public static let version: UInt32 = 2
 
         public let pool: PublicKey
         public let inVault: PublicKey
@@ -41,12 +45,11 @@ extension CoinbaseStableSwapperProgram {
         public let fromMint: PublicKey
         public let toMint: PublicKey
         public let user: PublicKey
-        public let whitelist: PublicKey
         public let amountIn: UInt64
         public let minAmountOut: UInt64
 
-        /// Anchor discriminator for `swap`: sha256("global:swap")[0..8]
-        public static let discriminator: [UInt8] = [248, 198, 158, 145, 225, 117, 135, 200]
+        /// Anchor discriminator for `swap_v2`: sha256("global:swap_v2")[0..8]
+        public static let discriminator: [UInt8] = [43, 4, 237, 11, 26, 201, 30, 98]
 
         public init(
             pool: PublicKey,
@@ -61,7 +64,6 @@ extension CoinbaseStableSwapperProgram {
             fromMint: PublicKey,
             toMint: PublicKey,
             user: PublicKey,
-            whitelist: PublicKey,
             amountIn: UInt64,
             minAmountOut: UInt64
         ) {
@@ -77,7 +79,6 @@ extension CoinbaseStableSwapperProgram {
             self.fromMint = fromMint
             self.toMint = toMint
             self.user = user
-            self.whitelist = whitelist
             self.amountIn = amountIn
             self.minAmountOut = minAmountOut
         }
@@ -86,7 +87,7 @@ extension CoinbaseStableSwapperProgram {
 
 // MARK: - InstructionType -
 
-extension CoinbaseStableSwapperProgram.Swap: InstructionType {
+extension CoinbaseStableSwapperProgram.SwapV2: InstructionType {
 
     public init(instruction: Instruction) throws {
         throw CommandParseError.instructionMismatch
@@ -108,7 +109,6 @@ extension CoinbaseStableSwapperProgram.Swap: InstructionType {
                 .readonly(publicKey: fromMint),
                 .readonly(publicKey: toMint),
                 .writable(publicKey: user, signer: true),
-                .readonly(publicKey: whitelist),
                 .readonly(publicKey: TokenProgram.address),
                 .readonly(publicKey: AssociatedTokenProgram.address),
                 .readonly(publicKey: SystemProgram.address),

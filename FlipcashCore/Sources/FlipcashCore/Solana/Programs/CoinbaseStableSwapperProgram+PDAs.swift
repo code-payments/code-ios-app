@@ -38,25 +38,16 @@ extension CoinbaseStableSwapperProgram {
         )
     }
 
-    /// PDA: ["address_whitelist"] @ CoinbaseStableSwapperProgram
-    public static func deriveWhitelistAddress() -> ProgramDerivedAccount? {
-        ProgramDerivedAccount.findProgramAddress(
-            seeds: [Data("address_whitelist".utf8)],
-            program: address
-        )
-    }
-
-    /// The pool-side accounts a `Swap` instruction targets for a mint pair.
+    /// The pool-side accounts a `SwapV2` instruction targets for a mint pair.
     public struct SwapAccounts: Equatable, Sendable {
         public let pool: PublicKey
         public let inVault: PublicKey
         public let outVault: PublicKey
         public let inVaultTokenAccount: PublicKey
         public let outVaultTokenAccount: PublicKey
-        public let whitelist: PublicKey
     }
 
-    /// Derives every pool-side account `Swap` needs for the given mint pair,
+    /// Derives every pool-side account `SwapV2` needs for the given mint pair,
     /// or `nil` when any derivation fails.
     public static func deriveSwapAccounts(
         fromMint: PublicKey,
@@ -67,8 +58,7 @@ extension CoinbaseStableSwapperProgram {
             let inVault = deriveTokenVaultAddress(pool: pool.publicKey, mint: fromMint),
             let outVault = deriveTokenVaultAddress(pool: pool.publicKey, mint: toMint),
             let inVaultTokenAccount = deriveVaultTokenAccountAddress(vault: inVault.publicKey),
-            let outVaultTokenAccount = deriveVaultTokenAccountAddress(vault: outVault.publicKey),
-            let whitelist = deriveWhitelistAddress()
+            let outVaultTokenAccount = deriveVaultTokenAccountAddress(vault: outVault.publicKey)
         else {
             return nil
         }
@@ -78,8 +68,7 @@ extension CoinbaseStableSwapperProgram {
             inVault: inVault.publicKey,
             outVault: outVault.publicKey,
             inVaultTokenAccount: inVaultTokenAccount.publicKey,
-            outVaultTokenAccount: outVaultTokenAccount.publicKey,
-            whitelist: whitelist.publicKey
+            outVaultTokenAccount: outVaultTokenAccount.publicKey
         )
     }
 }

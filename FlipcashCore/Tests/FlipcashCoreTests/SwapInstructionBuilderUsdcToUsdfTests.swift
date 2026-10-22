@@ -262,7 +262,7 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         #expect(coinbase.data == legacy.data)
     }
 
-    @Test("Coinbase swap accounts: pool PDAs, sender ATAs, fee recipient, whitelist")
+    @Test("Coinbase swap accounts: pool PDAs, sender ATAs, fee recipient, no whitelist")
     func coinbase_swapAccounts() throws {
         let instructions = Self.makeCoinbaseInstructions()
         let ix = instructions[6]
@@ -272,14 +272,13 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         let outVault = try #require(CoinbaseStableSwapperProgram.deriveTokenVaultAddress(pool: pool, mint: .usdf)).publicKey
         let inVaultTokenAccount = try #require(CoinbaseStableSwapperProgram.deriveVaultTokenAccountAddress(vault: inVault)).publicKey
         let outVaultTokenAccount = try #require(CoinbaseStableSwapperProgram.deriveVaultTokenAccountAddress(vault: outVault)).publicKey
-        let whitelist = try #require(CoinbaseStableSwapperProgram.deriveWhitelistAddress()).publicKey
         let senderUsdcAta = instructions[4].accounts[1].publicKey
         let senderUsdfAta = instructions[2].accounts[1].publicKey
         let feeRecipientUsdcAta = try #require(
             PublicKey.deriveAssociatedAccount(from: Self.feeRecipient, mint: .usdc)
         ).publicKey
 
-        // Account list order documented on CoinbaseStableSwapperProgram.Swap.
+        // Account list order documented on CoinbaseStableSwapperProgram.SwapV2.
         #expect(ix.accounts[0].publicKey == pool)
         #expect(ix.accounts[1].publicKey == inVault)
         #expect(ix.accounts[2].publicKey == outVault)
@@ -293,14 +292,14 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         #expect(ix.accounts[10].publicKey == PublicKey.usdf)
         #expect(ix.accounts[11].publicKey == Self.sender)
         #expect(ix.accounts[11].isSigner)
-        #expect(ix.accounts[12].publicKey == whitelist)
+        #expect(ix.accounts.count == 15)
     }
 
     @Test("Coinbase swap data: discriminator + amountIn(8 LE) + minAmountOut(8 LE), both equal to amount")
     func coinbase_dataLayout() {
         let ix = Self.makeCoinbaseInstructions(amount: 20_000_000)[6]
         #expect(ix.data.count == 8 + 8 + 8)
-        #expect(Array(ix.data.prefix(8)) == CoinbaseStableSwapperProgram.Swap.discriminator)
+        #expect(Array(ix.data.prefix(8)) == CoinbaseStableSwapperProgram.SwapV2.discriminator)
         #expect(UInt64(bytes: Array(ix.data[8..<16])) == 20_000_000)
         #expect(UInt64(bytes: Array(ix.data[16..<24])) == 20_000_000)
     }

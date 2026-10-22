@@ -125,10 +125,10 @@ extension SwapInstructionBuilder {
             ).instruction()
         )
 
-        // 8. CoinbaseStableSwapper::Swap
+        // 8. CoinbaseStableSwapper::SwapV2
         //    Swaps USDF in the swap-authority's ATA for USDC into the destination-owner's ATA.
         instructions.append(
-            CoinbaseStableSwapperProgram.Swap(
+            CoinbaseStableSwapperProgram.SwapV2(
                 pool: swapAccounts.pool,
                 inVault: swapAccounts.inVault,
                 outVault: swapAccounts.outVault,
@@ -141,7 +141,6 @@ extension SwapInstructionBuilder {
                 fromMint: fromMintMetadata.address,
                 toMint: toMintMetadata.address,
                 user: swapAuthority,
-                whitelist: swapAccounts.whitelist,
                 amountIn: amount,
                 minAmountOut: minOutput
             ).instruction()

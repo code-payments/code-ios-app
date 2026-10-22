@@ -297,6 +297,8 @@ extension VerifiedSwapMetadata.ClientParameters {
             $0.fundingSource = fundingSource.protoSource
             $0.fundingID = fundingSource.fundingID
             $0.destinationOwner = destinationOwner.solanaAccountID
+            // Must match the instruction `TransactionBuilder.swapUsdfToUsdc` builds.
+            $0.swapVersion = CoinbaseStableSwapperProgram.SwapV2.version
         }
     }
 }
