@@ -30,13 +30,18 @@ final class BuyConfirmationViewModel {
 
     var canPerformAction: Bool { !pinnedState.isStale }
 
-    /// The USDF reserves buy carries a flat 1% fee added on top of the purchase;
-    /// the token-funded path uses the payment pool's own sell fee.
-    var feeBps: UInt64 { isUSDF ? 100 : UInt64(max(0, payment.sellFeeBps ?? 100)) }
+    /// The USDF reserves buy carries `LaunchpadFee.dollarsFeeBps` on top of the
+    /// purchase (zero by default); the token-funded path uses the payment pool's
+    /// own sell fee.
+    var feeBps: UInt64 { isUSDF ? LaunchpadFee.dollarsFeeBps : LaunchpadFee.poolSellFeeBps(payment.sellFeeBps) }
+
+    /// Whether the confirmation lists the fee breakdown (both rows). Hidden when paying with Dollars
+    /// at 0 bps; a token's pool fee that rounds to nothing still shows "~$0.00".
+    var hasFee: Bool { !(isUSDF && feeBps == 0) }
 
     var fee: ExchangedFiat {
         // Same call both ways: for USDF `paymentAmount` is the net purchase so
-        // this is 1% on top; for tokens it's the gross debit so this is the
+        // this is the on-top fee; for tokens it's the gross debit so this is the
         // implicit sell fee taken out.
         paymentAmount.launchpadSellFee(bps: feeBps)
     }

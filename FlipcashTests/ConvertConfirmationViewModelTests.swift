@@ -60,7 +60,7 @@ struct ConvertConfirmationViewModelTests {
         )
     }
 
-    /// Dollars → a token: a reserves buy. The flat 1% is added on top.
+    /// Dollars → a token: a reserves buy. `LaunchpadFee.dollarsFeeBps` is added on top.
     static func fromDollars(
         amount: ExchangedFiat? = nil,
         pinnedState: VerifiedState? = nil
@@ -179,15 +179,34 @@ struct ConvertConfirmationViewModelTests {
         #expect(Self.toDollars(amount: amount, sellFeeBps: -5).fee.onChainAmount.quarks == 0)
     }
 
-    @Test("Converting from Dollars charges a flat 1% regardless of the destination pool")
-    func fee_fromDollars_isFlatOnePercent() {
-        // 10,000 USDF (6 decimals) → 100 USDF fee.
+    @Test("Converting from Dollars is fee-free and hides the fee row")
+    func fee_fromDollars_isFree() {
         let viewModel = Self.fromDollars(amount: Self.dollarsAmount(onChainQuarks: 10_000_000_000))
 
         let fee = viewModel.fee
 
-        #expect(fee.onChainAmount.quarks == 100_000_000)
+        #expect(LaunchpadFee.dollarsFeeBps == 0)
+        #expect(fee.onChainAmount.quarks == 0)
         #expect(fee.mint == .usdf)
+        #expect(!viewModel.hasFee)
+    }
+
+    @Test("Converting to Dollars still charges the pool's sell fee and shows the fee row")
+    func fee_toDollars_stillChargesPoolFee() {
+        let viewModel = Self.toDollars(
+            amount: Self.tokenAmount(onChainQuarks: 10_000_000_000, nativeCAD: 13_500),
+            sellFeeBps: 100
+        )
+
+        #expect(viewModel.fee.onChainAmount.quarks == 100_000_000)
+        #expect(viewModel.hasFee)
+    }
+
+    @Test("A missing pool fee falls back to the house sell rate")
+    func poolSellFeeBps_fallsBackToHouseRate() {
+        #expect(LaunchpadFee.poolSellFeeBps(nil) == UInt64(LaunchpadFee.houseSellFeeBps))
+        #expect(LaunchpadFee.poolSellFeeBps(250) == 250)
+        #expect(LaunchpadFee.poolSellFeeBps(-5) == 0)
     }
 
     // MARK: - Fee formatting -
@@ -229,14 +248,14 @@ struct ConvertConfirmationViewModelTests {
         #expect(viewModel.totalDebited.onChainAmount.quarks == amount.onChainAmount.quarks)
     }
 
-    @Test("Converting from Dollars receives the amount in full and debits amount + fee")
+    @Test("Converting from Dollars receives the amount in full and debits it with nothing added")
     func amountAfterFee_fromDollars_addsFeeOnTop() {
         let amount = Self.dollarsAmount(onChainQuarks: 10_000_000_000)
         let viewModel = Self.fromDollars(amount: amount)
 
         #expect(viewModel.amountAfterFee.onChainAmount.quarks == amount.onChainAmount.quarks,
                 "the on-top fee must not shrink what the user receives")
-        #expect(viewModel.totalDebited.onChainAmount.quarks == 10_100_000_000)
+        #expect(viewModel.totalDebited.onChainAmount.quarks == 10_000_000_000)
         #expect(viewModel.totalDebited == amount.adding(viewModel.fee))
     }
 

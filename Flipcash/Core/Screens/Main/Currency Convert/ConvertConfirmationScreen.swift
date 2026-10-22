@@ -48,21 +48,27 @@ struct ConvertConfirmationScreen: View {
                         )
                         .padding(.top, 24)
 
-                        // Every conversion carries a fee: from Dollars it's added
-                        // on top of the purchase; otherwise it's taken out of the
-                        // converted amount. "Amount to convert" names the purchase
-                        // leg in both cases.
-                        VStack(spacing: 10) {
-                            ConfirmationBreakdownRow(
-                                title: "Amount to convert",
-                                value: (viewModel.isFromDollars ? viewModel.amountAfterFee : viewModel.amount).nativeAmount.formatted()
-                            )
-                            ConfirmationBreakdownRow(
-                                title: "Conversion fee",
-                                value: viewModel.feeFormatted
-                            )
+                        // A conversion's fee is added on top of the purchase from
+                        // Dollars; otherwise it's taken out of the converted amount.
+                        // With no fee (Dollars at 0 bps) the breakdown would only
+                        // repeat the total, so both rows are hidden.
+                        if viewModel.hasFee {
+                            VStack(spacing: 10) {
+                                ConfirmationBreakdownRow(
+                                    title: "Amount to convert",
+                                    value: (viewModel.isFromDollars ? viewModel.amountAfterFee : viewModel.amount).nativeAmount.formatted()
+                                )
+                                ConfirmationBreakdownRow(
+                                    title: "Conversion fee",
+                                    value: viewModel.feeFormatted
+                                )
+                            }
+                            .padding()
+                        } else {
+                            // Keep the room the breakdown's padding (16 above and
+                            // below) would give, so the two amounts don't crowd.
+                            Color.clear.frame(height: 32)
                         }
-                        .padding()
 
                         ConfirmationAmountRow(
                             title: "You Receive",

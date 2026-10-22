@@ -126,8 +126,8 @@ final class ConvertAmountViewModel {
     /// Drops the entry to the most the source balance can fund once the fee is
     /// applied, when the entry as typed would overrun it.
     ///
-    /// Only converting *out of Dollars* can overrun: that leg charges its 1% on
-    /// top of the entry, while a token source has the pool fee taken out of the
+    /// Only converting *out of Dollars* can overrun: that leg charges `LaunchpadFee.dollarsFeeBps` on
+    /// top of the entry (a no-op at 0 bps), while a token source has the pool fee taken out of the
     /// sale, so the debit never exceeds what was entered. Amount entry is capped
     /// at the raw balance, so the overrun is at most the fee — small and bounded
     /// enough to correct silently rather than put to the user.
@@ -139,7 +139,7 @@ final class ConvertAmountViewModel {
         guard let corrected = entryAffordableAfterFee(
             entered: entered,
             balance: balance,
-            feeBps: 100,
+            feeBps: LaunchpadFee.dollarsFeeBps,
             feeChargedOnTop: true
         ) else { return }
 
