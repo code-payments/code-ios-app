@@ -44,7 +44,8 @@ def build(seq):
     name = f"live-{seq}.dylib"
     out = os.path.join(OUT, name)
     flags = open(FLAGS).read().split("\n")
-    flags = [f for f in flags if f]
+    # xcrun names the SDK by its real path; a symlinked one in the flags loads every module map twice.
+    flags = [os.path.realpath(f) if f.endswith(".sdk") else f for f in flags if f]
     t0 = ms()
     r = subprocess.run(["xcrun", "--sdk", SDK, "swiftc", "-emit-library", "-Onone",
                         "-module-name", f"Live_{seq}", *flags,
