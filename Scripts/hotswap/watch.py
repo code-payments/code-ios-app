@@ -4,6 +4,10 @@
 # signing identity, publishes it to server.py and prints where the time went.
 #
 #   ./watch.py <codesign identity sha1> [port]
+#   ./watch.py --once <codesign identity sha1>
+#
+# --once is for loupe's hotswap extension: it builds Live.swift as Live_<HOTSWAP_SEQ> into
+# HOTSWAP_PATCHES, publishes nothing, and prints the notice JSON as its last stdout line.
 #
 # Needs a Debug device build in .build/dd (see Scripts/hotswap/flags.sh for how the compile flags
 # are recovered from it) and `server.py` running on the same port.
@@ -15,12 +19,14 @@ SRC = os.path.join(HERE, "Live.swift")
 PRODUCTS = os.path.join(REPO, ".build/dd/Build/Products/Debug-iphoneos")
 BASE = os.path.join(REPO, ".build/hotswap")
 OUT = os.path.join(BASE, "out")
-SERVE = os.path.join(BASE, "serve/patches")
+SERVE = os.environ.get("HOTSWAP_PATCHES") or os.path.join(BASE, "serve/patches")
 REPORTS = os.path.join(BASE, "serve/reports.jsonl")
 LOOP = os.path.join(BASE, "serve/loop.jsonl")
 FLAGS = os.path.join(BASE, "flags.txt")
-identity = sys.argv[1]
-port = sys.argv[2] if len(sys.argv) > 2 else "18490"
+ONCE = "--once" in sys.argv
+argv = [a for a in sys.argv[1:] if a != "--once"]
+identity = argv[0]
+port = argv[1] if len(argv) > 1 else "18490"
 
 
 def ms():
@@ -40,7 +46,7 @@ def build(seq):
                         SRC, "-o", out], capture_output=True, text=True)
     t1 = ms()
     if r.returncode:
-        print(r.stderr.strip(), flush=True)
+        print(r.stderr.strip(), file=sys.stderr if ONCE else sys.stdout, flush=True)
         return None
     subprocess.run(["codesign", "-f", "-s", identity, out], check=True, capture_output=True)
     t2 = ms()
@@ -78,6 +84,15 @@ def finish(seq, name, saved, detect, compile_ms, sign_ms, published):
 
 os.makedirs(OUT, exist_ok=True)
 os.makedirs(SERVE, exist_ok=True)
+if ONCE:
+    seq = int(os.environ["HOTSWAP_SEQ"])
+    saved = os.stat(SRC).st_mtime_ns // 1_000_000
+    built = build(seq)
+    if not built:
+        sys.exit(1)
+    name, compile_ms, sign_ms = built
+    print(json.dumps({"name": name, "savedAt": saved, "compileMs": compile_ms, "signMs": sign_ms}), flush=True)
+    sys.exit(0)
 seq = int(time.time())
 last = os.stat(SRC).st_mtime_ns
 print("watching", SRC, flush=True)
