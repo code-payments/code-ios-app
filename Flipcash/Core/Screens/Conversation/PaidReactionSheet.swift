@@ -138,7 +138,7 @@ private struct PaidReactionSheetContent: View {
         .sheet(isPresented: $isEnteringCustomAmount) {
             MinimumBalanceAmountSheet(
                 isPresented: $isEnteringCustomAmount,
-                title: "Paid Reaction",
+                title: "Boost Reaction",
                 hint: viewModel.splitDescription
             ) { amount in
                 let cents = Self.cents(amount)
