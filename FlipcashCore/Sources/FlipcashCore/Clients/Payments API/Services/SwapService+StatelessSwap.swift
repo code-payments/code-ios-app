@@ -186,11 +186,7 @@ extension SwapService {
         // serialization time, per `SwiftProtobuf.Message.sign(with:)`).
         let initiate = Ocp_Transaction_V1_StatelessSwapRequest.with {
             $0.initiate = .with {
-                $0.kind = .stablecoin(.with {
-                    $0.fromMint = fromMint.address.solanaAccountID
-                    $0.toMint = toMint.address.solanaAccountID
-                    $0.swapAmount = amount.quarks
-                })
+                $0.kind = .stablecoin(.coinbaseStableSwapper(fromMint: fromMint, toMint: toMint, amount: amount))
                 $0.owner = owner.publicKey.solanaAccountID
                 $0.waitForFinalization = true
                 $0.signature = $0.sign(with: owner)
@@ -198,6 +194,24 @@ extension SwapService {
         }
 
         reference.sendMessage(initiate)
+    }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapRequest.Initiate.CoinbaseStableSwapperClientParameters {
+
+    /// Initiate parameters for a stateless Coinbase swap, stamped with the version of the
+    /// instruction `TransactionBuilder.statelessSwap` builds so the two cannot drift.
+    static func coinbaseStableSwapper(
+        fromMint: MintMetadata,
+        toMint: MintMetadata,
+        amount: TokenAmount
+    ) -> Self {
+        .with {
+            $0.fromMint = fromMint.address.solanaAccountID
+            $0.toMint = toMint.address.solanaAccountID
+            $0.swapAmount = amount.quarks
+            $0.swapVersion = CoinbaseStableSwapperProgram.SwapV2.version
+        }
     }
 }
 
