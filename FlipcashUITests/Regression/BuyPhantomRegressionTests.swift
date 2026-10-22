@@ -10,7 +10,7 @@ import XCTest
 /// install:
 ///
 /// - The Wallet tab's Add Dollars tile opens the "Add Dollars With" picker.
-/// - Selecting Phantom opens the "Add Money With Phantom" education screen
+/// - Selecting Phantom opens the "Add Dollars With Phantom" education screen
 ///   with the "Connect Your Phantom Wallet" CTA.
 ///
 /// The test stops at the education screen: its CTA fires the Phantom connect

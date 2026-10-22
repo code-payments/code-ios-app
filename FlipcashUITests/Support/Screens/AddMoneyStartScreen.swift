@@ -54,7 +54,7 @@ struct AddMoneyStartScreen {
     // MARK: - Phantom education
 
     var phantomEducationTitle: XCUIElement {
-        app.staticTexts["Add Money With Phantom"]
+        app.staticTexts["Add Dollars With Phantom"]
     }
 
     var connectPhantomButton: XCUIElement {
@@ -80,7 +80,7 @@ struct AddMoneyStartScreen {
     func assertPhantomEducationReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
             phantomEducationTitle.waitForExistence(timeout: timeout),
-            "Expected the 'Add Money With Phantom' education screen"
+            "Expected the 'Add Dollars With Phantom' education screen"
         )
         XCTAssertTrue(
             connectPhantomButton.exists,
