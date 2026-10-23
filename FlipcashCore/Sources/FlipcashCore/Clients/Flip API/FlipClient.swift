@@ -41,6 +41,7 @@ public class FlipClient: ObservableObject {
     internal let reportingService: ReportingService
     internal let pollService: PollService
     internal let communityService: CommunityService
+    internal let paymentRequestService: PaymentRequestService
 
     /// The single per-user event stream. Started on login, stopped on logout.
     public let eventStreamer: EventStreamer
@@ -91,6 +92,7 @@ public class FlipClient: ObservableObject {
         self.reportingService   = ReportingService(client: client)
         self.pollService        = PollService(client: client)
         self.communityService   = CommunityService(client: client)
+        self.paymentRequestService = PaymentRequestService(client: client)
         self.eventStreamer      = EventStreamer(service: EventStreamingService(client: client))
     }
 
