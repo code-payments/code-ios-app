@@ -734,6 +734,9 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatMediaCell:
             guard case .media(let media) = message.content else { return }
+            // Before `configure`, which is where the caption's card draws.
+            cell.linkCardSource = linkCardSource
+            cell.webImages = mediaURLResolver.map(WebCardImages.init(resolver:))
             let remote = mediaURLResolver?.location(for: media, canReact: message.canReact) { [weak self] _ in
                 self?.reconfigureVisibleMessage(id: message.id)
             }
@@ -759,6 +762,7 @@ public final class ChatViewController: UICollectionViewController {
                 onMediaTap?(request)
             }
             cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
+            cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }

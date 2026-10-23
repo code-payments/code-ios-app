@@ -321,7 +321,7 @@ extension Flipcash_Messaging_V1_Content {
         case .text(let text):
             return (.text(text.text), nil, .first(of: text, sealedBy: senderID))
         case .media(let media):
-            return ConversationMessage.Content(sealed: media, senderID: senderID).map { ($0, nil, nil) }
+            return ConversationMessage.Content(sealed: media, senderID: senderID).map { ($0, nil, .first(of: media.caption, sealedBy: senderID)) }
         case .reply(let reply):
             guard reply.content.count == 1 else { return nil }
             let repliedTo = MessageID(reply.repliedMessageID)
@@ -329,7 +329,7 @@ extension Flipcash_Messaging_V1_Content {
             case .text(let text):
                 return (.text(text.text), repliedTo, .first(of: text, sealedBy: senderID))
             case .media(let media):
-                return ConversationMessage.Content(sealed: media, senderID: senderID).map { ($0, repliedTo, nil) }
+                return ConversationMessage.Content(sealed: media, senderID: senderID).map { ($0, repliedTo, .first(of: media.caption, sealedBy: senderID)) }
             case .cash, .system, .widget, .deleted, .encrypted, .reply, nil:
                 return nil
             }

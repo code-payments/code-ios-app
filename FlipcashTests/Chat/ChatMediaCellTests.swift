@@ -150,11 +150,15 @@ struct ChatMediaCellTests {
         #expect(cell.imageView.image === image)
     }
 
+    private func captionText(_ cell: ChatMediaCell) -> LinkTextView? {
+        cell.captionBubble.descendants(of: LinkTextView.self).first
+    }
+
     @Test("A caption shows as its own bubble")
     func showsCaption() {
         let cell = configuredCell(media(caption: "hi"))
         #expect(cell.captionBubble.isHidden == false)
-        #expect(cell.captionView.text == "hi")
+        #expect(captionText(cell)?.text == "hi")
     }
 
     @Test("A caption's mentions are drawn as pills on the caption's pill layer")
@@ -163,22 +167,24 @@ struct ChatMediaCellTests {
         let mentions = MentionDetector.mentions(in: caption, excluding: [])
         let cell = configuredCell(ChatMediaContent(
             blobID: BlobID(data: Data([1])), width: 1179, height: 2556, blurhash: Self.blurhash,
-            caption: caption, captionMentions: mentions, isRedacted: false
+            caption: caption, captionPreview: LinkPreview(links: [], mentions: mentions), isRedacted: false
         ))
         cell.layoutIfNeeded()
 
         #expect(mentions.count == 2)
-        let layer = try #require(cell.captionView.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
+        let text = try #require(captionText(cell))
+        let layer = try #require(text.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
         let path = try #require(layer.path)
         #expect(!path.boundingBoxOfPath.isEmpty)
-        #expect(cell.captionView.mentionPillRects.count == 2)
+        #expect(text.mentionPillRects.count == 2)
     }
 
     @Test("A caption with no mentions draws no pills")
     func plainCaptionDrawsNoPills() throws {
         let cell = configuredCell(media(caption: "just words"))
         cell.layoutIfNeeded()
-        let layer = try #require(cell.captionView.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
+        let text = try #require(captionText(cell))
+        let layer = try #require(text.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
         #expect(layer.path?.boundingBoxOfPath.isEmpty ?? true)
     }
 
@@ -186,6 +192,73 @@ struct ChatMediaCellTests {
     func hidesEmptyCaption(caption: String?) {
         let cell = configuredCell(media(caption: caption))
         #expect(cell.captionBubble.isHidden)
+    }
+
+    private final class StubTap: UITapGestureRecognizer {
+        var point: CGPoint = .zero
+        override func location(in view: UIView?) -> CGPoint { point }
+    }
+
+    private static let linkURL = URL(string: "https://apple.com/mac")!
+
+    private func captionWithLink(card: Bool) -> ChatMediaCell {
+        let url = Self.linkURL
+        let caption = "look https://apple.com/mac"
+        let link = DetectedLink(range: NSRange(location: 5, length: 21), url: url)
+        let page = MessageLinkPreview(url: url.absoluteString, title: "Mac", description: nil, image: nil)
+        let preview = LinkPreview(
+            links: [link],
+            card: card ? .web(LinkCard.Web(url: url, range: link.range, page: page)) : nil
+        )
+        let cell = configuredCell(ChatMediaContent(
+            blobID: BlobID(data: Data([1])), width: 1179, height: 2556, blurhash: Self.blurhash,
+            caption: caption, captionPreview: preview, isRedacted: false
+        ))
+        cell.layoutIfNeeded()
+        return cell
+    }
+
+    @Test("A link in a caption is underlined and a tap on it fires the open-URL handler")
+    func captionLinkTapOpensURL() throws {
+        let cell = captionWithLink(card: false)
+        var opened: [URL] = []
+        cell.onOpenURL = { opened.append($0) }
+
+        let text = try #require(captionText(cell))
+        #expect(text.attributedText.attribute(.link, at: 6, effectiveRange: nil) as? URL == Self.linkURL)
+
+        let start = try #require(text.position(from: text.beginningOfDocument, offset: 8))
+        let end = try #require(text.position(from: start, offset: 1))
+        let rect = text.firstRect(for: try #require(text.textRange(from: start, to: end)))
+        let tap = StubTap()
+        tap.point = CGPoint(x: rect.midX, y: rect.midY)
+        cell.captionBubble.perform(NSSelectorFromString("spanTapped:"), with: tap)
+        #expect(opened == [Self.linkURL])
+
+        tap.point = CGPoint(x: rect.midX, y: rect.midY + 400)
+        cell.captionBubble.perform(NSSelectorFromString("spanTapped:"), with: tap)
+        #expect(opened == [Self.linkURL])
+    }
+
+    @Test("A caption with a web card shows the text bubble's card under the text, and the card opens the page")
+    func captionShowsWebCard() throws {
+        let cell = captionWithLink(card: true)
+        var opened: [URL] = []
+        cell.onOpenURL = { opened.append($0) }
+
+        let card = cell.captionBubble.cardView
+        let text = try #require(captionText(cell))
+        #expect(!card.isHidden)
+        #expect(card.drawsWebPreview)
+        #expect(card.convert(card.bounds, to: cell.captionBubble).minY >= text.convert(text.bounds, to: cell.captionBubble).maxY - 0.5)
+        card.onCardButton?()
+        #expect(opened == [Self.linkURL])
+    }
+
+    @Test("A caption with no web card shows no card")
+    func captionWithoutCardHidesCard() {
+        let cell = captionWithLink(card: false)
+        #expect(cell.captionBubble.cardView.isHidden)
     }
 
     // MARK: - Reply quote -

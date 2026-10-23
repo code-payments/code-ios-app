@@ -312,14 +312,16 @@ extension ChatItem {
                 // A redacted photo stays a photo row, drawn from its BlurHash, rather than a tombstone.
                 // A send carries one attachment (see `ChatMediaSendPlan`); the row draws the first.
                 let attachment = attachments.first
+                // The detection a text body gets: links, mentions, and the web card its sender attached.
+                // No card resolver runs, so a Flipcash link in a caption stays an underlined link:
+                // a card among a caption's words has no design yet.
                 content = .media(ChatMediaContent(
                     blobID: attachment?.blobID,
                     width: attachment?.width ?? 0,
                     height: attachment?.height ?? 0,
                     blurhash: attachment?.blurhash,
                     caption: caption,
-                    // Mentions only: a caption never grows a link card, so no card resolver runs.
-                    captionMentions: caption.flatMap { detectedLink(in: $0, card: { _ in nil })?.mentions } ?? [],
+                    captionPreview: caption.flatMap { detectedLink(in: $0, card: { _ in nil }, page: message.linkPreview) },
                     isRedacted: message.redacted,
                     sealed: attachment?.sealed
                 ))

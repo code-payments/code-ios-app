@@ -399,6 +399,7 @@ extension ConversationMessage {
             case .media(let mediaContent):
                 guard let content = Content(mediaContent) else { return nil }
                 self.content = content
+                linkPreview = .first(of: mediaContent.caption)
             case .cash, .deleted, .reply, .encrypted, .system, .widget, .none:
                 return nil
             }
@@ -407,6 +408,7 @@ extension ConversationMessage {
         case .media(let mediaContent):
             guard let content = Content(mediaContent) else { return nil }
             self.content = content
+            linkPreview = .first(of: mediaContent.caption)
             self.cashAction = nil
             repliedTo = nil
         case .encrypted(let encryptedContent):

@@ -26,7 +26,6 @@ public final class ChatMediaCell: ChatColumnCell {
     /// two read as one run.
     static let captionGap: CGFloat = 5
     private static let captionInset: CGFloat = 12
-    private static let captionPadding: CGFloat = 9
     private static let fadeDuration: TimeInterval = 0.25
     /// The progress capsule's inset from the photo's bottom-right corner.
     private static let progressInset: CGFloat = 10
@@ -48,14 +47,18 @@ public final class ChatMediaCell: ChatColumnCell {
     /// A reply's quote, drawn over the photo. A sibling of the photo rather than its subview, so it
     /// stays its own accessibility element and its tap never reaches the photo's.
     let quotePanel = ChatQuotePanelView()
-    let captionBubble = BubbleBackgroundView()
-    let captionView = LinkTextView()
+    /// The caption, drawn by the same view a text message uses, so its links, mention pills, web
+    /// card, taps and chrome are the text bubble's own.
+    let captionBubble = LinkableBubbleView()
     let reactionRow = ReactionPillRowView()
     let imageTap = UITapGestureRecognizer()
 
     private var imageWidthConstraint: NSLayoutConstraint!
     private var imageHeightConstraint: NSLayoutConstraint!
     private var captionMaxWidthConstraint: NSLayoutConstraint!
+    /// Holds a bare caption card open at the bubble's full width, as `ChatLinkMessageCell` does.
+    private var captionCardWidthConstraint: NSLayoutConstraint!
+    private var captionMessage: ChatMessage?
     private var reactionRowWidthConstraint: NSLayoutConstraint!
 
     /// The row the image view is currently drawing, so a pending row that confirms keeps its local
@@ -82,16 +85,20 @@ public final class ChatMediaCell: ChatColumnCell {
     var onReactionBoost: (() -> Void)?
 
     /// Fired when the viewer taps an `@handle` in the caption, with the handle it names.
-    var onMentionTap: ((Username) -> Void)?
-
-    @objc private func captionTapped(_ tap: UITapGestureRecognizer) {
-        let point = tap.location(in: captionView)
-        guard let character = captionView.characterRange(at: point),
-              captionView.firstRect(for: character).insetBy(dx: -4, dy: -4).contains(point),
-              let text = captionView.attributedText
-        else { return }
-        let index = captionView.offset(from: captionView.beginningOfDocument, to: character.start)
-        if case .mention(let username) = LinkableBubbleView.span(in: text, at: index) { onMentionTap?(username) }
+    var onMentionTap: ((Username) -> Void)? {
+        didSet { captionBubble.onMentionTap = onMentionTap }
+    }
+    /// Fired when the viewer taps a link in the caption.
+    var onOpenURL: ((URL) -> Void)? {
+        didSet { captionBubble.onOpenURL = onOpenURL }
+    }
+    weak var linkCardSource: (any LinkCardSource)? {
+        didSet { captionBubble.linkCardSource = linkCardSource }
+    }
+    /// Where the caption's web card gets its image. Set before `configure`.
+    var webImages: WebCardImages? {
+        get { captionBubble.webImages }
+        set { captionBubble.webImages = newValue }
     }
 
     public override init(frame: CGRect) {
@@ -116,18 +123,14 @@ public final class ChatMediaCell: ChatColumnCell {
         imageTap.addTarget(self, action: #selector(imageTapped))
         imageBubble.addGestureRecognizer(imageTap)
 
-        captionView.isScrollEnabled = false
-        captionView.isEditable = false
-        captionView.backgroundColor = .clear
-        captionView.textContainerInset = .zero
-        captionView.textContainer.lineFragmentPadding = 0
-        captionView.dataDetectorTypes = []
-        captionView.font = .default(size: 16, weight: .medium)
-        captionView.textColor = .white
-        captionView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(captionTapped)))
-        captionView.translatesAutoresizingMaskIntoConstraints = false
-        captionBubble.addSubview(captionView)
         captionBubble.isHidden = true
+        // The transcript self-sizes on invalidation, so a web card that grows after its preview
+        // lands re-measures its row, and a link-only caption going bare re-measures its width.
+        captionBubble.onCardHeightChange = { [weak self] in self?.contentView.invalidateIntrinsicContentSize() }
+        captionBubble.onBareChange = { [weak self] in
+            self?.applyCaptionBareness()
+            self?.contentView.invalidateIntrinsicContentSize()
+        }
 
         stack.axis = .vertical
         stack.spacing = Self.captionGap
@@ -150,6 +153,8 @@ public final class ChatMediaCell: ChatColumnCell {
         imageHeightConstraint = imageBubble.heightAnchor.constraint(equalToConstant: 240)
         imageHeightConstraint.priority = UILayoutPriority(999)
         captionMaxWidthConstraint = captionBubble.widthAnchor.constraint(lessThanOrEqualToConstant: 240)
+        captionCardWidthConstraint = captionBubble.widthAnchor.constraint(equalToConstant: 240)
+        captionCardWidthConstraint.priority = .defaultHigh
         reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 240)
 
         NSLayoutConstraint.activate([
@@ -176,11 +181,6 @@ public final class ChatMediaCell: ChatColumnCell {
             quotePanel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.quoteInset),
             quotePanel.widthAnchor.constraint(lessThanOrEqualTo: imageBubble.widthAnchor, multiplier: Self.quoteMaxWidthFraction),
             quotePanel.bottomAnchor.constraint(lessThanOrEqualTo: imageBubble.bottomAnchor, constant: -Self.quoteInset),
-
-            captionView.topAnchor.constraint(equalTo: captionBubble.topAnchor, constant: Self.captionPadding),
-            captionView.bottomAnchor.constraint(equalTo: captionBubble.bottomAnchor, constant: -Self.captionPadding),
-            captionView.leadingAnchor.constraint(equalTo: captionBubble.leadingAnchor, constant: Self.captionInset),
-            captionView.trailingAnchor.constraint(equalTo: captionBubble.trailingAnchor, constant: -Self.captionInset),
         ])
     }
 
@@ -195,8 +195,16 @@ public final class ChatMediaCell: ChatColumnCell {
             || authorAvatarContains(point)
     }
 
+    /// A bare caption card runs to the full bubble width, as in a text row.
+    private func applyCaptionBareness() {
+        captionCardWidthConstraint.isActive = captionBubble.isBare
+    }
+
     public override func prepareForReuse() {
         super.prepareForReuse()
+        captionMessage = nil
+        captionBubble.prepareForReuse()
+        captionCardWidthConstraint.isActive = false
         imageView.kf.cancelDownloadTask()
         imageView.image = nil
         showUnavailable(false)
@@ -250,15 +258,31 @@ public final class ChatMediaCell: ChatColumnCell {
         imageTap.isEnabled = !blurhashOnly && !message.isFailed
 
         let caption = media.caption.flatMap { $0.isEmpty ? nil : $0 }
-        captionView.attributedText = caption.map { text in
-            let body = NSAttributedString(string: text, attributes: [
-                .font: UIFont.default(size: 16, weight: .medium),
-                .foregroundColor: UIColor.white,
-            ])
-            return LinkableBubbleView.marked(body, links: [], mentions: media.captionMentions)
-        }
-        captionBubble.isHidden = caption == nil
         captionMaxWidthConstraint.constant = maxWidth
+        captionCardWidthConstraint.constant = maxWidth
+        captionBubble.webPreviewBubbleWidth = maxWidth
+        if let caption {
+            // The caption is a text message's body in the same place: the text bubble draws it from
+            // a text row of its own words, preview, and bubble-run position.
+            let captionRow = ChatMessage(
+                id: message.id,
+                text: caption,
+                sender: message.sender,
+                joinsBubbleAbove: true,
+                joinsBubbleBelow: message.joinsBubbleBelow,
+                linkPreview: media.captionPreview
+            )
+            captionMessage = captionRow
+            captionBubble.configure(with: captionRow)
+            captionBubble.isHidden = false
+            applyCaptionBareness()
+        } else {
+            captionMessage = nil
+            captionBubble.prepareForReuse()
+            captionBubble.isHidden = true
+        }
+        // A failed row's whole column is the retry target, so the caption's link taps stand down.
+        captionBubble.isUserInteractionEnabled = !message.isFailed
 
         let isFromSelf = message.sender == .me
         let fill = BubbleBackgroundView.fill(isFromSelf: isFromSelf)
@@ -269,11 +293,6 @@ public final class ChatMediaCell: ChatColumnCell {
                 groupedAbove: message.joinsBubbleAbove,
                 groupedBelow: caption != nil || message.joinsBubbleBelow
             ),
-            identity: message.id
-        )
-        captionBubble.apply(
-            fill: fill,
-            radii: BubbleBackgroundView.radii(isFromSelf: isFromSelf, groupedAbove: true, groupedBelow: message.joinsBubbleBelow),
             identity: message.id
         )
         stack.alignment = isFromSelf ? .trailing : .leading
@@ -354,10 +373,13 @@ extension ChatMediaCell: BubbleCarrying {
 
     var liftPreviewMaskingPath: UIBezierPath? {
         let path = UIBezierPath()
-        for bubble in [imageBubble, captionBubble] where !bubble.isHidden {
-            let shape = bubble.maskingPath
-            shape.apply(CGAffineTransform(translationX: bubble.frame.minX, y: bubble.frame.minY))
-            path.append(shape)
+        let bubbles: [(frame: CGRect, shape: UIBezierPath)] = [
+            (imageBubble.frame, imageBubble.maskingPath),
+            (captionBubble.frame, captionBubble.maskingPath),
+        ]
+        for (bubble, hidden) in zip(bubbles, [imageBubble.isHidden, captionBubble.isHidden]) where !hidden {
+            bubble.shape.apply(CGAffineTransform(translationX: bubble.frame.minX, y: bubble.frame.minY))
+            path.append(bubble.shape)
         }
         return path
     }
