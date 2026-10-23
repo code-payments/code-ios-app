@@ -312,17 +312,18 @@ extension ChatItem {
                 // A redacted photo stays a photo row, drawn from its BlurHash, rather than a tombstone.
                 // A send carries one attachment (see `ChatMediaSendPlan`); the row draws the first.
                 let attachment = attachments.first
-                // The detection a text body gets: links, mentions, the web card its sender attached, and
-                // a Flipcash card when the caption is that link and nothing else, so it draws bare under
-                // the photo as a card-only text message does. A Flipcash link among a caption's words
-                // stays an underlined link: a card among words has no design yet.
+                // The detection a text body gets: links, mentions, and a Flipcash card when the caption
+                // is that link and nothing else, so it draws bare under the photo as a card-only text
+                // message does. A Flipcash link among a caption's words stays an underlined link: a card
+                // among words has no design yet. A caption never carries a sender web card: a client
+                // sends the text as its own message.
                 content = .media(ChatMediaContent(
                     blobID: attachment?.blobID,
                     width: attachment?.width ?? 0,
                     height: attachment?.height ?? 0,
                     blurhash: attachment?.blurhash,
                     caption: caption,
-                    captionPreview: caption.flatMap { captionPreview(for: $0, card: linkCard, page: message.linkPreview) },
+                    captionPreview: caption.flatMap { captionPreview(for: $0, card: linkCard) },
                     isRedacted: message.redacted,
                     sealed: attachment?.sealed
                 ))
@@ -618,19 +619,14 @@ extension ChatItem {
     /// around it. A card among a caption's words is dropped back to underlined link text.
     nonisolated static func captionPreview(
         for caption: String,
-        card: ([DetectedLink]) -> LinkCard?,
-        page: MessageLinkPreview? = nil
+        card: ([DetectedLink]) -> LinkCard?
     ) -> LinkPreview? {
-        guard let preview = detectedLink(in: caption, card: card, page: page) else { return nil }
-        switch preview.card {
-        case nil, .web?:
-            return preview
-        case .some:
-            let layout = rows(for: caption, preview: preview)
-            if layout.count == 1, layout[0].part == .card { return preview }
-            guard !preview.links.isEmpty || !preview.mentions.isEmpty else { return nil }
-            return LinkPreview(links: preview.links, mentions: preview.mentions)
-        }
+        guard let preview = detectedLink(in: caption, card: card) else { return nil }
+        guard preview.card != nil else { return preview }
+        let layout = rows(for: caption, preview: preview)
+        if layout.count == 1, layout[0].part == .card { return preview }
+        guard !preview.links.isEmpty || !preview.mentions.isEmpty else { return nil }
+        return LinkPreview(links: preview.links, mentions: preview.mentions)
     }
 
     /// What a text row may hold and still say nothing: a segment of only these is dropped, not

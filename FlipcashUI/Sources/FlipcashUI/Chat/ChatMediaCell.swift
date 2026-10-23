@@ -47,7 +47,7 @@ public final class ChatMediaCell: ChatColumnCell {
     /// A reply's quote, drawn over the photo. A sibling of the photo rather than its subview, so it
     /// stays its own accessibility element and its tap never reaches the photo's.
     let quotePanel = ChatQuotePanelView()
-    /// The caption, drawn by the same view a text message uses, so its links, mention pills, web
+    /// The caption, drawn by the same view a text message uses, so its links, mention pills, Flipcash
     /// card, taps and chrome are the text bubble's own.
     let captionBubble = LinkableBubbleView()
     /// An emoji-only caption: the view a text message of one to three emoji uses, drawn bare and
@@ -103,11 +103,6 @@ public final class ChatMediaCell: ChatColumnCell {
     weak var linkCardSource: (any LinkCardSource)? {
         didSet { captionBubble.linkCardSource = linkCardSource }
     }
-    /// Where the caption's web card gets its image. Set before `configure`.
-    var webImages: WebCardImages? {
-        get { captionBubble.webImages }
-        set { captionBubble.webImages = newValue }
-    }
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -133,7 +128,7 @@ public final class ChatMediaCell: ChatColumnCell {
 
         captionBubble.isHidden = true
         captionEmoji.isHidden = true
-        // The transcript self-sizes on invalidation, so a web card that grows after its preview
+        // The transcript self-sizes on invalidation, so a card that grows after its preview
         // lands re-measures its row, and a link-only caption going bare re-measures its width.
         captionBubble.onCardHeightChange = { [weak self] in self?.contentView.invalidateIntrinsicContentSize() }
         captionBubble.onBareChange = { [weak self] in
@@ -281,7 +276,6 @@ public final class ChatMediaCell: ChatColumnCell {
         captionMaxWidthConstraint.constant = captionMax
         captionCardWidthConstraint.constant = captionMax
         captionEmojiMaxWidthConstraint.constant = maxWidth
-        captionBubble.webPreviewBubbleWidth = captionMax
         if let caption {
             // The caption is a text message's body in the same place: an emoji-only one draws as the
             // text path's bare emoji, anything else through the text bubble, from a text row of its

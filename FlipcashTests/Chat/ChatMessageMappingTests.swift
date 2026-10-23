@@ -417,30 +417,6 @@ struct ChatMessageMappingTests {
         #expect(rows[0].linkPreview == nil) // the row is never split around a card
     }
 
-    @Test("A caption's sender-attached web card maps to the card the text path yields")
-    func mediaCaptionWebCard() throws {
-        let caption = "look https://apple.com/mac"
-        let page = MessageLinkPreview(url: "https://apple.com/mac", title: "Mac", description: nil, image: nil)
-        let attachment = MediaAttachment(blobID: BlobID(data: Data([9, 8, 7])), width: 300, height: 400, blurhash: "LEHV6nWB2yk8")
-        let messages = [
-            ConversationMessage(id: MessageID(value: 1), senderID: them, content: .media([attachment], caption: caption), date: base, unreadSeq: 1, linkPreview: page),
-            ConversationMessage(id: MessageID(value: 2), senderID: them, content: .text(caption), date: base, unreadSeq: 2, linkPreview: page),
-        ]
-
-        let rows = messageRows(ChatItem.from(messages, selfUserID: me))
-
-        guard case .media(let media) = rows[0].content else {
-            Issue.record("expected media content")
-            return
-        }
-        guard case .web(let web)? = media.captionPreview?.card else {
-            Issue.record("expected a web card, got \(String(describing: media.captionPreview))")
-            return
-        }
-        #expect(web.page.title == "Mac")
-        #expect(media.captionPreview == rows[1].linkPreview)
-    }
-
     @Test("Tipped cash messages carry the tip flag and caption")
     func tippedCash() {
         let fiat = ExchangedFiat(

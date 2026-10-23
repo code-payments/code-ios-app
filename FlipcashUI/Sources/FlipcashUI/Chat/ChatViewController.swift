@@ -740,7 +740,6 @@ public final class ChatViewController: UICollectionViewController {
             guard case .media(let media) = message.content else { return }
             // Before `configure`, which is where the caption's card draws.
             cell.linkCardSource = linkCardSource
-            cell.webImages = mediaURLResolver.map(WebCardImages.init(resolver:))
             let remote = mediaURLResolver?.location(for: media, canReact: message.canReact) { [weak self] _ in
                 self?.reconfigureVisibleMessage(id: message.id)
             }

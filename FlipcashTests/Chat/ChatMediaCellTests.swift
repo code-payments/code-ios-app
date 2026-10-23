@@ -201,15 +201,11 @@ struct ChatMediaCellTests {
 
     private static let linkURL = URL(string: "https://apple.com/mac")!
 
-    private func captionWithLink(card: Bool) -> ChatMediaCell {
+    private func captionWithLink() -> ChatMediaCell {
         let url = Self.linkURL
         let caption = "look https://apple.com/mac"
         let link = DetectedLink(range: NSRange(location: 5, length: 21), url: url)
-        let page = MessageLinkPreview(url: url.absoluteString, title: "Mac", description: nil, image: nil)
-        let preview = LinkPreview(
-            links: [link],
-            card: card ? .web(LinkCard.Web(url: url, range: link.range, page: page)) : nil
-        )
+        let preview = LinkPreview(links: [link])
         let cell = configuredCell(ChatMediaContent(
             blobID: BlobID(data: Data([1])), width: 1179, height: 2556, blurhash: Self.blurhash,
             caption: caption, captionPreview: preview, isRedacted: false
@@ -220,7 +216,7 @@ struct ChatMediaCellTests {
 
     @Test("A link in a caption is underlined and a tap on it fires the open-URL handler")
     func captionLinkTapOpensURL() throws {
-        let cell = captionWithLink(card: false)
+        let cell = captionWithLink()
         var opened: [URL] = []
         cell.onOpenURL = { opened.append($0) }
 
@@ -240,24 +236,9 @@ struct ChatMediaCellTests {
         #expect(opened == [Self.linkURL])
     }
 
-    @Test("A caption with a web card shows the text bubble's card under the text, and the card opens the page")
-    func captionShowsWebCard() throws {
-        let cell = captionWithLink(card: true)
-        var opened: [URL] = []
-        cell.onOpenURL = { opened.append($0) }
-
-        let card = cell.captionBubble.cardView
-        let text = try #require(captionText(cell))
-        #expect(!card.isHidden)
-        #expect(card.drawsWebPreview)
-        #expect(card.convert(card.bounds, to: cell.captionBubble).minY >= text.convert(text.bounds, to: cell.captionBubble).maxY - 0.5)
-        card.onCardButton?()
-        #expect(opened == [Self.linkURL])
-    }
-
-    @Test("A caption with no web card shows no card")
+    @Test("A caption with only a plain link shows no card")
     func captionWithoutCardHidesCard() {
-        let cell = captionWithLink(card: false)
+        let cell = captionWithLink()
         #expect(cell.captionBubble.cardView.isHidden)
     }
 
