@@ -71,7 +71,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .derived
-          key: vectors-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}
+          key: vectors-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved', '!.derived/**') }}
           restore-keys: |
             vectors-dd-${{ runner.os }}-
 
@@ -83,6 +83,9 @@ jobs:
           set -euo pipefail
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          # Boot now so it overlaps the package resolve and compile; xcodebuild
+          # otherwise boots it cold when testing starts (~2 minutes on the runner).
+          xcrun simctl boot "$UDID" || true
 
       - name: Ed25519 vectors
         working-directory: CrossPlatformVectors
@@ -122,6 +125,12 @@ jobs:
           fi
           xcodebuild -version
 
+      # Hashed before the build: afterwards .derived/ holds the SwiftPM checkouts,
+      # whose Package.swift files would change the hash and miss the `ui` restore.
+      - name: Cache key
+        id: key
+        run: echo "dd=app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}" >> "$GITHUB_OUTPUT"
+
       # Restored everywhere. Saved only off pull_request: a ~GB cache per PR push
       # would evict the main-branch seed that every PR starts from. The `ui` job
       # restores the exact-sha entry this job saves, so it does not rebuild.
@@ -130,9 +139,9 @@ jobs:
         id: dd
         with:
           path: .derived/app
-          key: app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}-${{ github.sha }}
+          key: ${{ steps.key.outputs.dd }}-${{ github.sha }}
           restore-keys: |
-            app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}-
+            ${{ steps.key.outputs.dd }}-
             app-dd-${{ runner.os }}-
 
       - name: Pick a simulator
@@ -141,6 +150,9 @@ jobs:
           set -euo pipefail
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          # Boot now so it overlaps the package resolve and compile; xcodebuild
+          # otherwise boots it cold when testing starts (~2 minutes on the runner).
+          xcrun simctl boot "$UDID" || true
 
       # Builds both test targets (FlipcashTests and FlipcashUITests) once, so the
       # `ui` job can test-without-building from the cache. The build runs -quiet
@@ -159,7 +171,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .derived/app
-          key: app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}-${{ github.sha }}
+          key: ${{ steps.key.outputs.dd }}-${{ github.sha }}
 
       # The app target's own vector suites -- chat drafts, link detection, and chat
       # media -- assert against types only the app has, so they cannot move into
@@ -238,7 +250,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .derived/app
-          key: app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}-${{ github.sha }}
+          key: app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved', '!.derived/**') }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Pick a simulator
@@ -247,6 +259,9 @@ jobs:
           set -euo pipefail
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          # Boot now so it overlaps the package resolve and compile; xcodebuild
+          # otherwise boots it cold when testing starts (~2 minutes on the runner).
+          xcrun simctl boot "$UDID" || true
 
       - name: UI smoke tests
         run: |
