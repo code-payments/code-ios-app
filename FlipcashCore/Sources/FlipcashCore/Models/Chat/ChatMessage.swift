@@ -384,17 +384,20 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
     public let blurhash: String?
     /// The text sent with the photo, drawn as its own bubble under the image.
     public let caption: String?
+    /// Every well-formed `@handle` in `caption`, as UTF-16 offsets into it, drawn as pills.
+    public let captionMentions: [DetectedMention]
     /// Whether the server withheld the photo's download URL; the bubble then only ever draws its BlurHash.
     public let isRedacted: Bool
     /// What decrypting the blob needs when it is end-to-end encrypted, nil for a plaintext blob.
     public let sealed: SealedBlob?
 
-    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, isRedacted: Bool, sealed: SealedBlob? = nil) {
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionMentions: [DetectedMention] = [], isRedacted: Bool, sealed: SealedBlob? = nil) {
         self.blobID = blobID
         self.width = width
         self.height = height
         self.blurhash = blurhash
         self.caption = caption
+        self.captionMentions = captionMentions
         self.isRedacted = isRedacted
         self.sealed = sealed
     }

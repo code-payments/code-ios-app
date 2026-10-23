@@ -154,7 +154,32 @@ struct ChatMediaCellTests {
     func showsCaption() {
         let cell = configuredCell(media(caption: "hi"))
         #expect(cell.captionBubble.isHidden == false)
-        #expect(cell.captionLabel.text == "hi")
+        #expect(cell.captionView.text == "hi")
+    }
+
+    @Test("A caption's mentions are drawn as pills on the caption's pill layer")
+    func captionDrawsMentionPills() throws {
+        let caption = "Any idea @jeff @mcansh?"
+        let mentions = MentionDetector.mentions(in: caption, excluding: [])
+        let cell = configuredCell(ChatMediaContent(
+            blobID: BlobID(data: Data([1])), width: 1179, height: 2556, blurhash: Self.blurhash,
+            caption: caption, captionMentions: mentions, isRedacted: false
+        ))
+        cell.layoutIfNeeded()
+
+        #expect(mentions.count == 2)
+        let layer = try #require(cell.captionView.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
+        let path = try #require(layer.path)
+        #expect(!path.boundingBoxOfPath.isEmpty)
+        #expect(cell.captionView.mentionPillRects.count == 2)
+    }
+
+    @Test("A caption with no mentions draws no pills")
+    func plainCaptionDrawsNoPills() throws {
+        let cell = configuredCell(media(caption: "just words"))
+        cell.layoutIfNeeded()
+        let layer = try #require(cell.captionView.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
+        #expect(layer.path?.boundingBoxOfPath.isEmpty ?? true)
     }
 
     @Test("A nil or empty caption hides the caption bubble", arguments: [nil, ""] as [String?])

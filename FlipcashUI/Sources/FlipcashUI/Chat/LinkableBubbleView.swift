@@ -473,12 +473,17 @@ extension LinkableBubbleView {
     static func linkedText(for message: ChatMessage) -> NSAttributedString? {
         guard let text = ChatBubbleView.displayText(for: message) else { return nil }
 
+        return marked(text, links: message.linkPreview?.links ?? [], mentions: message.linkPreview?.mentions ?? [])
+    }
+
+    /// `text` with `links` underlined and `mentions` tagged for their pill, spans outside the text dropped.
+    static func marked(_ text: NSAttributedString, links: [DetectedLink], mentions: [DetectedMention]) -> NSAttributedString {
         let result = NSMutableAttributedString(attributedString: text)
-        for link in message.linkPreview?.links ?? [] where link.length > 0 {
+        for link in links where link.length > 0 {
             guard link.location >= 0, link.location + link.length <= result.length else { continue }
             result.addAttribute(.link, value: link.url, range: link.range)
         }
-        for mention in message.linkPreview?.mentions ?? [] where mention.length > 0 {
+        for mention in mentions where mention.length > 0 {
             guard mention.location >= 0, mention.location + mention.length <= result.length else { continue }
             result.addAttribute(.textItemTag, value: mention.username.value, range: mention.range)
             // Widens the space on both sides, so the pill grows into room the text gave up rather
