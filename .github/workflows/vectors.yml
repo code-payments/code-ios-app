@@ -5,6 +5,21 @@ name: Cross-platform vector gate
 # two apps compute keys, signatures, and on-chain amounts in parallel Swift and
 # Kotlin implementations; these vectors are what keeps the answers identical.
 #
+# Two tiers, because the full app build and test run takes ~35-45 minutes on a
+# macos-15 runner and a PR should not wait on it:
+#
+#   PR tier     "Vectors" -- the two vector packages. Runs on pull_request and
+#               merge_group under one job name, so it can be a required check
+#               without stalling the merge queue. Target: about 5 minutes.
+#   Queue tier  "Flipcash build and tests" + "UI smoke tests" -- the full app.
+#               Runs on merge_group, push to main, and workflow_dispatch.
+#
+# Ordering constraint: the merge queue is not enabled yet. Until it is, the
+# app job also runs on pull_request so PRs keep their coverage; it is named
+# "(PR, not required)" there and must not be marked required.
+# TODO(merge-queue): once the queue is on, delete `pull_request` from `on:`
+# and the `pull_request` branch of the `name:` expression on the `app` job.
+#
 # Two packages because they cannot share a deployment target: FlipcashCore's
 # transitive deps (BigDecimal, grpc/nio) pull a macOS floor that CrossPlatformVectors
 # does not want. Both run on a simulator — the ed25519 under test moved from a
@@ -13,20 +28,25 @@ name: Cross-platform vector gate
 on:
   pull_request:
     branches: [main]
+  merge_group:
+    branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
+# Only PR runs are superseded by a newer push. A push to main that cancelled its
+# predecessor also cancelled the run that seeds the DerivedData cache (caches
+# saved on main are the only ones other branches can read).
 concurrency:
   group: vectors-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # ---------------------------------------------------------------- PR tier --
   vectors:
     name: Vectors
     runs-on: macos-15
-    # The app build and its 1664 tests took 22 of the previous 30 on a quiet
-    # run, which leaves nothing for a slow runner.
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +62,19 @@ jobs:
           fi
           xcodebuild -version
 
+      # Cold, FlipcashCore vectors spent 6-10 minutes compiling grpc/nio/protobuf.
+      # Both packages build into ./.derived, which holds the compiled products and
+      # the SwiftPM clones. A restore-key hit still saves under the new key, so a
+      # manifest change refreshes it. PR runs can only read caches saved on main
+      # or on their own PR ref.
+      - name: Restore DerivedData
+        uses: actions/cache@v4
+        with:
+          path: .derived
+          key: vectors-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved', '!.derived/**') }}
+          restore-keys: |
+            vectors-dd-${{ runner.os }}-
+
       # Simulator model names turn over with each runner image, so pick whatever
       # iPhone is installed rather than naming one.
       - name: Pick a simulator
@@ -56,6 +89,7 @@ jobs:
         run: |
           xcodebuild test -scheme CrossPlatformVectors-Package \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath "$GITHUB_WORKSPACE/.derived/ed25519" \
             -quiet
 
       - name: FlipcashCore vectors
@@ -63,33 +97,86 @@ jobs:
         run: |
           xcodebuild test -scheme FlipcashCoreVectors-Package \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath "$GITHUB_WORKSPACE/.derived/core" \
             -quiet
 
-      # The app target's own vector suites -- chat drafts, link detection, and chat media -- assert against types
-      # only the app has, so they cannot move into either package above. Heavier than the two
-      # package schemes because it builds the app.
-      # Split so the two failure classes are separable and each stays legible:
-      # the build runs -quiet (unquieted it prints every compile command, which
-      # on its own pushed this job past its timeout), while the test runs do
-      # not, because -quiet there reduces a failure to "Test case ... failed"
-      # with no assertion text to act on.
-      - name: App vectors (build)
+  # ------------------------------------------------------------- app builds --
+  # The same job serves two purposes under one set of steps; only its name differs.
+  #   pull_request: stop-gap coverage until the merge queue is on. NOT required.
+  #   other events: the queue tier proper.
+  app:
+    name: ${{ github.event_name == 'pull_request' && 'Flipcash build and tests (PR, not required)' || 'Flipcash build and tests' }}
+    runs-on: macos-15
+    # The app build and its 1664 tests took 22 of the previous 30 on a quiet
+    # run, which leaves nothing for a slow runner.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest installed Xcode
+        run: |
+          set -euo pipefail
+          XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$XCODE" ]; then
+            sudo xcode-select -s "$XCODE"
+          fi
+          xcodebuild -version
+
+      # Hashed before the build: afterwards .derived/ holds the SwiftPM checkouts,
+      # whose Package.swift files would change the hash and miss the `ui` restore.
+      - name: Cache key
+        id: key
+        run: echo "dd=app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}" >> "$GITHUB_OUTPUT"
+
+      # Restored everywhere. Saved only off pull_request: a ~GB cache per PR push
+      # would evict the main-branch seed that every PR starts from. The `ui` job
+      # restores the exact-sha entry this job saves, so it does not rebuild.
+      - name: Restore app DerivedData
+        uses: actions/cache/restore@v4
+        id: dd
+        with:
+          path: .derived/app
+          key: ${{ steps.key.outputs.dd }}-${{ github.sha }}
+          restore-keys: |
+            ${{ steps.key.outputs.dd }}-
+            app-dd-${{ runner.os }}-
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      # Builds both test targets (FlipcashTests and FlipcashUITests) once, so the
+      # `ui` job can test-without-building from the cache. The build runs -quiet
+      # (unquieted it prints every compile command, which on its own pushed this
+      # job past its timeout), while the test runs do not, because -quiet there
+      # reduces a failure to "Test case ... failed" with no assertion text to act on.
+      - name: App build
         run: |
           xcodebuild build-for-testing -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
-            -only-testing:FlipcashTests \
+            -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -quiet
 
-      # Two runs of the one built target, because they answer different questions.
-      #
-      # This is the gate: the suites that read the synced copies of `chat_draft.json`,
-      # `link_detection.json`, and `chat_media.json`. Those fixtures are canonical and
-      # code-android-app asserts against the same ones, so a failure here is contract
-      # drift between the platforms -- exactly what this job exists to stop.
+      - name: Save app DerivedData
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          path: .derived/app
+          key: ${{ steps.key.outputs.dd }}-${{ github.sha }}
+
+      # The app target's own vector suites -- chat drafts, link detection, and chat
+      # media -- assert against types only the app has, so they cannot move into
+      # either package. The fixtures are canonical and code-android-app asserts
+      # against the same ones, so a failure here is contract drift between the
+      # platforms.
       - name: App vectors
         run: |
           xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -only-testing:FlipcashTests/ChatDraftVectorTests \
             -only-testing:FlipcashTests/LinkCardClassifierTests \
             -only-testing:FlipcashTests/ChatMediaFanOutVectorTests \
@@ -110,12 +197,12 @@ jobs:
         run: |
           xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -only-testing:FlipcashTests \
             -resultBundlePath "${{ runner.temp }}/AppSuite.xcresult"
 
       # Swift Testing's Issue.record messages reach the result bundle and nowhere else, so a
-      # failure otherwise has to be reconstructed from "Test case ... failed" lines. Four
-      # GalleryScannerTests failures were triaged that way and one stayed unexplained.
+      # failure otherwise has to be reconstructed from "Test case ... failed" lines.
       # Uploaded for the advisory step too, which by design leaves the job green.
       - name: App result bundles
         if: failure() || steps.app_suite.outcome == 'failure'
@@ -125,5 +212,61 @@ jobs:
           path: |
             ${{ runner.temp }}/AppVectors.xcresult
             ${{ runner.temp }}/AppSuite.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # -------------------------------------------------------------- queue tier --
+  # FlipcashUITests needs UI-test account access keys that live in
+  # secrets.local.xcconfig, which CI does not have, so authenticated tests skip
+  # themselves. Only the signed-out smoke test that needs no network is run. The
+  # .maestro flows all start from the login deeplink and need the same key, so
+  # they are not run. continue-on-error until it has a record of passing on a
+  # hosted simulator; XCUITest on shared runners is slow to start and flaky.
+  ui:
+    name: UI smoke tests
+    needs: app
+    if: github.event_name != 'pull_request'
+    runs-on: macos-15
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest installed Xcode
+        run: |
+          set -euo pipefail
+          XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$XCODE" ]; then
+            sudo xcode-select -s "$XCODE"
+          fi
+
+      - name: Restore app DerivedData
+        uses: actions/cache/restore@v4
+        with:
+          path: .derived/app
+          key: app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved', '!.derived/**') }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: UI smoke tests
+        run: |
+          xcodebuild test-without-building -scheme Flipcash \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
+            -only-testing:FlipcashUITests/MnemonicEntrySmokeTests \
+            -resultBundlePath "${{ runner.temp }}/UISmoke.xcresult"
+
+      - name: UI result bundle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-smoke-xcresult
+          path: ${{ runner.temp }}/UISmoke.xcresult
           if-no-files-found: ignore
           retention-days: 7
