@@ -11,6 +11,7 @@ struct CurrencyDiscoveryScreen: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
     var body: some View {
         ScrollView {
@@ -46,9 +47,10 @@ struct CurrencyDiscoveryScreen: View {
             rate: .oneToOne,
             supplyQuarks: 0
         )
+        let minimum = ratesController.displayCurrency.amount(amount.nativeAmount)
         session.dialogItem = .info(
             title: "Leaderboard Ranking",
-            subtitle: "Members must have a minimum balance of \(amount.nativeAmount.formatted(minimumFractionDigits: 0)) USD to be counted"
+            subtitle: "Members must have a minimum balance of \(minimum.formattedDroppingZeroFraction()) to be counted"
         )
     }
 }

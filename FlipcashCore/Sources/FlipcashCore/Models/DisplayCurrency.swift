@@ -34,6 +34,13 @@ public struct DisplayCurrency: Equatable, Sendable {
     public func amount(_ fiat: FiatAmount) -> FiatAmount {
         fiat.converted(to: currency, rates: rates) ?? fiat
     }
+
+    /// A USD market figure — a market cap or its weekly change — restated and
+    /// compacted, e.g. `$1.03M`.
+    public func compactFormatted(usd: Double) -> String {
+        let restated = amount(FiatAmount(value: Decimal(usd), currency: .usd))
+        return restated.doubleValue.formatted(.compactCurrency(code: restated.currency))
+    }
 }
 
 // MARK: - Shared Selection -
