@@ -1603,9 +1603,15 @@ final class ConversationController {
     }
 
     /// Persist operations that write confirmed messages — the ones that must bump `messageRevision`.
+    ///
+    /// The conversation and feed writes are here too: they persist each conversation's `lastMessage`
+    /// as a message row, so a newer message that arrives only as metadata (a join, a feed refresh)
+    /// would otherwise sit in the table behind a transcript window cached before it landed. One
+    /// bump per feed apply costs a single window re-read for the open chat.
     private static let messageWriteOperations: Set<String> = [
         "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
         "send-message", "send-media-message", "reset-resync", "edit-message", "delete-message",
+        "upsert-conversation", "replace-feed", "replace-group-feed",
     ]
 
     // MARK: - Names
