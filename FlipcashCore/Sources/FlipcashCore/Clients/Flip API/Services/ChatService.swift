@@ -250,6 +250,159 @@ final class ChatService: Sendable {
         }
     }
 
+    // MARK: - Moderation -
+
+    /// Silences `userID` in `conversationID`: they may keep reading but not speak. Creator only.
+
+    func silenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, silence: ConversationSilenceState, completion: @Sendable @escaping (Result<Void, ErrorSilenceUser>) -> Void) {
+        let request = Flipcash_Chat_V1_SilenceUserRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = userID.proto
+            $0.silence = silence.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.silenceUser(request, options: .unaryDefault)
+                let error = ErrorSilenceUser(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to silenceUser", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Lifts a silence on `userID`. Creator only.
+
+    func unsilenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, completion: @Sendable @escaping (Result<Void, ErrorUnsilenceUser>) -> Void) {
+        let request = Flipcash_Chat_V1_UnsilenceUserRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = userID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.unsilenceUser(request, options: .unaryDefault)
+                let error = ErrorUnsilenceUser(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to unsilenceUser", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Bans `userID` from `conversationID`, removing them. Creator only.
+
+    func banUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, completion: @Sendable @escaping (Result<Void, ErrorBanUser>) -> Void) {
+        let request = Flipcash_Chat_V1_BanUserRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = userID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.banUser(request, options: .unaryDefault)
+                let error = ErrorBanUser(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to banUser", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Lifts a ban on `userID`, letting them rejoin. Creator only.
+
+    func unbanUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, completion: @Sendable @escaping (Result<Void, ErrorUnbanUser>) -> Void) {
+        let request = Flipcash_Chat_V1_UnbanUserRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = userID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.unbanUser(request, options: .unaryDefault)
+                let error = ErrorUnbanUser(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to unbanUser", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    struct RestrictedUsersPage: Sendable {
+        let users: [ConversationRestrictedUser]
+        let pagingToken: Data
+        let hasMore: Bool
+    }
+
+    /// One page of the users silenced or banned in `conversationID`. Creator only.
+    func getRestrictedUsers(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<RestrictedUsersPage, ErrorGetRestrictedUsers>) -> Void) {
+        let request = Flipcash_Chat_V1_GetRestrictedUsersRequest.with {
+            $0.chatID = conversationID.proto
+            $0.queryOptions = .with {
+                $0.pageSize = Int32(pageSize)
+                if let pagingToken {
+                    $0.pagingToken = .with { $0.value = pagingToken }
+                }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getRestrictedUsers(request, options: .unaryDefault)
+                let error = ErrorGetRestrictedUsers(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch restricted users", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                let page = RestrictedUsersPage(
+                    users: response.users.map(ConversationRestrictedUser.init),
+                    pagingToken: response.pagingToken.value,
+                    hasMore: response.hasMore_p
+                )
+                await MainActor.run { completion(.success(page)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
     func muteChat(owner: KeyPair, conversationID: ConversationID, mute: ConversationMuteState, completion: @Sendable @escaping (Result<ConversationViewerState, ErrorMuteChat>) -> Void) {
         let request = Flipcash_Chat_V1_MuteChatRequest.with {
             $0.chatID = conversationID.proto
@@ -815,6 +968,7 @@ public enum ErrorJoinChat: Int, Error {
     case denied
     case notFound
     case rulesNotSatisfied
+    case banned
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -929,6 +1083,7 @@ public enum ErrorEnterLobby: Int, Error {
     case alreadyMember
     case lobbyFull
     case tooManyLobbies
+    case banned
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -1077,7 +1232,7 @@ extension ErrorJoinChat: ServerError, TransportClassifiableError {
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .notFound, .rulesNotSatisfied: .info
+        case .denied, .notFound, .rulesNotSatisfied, .banned: .info
         case .unknown, .rejected: .error
         }
     }
@@ -1121,7 +1276,7 @@ extension ErrorEnterLobby: ServerError, TransportClassifiableError {
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .notFound, .alreadyMember, .lobbyFull, .tooManyLobbies: .info
+        case .denied, .notFound, .alreadyMember, .lobbyFull, .tooManyLobbies, .banned: .info
         case .unknown, .rejected: .error
         }
     }
@@ -1356,6 +1511,117 @@ extension ErrorGetFeaturedGroups {
         case .ok: self = .unknown
         case .notFound: self = .notFound
         case .UNRECOGNIZED: self = .unknown
+        }
+    }
+}
+
+// MARK: - Moderation errors -
+
+/// Positional over `chat.v1` moderation `Result`s, which share the OK/DENIED/NOT_FOUND prefix.
+
+public enum ErrorSilenceUser: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case cannotRestrictCreator
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorUnsilenceUser: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorBanUser: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case cannotRestrictCreator
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorUnbanUser: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetRestrictedUsers: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorSilenceUser: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .cannotRestrictCreator: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorUnsilenceUser: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorBanUser: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .cannotRestrictCreator: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorUnbanUser: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetRestrictedUsers: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
         }
     }
 }
