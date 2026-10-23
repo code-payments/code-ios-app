@@ -12,7 +12,7 @@ extension DialogItem {
     static func noCommunityCurrencies(onExplore: @escaping () -> Void) -> DialogItem {
         .info(
             title: "No Community Currencies",
-            subtitle: "Buy a community currency to start or join community chats."
+            subtitle: "Buy a community currency to start or join community chats"
         ) {
             .standard("Explore Currencies", action: onExplore);
             .dismiss(kind: .subtle)
