@@ -261,6 +261,7 @@ final class ConversationLoadCoordinator {
             // compared on every tick nor sent off to have their picture fetched.
             typists: Array(controller.typists(in: conversationID).suffix(ChatItem.maxTypingAvatars)),
             branding: branding,
+            display: session.displayCurrency,
             conversation: conversation,
             // A chat whose record hasn't landed yet has no gate to read, so it keeps the member menu.
             isMember: conversation.map(controller.isMember(of:)) ?? true,
@@ -310,6 +311,8 @@ final class ConversationLoadCoordinator {
                 guard let branding = inputs.branding[fiat.mint] else { return ("Cash", nil) }
                 return (branding.token, branding.iconURL)
             },
+            viewerAmount: inputs.display.amount,
+            viewerPrice: inputs.display.amount,
             deletedPresentation: inputs.policy.deletedPresentation,
             // `now` is carried in `Inputs` rather than read here, which keeps `map` pure and keeps
             // the equality short-circuit meaningful: an unrelated tick sees the same clock and does
@@ -421,6 +424,8 @@ final class ConversationLoadCoordinator {
         /// The other members typing, oldest first, capped at ``ChatItem/maxTypingAvatars``.
         var typists: [UserID]
         var branding: [PublicKey: Branding]
+        /// The currency cash rows are shown in; read here so a currency change re-maps.
+        var display: DisplayCurrency
         var conversation: Conversation?
         /// False for a non-member reading a group they have not joined, who is offered no Reply.
         var isMember: Bool

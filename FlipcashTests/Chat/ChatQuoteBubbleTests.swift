@@ -116,7 +116,7 @@ struct ChatQuoteBubbleTests {
             stableID: "7",
             authorName: "Ada",
             snippet: "$5.00",
-            kind: .cash(token: "Launch It", flagImageName: "us")
+            kind: .cash(token: "Launch It")
         )
         let panel = laidOutCell(quote: cash).bubbleView.quotePanel
         #expect(panel.accessibilityLabel == "Replying to Ada: $5.00 Launch It")

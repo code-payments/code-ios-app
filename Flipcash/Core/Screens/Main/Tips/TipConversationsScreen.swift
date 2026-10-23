@@ -403,6 +403,7 @@ struct TipConversationRow: View {
         if let preview = conversationController.lastMessagePreview(
             for: conversation,
             knownAuthors: sessionContainer.knownAuthors.snapshot,
+            viewerAmount: session.displayCurrency.amount,
             currencyName: { session.balance(for: $0)?.name }
         ) {
             return AttributedString(preview)

@@ -274,7 +274,8 @@ extension LinkCardResolver {
     /// the card degrades to unresolved on its own.
     static func giftCardLookup(
         reader: any GiftCardAccountReading,
-        viewer: KeyPair
+        viewer: KeyPair,
+        viewerAmount: @escaping @Sendable (ExchangedFiat) async -> FiatAmount = { $0.nativeAmount }
     ) -> @Sendable (String) async throws -> LinkCard.Cash.Resolved {
         { entropy in
             guard let mnemonic = MnemonicPhrase(base58EncodedEntropy: entropy) else {
@@ -301,7 +302,7 @@ extension LinkCardResolver {
             }
 
             return LinkCard.Cash.Resolved(
-                amount: exchangedFiat.nativeAmount.formatted(),
+                amount: await viewerAmount(exchangedFiat).formatted(),
                 claim: claim,
                 // The reserve arrives already branded "Dollars" off the wire, which is what the
                 // wallet card shows, so there is no special case here.

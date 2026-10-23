@@ -5,54 +5,33 @@
 
 import Foundation
 
-/// What an activity row shows for its amount.
-///
-/// - `viewer` is the entry in the currency the viewer reads money in — always the
-///   row's headline.
-/// - `transferred` is what actually moved, set only when the payment was
-///   denominated in a currency that isn't the viewer's; `nil` when the two are the
-///   same and a second line would just repeat the first.
-public struct ViewerAmount: Equatable, Hashable, Sendable {
-
-    public let viewer: FiatAmount
-    public let transferred: FiatAmount?
-
-    public init(viewer: FiatAmount, transferred: FiatAmount?) {
-        self.viewer = viewer
-        self.transferred = transferred
-    }
-}
-
 // MARK: - Viewer Currency -
 
 extension ExchangedFiat {
 
-    /// Restates this amount in the viewer's own currency (`preferredRate`'s),
-    /// keeping what was actually transferred alongside it when the two differ — a
-    /// 7,500 ARS tip reads as its $5 to a viewer in dollars, with the pesos
-    /// underneath.
+    /// This amount restated in `display`, the one currency the app shows money in.
+    /// A 7,500 ARS tip reads as its $5 to a viewer in dollars.
     ///
     /// A USDF payment carries its own USD value on-chain, fixed at the moment it
     /// settled, so it converts from that: $5 of USDF stays $5 however far the peso
     /// has moved since. Any other mint has no such anchor — `onChainAmount` holds
     /// that mint's own quarks, not dollars — so it crosses through today's `rates`
-    /// instead, and falls back to the transferred amount alone when the source
-    /// currency has no rate to cross with.
-    public func forViewer(preferredRate: Rate, rates: [CurrencyCode: Rate]) -> ViewerAmount {
-        let transferred = nativeAmount
-        guard transferred.currency != preferredRate.currency else {
-            return ViewerAmount(viewer: transferred, transferred: nil)
+    /// instead. With no usable rate on either side the amount shows as it moved.
+    ///
+    /// Unrounded; the formatter rounds half-even to the display currency's minor
+    /// units, which is what `test-vectors/viewer_amount.json` pins.
+    public func forViewer(in display: CurrencyCode, rates: [CurrencyCode: Rate]) -> FiatAmount {
+        guard nativeAmount.currency != display else { return nativeAmount }
+
+        guard let displayRate = rates.usable(display), let usd = settledUSDValue(rates: rates) else {
+            return nativeAmount
         }
 
-        guard preferredRate.fx > 0, let usd = settledUSDValue(rates: rates) else {
-            return ViewerAmount(viewer: transferred, transferred: nil)
-        }
-
-        return ViewerAmount(viewer: usd.converting(to: preferredRate), transferred: transferred)
+        return usd.converting(to: displayRate)
     }
 
     /// The entry's value in USD, or `nil` when it can't be established. See
-    /// ``forViewer(preferredRate:rates:)``.
+    /// ``forViewer(in:rates:)``.
     ///
     /// Deliberately not `usdfValue`: an activity's rate is synthesized from
     /// `nativeAmount / onChainAmount` for a bonded mint, so dividing back through
@@ -62,7 +41,7 @@ extension ExchangedFiat {
             return .usd(onChainAmount.decimalValue)
         }
 
-        guard let rate = rates[nativeAmount.currency], rate.fx > 0 else { return nil }
+        guard let rate = rates.usable(nativeAmount.currency) else { return nil }
         return nativeAmount.convertingToUSD(rate: rate)
     }
 }

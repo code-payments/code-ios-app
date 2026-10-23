@@ -33,6 +33,7 @@ struct PaidReactionSheet: View {
 private struct PaidReactionSheetContent: View {
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(RatesController.self) private var ratesController
 
     @State private var viewModel: ReactionBoostViewModel
     @State private var isShowingTokenSelection = false
@@ -158,7 +159,7 @@ private struct PaidReactionSheetContent: View {
                     customCents = nil
                     viewModel.selectedCents = cents
                 } label: {
-                    Text(Self.usd(cents).formattedDroppingZeroFraction())
+                    Text(displayed(cents).formattedDroppingZeroFraction())
                 }
             }
 
@@ -166,13 +167,13 @@ private struct PaidReactionSheetContent: View {
                 isEnteringCustomAmount = true
             } label: {
                 if let customCents {
-                    Text(Self.usd(customCents).formattedDroppingZeroFraction())
+                    Text(displayed(customCents).formattedDroppingZeroFraction())
                 } else {
                     Image.system(.ellipsis)
                 }
             }
             .accessibilityLabel(
-                customCents.map { "Custom amount, \(Self.usd($0).formattedDroppingZeroFraction())" } ?? "Custom amount"
+                customCents.map { "Custom amount, \(displayed($0).formattedDroppingZeroFraction())" } ?? "Custom amount"
             )
         }
     }
@@ -202,8 +203,9 @@ private struct PaidReactionSheetContent: View {
         .buttonStyle(.plain)
     }
 
-    private static func usd(_ cents: UInt64) -> FiatAmount {
-        .usd(Decimal(cents) / 100)
+    /// A USD-priced boost as the viewer reads it, in the display currency.
+    private func displayed(_ cents: UInt64) -> FiatAmount {
+        ratesController.displayCurrency.amount(.usd(Decimal(cents) / 100))
     }
 
     /// A USD amount in whole cents, rounded half-even.

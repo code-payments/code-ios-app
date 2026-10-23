@@ -12,10 +12,10 @@ import Kingfisher
 
 /// A recycled cell for a cash payment row: a card (shared `BubbleBackgroundView` chrome) with the
 /// token name + optional coin icon in the top-left and a centered "You sent / You received" caption
-/// above the currency flag + amount, hosted in a `ChatColumnCell`. The card's width is supplied by
+/// above the amount, hosted in a `ChatColumnCell`. The card's width is supplied by
 /// the owner, as `ChatMessageCell`/`ChatLinkMessageCell` take theirs, so it tracks the transcript
 /// width instead of a fixed footprint. `configure(with:maxWidth:)` is the only input; the strings,
-/// flag name, and icon URL all arrive on the `ChatMessage`.
+/// and icon URL all arrive on the `ChatMessage`.
 public final class ChatCashCardCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
@@ -27,7 +27,6 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let reactionRow = ReactionPillRowView()
     private let coinIcon = UIImageView()
     private let tokenLabel = UILabel()
-    private let flag = UIImageView()
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
     private var cardWidthConstraint: NSLayoutConstraint!
@@ -62,7 +61,6 @@ public final class ChatCashCardCell: ChatColumnCell {
         captionLabel.font = .default(size: 12, weight: .bold)
         captionLabel.textColor = UIColor.white.withAlphaComponent(0.5)
 
-        configureCircle(flag, diameter: 30)
         amountLabel.font = .default(size: 38, weight: .bold)
         amountLabel.textColor = .white
         amountLabel.numberOfLines = 1
@@ -70,11 +68,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         amountLabel.minimumScaleFactor = 0.5
         amountLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        let amountRow = UIStackView(arrangedSubviews: [flag, amountLabel])
-        amountRow.spacing = 11
-        amountRow.alignment = .center
-
-        let centerStack = UIStackView(arrangedSubviews: [captionLabel, amountRow])
+        let centerStack = UIStackView(arrangedSubviews: [captionLabel, amountLabel])
         centerStack.axis = .vertical
         centerStack.spacing = 4
         centerStack.alignment = .center
@@ -157,10 +151,6 @@ public final class ChatCashCardCell: ChatColumnCell {
         captionLabel.text = ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
         amountLabel.text = cash.amount
 
-        let flagImage = cash.flagImageName.flatMap { UIImage(named: $0, in: .module, compatibleWith: nil) }
-        flag.image = flagImage
-        flag.isHidden = flagImage == nil
-
         coinIcon.isHidden = cash.iconURL == nil
         coinIcon.kf.setImage(with: cash.iconURL)
 
@@ -200,8 +190,8 @@ extension ChatCashCardCell: BubbleCarrying {
     layout.minimumLineSpacing = 4
 
     let samples: [ChatMessage] = [
-        ChatMessage(id: "1", content: .cash(ChatCashContent(amount: "$5.00", token: "Cash", flagImageName: "us")), sender: .me),
-        ChatMessage(id: "2", content: .cash(ChatCashContent(amount: "$12.50", token: "Cash", flagImageName: "us")), sender: .other),
+        ChatMessage(id: "1", content: .cash(ChatCashContent(amount: "$5.00", token: "Cash")), sender: .me),
+        ChatMessage(id: "2", content: .cash(ChatCashContent(amount: "$12.50", token: "Cash")), sender: .other),
     ]
 
     return ChatCashCardCellPreviewController(messages: samples, layout: layout)

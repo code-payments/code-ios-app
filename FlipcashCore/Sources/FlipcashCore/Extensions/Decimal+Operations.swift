@@ -15,6 +15,15 @@ extension Decimal {
         return rounded
     }
 
+    /// Rounded to `decimalPlaces` with ties to the even neighbour — the mode a
+    /// `NumberFormatter` applies on screen, so a value rounded here formats unchanged.
+    public func roundedHalfEven(to decimalPlaces: Int) -> Decimal {
+        var current = self
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &current, decimalPlaces, .bankers)
+        return rounded
+    }
+
     public func roundedDown(to decimalPlaces: Int) -> Decimal {
         var current = self
         var rounded = Decimal()

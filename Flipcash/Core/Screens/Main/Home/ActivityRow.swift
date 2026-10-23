@@ -66,48 +66,30 @@ struct ActivityRow: View {
     // MARK: - Amount
 
     /// A conversion shows the converted (From) fiat amount over its fee; every
-    /// other row leads with the amount in the viewer's own currency and, only when
-    /// the payment was denominated in someone else's, shows what actually moved —
-    /// flagged — underneath. A tip of 7,500 pesos reads "-$5.00" to a viewer in
-    /// dollars, with "-$7,500.00" under an Argentine flag below it.
+    /// other row shows its amount. Every figure is in the viewer's own currency, so
+    /// a tip of 7,500 pesos reads "-$5.00" to a viewer in dollars.
     ///
     /// Converted here rather than where the feed is mapped so that a currency
     /// changed on a screen stacked over the list reaches these rows: reading
     /// ``RatesController`` in the body is what subscribes them to it.
     @ViewBuilder private var amount: some View {
+        let display = ratesController.displayCurrency
         if let swap = activity.swapMetadata {
             VStack(alignment: .trailing, spacing: 2) {
-                Text(swap.fromFiat.formatted())
+                Text(display.amount(swap.fromFiat).formatted())
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
                     .lineLimit(1)
-                Text("-\(swap.fee.formatted()) Fee")
+                Text("-\(display.amount(swap.fee).formatted()) Fee")
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                     .lineLimit(1)
             }
         } else {
-            let amounts = activity.exchangedFiat.forViewer(
-                preferredRate: ratesController.rateForBalanceCurrency(),
-                rates: ratesController.cachedRates
-            )
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(amounts.viewer.formatted(signPrefix: activity.kind.signPrefix))
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
-
-                if let transferred = amounts.transferred {
-                    HStack(spacing: 4) {
-                        Flag(style: transferred.currency.flagStyle, size: .small)
-                        Text(transferred.formatted(signPrefix: activity.kind.signPrefix))
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
-            }
+            Text(display.amount(activity.exchangedFiat).formatted(signPrefix: activity.kind.signPrefix))
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
         }
     }
 

@@ -33,6 +33,12 @@ public enum TipFloor: Equatable, Sendable {
         }
     }
 
+    /// The floor restated in the display currency — the USD preset row, say — rounded up so
+    /// the stated floor never reads under the one enforced; as it is when no rate reaches it.
+    public func displayed(in display: DisplayCurrency) -> FiatAmount {
+        displayed.converted(to: display.currency, rates: display.rates, roundingUp: true) ?? displayed
+    }
+
     /// Whether `entered` clears this floor. Both sides compare at display
     /// precision — what we display is what we accept.
     public func isMet(by entered: ExchangedFiat) -> Bool {

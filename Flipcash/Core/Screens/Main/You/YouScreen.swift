@@ -332,7 +332,7 @@ struct YouScreen: View {
     /// Names the minimum and offers the way to meet it. The row draws no
     /// shortfall, so the dialog is where the squatting rule gets stated.
     private func presentBalanceGate(minimum: FiatAmount) {
-        usernameDialog = .usernameMinimumBalance(minimum: minimum) {
+        usernameDialog = .usernameMinimumBalance(minimum: ratesController.displayCurrency.amount(minimum)) {
             router.presentAddMoney(.general, source: .usernameShortfall)
         }
     }

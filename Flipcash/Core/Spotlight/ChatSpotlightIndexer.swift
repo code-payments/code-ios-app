@@ -34,13 +34,18 @@ final class ChatSpotlightIndexer {
     /// reuse unchanged avatars instead of re-rasterizing on the main actor.
     private var avatarCache: [String: Data] = [:]
 
+    /// The currency payment previews are indexed in; `nil` indexes them as they moved.
+    private let displayCurrency: () -> DisplayCurrency?
+
     init(
         controller: ConversationController,
         contactSyncController: ContactSyncController,
+        displayCurrency: @escaping () -> DisplayCurrency? = { nil },
         index: CSSearchableIndex = .default()
     ) {
         self.controller = controller
         self.contactSyncController = contactSyncController
+        self.displayCurrency = displayCurrency
         self.index = index
     }
 
@@ -72,7 +77,8 @@ final class ChatSpotlightIndexer {
         // its phone-number fallback with no avatar. No image rendering here —
         // that's reindex()'s job, off the debounce.
         _ = withObservationTracking {
-            controller.visibleConversations.map { controller.displayName(for: $0) }
+            _ = displayCurrency()
+            return controller.visibleConversations.map { controller.displayName(for: $0) }
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
@@ -93,6 +99,7 @@ final class ChatSpotlightIndexer {
     }
 
     private func reindex() {
+        let display = displayCurrency()
         let items = controller.visibleConversations.map { conversation -> ChatSpotlightItem in
             let contact = counterpartContact(for: conversation)
             let displayName = controller.displayName(for: conversation)
@@ -104,7 +111,8 @@ final class ChatSpotlightIndexer {
                     forID: contact?.contactId ?? conversation.id.description,
                     displayName: displayName,
                     imageData: contact?.imageData
-                )
+                ),
+                viewerAmount: { display?.amount($0) ?? $0.nativeAmount }
             )
         }
         let currentIdentifiers = Set(items.map(\.uniqueIdentifier))

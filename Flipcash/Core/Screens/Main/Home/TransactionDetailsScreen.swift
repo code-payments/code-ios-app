@@ -172,32 +172,12 @@ struct TransactionDetailsScreen: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// The entry's amount in the viewer's own currency, with what actually moved
-    /// underneath when the two differ — the same reading the row shows, at the
-    /// size the header gives it.
+    /// The entry's amount in the viewer's own currency — the same reading the row
+    /// shows, at the size the header gives it.
     private var amount: some View {
-        let amounts = details.amount.forViewer(
-            preferredRate: ratesController.rateForBalanceCurrency(),
-            rates: ratesController.cachedRates
-        )
-
-        return VStack(spacing: 4) {
-            HStack(spacing: 8) {
-                Flag(style: amounts.viewer.currency.flagStyle, size: .small)
-                Text(amounts.viewer.formatted(signPrefix: details.signPrefix))
-                    .font(.appDisplaySmall)
-                    .foregroundStyle(Color.textMain)
-            }
-
-            if let transferred = amounts.transferred {
-                HStack(spacing: 4) {
-                    Flag(style: transferred.currency.flagStyle, size: .small)
-                    Text(transferred.formatted(signPrefix: details.signPrefix))
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                }
-            }
-        }
+        Text(ratesController.displayCurrency.amount(details.amount).formatted(signPrefix: details.signPrefix))
+            .font(.appDisplaySmall)
+            .foregroundStyle(Color.textMain)
     }
 
     // MARK: - Receipt
@@ -213,10 +193,10 @@ struct TransactionDetailsScreen: View {
             ReceiptRow(label: "Tokens", value: details.tokenAmount.formattedQuantity())
 
             if let fee = details.fee {
-                ReceiptRow(label: "Fee", value: fee.formatted())
+                ReceiptRow(label: "Fee", value: ratesController.displayCurrency.amount(fee).formatted())
             }
             if let received = details.received {
-                ReceiptRow(label: "Received", value: received.formatted())
+                ReceiptRow(label: "Received", value: ratesController.displayCurrency.amount(received).formatted())
             }
 
             ReceiptRow(label: "Status", value: details.status.label)
@@ -321,7 +301,7 @@ struct TransactionDetailsScreen: View {
         guard let metadata = activity.cancellableCashLinkMetadata else { return }
 
         dialogItem = .alert(
-            title: "Cancel \(activity.exchangedFiat.nativeAmount.formatted()) Transfer?",
+            title: "Cancel \(ratesController.displayCurrency.amount(activity.exchangedFiat).formatted()) Transfer?",
             subtitle: "The money will be returned to your wallet."
         ) {
             .destructive("Cancel Transfer") {

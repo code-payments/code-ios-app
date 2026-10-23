@@ -18,6 +18,7 @@ struct EditGroupScreen: View {
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(RatesController.self) private var ratesController
     @Environment(AppRouter.self) private var router
 
     @State private var mintNames: [PublicKey: String] = [:]
@@ -187,7 +188,7 @@ struct EditGroupScreen: View {
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
             Spacer()
-            Text(requirement.map { GroupBalanceRequirements.formatted($0, mintName: $0.mints.first.flatMap { mintNames[$0] }) } ?? "None")
+            Text(requirement.map { GroupBalanceRequirements.formatted($0, mintName: $0.mints.first.flatMap { mintNames[$0] }, in: ratesController.displayCurrency) } ?? "None")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
         }

@@ -797,8 +797,11 @@ final class SessionContainer {
 
         let knownAuthors = KnownAuthorDirectory(database: database, flipClient: flipClient, owner: session.ownerKeyPair)
         self.knownAuthors = knownAuthors
+        let viewerAmount: @Sendable (ExchangedFiat) async -> FiatAmount = { [weak ratesController] fiat in
+            await MainActor.run { ratesController?.displayCurrency.amount(fiat) } ?? fiat.nativeAmount
+        }
         self.linkCardResolver = LinkCardResolver(
-            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
+            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner, viewerAmount: viewerAmount),
             mintLookup: LinkCardResolver.mintLookup(reader: client),
             groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
             userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID),
@@ -807,8 +810,8 @@ final class SessionContainer {
                 messages: chatClient,
                 mints: client,
                 owner: owner,
-                viewer: MessageLinkViewer(controller: conversationController, knownAuthors: knownAuthors, userID: session.userID),
-                cashLinks: LinkCardResolver.giftCardLookup(reader: client, viewer: owner)
+                viewer: MessageLinkViewer(controller: conversationController, knownAuthors: knownAuthors, userID: session.userID, viewerAmount: viewerAmount),
+                cashLinks: LinkCardResolver.giftCardLookup(reader: client, viewer: owner, viewerAmount: viewerAmount)
             )
         )
 
@@ -876,7 +879,8 @@ final class SessionContainer {
 
         let chatSpotlightIndexer = ChatSpotlightIndexer(
             controller: conversationController,
-            contactSyncController: contactSyncController
+            contactSyncController: contactSyncController,
+            displayCurrency: { [weak ratesController] in ratesController?.displayCurrency }
         )
         chatSpotlightIndexer.start()
         self.chatSpotlightIndexer = chatSpotlightIndexer
