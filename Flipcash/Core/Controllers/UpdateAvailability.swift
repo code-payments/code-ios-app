@@ -53,7 +53,8 @@ final class UpdateAvailability {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let fetch: @Sendable (URL) async throws -> Data
-    @ObservationIgnored private let installChannel: () async -> InstallChannel
+    @ObservationIgnored private let installChannel: () async -> InstallChannel?
+    @ObservationIgnored private let channelLookupTimeout: Duration
     @ObservationIgnored private var lastManifestCheck: Date?
     /// Set while the app is in the background, so the next ``refresh()`` skips the interval.
     @ObservationIgnored private var resumesFromBackground = false
@@ -69,7 +70,8 @@ final class UpdateAvailability {
         defaults: UserDefaults = .standard,
         now: @escaping () -> Date = Date.init,
         fetch: @escaping @Sendable (URL) async throws -> Data = UpdateAvailability.fetchFromNetwork,
-        installChannel: @escaping () async -> InstallChannel = UpdateAvailability.resolveInstallChannel
+        installChannel: @escaping () async -> InstallChannel? = UpdateAvailability.resolveInstallChannel,
+        channelLookupTimeout: Duration = .seconds(10)
     ) {
         self.installedVersion = AppVersion(installedVersion)
         self.installedBuild = Int(installedBuild)
@@ -77,6 +79,7 @@ final class UpdateAvailability {
         self.now = now
         self.fetch = fetch
         self.installChannel = installChannel
+        self.channelLookupTimeout = channelLookupTimeout
         self.result = Self.load(UpdateCheckResult.self, .updateCheckResult, from: defaults)
         self.lastShownVersion = Self.load(AppVersion.self, .updateToastShownVersion, from: defaults)
         self.latestTestFlightBuild = Self.load(Int.self, .latestTestFlightBuild, from: defaults)
@@ -113,15 +116,14 @@ final class UpdateAvailability {
     }
 
     /// Runs one check and records what it found. Every build reads the manifest for the newest TestFlight
-    /// build; only a store build looks up the store, and a failed lookup reads as no update.
+    /// build; only a store build looks up the store, and a failed lookup reads as no update. A channel
+    /// lookup that fails or outlasts ``channelLookupTimeout`` keeps the last known channel.
     func check() async {
-        let channel = await installChannel()
-        self.channel = channel
-        save(channel, .installChannel)
         let checkedAt = now()
         lastManifestCheck = checkedAt
 
         async let manifestData = fetch(ReleaseManifest.url)
+        let channelLookup = Task { await resolveChannel() }
         var manifest: ReleaseManifest?
         do {
             manifest = ReleaseManifest.parse(try await manifestData)
@@ -132,6 +134,18 @@ final class UpdateAvailability {
             latestTestFlightBuild = build
             save(build, .latestTestFlightBuild)
         }
+
+        if let resolved = await channelLookup.value {
+            channel = resolved
+            save(resolved, .installChannel)
+        } else {
+            logger.warning("Install channel unresolved, keeping the last known", metadata: ["channel": "\(channel)"])
+        }
+        logger.info("Checked release manifest", metadata: [
+            "channel": "\(channel)",
+            "installedBuild": "\(installedBuild.map(String.init) ?? "nil")",
+            "testFlightBuild": "\(manifest?.testFlightBuild.map(String.init) ?? "nil")",
+        ])
 
         guard channel == .store else {
             result = nil
@@ -164,6 +178,23 @@ final class UpdateAvailability {
             "priority": "\(checked.priority)",
             "isNewer": "\(newerVersion != nil)",
         ])
+    }
+
+    /// The install channel, or `nil` when the lookup fails or doesn't answer within ``channelLookupTimeout``.
+    private func resolveChannel() async -> InstallChannel? {
+        let (results, continuation) = AsyncStream<InstallChannel?>.makeStream()
+        let lookup = Task { continuation.yield(await installChannel()) }
+        let timeout = Task { [channelLookupTimeout] in
+            try? await Task.sleep(for: channelLookupTimeout)
+            continuation.yield(nil)
+        }
+        defer {
+            lookup.cancel()
+            timeout.cancel()
+            continuation.finish()
+        }
+        for await channel in results { return channel }
+        return nil
     }
 
     // MARK: - Toast -
@@ -253,13 +284,20 @@ final class UpdateAvailability {
         return data
     }
 
-    /// How this build was installed. Debug builds are `other`; TestFlight reports sandbox, the App Store
-    /// production, and a build run from Xcode reports `xcode`.
-    static func resolveInstallChannel() async -> InstallChannel {
+    /// How this build was installed, or `nil` when StoreKit can't say. Debug builds are `other`;
+    /// TestFlight reports sandbox, the App Store production, and a build run from Xcode, which reports
+    /// `xcode`, is `other`.
+    static func resolveInstallChannel() async -> InstallChannel? {
         #if DEBUG
         return .other
         #else
-        guard let transaction = try? await AppTransaction.shared.payloadValue else { return .other }
+        let transaction: AppTransaction
+        do {
+            transaction = try await AppTransaction.shared.payloadValue
+        } catch {
+            logger.warning("App transaction lookup failed", metadata: ["error": "\(error)"])
+            return nil
+        }
         switch transaction.environment {
         case .production: return .store
         case .sandbox: return .testFlight
