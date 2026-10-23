@@ -50,6 +50,21 @@ struct ChatMessageCopyTests {
         #expect(menu(controller, at: 0) != nil)
     }
 
+    @Test("A photo's Copy puts its caption on the pasteboard")
+    func photoCopyCopiesCaption() {
+        let media = ChatMediaContent(blobID: BlobID(data: Data([1])), width: 1, height: 1, blurhash: nil, caption: "from the trail", isRedacted: false)
+        let controller = loadedController([
+            .message(ChatMessage(id: "p", content: .media(media), sender: .other, actions: [.copy])),
+        ])
+        UIPasteboard.general.string = nil
+        guard let copy = menu(controller, at: 0)?.children.first as? UIAction else {
+            Issue.record("expected a Copy action")
+            return
+        }
+        copy.performWithSender(nil, target: nil)
+        #expect(UIPasteboard.general.string == "from the trail")
+    }
+
     @Test("A cash card offers no context menu — nothing to copy")
     func cashMessage_offersNoMenu() {
         let cash = ChatMessage(
