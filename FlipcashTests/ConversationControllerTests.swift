@@ -1268,6 +1268,30 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [3, 4])
     }
 
+    @Test("joining a group whose last message is newer than the cached transcript refreshes the open window")
+    func joinRefreshesTranscriptWindowWithNewerLastMessage() async throws {
+        let mock = MockConversations()
+        let id = ConversationID.test(1)
+        func message(_ n: UInt64) -> ConversationMessage {
+            ConversationMessage(id: MessageID(value: n), senderID: nil, content: .text("m\(n)"), date: Date(timeIntervalSince1970: Double(n) * 10), unreadSeq: n, eventSequence: n)
+        }
+        func group(lastMessage: ConversationMessage) -> Conversation {
+            Conversation(id: id, members: [], lastMessage: lastMessage, lastActivity: Date(timeIntervalSince1970: 100), type: .group)
+        }
+        mock.groupFeed = [group(lastMessage: message(4))]
+        let controller = makeController(mock)
+        try await controller.join(conversationID: id)
+        // The open transcript has read the window once, so it is cached against the current revision.
+        #expect(controller.windowedMessages(for: id, startingAt: nil, limit: 50).map(\.id.value) == [4])
+
+        // A newer message arrives only as conversation metadata (JoinChat's reply): it lands in the
+        // messages table through the conversation write, which must invalidate the cached window.
+        mock.groupFeed = [group(lastMessage: message(5))]
+        try await controller.join(conversationID: id)
+
+        #expect(controller.windowedMessages(for: id, startingAt: nil, limit: 50).map(\.id.value) == [4, 5])
+    }
+
     @Test("a feed reporting a deleted newest message previews the message before it, not a blank row")
     func feedLoadFallsBackPastATombstone() async throws {
         let mock = MockConversations()
