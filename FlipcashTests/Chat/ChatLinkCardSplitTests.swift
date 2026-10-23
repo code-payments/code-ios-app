@@ -381,6 +381,53 @@ struct ChatLinkCardSplitTests {
         #expect(caption.links.map(\.url.absoluteString) == [Self.cashLink])
     }
 
+    private static let groupLink = "https://app.flipcash.com/chat/06d26e5c-a399-8983-98ea-e59785db34a0"
+
+    private func groupCard(_ links: [DetectedLink]) -> LinkCard? {
+        links.first { $0.url.absoluteString == Self.groupLink }.map {
+            .group(LinkCard.Group(url: $0.url, chatID: ConversationID(data: Data(repeating: 7, count: 32)), range: $0.range))
+        }
+    }
+
+    @Test("A Flipcash group link among a caption's words splits as the same text does: words, then the card")
+    func captionGroupLinkSplitsLikeText() throws {
+        let body = "join us \(Self.groupLink)"
+        let rows = rows([photo(1, caption: body), text(2, them, body)], linkCard: groupCard)
+        let caption = try #require(media(rows[0]))
+        let textRows = rows.filter { $0.messageID == "2" || $0.part != nil }.compactMap { row -> (ChatMessagePart.Kind, String)? in
+            guard let kind = row.part?.kind, let text = self.body(row) else { return nil }
+            return (kind, text)
+        }
+        #expect(caption.captionRows.map(\.kind) == textRows.map(\.0))
+        #expect(caption.captionRows.map(\.text) == textRows.map(\.1))
+        #expect(caption.captionRows.map(\.kind) == [.leadingText, .card])
+        #expect(caption.captionRows.first?.text == "join us")
+        guard case .group? = caption.captionRows.last?.preview?.card else {
+            Issue.record("expected the card row to carry a group card")
+            return
+        }
+        #expect(caption.caption == body)
+    }
+
+    @Test("Words after a caption's Flipcash link keep their place under the card")
+    func captionTrailingWordsFollowCard() throws {
+        let rows = rows([photo(1, caption: "\(Self.groupLink) come in")], linkCard: groupCard)
+        let caption = try #require(media(rows[0]))
+        #expect(caption.captionRows.map(\.kind) == [.card, .trailingText])
+        #expect(caption.captionRows.last?.text == "come in")
+    }
+
+    @Test("A caption that is only a group link keeps the whole-caption card with no split rows")
+    func captionGroupLinkOnlyIsNotSplit() throws {
+        let rows = rows([photo(1, caption: Self.groupLink)], linkCard: groupCard)
+        let caption = try #require(media(rows[0]))
+        #expect(caption.captionRows.isEmpty)
+        guard case .group? = caption.captionPreview?.card else {
+            Issue.record("expected the whole-caption group card")
+            return
+        }
+    }
+
     @Test("A caption of one to three emoji is flagged emoji-only, as the text path flags it")
     func captionEmojiOnly() throws {
         let rows = rows([photo(1, caption: "🔥🔥"), photo(2, caption: "🔥🔥🔥🔥"), photo(3, caption: "nice 🔥")])

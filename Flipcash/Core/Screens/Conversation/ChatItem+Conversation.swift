@@ -312,18 +312,20 @@ extension ChatItem {
                 // A redacted photo stays a photo row, drawn from its BlurHash, rather than a tombstone.
                 // A send carries one attachment (see `ChatMediaSendPlan`); the row draws the first.
                 let attachment = attachments.first
-                // The detection a text body gets: links, mentions, and a Flipcash card when the caption
-                // is that link and nothing else, so it draws bare under the photo as a card-only text
-                // message does. A Flipcash link among a caption's words stays an underlined link: a card
-                // among words has no design yet. A caption never carries a sender web card: a client
-                // sends the text as its own message.
+                // The detection a text body gets: links, mentions, and a Flipcash card, which draws
+                // under the photo as the text path draws it: bare when the caption is only the link,
+                // else split around it with the words in bubbles. A cash or token link stays
+                // underlined text. A caption never carries a sender web card: a client sends the
+                // text as its own message.
+                let captionLayout = caption.map { Self.captionLayout(for: $0, card: linkCard) }
                 content = .media(ChatMediaContent(
                     blobID: attachment?.blobID,
                     width: attachment?.width ?? 0,
                     height: attachment?.height ?? 0,
                     blurhash: attachment?.blurhash,
                     caption: caption,
-                    captionPreview: caption.flatMap { captionPreview(for: $0, card: linkCard) },
+                    captionPreview: captionLayout?.preview,
+                    captionRows: captionLayout?.rows ?? [],
                     isRedacted: message.redacted,
                     sealed: attachment?.sealed
                 ))
@@ -614,19 +616,32 @@ extension ChatItem {
         ].compactMap { $0 }
     }
 
-    /// The preview a photo's caption draws from: what a text body of the same words gets, except a
-    /// Flipcash card is kept only when the text path would give it a row of its own with nothing
-    /// around it. A card among a caption's words is dropped back to underlined link text.
-    nonisolated static func captionPreview(
+    /// What a photo's caption draws: the preview a text body of the same words gets, and, when a
+    /// non-money Flipcash card has words beside it, the rows the text path splits that message into.
+    /// A card that is the whole caption keeps the preview and needs no rows; a cash or token card
+    /// is dropped back to underlined link text.
+    nonisolated static func captionLayout(
         for caption: String,
         card: ([DetectedLink]) -> LinkCard?
-    ) -> LinkPreview? {
-        guard let preview = detectedLink(in: caption, card: card) else { return nil }
-        guard preview.card != nil else { return preview }
+    ) -> (preview: LinkPreview?, rows: [ChatMediaCaptionRow]) {
+        guard let preview = detectedLink(in: caption, card: card) else { return (nil, []) }
+        guard let linkCard = preview.card else { return (preview, []) }
+        let withoutCard = preview.links.isEmpty && preview.mentions.isEmpty
+            ? nil
+            : LinkPreview(links: preview.links, mentions: preview.mentions)
         let layout = rows(for: caption, preview: preview)
-        if layout.count == 1, layout[0].part == .card { return preview }
-        guard !preview.links.isEmpty || !preview.mentions.isEmpty else { return nil }
-        return LinkPreview(links: preview.links, mentions: preview.mentions)
+        if layout.count == 1, layout[0].part == .card { return (preview, []) }
+        switch linkCard {
+        case .cash, .token, .web:
+            return (withoutCard, [])
+        case .group, .message, .user:
+            let split = layout.compactMap { row in
+                row.part.flatMap { kind in
+                    row.text.map { ChatMediaCaptionRow(kind: kind, text: $0, preview: row.preview) }
+                }
+            }
+            return (withoutCard, split)
+        }
     }
 
     /// What a text row may hold and still say nothing: a segment of only these is dropped, not

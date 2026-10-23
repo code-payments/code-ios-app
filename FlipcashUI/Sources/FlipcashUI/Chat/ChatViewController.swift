@@ -752,7 +752,7 @@ public final class ChatViewController: UICollectionViewController {
                 remote: remote,
                 quoteThumbnail: quoteThumbnail(for: message),
                 authorImageData: authorImageData,
-                captionWidth: linkCardWidth(for: media.captionPreview?.card, available: available)
+                captionWidth: linkCardWidth(for: media.captionCard, available: available)
             )
             cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onImageTap = { [weak self, weak cell] in

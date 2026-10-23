@@ -279,6 +279,39 @@ struct ChatMediaCellTests {
         #expect(taps == [card])
     }
 
+    private static let groupLink = "https://app.flipcash.com/chat/06d26e5c-a399-8983-98ea-e59785db34a0"
+
+    @Test("A caption split around a Flipcash card draws its words, then the card, under the photo")
+    func captionSplitDrawsWordsThenCard() {
+        let url = URL(string: Self.groupLink)!
+        let range = NSRange(location: 0, length: (Self.groupLink as NSString).length)
+        let card = LinkCard.group(LinkCard.Group(url: url, chatID: ConversationID(data: Data(repeating: 7, count: 32)), range: range))
+        let cell = configuredCell(ChatMediaContent(
+            blobID: BlobID(data: Data([1])), width: 1179, height: 2556, blurhash: Self.blurhash,
+            caption: "join us \(Self.groupLink)",
+            captionRows: [
+                ChatMediaCaptionRow(kind: .leadingText, text: "join us", preview: nil),
+                ChatMediaCaptionRow(kind: .card, text: Self.groupLink, preview: LinkPreview(links: [DetectedLink(range: range, url: url)], card: card)),
+            ],
+            isRedacted: false
+        ))
+        cell.layoutIfNeeded()
+        #expect(!cell.captionBubble.isHidden)
+        #expect(!cell.captionBubble.isBare)
+        #expect(!cell.captionCardBubble.isHidden)
+        #expect(cell.captionCardBubble.isBare)
+        #expect(cell.captionTrailingBubble.isHidden)
+        #expect(captionText(cell)?.text == "join us")
+        let photoBottom = cell.imageView.convert(cell.imageView.bounds, to: cell.captionBubble.superview).maxY
+        #expect(cell.captionBubble.frame.minY >= photoBottom)
+        #expect(cell.captionCardBubble.frame.minY >= cell.captionBubble.frame.maxY)
+
+        var taps: [LinkCard] = []
+        cell.onLinkCardTap = { taps.append($0) }
+        cell.captionCardBubble.cardTapped()
+        #expect(taps == [card])
+    }
+
     @Test("An emoji-only caption draws as the text path's bare enlarged emoji, with no bubble")
     func captionDrawsBareEmoji() {
         let cell = configuredCell(media(caption: "🔥🔥"))
