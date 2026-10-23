@@ -758,6 +758,7 @@ public final class ChatViewController: UICollectionViewController {
                 ) else { return }
                 onMediaTap?(request)
             }
+            cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }

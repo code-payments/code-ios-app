@@ -318,6 +318,8 @@ extension ChatItem {
                     height: attachment?.height ?? 0,
                     blurhash: attachment?.blurhash,
                     caption: caption,
+                    // Mentions only: a caption never grows a link card, so no card resolver runs.
+                    captionMentions: caption.flatMap { detectedLink(in: $0, card: { _ in nil })?.mentions } ?? [],
                     isRedacted: message.redacted,
                     sealed: attachment?.sealed
                 ))

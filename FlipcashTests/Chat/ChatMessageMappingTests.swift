@@ -394,6 +394,25 @@ struct ChatMessageMappingTests {
         ))])
     }
 
+    @Test("A photo's caption carries the mentions in it, and links in it stay plain text")
+    func mediaCaptionMentions() throws {
+        let caption = "Any idea what might be happening there @jeff @mcansh? https://apple.com"
+        let attachment = MediaAttachment(blobID: BlobID(data: Data([9, 8, 7])), width: 300, height: 400, blurhash: "LEHV6nWB2yk8")
+        let messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: them, content: .media([attachment], caption: caption), date: base, unreadSeq: 1),
+        ]
+
+        let rows = messageRows(ChatItem.from(messages, selfUserID: me))
+
+        guard case .media(let media) = rows[0].content else {
+            Issue.record("expected media content, got \(rows[0].content)")
+            return
+        }
+        let handles = media.captionMentions.map { (caption as NSString).substring(with: $0.range) }
+        #expect(handles == ["@jeff", "@mcansh"])
+        #expect(rows[0].linkPreview == nil) // no card, no link split on a media message
+    }
+
     @Test("Tipped cash messages carry the tip flag and caption")
     func tippedCash() {
         let fiat = ExchangedFiat(

@@ -49,7 +49,7 @@ public final class ChatMediaCell: ChatColumnCell {
     /// stays its own accessibility element and its tap never reaches the photo's.
     let quotePanel = ChatQuotePanelView()
     let captionBubble = BubbleBackgroundView()
-    let captionLabel = UILabel()
+    let captionView = LinkTextView()
     let reactionRow = ReactionPillRowView()
     let imageTap = UITapGestureRecognizer()
 
@@ -81,6 +81,19 @@ public final class ChatMediaCell: ChatColumnCell {
     /// Called when the viewer taps the leading "$" to pay for a reaction.
     var onReactionBoost: (() -> Void)?
 
+    /// Fired when the viewer taps an `@handle` in the caption, with the handle it names.
+    var onMentionTap: ((Username) -> Void)?
+
+    @objc private func captionTapped(_ tap: UITapGestureRecognizer) {
+        let point = tap.location(in: captionView)
+        guard let character = captionView.characterRange(at: point),
+              captionView.firstRect(for: character).insetBy(dx: -4, dy: -4).contains(point),
+              let text = captionView.attributedText
+        else { return }
+        let index = captionView.offset(from: captionView.beginningOfDocument, to: character.start)
+        if case .mention(let username) = LinkableBubbleView.span(in: text, at: index) { onMentionTap?(username) }
+    }
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
 
@@ -103,11 +116,17 @@ public final class ChatMediaCell: ChatColumnCell {
         imageTap.addTarget(self, action: #selector(imageTapped))
         imageBubble.addGestureRecognizer(imageTap)
 
-        captionLabel.font = .default(size: 16, weight: .medium)
-        captionLabel.textColor = .white
-        captionLabel.numberOfLines = 0
-        captionLabel.translatesAutoresizingMaskIntoConstraints = false
-        captionBubble.addSubview(captionLabel)
+        captionView.isScrollEnabled = false
+        captionView.isEditable = false
+        captionView.backgroundColor = .clear
+        captionView.textContainerInset = .zero
+        captionView.textContainer.lineFragmentPadding = 0
+        captionView.dataDetectorTypes = []
+        captionView.font = .default(size: 16, weight: .medium)
+        captionView.textColor = .white
+        captionView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(captionTapped)))
+        captionView.translatesAutoresizingMaskIntoConstraints = false
+        captionBubble.addSubview(captionView)
         captionBubble.isHidden = true
 
         stack.axis = .vertical
@@ -158,10 +177,10 @@ public final class ChatMediaCell: ChatColumnCell {
             quotePanel.widthAnchor.constraint(lessThanOrEqualTo: imageBubble.widthAnchor, multiplier: Self.quoteMaxWidthFraction),
             quotePanel.bottomAnchor.constraint(lessThanOrEqualTo: imageBubble.bottomAnchor, constant: -Self.quoteInset),
 
-            captionLabel.topAnchor.constraint(equalTo: captionBubble.topAnchor, constant: Self.captionPadding),
-            captionLabel.bottomAnchor.constraint(equalTo: captionBubble.bottomAnchor, constant: -Self.captionPadding),
-            captionLabel.leadingAnchor.constraint(equalTo: captionBubble.leadingAnchor, constant: Self.captionInset),
-            captionLabel.trailingAnchor.constraint(equalTo: captionBubble.trailingAnchor, constant: -Self.captionInset),
+            captionView.topAnchor.constraint(equalTo: captionBubble.topAnchor, constant: Self.captionPadding),
+            captionView.bottomAnchor.constraint(equalTo: captionBubble.bottomAnchor, constant: -Self.captionPadding),
+            captionView.leadingAnchor.constraint(equalTo: captionBubble.leadingAnchor, constant: Self.captionInset),
+            captionView.trailingAnchor.constraint(equalTo: captionBubble.trailingAnchor, constant: -Self.captionInset),
         ])
     }
 
@@ -231,7 +250,13 @@ public final class ChatMediaCell: ChatColumnCell {
         imageTap.isEnabled = !blurhashOnly && !message.isFailed
 
         let caption = media.caption.flatMap { $0.isEmpty ? nil : $0 }
-        captionLabel.text = caption
+        captionView.attributedText = caption.map { text in
+            let body = NSAttributedString(string: text, attributes: [
+                .font: UIFont.default(size: 16, weight: .medium),
+                .foregroundColor: UIColor.white,
+            ])
+            return LinkableBubbleView.marked(body, links: [], mentions: media.captionMentions)
+        }
         captionBubble.isHidden = caption == nil
         captionMaxWidthConstraint.constant = maxWidth
 
