@@ -266,7 +266,7 @@ enum BarMetrics {
 enum ConversationBarLeadingControl: Equatable {
     /// The way out of an edit.
     case cancelEdit
-    /// The round `$` on the field's right, shown while the draft is empty.
+    /// The round `$` on the field's right, shown while the draft is empty and no photos are staged.
     case cash
     /// Nothing beside the field.
     case none
@@ -521,12 +521,12 @@ struct ConversationBottomBar: View {
             .background {
                 composerGlass
             }
-            // A draft already there when the chat opens hides `$` without animating it out.
-            .onAppear { cashIsShown = composer.draft.isEmpty }
-            .onChange(of: composer.draft.isEmpty) { _, isEmpty in
-                guard cashIsShown != isEmpty else { return }
-                withAnimation(isEmpty ? Self.cashSpring.delay(Self.cashBudDelay) : Self.cashSpring) {
-                    cashIsShown = isEmpty
+            // A draft or photos already there when the chat opens hide `$` without animating it out.
+            .onAppear { cashIsShown = cashFitsComposer }
+            .onChange(of: cashFitsComposer) { _, fits in
+                guard cashIsShown != fits else { return }
+                withAnimation(fits ? Self.cashSpring.delay(Self.cashBudDelay) : Self.cashSpring) {
+                    cashIsShown = fits
                 }
             }
             .onChange(of: menuLeadingReach, initial: true) { _, reach in
@@ -755,6 +755,11 @@ struct ConversationBottomBar: View {
     private var wantsCameraWarm: Bool {
         let showsCamera = model.attachCard.content == .camera
         return showsCamera || (model.attachPanel.isOpen && bottomRow.plusItems.contains(.camera))
+    }
+
+    /// Whether the composer is bare enough for `$`: no draft text and no staged photos.
+    private var cashFitsComposer: Bool {
+        composer.draft.isEmpty && composer.chips.isEmpty
     }
 
     private var leadingControl: ConversationBarLeadingControl {
