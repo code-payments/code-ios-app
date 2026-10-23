@@ -58,6 +58,10 @@ class Session {
     /// ``DialogWindow`` in a separate `UIWindow` above all sheets.
     var dialogItem: DialogItem?
 
+    /// A held request to offer notifications after a transaction finished in place;
+    /// presented by ``RootSheetHostModifier`` once the exiting sheet has dismissed.
+    let transactionNotificationPrompt = TransactionNotificationPrompt()
+
     /// Shows `fallback` for a request that never reached the server, or a dialog naming the
     /// Cellular Data switch when that switch is what blocked the request.
     func showConnectionFailure(_ fallback: DialogItem) {

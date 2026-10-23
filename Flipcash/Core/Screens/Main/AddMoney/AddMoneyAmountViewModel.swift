@@ -31,9 +31,7 @@ final class AddMoneyAmountViewModel {
     @ObservationIgnored private var depositTask: Task<Void, Never>?
 
     // Seams for the inline Phantom completion.
-    @ObservationIgnored var notificationPrompt = NotificationPrompt()
     @ObservationIgnored var successHold: Duration = InlineCompletion.successHold
-    @ObservationIgnored var dismissDelay: Duration = AppRouter.dismissAnimationDuration
     @ObservationIgnored var inlineWindow: Duration = InlineCompletion.window
     @ObservationIgnored var inlineInterval: Duration = InlineCompletion.pollInterval
 
@@ -240,12 +238,10 @@ final class AddMoneyAmountViewModel {
             Analytics.addMoney(method: .phantom, exchangedFiat: amount, successful: true, error: nil)
             await InlineSuccess.complete(
                 hold: successHold,
-                dismissDelay: dismissDelay,
                 setButtonState: { actionButtonState = $0 },
                 updatePostTransaction: { session.updatePostTransaction() },
                 finish: { dismiss() },
-                notifications: notificationPrompt,
-                present: { session.dialogItem = $0 }
+                prompt: session.transactionNotificationPrompt
             )
         case .pending:
             onProceed(.init(amount: amount, method: .phantom, depositRef: depositRef, elapsed: inlineWindow))

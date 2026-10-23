@@ -285,12 +285,6 @@ struct BuyConfirmationViewModelTests {
         let viewModel = Self.makeViewModel(payment: usdfBalance, paymentAmount: paymentAmount, pin: pin)
         viewModel.swapPoller = { _ in { _, _ in try poll() } }
         viewModel.successHold = .zero
-        viewModel.dismissDelay = .zero
-        viewModel.notificationPrompt = NotificationPrompt(
-            defaults: UserDefaults(suiteName: UUID().uuidString)!,
-            status: { .denied },
-            authorize: {}
-        )
         let router = AppRouter()
         router.present(.give)
         router.presentNested(.buy(.usdcAuthority))
@@ -304,6 +298,7 @@ struct BuyConfirmationViewModelTests {
         #expect(dismissed.count == 1)
         #expect(vm.actionButtonState == .success)
         #expect(router[.buy].isEmpty)
+        #expect(container.session.transactionNotificationPrompt.pending)
     }
 
     @Test("Inline: pending after the window falls back to the processing screen")
@@ -313,6 +308,7 @@ struct BuyConfirmationViewModelTests {
         #expect(dismissed.count == 0)
         #expect(vm.actionButtonState == .normal)
         #expect(router[.buy].count == 1)
+        #expect(!container.session.transactionNotificationPrompt.pending)
     }
 
     @Test("Inline: terminal failure stays, resets the button, and shows an error")

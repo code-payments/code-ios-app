@@ -22,9 +22,7 @@ final class BuyConfirmationViewModel {
     var dialogItem: DialogItem?
     /// Replaces the session poll in tests.
     @ObservationIgnored var swapPoller: ((SwapId) -> SwapPoller)?
-    @ObservationIgnored var notificationPrompt = NotificationPrompt()
     @ObservationIgnored var successHold: Duration = InlineCompletion.successHold
-    @ObservationIgnored var dismissDelay: Duration = AppRouter.dismissAnimationDuration
     private(set) var actionButtonState: ButtonState = .normal
     /// Gross debit in the payment token, priced on the amount screen.
     @ObservationIgnored let paymentAmount: ExchangedFiat
@@ -200,12 +198,10 @@ final class BuyConfirmationViewModel {
         case .succeeded:
             await InlineSuccess.complete(
                 hold: successHold,
-                dismissDelay: dismissDelay,
                 setButtonState: { actionButtonState = $0 },
                 updatePostTransaction: { session.updatePostTransaction() },
                 finish: { dismiss() },
-                notifications: notificationPrompt,
-                present: { session.dialogItem = $0 }
+                prompt: session.transactionNotificationPrompt
             )
         case .failed:
             actionButtonState = .normal

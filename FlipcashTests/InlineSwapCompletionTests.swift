@@ -90,12 +90,6 @@ struct InlineSwapCompletionTests {
         let vm = ConvertConfirmationViewModelTests.fromDollars()
         vm.swapPoller = { _ in { _, _ in try poll() } }
         vm.successHold = .zero
-        vm.dismissDelay = .zero
-        vm.notificationPrompt = NotificationPrompt(
-            defaults: UserDefaults(suiteName: UUID().uuidString)!,
-            status: { .denied },
-            authorize: {}
-        )
         let router = AppRouter()
         router.present(.give)
         return (vm, container, router, DismissCounter())
@@ -110,6 +104,7 @@ struct InlineSwapCompletionTests {
         #expect(dismissed.count == 1)
         #expect(vm.actionButtonState == .success)
         #expect(router[.give].isEmpty)
+        #expect(container.session.transactionNotificationPrompt.pending)
     }
 
     @Test("Convert: pending falls back to the processing screen")
@@ -119,6 +114,7 @@ struct InlineSwapCompletionTests {
         #expect(dismissed.count == 0)
         #expect(vm.actionButtonState == .normal)
         #expect(router[.give].count == 1)
+        #expect(!container.session.transactionNotificationPrompt.pending)
     }
 
     @Test("Convert: terminal failure stays, resets the button, and shows an error")
@@ -129,9 +125,40 @@ struct InlineSwapCompletionTests {
         #expect(vm.actionButtonState == .normal)
         #expect(vm.dialogItem != nil)
         #expect(router[.give].isEmpty)
+        #expect(!container.session.transactionNotificationPrompt.pending)
     }
 
     // MARK: - Notification prompt
+
+    @Test("A request is held until consumed, and consumed once")
+    func requestHeldThenConsumedOnce() {
+        let prompt = TransactionNotificationPrompt()
+        #expect(!prompt.pending)
+        #expect(!prompt.consume())
+        prompt.request()
+        #expect(prompt.pending)
+        #expect(prompt.consume())
+        #expect(!prompt.pending)
+        #expect(!prompt.consume())
+    }
+
+    @Test("A dismissing sheet is tracked until its onDismiss reports")
+    func sheetDismissTracking() {
+        let router = AppRouter()
+        router.present(.give)
+        #expect(!router.isSheetDismissing)
+        router.dismissSheet()
+        #expect(router.isSheetDismissing)
+        router.sheetDidFinishDismissing()
+        #expect(!router.isSheetDismissing)
+    }
+
+    @Test("Dismissing with nothing presented does not mark a dismissal in flight")
+    func emptyDismissIsNotInFlight() {
+        let router = AppRouter()
+        router.dismissSheet()
+        #expect(!router.isSheetDismissing)
+    }
 
     @Test("The notification explainer shows once, only when undetermined")
     func notificationPromptShownOnce() async {

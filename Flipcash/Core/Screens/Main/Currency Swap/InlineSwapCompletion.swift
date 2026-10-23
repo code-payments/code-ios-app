@@ -160,22 +160,45 @@ struct InlineSwapCompletion {
 enum InlineSuccess {
 
     /// Shows `.success` on the button for `hold`, refreshes post-transaction state, runs
-    /// `finish` (the flow's dismissal or hand-off), then offers notifications once.
+    /// `finish` (the flow's dismissal or hand-off), then asks for the notifications prompt.
+    /// The request is only held; ``TransactionNotificationPromptHost`` presents it once the
+    /// sheet `finish` closed has finished dismissing.
     static func complete(
         hold: Duration = InlineCompletion.successHold,
-        dismissDelay: Duration = AppRouter.dismissAnimationDuration,
         setButtonState: (ButtonState) -> Void,
         updatePostTransaction: () -> Void,
         finish: () async -> Void,
-        notifications: NotificationPrompt,
-        present: (DialogItem) -> Void
+        prompt: TransactionNotificationPrompt
     ) async {
         setButtonState(.success)
         try? await Task.sleep(for: hold)
         updatePostTransaction()
         await finish()
-        try? await Task.sleep(for: dismissDelay)
-        await notifications.presentIfNeeded(present: present)
+        prompt.request()
+    }
+}
+
+// MARK: - TransactionNotificationPrompt -
+
+/// Holds a request to offer notifications after a transaction finished in place, until the
+/// app-level host can present it. Only a flow that exits after an in-place success requests
+/// it; the processing screen carries its own "Notify Me When Complete".
+@Observable
+@MainActor
+final class TransactionNotificationPrompt {
+
+    /// Whether a request is waiting to be presented.
+    private(set) var pending = false
+
+    /// Records that the flow just exited after an in-place success.
+    func request() {
+        pending = true
+    }
+
+    /// Takes the waiting request, returning whether there was one.
+    func consume() -> Bool {
+        defer { pending = false }
+        return pending
     }
 }
 

@@ -42,7 +42,7 @@ struct InlineBalanceCompletionTests {
         )
     }
 
-    private static func viewModel(settling: Settling) throws -> AddMoneyAmountViewModel {
+    private static func viewModel(settling: Settling) throws -> (AddMoneyAmountViewModel, Session) {
         let container = try SessionContainer.makeTest(holdings: [])
         let viewModel = AddMoneyAmountViewModel(
             method: .phantom,
@@ -53,13 +53,7 @@ struct InlineBalanceCompletionTests {
         viewModel.inlineWindow = .milliseconds(200)
         viewModel.inlineInterval = .milliseconds(1)
         viewModel.successHold = .zero
-        viewModel.dismissDelay = .zero
-        viewModel.notificationPrompt = NotificationPrompt(
-            defaults: UserDefaults(suiteName: UUID().uuidString)!,
-            status: { .denied },
-            authorize: {}
-        )
-        return viewModel
+        return (viewModel, container.session)
     }
 
     // MARK: - Outcome
@@ -98,7 +92,7 @@ struct InlineBalanceCompletionTests {
 
     @Test("Inline success dismisses the flow and never pushes the processing screen")
     func inlineSuccessDismisses() async throws {
-        let viewModel = try Self.viewModel(settling: try Self.settling(risesAfter: 2))
+        let (viewModel, session) = try Self.viewModel(settling: try Self.settling(risesAfter: 2))
         var dismissed = false
         var pushed: AddMoneyProcessingInput?
 
@@ -113,11 +107,12 @@ struct InlineBalanceCompletionTests {
         #expect(dismissed)
         #expect(pushed == nil)
         #expect(viewModel.actionButtonState == .success)
+        #expect(session.transactionNotificationPrompt.pending)
     }
 
     @Test("Timing out inline pushes the processing screen with the inline window deducted")
     func timeoutFallsBackWithElapsed() async throws {
-        let viewModel = try Self.viewModel(settling: try Self.settling(risesAfter: .max))
+        let (viewModel, session) = try Self.viewModel(settling: try Self.settling(risesAfter: .max))
         var dismissed = false
         var pushed: AddMoneyProcessingInput?
 
@@ -133,6 +128,7 @@ struct InlineBalanceCompletionTests {
         #expect(pushed?.method == .phantom)
         #expect(pushed?.depositRef == "sig")
         #expect(pushed?.elapsed == .milliseconds(200))
+        #expect(!session.transactionNotificationPrompt.pending)
     }
 
     @Test("The processing screen's timeout shrinks by the inline time already spent")

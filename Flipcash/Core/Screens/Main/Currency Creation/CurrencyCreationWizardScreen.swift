@@ -650,8 +650,6 @@ struct CurrencyCreationWizardScreen: View {
             await InlineSuccess.complete(
                 // The bill hand-off follows immediately; there is no button to hold on.
                 hold: .zero,
-                // `receiveLaunchedCurrency` already waits out the dismiss animation.
-                dismissDelay: .zero,
                 setButtonState: { _ in },
                 updatePostTransaction: { session.updatePostTransaction() },
                 finish: {
@@ -661,8 +659,7 @@ struct CurrencyCreationWizardScreen: View {
                         dismiss: { Self.dismissCreationFlow(router: router) }
                     )
                 },
-                notifications: NotificationPrompt(),
-                present: { session.dialogItem = $0 }
+                prompt: session.transactionNotificationPrompt
             )
         case .failed:
             errorDialog = .error(title: "Something Went Wrong", subtitle: "Please try again later")

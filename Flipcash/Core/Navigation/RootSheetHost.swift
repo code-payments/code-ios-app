@@ -79,6 +79,10 @@ struct RootSheetHostModifier: ViewModifier {
 
     private var session: Session { sessionContainer.session }
 
+    private var notificationPromptReady: Bool {
+        session.transactionNotificationPrompt.pending && !router.isSheetDismissing
+    }
+
     func body(content: Content) -> some View {
         content
             // Resume a tip held for profile creation the moment the profile
@@ -111,7 +115,7 @@ struct RootSheetHostModifier: ViewModifier {
                         router.dismissSheet()
                     }
                 }
-            )) { sheet in
+            ), onDismiss: router.sheetDidFinishDismissing) { sheet in
                 RoutedSheet(sheet: sheet)
                     .appRouterNestedSheet()
             }
@@ -123,6 +127,13 @@ struct RootSheetHostModifier: ViewModifier {
             .onChange(of: session.presentationState.isPresenting) { _, isPresenting in
                 guard isPresenting else { return }
                 router.dismissSheet()
+            }
+            // Offers notifications after an in-place transaction success, once the
+            // flow's sheet has finished dismissing so the dialog never races it.
+            .onChange(of: notificationPromptReady) { _, isReady in
+                guard isReady, session.transactionNotificationPrompt.consume() else { return }
+                // Unstructured so the consume that flips `isReady` back doesn't cancel it.
+                Task { await NotificationPrompt().presentIfNeeded { session.dialogItem = $0 } }
             }
     }
 }
