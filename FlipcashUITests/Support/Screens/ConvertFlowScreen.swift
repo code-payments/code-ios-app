@@ -44,12 +44,9 @@ struct ConvertFlowScreen {
 
     // MARK: - Confirmation step
 
+    /// Present on every conversion, unlike the fee rows, which are hidden when
+    /// converting from Dollars at 0 bps. The amount step's action is "Next".
     var confirmButton: XCUIElement { app.buttons["Confirm"] }
-
-    /// Every conversion carries a fee, so this row is unconditional — what the
-    /// direction changes is whether the fee is added on top of the purchase
-    /// (from Dollars) or taken out of the proceeds.
-    var conversionFeeRow: XCUIElement { app.staticTexts["Conversion fee"] }
 
     // MARK: - Assertions
 
@@ -62,7 +59,7 @@ struct ConvertFlowScreen {
 
     func assertConfirmationReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            conversionFeeRow.waitForExistence(timeout: timeout),
+            confirmButton.waitForExistence(timeout: timeout),
             "Expected the Convert confirmation screen"
         )
     }
