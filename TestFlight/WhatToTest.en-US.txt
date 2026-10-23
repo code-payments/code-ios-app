@@ -1,5 +1,31 @@
 What to test in this build
 
+New in this release:
+• Send paid reactions in direct messages and group chats.
+• Chats Search lets you find conversations quickly.
+• Scanning a group invite link shows a card to join that group.
+• Converting from Dollars no longer charges a fee.
+• Swaps and Phantom deposits now finish in place before processing.
+• Creating a community chat now requires holding a community currency.
+• The Wallet tab is now called Money, and its tiles and screens have clearer names.
+• Tapping a currency in search opens it on the Money tab.
+• The paid reaction sheet is now titled "Boost Reaction."
+• Tapping a reply quote now takes you back to where you were before jumping to the bottom of the chat.
+• Pick a new group's currency from a full-width row.
+• The app reconnects to the server when your network changes.
+• The send-cash button stays hidden while photos are staged in a chat.
+• Mentions show as highlighted pills in photo and media captions.
+• Chats update promptly when a newer message arrives.
+• Private group and encrypted chat notifications name the sender and preview photos.
+• A payment that opens a direct message is now recorded as a send, unless it came from a Flipcard scan.
+• The start-chatting fee stays on the sheet while the send completes.
+• The keyboard closes before a currency opens from search.
+• The scan screen's gallery button now sits in the toolbar.
+• System notices now update your read position.
+• Join notices name the people they're about.
+• Removed a duplicate Leaderboard heading in Discovery.
+• Fixed a rounding error in some amounts.
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
