@@ -83,9 +83,6 @@ jobs:
           set -euo pipefail
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-          # Boot now so it overlaps the package resolve and compile; xcodebuild
-          # otherwise boots it cold when testing starts (~2 minutes on the runner).
-          xcrun simctl boot "$UDID" || true
 
       - name: Ed25519 vectors
         working-directory: CrossPlatformVectors
@@ -150,9 +147,6 @@ jobs:
           set -euo pipefail
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-          # Boot now so it overlaps the package resolve and compile; xcodebuild
-          # otherwise boots it cold when testing starts (~2 minutes on the runner).
-          xcrun simctl boot "$UDID" || true
 
       # Builds both test targets (FlipcashTests and FlipcashUITests) once, so the
       # `ui` job can test-without-building from the cache. The build runs -quiet
@@ -259,9 +253,6 @@ jobs:
           set -euo pipefail
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-          # Boot now so it overlaps the package resolve and compile; xcodebuild
-          # otherwise boots it cold when testing starts (~2 minutes on the runner).
-          xcrun simctl boot "$UDID" || true
 
       - name: UI smoke tests
         run: |
