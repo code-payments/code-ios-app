@@ -32,6 +32,12 @@ extension Array where Element == ExchangedBalance {
         filter { $0.stored.mint != .usdf }
     }
 
+    /// The community currencies these balances hold, in the order a community-currency picker lists
+    /// them: the giveable balances without Dollars.
+    func communityCurrencies() -> [ExchangedBalance] {
+        giveable().excludingUSDF()
+    }
+
     /// Balances eligible to withdraw.
     func withdrawable() -> [ExchangedBalance] {
         fundable()

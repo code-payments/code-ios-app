@@ -32,9 +32,10 @@ final class NewPublicGroupModel {
     /// leaves the blob unset for a group with no picture.
     private(set) var picture: UIImage?
 
-    /// Which holdings count toward the requirement. Opens on ``CurrencyChoice/anyCommunityCurrency``, the rule every
-    /// creator can draw without first having to pick a token.
-    private(set) var currency: CurrencyChoice = .anyCommunityCurrency
+    /// The community currency the requirement counts, or nil until the user holds one. Kept whole
+    /// so the form's row can draw the token's name and icon; only ``ExchangedBalance/stored``'s mint
+    /// reaches the wire.
+    private(set) var currency: ExchangedBalance?
 
     /// The minimum balance a member must hold, in USD.
     private(set) var minimumBalance: FiatAmount?
@@ -84,11 +85,14 @@ final class NewPublicGroupModel {
     }
 
     func select(balance: ExchangedBalance) {
-        currency = .specific(balance)
+        currency = balance
     }
 
-    func selectAnyCommunityCurrency() {
-        currency = .anyCommunityCurrency
+    /// Sets the currency to the first of `communityCurrencies`, the picker's top row, unless one is
+    /// already set, so balances landing after a pick don't overwrite it.
+    func applyDefaultCurrency(from communityCurrencies: [ExchangedBalance]) {
+        guard currency == nil, let first = communityCurrencies.first else { return }
+        currency = first
     }
 
     func select(minimumBalance: FiatAmount) {
@@ -115,35 +119,26 @@ final class NewPublicGroupModel {
         validator.remaining(in: title)
     }
 
-    /// The rules the chat is created with, or nil while no amount has been picked.
+    /// The rules the chat is created with, or nil while no currency or no amount has been picked.
     ///
     /// Only a listener requirement is set: it is the one the design collects, and the contract
     /// applies speaker rules on top of listener rules, so leaving `speaker` unset means "anyone who
     /// can read can send".
     var rules: ConversationRules? {
-        guard let minimumBalance else { return nil }
-        return Self.rules(minimumBalance: minimumBalance, currency: currency)
-    }
-
-    /// What sits under the presets: who can join, and with how much of which currency.
-    var requirementCaption: String {
-        let currencyName: String
-        switch currency {
-        case .anyCommunityCurrency: currencyName = "any community currency"
-        case .specific(let balance): currencyName = balance.stored.name
-        }
-        return "People need this amount of \(currencyName) to join this chat."
-    }
-
-    /// The contract caps the mint list at one entry, and an empty list is the requirement applying
-    /// to every holding added together, USDF included.
-    private static func rules(minimumBalance: FiatAmount, currency: CurrencyChoice) -> ConversationRules {
-        ConversationRules(
+        guard let minimumBalance, let currency else { return nil }
+        return ConversationRules(
             listener: [.minimumBalance(MinimumBalanceRequirement(
                 amount: minimumBalance,
-                mints: currency.mint.map { [$0] } ?? []
+                mints: [currency.stored.mint]
             ))]
         )
+    }
+
+    /// What sits under the presets: who can join, and with how much of which currency. Nil while
+    /// no currency is set.
+    var requirementCaption: String? {
+        guard let currency else { return nil }
+        return "People need this amount of \(currency.stored.name) to join this chat."
     }
 
     /// Whether the user clears the bar they just drew.
@@ -302,25 +297,4 @@ final class NewPublicGroupModel {
 enum GroupPrivacy {
     case `public`
     case `private`
-}
-
-extension NewPublicGroupModel {
-
-    /// The holdings a group's balance requirement counts.
-    enum CurrencyChoice: Equatable {
-        /// Every holding added together, sent as an empty mint list. The contract can't say
-        /// "community currencies only", so USDF counts too.
-        case anyCommunityCurrency
-        /// One holding, kept whole so the form's row can draw the token's name and icon. Only
-        /// ``ExchangedBalance/stored``'s mint reaches the wire.
-        case specific(ExchangedBalance)
-
-        /// The mint of the chosen holding, or nil when every holding counts.
-        var mint: PublicKey? {
-            switch self {
-            case .anyCommunityCurrency:  return nil
-            case .specific(let balance): return balance.stored.mint
-            }
-        }
-    }
 }
