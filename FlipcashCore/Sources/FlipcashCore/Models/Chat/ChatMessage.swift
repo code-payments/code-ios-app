@@ -143,6 +143,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// Whether this is the viewer's own row that the server has not confirmed — still sending, or
     /// failed. Only an earlier-confirmed row's `receipt` is withheld, so a nil receipt doesn't say this.
     public let isUnsent: Bool
+    /// When the message was sent, or nil for a row built without one (previews, fixtures). Drives
+    /// the reveal column and the full time in the menu header and the spoken description.
+    public let sentAt: Date?
 
     /// The id of the message this row draws some or all of. Every action that means the message
     /// rather than the row — the menu, a reply swipe, retry, a jump to a quoted original — goes by
@@ -236,7 +239,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         selfReactions: [SelfReaction] = [],
         canReact: Bool = true,
         canBoost: Bool = false,
-        isUnsent: Bool = false
+        isUnsent: Bool = false,
+        sentAt: Date? = nil
     ) {
         self.id = id
         self.serverID = serverID
@@ -260,6 +264,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.canReact = canReact
         self.canBoost = canBoost
         self.isUnsent = isUnsent
+        self.sentAt = sentAt
     }
 
     /// Convenience for text rows.
@@ -285,7 +290,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         selfReactions: [SelfReaction] = [],
         canReact: Bool = true,
         canBoost: Bool = false,
-        isUnsent: Bool = false
+        isUnsent: Bool = false,
+        sentAt: Date? = nil
     ) {
         self.init(
             id: id,
@@ -309,7 +315,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             selfReactions: selfReactions,
             canReact: canReact,
             canBoost: canBoost,
-            isUnsent: isUnsent
+            isUnsent: isUnsent,
+            sentAt: sentAt
         )
     }
 }

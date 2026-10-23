@@ -24,18 +24,21 @@ final class MessageMenuView: UIView {
     private static let iconWidth: CGFloat = 24
     private static let cornerRadius: CGFloat = 24
     private static let dividerHeight: CGFloat = 13
+    /// The muted, non-interactive row above the actions that carries the message's full send time.
+    private static let headerHeight: CGFloat = 32
 
     private let actions: [UIAction]
     private let surface: UIView
     private var rows: [UIControl] = []
     private let selection = UISelectionFeedbackGenerator()
 
-    /// The menu's size for `actions`.
-    static func size(for actions: [UIAction]) -> CGSize {
+    /// The menu's size for `actions`, with room for `header` above them when there is one.
+    static func size(for actions: [UIAction], header: String? = nil) -> CGSize {
         let dividers: CGFloat = dividerIndex(in: actions) == nil ? 0 : 1
+        let headerRow: CGFloat = header == nil ? 0 : headerHeight
         return CGSize(
             width: width,
-            height: CGFloat(actions.count) * rowHeight + dividers * dividerHeight + verticalInset * 2
+            height: headerRow + CGFloat(actions.count) * rowHeight + dividers * dividerHeight + verticalInset * 2
         )
     }
 
@@ -48,7 +51,9 @@ final class MessageMenuView: UIView {
         return index
     }
 
-    init(actions: [UIAction]) {
+    /// - Parameter header: the message's full send time, drawn muted above the actions; nil draws
+    ///   no header. It is not a row: dragging or tapping onto it selects nothing.
+    init(actions: [UIAction], header: String? = nil) {
         self.actions = actions
         if #available(iOS 26, *) {
             let glass = UIVisualEffectView(effect: UIGlassEffect(style: .regular))
@@ -60,7 +65,7 @@ final class MessageMenuView: UIView {
             surface.layer.cornerCurve = .continuous
             surface.clipsToBounds = true
         }
-        super.init(frame: CGRect(origin: .zero, size: Self.size(for: actions)))
+        super.init(frame: CGRect(origin: .zero, size: Self.size(for: actions, header: header)))
 
         surface.frame = bounds
         surface.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -69,6 +74,22 @@ final class MessageMenuView: UIView {
 
         let dividerIndex = Self.dividerIndex(in: actions)
         var y = Self.verticalInset
+        if let header {
+            let label = UILabel(frame: CGRect(
+                x: Self.horizontalInset,
+                y: y,
+                width: bounds.width - Self.horizontalInset * 2,
+                height: Self.headerHeight
+            ))
+            label.text = header
+            label.font = .default(size: 13, weight: .regular)
+            label.textColor = UIColor.white.withAlphaComponent(0.6)
+            label.autoresizingMask = [.flexibleWidth]
+            label.isAccessibilityElement = true
+            label.accessibilityTraits = .staticText
+            content.addSubview(label)
+            y += Self.headerHeight
+        }
         for (index, action) in actions.enumerated() {
             if index == dividerIndex {
                 let hairline: CGFloat = 0.5

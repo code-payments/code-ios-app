@@ -145,7 +145,8 @@ extension ChatItem {
                 isContinuationFromPrevious: false,
                 isContinuedByNext: false,
                 isEmojiOnly: isEmojiOnly,
-                author: author
+                author: author,
+                sentAt: message.date
             )))
             previous = message
         }

@@ -156,6 +156,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         tokenLabel.text = cash.token
         captionLabel.text = ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
         amountLabel.text = cash.amount
+        amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
 
         let flagImage = cash.flagImageName.flatMap { UIImage(named: $0, in: .module, compatibleWith: nil) }
         flag.image = flagImage

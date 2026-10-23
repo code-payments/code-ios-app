@@ -259,6 +259,9 @@ public final class ChatViewController: UICollectionViewController {
     /// Drag a row towards the leading edge to reply to it. Owns its own recognizer and state — see
     /// `ChatSwipeToReply` for why it is exclusive with every other gesture here.
     private let swipeToReply = ChatSwipeToReply()
+    /// Drag the transcript towards the leading edge to reveal send times. The opposite direction to
+    /// `swipeToReply`, and exclusive with it the same way.
+    private let timestampReveal = ChatTimestampReveal()
     /// Breathing room kept below the last item, above the bar, so a trailing receipt doesn't sit
     /// flush against the bar.
     private static let bottomContentPadding: CGFloat = 12
@@ -405,6 +408,18 @@ public final class ChatViewController: UICollectionViewController {
         }
         collectionView.addGestureRecognizer(swipeToReply.recognizer)
 
+        timestampReveal.isBlocked = { [weak self] in
+            guard let self else { return true }
+            return self.isShowingContextMenu || self.isUpdating
+        }
+        timestampReveal.onOffsetChange = { [weak self] offset in
+            guard let self else { return }
+            for case let cell as ChatColumnCell in self.collectionView.visibleCells {
+                cell.revealOffset = offset
+            }
+        }
+        collectionView.addGestureRecognizer(timestampReveal.recognizer)
+
         collectionView.reloadData()
     }
 
@@ -475,6 +490,8 @@ public final class ChatViewController: UICollectionViewController {
             // never inherit a translation from the row that was dragged before it.
             swipeToReply.recognizer.isEnabled = false
             swipeToReply.recognizer.isEnabled = true
+            timestampReveal.recognizer.isEnabled = false
+            timestampReveal.recognizer.isEnabled = true
             collectionView.reloadData()
             // A jump that was waiting on this update owns where the transcript lands, so it runs
             // instead of the opening scroll-to-bottom rather than after it: that scroll queues a
@@ -828,6 +845,8 @@ public final class ChatViewController: UICollectionViewController {
     /// hooks, so the wave restarts every time the row is (re)inserted.
     public override func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         (cell as? ChatTypingIndicatorCell)?.startAnimating()
+        // A row scrolled in mid-reveal joins the rest instead of sitting closed among them.
+        (cell as? ChatColumnCell)?.revealOffset = timestampReveal.offset
         reattachAttention(to: cell, at: indexPath)
     }
 
@@ -1555,7 +1574,7 @@ extension ChatViewController: UIGestureRecognizerDelegate {
     /// everything: once it lifts a row, the taps under the finger must fail rather than fire on
     /// release, and the scroll must not move the transcript under the lift.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        let exclusive: [UIGestureRecognizer?] = [swipeToReply.recognizer, bubbleLongPress]
+        let exclusive: [UIGestureRecognizer?] = [swipeToReply.recognizer, timestampReveal.recognizer, bubbleLongPress]
         return !exclusive.contains { $0 === gestureRecognizer || $0 === otherGestureRecognizer }
     }
 

@@ -479,7 +479,7 @@ public final class ChatScreenViewController: UIViewController {
             composerHeldKeyboardUnderMenu = responder.isFirstResponder
             _ = responder.resignFirstResponder()
         }
-        overlay.present(copy: copy, from: view.convert(frame, to: nil), in: scene, entries: entries, actions: actions, press: press)
+        overlay.present(copy: copy, from: view.convert(frame, to: nil), in: scene, entries: entries, actions: actions, menuHeader: message.sentAt?.formattedChatMessageTime(), press: press)
     }
 
     /// Flies the lift back to where its row sits now, which a message pushed in while it was up may

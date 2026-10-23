@@ -334,6 +334,7 @@ public final class LinkableBubbleView: UIView {
         // Empty on a card row: the hidden text still widens the row, and a person card, which gives
         // its own width, would sit short of the column's edge inside it.
         textView.attributedText = bare ? nil : Self.linkedText(for: message)
+        textView.spokenTime = message.sentAt?.formattedChatMessageTime()
         // A web card sits under the text rather than replacing it. Its layout comes off before the
         // switch between text and bare and goes on after it, so no row ever holds two bottoms.
         let webInText = !bare && { if case .web = message.linkPreview?.card { true } else { false } }()
@@ -580,6 +581,14 @@ enum MentionPill {
 /// ChatLayout's own `MessageTextView` recipe.
 final class LinkTextView: UITextView {
     private let pills = CAShapeLayer()
+    /// The message's full send time, read after the text. A text view's value is its text, so the
+    /// time is appended to it rather than set in its place.
+    var spokenTime: String?
+
+    override var accessibilityValue: String? {
+        get { [super.accessibilityValue, spokenTime].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ") }
+        set { super.accessibilityValue = newValue }
+    }
 
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)

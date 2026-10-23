@@ -40,8 +40,9 @@ final class MessageLiftOverlay: NSObject, UIGestureRecognizerDelegate {
 
     /// Lifts `copy` from `home` (window coordinates), with a strip of `entries` above it and a menu
     /// of `actions` below it; either may be absent. `press` is where a finger still down from a long
-    /// press landed (window coordinates), which may go on to drag onto a menu row.
-    func present(copy: UIView, from home: CGRect, in scene: UIWindowScene, entries: [ReactionStrip.Entry]?, actions: [UIAction]?, press: CGPoint? = nil) {
+    /// press landed (window coordinates), which may go on to drag onto a menu row. `menuHeader` is the
+    /// muted line heading the menu — the message's full send time.
+    func present(copy: UIView, from home: CGRect, in scene: UIWindowScene, entries: [ReactionStrip.Entry]?, actions: [UIAction]?, menuHeader: String? = nil, press: CGPoint? = nil) {
         let window = UIWindow(windowScene: scene)
         // Above the keyboard's window, so the lift covers it as it goes down.
         window.windowLevel = .alert + 1
@@ -73,7 +74,7 @@ final class MessageLiftOverlay: NSObject, UIGestureRecognizerDelegate {
             safeArea: (window.safeAreaInsets.top, window.safeAreaInsets.bottom),
             stripHeight: entries == nil ? nil : ReactionStripView.height,
             stripGap: ReactionStripView.bubbleGap,
-            menuSize: menuActions.map { MessageMenuView.size(for: $0) }
+            menuSize: menuActions.map { MessageMenuView.size(for: $0, header: menuHeader) }
         )
 
         let scale = layout.bubble.height / home.height
@@ -86,7 +87,7 @@ final class MessageLiftOverlay: NSObject, UIGestureRecognizerDelegate {
             strip = installStrip(entries: entries, in: root, besides: layout.bubble, top: stripTop)
         }
         if let menuActions, let frame = layout.menu {
-            let menu = MessageMenuView(actions: menuActions)
+            let menu = MessageMenuView(actions: menuActions, header: menuHeader)
             menu.frame = frame
             menu.onSelect = { [weak self] action in self?.onAction?(action) }
             root.addSubview(menu)

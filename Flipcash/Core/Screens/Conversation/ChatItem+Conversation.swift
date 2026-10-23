@@ -416,7 +416,8 @@ extension ChatItem {
                     // "$" boosts a reaction the viewer already has, so it waits for one.
                     canBoost: canBoost && !isFromSelf && message.senderID != nil && !message.isDeleted && !isUnsent
                         && !(message.reactionState?.selfReactions.isEmpty ?? true),
-                    isUnsent: isUnsent
+                    isUnsent: isUnsent,
+                    sentAt: message.date
                 )))
             }
         }

@@ -227,6 +227,7 @@ public final class ChatMediaCell: ChatColumnCell {
         authorImageData: Data? = nil
     ) {
         guard case .media(let media) = message.content else { return }
+        imageBubble.accessibilityValue = message.sentAt?.formattedChatMessageTime()
         let blurhashOnly = Self.isBlurhashOnly(media, canReact: message.canReact)
         self.blurhashOnly = blurhashOnly
 
