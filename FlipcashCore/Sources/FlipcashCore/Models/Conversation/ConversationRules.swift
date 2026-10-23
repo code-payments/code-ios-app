@@ -61,10 +61,24 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
     /// order does not matter, and there is no delta to fetch, only a refetch.
     public let version: UInt64
 
-    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0) {
+    /// Present iff the creator has silenced the viewer in this chat: they may read, react and vote
+    /// but not speak, so the composer is hidden while ``isSilenced(at:)`` holds. A ban is not
+    /// carried here — a banned user is no longer a member and is shown no viewer state.
+    public let silence: ConversationSilenceState?
+
+    /// Whether the viewer may silence other members. Server-computed; never derive it client-side.
+    public let canSilence: Bool
+
+    /// Whether the viewer may ban other members. Server-computed; never derive it client-side.
+    public let canBan: Bool
+
+    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false) {
         self.mute = mute
         self.canEdit = canEdit
         self.version = version
+        self.silence = silence
+        self.canSilence = canSilence
+        self.canBan = canBan
     }
 }
 
@@ -73,7 +87,10 @@ extension ConversationViewerState {
         self.init(
             mute: (proto.hasSettings && proto.settings.hasMute) ? ConversationMuteState(proto.settings.mute) : nil,
             canEdit: proto.hasPermissions ? proto.permissions.canEdit : false,
-            version: proto.version
+            version: proto.version,
+            silence: (proto.hasRestrictions && proto.restrictions.hasSilence) ? ConversationSilenceState(proto.restrictions.silence) : nil,
+            canSilence: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canSilence : false,
+            canBan: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canBan : false
         )
     }
 }
@@ -85,6 +102,12 @@ extension ConversationViewerState {
     /// cached boolean would keep a chat silent after its mute expired.
     public func isMuted(at date: Date = .now) -> Bool {
         mute?.isActive(at: date) ?? false
+    }
+
+    /// Whether the viewer is silenced in this chat as of `date`. Computed on every read for the same
+    /// reason as ``isMuted(at:)``: a timed silence lapses with no server signal.
+    public func isSilenced(at date: Date = .now) -> Bool {
+        silence?.isActive(at: date) ?? false
     }
 }
 
@@ -144,6 +167,75 @@ extension ConversationMuteState {
                 $0.forever = .init()
             }
         }
+    }
+}
+
+/// Whether, and until when, a member is silenced in a chat. See `chat.v1.SilenceState`.
+public enum ConversationSilenceState: Hashable, Codable, Sendable {
+    /// Silenced until this date, after which the silence lapses client-side. Nothing is sent when it
+    /// does, so the client owns the countdown.
+    case until(Date)
+    /// Silenced until explicitly unsilenced.
+    case forever
+}
+
+extension ConversationSilenceState {
+    /// Falls back to `.forever` when `duration` is unset: a `SilenceState` is only sent while one is
+    /// in force, so an unreadable duration is safer treated as silenced.
+    init(_ proto: Flipcash_Chat_V1_SilenceState) {
+        switch proto.duration {
+        case .until(let timestamp):
+            self = .until(timestamp.date)
+        case .forever, nil:
+            self = .forever
+        }
+    }
+
+    /// Whether the silence is still in force as of `date`.
+    public func isActive(at date: Date = .now) -> Bool {
+        switch self {
+        case .until(let expiry): expiry > date
+        case .forever:           true
+        }
+    }
+
+    /// Builds the wire form for `SilenceUserRequest.silence`.
+    var proto: Flipcash_Chat_V1_SilenceState {
+        .with {
+            switch self {
+            case .until(let date):
+                $0.until = .init(date: date)
+            case .forever:
+                $0.forever = .init()
+            }
+        }
+    }
+}
+
+/// A member the chat's creator has silenced or banned. See `chat.v1.RestrictedUser`.
+public struct ConversationRestrictedUser: Hashable, Sendable, Identifiable {
+    public let userID: UserID?
+    public let displayName: String
+    public let username: Username?
+    public let profilePicture: ProfilePicture?
+    /// Present iff the user is silenced.
+    public let silence: ConversationSilenceState?
+    /// Present iff the user is banned.
+    public let bannedAt: Date?
+
+    public var id: String { userID?.uuidString ?? displayName }
+}
+
+extension ConversationRestrictedUser {
+    init(_ proto: Flipcash_Chat_V1_RestrictedUser) {
+        self.init(
+            userID: proto.hasUserID ? try? UUID(data: proto.userID.value) : nil,
+            displayName: proto.userProfile.displayName,
+            username: proto.userProfile.hasUsername ? Username(proto.userProfile.username) : nil,
+            profilePicture: proto.userProfile.hasProfilePicture ? ProfilePicture(proto.userProfile.profilePicture) : nil,
+            silence: proto.hasSilence ? ConversationSilenceState(proto.silence) : nil,
+            bannedAt: proto.hasBan && proto.ban.hasBannedAt ? proto.ban.bannedAt.date : nil
+        )
     }
 }
 
