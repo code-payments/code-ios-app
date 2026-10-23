@@ -27,7 +27,7 @@ struct NewChatScreen: View {
                 }
 
                 ChatActionRow(
-                    icon: .asset(.lock),
+                    icon: .asset(.group),
                     title: "Create a New Group",
                     accessibilityIdentifier: "new-chat-private-group"
                 ) {
@@ -36,7 +36,7 @@ struct NewChatScreen: View {
                 }
 
                 ChatActionRow(
-                    icon: .asset(.group),
+                    icon: .asset(.currencyCoin),
                     title: "Create a New Community Chat",
                     accessibilityIdentifier: "new-chat-public-group"
                 ) {
