@@ -340,4 +340,50 @@ struct ChatLinkCardSplitTests {
             return
         }
     }
+
+    // MARK: - Photo captions
+
+    private func photo(_ id: UInt64, caption: String) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: id),
+            senderID: them,
+            content: .media([MediaAttachment(blobID: BlobID(data: Data([1])), width: 300, height: 400, blurhash: nil)], caption: caption),
+            date: base,
+            unreadSeq: id
+        )
+    }
+
+    private func media(_ row: ChatMessage) -> ChatMediaContent? {
+        if case .media(let media) = row.content { media } else { nil }
+    }
+
+    @Test("A caption that is only a Flipcash link keeps the card the text path draws bare for the same text")
+    func captionLinkOnlyKeepsCard() throws {
+        let rows = rows([photo(1, caption: " \(Self.cashLink). "), text(2, them, " \(Self.cashLink). ")])
+        let caption = try #require(media(rows[0])?.captionPreview)
+        guard case .cash? = caption.card else {
+            Issue.record("expected a cash card, got \(String(describing: caption.card))")
+            return
+        }
+        #expect(rows[1].rendersAsBareLinkCard)
+        guard case .cash? = rows[1].linkPreview?.card else {
+            Issue.record("the text path should card the same link")
+            return
+        }
+        #expect(rows[0].linkPreview == nil)
+    }
+
+    @Test("A Flipcash link among a caption's words stays link text with no card")
+    func captionLinkAmongWordsHasNoCard() throws {
+        let rows = rows([photo(1, caption: "here you go \(Self.cashLink) enjoy")])
+        let caption = try #require(media(rows[0])?.captionPreview)
+        #expect(caption.card == nil)
+        #expect(caption.links.map(\.url.absoluteString) == [Self.cashLink])
+    }
+
+    @Test("A caption of one to three emoji is flagged emoji-only, as the text path flags it")
+    func captionEmojiOnly() throws {
+        let rows = rows([photo(1, caption: "🔥🔥"), photo(2, caption: "🔥🔥🔥🔥"), photo(3, caption: "nice 🔥")])
+        #expect(rows.compactMap { media($0)?.captionIsEmojiOnly } == [true, false, false])
+    }
 }

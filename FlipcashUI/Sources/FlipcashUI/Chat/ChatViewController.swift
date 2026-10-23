@@ -155,7 +155,11 @@ public final class ChatViewController: UICollectionViewController {
     /// The width a link message's card is held to, or nil when it takes the bubble's width. A message
     /// card sits at the cash card's width in every state rather than filling the row.
     private func linkCardWidth(for message: ChatMessage, available: CGFloat) -> CGFloat? {
-        guard case .message = message.linkPreview?.card else { return nil }
+        linkCardWidth(for: message.linkPreview?.card, available: available)
+    }
+
+    private func linkCardWidth(for card: LinkCard?, available: CGFloat) -> CGFloat? {
+        guard case .message = card else { return nil }
         return cashCardWidth(available: available)
     }
 
@@ -748,7 +752,8 @@ public final class ChatViewController: UICollectionViewController {
                 progress: pendingMediaProgress?(message.id),
                 remote: remote,
                 quoteThumbnail: quoteThumbnail(for: message),
-                authorImageData: authorImageData
+                authorImageData: authorImageData,
+                captionWidth: linkCardWidth(for: media.captionPreview?.card, available: available)
             )
             cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onImageTap = { [weak self, weak cell] in
@@ -763,6 +768,7 @@ public final class ChatViewController: UICollectionViewController {
             }
             cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
             cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+            cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card, message.messageID) }
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
@@ -1597,7 +1603,12 @@ extension ChatViewController {
         guard !message.actions.isEmpty else { return nil }
 
         // A split row copies the whole message, not the piece of it the row happens to draw.
-        let body: String? = if case .text(let text) = message.content { message.part?.messageText ?? text } else { nil }
+        // A photo copies its caption.
+        let body: String? = switch message.content {
+        case .text(let text): message.part?.messageText ?? text
+        case .media(let media): media.caption.flatMap { $0.isEmpty ? nil : $0 }
+        case .cash, .deleted, .unavailable, .shareProfile: nil
+        }
         let rowID = message.messageID
         let handler = onMessageAction
 

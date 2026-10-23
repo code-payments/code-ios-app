@@ -389,6 +389,9 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
     public let captionPreview: LinkPreview?
     /// Every well-formed `@handle` in `caption`, as UTF-16 offsets into it, drawn as pills.
     public var captionMentions: [DetectedMention] { captionPreview?.mentions ?? [] }
+    /// Whether the caption is one to three emoji and nothing else: the text path's rule, so the
+    /// caption draws bare and enlarged under the photo as such a message does, with no bubble.
+    public var captionIsEmojiOnly: Bool { caption.map { EmojiOnlyDetector.isEmojiOnly($0) } ?? false }
     /// Whether the server withheld the photo's download URL; the bubble then only ever draws its BlurHash.
     public let isRedacted: Bool
     /// What decrypting the blob needs when it is end-to-end encrypted, nil for a plaintext blob.

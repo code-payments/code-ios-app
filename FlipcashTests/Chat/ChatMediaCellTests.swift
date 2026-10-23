@@ -261,6 +261,63 @@ struct ChatMediaCellTests {
         #expect(cell.captionBubble.cardView.isHidden)
     }
 
+    // MARK: - Bare card and emoji captions -
+
+    private static let cashLink = "https://send.flipcash.com/c/#/e=KNi8pQr1n5hRU65vKJGge3"
+
+    private func cashCaptionCell() -> (ChatMediaCell, LinkCard) {
+        let url = URL(string: Self.cashLink)!
+        let range = NSRange(location: 0, length: (Self.cashLink as NSString).length)
+        let card = LinkCard.cash(LinkCard.Cash(url: url, entropy: "KNi8pQr1n5hRU65vKJGge3", range: range))
+        let cell = configuredCell(ChatMediaContent(
+            blobID: BlobID(data: Data([1])), width: 1179, height: 2556, blurhash: Self.blurhash,
+            caption: Self.cashLink,
+            captionPreview: LinkPreview(links: [DetectedLink(range: range, url: url)], card: card),
+            isRedacted: false
+        ))
+        cell.layoutIfNeeded()
+        return (cell, card)
+    }
+
+    @Test("A caption that is a Flipcash link draws the text path's bare card under the photo, with no bubble")
+    func captionDrawsBareCard() {
+        let (cell, _) = cashCaptionCell()
+        #expect(!cell.captionBubble.isHidden)
+        #expect(cell.captionBubble.isBare)
+        #expect(!cell.captionBubble.cardView.isHidden)
+        #expect(cell.captionEmoji.isHidden)
+        #expect(cell.captionBubble.frame.minY >= cell.imageView.convert(cell.imageView.bounds, to: cell.captionBubble.superview).maxY)
+    }
+
+    @Test("A tap on the caption's card reports the card the way a text row's does")
+    func captionCardTapFires() {
+        let (cell, card) = cashCaptionCell()
+        var taps: [LinkCard] = []
+        cell.onLinkCardTap = { taps.append($0) }
+        cell.captionBubble.cardTapped()
+        #expect(taps == [card])
+    }
+
+    @Test("An emoji-only caption draws as the text path's bare enlarged emoji, with no bubble")
+    func captionDrawsBareEmoji() {
+        let cell = configuredCell(media(caption: "🔥🔥"))
+        cell.layoutIfNeeded()
+        #expect(cell.captionBubble.isHidden)
+        #expect(!cell.captionEmoji.isHidden)
+        #expect(cell.captionEmoji.maskingPath == nil)
+        #expect(cell.captionEmoji.descendants(of: UILabel.self).contains { $0.text == "🔥🔥" && $0.font.pointSize == 48 })
+    }
+
+    @Test("A caption with words keeps the bubble and hides the emoji view; a recycled cell drops the emoji")
+    func wordsCaptionHidesEmoji() {
+        let cell = configuredCell(media(caption: "🔥🔥"))
+        cell.prepareForReuse()
+        #expect(cell.captionEmoji.isHidden)
+        let words = configuredCell(media(caption: "nice 🔥"))
+        #expect(!words.captionBubble.isHidden)
+        #expect(words.captionEmoji.isHidden)
+    }
+
     // MARK: - Reply quote -
 
     private static let quote = ChatQuote(stableID: "7", authorName: "Ada", snippet: "dinner at 7?", kind: .text)
