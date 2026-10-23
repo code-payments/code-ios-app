@@ -52,6 +52,13 @@ struct OnrampErrorTypeTests {
 
     // MARK: - Copy anchors
 
+    @Test("Weekly limit names USD only when the viewer isn't in USD")
+    func transactionLimitNamesUSD() {
+        #expect(ErrorType.transactionLimit.subtitle(for: .usd) == "You can only add up to $1,000 per week")
+        #expect(ErrorType.transactionLimit.subtitle(for: .cad) == "You can only add up to $1,000 USD per week")
+        #expect(ErrorType.cardRiskDeclined.subtitle(for: .cad) == ErrorType.cardRiskDeclined.subtitle)
+    }
+
     @Test("invalidCard surfaces as Debit Cards Only")
     func invalidCardAnchor() {
         #expect(ErrorType.invalidCard.title == "Debit Cards Only")
