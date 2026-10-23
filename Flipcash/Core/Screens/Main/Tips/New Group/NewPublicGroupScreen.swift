@@ -71,6 +71,9 @@ struct NewPublicGroupScreen: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        .onChange(of: communityCurrencies, initial: true) { _, currencies in
+            model.applyDefaultCurrency(from: currencies)
+        }
         .navigationTitle(model.privacy == .private ? "New Private Group" : "New Public Group")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -99,18 +102,13 @@ struct NewPublicGroupScreen: View {
         .sheet(isPresented: $isPickingCurrency) {
             SelectCurrencyScreen(
                 isPresented: $isPickingCurrency,
-                // Dollars isn't a community currency; "Any Community Currency" is the last row.
+                // Dollars isn't a community currency.
                 excludesUSDF: true,
                 // The check follows the requirement's mint, not the wallet's denomination — this
                 // screen is picking what the gate weighs, not what the balance is shown in.
-                isSelected: { $0.stored.mint == model.currency.mint }
+                isSelected: { $0.stored.mint == model.currency?.stored.mint }
             ) { balance in
                 model.select(balance: balance)
-            } footer: {
-                AnyCommunityCurrencyRow(isSelected: model.currency == .anyCommunityCurrency) {
-                    model.selectAnyCommunityCurrency()
-                    isPickingCurrency = false
-                }
             }
         }
         .sheet(isPresented: $isEnteringCustomAmount) {
@@ -162,14 +160,15 @@ struct NewPublicGroupScreen: View {
             sectionHeader("Community Currency")
 
             Group {
-                switch model.currency {
-                case .anyCommunityCurrency:
-                    CommunityCurrencyRow(name: AnyCommunityCurrency.name, action: { isPickingCurrency = true }) {
-                        AllCurrenciesIcon(size: 32)
-                    }
-                case .specific(let balance):
+                if let balance = model.currency {
                     CommunityCurrencyRow(name: balance.stored.name, action: { isPickingCurrency = true }) {
                         TokenIcon(url: balance.stored.imageURL, monogramID: balance.stored.mint.base58, size: 32)
+                    }
+                } else {
+                    // Reached only by a route that skips the chooser's check, or before balances
+                    // load; the design draws no frame for it.
+                    CommunityCurrencyRow(name: "Select a Currency", action: { isPickingCurrency = true }) {
+                        EmptyView()
                     }
                 }
             }
@@ -187,12 +186,14 @@ struct NewPublicGroupScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.backgroundRow, in: .rect(cornerRadius: Metrics.buttonRadius))
 
-            Text(model.requirementCaption)
-                .font(.default(size: 13, weight: .medium))
-                .foregroundStyle(Color.textMain.opacity(0.5))
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 12)
-                .accessibilityIdentifier("new-group-requirement-caption")
+            if let caption = model.requirementCaption {
+                Text(caption)
+                    .font(.default(size: 13, weight: .medium))
+                    .foregroundStyle(Color.textMain.opacity(0.5))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .accessibilityIdentifier("new-group-requirement-caption")
+            }
 
             // The server refuses a chat whose creator is short of its own rules, so say so here
             // rather than spending the round trip to be told.
@@ -247,6 +248,11 @@ struct NewPublicGroupScreen: View {
 
     /// Shown only once the limit is close enough to explain a disabled Create.
     private static let countdownThreshold = 10
+
+    /// The picker's list, whose first entry is the form's default currency.
+    private var communityCurrencies: [ExchangedBalance] {
+        session.balances(for: ratesController.rateForBalanceCurrency()).communityCurrencies()
+    }
 
     private var satisfiesOwnRules: Bool {
         model.satisfiesOwnRules(session: session, rates: ratesController.cachedRates)

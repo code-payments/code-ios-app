@@ -212,7 +212,7 @@ public enum Asset: String, Sendable {
     case send
     case send2
     case people = "IconPeople"
-    /// The pair-of-people glyph the "Create a Public Group" row draws (node 10127:118001).
+    /// The pair-of-people glyph the "Create a New Community Chat" row draws (node 10127:118001).
     case group = "IconGroup3"
     /// The handle glyph the "Find by Username" and "Send Invite Link" rows draw
     /// (nodes 10127:118008 and 10127:118328).
