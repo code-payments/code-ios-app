@@ -10,10 +10,14 @@ name: Package.resolved check
 # "Package.resolved is current" is a required check on main, so the workflow runs
 # on every PR: a workflow-level `paths:` filter would leave PRs that skip it
 # waiting on a check that never reports. The cheap `changes` job decides instead,
-# and a job skipped by its `if:` counts as passing.
+# and a job skipped by its `if:` counts as passing. It also runs on merge_group,
+# because a required check that does not report on the queue's temporary branch
+# stalls the queue.
 
 on:
   pull_request:
+    branches: [main]
+  merge_group:
     branches: [main]
   push:
     branches: [main]
@@ -36,7 +40,7 @@ jobs:
       - name: Diff against the base
         id: diff
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -euo pipefail
           # A new branch push has an all-zero `before`, and a base that is not
