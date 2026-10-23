@@ -154,7 +154,7 @@ final class ConvertConfirmationViewModel {
     /// Waits for the swap on this screen. A terminal result resolves here; anything still
     /// pending after the inline window continues on the processing screen.
     func completeInline(swapId: SwapId, session: Session, router: AppRouter, dismiss: @escaping () -> Void) async {
-        let poller = swapPoller?(swapId) ?? { attempts, interval in
+        let poller: SwapPoller = swapPoller?(swapId) ?? { attempts, interval in
             try await session.pollSwapState(swapId: swapId, maxAttempts: attempts, interval: interval)
         }
         let completion = InlineSwapCompletion(
