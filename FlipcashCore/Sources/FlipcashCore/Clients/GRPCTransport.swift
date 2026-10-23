@@ -50,10 +50,13 @@ enum GRPCTransport {
             logger.info("gRPC connection established", metadata: ["host": "\(host)"])
             return channel.eventLoop.makeSucceededFuture(())
         }
+        var resolvers = NameResolverRegistry()
+        resolvers.registerFactory(PathAwareDNSResolverFactory())
         return try HTTP2ClientTransport.TransportServices(
-            target: .dns(host: host, port: port),
+            target: PathAwareDNSTarget(host: host, port: port),
             transportSecurity: .tls,
-            config: config
+            config: config,
+            resolverRegistry: resolvers
         )
     }
 }
