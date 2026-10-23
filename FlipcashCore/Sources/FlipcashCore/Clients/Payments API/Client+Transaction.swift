@@ -137,16 +137,20 @@ extension Client {
 
     /// Buy tokens using default submitIntent funding (Phase 1 + Phase 2).
     ///
+    /// `destinationAccountExists` skips the create-account intent when the caller already knows the vault exists.
+    ///
     /// `amount` is the net purchase; `feeAmount`, when non-nil, is split off
     /// on-chain to the server's fee destination (the debit is `amount + feeAmount`).
     @discardableResult
-    public func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
+    public func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, destinationAccountExists: Bool = false) async throws -> SwapId {
         // Ensure the timelock vault account exists for this mint
-        try await ensureAccountExists(
-            owner: owner.authority.keyPair,
-            ownerAuthority: owner.authority,
-            token: token
-        )
+        if !destinationAccountExists {
+            try await ensureAccountExists(
+                owner: owner.authority.keyPair,
+                ownerAuthority: owner.authority,
+                token: token
+            )
+        }
 
         return try await withCheckedThrowingContinuation { c in
             transactionService.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
@@ -155,13 +159,15 @@ extension Client {
 
     /// Buy tokens paying with another launchpad currency (Phase 1 + Phase 2).
     @discardableResult
-    public func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
+    public func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, destinationAccountExists: Bool = false) async throws -> SwapId {
         // Ensure the timelock vault account exists for the target mint
-        try await ensureAccountExists(
-            owner: owner.authority.keyPair,
-            ownerAuthority: owner.authority,
-            token: token
-        )
+        if !destinationAccountExists {
+            try await ensureAccountExists(
+                owner: owner.authority.keyPair,
+                ownerAuthority: owner.authority,
+                token: token
+            )
+        }
 
         return try await withCheckedThrowingContinuation { c in
             transactionService.buy(amount: amount, with: paymentToken, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
@@ -318,21 +324,25 @@ extension Client {
     ///   - swapId: The swap to poll
     ///   - owner: Owner keypair for authentication
     ///   - maxAttempts: Maximum number of poll attempts
+    ///   - pollInterval: Delay between attempts; one second unless the caller needs a tighter loop
     ///   - onStateChange: Optional callback for state changes (called on each poll)
     /// - Returns: Final SwapMetadata when a terminal state is reached, or the
     ///   last-fetched metadata when the poll budget is exhausted — callers
     ///   treat a returned non-terminal state as a timeout.
     /// - Throws: ClientError.pollLimitReached if max attempts are exceeded
-    ///   without ever fetching swap state
+    ///   without ever fetching swap state; ``ClientError/swapDenied`` or
+    ///   ``ClientError/swapRejected`` immediately on a permanent server refusal
     public func pollSwapState(
         swapId: SwapId,
         owner: KeyPair,
         maxAttempts: Int,
+        pollInterval: Duration = .seconds(1),
         onStateChange: (@Sendable (SwapState) -> Void)? = nil
     ) async throws -> SwapMetadata {
         try await pollSwapTerminalState(
             swapId: swapId,
             maxAttempts: maxAttempts,
+            pollInterval: pollInterval,
             onStateChange: onStateChange,
             fetch: { try await self.fetchSwapMetadata(swapId: swapId, owner: owner) }
         )
@@ -402,6 +412,15 @@ func pollSwapTerminalState(
             // Swap not yet visible — service layer already logs this at
             // debug level. Continue polling.
             continue
+        } catch ErrorGetSwap.denied {
+            // The swap exists under another owner; no retry can change that.
+            logger.error("Swap poll denied, stopping", metadata: ["swapId": "\(swapId.publicKey.base58)"])
+            throw ClientError.swapDenied
+        } catch ErrorGetSwap.rejected {
+            // Deterministic gRPC refusal (unauthenticated, permission denied,
+            // invalid argument); the identical request can never succeed.
+            logger.error("Swap poll rejected, stopping", metadata: ["swapId": "\(swapId.publicKey.base58)"])
+            throw ClientError.swapRejected
         } catch {
             // Log but continue polling for transient errors
             logger.warning("Swap poll error, continuing", metadata: ["error": "\(error)"])
@@ -426,5 +445,19 @@ func pollSwapTerminalState(
 public enum ClientError: Error {
     case pollLimitReached
     case denied
+    /// The server reported the swap belongs to a different owner. Terminal: polling stops.
+    case swapDenied
+    /// The server definitively refused the poll request (e.g. authentication failed). Terminal: polling stops.
+    case swapRejected
     case vmMetadataMissing
+}
+
+public extension ClientError {
+    /// Whether this error is a permanent refusal of a swap poll, after which the swap's state is unknowable.
+    var isSwapPollRefusal: Bool {
+        switch self {
+        case .swapDenied, .swapRejected: true
+        case .pollLimitReached, .denied, .vmMetadataMissing: false
+        }
+    }
 }

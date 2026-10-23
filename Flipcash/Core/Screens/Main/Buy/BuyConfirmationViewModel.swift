@@ -20,6 +20,9 @@ final class BuyConfirmationViewModel {
     @ObservationIgnored let pinnedState: VerifiedState
 
     var dialogItem: DialogItem?
+    /// Replaces the session poll in tests.
+    @ObservationIgnored var swapPoller: ((SwapId) -> SwapPoller)?
+    @ObservationIgnored var successHold: Duration = InlineCompletion.successHold
     private(set) var actionButtonState: ButtonState = .normal
     /// Gross debit in the payment token, priced on the amount screen.
     @ObservationIgnored let paymentAmount: ExchangedFiat
@@ -86,7 +89,8 @@ final class BuyConfirmationViewModel {
         targetImageURL = try? await session.fetchMintMetadata(mint: targetMint).imageURL
     }
 
-    func buyAction(session: Session, router: AppRouter) async {
+    /// Runs the buy. `dismiss` closes the buy flow once the swap finalizes in place.
+    func buyAction(session: Session, router: AppRouter, dismiss: @escaping () -> Void = {}) async {
         // Re-entrancy guard: don't rely on the button disabling itself.
         guard actionButtonState == .normal else { return }
 
@@ -111,7 +115,7 @@ final class BuyConfirmationViewModel {
             // Submit the pin-computed amount, not the gate's clamp — quarks
             // must stay tied to the pinned proof. A tolerance overshoot is
             // clamped against the pin inside `Session.buy`.
-            await submit(session: session, router: router)
+            await submit(session: session, router: router, dismiss: dismiss)
         case .insufficient:
             logger.info("Buy gated: insufficient balance", metadata: [
                 "paymentMint": "\(payment.mint.base58)",
@@ -122,7 +126,7 @@ final class BuyConfirmationViewModel {
         }
     }
 
-    private func submit(session: Session, router: AppRouter) async {
+    private func submit(session: Session, router: AppRouter, dismiss: @escaping () -> Void) async {
         actionButtonState = .loading
         do {
             let swapId: SwapId
@@ -143,14 +147,7 @@ final class BuyConfirmationViewModel {
                 swapId = try await session.buy(amount: paymentAmount, with: payment.mint, verifiedState: pinnedState, of: targetMint)
                 swapType = .buyWithCurrency
             }
-            actionButtonState = .normal
-            router.pushAny(BuyFlowPath.processing(
-                swapId: swapId,
-                targetMint: targetMint,
-                currencyName: targetName,
-                amount: amountToBuy,
-                swapType: swapType
-            ))
+            await completeInline(swapId: swapId, swapType: swapType, session: session, router: router, dismiss: dismiss)
         } catch Session.Error.insufficientBalance {
             // Race: the balance gate said OK but the reserves buy disagreed.
             actionButtonState = .normal
@@ -184,6 +181,41 @@ final class BuyConfirmationViewModel {
             // `session.dialogItem` renders in `DialogWindow` above every
             // sheet, so the error survives the view's teardown.
             session.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+        }
+    }
+
+    /// Waits for the swap on this screen. A terminal result resolves here; anything still
+    /// pending after the inline window continues on the processing screen.
+    func completeInline(swapId: SwapId, swapType: SwapType, session: Session, router: AppRouter, dismiss: @escaping () -> Void) async {
+        let poller: SwapPoller = swapPoller?(swapId) ?? { attempts, interval in
+            try await session.pollSwapState(swapId: swapId, maxAttempts: attempts, interval: interval)
+        }
+        let completion = InlineSwapCompletion(
+            reporter: SwapCompletionReporter(swapId: swapId, swapType: swapType, targetMint: targetMint, amount: amountToBuy),
+            poll: poller
+        )
+        switch await completion.awaitOutcome() {
+        case .succeeded:
+            await InlineSuccess.complete(
+                hold: successHold,
+                setButtonState: { actionButtonState = $0 },
+                updatePostTransaction: { session.updatePostTransaction() },
+                finish: { dismiss() },
+                prompt: session.transactionNotificationPrompt
+            )
+        case .failed:
+            actionButtonState = .normal
+            dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+        case .pending:
+            actionButtonState = .normal
+            router.pushAny(BuyFlowPath.processing(
+                swapId: swapId,
+                targetMint: targetMint,
+                currencyName: targetName,
+                amount: amountToBuy,
+                swapType: swapType,
+                attemptsUsed: InlineCompletion.slowPathCredit
+            ))
         }
     }
 

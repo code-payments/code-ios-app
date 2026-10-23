@@ -268,4 +268,56 @@ struct BuyConfirmationViewModelTests {
 
         #expect(viewModel.canPerformAction == false)
     }
+
+    // MARK: - Inline completion
+
+    private final class DismissCounter { var count = 0 }
+
+    private func inlineContext(
+        poll: @escaping () throws -> SwapMetadata
+    ) async throws -> (BuyConfirmationViewModel, SessionContainer, AppRouter, DismissCounter) {
+        let container = try await Self.makeContainer(holdings: [
+            SessionContainer.Holding(mint: .usdf, quarks: 30_000_000),
+        ])
+        let usdfBalance = try #require(container.session.balance(for: .usdf))
+        let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .usdf))
+        let paymentAmount = try Self.makePaymentAmount(entered: 5, balance: usdfBalance, pin: pin, container: container)
+        let viewModel = Self.makeViewModel(payment: usdfBalance, paymentAmount: paymentAmount, pin: pin)
+        viewModel.swapPoller = { _ in { _, _ in try poll() } }
+        viewModel.successHold = .zero
+        let router = AppRouter()
+        router.present(.give)
+        router.presentNested(.buy(.usdcAuthority))
+        return (viewModel, container, router, DismissCounter())
+    }
+
+    @Test("Inline: fast success skips processing and dismisses once")
+    func inline_fastSuccess() async throws {
+        let (vm, container, router, dismissed) = try await inlineContext { .makeTest(state: .finalized) }
+        await vm.completeInline(swapId: .generate(), swapType: .buyWithReserves, session: container.session, router: router) { dismissed.count += 1 }
+        #expect(dismissed.count == 1)
+        #expect(vm.actionButtonState == .success)
+        #expect(router[.buy].isEmpty)
+        #expect(container.session.transactionNotificationPrompt.pending)
+    }
+
+    @Test("Inline: pending after the window falls back to the processing screen")
+    func inline_pendingFallsBack() async throws {
+        let (vm, container, router, dismissed) = try await inlineContext { .makeTest(state: .funding) }
+        await vm.completeInline(swapId: .generate(), swapType: .buyWithReserves, session: container.session, router: router) { dismissed.count += 1 }
+        #expect(dismissed.count == 0)
+        #expect(vm.actionButtonState == .normal)
+        #expect(router[.buy].count == 1)
+        #expect(!container.session.transactionNotificationPrompt.pending)
+    }
+
+    @Test("Inline: terminal failure stays, resets the button, and shows an error")
+    func inline_failureStays() async throws {
+        let (vm, container, router, dismissed) = try await inlineContext { .makeTest(state: .failed) }
+        await vm.completeInline(swapId: .generate(), swapType: .buyWithReserves, session: container.session, router: router) { dismissed.count += 1 }
+        #expect(dismissed.count == 0)
+        #expect(vm.actionButtonState == .normal)
+        #expect(vm.dialogItem != nil)
+        #expect(router[.buy].isEmpty)
+    }
 }

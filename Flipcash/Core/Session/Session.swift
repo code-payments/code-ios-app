@@ -58,6 +58,10 @@ class Session {
     /// ``DialogWindow`` in a separate `UIWindow` above all sheets.
     var dialogItem: DialogItem?
 
+    /// A held request to offer notifications after a transaction finished in place;
+    /// presented by ``RootSheetHostModifier`` once the exiting sheet has dismissed.
+    let transactionNotificationPrompt = TransactionNotificationPrompt()
+
     /// Shows `fallback` for a request that never reached the server, or a dialog naming the
     /// Cellular Data switch when that switch is what blocked the request.
     func showConnectionFailure(_ fallback: DialogItem) {
@@ -179,6 +183,18 @@ class Session {
         // Avoid the display-ordered sort in `balances` — this is called per
         // SwiftUI body re-eval from amount-entry computed props.
         updateableBalances.value.first { $0.mint == mint }
+    }
+
+    /// Whether the server has already listed a token account for `mint`. Balances are
+    /// written from `fetchPrimaryAccounts` (zero-quark accounts included) and accounts
+    /// are never removed, so a hit means the account exists; a miss only means "not
+    /// seen yet" and falls back to the idempotent create-account intent.
+    func hasAccount(for mint: PublicKey) -> Bool {
+        Self.hasAccount(for: mint, knownMints: updateableBalances.value.map(\.mint))
+    }
+
+    nonisolated static func hasAccount(for mint: PublicKey, knownMints: [PublicKey]) -> Bool {
+        knownMints.contains(mint)
     }
 
     /// Locally-cached metadata for any known mint, held or not. Nil when the mint
@@ -702,6 +718,11 @@ class Session {
         historyController.sync()
     }
     
+    /// Polls a swap this session submitted until it is terminal or the budget is spent.
+    func pollSwapState(swapId: SwapId, maxAttempts: Int, interval: Duration) async throws -> SwapMetadata {
+        try await client.pollSwapState(swapId: swapId, owner: ownerKeyPair, maxAttempts: maxAttempts, pollInterval: interval)
+    }
+
     func fetchMintMetadata(mint: PublicKey) async throws -> StoredMintMetadata {
         if let metadata = try database.getMintMetadata(mint: mint) {
             return metadata
@@ -790,7 +811,7 @@ class Session {
             "symbol": "\(token.symbol)"
         ])
 
-        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner)
+        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint))
     }
 
     /// Buys `mint` paying with another launchpad currency. `amount` is denominated
@@ -831,7 +852,7 @@ class Session {
             "symbol": "\(token.symbol)"
         ])
 
-        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner)
+        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint))
     }
 
     @discardableResult

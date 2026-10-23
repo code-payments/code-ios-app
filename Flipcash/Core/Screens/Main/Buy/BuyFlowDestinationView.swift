@@ -27,13 +27,14 @@ struct BuyFlowDestinationView: View {
                 pinnedState: pinnedState
             )
 
-        case .processing(let swapId, let targetMint, let currencyName, let amount, let swapType):
+        case .processing(let swapId, let targetMint, let currencyName, let amount, let swapType, let attemptsUsed):
             SwapProcessingScreen(
                 swapId: swapId,
                 swapType: swapType,
                 targetMint: targetMint,
                 currencyName: currencyName,
-                amount: amount
+                amount: amount,
+                attemptsUsed: attemptsUsed
             )
         }
     }

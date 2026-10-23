@@ -94,6 +94,9 @@ class SwapProcessingViewModel {
 
     private let swapId: SwapId
     private let swapType: SwapType
+    private let reporter: SwapCompletionReporter
+    /// One-second polls' worth of the inline window already spent on the source screen, deducted from the budget here.
+    private let attemptsUsed: Int
     /// The token being bought, or a convert's destination. Feeds analytics, and
     /// the success title's check for a conversion landing in the reserve.
     private let targetMint: PublicKey?
@@ -102,7 +105,12 @@ class SwapProcessingViewModel {
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, targetMint: PublicKey? = nil, currencyName: String, amount: ExchangedFiat) {
+    /// Total slow-path poll budget, one poll per second.
+    static let maxAttempts = 90
+
+    init(swapId: SwapId, swapType: SwapType, targetMint: PublicKey? = nil, currencyName: String, amount: ExchangedFiat, attemptsUsed: Int = 0) {
+        self.attemptsUsed = attemptsUsed
+        self.reporter = SwapCompletionReporter(swapId: swapId, swapType: swapType, targetMint: targetMint, amount: amount)
         self.swapId = swapId
         self.swapType = swapType
         self.targetMint = targetMint
@@ -126,7 +134,7 @@ class SwapProcessingViewModel {
             let metadata = try await client.pollSwapState(
                 swapId: swapId,
                 owner: ownerKeyPair,
-                maxAttempts: 90
+                maxAttempts: max(1, Self.maxAttempts - attemptsUsed)
             ) { [weak self] state in
                 Task { @MainActor in
                     self?.currentState = state
@@ -136,25 +144,29 @@ class SwapProcessingViewModel {
             switch metadata.state {
             case .finalized:
                 setSwapDetails()
-                trackTransaction(successful: true)
+                reporter.trackTransaction(successful: true)
                 displayState = .success
             case .failed, .cancelled:
-                reportSwapFailure(state: metadata.state, reason: "Swap completed with failure state")
-                trackTransaction(successful: false)
+                reporter.reportSwapFailure(state: metadata.state, reason: "Swap completed with failure state")
+                reporter.trackTransaction(successful: false)
                 displayState = .failed
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
-                reportSwapFailure(state: metadata.state, reason: "Swap timed out in intermediate state")
-                trackTransaction(successful: false)
+                reporter.reportSwapFailure(state: metadata.state, reason: "Swap timed out in intermediate state")
+                reporter.trackTransaction(successful: false)
                 displayState = .failed
             }
         } catch is CancellationError {
             // Task was cancelled (e.g., by SwiftUI during navigation
             // transitions on iOS 18). Don't treat as failure — the view
             // will restart the task if still visible.
+        } catch let error as ClientError where error.isSwapPollRefusal {
+            reporter.reportPollRefusal(error)
+            reporter.trackTransaction(successful: false)
+            displayState = .failed
         } catch {
             // No swap state was ever fetched within the poll budget
             logger.error("Swap polling failed", metadata: ["error": "\(error)"])
-            trackTransaction(successful: false)
+            reporter.trackTransaction(successful: false)
             displayState = .failed
         }
 
@@ -163,39 +175,6 @@ class SwapProcessingViewModel {
     
     private func setSwapDetails() {
         exchangedFiat = amount
-    }
-
-    private func reportSwapFailure(state: SwapState, reason: String) {
-        logger.error("Swap failed", metadata: [
-            "swapId": "\(swapId.publicKey.base58)",
-            "swapType": "\(swapType)",
-            "state": "\(state)",
-            "reason": "\(reason)",
-        ])
-        ErrorReporting.captureError(
-            SwapError.failed(state: state),
-            reason: reason,
-            metadata: [
-                "swapId": swapId.publicKey.base58,
-                "swapType": "\(swapType)",
-                "finalState": "\(state)",
-                "amount": amount.nativeAmount.formatted(),
-                "quarks": "\(amount.onChainAmount.quarks)",
-            ]
-        )
-    }
-
-    private func trackTransaction(successful: Bool) {
-        switch swapType {
-        case .buyWithReserves:
-            Analytics.tokenPurchase(method: .purchaseWithReserves, targetMint: targetMint, exchangedFiat: amount, successful: successful)
-        case .buyWithCurrency:
-            Analytics.tokenPurchase(method: .purchaseWithCurrency, targetMint: targetMint, exchangedFiat: amount, successful: successful)
-        case .convert:
-            // A convert always disposes of the source token; record it as a
-            // sell of the amount that left the wallet.
-            Analytics.tokenSell(exchangedFiat: amount, successful: successful)
-        }
     }
 }
 

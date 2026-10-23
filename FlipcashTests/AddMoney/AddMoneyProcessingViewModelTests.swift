@@ -22,7 +22,7 @@ struct AddMoneyProcessingViewModelTests {
         currencyRate: .oneToOne
     )
 
-    private static func usdfBalance(dollars: Decimal) throws -> StoredBalance {
+    static func usdfBalance(dollars: Decimal) throws -> StoredBalance {
         try StoredBalance(
             quarks: TokenAmount(wholeTokens: dollars, mint: .usdf).quarks,
             symbol: "USDF",

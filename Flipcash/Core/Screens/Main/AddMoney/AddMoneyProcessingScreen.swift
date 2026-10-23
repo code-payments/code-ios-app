@@ -92,7 +92,10 @@ struct AddMoneyProcessingScreen: View {
             )
 
             await viewModel.run(settlement: session) {
-                await sweeper.sweepUntilConverted(maxAttempts: 20, backoff: .seconds(3))
+                await sweeper.sweepUntilConverted(
+                    maxAttempts: AddMoneyTiming.sweepMaxAttempts,
+                    backoff: AddMoneyTiming.sweepBackoff
+                )
             }
 
             if viewModel.isSuccess {

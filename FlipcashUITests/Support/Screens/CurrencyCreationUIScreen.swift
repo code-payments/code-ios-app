@@ -138,4 +138,29 @@ struct CurrencyCreationUIScreen {
             "Expected the Select Payment Currency step"
         )
     }
+
+    /// Waits for a submitted launch to finish on either path. Fast: the payment row
+    /// spins in the wizard and the flow dismisses straight to the bill. Slow: the
+    /// processing cover appears and its action button dismisses.
+    func waitForLaunchCompletion(timeout: TimeInterval = 180) {
+        let processingTitle = app.staticTexts["This Will Take a Few Minutes"]
+        let success = app.buttons["Get The First $1 of Your Currency Free"]
+        let deadline = Date().addingTimeInterval(timeout)
+        var goneChecks = 0
+
+        while Date() < deadline {
+            if success.exists {
+                success.tap()
+                return
+            }
+            if processingTitle.exists || usdfPaymentRow.exists || tokenPaymentRows.firstMatch.exists {
+                goneChecks = 0
+            } else {
+                goneChecks += 1
+                if goneChecks >= 4 { return }
+            }
+            _ = success.waitForExistence(timeout: 0.5)
+        }
+        XCTFail("Expected the launch to finish within \(Int(timeout))s")
+    }
 }

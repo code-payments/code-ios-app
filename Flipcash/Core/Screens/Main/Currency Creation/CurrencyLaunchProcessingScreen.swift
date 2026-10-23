@@ -17,14 +17,10 @@ struct CurrencyLaunchProcessingScreen: View {
 
     // MARK: - Init -
 
-    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat, paymentMint: PublicKey) {
-        _viewModel = State(wrappedValue: CurrencyLaunchProcessingViewModel(
-            swapId: swapId,
-            launchedMint: launchedMint,
-            currencyName: currencyName,
-            launchAmount: launchAmount,
-            paymentMint: paymentMint
-        ))
+    /// Takes the view model the wizard already polled with, so the swap id, mint and spent
+    /// inline budget carry over.
+    init(viewModel: CurrencyLaunchProcessingViewModel) {
+        _viewModel = State(wrappedValue: viewModel)
     }
 
     // MARK: - Body -
@@ -78,18 +74,11 @@ struct CurrencyLaunchProcessingScreen: View {
     }
 
     private func handleReceiveLaunchedCurrency() async {
-        let description = await viewModel.prepareBillHandoff(
+        await viewModel.receiveLaunchedCurrency(
             session: session,
-            ratesController: ratesController
+            ratesController: ratesController,
+            dismiss: dismissParentContainer
         )
-        dismissParentContainer()
-        // Wait for the dismiss animation to finish before mutating bill state,
-        // so ScanScreen renders the bill as a fresh entrance instead of
-        // revealing it underneath the closing sheet.
-        try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
-        if let description {
-            session.showCashBill(description)
-        }
     }
 }
 

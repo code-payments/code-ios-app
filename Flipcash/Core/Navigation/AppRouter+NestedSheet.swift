@@ -43,7 +43,7 @@ private struct AppRouterNestedSheetModifier: ViewModifier {
             }
         )
         return content.background(
-            Color.clear.sheet(item: binding) { nested in
+            Color.clear.sheet(item: binding, onDismiss: router.sheetDidFinishDismissing) { nested in
                 NestedSheetRootView(sheet: nested)
                     .environment(\.nestedSheetDepth, myDepth)
             }

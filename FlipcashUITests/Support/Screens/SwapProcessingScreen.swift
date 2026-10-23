@@ -26,20 +26,36 @@ struct SwapProcessingUIScreen {
 
     // MARK: - Actions
 
-    /// Waits for the processing screen to become visible.
-    func assertReached(timeout: TimeInterval = 30) {
-        XCTAssertTrue(
-            processingTitle.waitForExistence(timeout: timeout),
-            "Expected processing screen to be visible within \(timeout)s"
-        )
-    }
+    /// Waits for a submitted swap to finish on either path and leaves the flow dismissed.
+    ///
+    /// - Fast path: the confirm screen settles in place (button spins, then shows success)
+    ///   and the flow dismisses without the processing screen ever appearing.
+    /// - Slow path: the swap outlasts the 5s inline window, the processing screen is
+    ///   pushed, and its OK button dismisses.
+    ///
+    /// - Parameter confirmAnchor: An element only the confirm screen shows (its
+    ///   confirm button). Its absence with no processing screen means the flow dismissed.
+    func waitForCompletionAndDismiss(confirmAnchor: XCUIElement, timeout: TimeInterval = 120) {
+        let deadline = Date().addingTimeInterval(timeout)
+        var goneChecks = 0
 
-    /// Waits for the swap to complete (up to 2 minutes) and taps OK.
-    func waitForCompletionAndDismiss() {
-        XCTAssertTrue(
-            okButton.waitForExistence(timeout: 120),
-            "Expected swap processing to complete within 2 minutes"
-        )
-        okButton.tap()
+        while Date() < deadline {
+            if okButton.exists {
+                okButton.tap()
+                return
+            }
+
+            // The push to the processing screen and the confirm screen leaving can land a
+            // frame apart, so only a sustained absence of both counts as the fast path.
+            if processingTitle.exists || confirmAnchor.exists {
+                goneChecks = 0
+            } else {
+                goneChecks += 1
+                if goneChecks >= 4 { return }
+            }
+            _ = okButton.waitForExistence(timeout: 0.5)
+        }
+
+        XCTFail("Expected the swap to finish (inline or via the processing screen) within \(Int(timeout))s")
     }
 }
