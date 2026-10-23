@@ -369,6 +369,21 @@ public struct ChatAuthor: Hashable, Sendable, Codable {
     }
 }
 
+/// One row of a photo's caption the transcript split around a Flipcash link card, as a text message
+/// is: the words before the link, the card, or the words after it.
+public struct ChatMediaCaptionRow: Hashable, Sendable, Codable {
+    public let kind: ChatMessagePart.Kind
+    /// The row's text: the caption's words, or the link the card stands for.
+    public let text: String
+    public let preview: LinkPreview?
+
+    public init(kind: ChatMessagePart.Kind, text: String, preview: LinkPreview?) {
+        self.kind = kind
+        self.text = text
+        self.preview = preview
+    }
+}
+
 /// A photo row's display data: what the bubble needs to size itself and draw a placeholder before
 /// any bytes arrive. The download URL and a pending row's local image stay outside this value — a
 /// URL is signed and minted per fetch, and an image is not `Codable` — and reach the cell at
@@ -384,20 +399,35 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
     public let blurhash: String?
     /// The text sent with the photo, drawn as its own bubble under the image.
     public let caption: String?
+    /// What the caption's text holds, detected as a text message's body is: its links, its
+    /// `@handle` mentions, and the web card its sender attached. Nil when it holds none.
+    public let captionPreview: LinkPreview?
+    /// The caption split around its Flipcash card when words sit beside the link, in the order the
+    /// text path draws a message: leading text, card, trailing text. Empty for a caption that is
+    /// drawn whole, including one that is only the link.
+    public let captionRows: [ChatMediaCaptionRow]
+    /// The Flipcash card the caption draws, whole or split, if any.
+    public var captionCard: LinkCard? {
+        captionRows.compactMap(\.preview?.card).first ?? captionPreview?.card
+    }
     /// Every well-formed `@handle` in `caption`, as UTF-16 offsets into it, drawn as pills.
-    public let captionMentions: [DetectedMention]
+    public var captionMentions: [DetectedMention] { captionPreview?.mentions ?? [] }
+    /// Whether the caption is one to three emoji and nothing else: the text path's rule, so the
+    /// caption draws bare and enlarged under the photo as such a message does, with no bubble.
+    public var captionIsEmojiOnly: Bool { caption.map { EmojiOnlyDetector.isEmojiOnly($0) } ?? false }
     /// Whether the server withheld the photo's download URL; the bubble then only ever draws its BlurHash.
     public let isRedacted: Bool
     /// What decrypting the blob needs when it is end-to-end encrypted, nil for a plaintext blob.
     public let sealed: SealedBlob?
 
-    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionMentions: [DetectedMention] = [], isRedacted: Bool, sealed: SealedBlob? = nil) {
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionPreview: LinkPreview? = nil, captionRows: [ChatMediaCaptionRow] = [], isRedacted: Bool, sealed: SealedBlob? = nil) {
         self.blobID = blobID
         self.width = width
         self.height = height
         self.blurhash = blurhash
         self.caption = caption
-        self.captionMentions = captionMentions
+        self.captionPreview = captionPreview
+        self.captionRows = captionRows
         self.isRedacted = isRedacted
         self.sealed = sealed
     }
