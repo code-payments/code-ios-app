@@ -155,7 +155,11 @@ public final class ChatViewController: UICollectionViewController {
     /// The width a link message's card is held to, or nil when it takes the bubble's width. A message
     /// card sits at the cash card's width in every state rather than filling the row.
     private func linkCardWidth(for message: ChatMessage, available: CGFloat) -> CGFloat? {
-        guard case .message = message.linkPreview?.card else { return nil }
+        linkCardWidth(for: message.linkPreview?.card, available: available)
+    }
+
+    private func linkCardWidth(for card: LinkCard?, available: CGFloat) -> CGFloat? {
+        guard case .message = card else { return nil }
         return cashCardWidth(available: available)
     }
 
@@ -259,6 +263,9 @@ public final class ChatViewController: UICollectionViewController {
     /// Drag a row towards the leading edge to reply to it. Owns its own recognizer and state — see
     /// `ChatSwipeToReply` for why it is exclusive with every other gesture here.
     private let swipeToReply = ChatSwipeToReply()
+    /// Drag the transcript towards the leading edge to reveal send times. The opposite direction to
+    /// `swipeToReply`, and exclusive with it the same way.
+    private let timestampReveal = ChatTimestampReveal()
     /// Breathing room kept below the last item, above the bar, so a trailing receipt doesn't sit
     /// flush against the bar.
     private static let bottomContentPadding: CGFloat = 12
@@ -405,6 +412,18 @@ public final class ChatViewController: UICollectionViewController {
         }
         collectionView.addGestureRecognizer(swipeToReply.recognizer)
 
+        timestampReveal.isBlocked = { [weak self] in
+            guard let self else { return true }
+            return self.isShowingContextMenu || self.isUpdating
+        }
+        timestampReveal.onOffsetChange = { [weak self] offset in
+            guard let self else { return }
+            for case let cell as ChatColumnCell in self.collectionView.visibleCells {
+                cell.revealOffset = offset
+            }
+        }
+        collectionView.addGestureRecognizer(timestampReveal.recognizer)
+
         collectionView.reloadData()
     }
 
@@ -475,6 +494,8 @@ public final class ChatViewController: UICollectionViewController {
             // never inherit a translation from the row that was dragged before it.
             swipeToReply.recognizer.isEnabled = false
             swipeToReply.recognizer.isEnabled = true
+            timestampReveal.recognizer.isEnabled = false
+            timestampReveal.recognizer.isEnabled = true
             collectionView.reloadData()
             // A jump that was waiting on this update owns where the transcript lands, so it runs
             // instead of the opening scroll-to-bottom rather than after it: that scroll queues a
@@ -734,6 +755,8 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatMediaCell:
             guard case .media(let media) = message.content else { return }
+            // Before `configure`, which is where the caption's card draws.
+            cell.linkCardSource = linkCardSource
             let remote = mediaURLResolver?.location(for: media, canReact: message.canReact) { [weak self] _ in
                 self?.reconfigureVisibleMessage(id: message.id)
             }
@@ -745,7 +768,8 @@ public final class ChatViewController: UICollectionViewController {
                 progress: pendingMediaProgress?(message.id),
                 remote: remote,
                 quoteThumbnail: quoteThumbnail(for: message),
-                authorImageData: authorImageData
+                authorImageData: authorImageData,
+                captionWidth: linkCardWidth(for: media.captionCard, available: available)
             )
             cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onImageTap = { [weak self, weak cell] in
@@ -759,6 +783,8 @@ public final class ChatViewController: UICollectionViewController {
                 onMediaTap?(request)
             }
             cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
+            cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+            cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card, message.messageID) }
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
@@ -828,6 +854,8 @@ public final class ChatViewController: UICollectionViewController {
     /// hooks, so the wave restarts every time the row is (re)inserted.
     public override func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         (cell as? ChatTypingIndicatorCell)?.startAnimating()
+        // A row scrolled in mid-reveal joins the rest instead of sitting closed among them.
+        (cell as? ChatColumnCell)?.revealOffset = timestampReveal.offset
         reattachAttention(to: cell, at: indexPath)
     }
 
@@ -1555,7 +1583,7 @@ extension ChatViewController: UIGestureRecognizerDelegate {
     /// everything: once it lifts a row, the taps under the finger must fail rather than fire on
     /// release, and the scroll must not move the transcript under the lift.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        let exclusive: [UIGestureRecognizer?] = [swipeToReply.recognizer, bubbleLongPress]
+        let exclusive: [UIGestureRecognizer?] = [swipeToReply.recognizer, timestampReveal.recognizer, bubbleLongPress]
         return !exclusive.contains { $0 === gestureRecognizer || $0 === otherGestureRecognizer }
     }
 
@@ -1593,7 +1621,12 @@ extension ChatViewController {
         guard !message.actions.isEmpty else { return nil }
 
         // A split row copies the whole message, not the piece of it the row happens to draw.
-        let body: String? = if case .text(let text) = message.content { message.part?.messageText ?? text } else { nil }
+        // A photo copies its caption.
+        let body: String? = switch message.content {
+        case .text(let text): message.part?.messageText ?? text
+        case .media(let media): media.caption.flatMap { $0.isEmpty ? nil : $0 }
+        case .cash, .deleted, .unavailable, .shareProfile: nil
+        }
         let rowID = message.messageID
         let handler = onMessageAction
 

@@ -150,6 +150,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         tokenLabel.text = cash.token
         captionLabel.text = ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
         amountLabel.text = cash.amount
+        amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
 
         coinIcon.isHidden = cash.iconURL == nil
         coinIcon.kf.setImage(with: cash.iconURL)

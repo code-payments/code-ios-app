@@ -187,7 +187,7 @@ struct ConversationModelMappingTests {
             $0.content = [.with {
                 $0.cash = .with {
                     $0.intentID = .with { $0.value = Data(repeating: 0x03, count: 32) }
-                    $0.amount = .with {
+                    $0.totalAmount = .with {
                         $0.currency = "usd"
                         $0.nativeAmount = 5.0
                         $0.quarks = 5_000_000
@@ -210,6 +210,52 @@ struct ConversationModelMappingTests {
         #expect(message.cashAction == .sent)
     }
 
+    @Test("Cash message maps a multi-receiver split and its payment request")
+    func cashMessageMapsMultiReceiverAndPaymentRequest() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 14 }
+            $0.content = [.with {
+                $0.cash = .with {
+                    $0.totalAmount = .with {
+                        $0.currency = "usd"
+                        $0.nativeAmount = 9.0
+                        $0.quarks = 9_000_000
+                        $0.mint = .with { $0.value = Data(repeating: 0x02, count: 32) }
+                    }
+                    $0.multiReceiver = .with {
+                        $0.items = (1...3).map { i in
+                            .with {
+                                $0.receiver = .with { $0.value = Data(repeating: UInt8(i), count: 16) }
+                                $0.nativeAmount = 3.0
+                                $0.quarks = 3_000_000
+                            }
+                        }
+                    }
+                    $0.paymentRequestID = .with { $0.value = Data(repeating: 0x07, count: 32) }
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.cashPayments.count == 3)
+        #expect(message.cashPayments.map(\.quarks) == [3_000_000, 3_000_000, 3_000_000])
+        #expect(message.cashReceiverID == nil)
+        #expect(message.paymentRequestID?.data == Data(repeating: 0x07, count: 32))
+    }
+
+    @Test("Viewer state maps silence and moderation permissions")
+    func viewerStateMapsModeration() {
+        let proto = Flipcash_Chat_V1_ViewerState.with {
+            $0.restrictions = .with { $0.silence = .with { $0.forever = .init() } }
+            $0.permissions = .with { $0.moderation = .with { $0.canSilence = true; $0.canBan = true } }
+        }
+        let rules = ConversationViewerState(proto)
+        #expect(rules.isSilenced())
+        #expect(rules.canSilence)
+        #expect(rules.canBan)
+        #expect(!ConversationViewerState(.init()).isSilenced())
+    }
+
     @Test("Cash message maps the tipped action")
     func cashMessageMapsTippedAction() throws {
         let proto = Flipcash_Messaging_V1_Message.with {
@@ -217,7 +263,7 @@ struct ConversationModelMappingTests {
             $0.content = [.with {
                 $0.cash = .with {
                     $0.verb = .tipped
-                    $0.amount = .with {
+                    $0.totalAmount = .with {
                         $0.currency = "usd"
                         $0.nativeAmount = 2.0
                         $0.quarks = 2_000_000
@@ -238,7 +284,7 @@ struct ConversationModelMappingTests {
             // Missing mint bytes — ExchangedFiat(proto:) must reject it.
             $0.content = [.with {
                 $0.cash = .with {
-                    $0.amount = .with {
+                    $0.totalAmount = .with {
                         $0.currency = "usd"
                         $0.nativeAmount = 5.0
                         $0.quarks = 5_000_000
