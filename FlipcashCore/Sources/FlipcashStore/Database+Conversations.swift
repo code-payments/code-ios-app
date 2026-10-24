@@ -700,7 +700,8 @@ nonisolated extension Database {
                     m.linkPreviewJson     <- linkPreviewJson,
                     m.systemUserId        <- systemUserId,
                     m.systemAdmittedBy    <- systemAdmittedBy,
-                    m.cashPaymentsJson    <- Self.encodeCashPayments(message.cashPayments)
+                    m.cashPaymentsJson    <- Self.encodeCashPayments(message.cashPayments),
+                    m.cashReceiverId      <- message.cashReceiverID
                 )
             )
         }
@@ -946,6 +947,7 @@ nonisolated extension Database {
             senderID: row[m.senderId],
             content: content,
             cashAction: cashAction,
+            cashReceiverID: row[m.cashReceiverId],
             cashPayments: Self.decodeCashPayments(row[m.cashPaymentsJson]),
             date: date,
             unreadSeq: row[m.unreadSeq],

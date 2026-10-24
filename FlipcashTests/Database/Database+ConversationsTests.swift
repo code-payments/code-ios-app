@@ -137,6 +137,33 @@ struct DatabaseConversationsTests {
         #expect(loaded.map(\.cashPayments) == [parts, []])
     }
 
+    @Test("A single-receiver group payment keeps its receiver across a relaunch")
+    func cashReceiverRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let receiver = UUID()
+        func cash(_ n: UInt64, _ receiverID: UserID?) -> ConversationMessage {
+            ConversationMessage(
+                id: MessageID(value: n),
+                senderID: selfID,
+                content: .cash(ExchangedFiat(
+                    onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+                    nativeAmount: FiatAmount(value: 1, currency: .usd),
+                    currencyRate: Rate(fx: 1, currency: .usd)
+                )),
+                cashReceiverID: receiverID,
+                date: Date(timeIntervalSince1970: TimeInterval(n)),
+                unreadSeq: n
+            )
+        }
+
+        try database.upsertConversationMessages([cash(1, receiver), cash(2, nil)], conversationID: id)
+        let loaded = try database.getConversationMessages(conversationID: id)
+
+        #expect(loaded.map(\.cashReceiverID) == [receiver, nil])
+    }
+
     @Test("Widget messages round-trip, and a widget with no username reads back as unrecognized")
     func widgetMessageRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

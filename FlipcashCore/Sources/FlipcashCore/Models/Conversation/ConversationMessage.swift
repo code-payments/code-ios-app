@@ -136,15 +136,14 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// How a `.cash` message was delivered (sent vs. tipped); `nil` for non-cash content.
     public let cashAction: CashAction?
     /// The member a group-chat `.cash` payment was sent to; `nil` for DM cash (the counterpart is
-    /// implicit) and for non-cash content. Set only on messages built from the wire proto; it is
-    /// not persisted, so a message read back from the local store has `nil`.
+    /// implicit) and for non-cash content. Persisted, so it survives a relaunch.
     public let cashReceiverID: UserID?
     /// The per-receiver parts of a group-chat `.cash` payment sent to several members at once (the
     /// `.cash` amount is their total); empty for a single-receiver payment and for non-cash content.
     /// Persisted, so a group send's bubble keeps its recipients across a relaunch.
     public let cashPayments: [CashPayment]
     /// The payment request whose share this `.cash` message paid; `nil` for any other cash message and
-    /// for non-cash content. Not persisted, like ``cashReceiverID``.
+    /// for non-cash content. Not persisted, so a message read back from the local store has `nil`.
     public let paymentRequestID: PaymentRequestID?
     public let date: Date
     public let unreadSeq: UInt64
