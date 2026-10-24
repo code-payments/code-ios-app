@@ -1282,7 +1282,7 @@ struct ConversationScreen: View {
         guard let sendTarget else { return }
         let context: AddMoneyContext = switch sendTarget {
         case .tip:              .sendTips
-        case .contact, .group:  .giveCash
+        case .contact, .group, .privateGroup: .giveCash
         }
         let rate = ratesController.rateForBalanceCurrency()
         if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat, context: context) {
