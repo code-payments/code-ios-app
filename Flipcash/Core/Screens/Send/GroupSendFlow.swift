@@ -12,7 +12,8 @@ import FlipcashCore
 /// Thrown to reset the SwipeControl knob without its success checkmark when a send doesn't complete.
 private struct GroupSendDismissed: Error {}
 
-/// Send Cash in a private group: the total, then the members it's split between, then the swipe.
+/// Send Cash in a private group: the total, then the members it's split between, then the swipe
+/// in a sheet over that list.
 struct GroupSendFlow: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
@@ -26,7 +27,6 @@ struct GroupSendFlow: View {
 
 private enum GroupSendStep: Hashable {
     case selectPeople
-    case confirm
 }
 
 private struct GroupSendFlowContent: View {
@@ -52,12 +52,7 @@ private struct GroupSendFlowContent: View {
             .navigationDestination(for: GroupSendStep.self) { step in
                 switch step {
                 case .selectPeople:
-                    GroupSendSelectPeopleScreen(viewModel: viewModel) {
-                        path.append(.confirm)
-                    }
-                    .toolbar { closeButton }
-                case .confirm:
-                    GroupSendConfirmScreen(viewModel: viewModel)
+                    GroupSendSelectPeopleScreen(viewModel: viewModel)
                         .toolbar { closeButton }
                 }
             }
@@ -107,26 +102,17 @@ private struct GroupSendAmountScreen: View {
         .navigationTitle("")
         .toolbar {
             ToolbarItem(placement: .principal) {
-                GroupSendTokenSelector(viewModel: viewModel, isPresented: $isShowingTokenSelection)
+                TokenSelectorButton(
+                    selectedBalance: viewModel.selectedBalance,
+                    action: { isShowingTokenSelection = true }
+                )
+                .id(viewModel.selectedBalance?.stored.mint)
             }
         }
-    }
-}
-
-/// The currency picker, shared by the amount and confirm screens; switching keeps the entered total.
-private struct GroupSendTokenSelector: View {
-
-    let viewModel: GroupSendViewModel
-    @Binding var isPresented: Bool
-
-    var body: some View {
-        TokenSelectorButton(
-            selectedBalance: viewModel.selectedBalance,
-            action: { isPresented = true }
-        )
-        .id(viewModel.selectedBalance?.stored.mint)
-        .sheet(isPresented: $isPresented) {
-            SelectCurrencyScreen(isPresented: $isPresented) { balance in
+        // On the screen, not the button: the button's `.id` changes with the pick, and a sheet
+        // hosted on it would be torn down mid-dismiss, taking the whole flow with it.
+        .sheet(isPresented: $isShowingTokenSelection) {
+            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
                 viewModel.selectCurrencyAction(exchangedBalance: balance)
             }
         }
@@ -140,7 +126,8 @@ private struct GroupSendSelectPeopleScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
 
     let viewModel: GroupSendViewModel
-    let next: () -> Void
+
+    @State private var isConfirming = false
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -162,7 +149,7 @@ private struct GroupSendSelectPeopleScreen: View {
                     disabled: viewModel.selection.isEmpty
                 ) {
                     if viewModel.confirmSelection() {
-                        next()
+                        isConfirming = true
                     }
                 }
                 .padding(20)
@@ -172,6 +159,9 @@ private struct GroupSendSelectPeopleScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()
+        }
+        .sheet(isPresented: $isConfirming) {
+            GroupSendConfirmSheet(viewModel: viewModel)
         }
     }
 
@@ -201,14 +191,15 @@ private struct GroupSendSelectPeopleScreen: View {
 
 // MARK: - Confirm -
 
-private struct GroupSendConfirmScreen: View {
+/// The swipe to send, in a sheet sized to its content over Select People.
+private struct GroupSendConfirmSheet: View {
 
     @Environment(AppRouter.self) private var router
 
     let viewModel: GroupSendViewModel
 
-    @State private var isShowingTokenSelection = false
     @State private var didSucceed = false
+    @State private var contentHeight: CGFloat = 0
 
     /// "to Alex and 5 Others", or just "to Alex" for one.
     private var recipientsLine: String {
@@ -223,45 +214,42 @@ private struct GroupSendConfirmScreen: View {
     }
 
     var body: some View {
-        Background(color: .backgroundMain) {
-            VStack(spacing: 16) {
-                Spacer()
-                HStack(spacing: -12) {
-                    ForEach(viewModel.selectedMembers.prefix(3), id: \.userID) { portrait in
-                        GroupSendAvatar(portrait: portrait, size: 48)
-                            .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 2))
-                    }
+        VStack(spacing: 16) {
+            HStack(spacing: -12) {
+                ForEach(viewModel.selectedMembers.prefix(3), id: \.userID) { portrait in
+                    GroupSendAvatar(portrait: portrait, size: 48)
+                        .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 2))
                 }
-                Text(recipientsLine)
+            }
+            Text(recipientsLine)
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+            Text(viewModel.enteredTotal?.formatted() ?? "")
+                .font(.appDisplayMedium)
+                .foregroundStyle(Color.textMain)
+            if let each = viewModel.eachLabel {
+                Text(each)
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textSecondary)
-                Text(viewModel.enteredTotal?.formatted() ?? "")
-                    .font(.appDisplayMedium)
-                    .foregroundStyle(Color.textMain)
-                if let each = viewModel.eachLabel {
-                    Text(each)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textSecondary)
-                }
-                Spacer()
-                SwipeControl(text: "Swipe to Send") {
-                    switch await viewModel.submit() {
-                    case .success:
-                        didSucceed = true
-                    case .failed:
-                        throw GroupSendDismissed()
-                    }
+            }
+            SwipeControl(text: "Swipe to Send") {
+                switch await viewModel.submit() {
+                case .success:
+                    didSucceed = true
+                case .failed:
+                    throw GroupSendDismissed()
                 }
             }
-            .padding(20)
+            .padding(.top, 24)
         }
-        .navigationTitle("")
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                GroupSendTokenSelector(viewModel: viewModel, isPresented: $isShowingTokenSelection)
-            }
-        }
-        // Hold the success checkmark briefly, then dismiss back to the chat.
+        .padding(.horizontal, 20)
+        .padding(.top, 32)
+        .padding(.bottom, 20)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color.backgroundMain)
+        // Hold the success checkmark briefly, then dismiss the whole flow back to the chat.
         .task(id: didSucceed) {
             guard didSucceed else { return }
             try? await Task.delay(seconds: 1)
