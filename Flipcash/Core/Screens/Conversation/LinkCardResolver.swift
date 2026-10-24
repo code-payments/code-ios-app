@@ -157,6 +157,12 @@ actor LinkCardResolver {
         cashQueries[entropy] = nil
     }
 
+    /// Forgets every cash link's answer, for when what the cards show changes under all of them at
+    /// once: a new display currency restates every amount.
+    func invalidateAllCash() {
+        cashQueries.removeAll()
+    }
+
     private func cashState(for entropy: String) async -> LinkCard.Cash.State {
         if let query = cashQueries[entropy] { return await query.value }
 

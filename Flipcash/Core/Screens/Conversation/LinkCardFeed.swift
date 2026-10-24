@@ -37,6 +37,8 @@ final class LinkCardFeed: LinkCardSource {
     private let messagePhotos: @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation?
     private let chatAvatars: @MainActor (ConversationID) async -> Data?
     private let cachedChatAvatars: @MainActor (ConversationID) -> Data?
+    /// The Money tab's currency, which a cash amount on a card is restated in when its link resolves.
+    private let displayCurrency: @MainActor () -> CurrencyCode?
 
     /// What a group or person link's lookup fetched.
     private enum Fetched {
@@ -74,6 +76,9 @@ final class LinkCardFeed: LinkCardSource {
     /// Settled claims already acted on, so the log — which only grows — is read as the news in it.
     private var honoredClaims: Set<String> = []
 
+    /// The currency the cards' amounts were last restated in.
+    private var restatedCurrency: CurrencyCode?
+
     private var claimRefreshTask: Task<Void, Never>?
     private var foregroundTask: Task<Void, Never>?
 
@@ -85,7 +90,8 @@ final class LinkCardFeed: LinkCardSource {
         users: any UserLinkPresenting,
         messagePhotos: @escaping @MainActor (LinkCard.Message.Photo, ConversationID) async -> ChatMediaLocation? = { _, _ in nil },
         chatAvatars: @escaping @MainActor (ConversationID) async -> Data? = { _ in nil },
-        cachedChatAvatars: @escaping @MainActor (ConversationID) -> Data? = { _ in nil }
+        cachedChatAvatars: @escaping @MainActor (ConversationID) -> Data? = { _ in nil },
+        displayCurrency: @escaping @MainActor () -> CurrencyCode? = { nil }
     ) {
         self.resolver = resolver
         self.memo = memo
@@ -95,7 +101,9 @@ final class LinkCardFeed: LinkCardSource {
         self.messagePhotos = messagePhotos
         self.chatAvatars = chatAvatars
         self.cachedChatAvatars = cachedChatAvatars
+        self.displayCurrency = displayCurrency
         observeSettledClaims()
+        observeDisplayCurrency()
         startClaimableRefresh()
     }
 
@@ -307,6 +315,39 @@ final class LinkCardFeed: LinkCardSource {
         honoredClaims = settled
         for entropy in news {
             invalidateCash(entropy: entropy)
+        }
+    }
+
+    // A cash or message card carries its amount already formatted in the currency picked when its
+    // link resolved, so a new pick drops every such answer and re-asks the cards on screen. A card
+    // scrolled off asks again when it next appears. Rates are left alone: a tick that moves the
+    // figure by a cent is not worth a request per card.
+    private func observeDisplayCurrency() {
+        let current = withObservationTracking {
+            displayCurrency()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeDisplayCurrency() }
+        }
+
+        defer { restatedCurrency = current }
+        guard let previous = restatedCurrency, previous != current else { return }
+
+        for (key, state) in memo.states {
+            guard case .cash = state else { continue }
+            generations[key, default: 0] += 1
+            memo.forget(key)
+        }
+        messageStates.removeAll()
+
+        let cards = subscribed.values.filter { card in
+            switch card {
+            case .cash, .message: true
+            case .token, .group, .user, .web: false
+            }
+        }
+        Task { [resolver] in
+            await resolver.invalidateAllCash()
+            cards.forEach(ask)
         }
     }
 

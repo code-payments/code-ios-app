@@ -574,7 +574,8 @@ final class SessionContainer {
         cachedChatAvatars: { [profileAvatars, conversationController] chatID in
             guard let conversation = conversationController.conversation(withID: chatID) else { return nil }
             return profileAvatars.data(for: conversation.avatar(excluding: conversationController.selfUserID).subject)
-        }
+        },
+        displayCurrency: { [weak ratesController] in ratesController?.balanceCurrency }
     )
 
     /// Lazy so it can capture the container it reads its dependencies from;
