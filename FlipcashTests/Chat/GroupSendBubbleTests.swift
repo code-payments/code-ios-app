@@ -59,3 +59,50 @@ struct GroupSendBubbleTests {
         ) == nil)
     }
 }
+
+@Suite("Group send details sheet")
+struct GroupSendDetailsTests {
+
+    private let me = UserID()
+    private let alex = UserID()
+    private let unknown = UserID()
+
+    private func cash(sender: UserID, _ payments: [CashPayment]) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: 1),
+            senderID: sender,
+            content: .cash(ExchangedFiat(
+                onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+                nativeAmount: FiatAmount(value: 1, currency: .usd),
+                currencyRate: Rate(fx: 1, currency: .usd)
+            )),
+            cashPayments: payments,
+            date: Date(timeIntervalSince1970: 1),
+            unreadSeq: 1
+        )
+    }
+
+    @Test("recipients are named in payment order, the viewer as You and anyone unrostered as Someone")
+    func names() throws {
+        let details = try #require(GroupSendDetails(
+            message: cash(sender: alex, [
+                CashPayment(receiverID: me, nativeAmount: 0.5, quarks: 500_000),
+                CashPayment(receiverID: unknown, nativeAmount: 0.5, quarks: 500_000),
+            ]),
+            members: [ConversationMember(userID: alex, displayName: "Alex")],
+            selfUserID: me
+        ))
+        #expect(details.from == "Alex")
+        #expect(details.recipients == ["You", "Someone"])
+        #expect(details.total == "$1.00")
+    }
+
+    @Test("a payment to one member has no group details")
+    func singleRecipient() {
+        #expect(GroupSendDetails(
+            message: cash(sender: me, [CashPayment(receiverID: alex, nativeAmount: 1, quarks: 1_000_000)]),
+            members: [],
+            selfUserID: me
+        ) == nil)
+    }
+}
