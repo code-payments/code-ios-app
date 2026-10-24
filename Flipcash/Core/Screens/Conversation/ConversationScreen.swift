@@ -87,6 +87,8 @@ struct ConversationScreen: View {
     @State private var reactionPickerRequest: ReactionPickerRequest?
     /// The paid reaction whose sheet is open, once the "$" picker has chosen its emoji.
     @State private var paidReactionTarget: ReactionBoostTarget?
+    /// The group send whose card was tapped, shown in the details sheet.
+    @State private var groupSendDetails: GroupSendDetails?
     /// The stable id, pill set, and long-pressed emoji the reactors sheet is open for, or nil.
     @State private var reactorsRequest: ReactorsRequest?
     /// A reactor whose profile opens once the reactors sheet has finished dismissing.
@@ -604,6 +606,18 @@ struct ConversationScreen: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $groupSendDetails) { details in
+            GroupSendDetailsSheet(
+                details: details,
+                openToken: { mint in
+                    Analytics.tokenInfoOpened(from: .openedFromChat, mint: mint)
+                    router.push(.currencyInfo(mint))
+                },
+                openProfile: { userID in
+                    router.push(.userProfile(userID, origin: .groupMember))
+                }
+            )
         }
         .sheet(item: $paidReactionTarget) { target in
             PaidReactionSheet(target: target, selfReactions: selfReactions(on: target.messageID))
@@ -1282,7 +1296,7 @@ struct ConversationScreen: View {
         guard let sendTarget else { return }
         let context: AddMoneyContext = switch sendTarget {
         case .tip:              .sendTips
-        case .contact, .group:  .giveCash
+        case .contact, .group, .privateGroup: .giveCash
         }
         let rate = ratesController.rateForBalanceCurrency()
         if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat, context: context) {
@@ -1300,11 +1314,20 @@ struct ConversationScreen: View {
     }
 
     /// Push the tapped cash card's token currency info onto the current chat stack (so back returns
-    /// here). The id is the row's stable id; resolve it to the cash message's mint.
+    /// here), or, in a private group, open the details sheet for a payment that names its receivers. The id is the row's stable id; resolve it
+    /// to the cash message.
     private func openCurrencyInfo(messageID: String) {
         // Resolve against the displayed window (the DB-backed transcript), not the store — the window
         // can hold older/paged messages the trimmed store no longer does.
         guard let message = (coordinator?.loader.messages ?? []).first(where: { $0.stableID == messageID }) else { return }
+        if let conversationID, groupConversation?.isPrivate == true, let details = GroupSendDetails(
+            message: message,
+            members: sessionContainer.groupRosters.members(for: conversationID, creator: groupConversation?.creator),
+            selfUserID: session.userID
+        ) {
+            groupSendDetails = details
+            return
+        }
         switch message.content {
         case .cash(let fiat):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: fiat.mint)

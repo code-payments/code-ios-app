@@ -1659,11 +1659,14 @@ final class ConversationController {
         case .cash(let amount):
             let formatted = viewerAmount(amount).formatted()
             // The reserve would read "$1.00 of Dollars" — the amount alone already says it.
-            let label: String
+            var label: String
             if amount.mint != .usdf, let name = currencyName(amount.mint) {
                 label = "\(formatted) of \(name)"
             } else {
                 label = formatted
+            }
+            if message.cashPayments.count >= 2 {
+                label += " to \(message.cashPayments.count) people"
             }
             let isTip = message.cashAction == .tipped
             if let senderName {

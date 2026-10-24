@@ -1152,6 +1152,24 @@ class Session {
         }
     }
 
+    /// `fiat` (in `pin.rate.currency`) priced in `mint` at `pin`, or nil when it can't be priced.
+    /// The one pricing step every part of a multi-recipient payment goes through.
+    func price(_ fiat: FiatAmount, mint: PublicKey, at pin: VerifiedState) -> ExchangedFiat? {
+        if mint == .usdf {
+            return ExchangedFiat(nativeAmount: fiat, rate: pin.rate)
+        }
+        let balance = balance(for: mint)
+        guard let supply = pin.supplyFromBonding else { return nil }
+        return ExchangedFiat.compute(
+            fromEntered: fiat,
+            rate: pin.rate,
+            mint: mint,
+            supplyQuarks: supply,
+            balance: balance.map(\.usdf),
+            tokenBalanceQuarks: balance?.quarks
+        )
+    }
+
     /// Pays two or more resolved recipients in one intent, every amount priced from `verifiedState`.
     func sendMultiple(_ payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)], verifiedState: VerifiedState, chat: ChatPaymentMetadata?) async throws {
         guard let first = payments.first else { return }

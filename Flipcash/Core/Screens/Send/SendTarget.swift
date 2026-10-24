@@ -8,12 +8,14 @@ import FlipcashCore
 
 /// Who a send pays: a synced contact (resolved by phone, posted into the
 /// contact DM), a tip recipient (resolved by user id, posted into the tip DM —
-/// no contact information involved), or a group chat, which gets a cash link
-/// that its first claimant takes.
+/// no contact information involved), a public group, which gets a cash link
+/// that its first claimant takes, or a private group, whose sender picks the
+/// members the total is split between.
 nonisolated enum SendTarget: Hashable, Sendable {
     case contact(ResolvedContact)
     case tip(TipRecipient)
     case group(ConversationID)
+    case privateGroup(ConversationID)
 }
 
 /// A tip recipient as scanned from a tipcode or opened from a tipcard link.
@@ -42,7 +44,7 @@ nonisolated struct TipRecipient: Hashable, Sendable {
 extension SendTarget {
 
     /// The send target a conversation resolves to: the tip recipient for a tip
-    /// DM, the chat itself for a group, otherwise the counterpart's shared
+    /// DM, the chat itself for a group (private or public), otherwise the counterpart's shared
     /// phone number. `nil` when none identifies someone payable. The one rule
     /// the thread's `$` button and the Send Cash push action share.
     @MainActor
@@ -65,7 +67,8 @@ extension SendTarget {
             self = .contact(target)
         case .group:
             guard let conversation else { return nil }
-            self = .group(conversation.id)
+            // Only a private group's roster is complete on the client, so only it can pick payees.
+            self = conversation.isPrivate ? .privateGroup(conversation.id) : .group(conversation.id)
         }
     }
 }
