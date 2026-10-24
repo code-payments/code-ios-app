@@ -450,6 +450,7 @@ struct ConversationScreen: View {
             showsGatePlaceholder: (gate.withholdsTranscript || !didInitialRead) && (coordinator?.items.isEmpty ?? true),
             gateMintName: gateMintName,
             gateShortfall: gateShortfall,
+            gateDisplayCurrency: ratesController.displayCurrency,
             onGateAddFunds: addFunds,
             onGateJoin: joinChat,
             isJoiningChat: isJoiningChat,
@@ -1027,7 +1028,7 @@ struct ConversationScreen: View {
         case .copy:
             break
         case .reply:
-            let preview = Self.replyPreview(for: message) { session.balance(for: $0.mint)?.name ?? "Cash" }
+            let preview = Self.replyPreview(for: message, display: ratesController.displayCurrency) { session.balance(for: $0.mint)?.name ?? "Cash" }
             composer.beginReplying(to: ComposerModel.ReplyTarget(
                 messageID: message.id,
                 stableID: stableID,
@@ -1205,6 +1206,7 @@ struct ConversationScreen: View {
     /// so its row has no menu. The branch keeps the switch exhaustive.
     private static func replyPreview(
         for message: ConversationMessage,
+        display: DisplayCurrency,
         token: (ExchangedFiat) -> String
     ) -> (snippet: String, kind: ChatQuote.Kind) {
         switch message.content {
@@ -1212,8 +1214,8 @@ struct ConversationScreen: View {
             (ChatQuote.snippet(forText: text), .text)
         case .cash(let fiat):
             (
-                fiat.nativeAmount.formatted(),
-                .cash(token: token(fiat), flagImageName: ChatItem.flagImageName(for: fiat))
+                display.amount(fiat).formatted(),
+                .cash(token: token(fiat))
             )
         case .media(let attachments, let caption):
             (

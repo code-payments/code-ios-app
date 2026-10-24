@@ -122,7 +122,6 @@ struct ChatPreviewMappingTests {
         // Without resolved branding the token label and icon are empty — no misleading fallback.
         #expect(cash.token == "")
         #expect(cash.iconURL == nil)
-        #expect(cash.flagImageName != nil)
         // Amount is a non-empty formatted string (locale-sensitive; just check non-empty)
         #expect(!cash.amount.isEmpty)
     }

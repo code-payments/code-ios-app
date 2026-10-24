@@ -5,6 +5,7 @@
 
 import Foundation
 import Testing
+import FlipcashCore
 @testable import Flipcash
 
 @Suite("OnrampErrorResponse.ErrorType")
@@ -51,6 +52,13 @@ struct OnrampErrorTypeTests {
     }
 
     // MARK: - Copy anchors
+
+    @Test("Weekly limit is restated at the entered rate, floored to the cent")
+    func transactionLimitConverted() {
+        #expect(ErrorType.transactionLimit.subtitle(at: .oneToOne) == "You can only add up to $1,000 per week")
+        #expect(ErrorType.transactionLimit.subtitle(at: Rate(fx: 1.416385, currency: .cad)) == "You can only add up to $1,416.38 per week")
+        #expect(ErrorType.cardRiskDeclined.subtitle(at: Rate(fx: 1.416385, currency: .cad)) == ErrorType.cardRiskDeclined.subtitle)
+    }
 
     @Test("invalidCard surfaces as Debit Cards Only")
     func invalidCardAnchor() {

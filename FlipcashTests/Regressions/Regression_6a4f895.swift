@@ -34,7 +34,7 @@ struct Regression_6a4f895 {
     nonisolated private static func cash(_ id: String) -> ChatItem {
         .message(ChatMessage(
             id: id,
-            content: .cash(ChatCashContent(amount: "$5.00", token: "Cash", flagImageName: "us")),
+            content: .cash(ChatCashContent(amount: "$5.00", token: "Cash")),
             sender: .me
         ))
     }

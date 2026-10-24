@@ -218,6 +218,8 @@ public final class ChatBubbleView: UIView {
         updateAction: ChatBubbleAction? = nil
     ) {
         label.attributedText = Self.displayText(for: message)
+        // Read after the body, so VoiceOver gets the send time without the reveal drag.
+        label.accessibilityValue = message.sentAt?.formattedChatMessageTime()
         editedLabel.isHidden = !Self.showsEditedMarker(for: message) || message.rendersAsLargeEmoji
         isBare = message.rendersAsLargeEmoji
 

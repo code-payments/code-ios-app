@@ -11,16 +11,11 @@ import FlipcashCore
 
 struct WithdrawAmountScreen: View {
 
-    @Environment(RatesController.self) private var ratesController
-
     let title: String
     @Binding var enteredAmount: String
     let subtitle: EnterAmountView.Subtitle
     let canProceed: Bool
     let onProceed: () -> Void
-    let showsCurrencySelection: Bool
-
-    @State private var isShowingCurrencySelection: Bool = false
 
     // MARK: - Body -
 
@@ -32,25 +27,13 @@ struct WithdrawAmountScreen: View {
                 subtitle: subtitle,
                 actionState: .constant(.normal),
                 actionEnabled: { _ in canProceed },
-                action: onProceed,
-                // Wrapped in a closure literal — partial-applying a @MainActor method
-                // in a ternary against `nil` trips the Swift 6 type-checker.
-                currencySelectionAction: showsCurrencySelection ? { showCurrencySelection() } : nil
+                action: onProceed
             )
             .foregroundStyle(Color.textMain)
             .padding(20)
-            .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(ratesController: ratesController)
-            }
         }
         .ignoresSafeArea(.keyboard)
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Actions -
-
-    private func showCurrencySelection() {
-        isShowingCurrencySelection.toggle()
     }
 }

@@ -334,6 +334,8 @@ struct ConversationBottomBar: View {
     var gateMintName: String? = nil
     /// How much more the gate's minimum asks the user to hold; see ``ConversationGatePanel/shortfall``.
     var gateShortfall: FiatAmount? = nil
+    /// Restates the gate's USD amounts for the viewer; see ``ConversationGatePanel/displayCurrency``.
+    var gateDisplayCurrency: DisplayCurrency? = nil
     /// Opens the buy or add-cash flow from the gate panel's CTA.
     var onGateAddFunds: () -> Void = {}
     /// Joins the chat from the gate panel's Join button.
@@ -422,7 +424,8 @@ struct ConversationBottomBar: View {
                 shortfall: gateShortfall,
                 onAddFunds: onGateAddFunds,
                 onJoin: onGateJoin,
-                isJoining: isJoiningChat
+                isJoining: isJoiningChat,
+                displayCurrency: gateDisplayCurrency
             )
 
         case .open:

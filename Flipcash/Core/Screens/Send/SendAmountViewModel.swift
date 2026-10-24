@@ -122,7 +122,7 @@ final class SendAmountViewModel {
     /// rejection is the exception rather than the flow. Nil when this entry
     /// carries no floor, and until the server's presets arrive.
     var tipMinimum: FiatAmount? {
-        tipFloor(in: ratesController.balanceCurrency)?.displayed
+        tipFloor(in: ratesController.balanceCurrency)?.displayed(in: ratesController.displayCurrency)
     }
 
     /// What the amount header states while a send is in flight or has landed,
@@ -316,7 +316,7 @@ final class SendAmountViewModel {
         // Grey rather than red: the entry is under a stated floor, not a
         // failure, and the floor is already on screen (node 9553:20236).
         session.dialogItem = .info(
-            title: "\(floor.displayed.formatted()) Minimum Tip",
+            title: "\(floor.displayed(in: ratesController.displayCurrency).formatted()) Minimum Tip",
             subtitle: "Please enter a higher amount"
         )
         return false

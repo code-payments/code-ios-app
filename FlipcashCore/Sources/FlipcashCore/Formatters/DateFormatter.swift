@@ -64,6 +64,30 @@ extension Date {
         return "\(day) \(formattedTime())"
     }
 
+    /// The full time of a chat message for the menu header and the spoken description: "Today at
+    /// 6:13 PM", "Yesterday at 6:13 PM", "Oct 21 at 6:13 PM", or "Oct 21, 2025 at 6:13 PM" outside
+    /// the current year.
+    public func formattedChatMessageTime(
+        relativeTo now: Date = .now,
+        calendar: Calendar = .current,
+        locale: Locale = .current
+    ) -> String {
+        let time = formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: locale, calendar: calendar, timeZone: calendar.timeZone))
+        let day: String
+        if calendar.isDate(self, inSameDayAs: now) {
+            day = "Today"
+        } else if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(self, inSameDayAs: yesterday) {
+            day = "Yesterday"
+        } else {
+            var style = Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).month(.abbreviated).day()
+            if !calendar.isDate(self, equalTo: now, toGranularity: .year) {
+                style = style.year()
+            }
+            day = formatted(style)
+        }
+        return "\(day) at \(time)"
+    }
+
     public func formattedRelatively(useTimeForToday: Bool = false) -> String {
         let calendar = Calendar.current
         let weekAgo = Date.weekAgo()

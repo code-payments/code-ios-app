@@ -27,10 +27,17 @@ nonisolated struct MessageLinkViewer: Sendable {
     let knownMember: @Sendable (UserID) async -> ConversationMember?
     /// The viewer, so their own messages are authored "You".
     let userID: UserID
+    /// A payment restated in the viewer's display currency.
+    let viewerAmount: @Sendable (ExchangedFiat) async -> FiatAmount
 
     /// The app's viewer, answered by the conversation feed.
     @MainActor
-    init(controller: ConversationController, knownAuthors: KnownAuthorDirectory, userID: UserID) {
+    init(
+        controller: ConversationController,
+        knownAuthors: KnownAuthorDirectory,
+        userID: UserID,
+        viewerAmount: @escaping @Sendable (ExchangedFiat) async -> FiatAmount
+    ) {
         self.conversation = { [weak controller] in await controller?.conversation(withID: $0) }
         self.isMember = { [weak controller] in await controller?.isMember(of: $0) ?? false }
         self.title = { [weak controller] in await controller?.displayName(for: $0) ?? "Group Chat" }
@@ -41,6 +48,7 @@ nonisolated struct MessageLinkViewer: Sendable {
             return await knownAuthors.snapshot.membersByUserID[userID]
         }
         self.userID = userID
+        self.viewerAmount = viewerAmount
     }
 
     init(
@@ -48,13 +56,15 @@ nonisolated struct MessageLinkViewer: Sendable {
         isMember: @escaping @Sendable (Conversation) async -> Bool,
         title: @escaping @Sendable (Conversation) async -> String,
         knownMember: @escaping @Sendable (UserID) async -> ConversationMember? = { _ in nil },
-        userID: UserID
+        userID: UserID,
+        viewerAmount: @escaping @Sendable (ExchangedFiat) async -> FiatAmount = { $0.nativeAmount }
     ) {
         self.conversation = conversation
         self.isMember = isMember
         self.title = title
         self.knownMember = knownMember
         self.userID = userID
+        self.viewerAmount = viewerAmount
     }
 }
 
@@ -240,7 +250,7 @@ extension LinkCardResolver {
         switch message.content {
         case .cash(let amount):
             let verb: LinkCard.Message.Cash.Verb = message.cashAction == .tipped ? .tipped : .sent
-            return .cash(.init(chatTitle: title, kind: kind(of: conversation), authorName: author, time: time(of: message), amount: amount.nativeAmount.formatted(), verb: verb))
+            return .cash(.init(chatTitle: title, kind: kind(of: conversation), authorName: author, time: time(of: message), amount: await context.viewerAmount(amount).formatted(), verb: verb))
 
         case .text(let text):
             if let entropy = soleCashLink(in: text), let link = try? await cashLinks(entropy) {

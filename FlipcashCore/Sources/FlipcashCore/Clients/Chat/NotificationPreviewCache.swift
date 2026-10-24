@@ -40,7 +40,8 @@ public enum NotificationPreviewCache {
     }
 
     /// Deletes every cached preview. Call on logout so chat snippets don't outlive the session — the
-    /// cached JSON holds rendered message text + amounts in cleartext in the App Group container.
+    /// cached JSON holds rendered message text + amounts in cleartext in the App Group container —
+    /// and on a new display currency, since those amounts are formatted in the old one.
     public static func clear() {
         guard let directory = FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: appGroup)?

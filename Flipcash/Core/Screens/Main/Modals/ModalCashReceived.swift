@@ -38,11 +38,8 @@ public struct ModalCashReceived: View {
                 .font(.appTitle)
 
             VStack(spacing: 6) {
-                AmountText(
-                    flagStyle: fiat.currency.flagStyle,
-                    content: fiat.formatted(),
-                    canScale: false
-                )
+                Text(fiat.formatted())
+                    .lineLimit(1)
                 .font(.appDisplayMedium)
                 .foregroundStyle(Color.textMain)
                 

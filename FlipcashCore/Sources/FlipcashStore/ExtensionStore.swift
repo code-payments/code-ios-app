@@ -105,3 +105,24 @@ extension SQLite.Result {
         return [SQLITE_BUSY, SQLITE_PROTOCOL].contains(code & 0xFF)
     }
 }
+
+// MARK: - Display Currency -
+
+extension ExtensionStore {
+
+    /// The Money tab selection with the rates the app last stored, so an extension shows amounts
+    /// the way the app does. `nil` before the app has recorded a selection; with no readable rates,
+    /// every amount shows as it moved.
+    public static func displayCurrency(
+        owner: PublicKey,
+        location: StoreLocation = .resolved(),
+        fileManager: FileManager = .default
+    ) -> DisplayCurrency? {
+        guard let currency = DisplayCurrency.sharedSelection else { return nil }
+        var rates: [Rate] = []
+        perform(owner: owner, location: location, fileManager: fileManager) { database in
+            rates = try database.getRates()
+        }
+        return DisplayCurrency(currency: currency, rates: rates)
+    }
+}

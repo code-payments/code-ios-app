@@ -110,7 +110,7 @@ struct ChatQuoteMappingTests {
         let original = message(id: 1, from: them, content: .cash(fiat))
         let reply = message(id: 2, from: me, content: .text("thanks!"), repliedTo: 1, offset: 5)
         let quote = try #require(quotes([original, reply]).last ?? nil)
-        #expect(quote.kind == .cash(token: "Cash", flagImageName: "us"))
+        #expect(quote.kind == .cash(token: "Cash"))
         #expect(quote.snippet == fiat.nativeAmount.formatted())
     }
 
@@ -121,7 +121,7 @@ struct ChatQuoteMappingTests {
         let quote = try #require(
             quotes([original, reply], cashBranding: { _ in ("Launch It", nil) }).last ?? nil
         )
-        #expect(quote.kind == .cash(token: "Launch It", flagImageName: "us"))
+        #expect(quote.kind == .cash(token: "Launch It"))
     }
 
     @Test("A message that is not a reply carries no quote")

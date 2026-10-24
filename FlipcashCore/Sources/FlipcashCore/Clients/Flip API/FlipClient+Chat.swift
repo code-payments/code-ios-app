@@ -50,6 +50,52 @@ extension FlipClient {
         }
     }
 
+    // MARK: - Moderation -
+
+    /// Silences `userID` in `conversationID` until `silence` lapses (or forever). Creator only.
+    public func silenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, silence: ConversationSilenceState) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: silence) { c.resume(with: $0) }
+        }
+    }
+
+    /// Lifts a silence on `userID` in `conversationID`. Creator only.
+    public func unsilenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.unsilenceUser(owner: owner, conversationID: conversationID, userID: userID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Bans `userID` from `conversationID`. Creator only.
+    public func banUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.banUser(owner: owner, conversationID: conversationID, userID: userID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Lifts a ban on `userID` in `conversationID`. Creator only.
+    public func unbanUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.unbanUser(owner: owner, conversationID: conversationID, userID: userID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Every user silenced or banned in `conversationID`, paged to exhaustion. Creator only.
+    public func getRestrictedUsers(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationRestrictedUser] {
+        var all: [ConversationRestrictedUser] = []
+        var pagingToken: Data?
+
+        while true {
+            let page: ChatService.RestrictedUsersPage = try await withCheckedThrowingContinuation { c in
+                chatService.getRestrictedUsers(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
+            }
+            all.append(contentsOf: page.users)
+            guard page.hasMore else { break }
+            pagingToken = page.pagingToken
+        }
+        return all
+    }
+
     /// Page the group chat feed to exhaustion against a single pinned snapshot. Unlike a DM feed, the
     /// caller's own membership can change mid-read (a join or a leave lands as a `rosterChanged`
     /// stream event, not a feed mutation) — the same live-stream caveat as `getDmChatFeed` applies.

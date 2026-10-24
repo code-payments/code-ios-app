@@ -185,7 +185,7 @@ struct EditProfileScreen: View {
         case .proceed:
             router.push(.username(profile?.username))
         case .addMoney(let minimum, _, _):
-            dialog = .usernameMinimumBalance(minimum: minimum) {
+            dialog = .usernameMinimumBalance(minimum: ratesController.displayCurrency.amount(minimum)) {
                 router.presentAddMoney(.general, source: .usernameShortfall)
             }
         }

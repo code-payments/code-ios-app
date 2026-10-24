@@ -343,7 +343,7 @@ struct ChatMessageMappingTests {
         #expect(separatorCount(items) == 2) // one opening the transcript, one heading the new day
     }
 
-    @Test("Cash messages map to formatted cash content with a currency flag")
+    @Test("Cash messages map to formatted cash content")
     func cash() {
         let fiat = ExchangedFiat(
             nativeAmount: FiatAmount(value: 5, currency: .usd),
@@ -363,9 +363,32 @@ struct ChatMessageMappingTests {
         }
         #expect(cash.token == "Cash")
         #expect(cash.amount == fiat.nativeAmount.formatted())
-        #expect(cash.flagImageName != nil) // currency flag derived from the currency
         #expect(!cash.isTip) // no cash action → plain send
         #expect(ChatCashContent.caption(isFromSelf: false, isTip: cash.isTip) == "You received")
+    }
+
+    @Test("A cash message shows the amount restated in the display currency")
+    func cash_restatedInDisplayCurrency() {
+        let fiat = ExchangedFiat(
+            nativeAmount: FiatAmount(value: 10, currency: .cad),
+            rate: Rate(fx: Decimal(string: "1.37")!, currency: .cad)
+        )
+        let messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: them, content: .cash(fiat), date: base, unreadSeq: 1),
+        ]
+        let display = DisplayCurrency(
+            currency: .usd,
+            rates: [Rate(fx: Decimal(string: "1.37")!, currency: .cad), Rate(fx: 1, currency: .usd)]
+        )
+
+        let rows = messageRows(ChatItem.from(messages, selfUserID: me, viewerAmount: display.amount))
+
+        guard case .cash(let cash) = rows.first?.content else {
+            Issue.record("expected cash content")
+            return
+        }
+        #expect(cash.amount == display.amount(fiat).formatted())
+        #expect(cash.amount != fiat.nativeAmount.formatted())
     }
 
     @Test("Photo messages map to media content, a redacted one staying a photo", arguments: [false, true])
@@ -394,12 +417,13 @@ struct ChatMessageMappingTests {
         ))])
     }
 
-    @Test("A photo's caption carries the mentions in it, and links in it stay plain text")
-    func mediaCaptionMentions() throws {
+    @Test("A photo's caption carries the mentions and links in it, as a text body does")
+    func mediaCaptionMentionsAndLinks() throws {
         let caption = "Any idea what might be happening there @jeff @mcansh? https://apple.com"
         let attachment = MediaAttachment(blobID: BlobID(data: Data([9, 8, 7])), width: 300, height: 400, blurhash: "LEHV6nWB2yk8")
         let messages = [
             ConversationMessage(id: MessageID(value: 1), senderID: them, content: .media([attachment], caption: caption), date: base, unreadSeq: 1),
+            ConversationMessage(id: MessageID(value: 2), senderID: them, content: .text(caption), date: base, unreadSeq: 2),
         ]
 
         let rows = messageRows(ChatItem.from(messages, selfUserID: me))
@@ -410,7 +434,10 @@ struct ChatMessageMappingTests {
         }
         let handles = media.captionMentions.map { (caption as NSString).substring(with: $0.range) }
         #expect(handles == ["@jeff", "@mcansh"])
-        #expect(rows[0].linkPreview == nil) // no card, no link split on a media message
+        // Exactly what the text path detects for the same words.
+        #expect(media.captionPreview == rows[1].linkPreview)
+        #expect(media.captionPreview?.links.map(\.url) == [URL(string: "https://apple.com")!])
+        #expect(rows[0].linkPreview == nil) // the row is never split around a card
     }
 
     @Test("Tipped cash messages carry the tip flag and caption")

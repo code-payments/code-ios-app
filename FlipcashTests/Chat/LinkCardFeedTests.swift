@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Observation
 import Testing
 import FlipcashCore
 import FlipcashUI
@@ -40,7 +41,8 @@ import FlipcashUI
         cash: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved = { _ in
             Issue.record("the cash lookup was called")
             throw CancellationError()
-        }
+        },
+        displayCurrency: @escaping @MainActor () -> CurrencyCode? = { nil }
     ) -> LinkCardFeed {
         LinkCardFeed(
             resolver: LinkCardResolver(
@@ -61,7 +63,8 @@ import FlipcashUI
             memo: memo,
             claims: claims,
             groups: UnusedGroups(),
-            users: UnusedUsers()
+            users: UnusedUsers(),
+            displayCurrency: displayCurrency
         )
     }
 
@@ -188,6 +191,38 @@ import FlipcashUI
 
         #expect(await settle { inbox.states.count == 2 })
         #expect(inbox.states.last == .cash(.resolved(Self.resolved("$15.00", claim: .claimed))))
+    }
+
+    /// The Money tab's currency, which the cash lookup restates the card's amount in.
+    @MainActor @Observable
+    final class Viewer {
+        var currency: CurrencyCode = .usd
+    }
+
+    /// A card's amount is formatted when its link resolves, so a currency picked afterwards has to
+    /// reach the card on screen, and a remembered answer in the old currency has to be dropped.
+    @Test func aNewDisplayCurrencyRestatesTheCardOnScreen() async {
+        let viewer = Viewer()
+        let card = Self.cashCard("abc")
+        let memo = LinkCardMemo()
+        let feed = Self.feed(
+            memo: memo,
+            cash: { _ in
+                let currency = await MainActor.run { viewer.currency }
+                return Self.resolved(currency == .usd ? "$10.00" : "$13.70")
+            },
+            displayCurrency: { viewer.currency }
+        )
+
+        let inbox = Inbox(feed.states(for: card))
+        defer { inbox.stop() }
+        #expect(await settle { !inbox.states.isEmpty })
+
+        viewer.currency = .cad
+
+        #expect(await settle { inbox.states.count == 2 })
+        #expect(inbox.states.last == .cash(.resolved(Self.resolved("$13.70"))))
+        #expect(memo.states[card.resolutionKey] == .cash(.resolved(Self.resolved("$13.70"))))
     }
 
     /// Nobody tells this device about a link claimed on someone else's, so a card the reader can

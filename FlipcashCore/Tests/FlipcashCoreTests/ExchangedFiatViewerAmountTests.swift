@@ -7,7 +7,7 @@ import Foundation
 import Testing
 import FlipcashCore
 
-/// An activity row leads with the viewer's own currency, so a tip denominated in
+/// Every amount is shown in the viewer's own currency, so a tip denominated in
 /// someone else's has to be restated — and the restated figure has to hold still,
 /// which is why a USDF payment converts from the USD value it settled at rather
 /// than from today's peso.
@@ -17,7 +17,6 @@ struct ExchangedFiatViewerAmountTests {
     /// A mint that isn't USDF, so it takes the no-anchor path.
     private let bondedMint = try! PublicKey(base58: "So11111111111111111111111111111111111111112")
 
-    private let usdRate = Rate(fx: 1, currency: .usd)
     private let eurRate = Rate(fx: 0.9, currency: .eur)
 
     private func usd(_ value: Decimal) -> FiatAmount { FiatAmount(value: value, currency: .usd) }
@@ -45,90 +44,59 @@ struct ExchangedFiatViewerAmountTests {
         )
     }
 
-    @Test("An amount already in the viewer's currency shows one line")
-    func testSameCurrencyShowsOneLine() {
+    @Test("An amount already in the viewer's currency is shown as it moved")
+    func sameCurrency() {
         let amount = usdfPayment(dollars: 5, native: usd(5), fx: 1)
 
-        let shown = amount.forViewer(preferredRate: usdRate, rates: [:])
-
-        #expect(shown.viewer == usd(5))
-        #expect(shown.transferred == nil)
+        #expect(amount.forViewer(in: .usd, rates: [:]) == usd(5))
     }
 
-    @Test("A USDF tip in pesos leads with the dollars it settled at")
-    func testUSDFTipUsesSettledDollars() {
+    @Test("A USDF tip in pesos shows the dollars it settled at")
+    func usdfLeadsWithSettledDollars() {
         let amount = usdfPayment(dollars: 5, native: ars(7_500), fx: 1_500)
 
-        // The peso has halved against the dollar since — the row still reads $5,
-        // not $2.50.
-        let shown = amount.forViewer(
-            preferredRate: usdRate,
-            rates: [.ars: Rate(fx: 3_000, currency: .ars)]
-        )
+        // Today's peso has moved; the settled dollars have not.
+        let shown = amount.forViewer(in: .usd, rates: [.ars: Rate(fx: 3_000, currency: .ars)])
 
-        #expect(shown.viewer == usd(5))
-        #expect(shown.transferred == ars(7_500))
+        #expect(shown == usd(5))
     }
 
     @Test("A USDF tip crosses its settled dollars into whatever currency the viewer reads")
-    func testUSDFTipCrossesIntoViewerCurrency() {
+    func usdfCrossesIntoViewerCurrency() {
         let amount = usdfPayment(dollars: 5, native: ars(7_500), fx: 1_500)
 
-        let shown = amount.forViewer(preferredRate: eurRate, rates: [:])
-
-        #expect(shown.viewer == eur(4.5))
-        #expect(shown.transferred == ars(7_500))
+        #expect(amount.forViewer(in: .eur, rates: [.eur: eurRate]) == eur(4.5))
     }
 
     @Test("A non-USDF tip has no settled dollars, so it crosses through today's rates")
-    func testBondedTipCrossesThroughCurrentRates() {
-        let amount = bondedPayment(tokens: 1_234, native: ars(7_500))
+    func bondedCrossesThroughRates() {
+        let amount = bondedPayment(tokens: 40, native: ars(7_500))
 
-        // `onChainAmount` holds the mint's own tokens here, not dollars, so it is
-        // ignored.
-        let shown = amount.forViewer(
-            preferredRate: usdRate,
-            rates: [.ars: Rate(fx: 1_500, currency: .ars)]
-        )
+        let shown = amount.forViewer(in: .usd, rates: [.ars: Rate(fx: 1_500, currency: .ars)])
 
-        #expect(shown.viewer == usd(5))
-        #expect(shown.transferred == ars(7_500))
+        #expect(shown == usd(5))
     }
 
-    @Test("A non-USDF tip with no rate to cross falls back to what was transferred")
-    func testBondedTipWithoutRateFallsBack() {
-        let amount = bondedPayment(tokens: 1_234, native: ars(7_500))
+    @Test("A non-USDF tip with no rate to cross is shown as it moved")
+    func bondedWithoutRateFallsBack() {
+        let amount = bondedPayment(tokens: 40, native: ars(7_500))
 
-        let shown = amount.forViewer(preferredRate: usdRate, rates: [:])
-
-        #expect(shown.viewer == ars(7_500))
-        #expect(shown.transferred == nil)
+        #expect(amount.forViewer(in: .usd, rates: [:]) == ars(7_500))
     }
 
     @Test("An unusable rate is treated as no rate at all")
-    func testZeroRateIsTreatedAsMissing() {
-        let amount = bondedPayment(tokens: 1_234, native: ars(7_500))
+    func zeroRateFallsBack() {
+        let amount = bondedPayment(tokens: 40, native: ars(7_500))
 
-        let shown = amount.forViewer(
-            preferredRate: usdRate,
-            rates: [.ars: Rate(fx: 0, currency: .ars)]
-        )
-
-        #expect(shown.viewer == ars(7_500))
-        #expect(shown.transferred == nil)
+        #expect(amount.forViewer(in: .usd, rates: [.ars: Rate(fx: 0, currency: .ars)]) == ars(7_500))
     }
 
-    @Test("An unusable viewer rate leaves the transferred amount alone")
-    func testZeroViewerRateFallsBack() {
+    @Test("A display currency with no rate converts nothing")
+    func missingDisplayRateFallsBack() {
         let amount = usdfPayment(dollars: 5, native: ars(7_500), fx: 1_500)
 
-        let shown = amount.forViewer(
-            preferredRate: Rate(fx: 0, currency: .eur),
-            rates: [.ars: Rate(fx: 1_500, currency: .ars)]
-        )
-
-        #expect(shown.viewer == ars(7_500))
-        #expect(shown.transferred == nil)
+        #expect(amount.forViewer(in: .eur, rates: [:]) == ars(7_500))
+        #expect(amount.forViewer(in: .eur, rates: [.eur: Rate(fx: 0, currency: .eur)]) == ars(7_500))
     }
 
     @Test("An amount that signs itself is not signed twice")

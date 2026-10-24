@@ -69,11 +69,14 @@ nonisolated private func webCard(for page: MessageLinkPreview, in text: String) 
 extension ChatItem {
 
     /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
-    /// formats cash amounts, derives the currency flag, inserts a date separator before the first
+    /// formats cash amounts, inserts a date separator before the first
     /// message, whenever a gap longer than `gap` opens and at every change of day, and computes
     /// same-sender grouping the way the transcript does. Pure — `cashBranding` supplies the token
     /// name + launchpad icon so this stays testable; it defaults to plain "Cash" (USDF), and the
-    /// screen injects bonded-mint branding from `Session`.
+    /// screen injects bonded-mint branding from `Session`. `viewerAmount` restates a payment in the
+    /// display currency; it defaults to the amount as it moved, and the screen injects the
+    /// conversion from ``RatesController``. `viewerPrice` does the same for a USD-priced amount, a
+    /// reaction boost.
     nonisolated static func from(
         _ messages: [ConversationMessage],
         selfUserID: UserID,
@@ -84,6 +87,8 @@ extension ChatItem {
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },
+        viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
+        viewerPrice: (FiatAmount) -> FiatAmount = { $0 },
         deletedPresentation: DeletedMessagePresentation = .hidden,
         capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] },
         counterpartName: String = "",
@@ -283,9 +288,8 @@ extension ChatItem {
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
                 content = .cash(ChatCashContent(
-                    amount: fiat.nativeAmount.formatted(),
+                    amount: viewerAmount(fiat).formatted(),
                     token: branding.token,
-                    flagImageName: flagImageName(for: fiat),
                     iconURL: branding.iconURL,
                     isTip: message.cashAction == .tipped
                 ))
@@ -312,14 +316,20 @@ extension ChatItem {
                 // A redacted photo stays a photo row, drawn from its BlurHash, rather than a tombstone.
                 // A send carries one attachment (see `ChatMediaSendPlan`); the row draws the first.
                 let attachment = attachments.first
+                // The detection a text body gets: links, mentions, and a Flipcash card, which draws
+                // under the photo as the text path draws it: bare when the caption is only the link,
+                // else split around it with the words in bubbles. A cash or token link stays
+                // underlined text. A caption never carries a sender web card: a client sends the
+                // text as its own message.
+                let captionLayout = caption.map { Self.captionLayout(for: $0, card: linkCard) }
                 content = .media(ChatMediaContent(
                     blobID: attachment?.blobID,
                     width: attachment?.width ?? 0,
                     height: attachment?.height ?? 0,
                     blurhash: attachment?.blurhash,
                     caption: caption,
-                    // Mentions only: a caption never grows a link card, so no card resolver runs.
-                    captionMentions: caption.flatMap { detectedLink(in: $0, card: { _ in nil })?.mentions } ?? [],
+                    captionPreview: captionLayout?.preview,
+                    captionRows: captionLayout?.rows ?? [],
                     isRedacted: message.redacted,
                     sealed: attachment?.sealed
                 ))
@@ -361,6 +371,7 @@ extension ChatItem {
                     selfUserID: selfUserID,
                     counterpartName: counterpartName,
                     cashBranding: cashBranding,
+                    viewerAmount: viewerAmount,
                     author: author
                 )
             }
@@ -410,13 +421,14 @@ extension ChatItem {
                     // already has — only the long-press strip is withheld, and that already follows from
                     // a tombstone offering no context-menu actions. The pills sit under the message's
                     // last row, with its receipt.
-                    reactions: isLast ? message.reactionState?.pills ?? [] : [],
+                    reactions: isLast ? (message.reactionState?.pills ?? []).map { $0.restatingBoost(viewerPrice) } : [],
                     selfReactions: message.reactionState?.selfReactions ?? [],
                     canReact: canReact,
                     // "$" boosts a reaction the viewer already has, so it waits for one.
                     canBoost: canBoost && !isFromSelf && message.senderID != nil && !message.isDeleted && !isUnsent
                         && !(message.reactionState?.selfReactions.isEmpty ?? true),
-                    isUnsent: isUnsent
+                    isUnsent: isUnsent,
+                    sentAt: message.date
                 )))
             }
         }
@@ -432,6 +444,7 @@ extension ChatItem {
         selfUserID: UserID,
         counterpartName: String,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?),
+        viewerAmount: (ExchangedFiat) -> FiatAmount,
         author: (ConversationMessage) -> ChatAuthor?
     ) -> ChatQuote {
         guard let original else {
@@ -457,14 +470,13 @@ extension ChatItem {
                 authorID: original.senderID
             )
         case .cash(let fiat):
-            // Same branding the card carries, so the quote of a payment reads as that payment. The
-            // launchpad icon is deliberately left out: it is a remote fetch, and the flag already
-            // keys the currency at this size.
+            // Same amount and token the card carries, so the quote of a payment reads as that
+            // payment. The launchpad icon is deliberately left out: it is a remote fetch.
             return ChatQuote(
                 stableID: original.stableID,
                 authorName: authorName,
-                snippet: fiat.nativeAmount.formatted(),
-                kind: .cash(token: cashBranding(fiat).token, flagImageName: flagImageName(for: fiat)),
+                snippet: viewerAmount(fiat).formatted(),
+                kind: .cash(token: cashBranding(fiat).token),
                 authorID: original.senderID
             )
         case .deleted:
@@ -511,14 +523,6 @@ extension ChatItem {
                 authorID: original.senderID
             )
         }
-    }
-
-    /// The currency's flag asset: a region flag where the currency has one, else the ticker, which
-    /// is how the crypto flags are named. One derivation for the card and the quote so a payment
-    /// keys the same way wherever it is drawn.
-    nonisolated static func flagImageName(for fiat: ExchangedFiat) -> String {
-        let currency = fiat.nativeAmount.currency
-        return currency.region?.rawValue ?? currency.rawValue.uppercased()
     }
 
     /// One row a message draws: the whole message, or one part of a message split around its card.
@@ -608,6 +612,34 @@ extension ChatItem {
             cardRow,
             textRow(.trailingText, NSRange(location: trailingStart, length: body.length - trailingStart)),
         ].compactMap { $0 }
+    }
+
+    /// What a photo's caption draws: the preview a text body of the same words gets, and, when a
+    /// non-money Flipcash card has words beside it, the rows the text path splits that message into.
+    /// A card that is the whole caption keeps the preview and needs no rows; a cash or token card
+    /// is dropped back to underlined link text.
+    nonisolated static func captionLayout(
+        for caption: String,
+        card: ([DetectedLink]) -> LinkCard?
+    ) -> (preview: LinkPreview?, rows: [ChatMediaCaptionRow]) {
+        guard let preview = detectedLink(in: caption, card: card) else { return (nil, []) }
+        guard let linkCard = preview.card else { return (preview, []) }
+        let withoutCard = preview.links.isEmpty && preview.mentions.isEmpty
+            ? nil
+            : LinkPreview(links: preview.links, mentions: preview.mentions)
+        let layout = rows(for: caption, preview: preview)
+        if layout.count == 1, layout[0].part == .card { return (preview, []) }
+        switch linkCard {
+        case .cash, .token, .web:
+            return (withoutCard, [])
+        case .group, .message, .user:
+            let split = layout.compactMap { row in
+                row.part.flatMap { kind in
+                    row.text.map { ChatMediaCaptionRow(kind: kind, text: $0, preview: row.preview) }
+                }
+            }
+            return (withoutCard, split)
+        }
     }
 
     /// What a text row may hold and still say nothing: a segment of only these is dropped, not

@@ -281,7 +281,9 @@ final class ReactionBoostViewModel {
     }
 
     private func showBelowMinimumError() {
-        let minimum = FiatAmount.usd(Decimal(minimumCents ?? ReactionBoostSplit.minimumShareCents) / 100)
+        let minimum = ratesController.displayCurrency.amount(
+            .usd(Decimal(minimumCents ?? ReactionBoostSplit.minimumShareCents) / 100)
+        )
         session.dialogItem = .error(
             title: "Amount Too Small",
             subtitle: "Paid reactions start at \(minimum.formatted())"
@@ -302,7 +304,7 @@ final class ReactionBoostViewModel {
 
     private func showYoureShortError(amount: ExchangedFiat) {
         session.dialogItem = .error(
-            title: "You're \(amount.nativeAmount.formatted()) Short",
+            title: "You're \(ratesController.displayCurrency.amount(amount).formatted()) Short",
             subtitle: "Add more cash, or try again with a lower amount"
         ) {
             .destructive("Add More Cash") { [weak self] in

@@ -18,7 +18,7 @@ struct ReactionSettlerTests {
     }
 
     private static func pill(_ emoji: String, _ count: UInt64, boost: UInt64? = nil, selfReacted: Bool = false) -> ReactionPill {
-        ReactionPill(emoji: emoji, count: count, selfReacted: selfReacted, pending: false, boost: boost.map(ReactionBoost.init))
+        ReactionPill(emoji: emoji, count: count, selfReacted: selfReacted, pending: false, boost: boost.map { ReactionBoost(total: $0) })
     }
 
     private static func settler(_ pills: [ReactionPill], clock: FakeClock) -> ReactionSettler {

@@ -215,13 +215,18 @@ struct NewPublicGroupScreen: View {
             .padding(.horizontal, 12)
     }
 
+    /// A USD-priced minimum as the viewer reads it, in the display currency.
+    private func displayed(_ amount: FiatAmount) -> FiatAmount {
+        ratesController.displayCurrency.amount(amount)
+    }
+
     private var presets: some View {
         HStack(spacing: 8) {
             ForEach(NewPublicGroupModel.presets, id: \.self) { amount in
                 AmountPresetButton(isSelected: model.minimumBalance == amount) {
                     model.select(minimumBalance: amount)
                 } label: {
-                    Text(amount.formattedDroppingZeroFraction())
+                    Text(displayed(amount).formattedDroppingZeroFraction())
                 }
             }
 
@@ -233,13 +238,13 @@ struct NewPublicGroupScreen: View {
                 isEnteringCustomAmount = true
             } label: {
                 if let custom = model.customMinimumBalance {
-                    Text(custom.formattedDroppingZeroFraction())
+                    Text(displayed(custom).formattedDroppingZeroFraction())
                 } else {
                     Image.system(.ellipsis)
                 }
             }
             .accessibilityLabel(
-                model.customMinimumBalance.map { "Custom amount, \($0.formattedDroppingZeroFraction())" }
+                model.customMinimumBalance.map { "Custom amount, \(displayed($0).formattedDroppingZeroFraction())" }
                     ?? "Custom amount"
             )
             .accessibilityIdentifier("new-group-custom-amount-button")

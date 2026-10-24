@@ -36,6 +36,13 @@ public class ChatColumnCell: UICollectionViewCell {
     /// column rather than a child of it, so the gutter's width is a leading inset on the column and
     /// a tall avatar can't grow a short-bubble row. It travels with the column under a reply swipe.
     private let authorAvatar = ChatAuthorAvatarView()
+    /// The send time in the trailing column the timestamp reveal opens. A sibling of the column, so
+    /// it stays put while sent bubbles slide over to make room for it. VoiceOver reads the time from
+    /// the bubble instead, so this label stays out of the accessibility tree.
+    private let timeLabel = UILabel()
+    /// Whether this row is the viewer's own: only those slide under the reveal.
+    private var isSentBySelf = false
+    private var replyOffset: CGFloat = 0
     /// The column's leading inset, widened to clear the gutter on an attributed incoming row.
     private var columnLeading: NSLayoutConstraint?
     /// The subclass's content view, kept so the retry recognizer can restrict itself to the visible
@@ -126,6 +133,14 @@ public class ChatColumnCell: UICollectionViewCell {
         authorAvatar.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(authorTapped)))
         contentView.addSubview(authorAvatar)
 
+        timeLabel.translatesAutoresizingMaskIntoConstraints = false
+        timeLabel.font = .default(size: 12, weight: .medium)
+        timeLabel.textColor = UIColor.white.withAlphaComponent(Self.revealedTimeOpacity)
+        timeLabel.textAlignment = .right
+        timeLabel.isAccessibilityElement = false
+        timeLabel.alpha = 0
+        contentView.addSubview(timeLabel)
+
         let leading = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Self.rowInset)
         columnLeading = leading
         // The column sits at the top and never stretches past its content. The row's height is the
@@ -160,7 +175,22 @@ public class ChatColumnCell: UICollectionViewCell {
             // first bubble of the run rather than with the author name above it.
             authorAvatar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Self.rowInset),
             authorAvatar.topAnchor.constraint(equalTo: content.topAnchor),
+            timeLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -ChatTimestampReveal.trailingMargin),
+            timeLabel.widthAnchor.constraint(equalToConstant: ChatTimestampReveal.columnWidth),
+            timeLabel.centerYAnchor.constraint(equalTo: content.centerYAnchor),
         ])
+        applyOffsets()
+    }
+
+    /// The time the reveal column shows for this row, or nil for a row that shows none — a deleted
+    /// message, or one built without a send time.
+    nonisolated static func revealedTime(for message: ChatMessage) -> String? {
+        switch message.content {
+        case .deleted:
+            return nil
+        case .text, .cash, .shareProfile, .media, .unavailable:
+            return message.sentAt?.formattedTime()
+        }
     }
 
     /// The transcript's side margin, and the avatar gutter's own leading inset.
@@ -173,6 +203,7 @@ public class ChatColumnCell: UICollectionViewCell {
     /// rather than the per-person colour the quote panel uses, so a run of different senders reads
     /// as one transcript instead of a palette.
     private static let authorNameOpacity: Double = 0.5
+    private static let revealedTimeOpacity: CGFloat = 0.6
 
     /// What an attributed incoming row gives up to the gutter: the circle plus the 8pt Figma puts
     /// between it and the bubble. Read by the layout to keep the bubble's max width proportional to
@@ -202,14 +233,31 @@ public class ChatColumnCell: UICollectionViewCell {
     /// `bounds`, which a transform composes with rather than fights — the same holds for the
     /// avatar.
     var swipeOffset: CGFloat {
-        get { column.transform.tx }
+        get { replyOffset }
         set {
-            let transform: CGAffineTransform = newValue == 0 ? .identity : CGAffineTransform(translationX: newValue, y: 0)
-            column.transform = transform
-            // The face is part of the row, not furniture behind it, so it moves with the bubble it
-            // belongs to rather than sliding out from under its own run.
-            authorAvatar.transform = transform
+            replyOffset = newValue
+            applyOffsets()
         }
+    }
+
+    /// How far the timestamp reveal is open, from 0 to `ChatTimestampReveal.travel`. A sent
+    /// row's column moves left by it; every row's time fades in from the trailing edge with it.
+    var revealOffset: CGFloat = 0 {
+        didSet { applyOffsets() }
+    }
+
+    /// Both drags move the same column, and their settles can overlap, so they sum into one
+    /// transform rather than each overwriting the other's.
+    private func applyOffsets() {
+        let columnX = replyOffset - (isSentBySelf ? revealOffset : 0)
+        column.transform = columnX == 0 ? .identity : CGAffineTransform(translationX: columnX, y: 0)
+        // The face is part of the row, not furniture behind it, so it moves with the bubble it
+        // belongs to rather than sliding out from under its own run.
+        authorAvatar.transform = replyOffset == 0 ? .identity : CGAffineTransform(translationX: replyOffset, y: 0)
+        let hidden = ChatTimestampReveal.travel - revealOffset
+        timeLabel.transform = hidden == 0 ? .identity : CGAffineTransform(translationX: hidden, y: 0)
+        // Fades in with the drag; the label's own color caps it at `revealedTimeOpacity`.
+        timeLabel.alpha = revealOffset / ChatTimestampReveal.travel
     }
 
     /// Self-sizes on height alone, at the width the layout asked for. The column spans the row, so
@@ -231,6 +279,9 @@ public class ChatColumnCell: UICollectionViewCell {
         // A row recycled mid-swipe (or while the swipe's settle animation is still running) would
         // otherwise be dequeued still translated sideways, and draw its new message offset.
         swipeOffset = 0
+        revealOffset = 0
+        isSentBySelf = false
+        timeLabel.text = nil
         landGrowFromTyping()
         currentMessageID = nil
         retryID = nil
@@ -284,6 +335,9 @@ public class ChatColumnCell: UICollectionViewCell {
         // none, and would sit 10pt further out than the line it replaces.
         metadata.directionalLayoutMargins.trailing = receipt.isHidden ? ChatReceiptView.trailingPadding : 0
         column.alignment = message.sender == .me ? .trailing : .leading
+        isSentBySelf = message.sender == .me
+        timeLabel.text = Self.revealedTime(for: message)
+        applyOffsets()
         updateAttribution(for: message, authorImageData: authorImageData)
     }
 

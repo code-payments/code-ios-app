@@ -41,6 +41,9 @@ struct ConversationGatePanel: View {
     /// Whether a join is in flight; the button holds its title and stops taking taps.
     let isJoining: Bool
 
+    /// Restates the USD requirement and shortfall for the viewer; `nil` shows them in USD.
+    var displayCurrency: DisplayCurrency? = nil
+
     var body: some View {
         if case .readOnly(let requirement) = presentation, requirement.isStaticReadOnly, let sentence {
             readOnlyPill(sentence)
@@ -164,8 +167,12 @@ struct ConversationGatePanel: View {
     /// Every requirement is denominated in dollars, so a dollar-token rule is already fully stated
     /// by the amount — spelling the token out as well says the same thing twice. A rule naming any
     /// other token genuinely needs it: the same $100 is a different quantity of each.
+    private func displayed(_ amount: FiatAmount) -> FiatAmount {
+        displayCurrency?.amount(amount) ?? amount
+    }
+
     private func requirementAmount(_ amount: FiatAmount, mint: PublicKey?) -> String {
-        let formatted = amount.formattedDroppingZeroFraction()
+        let formatted = displayed(amount).formattedDroppingZeroFraction()
         guard mint != .usdf, let mintName else { return formatted }
         return "\(formatted) of \(mintName)"
     }
@@ -209,7 +216,7 @@ struct ConversationGatePanel: View {
         case .readOnly:                               action = "Chat"
         case .open, .undetermined, .join, .blocked:   action = "Join"
         }
-        let amount = shortfall?.formatted()
+        let amount = shortfall.map { displayed($0).formatted() }
         guard let mint, mint != .usdf else {
             guard let amount else { return "Add Cash" }
             return "Add \(amount) to \(action)"

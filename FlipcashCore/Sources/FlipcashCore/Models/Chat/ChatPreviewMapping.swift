@@ -38,13 +38,15 @@ extension ChatItem {
     ///   - counterpartName: The other party's name, for the hint under a message that failed to decrypt.
     ///   - authorName: The name to label another member's row with in a group, or nil (or empty)
     ///     to leave the row unattributed. Never asked about the viewer's own rows.
+    ///   - display: The currency cash rows are shown in, or nil to show each as it moved.
     public static func preview(
         from messages: [ConversationMessage],
         selfUserID: UserID,
         limit: Int = 3,
         mintBranding: [PublicKey: MintBrandingInfo] = [:],
         counterpartName: String = "",
-        authorName: (UserID) -> String? = { _ in nil }
+        authorName: (UserID) -> String? = { _ in nil },
+        display: DisplayCurrency? = nil
     ) -> [ChatItem] {
         // Drop tombstones before slicing so the preview keeps the newest `limit` *visible* messages —
         // filtering after `.suffix` would let a recent delete crowd out a real message (or blank the
@@ -76,15 +78,12 @@ extension ChatItem {
             case .text(let text):
                 content = .text(text)
             case .cash(let fiat):
-                // The flag loads from the FlipcashUI bundle, so it resolves inside an extension. The
-                // token name + coin icon come from `mintBranding`; an unresolved mint shows no token
-                // label or icon rather than a misleading fallback.
-                let currency = fiat.nativeAmount.currency
+                // The token name + coin icon come from `mintBranding`; an unresolved mint shows no
+                // token label or icon rather than a misleading fallback.
                 let branding = mintBranding[fiat.mint]
                 content = .cash(ChatCashContent(
-                    amount: fiat.nativeAmount.formatted(),
+                    amount: (display?.amount(fiat) ?? fiat.nativeAmount).formatted(),
                     token: branding?.name ?? "",
-                    flagImageName: currency.region?.rawValue ?? currency.rawValue.uppercased(),
                     iconURL: branding?.iconURL,
                     isTip: message.cashAction == .tipped
                 ))
@@ -145,7 +144,8 @@ extension ChatItem {
                 isContinuationFromPrevious: false,
                 isContinuedByNext: false,
                 isEmojiOnly: isEmojiOnly,
-                author: author
+                author: author,
+                sentAt: message.date
             )))
             previous = message
         }

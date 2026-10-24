@@ -101,6 +101,16 @@ struct TransportClassificationTests {
     @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }
     @Test func errorMuteChat() { assertClassifies(ErrorMuteChat.self) }
     @Test func errorUnmuteChat() { assertClassifies(ErrorUnmuteChat.self) }
+    @Test func errorSilenceUser() { assertClassifies(ErrorSilenceUser.self) }
+    @Test func errorUnsilenceUser() { assertClassifies(ErrorUnsilenceUser.self) }
+    @Test func errorBanUser() { assertClassifies(ErrorBanUser.self) }
+    @Test func errorUnbanUser() { assertClassifies(ErrorUnbanUser.self) }
+    @Test func errorGetRestrictedUsers() { assertClassifies(ErrorGetRestrictedUsers.self) }
+    @Test func errorCreatePaymentRequest() { assertClassifies(ErrorCreatePaymentRequest.self) }
+    @Test func errorGetPaymentRequest() { assertClassifies(ErrorGetPaymentRequest.self) }
+    @Test func errorGetChatPaymentRequests() { assertClassifies(ErrorGetChatPaymentRequests.self) }
+    @Test func errorClosePaymentRequest() { assertClassifies(ErrorClosePaymentRequest.self) }
+    @Test func errorMarkPaid() { assertClassifies(ErrorMarkPaid.self) }
     @Test func errorGetRoster() { assertClassifies(ErrorGetRoster.self) }
     @Test func errorGetMentionSuggestions() { assertClassifies(ErrorGetMentionSuggestions.self) }
     @Test func errorEditChat() { assertClassifies(ErrorEditChat.self) }

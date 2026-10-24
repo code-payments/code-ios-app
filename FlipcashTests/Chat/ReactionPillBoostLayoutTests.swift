@@ -15,7 +15,7 @@ import FlipcashCore
 struct ReactionPillBoostLayoutTests {
 
     private static func pill(_ emoji: String, count: UInt64, cents: UInt64?, selfReacted: Bool = false) -> ReactionPill {
-        ReactionPill(emoji: emoji, count: count, selfReacted: selfReacted, pending: false, boost: cents.map(ReactionBoost.init))
+        ReactionPill(emoji: emoji, count: count, selfReacted: selfReacted, pending: false, boost: cents.map { ReactionBoost(total: $0) })
     }
 
     private static func layOut(_ row: ReactionPillRowView) {
@@ -57,6 +57,16 @@ struct ReactionPillBoostLayoutTests {
         #expect(label.bounds.width >= label.intrinsicContentSize.width - 0.5)
     }
 
+    /// Whether the row's first pill shows its whole amount label within its bounds.
+    private static func amountInsidePill(in row: ReactionPillRowView) -> Bool {
+        guard let label = amountLabels(in: row).first,
+              let pill = row.subviews.first(where: { $0 is ReactionPillView }) else { return false }
+        let frame = label.convert(label.bounds, to: pill)
+        return label.bounds.width >= label.intrinsicContentSize.width - 0.5
+            && frame.minX >= 0
+            && frame.maxX <= pill.bounds.width + 0.5
+    }
+
     /// A boost new to a pill has no room reserved, so it shows on the row's next beat.
     @Test("A pill that turns boosted shows its amount inside the pill after the beat", arguments: [(UInt64(1), true), (2, false)])
     func turnsBoosted_afterBeat_amountInsidePill(count: UInt64, selfReacted: Bool) async throws {
@@ -69,14 +79,9 @@ struct ReactionPillBoostLayoutTests {
         Self.layOut(row)
         row.configure(pills: [Self.pill("👍", count: count, cents: 100, selfReacted: selfReacted)], canReact: true, canBoost: true)
         Self.layOut(row)
-        try await Task.sleep(for: .milliseconds(1500))
-        Self.layOut(row)
-
-        let label = try #require(Self.amountLabels(in: row).first)
-        let pill = try #require(row.subviews.first { $0 is ReactionPillView })
-        let frame = label.convert(label.bounds, to: pill)
-        #expect(label.bounds.width >= label.intrinsicContentSize.width - 0.5)
-        #expect(frame.minX >= 0)
-        #expect(frame.maxX <= pill.bounds.width + 0.5)
+        try await waitUntil {
+            Self.layOut(row)
+            return Self.amountInsidePill(in: row)
+        }
     }
 }

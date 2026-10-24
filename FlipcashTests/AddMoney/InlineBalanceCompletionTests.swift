@@ -33,7 +33,9 @@ struct InlineBalanceCompletionTests {
         return settling
     }
 
-    private static func completion(_ settling: Settling, window: Duration = .milliseconds(200)) -> InlineBalanceCompletion {
+    /// The default window only bounds a failing wait: a rise ends it early, so it can be long enough
+    /// to hold under the Thread Sanitizer. Tests that expect `.pending` pass a short one.
+    private static func completion(_ settling: Settling, window: Duration = .seconds(30)) -> InlineBalanceCompletion {
         InlineBalanceCompletion(
             settlement: settling,
             target: AddMoneyBalanceTarget.target(baseline: .zero(in: .usd), amount: tenDollars),
@@ -135,15 +137,15 @@ struct InlineBalanceCompletionTests {
     func processingTimeoutDeductsElapsed() async throws {
         let settling = try Self.settling(risesAfter: .max)
         let input = AddMoneyProcessingInput(
-            amount: Self.tenDollars, method: .phantom, depositRef: nil, elapsed: .milliseconds(150)
+            amount: Self.tenDollars, method: .phantom, depositRef: nil, elapsed: .milliseconds(9_950)
         )
-        let viewModel = AddMoneyProcessingViewModel(input: input, pollInterval: .milliseconds(1), timeout: .milliseconds(200))
+        let viewModel = AddMoneyProcessingViewModel(input: input, pollInterval: .milliseconds(1), timeout: .seconds(10))
 
         let started = ContinuousClock.now
         await viewModel.run(settlement: settling, performSweep: { true })
 
         #expect(viewModel.displayState == .failed)
-        #expect(ContinuousClock.now - started < .milliseconds(190))
+        #expect(ContinuousClock.now - started < .seconds(5))
     }
 
     // MARK: - Card timing
