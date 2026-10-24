@@ -29,6 +29,8 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let tokenLabel = UILabel()
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
+    private let eachLabel = UILabel()
+    private let receivedLabel = UILabel()
     private var cardWidthConstraint: NSLayoutConstraint!
     private var reactionRowWidthConstraint: NSLayoutConstraint!
 
@@ -68,7 +70,12 @@ public final class ChatCashCardCell: ChatColumnCell {
         amountLabel.minimumScaleFactor = 0.5
         amountLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        let centerStack = UIStackView(arrangedSubviews: [captionLabel, amountLabel])
+        eachLabel.font = .default(size: 12, weight: .bold)
+        eachLabel.textColor = UIColor.white.withAlphaComponent(0.5)
+        receivedLabel.font = .default(size: 12, weight: .bold)
+        receivedLabel.textColor = .white
+
+        let centerStack = UIStackView(arrangedSubviews: [captionLabel, amountLabel, eachLabel, receivedLabel])
         centerStack.axis = .vertical
         centerStack.spacing = 4
         centerStack.alignment = .center
@@ -148,8 +155,12 @@ public final class ChatCashCardCell: ChatColumnCell {
         cardWidthConstraint.constant = maxWidth
         reactionRowWidthConstraint.constant = maxWidth
         tokenLabel.text = cash.token
-        captionLabel.text = ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
+        captionLabel.text = cash.group?.caption ?? ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
         amountLabel.text = cash.amount
+        eachLabel.text = cash.group?.each
+        eachLabel.isHidden = cash.group == nil
+        receivedLabel.text = cash.group?.received
+        receivedLabel.isHidden = cash.group?.received == nil
         amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
 
         coinIcon.isHidden = cash.iconURL == nil
@@ -193,6 +204,14 @@ extension ChatCashCardCell: BubbleCarrying {
     let samples: [ChatMessage] = [
         ChatMessage(id: "1", content: .cash(ChatCashContent(amount: "$5.00", token: "Cash")), sender: .me),
         ChatMessage(id: "2", content: .cash(ChatCashContent(amount: "$12.50", token: "Cash")), sender: .other),
+        ChatMessage(id: "3", content: .cash(ChatCashContent(
+            amount: "$1.00", token: "Cash",
+            group: .init(caption: "You sent to 3 people", each: "~$0.33 Each", received: nil)
+        )), sender: .me),
+        ChatMessage(id: "4", content: .cash(ChatCashContent(
+            amount: "$6.00", token: "Cash",
+            group: .init(caption: "Alex sent to 6 people", each: "$1.00 Each", received: "You received $1.00")
+        )), sender: .other),
     ]
 
     return ChatCashCardCellPreviewController(messages: samples, layout: layout)
