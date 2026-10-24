@@ -134,7 +134,7 @@ final class GroupSendViewModel {
         guard selection.count < GroupSendSplit.maxRecipients else {
             session.dialogItem = .info(
                 title: "10 People Max",
-                subtitle: "You can send cash to up to 10 people at a time"
+                subtitle: "The maximum number of people you can send to at once is 10 people"
             )
             return
         }

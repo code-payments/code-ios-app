@@ -292,13 +292,15 @@ extension ChatItem {
                     token: branding.token,
                     iconURL: branding.iconURL,
                     isTip: message.cashAction == .tipped,
-                    group: groupSend(
+                    group: namesAuthors ? groupSend(
                         message.cashPayments,
+                        receiver: message.cashReceiverID,
                         total: fiat.nativeAmount,
                         shownAs: viewerAmount(fiat),
                         sender: isFromSelf ? "You" : author(message)?.name,
-                        selfUserID: selfUserID
-                    )
+                        selfUserID: selfUserID,
+                        nameOf: nameOf
+                    ) : nil
                 ))
             case .deleted(let deletion):
                 content = .deleted(
@@ -663,32 +665,45 @@ extension ChatItem {
         [.copy, .reply, .forward, .edit, .delete, .report].filter(capabilities.contains)
     }
 
-    /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's
-    /// read pointer reaches the message, else "Delivered".
-    /// The group-send lines for a payment split between two or more members, or nil for one paid
-    /// to a single member. Each part is restated by its share of `total`, so the parts and the
-    /// card's `shownAs` total use one conversion. `sender` is "You" for the viewer's own send.
+    /// The group lines for a payment in a group chat, or nil when the plain caption says it all:
+    /// a payment to the viewer alone, or one whose receiver isn't known. A split between two or more
+    /// members restates each part by its share of `total`, so the parts and the card's `shownAs`
+    /// total use one conversion. `sender` is "You" for the viewer's own send.
     nonisolated static func groupSend(
         _ payments: [CashPayment],
+        receiver: UserID?,
         total: FiatAmount,
         shownAs shown: FiatAmount,
         sender: String?,
-        selfUserID: UserID
+        selfUserID: UserID,
+        nameOf: (UserID) -> String?
     ) -> ChatCashContent.GroupSend? {
-        guard payments.count >= 2, total.value > 0 else { return nil }
+        let sender = sender.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone"
+        func name(_ id: UserID) -> String? {
+            id == selfUserID ? "You" : nameOf(id).flatMap { $0.isEmpty ? nil : $0 }
+        }
+        guard payments.count >= 2, total.value > 0 else {
+            guard let receiver, receiver != selfUserID, let receiverName = name(receiver) else { return nil }
+            return ChatCashContent.GroupSend(caption: "\(sender) sent", each: nil, received: nil, recipients: "to \(receiverName)")
+        }
         func formatted(_ payment: CashPayment) -> String {
             FiatAmount(value: shown.value * Decimal(payment.nativeAmount) / total.value, currency: shown.currency).formatted()
         }
         let smallest = payments.min { $0.nativeAmount < $1.nativeAmount } ?? payments[0]
         let isEven = Set(payments.map(\.nativeAmount)).count == 1
-        let sender = sender.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone"
+        let others = payments.count - 1
+        let recipients = payments[0].receiverID.flatMap(name).map { "to \($0) and \(others) \(others == 1 ? "Other" : "Others")" }
+            ?? "to \(payments.count) people"
         return ChatCashContent.GroupSend(
-            caption: "\(sender) sent to \(payments.count) people",
+            caption: "\(sender) sent",
             each: isEven ? "\(formatted(smallest)) Each" : "~\(formatted(smallest)) Each",
-            received: payments.first { $0.receiverID == selfUserID }.map { "You received \(formatted($0))" }
+            received: payments.first { $0.receiverID == selfUserID }.map { "You received \(formatted($0))" },
+            recipients: recipients
         )
     }
 
+    /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's
+    /// read pointer reaches the message, else "Delivered".
     nonisolated private static func receipt(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> ChatReceipt {
         guard let read = counterpartRead, read.pointer >= messageID else { return .delivered }
         return readReceipt(at: read.date)

@@ -21,42 +21,64 @@ struct GroupSendBubbleTests {
         CashPayment(receiverID: id, nativeAmount: amount, quarks: UInt64(amount * 1_000_000))
     }
 
-    @Test("an even split shows the shared part")
+    private var names: [UserID: String] { [alex: "Alex Morgan", sam: "Sam Chen", kim: "Kim Lee"] }
+
+    private func lines(
+        _ payments: [CashPayment],
+        receiver: UserID? = nil,
+        total: Decimal,
+        shownAs: FiatAmount? = nil,
+        sender: String
+    ) -> ChatCashContent.GroupSend? {
+        ChatItem.groupSend(
+            payments, receiver: receiver, total: usd(total), shownAs: shownAs ?? usd(total),
+            sender: sender, selfUserID: me, nameOf: { names[$0] }
+        )
+    }
+
+    @Test("an even split shows the shared part and names the first recipient")
     func evenSplit() throws {
-        let lines = try #require(ChatItem.groupSend(
-            [payment(alex, 1), payment(sam, 1)],
-            total: usd(2), shownAs: usd(2), sender: "You", selfUserID: me
-        ))
-        #expect(lines.caption == "You sent to 2 people")
+        let lines = try #require(lines([payment(alex, 1), payment(sam, 1)], total: 2, sender: "You"))
+        #expect(lines.caption == "You sent")
         #expect(lines.each == "$1.00 Each")
         #expect(lines.received == nil)
+        #expect(lines.recipients == "to Alex Morgan and 1 Other")
     }
 
     @Test("an uneven split shows the smallest part with a tilde, and a paid viewer their own part")
     func unevenSplitPaidViewer() throws {
-        let lines = try #require(ChatItem.groupSend(
-            [payment(alex, 0.34), payment(me, 0.33), payment(kim, 0.33)],
-            total: usd(1), shownAs: usd(1), sender: "Sam", selfUserID: me
-        ))
-        #expect(lines.caption == "Sam sent to 3 people")
+        let lines = try #require(lines([payment(alex, 0.34), payment(me, 0.33), payment(kim, 0.33)], total: 1, sender: "Sam Chen"))
+        #expect(lines.caption == "Sam Chen sent")
         #expect(lines.each == "~$0.33 Each")
         #expect(lines.received == "You received $0.33")
+        #expect(lines.recipients == "to Alex Morgan and 2 Others")
+    }
+
+    @Test("an unnamed first recipient falls back to a count")
+    func unnamedRecipient() throws {
+        let lines = try #require(lines([payment(UserID(), 1), payment(sam, 1)], total: 2, sender: "You"))
+        #expect(lines.recipients == "to 2 people")
     }
 
     @Test("parts are restated in the viewer's currency by their share of the total")
     func restatedParts() throws {
-        let lines = try #require(ChatItem.groupSend(
-            [payment(alex, 1), payment(me, 1)],
-            total: usd(2), shownAs: FiatAmount(value: 3, currency: .cad), sender: "Sam", selfUserID: me
-        ))
+        let lines = try #require(lines([payment(alex, 1), payment(me, 1)], total: 2, shownAs: FiatAmount(value: 3, currency: .cad), sender: "Sam"))
         #expect(lines.received == "You received " + FiatAmount(value: 1.5, currency: .cad).formatted())
     }
 
-    @Test("a payment to one member draws as a plain cash card")
-    func singleRecipient() {
-        #expect(ChatItem.groupSend(
-            [payment(alex, 1)], total: usd(1), shownAs: usd(1), sender: "You", selfUserID: me
-        ) == nil)
+    @Test("a payment to one member names them, with no per-person line")
+    func singleRecipient() throws {
+        let lines = try #require(lines([], receiver: alex, total: 1, sender: "You"))
+        #expect(lines.caption == "You sent")
+        #expect(lines.each == nil)
+        #expect(lines.recipients == "to Alex Morgan")
+    }
+
+    @Test("a payment to the viewer alone, or to no known member, keeps the plain card")
+    func plainCard() {
+        #expect(lines([], receiver: me, total: 1, sender: "Sam") == nil)
+        #expect(lines([], receiver: nil, total: 1, sender: "Sam") == nil)
+        #expect(lines([], receiver: UserID(), total: 1, sender: "Sam") == nil)
     }
 }
 
@@ -67,7 +89,7 @@ struct GroupSendDetailsTests {
     private let alex = UserID()
     private let unknown = UserID()
 
-    private func cash(sender: UserID, _ payments: [CashPayment]) -> ConversationMessage {
+    private func cash(sender: UserID, receiver: UserID? = nil, _ payments: [CashPayment]) -> ConversationMessage {
         ConversationMessage(
             id: MessageID(value: 1),
             senderID: sender,
@@ -76,6 +98,7 @@ struct GroupSendDetailsTests {
                 nativeAmount: FiatAmount(value: 1, currency: .usd),
                 currencyRate: Rate(fx: 1, currency: .usd)
             )),
+            cashReceiverID: receiver,
             cashPayments: payments,
             date: Date(timeIntervalSince1970: 1),
             unreadSeq: 1
@@ -92,12 +115,22 @@ struct GroupSendDetailsTests {
             members: [ConversationMember(userID: alex, displayName: "Alex")],
             selfUserID: me
         ))
-        #expect(details.from == "Alex")
-        #expect(details.recipients == ["You", "Someone"])
-        #expect(details.total == "$1.00")
+        #expect(details.from.name == "Alex")
+        #expect(details.recipients.map(\.name) == ["You", "Someone"])
     }
 
-    @Test("a payment to one member has no group details")
+    @Test("a single send names its one receiver")
+    func singleReceiver() throws {
+        let details = try #require(GroupSendDetails(
+            message: cash(sender: me, receiver: alex, []),
+            members: [ConversationMember(userID: alex, displayName: "Alex")],
+            selfUserID: me
+        ))
+        #expect(details.from.name == "You")
+        #expect(details.recipients.map(\.name) == ["Alex"])
+    }
+
+    @Test("a payment that names no receiver has no details")
     func singleRecipient() {
         #expect(GroupSendDetails(
             message: cash(sender: me, [CashPayment(receiverID: alex, nativeAmount: 1, quarks: 1_000_000)]),

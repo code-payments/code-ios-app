@@ -53,7 +53,6 @@ private struct GroupSendFlowContent: View {
                 switch step {
                 case .selectPeople:
                     GroupSendSelectPeopleScreen(viewModel: viewModel)
-                        .toolbar { closeButton }
                 }
             }
         }
@@ -133,11 +132,15 @@ private struct GroupSendSelectPeopleScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 List {
-                    ForEach(viewModel.members, id: \.userID) { portrait in
-                        row(portrait)
-                            .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                    Section {
+                        ForEach(viewModel.members, id: \.userID) { portrait in
+                            row(portrait)
+                        }
+                    } header: {
+                        Text("Members")
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
+                            .textCase(nil)
                     }
                 }
                 .listStyle(.plain)
@@ -167,25 +170,24 @@ private struct GroupSendSelectPeopleScreen: View {
 
     private func row(_ portrait: GroupPortrait) -> some View {
         let isSelected = viewModel.isSelected(portrait.userID)
-        return Button {
-            viewModel.toggle(portrait.userID)
-        } label: {
-            HStack(spacing: 12) {
-                GroupSendAvatar(portrait: portrait, size: 40)
-                Text(portrait.name)
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? Color.textMain : Color.textSecondary)
-            }
-            .contentShape(Rectangle())
+        return RecipientRowScaffold(
+            avatarID: portrait.userID.uuidString,
+            title: portrait.name,
+            subtitle: nil,
+            imageData: sessionContainer.profileAvatars.data(for: portrait.userID),
+            blurhash: portrait.picture?.thumbnailBlurhash,
+            accessibilityLabel: portrait.name,
+            onTap: { viewModel.toggle(portrait.userID) }
+        ) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 22))
+                .foregroundStyle(isSelected ? Color.textMain : Color.textSecondary)
         }
-        .buttonStyle(.plain)
         .accessibilityIdentifier("group-send-member-row")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .task(id: portrait.userID) {
+            await sessionContainer.profileAvatars.load(userID: portrait.userID, picture: portrait.picture)
+        }
     }
 }
 
@@ -199,56 +201,73 @@ private struct GroupSendConfirmSheet: View {
     let viewModel: GroupSendViewModel
 
     @State private var didSucceed = false
-    @State private var contentHeight: CGFloat = 0
+    @State private var isShowingTokenSelection = false
 
-    /// "to Alex and 5 Others", or just "to Alex" for one.
-    private var recipientsLine: String {
+    /// Faces drawn before the rest collapse into a "+N" badge.
+    private static let maxFaces = 4
+
+    /// "Alex Morgan and 5 Others", or just "Alex Morgan" for one.
+    private var recipientsTitle: String {
         let picked = viewModel.selectedMembers
         guard let first = picked.first else { return "" }
-        let firstName = first.name.split(separator: " ").first.map(String.init) ?? first.name
         switch picked.count {
-        case 1:  return "to \(firstName)"
-        case 2:  return "to \(firstName) and 1 Other"
-        default: return "to \(firstName) and \(picked.count - 1) Others"
+        case 1:  return first.name
+        case 2:  return "\(first.name) and 1 Other"
+        default: return "\(first.name) and \(picked.count - 1) Others"
         }
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: -12) {
-                ForEach(viewModel.selectedMembers.prefix(3), id: \.userID) { portrait in
-                    GroupSendAvatar(portrait: portrait, size: 48)
-                        .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 2))
+        PartialSheet(background: .clear) {
+            VStack(spacing: 25) {
+                VStack(spacing: 12) {
+                    faces
+                    Text(recipientsTitle)
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
+                }
+                VStack(spacing: 8) {
+                    Text(viewModel.enteredTotal?.formatted() ?? "")
+                        .font(.appDisplayLarge)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.4)
+                    if viewModel.selection.count > 1, let each = viewModel.eachLabel {
+                        Text(each)
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
+                    }
+                    // Bordered as on the Start Chatting sheet: with no toolbar around it, the
+                    // chevron alone wouldn't say the currency can be changed.
+                    TokenSelectorButton(selectedBalance: viewModel.selectedBalance) {
+                        isShowingTokenSelection = true
+                    }
+                    .id(viewModel.selectedBalance?.stored.mint)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background {
+                        Capsule()
+                            .strokeBorder(
+                                Metrics.inputFieldStrokeColor(highlighted: false),
+                                lineWidth: Metrics.inputFieldBorderWidth(highlighted: false)
+                            )
+                    }
+                    .padding(.top, 4)
+                }
+                SwipeControl(text: "Swipe to Send") {
+                    switch await viewModel.submit() {
+                    case .success:
+                        didSucceed = true
+                    case .failed:
+                        throw GroupSendDismissed()
+                    }
                 }
             }
-            Text(recipientsLine)
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-            Text(viewModel.enteredTotal?.formatted() ?? "")
-                .font(.appDisplayMedium)
-                .foregroundStyle(Color.textMain)
-            if let each = viewModel.eachLabel {
-                Text(each)
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textSecondary)
-            }
-            SwipeControl(text: "Swipe to Send") {
-                switch await viewModel.submit() {
-                case .success:
-                    didSucceed = true
-                case .failed:
-                    throw GroupSendDismissed()
-                }
-            }
-            .padding(.top, 24)
+            .padding(.horizontal, 20)
+            .padding(.top, 30)
+            .padding(.bottom, bottomPadding)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 32)
-        .padding(.bottom, 20)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-        .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(Color.backgroundMain)
         // Hold the success checkmark briefly, then dismiss the whole flow back to the chat.
         .task(id: didSucceed) {
             guard didSucceed else { return }
@@ -256,6 +275,38 @@ private struct GroupSendConfirmSheet: View {
             guard !Task.isCancelled else { return }
             router.dismissSheet()
         }
+        .sheet(isPresented: $isShowingTokenSelection) {
+            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
+                viewModel.selectCurrencyAction(exchangedBalance: balance)
+            }
+        }
+    }
+
+    private var faces: some View {
+        let picked = viewModel.selectedMembers
+        let overflow = picked.count - Self.maxFaces
+        return HStack(spacing: -12) {
+            ForEach(picked.prefix(Self.maxFaces), id: \.userID) { portrait in
+                GroupSendAvatar(portrait: portrait, size: 56)
+                    .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 2))
+            }
+            if overflow > 0 {
+                Text("+\(overflow)")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textMain)
+                    .frame(width: 56, height: 56)
+                    .background(Color.backgroundSecondary, in: .circle)
+                    .overlay(Circle().stroke(Color.backgroundMain, lineWidth: 2))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// The design's 20 under the swipe, less whatever the sheet already holds back for the home
+    /// indicator — stacking the two doubles the gap.
+    private var bottomPadding: CGFloat {
+        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
+        return max(0, 20 - reserved)
     }
 }
 

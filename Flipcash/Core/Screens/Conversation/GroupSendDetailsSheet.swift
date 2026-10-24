@@ -9,68 +9,153 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// What the details sheet shows for a cash message paid to several group members: no amounts per person.
+/// What the details sheet shows for a cash message paid to group members: no amounts per person.
 nonisolated struct GroupSendDetails: Identifiable, Hashable, Sendable {
-    let id: String
-    let total: String
-    let sentAt: Date
-    let from: String
-    let recipients: [String]
 
-    /// The details for `message`, or nil when it isn't a payment split between two or more members.
-    /// Names come from `members`; anyone it doesn't hold reads as "Someone", and the viewer as "You".
+    /// Someone the sheet names, with what it needs for their avatar.
+    struct Person: Hashable, Sendable {
+        /// Nil when the payment doesn't say who it was; such a row doesn't open a profile.
+        let userID: UserID?
+        let name: String
+        let picture: ProfilePicture?
+    }
+
+    let id: String
+    let mint: PublicKey
+    let from: Person
+    let recipients: [Person]
+
+    /// The details for `message`, or nil unless it is a payment in a group that names its
+    /// recipients: two or more in `cashPayments`, or one in `cashReceiverID`. Names come from
+    /// `members`; anyone it doesn't hold reads as "Someone", and the viewer as "You".
     init?(message: ConversationMessage, members: [ConversationMember], selfUserID: UserID) {
-        guard case .cash(let fiat) = message.content, message.cashPayments.count >= 2 else { return nil }
-        let byID = Dictionary(members.map { ($0.userID, $0) }, uniquingKeysWith: { first, _ in first })
-        func name(_ userID: UserID?) -> String {
-            guard let userID else { return "Someone" }
-            if userID == selfUserID { return "You" }
-            return byID[userID].map(ConversationLoadCoordinator.attributionName(for:)) ?? "Someone"
+        guard case .cash(let fiat) = message.content else { return nil }
+        let receivers: [UserID?] = message.cashPayments.count >= 2
+            ? message.cashPayments.map(\.receiverID)
+            : message.cashReceiverID.map { [$0] } ?? []
+        guard !receivers.isEmpty else { return nil }
+        let byID = Dictionary(
+            members.compactMap { member in member.userID.map { ($0, member) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        func person(_ userID: UserID?) -> Person {
+            guard let userID else { return Person(userID: nil, name: "Someone", picture: nil) }
+            let member = byID[userID]
+            let name = userID == selfUserID ? "You" : member.map(ConversationLoadCoordinator.attributionName(for:)) ?? "Someone"
+            return Person(userID: userID, name: name, picture: member?.profilePicture)
         }
         self.id = message.stableID
-        self.total = fiat.nativeAmount.formatted()
-        self.sentAt = message.date
-        self.from = name(message.senderID)
-        self.recipients = message.cashPayments.map { name($0.receiverID) }
+        self.mint = fiat.mint
+        self.from = person(message.senderID)
+        self.recipients = receivers.map(person)
     }
 }
 
-/// The sheet a group send's cash card opens: when, from whom, and who was paid.
+/// The sheet a group payment's cash card opens: the token sent, who sent it, and who was paid,
+/// each row opening that token's or person's page.
 struct GroupSendDetailsSheet: View {
 
+    @Environment(Session.self) private var session
+    @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(\.dismiss) private var dismiss
+
     let details: GroupSendDetails
+    let openToken: (PublicKey) -> Void
+    let openProfile: (UserID) -> Void
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    row("Amount", details.total)
-                    row("Sent", details.sentAt.formatted(date: .abbreviated, time: .shortened))
-                    row("From", details.from)
+        PartialSheet(background: .clear) {
+            VStack(spacing: 20) {
+                ViewThatFits(in: .vertical) {
+                    rows
+                    ScrollView { rows }
+                        .frame(maxHeight: 480)
                 }
-                Section("To \(details.recipients.count) People") {
-                    ForEach(Array(details.recipients.enumerated()), id: \.offset) { _, name in
-                        Text(name)
-                            .font(.appTextMedium)
-                            .foregroundStyle(Color.textMain)
-                    }
+                CodeButton(style: .filled, title: "Close") {
+                    dismiss()
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.backgroundMain)
-            .navigationTitle("Details")
-            .navigationBarTitleDisplayMode(.inline)
+            .padding(.horizontal, 20)
+            .padding(.top, 30)
+            .padding(.bottom, 20)
         }
     }
 
-    private func row(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title)
-                .foregroundStyle(Color.textSecondary)
-            Spacer()
-            Text(value)
-                .foregroundStyle(Color.textMain)
+    private var rows: some View {
+        VStack(spacing: 0) {
+            tokenRow
+            personRow(label: "From", details.from)
+            ForEach(Array(details.recipients.enumerated()), id: \.offset) { index, person in
+                personRow(label: index == 0 ? "To" : nil, person)
+            }
         }
-        .font(.appTextMedium)
+    }
+
+    private var tokenRow: some View {
+        let balance = session.balance(for: details.mint)
+        return row(label: "Sent", action: { open { openToken(details.mint) } }) {
+            TokenIconWithName(
+                url: balance?.imageURL,
+                monogramID: details.mint.base58,
+                name: balance?.name ?? "Cash",
+                iconSize: 32,
+                font: .appTextMedium.bold()
+            )
+        }
+        .accessibilityIdentifier("group-send-details-token")
+    }
+
+    private func personRow(label: String?, _ person: GroupSendDetails.Person) -> some View {
+        let action = person.userID.map { userID in { open { openProfile(userID) } } }
+        return row(label: label, action: action) {
+            HStack(spacing: 8) {
+                ContactAvatarView(
+                    id: person.userID?.uuidString ?? person.name,
+                    displayName: person.name,
+                    imageData: person.userID.flatMap { sessionContainer.profileAvatars.data(for: $0) },
+                    blurhash: person.picture?.thumbnailBlurhash,
+                    size: 32
+                )
+                Text(person.name)
+                    .font(.appTextMedium.bold())
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+            }
+            .task(id: person.userID) {
+                guard let userID = person.userID else { return }
+                await sessionContainer.profileAvatars.load(userID: userID, picture: person.picture)
+            }
+        }
+    }
+
+    /// A label column, then `content`, with a chevron when the row opens something.
+    private func row(label: String?, action: (() -> Void)?, @ViewBuilder content: () -> some View) -> some View {
+        Button {
+            action?()
+        } label: {
+            HStack(spacing: 12) {
+                Text(label ?? "")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .frame(width: 40, alignment: .leading)
+                content()
+                Spacer(minLength: 0)
+                if action != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(action == nil)
+    }
+
+    /// Dismisses first, so the page opens on the chat's stack rather than under the sheet.
+    private func open(_ destination: @escaping () -> Void) {
+        dismiss()
+        destination()
     }
 }
