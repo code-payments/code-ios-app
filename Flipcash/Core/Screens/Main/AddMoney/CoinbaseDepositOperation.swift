@@ -85,7 +85,7 @@ final class CoinbaseDepositOperation {
         defer { coinbaseService.clearOrder() }
 
         state = .awaitingExternal(.applePay)
-        try await awaitApplePayCompletion(orderId: order.id)
+        try await awaitApplePayCompletion(orderId: order.id, rate: amount.currencyRate)
     }
 
     private func checkRequirements() throws {
@@ -95,11 +95,13 @@ final class CoinbaseDepositOperation {
     }
 
     private func checkMinimum(_ amount: ExchangedFiat) throws {
-        // The floor is shown as plain USD for every display currency, so the
-        // check compares the entered amount's USD value rounded to the cent:
-        // an amount that converts to $4.9986 reads as $5.00 and must pass.
+        // Round the converted floor to the displayed denomination first — the
+        // check must accept exactly the number the dialog shows; comparing raw
+        // USD rejects the displayed minimum itself.
         let minimum = FiatAmount.usd(Self.minimumPurchaseUSD)
-        guard amount.usdfValue.roundedToSmallestUnit().value >= minimum.value else {
+            .converting(to: amount.currencyRate)
+            .roundedToSmallestUnit()
+        guard amount.nativeAmount.value >= minimum.value else {
             logger.info("Coinbase deposit below minimum", metadata: [
                 "amount": "\(amount.nativeAmount.formatted())",
                 "minimum": "\(minimum.formatted())",
@@ -152,7 +154,7 @@ final class CoinbaseDepositOperation {
             ])
             throw DepositError.externalRejected(
                 title: error.title,
-                subtitle: error.subtitle
+                subtitle: error.errorType.subtitle(at: amount.currencyRate)
             )
         } catch {
             // Network/auth blip — `externalRejected` (no Bugsnag) so we don't
@@ -167,7 +169,7 @@ final class CoinbaseDepositOperation {
 
     /// Consumes `coinbaseService.applePayEvents` until Apple Pay reaches a
     /// terminal state, throwing on cancel or error.
-    private func awaitApplePayCompletion(orderId: String) async throws {
+    private func awaitApplePayCompletion(orderId: String, rate: Rate) async throws {
         defer { idleTimer.disarm() }
 
         for await event in coinbaseService.applePayEvents {
@@ -197,7 +199,7 @@ final class CoinbaseDepositOperation {
                 ])
                 throw DepositError.externalRejected(
                     title: errorType.title,
-                    subtitle: errorType.subtitle
+                    subtitle: errorType.subtitle(at: rate)
                 )
 
             case .pendingPaymentAuth:
