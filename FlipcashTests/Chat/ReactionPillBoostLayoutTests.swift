@@ -15,7 +15,7 @@ import FlipcashCore
 struct ReactionPillBoostLayoutTests {
 
     private static func pill(_ emoji: String, count: UInt64, cents: UInt64?, selfReacted: Bool = false) -> ReactionPill {
-        ReactionPill(emoji: emoji, count: count, selfReacted: selfReacted, pending: false, boost: cents.map(ReactionBoost.init))
+        ReactionPill(emoji: emoji, count: count, selfReacted: selfReacted, pending: false, boost: cents.map { ReactionBoost(total: $0) })
     }
 
     private static func layOut(_ row: ReactionPillRowView) {

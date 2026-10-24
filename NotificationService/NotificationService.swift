@@ -479,13 +479,15 @@ final class NotificationService: UNNotificationServiceExtension {
                 await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
                 return deliver()
             }
+            let display = ExtensionStore.displayCurrency(owner: account.keyAccount.ownerPublicKey)
             func items(_ branding: [PublicKey: MintBrandingInfo]) -> [ChatItem] {
                 ChatItem.preview(
                     from: messages,
                     selfUserID: account.userID,
                     limit: NotificationPreviewCache.previewLimit,
                     mintBranding: branding,
-                    authorName: memberName
+                    authorName: memberName,
+                    display: display
                 )
             }
             // Cache the messages (currency-code fallback) and release the banner before the branding

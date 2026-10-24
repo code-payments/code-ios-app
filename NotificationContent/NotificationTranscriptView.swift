@@ -177,8 +177,7 @@ private struct NotificationCashCard: View {
             .overlay {
                 NotificationCashCenter(
                     caption: ChatCashContent.caption(isFromSelf: isFromSelf, isTip: cash.isTip),
-                    amount: cash.amount,
-                    flagImageName: cash.flagImageName
+                    amount: cash.amount
                 )
             }
             .overlay {
@@ -207,32 +206,22 @@ private struct NotificationCashTokenRow: View {
     }
 }
 
-/// The card's centered caption over the currency flag + amount.
+/// The card's centered caption over the amount.
 private struct NotificationCashCenter: View {
 
     let caption: String
     let amount: String
-    let flagImageName: String?
 
     var body: some View {
         VStack(spacing: 4) {
             Text(caption)
                 .font(.default(size: 12, weight: .bold))
                 .foregroundStyle(Color.white.opacity(0.5))
-            HStack(spacing: 11) {
-                if let flagImageName, let flag = Image.cashFlag(named: flagImageName) {
-                    flag
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 30, height: 30)
-                        .clipShape(Circle())
-                }
-                Text(amount)
-                    .font(.default(size: 38, weight: .bold))
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-            }
+            Text(amount)
+                .font(.default(size: 38, weight: .bold))
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
         }
         .padding(.horizontal, 16)
     }

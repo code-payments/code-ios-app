@@ -266,6 +266,8 @@ private struct LinkRow: View {
 /// A currency on its bill gradient: market cap, the week's change, new members, and who shared it.
 struct SearchCurrencyCard: View {
 
+    @Environment(RatesController.self) private var ratesController
+
     let mint: MintMetadata
     let sharedBy: String?
 
@@ -281,12 +283,12 @@ struct SearchCurrencyCard: View {
             }
             Spacer(minLength: 16)
             if let marketCap = SearchCurrencyCard.marketCap(of: mint) {
-                Text(marketCap, format: .compactCurrency(code: .usd))
+                Text(ratesController.displayCurrency.compactFormatted(usd: marketCap))
                     .font(.appDisplaySmall)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
-            if let weekly = SearchCurrencyCard.weeklyChange(of: mint) {
+            if let weekly = SearchCurrencyCard.weeklyChange(of: mint, in: ratesController.displayCurrency) {
                 Text(weekly)
                     .font(.appTextSmall)
             }
@@ -324,10 +326,10 @@ struct SearchCurrencyCard: View {
     }
 
     /// "+$3.1K this week", from Discover's weekly market-cap change.
-    nonisolated static func weeklyChange(of mint: MintMetadata) -> String? {
+    nonisolated static func weeklyChange(of mint: MintMetadata, in display: DisplayCurrency) -> String? {
         guard let weekly = mint.marketCapMetrics?.marketCapDeltas.first(where: { $0.range == .lastWeek }) else { return nil }
         let sign = weekly.delta >= 0 ? "+" : ""
-        return "\(sign)\(weekly.delta.formatted(.compactCurrency(code: .usd))) this week"
+        return "\(sign)\(display.compactFormatted(usd: weekly.delta)) this week"
     }
 
     /// "+41 members", from Discover's weekly holder change; nil unless members were gained.

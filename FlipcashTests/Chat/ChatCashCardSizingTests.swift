@@ -28,7 +28,7 @@ struct ChatCashCardSizingTests {
     private func cashRow(_ id: String, _ sender: ChatMessage.Sender) -> ChatItem {
         .message(ChatMessage(
             id: id,
-            content: .cash(ChatCashContent(amount: "$0.01", token: "Launch It", flagImageName: "ca")),
+            content: .cash(ChatCashContent(amount: "$0.01", token: "Launch It")),
             sender: sender
         ))
     }

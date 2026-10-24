@@ -169,7 +169,7 @@ struct SetMinimumTipScreen: View {
 
     private func minimumDialog(_ floor: TipFloor) -> DialogItem {
         .info(
-            title: "\(floor.displayed.formatted()) Minimum Tip",
+            title: "\(floor.displayed(in: ratesController.displayCurrency).formatted()) Minimum Tip",
             subtitle: "Please enter a higher amount"
         )
     }

@@ -17,9 +17,8 @@ public struct ChatQuote: Hashable, Sendable, Codable {
         case text
         /// A payment. The snippet is the formatted amount; the branding is the same pair the cash
         /// card itself draws, so a quote of a payment is recognisable as that payment rather than
-        /// as a bare number — `token` is the mint's name ("Cash" for USDF) and `flagImageName` is
-        /// the currency's asset name, `nil` when the currency has no flag.
-        case cash(token: String, flagImageName: String?)
+        /// as a bare number — `token` is the mint's name ("Cash" for USDF).
+        case cash(token: String)
         /// A photo. The snippet is its caption, or "Photo" when it has none; `thumbnailBlobID` is the
         /// blob the panel draws beside it, `nil` when there is none to fetch; `sealed` is what
         /// decrypting it needs when it is end-to-end encrypted.

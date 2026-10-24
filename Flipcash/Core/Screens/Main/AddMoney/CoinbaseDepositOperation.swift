@@ -85,7 +85,7 @@ final class CoinbaseDepositOperation {
         defer { coinbaseService.clearOrder() }
 
         state = .awaitingExternal(.applePay)
-        try await awaitApplePayCompletion(orderId: order.id)
+        try await awaitApplePayCompletion(orderId: order.id, rate: amount.currencyRate)
     }
 
     private func checkRequirements() throws {
@@ -154,7 +154,7 @@ final class CoinbaseDepositOperation {
             ])
             throw DepositError.externalRejected(
                 title: error.title,
-                subtitle: error.subtitle
+                subtitle: error.errorType.subtitle(at: amount.currencyRate)
             )
         } catch {
             // Network/auth blip — `externalRejected` (no Bugsnag) so we don't
@@ -169,7 +169,7 @@ final class CoinbaseDepositOperation {
 
     /// Consumes `coinbaseService.applePayEvents` until Apple Pay reaches a
     /// terminal state, throwing on cancel or error.
-    private func awaitApplePayCompletion(orderId: String) async throws {
+    private func awaitApplePayCompletion(orderId: String, rate: Rate) async throws {
         defer { idleTimer.disarm() }
 
         for await event in coinbaseService.applePayEvents {
@@ -199,7 +199,7 @@ final class CoinbaseDepositOperation {
                 ])
                 throw DepositError.externalRejected(
                     title: errorType.title,
-                    subtitle: errorType.subtitle
+                    subtitle: errorType.subtitle(at: rate)
                 )
 
             case .pendingPaymentAuth:

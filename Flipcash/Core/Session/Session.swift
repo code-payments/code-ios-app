@@ -127,6 +127,11 @@ class Session {
         userFlags?.hasPreferredOnrampProvider == true
     }
     
+    /// The balance currency every amount is shown in, with the rates that restate others into it.
+    var displayCurrency: DisplayCurrency {
+        ratesController.displayCurrency
+    }
+
     /// Every holding's worth added up, in the balance currency.
     ///
     /// Built from each balance's stored ``StoredBalance/usdf`` rather than from

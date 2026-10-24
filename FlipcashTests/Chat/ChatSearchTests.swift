@@ -235,11 +235,14 @@ struct ChatSearchTests {
     func currencyCardLines() {
         let withMetrics = mint(Self.mintA, name: "Jeffy", withMetrics: true)
         #expect(SearchCurrencyCard.marketCap(of: withMetrics) == 48_200)
-        #expect(SearchCurrencyCard.weeklyChange(of: withMetrics) == "+$3.1K this week")
+        let usd = DisplayCurrency(currency: .usd, rates: [Rate]())
+        #expect(SearchCurrencyCard.weeklyChange(of: withMetrics, in: usd) == "+$3.1K this week")
+        let cad = DisplayCurrency(currency: .cad, rates: [Rate(fx: 2, currency: .cad)])
+        #expect(SearchCurrencyCard.weeklyChange(of: withMetrics, in: cad) == "+\(CompactCurrencyFormatStyle(code: .cad).format(6_200)) this week")
         #expect(SearchCurrencyCard.newMembers(of: withMetrics) == "+41 members")
 
         let held = mint(Self.mintA, name: "Jeffy")
-        #expect(SearchCurrencyCard.weeklyChange(of: held) == nil)
+        #expect(SearchCurrencyCard.weeklyChange(of: held, in: usd) == nil)
         #expect(SearchCurrencyCard.newMembers(of: held) == nil)
     }
 

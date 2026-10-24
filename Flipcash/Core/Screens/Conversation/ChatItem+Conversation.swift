@@ -69,11 +69,14 @@ nonisolated private func webCard(for page: MessageLinkPreview, in text: String) 
 extension ChatItem {
 
     /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
-    /// formats cash amounts, derives the currency flag, inserts a date separator before the first
+    /// formats cash amounts, inserts a date separator before the first
     /// message, whenever a gap longer than `gap` opens and at every change of day, and computes
     /// same-sender grouping the way the transcript does. Pure — `cashBranding` supplies the token
     /// name + launchpad icon so this stays testable; it defaults to plain "Cash" (USDF), and the
-    /// screen injects bonded-mint branding from `Session`.
+    /// screen injects bonded-mint branding from `Session`. `viewerAmount` restates a payment in the
+    /// display currency; it defaults to the amount as it moved, and the screen injects the
+    /// conversion from ``RatesController``. `viewerPrice` does the same for a USD-priced amount, a
+    /// reaction boost.
     nonisolated static func from(
         _ messages: [ConversationMessage],
         selfUserID: UserID,
@@ -84,6 +87,8 @@ extension ChatItem {
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },
+        viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
+        viewerPrice: (FiatAmount) -> FiatAmount = { $0 },
         deletedPresentation: DeletedMessagePresentation = .hidden,
         capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] },
         counterpartName: String = "",
@@ -283,9 +288,8 @@ extension ChatItem {
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
                 content = .cash(ChatCashContent(
-                    amount: fiat.nativeAmount.formatted(),
+                    amount: viewerAmount(fiat).formatted(),
                     token: branding.token,
-                    flagImageName: flagImageName(for: fiat),
                     iconURL: branding.iconURL,
                     isTip: message.cashAction == .tipped
                 ))
@@ -367,6 +371,7 @@ extension ChatItem {
                     selfUserID: selfUserID,
                     counterpartName: counterpartName,
                     cashBranding: cashBranding,
+                    viewerAmount: viewerAmount,
                     author: author
                 )
             }
@@ -416,7 +421,7 @@ extension ChatItem {
                     // already has — only the long-press strip is withheld, and that already follows from
                     // a tombstone offering no context-menu actions. The pills sit under the message's
                     // last row, with its receipt.
-                    reactions: isLast ? message.reactionState?.pills ?? [] : [],
+                    reactions: isLast ? (message.reactionState?.pills ?? []).map { $0.restatingBoost(viewerPrice) } : [],
                     selfReactions: message.reactionState?.selfReactions ?? [],
                     canReact: canReact,
                     // "$" boosts a reaction the viewer already has, so it waits for one.
@@ -439,6 +444,7 @@ extension ChatItem {
         selfUserID: UserID,
         counterpartName: String,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?),
+        viewerAmount: (ExchangedFiat) -> FiatAmount,
         author: (ConversationMessage) -> ChatAuthor?
     ) -> ChatQuote {
         guard let original else {
@@ -464,14 +470,13 @@ extension ChatItem {
                 authorID: original.senderID
             )
         case .cash(let fiat):
-            // Same branding the card carries, so the quote of a payment reads as that payment. The
-            // launchpad icon is deliberately left out: it is a remote fetch, and the flag already
-            // keys the currency at this size.
+            // Same amount and token the card carries, so the quote of a payment reads as that
+            // payment. The launchpad icon is deliberately left out: it is a remote fetch.
             return ChatQuote(
                 stableID: original.stableID,
                 authorName: authorName,
-                snippet: fiat.nativeAmount.formatted(),
-                kind: .cash(token: cashBranding(fiat).token, flagImageName: flagImageName(for: fiat)),
+                snippet: viewerAmount(fiat).formatted(),
+                kind: .cash(token: cashBranding(fiat).token),
                 authorID: original.senderID
             )
         case .deleted:
@@ -518,14 +523,6 @@ extension ChatItem {
                 authorID: original.senderID
             )
         }
-    }
-
-    /// The currency's flag asset: a region flag where the currency has one, else the ticker, which
-    /// is how the crypto flags are named. One derivation for the card and the quote so a payment
-    /// keys the same way wherever it is drawn.
-    nonisolated static func flagImageName(for fiat: ExchangedFiat) -> String {
-        let currency = fiat.nativeAmount.currency
-        return currency.region?.rawValue ?? currency.rawValue.uppercased()
     }
 
     /// One row a message draws: the whole message, or one part of a message split around its card.

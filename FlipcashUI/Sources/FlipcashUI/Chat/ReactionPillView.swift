@@ -97,7 +97,7 @@ final class ReactionPillView: UIView {
         }
         countLabel.text = "\(pill.count)"
         countWidth.constant = Self.countWidth(digits: max(countDigits, "\(pill.count)".count))
-        let boostText = pill.boost.map { FiatAmount.usd(Decimal($0.total) / 100).formatted() }
+        let boostText = pill.boost.map { ($0.displayed ?? $0.usd).formatted() }
         boostLabel.text = boostText
         boostLabel.isHidden = boostText == nil
         countLabel.isHidden = boostText != nil && pill.count <= 1

@@ -97,8 +97,7 @@ struct WithdrawSubstepDestination: View {
                 enteredAmount: $viewModel.enteredAmount,
                 subtitle: viewModel.amountSubtitle,
                 canProceed: viewModel.canProceedToAddress,
-                onProceed: viewModel.amountEnteredAction,
-                showsCurrencySelection: true
+                onProceed: viewModel.amountEnteredAction
             )
             .dialog(item: $viewModel.dialogItem)
         case .enterAddress:

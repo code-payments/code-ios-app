@@ -11,6 +11,7 @@ import os
 import UserNotifications
 import UserNotificationsUI
 import FlipcashCore
+import FlipcashStore
 import FlipcashUI
 
 final class NotificationViewController: UIViewController, UNNotificationContentExtension {
@@ -223,12 +224,14 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         selfUserID: UserID,
         client: ChatNotificationClient
     ) async {
+        let display = ownerKeyPair.flatMap { ExtensionStore.displayCurrency(owner: $0.publicKey) }
         func items(_ branding: [PublicKey: MintBrandingInfo]) -> [ChatItem] {
             ChatItem.preview(
                 from: messages,
                 selfUserID: selfUserID,
                 limit: NotificationPreviewCache.previewLimit,
-                mintBranding: branding
+                mintBranding: branding,
+                display: display
             )
         }
         render(items([:]))

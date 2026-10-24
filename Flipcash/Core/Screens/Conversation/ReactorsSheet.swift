@@ -288,9 +288,11 @@ private struct BoostAmountPill: View {
     let cents: UInt64
     var count: Int? = nil
 
+    @Environment(RatesController.self) private var ratesController
+
     var body: some View {
         HStack(spacing: 4) {
-            Text(FiatAmount.usd(Decimal(cents) / 100).formatted())
+            Text(ratesController.displayCurrency.amount(.usd(Decimal(cents) / 100)).formatted())
                 .font(.default(size: 15, weight: .semibold))
             if let count {
                 Text("\(count)")
@@ -315,6 +317,8 @@ private struct ReactorEmojis: View {
 
     let emojis: [String]
     let boostCents: UInt64
+
+    @Environment(RatesController.self) private var ratesController
 
     /// Also the gap to the name, so an emoji scrolled back fades out before it reaches it.
     private static let leadingMargin: CGFloat = 16
@@ -342,7 +346,7 @@ private struct ReactorEmojis: View {
     private var accessibilityText: String {
         let emojiText = emojis.joined(separator: " ")
         guard boostCents > 0 else { return emojiText }
-        return "Paid \(FiatAmount.usd(Decimal(boostCents) / 100).formatted()), \(emojiText)"
+        return "Paid \(ratesController.displayCurrency.amount(.usd(Decimal(boostCents) / 100)).formatted()), \(emojiText)"
     }
 
     private var glyphs: some View {

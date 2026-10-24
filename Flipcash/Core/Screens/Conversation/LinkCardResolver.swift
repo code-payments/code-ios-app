@@ -157,6 +157,12 @@ actor LinkCardResolver {
         cashQueries[entropy] = nil
     }
 
+    /// Forgets every cash link's answer, for when what the cards show changes under all of them at
+    /// once: a new display currency restates every amount.
+    func invalidateAllCash() {
+        cashQueries.removeAll()
+    }
+
     private func cashState(for entropy: String) async -> LinkCard.Cash.State {
         if let query = cashQueries[entropy] { return await query.value }
 
@@ -274,7 +280,8 @@ extension LinkCardResolver {
     /// the card degrades to unresolved on its own.
     static func giftCardLookup(
         reader: any GiftCardAccountReading,
-        viewer: KeyPair
+        viewer: KeyPair,
+        viewerAmount: @escaping @Sendable (ExchangedFiat) async -> FiatAmount = { $0.nativeAmount }
     ) -> @Sendable (String) async throws -> LinkCard.Cash.Resolved {
         { entropy in
             guard let mnemonic = MnemonicPhrase(base58EncodedEntropy: entropy) else {
@@ -301,7 +308,7 @@ extension LinkCardResolver {
             }
 
             return LinkCard.Cash.Resolved(
-                amount: exchangedFiat.nativeAmount.formatted(),
+                amount: await viewerAmount(exchangedFiat).formatted(),
                 claim: claim,
                 // The reserve arrives already branded "Dollars" off the wire, which is what the
                 // wallet card shows, so there is no special case here.

@@ -33,10 +33,16 @@ nonisolated struct ChatSpotlightItem {
     /// Spotlight's automatic app-icon badge). Nil falls back to the app icon.
     let thumbnailData: Data?
 
-    init(conversation: Conversation, displayName: String, counterpartPhoneE164: String?, thumbnailData: Data?) {
+    init(
+        conversation: Conversation,
+        displayName: String,
+        counterpartPhoneE164: String?,
+        thumbnailData: Data?,
+        viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount }
+    ) {
         self.uniqueIdentifier = conversation.id.base64URLEncoded
         self.title = displayName
-        self.contentDescription = Self.preview(of: conversation.lastMessage)
+        self.contentDescription = Self.preview(of: conversation.lastMessage, viewerAmount: viewerAmount)
         self.keywords = Self.keywords(displayName: displayName, phoneE164: counterpartPhoneE164)
         self.thumbnailData = thumbnailData
     }
@@ -55,10 +61,10 @@ nonisolated struct ChatSpotlightItem {
     }
 
     /// Mirrors the recipient picker's last-message subtitle.
-    private static func preview(of message: ConversationMessage?) -> String? {
+    private static func preview(of message: ConversationMessage?, viewerAmount: (ExchangedFiat) -> FiatAmount) -> String? {
         switch message?.content {
         case .text(let text):    text
-        case .cash(let amount):  "Cash · \(amount.nativeAmount.formatted())"
+        case .cash(let amount):  "Cash · \(viewerAmount(amount).formatted())"
         case .widget(.shareProfile): "Shared a profile"
         case .media(_, let caption): ChatMediaStrings.listPreview(caption: caption)
         case .system(let text, _):  text.isEmpty ? nil : text

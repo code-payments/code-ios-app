@@ -8,6 +8,8 @@ import FlipcashCore
 import FlipcashUI
 
 struct CurrencyDiscoveryRow: View {
+    @Environment(RatesController.self) private var ratesController
+
     let rank: Int
     let mint: MintMetadata
     /// Drives which metric is prominent (trailing value + delta) and which is the
@@ -90,7 +92,7 @@ struct CurrencyDiscoveryRow: View {
         case .marketCap:
             if let metrics = mint.marketCapMetrics,
                let weekly = metrics.marketCapDeltas.first(where: { $0.range == .lastWeek }) {
-                Text(Self.formatMarketCapDelta(weekly.delta))
+                Text(Self.formatMarketCapDelta(weekly.delta, in: ratesController.displayCurrency))
                     .font(.appTextSmall)
                     .foregroundStyle(weekly.delta > 0 ? Color.Sentiment.positive : Color.Sentiment.neutral)
                     .contentTransition(.numericText())
@@ -106,7 +108,7 @@ struct CurrencyDiscoveryRow: View {
 
     @ViewBuilder private var marketCapText: some View {
         if let marketCap = marketCapValue, marketCap > 0 {
-            Text(marketCap, format: .compactCurrency(code: .usd))
+            Text(ratesController.displayCurrency.compactFormatted(usd: marketCap))
         }
     }
 
@@ -129,9 +131,9 @@ private extension CurrencyDiscoveryRow {
         return "\(sign)\(compact) this week"
     }
 
-    static func formatMarketCapDelta(_ delta: Double) -> String {
+    static func formatMarketCapDelta(_ delta: Double, in display: DisplayCurrency) -> String {
         let sign = delta >= 0 ? "+" : ""
-        let compact = delta.formatted(.compactCurrency(code: .usd))
+        let compact = display.compactFormatted(usd: delta)
         return "\(sign)\(compact) this week"
     }
 }

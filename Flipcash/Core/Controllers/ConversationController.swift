@@ -1634,9 +1634,11 @@ final class ConversationController {
     /// whoever wrote it. `currencyName` resolves a mint to its display name; nil —
     /// or the reserve, whose formatted amount already names itself — drops the
     /// "of …" suffix. `knownAuthors` names a group sender the chat's roster subset leaves out.
+    /// `viewerAmount` restates a payment in the display currency.
     func lastMessagePreview(
         for conversation: Conversation,
         knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
+        viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
         currencyName: (PublicKey) -> String?
     ) -> String? {
         if isCounterpartTyping(in: conversation.id) {
@@ -1655,7 +1657,7 @@ final class ConversationController {
             return "\(senderName): \(text)"
 
         case .cash(let amount):
-            let formatted = amount.nativeAmount.formatted()
+            let formatted = viewerAmount(amount).formatted()
             // The reserve would read "$1.00 of Dollars" — the amount alone already says it.
             let label: String
             if amount.mint != .usdf, let name = currencyName(amount.mint) {
