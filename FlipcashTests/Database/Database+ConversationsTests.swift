@@ -108,6 +108,35 @@ struct DatabaseConversationsTests {
         }
     }
 
+    @Test("A group send's per-recipient parts round-trip, so its bubble survives a relaunch")
+    func cashPaymentsRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let onChain = TokenAmount(quarks: 1_000_000, mint: .usdf)
+        let native = FiatAmount(value: 1, currency: .usd)
+        let parts = [
+            CashPayment(receiverID: UUID(), nativeAmount: 0.34, quarks: 340_000),
+            CashPayment(receiverID: UUID(), nativeAmount: 0.33, quarks: 330_000),
+            CashPayment(receiverID: nil, nativeAmount: 0.33, quarks: 330_000),
+        ]
+        func cash(_ n: UInt64, _ payments: [CashPayment]) -> ConversationMessage {
+            ConversationMessage(
+                id: MessageID(value: n),
+                senderID: selfID,
+                content: .cash(ExchangedFiat(onChainAmount: onChain, nativeAmount: native, currencyRate: Rate(fx: 1, currency: .usd))),
+                cashPayments: payments,
+                date: Date(timeIntervalSince1970: TimeInterval(n)),
+                unreadSeq: n
+            )
+        }
+
+        try database.upsertConversationMessages([cash(1, parts), cash(2, [])], conversationID: id)
+        let loaded = try database.getConversationMessages(conversationID: id)
+
+        #expect(loaded.map(\.cashPayments) == [parts, []])
+    }
+
     @Test("Widget messages round-trip, and a widget with no username reads back as unrecognized")
     func widgetMessageRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

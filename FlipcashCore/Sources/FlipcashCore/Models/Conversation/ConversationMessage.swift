@@ -26,7 +26,7 @@ public enum CashAction: Sendable, Hashable {
 
 /// One receiver's part of a multi-receiver cash payment, in the currency and mint of the message's
 /// total. See `messaging.v1.CashContent.Payment`.
-public struct CashPayment: Sendable, Hashable {
+public struct CashPayment: Sendable, Hashable, Codable {
     public let receiverID: UserID?
     public let nativeAmount: Double
     public let quarks: UInt64
@@ -141,7 +141,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public let cashReceiverID: UserID?
     /// The per-receiver parts of a group-chat `.cash` payment sent to several members at once (the
     /// `.cash` amount is their total); empty for a single-receiver payment and for non-cash content.
-    /// Not persisted, like ``cashReceiverID``.
+    /// Persisted, so a group send's bubble keeps its recipients across a relaunch.
     public let cashPayments: [CashPayment]
     /// The payment request whose share this `.cash` message paid; `nil` for any other cash message and
     /// for non-cash content. Not persisted, like ``cashReceiverID``.

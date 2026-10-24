@@ -389,6 +389,8 @@ nonisolated public struct ConversationMessageTable: Sendable {
     // `systemUserId` is set.
     public let systemUserId   = Expression <UUID?>         ("systemUserId")
     public let systemAdmittedBy = Expression <UUID?>       ("systemAdmittedBy")
+    // JSON-encoded `[CashPayment]` of a multi-receiver cash row; nil for every other row.
+    public let cashPaymentsJson = Expression <Data?>       ("cashPaymentsJson")
 }
 
 
@@ -673,6 +675,7 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.linkPreviewJson)
                     t.column(conversationMessageTable.systemUserId)
                     t.column(conversationMessageTable.systemAdmittedBy)
+                    t.column(conversationMessageTable.cashPaymentsJson)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
                 })
             }

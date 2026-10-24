@@ -699,7 +699,8 @@ nonisolated extension Database {
                     m.mediaJson           <- mediaJson,
                     m.linkPreviewJson     <- linkPreviewJson,
                     m.systemUserId        <- systemUserId,
-                    m.systemAdmittedBy    <- systemAdmittedBy
+                    m.systemAdmittedBy    <- systemAdmittedBy,
+                    m.cashPaymentsJson    <- Self.encodeCashPayments(message.cashPayments)
                 )
             )
         }
@@ -768,6 +769,14 @@ nonisolated extension Database {
 
     nonisolated private static func encodeReactions(_ state: ReactionState?) -> Data? {
         state.flatMap { try? JSONEncoder().encode($0) }
+    }
+
+    nonisolated private static func encodeCashPayments(_ payments: [CashPayment]) -> Data? {
+        payments.isEmpty ? nil : try? JSONEncoder().encode(payments)
+    }
+
+    nonisolated private static func decodeCashPayments(_ data: Data?) -> [CashPayment] {
+        data.flatMap { try? JSONDecoder().decode([CashPayment].self, from: $0) } ?? []
     }
 
     nonisolated private static func decodeReactions(_ data: Data?) -> ReactionState? {
@@ -937,6 +946,7 @@ nonisolated extension Database {
             senderID: row[m.senderId],
             content: content,
             cashAction: cashAction,
+            cashPayments: Self.decodeCashPayments(row[m.cashPaymentsJson]),
             date: date,
             unreadSeq: row[m.unreadSeq],
             eventSequence: row[m.eventSequence],
