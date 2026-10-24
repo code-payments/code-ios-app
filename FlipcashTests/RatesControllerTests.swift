@@ -566,6 +566,22 @@ struct RatesControllerTests {
         #expect(state?.isStale == false)
     }
 
+    // MARK: - Notification previews -
+
+    @Test("A new display currency drops notification previews formatted in the old one")
+    @MainActor
+    func newDisplayCurrency_clearsNotificationPreviews() {
+        let controller = makeController()
+        controller.balanceCurrency = .usd
+        let chat = ConversationID(data: Data(repeating: 9, count: 32))
+        NotificationPreviewCache.write([.message(ChatMessage(id: "1", text: "hi", sender: .other))], for: chat)
+        #expect(NotificationPreviewCache.read(for: chat)?.isEmpty == false)
+
+        controller.balanceCurrency = .cad
+
+        #expect(NotificationPreviewCache.read(for: chat) == nil)
+    }
+
     // MARK: - Helpers -
 
     /// NOTE: RatesController.init reads `balanceCurrency` from

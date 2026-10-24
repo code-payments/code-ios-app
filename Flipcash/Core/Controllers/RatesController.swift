@@ -34,6 +34,12 @@ class RatesController {
             LocalDefaults.balanceCurrency = newValue
             DisplayCurrency.sharedSelection = newValue
         }
+        didSet {
+            // The notification previews hold amounts already formatted in the old currency.
+            if balanceCurrency != oldValue {
+                NotificationPreviewCache.clear()
+            }
+        }
     }
 
     /// The currently selected token mint
