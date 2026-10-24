@@ -37,11 +37,10 @@ struct CoinbaseDepositOperationTests {
         #expect(env.op.state == .idle)
     }
 
-    /// Regression: at 1.416385 CAD/USD the dialog renders the floor as
-    /// "$7.08", but 7.08 CAD converts back to $4.9986 — the raw USD compare
-    /// rejected the exact amount the dialog asked for. Entering the displayed
-    /// minimum must pass the gate.
-    @Test("Entering the displayed minimum in a non-USD currency passes the gate")
+    /// Regression: at 1.416385 CAD/USD, 7.08 CAD converts back to $4.9986,
+    /// which a raw USD compare rejected although it reads as $5.00. An amount
+    /// worth the minimum to the cent must pass the gate.
+    @Test("An amount worth the minimum to the cent passes the gate")
     func displayedMinimum_passesGate() async throws {
         let env = Env()
         let cad = Rate(fx: 1.416385, currency: .cad)
@@ -56,6 +55,22 @@ struct CoinbaseDepositOperationTests {
         try await task.value
 
         #expect(env.ordering.createOrderCalls.count == 1)
+    }
+
+    @Test("The minimum reads as plain USD in a non-USD currency")
+    func belowMinimum_nonUSD_showsPlainUSD() async {
+        let env = Env()
+        let amount = ExchangedFiat(
+            nativeAmount: FiatAmount(value: 5, currency: .cad),
+            rate: Rate(fx: 1.416385, currency: .cad)
+        )
+        await #expect(throws: DepositError.externalRejected(
+            title: "$5.00 Minimum Purchase",
+            subtitle: "Please enter an amount of $5.00 or higher"
+        )) {
+            try await env.op.start(amount: amount)
+        }
+        #expect(env.ordering.createOrderCalls.isEmpty)
     }
 
     @Test("Profile without verified phone+email throws requirementUnsatisfied")

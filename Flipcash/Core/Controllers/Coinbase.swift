@@ -159,16 +159,6 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
         public var title: String { copy.title }
         public var subtitle: String { copy.subtitle }
 
-        /// The subtitle for a user viewing amounts in `currency`; the weekly limit is a USD figure, so it names USD for anyone else.
-        public func subtitle(for currency: CurrencyCode) -> String {
-            switch self {
-            case .transactionLimit where currency != .usd:
-                return "You can only add up to $1,000 USD per week"
-            default:
-                return subtitle
-            }
-        }
-
         private var copy: (title: String, subtitle: String) {
             switch self {
             case .invalidCard, .invalidCardNotDebit:
