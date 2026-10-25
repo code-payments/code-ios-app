@@ -111,9 +111,17 @@ private struct GroupSendAmountScreen: View {
         // On the screen, not the button: the button's `.id` changes with the pick, and a sheet
         // hosted on it would be torn down mid-dismiss, taking the whole flow with it.
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
-                viewModel.selectCurrencyAction(exchangedBalance: balance)
-            }
+            let options = viewModel.paymentOptions
+            CurrencyPickerSheet(
+                options: options,
+                selectedMint: viewModel.selectedBalance?.stored.mint ?? .usdf,
+                onSelect: { mint in
+                    if let balance = options.first(where: { $0.stored.mint == mint }) {
+                        viewModel.selectCurrencyAction(exchangedBalance: balance)
+                    }
+                    isShowingTokenSelection = false
+                }
+            )
         }
     }
 }
@@ -270,9 +278,17 @@ private struct GroupSendConfirmSheet: View {
             router.dismissSheet()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
-                viewModel.selectCurrencyAction(exchangedBalance: balance)
-            }
+            let options = viewModel.paymentOptions
+            CurrencyPickerSheet(
+                options: options,
+                selectedMint: viewModel.selectedBalance?.stored.mint ?? .usdf,
+                onSelect: { mint in
+                    if let balance = options.first(where: { $0.stored.mint == mint }) {
+                        viewModel.selectCurrencyAction(exchangedBalance: balance)
+                    }
+                    isShowingTokenSelection = false
+                }
+            )
         }
     }
 

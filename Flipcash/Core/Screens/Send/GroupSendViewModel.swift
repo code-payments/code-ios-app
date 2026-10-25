@@ -95,6 +95,11 @@ final class GroupSendViewModel {
     }
 
     /// The balances the currency picker offers.
+    var paymentOptions: [ExchangedBalance] {
+        session.balances(for: ratesController.rateForBalanceCurrency()).giveable()
+    }
+
+    /// Pays from `exchangedBalance` and makes it the wallet's selected token.
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
         ratesController.selectToken(exchangedBalance.stored.mint)
