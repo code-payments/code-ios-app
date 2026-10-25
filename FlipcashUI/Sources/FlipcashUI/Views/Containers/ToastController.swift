@@ -53,8 +53,19 @@ public final class ToastController {
     /// and a toast shown while covered is dropped: hidden beneath the layer it would time out unseen, with
     /// its action out of reach.
     public var isCovered = false {
-        didSet { if isCovered { current = nil } }
+        didSet {
+            if isCovered {
+                current = nil
+                alerts.cancel()
+            }
+        }
     }
+
+    /// The reaction and boost pill, drawn by the same host at the top edge.
+    public let alerts = AlertPillController()
+
+    /// Whether an alert pill may show now: not under a sheet or dialog, which would hide it for its whole hold.
+    public var canPresentAlert: Bool { !isCovered && !Self.isPresentingOverApp }
 
     /// Extra room the toast keeps above the host's bottom edge, for a bar a screen pins there. Set
     /// through ``View/toastClearance(_:)``.
@@ -111,6 +122,11 @@ extension View {
         overlay(alignment: .bottom) {
             if isEnabled {
                 ToastHost(controller: controller, bottomPadding: bottomPadding)
+            }
+        }
+        .overlay(alignment: .top) {
+            if isEnabled {
+                AlertPillHost(controller: controller.alerts)
             }
         }
     }

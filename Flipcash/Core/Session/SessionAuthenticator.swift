@@ -314,7 +314,7 @@ final class SessionAuthenticator {
             session?.userFlags?.preferredOnrampUsdcLiquidityPool ?? .unknown
         })
 
-        return SessionContainer(
+        let sessionContainer = SessionContainer(
             session: session,
             database: database,
             client: container.client,
@@ -325,6 +325,28 @@ final class SessionAuthenticator {
             contactSyncController: contactSyncController,
             flipClient: container.flipClient
         )
+        wireReactionAlerts(on: sessionContainer, toasts: container.toasts)
+        return sessionContainer
+    }
+
+    /// Points the in-app reaction pill at this session's chats, rates and router. The pill draws
+    /// through the app's toast host; its tap opens the chat at the reacted message.
+    private func wireReactionAlerts(on sessionContainer: SessionContainer, toasts: ToastController) {
+        let alerts = ReactionAlertController(
+            pill: toasts.alerts,
+            selfUserID: sessionContainer.session.userID,
+            conversations: sessionContainer.conversationController
+        )
+        alerts.canPresent = { [weak toasts] in toasts?.canPresentAlert ?? false }
+        alerts.displayCurrency = { [weak ratesController = sessionContainer.ratesController] in
+            ratesController?.displayCurrency ?? DisplayCurrency(currency: .usd, rates: [:])
+        }
+        alerts.openMessage = { [weak sessionContainer] conversationID, messageID in
+            guard let sessionContainer else { return }
+            // The alert is only ever for a chat the user posted in, so it is a member's transcript.
+            sessionContainer.appRouter.navigate(to: .chatMessage(conversationID, MessageLanding(messageID: messageID, returnTo: nil)))
+        }
+        sessionContainer.conversationController.reactionAlerts = alerts
     }
     
     // MARK: - Login -

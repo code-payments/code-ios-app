@@ -1005,6 +1005,9 @@ public final class ChatScreenViewController: UIViewController {
     /// Whether the transcript sits at its newest message — see ``ChatViewController/isAtBottom``.
     public var isTranscriptAtBottom: Bool { transcript.isAtBottom }
 
+    /// The stable ids of the message rows on screen now.
+    public var visibleMessageIDs: Set<String> { transcript.visibleMessageIDs }
+
     /// Brings a row into view, deferring until the update that contains it lands.
     public func scrollToMessage(id: String) { transcript.scrollToMessage(id: id) }
 
