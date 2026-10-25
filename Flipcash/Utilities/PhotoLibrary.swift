@@ -15,6 +15,15 @@ enum PhotoLibrary {
         writer.writeImage(image)
     }
     
+    /// Adds `image` to the user's photo library, throwing when Photos refuses it.
+    static func save(image: UIImage) async throws {
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) -> Void in
+            write(image: image) { error in
+                if let error { c.resume(throwing: error) } else { c.resume(returning: ()) }
+            }
+        }
+    }
+
     static func saveSecretRecoveryPhraseSnapshot(for mnemonic: MnemonicPhrase) async throws {
         let snapshot = createSnapshotImage(mnemonic: mnemonic)
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) -> Void in

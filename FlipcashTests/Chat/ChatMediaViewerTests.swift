@@ -81,7 +81,7 @@ struct ChatMediaViewerTests {
         let request = try #require(ChatMediaViewerRequest(
             message: message(media()), localImage: Self.localImage, remote: nil, placeholder: nil
         ) { source })
-        let viewer = ChatMediaViewerController(request: request) { _ in }
+        let viewer = makeViewer(request)
 
         #expect(viewer.preferredTransition != nil)
         #expect(request.sourceView() === source)
@@ -89,8 +89,7 @@ struct ChatMediaViewerTests {
 
     @Test("Pinch zooms the photo itself, past its fitted size")
     func pinchZoomsThePhoto() throws {
-        let viewer = ChatMediaViewerController(request: try #require(request(message(media()), localImage: Self.localImage))) { _ in }
-        viewer.loadViewIfNeeded()
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
 
         #expect(viewer.scrollView.maximumZoomScale > viewer.scrollView.minimumZoomScale)
         #expect(viewer.viewForZooming(in: viewer.scrollView) === viewer.imageView)
@@ -103,53 +102,107 @@ struct ChatMediaViewerTests {
         #expect(scale(2.5, 1) == 1)
     }
 
-    @Test("Share hands the loaded photo to the share sheet")
-    func sharesLoadedPhoto() throws {
-        var shared: UIImage?
-        let viewer = ChatMediaViewerController(request: try #require(request(message(media()), localImage: Self.localImage))) { shared = $0 }
-        viewer.loadViewIfNeeded()
-
-        #expect(viewer.shareButton.isEnabled)
-        viewer.shareButton.sendActions(for: .touchUpInside)
-        #expect(shared === Self.localImage)
+    private func makeViewer(
+        _ request: ChatMediaViewerRequest,
+        onReply: @escaping () -> Void = {},
+        onForward: @escaping () -> Void = {},
+        onSave: @escaping (UIImage) async throws -> Void = { _ in }
+    ) -> ChatMediaViewerController {
+        let viewer = ChatMediaViewerController(request: request, onReply: onReply, onForward: onForward, onSave: onSave)
+        viewer.view.frame = CGRect(x: 0, y: 0, width: 400, height: 800)
+        viewer.view.layoutIfNeeded()
+        return viewer
     }
 
-    @Test("Share waits until the photo itself has loaded")
-    func shareWaitsForPhoto() throws {
+    @Test("The photo opens with no buttons showing")
+    func opensWithControlsHidden() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+
+        #expect(viewer.areControlsHidden)
+        #expect(viewer.closeButton.alpha == 0)
+        #expect(!viewer.closeButton.isUserInteractionEnabled)
+        #expect(viewer.closeButton.accessibilityElementsHidden)
+    }
+
+    @Test("A tap shows the buttons, and a second tap hides them again")
+    func tapTogglesControls() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+
+        viewer.setControlsHidden(false, animated: false)
+        #expect(!viewer.areControlsHidden)
+        for view in [viewer.closeButton, viewer.leadingPill, viewer.trailingPill] {
+            #expect(view.alpha == 1)
+            #expect(view.isUserInteractionEnabled)
+            #expect(!view.accessibilityElementsHidden)
+        }
+
+        viewer.setControlsHidden(true, animated: false)
+        #expect(viewer.areControlsHidden)
+        #expect(viewer.closeButton.alpha == 0)
+        for pill in [viewer.leadingPill, viewer.trailingPill] {
+            #expect(pill.alpha == 0)
+            #expect(pill.accessibilityElementsHidden)
+            #expect(!pill.isUserInteractionEnabled)
+        }
+    }
+
+    @Test("Every button carries an accessibility label")
+    func buttonsAreLabelled() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        let labels = [viewer.closeButton, viewer.zoomButton, viewer.replyButton, viewer.saveButton, viewer.forwardButton].map(\.accessibilityLabel)
+        #expect(labels == ["Close", "Zoom", "Reply", "Save", "Forward"])
+    }
+
+    @Test("Zoom and Save wait until the photo itself has loaded")
+    func zoomAndSaveWaitForPhoto() throws {
         let placeholder = UIImage(systemName: "photo")!
         let request = try #require(ChatMediaViewerRequest(
             message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
         ) { nil })
-        var shared: UIImage?
-        let viewer = ChatMediaViewerController(request: request) { shared = $0 }
-        viewer.loadViewIfNeeded()
+        var saved: UIImage?
+        let viewer = makeViewer(request, onSave: { saved = $0 })
 
         #expect(viewer.imageView.image === placeholder)
-        #expect(!viewer.shareButton.isEnabled)
-        viewer.shareButton.sendActions(for: .touchUpInside)
-        #expect(shared == nil)
+        #expect(!viewer.zoomButton.isEnabled)
+        #expect(!viewer.saveButton.isEnabled)
+        viewer.saveButton.sendActions(for: .touchUpInside)
+        #expect(saved == nil)
     }
 
-    @Test("A tap hides the close and share buttons, and a second tap brings them back")
-    func tapTogglesControls() throws {
-        let viewer = ChatMediaViewerController(request: try #require(request(message(media()), localImage: Self.localImage))) { _ in }
-        viewer.loadViewIfNeeded()
+    @Test("Zoom and Save are enabled once the photo is loaded, and Save writes it")
+    func zoomAndSaveEnabledWhenLoaded() async throws {
+        var saved: UIImage?
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onSave: { saved = $0 })
 
-        viewer.setControlsHidden(true, animated: false)
-        #expect(viewer.areControlsHidden)
-        for button in [viewer.closeButton, viewer.shareButton] {
-            #expect(button.alpha == 0)
-            #expect(!button.isUserInteractionEnabled)
-            #expect(button.accessibilityElementsHidden)
-        }
+        #expect(viewer.zoomButton.isEnabled)
+        #expect(viewer.saveButton.isEnabled)
+        viewer.saveButton.sendActions(for: .touchUpInside)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(saved === Self.localImage)
+    }
 
-        viewer.setControlsHidden(false, animated: false)
-        #expect(!viewer.areControlsHidden)
-        for button in [viewer.closeButton, viewer.shareButton] {
-            #expect(button.alpha == 1)
-            #expect(button.isUserInteractionEnabled)
-            #expect(!button.accessibilityElementsHidden)
-        }
+    @Test("Zoom goes to the double-tap scale about the center, and a second press returns to fit")
+    func zoomButtonTogglesScale() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        let center = CGPoint(x: viewer.imageView.bounds.midX, y: viewer.imageView.bounds.midY)
+
+        viewer.toggleZoom(about: center, animated: false)
+        #expect(viewer.scrollView.zoomScale > viewer.scrollView.minimumZoomScale)
+
+        viewer.toggleZoom(about: center, animated: false)
+        #expect(viewer.scrollView.zoomScale == viewer.scrollView.minimumZoomScale)
+    }
+
+    @Test("Reply and Forward follow the row's context-menu actions")
+    func replyAndForwardFollowCapabilities() throws {
+        let plain = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        #expect(plain.replyButton.isHidden)
+        #expect(plain.forwardButton.isHidden)
+
+        let withActions = ChatMessage(id: "photo", content: .media(media()), sender: .other, actions: [.reply, .forward], canReact: true)
+        let capable = makeViewer(try #require(request(withActions, localImage: Self.localImage)))
+        #expect(!capable.replyButton.isHidden)
+        #expect(!capable.forwardButton.isHidden)
     }
 
     // MARK: - Transcript wiring
