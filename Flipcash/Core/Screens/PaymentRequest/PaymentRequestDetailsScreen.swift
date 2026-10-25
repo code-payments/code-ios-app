@@ -112,6 +112,7 @@ struct PaymentRequestDetailsScreen: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
+            .softScrollEdge(for: [.top, .bottom])
             if let sendTitle = content.sendTitle {
                 CodeButton(isLoading: isPreparing, style: .filled, title: sendTitle) {
                     pay()
