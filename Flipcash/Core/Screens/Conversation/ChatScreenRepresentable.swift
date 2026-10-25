@@ -27,6 +27,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a cash card; the argument is the message's stable id. The owner opens
     /// that token's currency info.
     let onCashCardTap: (String) -> Void
+    /// Fired with a payment request's id bytes when its card is tapped. The owner opens Request details.
+    var onPaymentRequestTap: (Data) -> Void = { _ in }
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
@@ -172,6 +174,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
+        screen.onPaymentRequestTap = onPaymentRequestTap
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile
@@ -236,6 +239,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
+        screen.onPaymentRequestTap = onPaymentRequestTap
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile

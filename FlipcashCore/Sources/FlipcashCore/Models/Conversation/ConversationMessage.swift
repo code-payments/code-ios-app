@@ -102,6 +102,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// media and reply, so a widget decrypted out of `EncryptedContent` is still unsupported.
     public enum Widget: Hashable, Sendable {
         case shareProfile(ShareProfileWidget)
+        /// A group payment request card; the request itself is fetched by id.
+        case paymentRequest(PaymentRequestID)
         /// A variant this client doesn't recognize, one missing what it needs (a malformed
         /// username), or a message content type this client doesn't know. Drawn as an unsupported
         /// message.
@@ -466,9 +468,7 @@ extension ConversationMessage {
             // Kept even when the variant is unknown: a widget has no fallback text, so the contract
             // is that a client which can't draw one shows the message as unsupported. A poll widget
             // is such a variant until the app can draw one.
-            // A payment-request widget carries only the request id; drawing it needs a fetch this model
-            // doesn't do, so it stays unsupported until the UI lands.
-            self.content = .widget(widgetContent.shareProfile.map(Widget.shareProfile) ?? .unrecognized)
+            self.content = .widget(Widget(widgetContent))
             self.cashAction = nil
             repliedTo = nil
         case .system(let systemContent):

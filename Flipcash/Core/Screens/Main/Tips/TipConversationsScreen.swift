@@ -404,6 +404,9 @@ struct TipConversationRow: View {
             for: conversation,
             knownAuthors: sessionContainer.knownAuthors.snapshot,
             viewerAmount: session.displayCurrency.amount,
+            requestAmount: { id in
+                sessionContainer.paymentRequests.request(id).flatMap(PaymentRequestCopy(session.displayCurrency).perPersonAmount)
+            },
             currencyName: { session.balance(for: $0)?.name }
         ) {
             return AttributedString(preview)

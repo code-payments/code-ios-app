@@ -198,6 +198,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onCashCardTap = newValue }
     }
 
+    /// Called with a payment request's id bytes when its card is tapped.
+    public var onPaymentRequestTap: ((Data) -> Void)? {
+        get { transcript.onPaymentRequestTap }
+        set { transcript.onPaymentRequestTap = newValue }
+    }
+
     public var onOpenURL: ((URL) -> Void)? {
         get { transcript.onOpenURL }
         set { transcript.onOpenURL = newValue }

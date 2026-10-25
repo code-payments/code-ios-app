@@ -292,6 +292,15 @@ extension FlipClient {
         }
     }
 
+    /// Sends a widget naming the payment request `id`, sealed with `seal`, and returns the server's
+    /// copy (decrypted).
+    @discardableResult
+    public func sendPaymentRequestMessage(owner: KeyPair, conversationID: ConversationID, paymentRequestID id: PaymentRequestID, seal: ChatSeal, clientMessageID: UUID) async throws -> ConversationMessage {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.sendPaymentRequestMessage(owner: owner, conversationID: conversationID, paymentRequestID: id, seal: seal, clientMessageID: clientMessageID) { c.resume(with: $0) }
+        }
+    }
+
     public func editMessage(
         owner: KeyPair,
         conversationID: ConversationID,

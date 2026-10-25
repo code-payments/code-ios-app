@@ -89,6 +89,15 @@ struct ConversationScreen: View {
     @State private var paidReactionTarget: ReactionBoostTarget?
     /// The group send whose card was tapped, shown in the details sheet.
     @State private var groupSendDetails: GroupSendDetails?
+    /// The payment request whose details sheet is open.
+    @State private var paymentRequestDetails: PaymentRequestSelection?
+    @State private var paymentRequestDeck = PaymentRequestDeckState()
+    /// Whether a private group's Money sheet (Send or Request) is open.
+    @State private var isShowingMoneyActions = false
+    /// The Money sheet's choice, run once that sheet has gone so the next one can present.
+    @State private var pendingMoneyAction: MoneyAction?
+    /// Whether the Request Money flow is open.
+    @State private var isShowingRequestMoney = false
     /// The stable id, pill set, and long-pressed emoji the reactors sheet is open for, or nil.
     @State private var reactorsRequest: ReactorsRequest?
     /// A reactor whose profile opens once the reactors sheet has finished dismissing.
@@ -133,6 +142,8 @@ struct ConversationScreen: View {
     private static let titleLeadingInset: CGFloat = 72
     /// Where the title ends: the bar's trailing margin, since nothing sits on that side.
     private static let titleTrailingInset: CGFloat = 16
+    /// Room the request pill takes at the bar's trailing edge.
+    private static let requestPillWidth: CGFloat = 150
 
     /// The synced contact for the counterpart, resolved live from the directory
     /// so a `dmChatID` stored after the first payment flows in. Falls back to
@@ -409,6 +420,7 @@ struct ConversationScreen: View {
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
+            onPaymentRequestTap: { paymentRequestDetails = PaymentRequestSelection(id: PaymentRequestID(data: $0)) },
             onOpenURL: openLink,
             onMentionTap: openMention,
             onShareProfile: shareProfile,
@@ -629,6 +641,20 @@ struct ConversationScreen: View {
                 if let conversationID { await sessionContainer.groupRosters.refresh(conversationID) }
             }
         }
+        .sheet(item: $paymentRequestDetails) { selection in
+            PaymentRequestDetailsScreen(requestID: selection.id)
+        }
+        .sheet(isPresented: $isShowingMoneyActions, onDismiss: runPendingMoneyAction) {
+            MoneyActionsSheet(
+                sendMoney: { pendingMoneyAction = .send },
+                requestMoney: { pendingMoneyAction = .request }
+            )
+        }
+        .sheet(isPresented: $isShowingRequestMoney) {
+            if let conversationID {
+                PaymentRequestFlow(conversationID: conversationID)
+            }
+        }
         .sheet(item: $paidReactionTarget) { target in
             PaidReactionSheet(target: target, selfReactions: selfReactions(on: target.messageID))
         }
@@ -731,14 +757,65 @@ struct ConversationScreen: View {
                             ?? tipCounterpart?.profilePicture?.thumbnailBlurhash,
                         // Too wide to centre, the bar lays the item out from just past the back
                         // button, so the width alone sets where it ends; no offset is needed.
-                        width: max(navBarWidth - Self.titleLeadingInset - Self.titleTrailingInset, 0),
+                        width: max(navBarWidth - Self.titleLeadingInset - titleTrailingInset, 0),
                         mute: viewerMute,
                         onTap: titleTapAction,
                         opensProfile: profileTapAction != nil
                     )
                 }
+                if !requestDeckItems.isEmpty {
+                    // The pill draws its own capsule, so the iOS 26 platter stays off.
+                    if #available(iOS 26.0, *) {
+                        ToolbarItem(placement: .topBarTrailing) { requestPill }
+                            .sharedBackgroundVisibility(.hidden)
+                    } else {
+                        ToolbarItem(placement: .topBarTrailing) { requestPill }
+                    }
+                }
             }
         }
+        .overlay {
+            if paymentRequestDeck.phase != .collapsed {
+                PaymentRequestDeckOverlay(items: requestDeckItems, state: paymentRequestDeck) { id in
+                    paymentRequestDeck.collapse()
+                    paymentRequestDetails = PaymentRequestSelection(id: id)
+                }
+            }
+        }
+        // Each refetch puts the deck back in its default order.
+        .onChange(of: groupConversation.map { sessionContainer.paymentRequests.chatRefreshes[$0.id] }) {
+            paymentRequestDeck.order.reset()
+        }
+    }
+
+    /// The private group's open and recently ended requests, worded for the viewer, in deck order.
+    private var requestDeckItems: [PaymentRequestDeckItem] {
+        guard let group = groupConversation, group.isPrivate else { return [] }
+        return sessionContainer.paymentRequests.deckItems(
+            for: group.id,
+            order: paymentRequestDeck.order,
+            copy: PaymentRequestCopy(session.displayCurrency),
+            now: .now
+        )
+    }
+
+    private var requestPill: some View {
+        PaymentRequestPill(
+            items: requestDeckItems,
+            accessibilityLabel: requestDeckAccessibilityLabel,
+            state: paymentRequestDeck
+        )
+    }
+
+    private var requestDeckAccessibilityLabel: String {
+        guard let front = requestDeckItems.first else { return "" }
+        return PaymentRequestCopy(session.displayCurrency)
+            .deckAccessibilityLabel(front: front.request, title: front.card.title, count: requestDeckItems.count, now: .now)
+    }
+
+    /// The title's right margin, widened to clear the request pill while one shows.
+    private var titleTrailingInset: CGFloat {
+        Self.titleTrailingInset + (requestDeckItems.isEmpty ? 0 : Self.requestPillWidth)
     }
 
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
@@ -785,6 +862,17 @@ struct ConversationScreen: View {
         .task(id: groupConversation?.id) {
             guard groupConversation != nil else { return }
             await sessionContainer.knownAuthors.reload()
+        }
+        // Payment requests change with no event, so poll while the chat is on screen in the
+        // foreground. A return to the foreground re-keys the task, which refetches at once.
+        .task(id: PaymentRequestPoll(conversationID: groupConversation?.id, isActive: scenePhase == .active)) {
+            guard let groupID = groupConversation?.id, scenePhase == .active else { return }
+            let requests = sessionContainer.paymentRequests
+            await requests.loadSeal(for: groupID)
+            while !Task.isCancelled {
+                await requests.refreshChat(groupID)
+                try? await Task.sleep(for: PaymentRequests.pollInterval)
+            }
         }
         // One picker per visit, so its suggestion fetch runs once per visit.
         .onChange(of: groupConversation?.id, initial: true) { _, groupID in
@@ -1253,6 +1341,8 @@ struct ConversationScreen: View {
             (ChatQuote.deletedSnippet, .unavailable)
         case .widget(.shareProfile):
             (ChatQuote.sharedProfileSnippet, .text)
+        case .widget(.paymentRequest):
+            (ChatQuote.paymentRequestSnippet, .text)
         case .encrypted, .widget(.unrecognized), .system:
             (ChatQuote.unavailableSnippet, .unavailable)
         }
@@ -1307,6 +1397,16 @@ struct ConversationScreen: View {
 
     private func sendCash() {
         guard let sendTarget else { return }
+        switch sendTarget {
+        case .privateGroup:
+            // Requesting needs no balance, so the give-cash gate waits for the Send choice.
+            isShowingMoneyActions = true
+        case .contact, .tip, .group:
+            presentSendAmount(sendTarget)
+        }
+    }
+
+    private func presentSendAmount(_ sendTarget: SendTarget) {
         let context: AddMoneyContext = switch sendTarget {
         case .tip:              .sendTips
         case .contact, .group, .privateGroup: .giveCash
@@ -1317,6 +1417,20 @@ struct ConversationScreen: View {
             return
         }
         router.presentSendAmount(sendTarget)
+    }
+
+    private enum MoneyAction {
+        case send
+        case request
+    }
+
+    private func runPendingMoneyAction() {
+        guard let action = pendingMoneyAction, let sendTarget else { return }
+        pendingMoneyAction = nil
+        switch action {
+        case .send:    presentSendAmount(sendTarget)
+        case .request: isShowingRequestMoney = true
+        }
     }
 
     /// Re-send a failed message tapped in the transcript. The id is the row's stable id, which for a
@@ -1631,6 +1745,7 @@ struct ConversationScreen: View {
                 controller: conversationController,
                 session: session,
                 knownAuthors: sessionContainer.knownAuthors,
+                paymentRequests: sessionContainer.paymentRequests,
                 openingLoadLanded: loadedConversationID == id
             )
         }

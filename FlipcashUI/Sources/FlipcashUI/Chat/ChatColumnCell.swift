@@ -188,7 +188,7 @@ public class ChatColumnCell: UICollectionViewCell {
         switch message.content {
         case .deleted:
             return nil
-        case .text, .cash, .shareProfile, .media, .unavailable:
+        case .text, .cash, .shareProfile, .media, .unavailable, .paymentRequest:
             return message.sentAt?.formattedTime()
         }
     }

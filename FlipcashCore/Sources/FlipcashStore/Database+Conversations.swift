@@ -641,11 +641,18 @@ nonisolated extension Database {
                 encryptedNonce = nonce
                 encryptedCiphertext = ciphertext
             case .widget(let widget):
-                // The username rides in `text`; a widget with none is one this client can't draw.
-                kind = 4
+                // A profile share's username rides in `text`; a widget with none is one this client
+                // can't draw. A payment request is its own kind, its id base64 in `text`.
                 switch widget {
-                case .shareProfile(let share): text = share.username.value
-                case .unrecognized:            text = nil
+                case .shareProfile(let share):
+                    kind = 4
+                    text = share.username.value
+                case .paymentRequest(let id):
+                    kind = 7
+                    text = id.data.base64EncodedString()
+                case .unrecognized:
+                    kind = 4
+                    text = nil
                 }
             case .system(let fallbackText, let event):
                 kind = 6
@@ -920,6 +927,9 @@ nonisolated extension Database {
             content = .widget(
                 row[m.text].flatMap(Username.init).map { .shareProfile(ShareProfileWidget(username: $0)) } ?? .unrecognized
             )
+        case 7:
+            guard let id = row[m.text].flatMap({ Data(base64Encoded: $0) }) else { return nil }
+            content = .widget(.paymentRequest(PaymentRequestID(data: id)))
         case 5:
             guard let data = row[m.mediaJson],
                   let media = try? JSONDecoder().decode(StoredMedia.self, from: data) else {

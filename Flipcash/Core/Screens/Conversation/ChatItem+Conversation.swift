@@ -108,6 +108,9 @@ extension ChatItem {
         /// defaults to no card. Takes the detected links rather than the text so the detector runs
         /// once per message, here.
         linkCard: ([DetectedLink]) -> LinkCard? = { _ in nil },
+        /// How a payment-request widget draws; resolved by the caller from the request store so
+        /// the mapper stays pure. Defaults to the loading card.
+        paymentRequest: (ConversationMessage) -> PaymentRequestCardState = { _ in .loading },
         /// Where the viewer's unread messages began at open; the divider heads the first message
         /// after it that someone else sent.
         unreadBoundary: UnreadBoundary = .none,
@@ -310,6 +313,12 @@ extension ChatItem {
                 )
             case .widget(.shareProfile(let share)):
                 content = .shareProfile(LinkCard.User(profileOf: share.username))
+            case .widget(.paymentRequest(let id)):
+                switch paymentRequest(message) {
+                case .loading:          content = .paymentRequest(ChatPaymentRequestContent(requestID: id.data, card: nil))
+                case .card(let card):   content = .paymentRequest(ChatPaymentRequestContent(requestID: id.data, card: card))
+                case .unsupported:      content = .unavailable(.updateApp)
+                }
             case .widget(.unrecognized):
                 // A widget variant this build doesn't draw; a newer one will.
                 content = .unavailable(.updateApp)
@@ -501,6 +510,14 @@ extension ChatItem {
                 stableID: original.stableID,
                 authorName: authorName,
                 snippet: ChatQuote.sharedProfileSnippet,
+                kind: .text,
+                authorID: original.senderID
+            )
+        case .widget(.paymentRequest):
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: ChatQuote.paymentRequestSnippet,
                 kind: .text,
                 authorID: original.senderID
             )

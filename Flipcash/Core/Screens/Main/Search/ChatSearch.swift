@@ -69,7 +69,7 @@ nonisolated enum ChatSearchMessages {
             caption.flatMap { $0.isEmpty ? nil : $0 }
         case .widget(.shareProfile(let widget)):
             widget.username.value
-        case .widget(.unrecognized), .cash, .deleted, .encrypted, .system:
+        case .widget(.unrecognized), .widget(.paymentRequest), .cash, .deleted, .encrypted, .system:
             nil
         }
     }

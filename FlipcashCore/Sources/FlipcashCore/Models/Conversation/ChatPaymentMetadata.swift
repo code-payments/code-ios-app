@@ -24,6 +24,8 @@ public enum ChatPaymentMetadata: Sendable {
     /// The payer must already have reacted; the server splits the payment between the message's
     /// sender and the group's creator and posts no message into the chat.
     case reactionBoost(chatID: ConversationID, messageID: MessageID, emoji: String)
+    /// A payment of the payer's share of a group payment request, paid to its creator.
+    case requestedPayment(chatID: ConversationID, paymentRequestID: PaymentRequestID)
 
     /// The chat this payment posts into.
     public var chatID: ConversationID {
@@ -36,6 +38,8 @@ public enum ChatPaymentMetadata: Sendable {
             return chatID
         case .reactionBoost(let chatID, _, _):
             return chatID
+        case .requestedPayment(let chatID, _):
+            return chatID
         }
     }
 
@@ -44,7 +48,7 @@ public enum ChatPaymentMetadata: Sendable {
     /// carries instead of re-deriving it.
     public var isTip: Bool {
         switch self {
-        case .contactDm, .groupPayment, .reactionBoost:
+        case .contactDm, .groupPayment, .reactionBoost, .requestedPayment:
             return false
         case .tipDm(_, _, let action):
             return action == .tip
@@ -75,6 +79,8 @@ public enum ChatPaymentMetadata: Sendable {
                         $0.messageID = messageID.proto
                         $0.emoji = .with { $0.value = emoji }
                     }
+                case .requestedPayment(_, let paymentRequestID):
+                    $0.requestedPayment = .with { $0.paymentRequestID = paymentRequestID.proto }
                 }
             }
         }.serializedData()

@@ -61,6 +61,11 @@ final class ConversationLoadCoordinator {
     /// on every observation tick — see ``scheduleWindowExpiry(for:)``.
     @ObservationIgnored private var capabilityClock: Date = .now
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
+    /// Where request widgets read their cards; nil draws them loading.
+    @ObservationIgnored private let paymentRequests: PaymentRequests?
+    /// When this transcript opened; paid-share messages after it refetch their request once.
+    @ObservationIgnored private let openedAt: Date = .now
+    @ObservationIgnored private var refetchedPayments: Set<UInt64> = []
 
     /// Fire a beat after the deadline, not on it. The window boundary is inclusive, so a timer that
     /// landed exactly on `date + window` would still resolve the capability as granted and then
@@ -81,8 +86,10 @@ final class ConversationLoadCoordinator {
         controller: ConversationController,
         session: Session,
         knownAuthors: KnownAuthorDirectory,
+        paymentRequests: PaymentRequests? = nil,
         openingLoadLanded: Bool = false
     ) {
+        self.paymentRequests = paymentRequests
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
@@ -251,6 +258,23 @@ final class ConversationLoadCoordinator {
                 quotedMessages[repliedTo.value] = persisted
             }
         }
+        // Read inside the observation scope, so a fetched or refetched request re-maps its row.
+        var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
+        if let paymentRequests {
+            let copy = PaymentRequestCopy(session.displayCurrency)
+            for message in window {
+                if let id = message.paymentRequestID, message.date > openedAt,
+                   refetchedPayments.insert(message.id.value).inserted {
+                    Task { _ = try? await paymentRequests.refresh(id) }
+                }
+                guard case .widget(.paymentRequest(let id)) = message.content else { continue }
+                let state = paymentRequests.cardState(for: id, in: conversationID, sentBy: message.senderID, copy: copy, now: capabilityClock)
+                paymentRequestCards[message.id.value] = state
+                if state == .loading, paymentRequests.request(id) == nil {
+                    Task { await paymentRequests.fetchIfMissing(id) }
+                }
+            }
+        }
         return Inputs(
             messages: window,
             selfUserID: controller.selfUserID,
@@ -278,7 +302,8 @@ final class ConversationLoadCoordinator {
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory,
-            unreadBoundary: unreadBoundary(in: window)
+            unreadBoundary: unreadBoundary(in: window),
+            paymentRequestCards: paymentRequestCards
         )
     }
 
@@ -343,6 +368,7 @@ final class ConversationLoadCoordinator {
             // card is the link's identity, and the card view looks it up for itself. So nothing
             // here touches the network, and an answer landing cannot re-diff this window.
             linkCard: { links in classifier.firstCard(in: links) },
+            paymentRequest: { inputs.paymentRequestCards[$0.id.value] ?? .loading },
             unreadBoundary: inputs.unreadBoundary,
             headsHistory: inputs.headsHistory
         )
@@ -454,6 +480,8 @@ final class ConversationLoadCoordinator {
         var headsHistory: Bool
         /// Where the divider goes; `.none` draws none.
         var unreadBoundary: UnreadBoundary
+        /// Each request widget's card in the window, keyed by raw message id.
+        var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
 
         struct Branding: Equatable, Sendable {
             var token: String

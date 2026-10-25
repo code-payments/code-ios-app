@@ -49,6 +49,10 @@ public final class ChatViewController: UICollectionViewController {
     /// that token's currency info. Only cash rows are selectable (see `shouldHighlightItemAt`).
     public var onCashCardTap: ((String) -> Void)?
 
+    /// Called when the user taps a payment request card; the argument is the request's id bytes. The
+    /// owner opens the request's details.
+    public var onPaymentRequestTap: ((Data) -> Void)?
+
     /// Called when the user taps a URL in a text bubble; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
     /// Fired when a shared-profile widget's Share button is tapped, with the person's display name
@@ -384,6 +388,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatLinkMessageCell.self, forCellWithReuseIdentifier: ChatLinkMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatShareProfileCell.self, forCellWithReuseIdentifier: ChatShareProfileCell.reuseIdentifier)
+        collectionView.register(ChatPaymentRequestCell.self, forCellWithReuseIdentifier: ChatPaymentRequestCell.reuseIdentifier)
         collectionView.register(ChatMediaCell.self, forCellWithReuseIdentifier: ChatMediaCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
@@ -755,6 +760,12 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
+        case let cell as ChatPaymentRequestCell:
+            cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
+            cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
+            cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
+            cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatMediaCell:
             guard case .media(let media) = message.content else { return }
             // Before `configure`, which is where the caption's card draws.
@@ -828,19 +839,32 @@ public final class ChatViewController: UICollectionViewController {
 
     // MARK: - Selection
 
-    /// Only cash cards are tappable — they open the token's currency info. Text bubbles and date
+    /// Only cash and payment request cards are tappable: a cash card opens the token's currency
+    /// info, a request card its details. Text bubbles and date
     /// separators opt out (a text row's only tap is retry, handled by its own recognizer). Gating
     /// highlight is enough to gate selection too: UIKit won't select a row it didn't highlight, and
     /// `didSelectItemAt` re-checks for cash as a backstop.
     public override func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
-        cashMessageID(at: indexPath) != nil
+        cashMessageID(at: indexPath) != nil || paymentRequestID(at: indexPath) != nil
     }
 
     public override func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         // Selection here is a momentary tap action, not a persisted state — clear it immediately.
         collectionView.deselectItem(at: indexPath, animated: false)
+        if let requestID = paymentRequestID(at: indexPath) {
+            onPaymentRequestTap?(requestID)
+            return
+        }
         guard let id = cashMessageID(at: indexPath) else { return }
         onCashCardTap?(id)
+    }
+
+    /// The id of the payment request whose card is at `indexPath`, or nil if that row isn't one.
+    private func paymentRequestID(at indexPath: IndexPath) -> Data? {
+        guard items.indices.contains(indexPath.item),
+              case .message(let message) = items[indexPath.item],
+              case .paymentRequest(let request) = message.content else { return nil }
+        return request.requestID
     }
 
     /// The stable id of the cash message at `indexPath`, or nil if that row isn't a cash card. The
@@ -1635,7 +1659,7 @@ extension ChatViewController {
         let body: String? = switch message.content {
         case .text(let text): message.part?.messageText ?? text
         case .media(let media): media.caption.flatMap { $0.isEmpty ? nil : $0 }
-        case .cash, .deleted, .unavailable, .shareProfile: nil
+        case .cash, .deleted, .unavailable, .shareProfile, .paymentRequest: nil
         }
         let rowID = message.messageID
         let handler = onMessageAction

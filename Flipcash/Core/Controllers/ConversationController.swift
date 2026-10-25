@@ -1638,11 +1638,13 @@ final class ConversationController {
     /// whoever wrote it. `currencyName` resolves a mint to its display name; nil —
     /// or the reserve, whose formatted amount already names itself — drops the
     /// "of …" suffix. `knownAuthors` names a group sender the chat's roster subset leaves out.
-    /// `viewerAmount` restates a payment in the display currency.
+    /// `viewerAmount` restates a payment in the display currency. `requestAmount` is a payment
+    /// request's per-person share as the viewer reads it, nil while the request isn't loaded.
     func lastMessagePreview(
         for conversation: Conversation,
         knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
         viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
+        requestAmount: (PaymentRequestID) -> FiatAmount? = { _ in nil },
         currencyName: (PublicKey) -> String?
     ) -> String? {
         if isCounterpartTyping(in: conversation.id) {
@@ -1705,6 +1707,11 @@ final class ConversationController {
         case .widget(.shareProfile):
             // The server sends it; no user is the sender to name.
             return "Shared a profile"
+
+        case .widget(.paymentRequest(let id)):
+            let who = isFromSelf ? "You" : (senderName ?? "Someone")
+            guard let amount = requestAmount(id) else { return "\(who) sent a request" }
+            return "\(who) requested \(amount.formatted())"
 
         case .widget(.unrecognized):
             return nil
@@ -2304,8 +2311,57 @@ final class ConversationController {
     /// gets its turn.
     /// The seal a photo staged for `conversationID` is encrypted with, nil when the chat takes
     /// plaintext photos; throws when the chat encrypts but its seal can't be built.
+    /// Sends the widget for the payment request `id` into `conversationID`, retrying a failed send
+    /// with the same request. Throws the last send's error; the request itself already exists.
+    func sendPaymentRequest(_ id: PaymentRequestID, in conversationID: ConversationID, attempts: Int = 3) async throws {
+        let clientMessageID = UUID()
+        let chatType = conversation(withID: conversationID)?.type
+        var lastError: Error = ErrorSendMessage.unknown
+        for attempt in 0..<attempts {
+            if attempt > 0 {
+                try? await Task.sleep(for: .seconds(attempt))
+            }
+            do {
+                var confirmed = try await messaging.sendPaymentRequestMessage(
+                    owner: owner,
+                    conversationID: conversationID,
+                    paymentRequestID: id,
+                    clientMessageID: clientMessageID
+                )
+                confirmed.clientMessageID = clientMessageID
+                if !persist(operation: "send-payment-request", { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
+                    scheduleGapCatchUp(conversationID)
+                }
+                store.advanceLastActivity(to: confirmed.date, in: conversationID)
+                if advanceReadPointer(to: confirmed.id, in: conversationID) {
+                    confirmedOwnSendCounts[conversationID, default: 0] += 1
+                }
+                refreshFeedPreview(for: conversationID)
+                persistConversation(conversationID)
+                Analytics.sentMessage(chatType: chatType)
+                return
+            } catch {
+                lastError = error
+                logger.warning("Failed to send payment request message", metadata: [
+                    "conversationID": "\(conversationID)",
+                    "attempt": "\(attempt)",
+                    "error": "\(error)",
+                ])
+            }
+        }
+        ErrorReporting.captureError(lastError, reason: "Failed to send payment request message")
+        Analytics.sentMessage(chatType: chatType, error: lastError)
+        throw lastError
+    }
+
     func photoSeal(for conversationID: ConversationID) async throws -> ChatSeal? {
         try await messaging.photoSeal(owner: owner, conversationID: conversationID)
+    }
+
+    /// The seal that opens `conversationID`'s payment-request text, nil while the chat's key is
+    /// unknown or the chat doesn't encrypt.
+    func openingSeal(for conversationID: ConversationID) async -> ChatSeal? {
+        await messaging.openingSeal(owner: owner, conversationID: conversationID)
     }
 
     /// Decrypts `conversationID`'s end-to-end encrypted photo blobs, or nil while the chat's key is

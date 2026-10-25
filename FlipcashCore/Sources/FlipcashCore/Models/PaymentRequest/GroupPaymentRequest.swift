@@ -66,6 +66,14 @@ public struct GroupPaymentRequest: Hashable, Sendable {
         public let settlement: Settlement?
 
         public var isPaid: Bool { settlement != nil }
+
+        /// Creates a share; a share built for `CreatePaymentRequest` leaves `paidAt` and `settlement` unset.
+        public init(userID: UserID?, nativeAmount: Double, paidAt: Date? = nil, settlement: Settlement? = nil) {
+            self.userID = userID
+            self.nativeAmount = nativeAmount
+            self.paidAt = paidAt
+            self.settlement = settlement
+        }
     }
 
     /// An even or custom division of a bill across group members.
@@ -75,6 +83,14 @@ public struct GroupPaymentRequest: Hashable, Sendable {
         public let currency: String
         public let endsAt: Date?
         public let shares: [Share]
+
+        /// Creates a split from its text, currency, deadline and shares.
+        public init(text: Text?, currency: String, endsAt: Date?, shares: [Share]) {
+            self.text = text
+            self.currency = currency
+            self.endsAt = endsAt
+            self.shares = shares
+        }
     }
 
     public let id: PaymentRequestID
@@ -87,6 +103,18 @@ public struct GroupPaymentRequest: Hashable, Sendable {
     public let chatID: ConversationID?
     /// `nil` for a request kind this build doesn't know.
     public let split: Split?
+
+    /// Creates a request from its fields; the app builds these only in tests and previews.
+    public init(id: PaymentRequestID, creator: UserID?, createdAt: Date?, status: Status, closedAt: Date?, version: UInt64, chatID: ConversationID?, split: Split?) {
+        self.id = id
+        self.creator = creator
+        self.createdAt = createdAt
+        self.status = status
+        self.closedAt = closedAt
+        self.version = version
+        self.chatID = chatID
+        self.split = split
+    }
 }
 
 extension GroupPaymentRequest.Status {

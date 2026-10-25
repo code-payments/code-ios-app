@@ -42,6 +42,15 @@ extension FlipClient {
         return all
     }
 
+    /// One page of `conversationID`'s requests for `section`, with the token for the next page when
+    /// there is one.
+    public func getChatPaymentRequestsPage(owner: KeyPair, conversationID: ConversationID, section: GroupPaymentRequest.Section, pageSize: Int, pagingToken: Data?) async throws -> (requests: [GroupPaymentRequest], nextPagingToken: Data?) {
+        let page: PaymentRequestService.ChatPage = try await withCheckedThrowingContinuation { c in
+            paymentRequestService.getChatPaymentRequests(owner: owner, conversationID: conversationID, section: section, pageSize: pageSize, pagingToken: pagingToken) { c.resume(with: $0) }
+        }
+        return (page.requests, page.hasMore ? page.pagingToken : nil)
+    }
+
     /// Closes an open request. Creator only.
     public func closePaymentRequest(owner: KeyPair, id: PaymentRequestID) async throws -> GroupPaymentRequest {
         try await withCheckedThrowingContinuation { c in
