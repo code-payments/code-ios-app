@@ -665,8 +665,8 @@ extension ChatItem {
         [.copy, .reply, .forward, .edit, .delete, .report].filter(capabilities.contains)
     }
 
-    /// The group lines for a payment in a group chat, or nil when the plain caption says it all:
-    /// a payment to the viewer alone, or one whose receiver isn't known. A split between two or more
+    /// The group lines for a payment in a group chat, or nil when its receiver isn't known; a
+    /// payment to the viewer alone reads "to You". A split between two or more
     /// members restates each part by its share of `total`, so the parts and the card's `shownAs`
     /// total use one conversion. `sender` is "You" for the viewer's own send.
     nonisolated static func groupSend(
@@ -683,7 +683,7 @@ extension ChatItem {
             id == selfUserID ? "You" : nameOf(id).flatMap { $0.isEmpty ? nil : $0 }
         }
         guard payments.count >= 2, total.value > 0 else {
-            guard let receiver, receiver != selfUserID, let receiverName = name(receiver) else { return nil }
+            guard let receiver, let receiverName = name(receiver) else { return nil }
             return ChatCashContent.GroupSend(caption: "\(sender) sent", each: nil, recipients: "to \(receiverName)")
         }
         func formatted(_ payment: CashPayment) -> String {
@@ -698,7 +698,7 @@ extension ChatItem {
             ?? "to \(payments.count) people"
         return ChatCashContent.GroupSend(
             caption: "\(sender) sent",
-            each: isEven ? "\(formatted(smallest)) Each" : "~\(formatted(smallest)) Each",
+            each: isEven ? "\(formatted(smallest)) each" : "~\(formatted(smallest)) each",
             recipients: recipients
         )
     }

@@ -85,12 +85,12 @@ public final class ChatCashCardCell: ChatColumnCell {
         eachLabel.font = .default(size: 12, weight: .bold)
         eachLabel.textColor = UIColor.white.withAlphaComponent(0.5)
 
-        configureCircle(centerCoinIcon, diameter: 13)
+        configureCircle(centerCoinIcon, diameter: 32)
         centerTokenLabel.font = .default(size: 12, weight: .bold)
-        centerTokenLabel.textColor = UIColor.white.withAlphaComponent(0.5)
+        centerTokenLabel.textColor = .white
         centerTokenRow.addArrangedSubview(centerCoinIcon)
         centerTokenRow.addArrangedSubview(centerTokenLabel)
-        centerTokenRow.spacing = 4
+        centerTokenRow.spacing = 6
         centerTokenRow.alignment = .center
 
         recipientsLabel.font = .default(size: 12, weight: .bold)
@@ -256,11 +256,11 @@ extension ChatCashCardCell: BubbleCarrying {
         ChatMessage(id: "2", content: .cash(ChatCashContent(amount: "$12.50", token: "Cash")), sender: .other),
         ChatMessage(id: "3", content: .cash(ChatCashContent(
             amount: "$1.00", token: "Cash",
-            group: .init(caption: "You sent", each: "~$0.33 Each", recipients: "to Alex Morgan and 2 Others")
+            group: .init(caption: "You sent", each: "~$0.33 each", recipients: "to Alex Morgan and 2 Others")
         )), sender: .me),
         ChatMessage(id: "4", content: .cash(ChatCashContent(
             amount: "$6.00", token: "Cash",
-            group: .init(caption: "Alex sent", each: "$1.00 Each", recipients: "to You and 5 Others")
+            group: .init(caption: "Alex sent", each: "$1.00 each", recipients: "to You and 5 Others")
         )), sender: .other),
     ]
 

@@ -238,21 +238,15 @@ private struct GroupSendConfirmSheet: View {
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
                     }
-                    // Bordered as on the Start Chatting sheet: with no toolbar around it, the
-                    // chevron alone wouldn't say the currency can be changed.
+                    // Filled as on Android's cash sheets: with no toolbar around it, the chevron
+                    // alone wouldn't say the currency can be changed.
                     TokenSelectorButton(selectedBalance: viewModel.selectedBalance) {
                         isShowingTokenSelection = true
                     }
                     .id(viewModel.selectedBalance?.stored.mint)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background {
-                        Capsule()
-                            .strokeBorder(
-                                Metrics.inputFieldStrokeColor(highlighted: false),
-                                lineWidth: Metrics.inputFieldBorderWidth(highlighted: false)
-                            )
-                    }
+                    .background(Capsule().fill(Color.white.opacity(0.1)))
                     .padding(.top, 4)
                 }
                 SwipeControl(text: "Swipe to Send") {

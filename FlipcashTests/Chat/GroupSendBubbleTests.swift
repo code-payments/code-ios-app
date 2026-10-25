@@ -40,7 +40,7 @@ struct GroupSendBubbleTests {
     func evenSplit() throws {
         let lines = try #require(lines([payment(alex, 1), payment(sam, 1)], total: 2, sender: "You"))
         #expect(lines.caption == "You sent")
-        #expect(lines.each == "$1.00 Each")
+        #expect(lines.each == "$1.00 each")
         #expect(lines.recipients == "to Alex Morgan and 1 Other")
     }
 
@@ -48,14 +48,14 @@ struct GroupSendBubbleTests {
     func paidViewer() throws {
         let lines = try #require(lines([payment(alex, 0.34), payment(me, 0.33), payment(kim, 0.33)], total: 1, sender: "Sam Chen"))
         #expect(lines.caption == "Sam Chen sent")
-        #expect(lines.each == "~$0.33 Each")
+        #expect(lines.each == "~$0.33 each")
         #expect(lines.recipients == "to You and 2 Others")
     }
 
     @Test("an uneven split shows the smallest part with a tilde")
     func unevenSplit() throws {
         let lines = try #require(lines([payment(alex, 0.34), payment(sam, 0.33), payment(kim, 0.33)], total: 1, sender: "You"))
-        #expect(lines.each == "~$0.33 Each")
+        #expect(lines.each == "~$0.33 each")
         #expect(lines.recipients == "to Alex Morgan and 2 Others")
     }
 
@@ -68,7 +68,7 @@ struct GroupSendBubbleTests {
     @Test("parts are restated in the viewer's currency by their share of the total")
     func restatedParts() throws {
         let lines = try #require(lines([payment(alex, 1), payment(me, 1)], total: 2, shownAs: FiatAmount(value: 3, currency: .cad), sender: "Sam"))
-        #expect(lines.each == FiatAmount(value: 1.5, currency: .cad).formatted() + " Each")
+        #expect(lines.each == FiatAmount(value: 1.5, currency: .cad).formatted() + " each")
     }
 
     @Test("a payment to one member names them, with no per-person line")
@@ -79,9 +79,16 @@ struct GroupSendBubbleTests {
         #expect(lines.recipients == "to Alex Morgan")
     }
 
-    @Test("a payment to the viewer alone, or to no known member, keeps the plain card")
+    @Test("a payment to the viewer alone reads to You")
+    func singleRecipientIsViewer() throws {
+        let lines = try #require(lines([], receiver: me, total: 1, sender: "Sam"))
+        #expect(lines.caption == "Sam sent")
+        #expect(lines.each == nil)
+        #expect(lines.recipients == "to You")
+    }
+
+    @Test("a payment to no known member keeps the plain card")
     func plainCard() {
-        #expect(lines([], receiver: me, total: 1, sender: "Sam") == nil)
         #expect(lines([], receiver: nil, total: 1, sender: "Sam") == nil)
         #expect(lines([], receiver: UserID(), total: 1, sender: "Sam") == nil)
     }
