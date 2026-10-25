@@ -43,6 +43,9 @@ final class PaymentRequestDeckState {
     /// The front card's parts in global coordinates, in the pill and in the expanded list.
     var pillFrames: [DeckPart: CGRect] = [:]
     var cardFrames: [DeckPart: CGRect] = [:]
+    /// The pill's Dynamic Type size. The toolbar can lay its text out at a different size than the
+    /// overlay, so the moving copy draws the pill's text at this one to land on it exactly.
+    var pillTypeSize: DynamicTypeSize = .large
     private var generation = 0
 
     private static let motion = Animation.spring(duration: 0.4, bounce: 0.12)
@@ -102,6 +105,7 @@ struct PaymentRequestPill: View {
     let accessibilityLabel: String
     @Bindable var state: PaymentRequestDeckState
 
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var drag: CGFloat = 0
     @State private var frontSize = CGSize(width: 131, height: 43)
 
@@ -128,6 +132,7 @@ struct PaymentRequestPill: View {
             }
         }
         .padding(.bottom, Self.peekStep * CGFloat(min(max(items.count - 1, 0), 2)))
+        .onChange(of: typeSize, initial: true) { state.pillTypeSize = typeSize }
         .contentShape(Rectangle())
         .onTapGesture { state.expand() }
         .gesture(cycleGesture)
@@ -322,6 +327,7 @@ struct PaymentRequestDeckOverlay: View {
                     progress: state.progress,
                     pill: state.pillFrames,
                     card: state.cardFrames,
+                    pillTypeSize: state.pillTypeSize,
                     origin: origin
                 )
                 .allowsHitTesting(false)
@@ -391,6 +397,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
     var progress: CGFloat
     let pill: [DeckPart: CGRect]
     let card: [DeckPart: CGRect]
+    let pillTypeSize: DynamicTypeSize
     let origin: CGPoint
 
     var animatableData: CGFloat {
@@ -493,6 +500,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
             let corner = CGPoint(x: from.minX + (to.minX - from.minX) * p - origin.x, y: from.minY + (to.minY - from.minY) * p - origin.y)
             let grow = 1 + (scale - 1) * p
             text(false)
+                .dynamicTypeSize(pillTypeSize)
                 .frame(width: from.width, height: from.height, alignment: .topLeading)
                 .scaleEffect(grow, anchor: .topLeading)
                 .offset(x: corner.x, y: corner.y)
