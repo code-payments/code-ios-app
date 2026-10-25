@@ -38,53 +38,53 @@ struct GroupSendBubbleTests {
 
     @Test("an even split shows the shared part and names the first recipient")
     func evenSplit() throws {
-        let lines = try #require(lines([payment(alex, 1), payment(sam, 1)], total: 2, sender: "You"))
-        #expect(lines.caption == "You sent")
-        #expect(lines.each == "$1.00 each")
-        #expect(lines.recipients == "to Alex Morgan and 1 Other")
+        let group = try #require(lines([payment(alex, 1), payment(sam, 1)], total: 2, sender: "You"))
+        #expect(group.caption == "You sent")
+        #expect(group.each == "$1.00 each")
+        #expect(group.recipients == "to Alex Morgan and 1 Other")
     }
 
     @Test("a paid viewer sees the split and leads the recipients")
     func paidViewer() throws {
-        let lines = try #require(lines([payment(alex, 0.34), payment(me, 0.33), payment(kim, 0.33)], total: 1, sender: "Sam Chen"))
-        #expect(lines.caption == "Sam Chen sent")
-        #expect(lines.each == "~$0.33 each")
-        #expect(lines.recipients == "to You and 2 Others")
+        let group = try #require(lines([payment(alex, 0.34), payment(me, 0.33), payment(kim, 0.33)], total: 1, sender: "Sam Chen"))
+        #expect(group.caption == "Sam Chen sent")
+        #expect(group.each == "~$0.33 each")
+        #expect(group.recipients == "to You and 2 Others")
     }
 
     @Test("an uneven split shows the smallest part with a tilde")
     func unevenSplit() throws {
-        let lines = try #require(lines([payment(alex, 0.34), payment(sam, 0.33), payment(kim, 0.33)], total: 1, sender: "You"))
-        #expect(lines.each == "~$0.33 each")
-        #expect(lines.recipients == "to Alex Morgan and 2 Others")
+        let group = try #require(lines([payment(alex, 0.34), payment(sam, 0.33), payment(kim, 0.33)], total: 1, sender: "You"))
+        #expect(group.each == "~$0.33 each")
+        #expect(group.recipients == "to Alex Morgan and 2 Others")
     }
 
     @Test("an unnamed first recipient falls back to a count")
     func unnamedRecipient() throws {
-        let lines = try #require(lines([payment(UserID(), 1), payment(sam, 1)], total: 2, sender: "You"))
-        #expect(lines.recipients == "to 2 people")
+        let group = try #require(lines([payment(UserID(), 1), payment(sam, 1)], total: 2, sender: "You"))
+        #expect(group.recipients == "to 2 people")
     }
 
     @Test("parts are restated in the viewer's currency by their share of the total")
     func restatedParts() throws {
-        let lines = try #require(lines([payment(alex, 1), payment(me, 1)], total: 2, shownAs: FiatAmount(value: 3, currency: .cad), sender: "Sam"))
-        #expect(lines.each == FiatAmount(value: 1.5, currency: .cad).formatted() + " each")
+        let group = try #require(lines([payment(alex, 1), payment(me, 1)], total: 2, shownAs: FiatAmount(value: 3, currency: .cad), sender: "Sam"))
+        #expect(group.each == FiatAmount(value: 1.5, currency: .cad).formatted() + " each")
     }
 
     @Test("a payment to one member names them, with no per-person line")
     func singleRecipient() throws {
-        let lines = try #require(lines([], receiver: alex, total: 1, sender: "You"))
-        #expect(lines.caption == "You sent")
-        #expect(lines.each == nil)
-        #expect(lines.recipients == "to Alex Morgan")
+        let group = try #require(lines([], receiver: alex, total: 1, sender: "You"))
+        #expect(group.caption == "You sent")
+        #expect(group.each == nil)
+        #expect(group.recipients == "to Alex Morgan")
     }
 
     @Test("a payment to the viewer alone reads to You")
     func singleRecipientIsViewer() throws {
-        let lines = try #require(lines([], receiver: me, total: 1, sender: "Sam"))
-        #expect(lines.caption == "Sam sent")
-        #expect(lines.each == nil)
-        #expect(lines.recipients == "to You")
+        let group = try #require(lines([], receiver: me, total: 1, sender: "Sam"))
+        #expect(group.caption == "Sam sent")
+        #expect(group.each == nil)
+        #expect(group.recipients == "to You")
     }
 
     @Test("a payment to no known member keeps the plain card")
