@@ -20,7 +20,7 @@ struct ChatCashCardCellTests {
 
     private let group = ChatMessage(id: "2", content: .cash(ChatCashContent(
         amount: "$1.23", token: "Jeffy",
-        group: .init(caption: "Alex sent", each: "~$0.61 Each", received: "You received $0.61", recipients: "to You and 1 Other")
+        group: .init(caption: "Alex sent", each: "~$0.61 Each", recipients: "to You and 1 Other")
     )), sender: .other)
 
     /// What `ChatColumnCell.preferredLayoutAttributesFitting` asks the cell for.

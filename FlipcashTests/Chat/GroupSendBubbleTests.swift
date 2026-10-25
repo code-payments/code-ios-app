@@ -41,24 +41,22 @@ struct GroupSendBubbleTests {
         let lines = try #require(lines([payment(alex, 1), payment(sam, 1)], total: 2, sender: "You"))
         #expect(lines.caption == "You sent")
         #expect(lines.each == "$1.00 Each")
-        #expect(lines.received == nil)
         #expect(lines.recipients == "to Alex Morgan and 1 Other")
     }
 
-    @Test("a paid viewer sees their own part in place of the per-person line")
-    func unevenSplitPaidViewer() throws {
+    @Test("a paid viewer sees the split and leads the recipients")
+    func paidViewer() throws {
         let lines = try #require(lines([payment(alex, 0.34), payment(me, 0.33), payment(kim, 0.33)], total: 1, sender: "Sam Chen"))
         #expect(lines.caption == "Sam Chen sent")
-        #expect(lines.each == nil)
-        #expect(lines.received == "You received $0.33")
-        #expect(lines.recipients == "to Alex Morgan and 2 Others")
+        #expect(lines.each == "~$0.33 Each")
+        #expect(lines.recipients == "to You and 2 Others")
     }
 
     @Test("an uneven split shows the smallest part with a tilde")
     func unevenSplit() throws {
         let lines = try #require(lines([payment(alex, 0.34), payment(sam, 0.33), payment(kim, 0.33)], total: 1, sender: "You"))
         #expect(lines.each == "~$0.33 Each")
-        #expect(lines.received == nil)
+        #expect(lines.recipients == "to Alex Morgan and 2 Others")
     }
 
     @Test("an unnamed first recipient falls back to a count")
@@ -70,7 +68,7 @@ struct GroupSendBubbleTests {
     @Test("parts are restated in the viewer's currency by their share of the total")
     func restatedParts() throws {
         let lines = try #require(lines([payment(alex, 1), payment(me, 1)], total: 2, shownAs: FiatAmount(value: 3, currency: .cad), sender: "Sam"))
-        #expect(lines.received == "You received " + FiatAmount(value: 1.5, currency: .cad).formatted())
+        #expect(lines.each == FiatAmount(value: 1.5, currency: .cad).formatted() + " Each")
     }
 
     @Test("a payment to one member names them, with no per-person line")

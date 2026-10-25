@@ -684,7 +684,7 @@ extension ChatItem {
         }
         guard payments.count >= 2, total.value > 0 else {
             guard let receiver, receiver != selfUserID, let receiverName = name(receiver) else { return nil }
-            return ChatCashContent.GroupSend(caption: "\(sender) sent", each: nil, received: nil, recipients: "to \(receiverName)")
+            return ChatCashContent.GroupSend(caption: "\(sender) sent", each: nil, recipients: "to \(receiverName)")
         }
         func formatted(_ payment: CashPayment) -> String {
             FiatAmount(value: shown.value * Decimal(payment.nativeAmount) / total.value, currency: shown.currency).formatted()
@@ -692,14 +692,13 @@ extension ChatItem {
         let smallest = payments.min { $0.nativeAmount < $1.nativeAmount } ?? payments[0]
         let isEven = Set(payments.map(\.nativeAmount)).count == 1
         let others = payments.count - 1
-        let recipients = payments[0].receiverID.flatMap(name).map { "to \($0) and \(others) \(others == 1 ? "Other" : "Others")" }
+        // A paid viewer leads the list; otherwise it is named by the first recipient in selection order.
+        let first = payments.contains { $0.receiverID == selfUserID } ? selfUserID : payments[0].receiverID
+        let recipients = first.flatMap(name).map { "to \($0) and \(others) \(others == 1 ? "Other" : "Others")" }
             ?? "to \(payments.count) people"
-        // A paid viewer's own part stands in for the per-person line rather than repeating it.
-        let received = payments.first { $0.receiverID == selfUserID }.map { "You received \(formatted($0))" }
         return ChatCashContent.GroupSend(
             caption: "\(sender) sent",
-            each: received != nil ? nil : isEven ? "\(formatted(smallest)) Each" : "~\(formatted(smallest)) Each",
-            received: received,
+            each: isEven ? "\(formatted(smallest)) Each" : "~\(formatted(smallest)) Each",
             recipients: recipients
         )
     }

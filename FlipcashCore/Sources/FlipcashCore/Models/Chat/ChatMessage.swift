@@ -461,15 +461,13 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
         /// The per-person line: "$1.00 Each", or "~$0.33 Each" (the smallest part) when uneven; nil
         /// for a payment to one member.
         public let each: String?
-        /// "You received $0.34" when the viewer was one of several recipients, their own part; else nil.
-        public let received: String?
-        /// Who was paid, at the foot of the card: "to Alex Morgan and 1 Other".
+        /// Who was paid, at the foot of the card: "to Alex Morgan and 1 Other", or "to You and 1 Other"
+        /// when the viewer was paid.
         public let recipients: String
 
-        public init(caption: String, each: String?, received: String?, recipients: String) {
+        public init(caption: String, each: String?, recipients: String) {
             self.caption = caption
             self.each = each
-            self.received = received
             self.recipients = recipients
         }
     }

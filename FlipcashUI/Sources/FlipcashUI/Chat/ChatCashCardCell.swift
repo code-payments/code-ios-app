@@ -30,7 +30,6 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
     private let eachLabel = UILabel()
-    private let receivedLabel = UILabel()
     // A card in a group carries its token under the amount and who was paid at its foot, instead
     // of the token in the top-left corner.
     private let tokenRow = UIStackView()
@@ -85,8 +84,6 @@ public final class ChatCashCardCell: ChatColumnCell {
 
         eachLabel.font = .default(size: 12, weight: .bold)
         eachLabel.textColor = UIColor.white.withAlphaComponent(0.5)
-        receivedLabel.font = .default(size: 12, weight: .bold)
-        receivedLabel.textColor = .white
 
         configureCircle(centerCoinIcon, diameter: 13)
         centerTokenLabel.font = .default(size: 12, weight: .bold)
@@ -102,7 +99,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         recipientsLabel.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(recipientsLabel)
 
-        [captionLabel, amountLabel, eachLabel, receivedLabel, centerTokenRow].forEach(centerStack.addArrangedSubview)
+        [captionLabel, amountLabel, eachLabel, centerTokenRow].forEach(centerStack.addArrangedSubview)
         centerStack.axis = .vertical
         centerStack.spacing = 4
         centerStack.alignment = .center
@@ -202,8 +199,6 @@ public final class ChatCashCardCell: ChatColumnCell {
         amountLabel.text = cash.amount
         eachLabel.text = cash.group?.each
         eachLabel.isHidden = cash.group?.each == nil
-        receivedLabel.text = cash.group?.received
-        receivedLabel.isHidden = cash.group?.received == nil
         amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
 
         coinIcon.isHidden = cash.iconURL == nil
@@ -219,8 +214,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         NSLayoutConstraint.deactivate(isGroup ? cashCardConstraints : groupCardConstraints)
         NSLayoutConstraint.activate(isGroup ? groupCardConstraints : cashCardConstraints)
         centerStack.setCustomSpacing(isGroup ? 12 : 4, after: captionLabel)
-        centerStack.setCustomSpacing(receivedLabel.isHidden ? 8 : 4, after: eachLabel)
-        centerStack.setCustomSpacing(8, after: receivedLabel)
+        centerStack.setCustomSpacing(8, after: eachLabel)
 
         card.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
@@ -262,11 +256,11 @@ extension ChatCashCardCell: BubbleCarrying {
         ChatMessage(id: "2", content: .cash(ChatCashContent(amount: "$12.50", token: "Cash")), sender: .other),
         ChatMessage(id: "3", content: .cash(ChatCashContent(
             amount: "$1.00", token: "Cash",
-            group: .init(caption: "You sent", each: "~$0.33 Each", received: nil, recipients: "to Alex Morgan and 2 Others")
+            group: .init(caption: "You sent", each: "~$0.33 Each", recipients: "to Alex Morgan and 2 Others")
         )), sender: .me),
         ChatMessage(id: "4", content: .cash(ChatCashContent(
             amount: "$6.00", token: "Cash",
-            group: .init(caption: "Alex sent", each: "$1.00 Each", received: "You received $1.00", recipients: "to You and 5 Others")
+            group: .init(caption: "Alex sent", each: "$1.00 Each", recipients: "to You and 5 Others")
         )), sender: .other),
     ]
 
