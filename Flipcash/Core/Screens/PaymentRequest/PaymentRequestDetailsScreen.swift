@@ -16,6 +16,7 @@ struct PaymentRequestDetailsScreen: View {
     @Environment(Session.self) private var session
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     let requestID: PaymentRequestID
 
@@ -59,7 +60,16 @@ struct PaymentRequestDetailsScreen: View {
                 }
             }
         }
-        .task(id: requestID) { await load() }
+        // Like the chat, details refetch on a 45 s poll while on screen in the foreground.
+        .task(id: PaymentRequestDetailsPoll(requestID: requestID, isActive: scenePhase == .active)) {
+            guard scenePhase == .active else { return }
+            await load()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: PaymentRequests.pollInterval)
+                guard !Task.isCancelled else { return }
+                await refresh()
+            }
+        }
         .dialog(item: $dialogItem)
         .sheet(isPresented: $isPaying) {
             if let payment, let creator = payment.request?.creator {
@@ -190,14 +200,18 @@ struct PaymentRequestDetailsScreen: View {
 
     private func load() async {
         let requests = sessionContainer.paymentRequests
-        do {
-            hasPaymentIntent = try await requests.refresh(requestID) != nil
-        } catch {
-            hasPaymentIntent = false
-        }
+        await refresh()
         guard let chatID = requests.request(requestID)?.chatID else { return }
         await requests.loadSeal(for: chatID)
         await sessionContainer.groupRosters.refresh(chatID)
+    }
+
+    private func refresh() async {
+        do {
+            hasPaymentIntent = try await sessionContainer.paymentRequests.refresh(requestID) != nil
+        } catch {
+            hasPaymentIntent = false
+        }
     }
 
     /// Refetches for the intent ID right before the swipe sheet, as the spec requires.

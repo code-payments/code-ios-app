@@ -1614,7 +1614,7 @@ final class ConversationController {
     /// bump per feed apply costs a single window re-read for the open chat.
     private static let messageWriteOperations: Set<String> = [
         "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
-        "send-message", "send-media-message", "reset-resync", "edit-message", "delete-message",
+        "send-message", "send-media-message", "send-payment-request", "reset-resync", "edit-message", "delete-message",
         "upsert-conversation", "replace-feed", "replace-group-feed",
     ]
 
@@ -1709,9 +1709,11 @@ final class ConversationController {
             return "Shared a profile"
 
         case .widget(.paymentRequest(let id)):
-            let who = isFromSelf ? "You" : (senderName ?? "Someone")
-            guard let amount = requestAmount(id) else { return "\(who) sent a request" }
-            return "\(who) requested \(amount.formatted())"
+            // Until the request loads, or while the sender can't be named, the line stays blank.
+            guard let amount = requestAmount(id)?.formatted() else { return nil }
+            if isFromSelf { return "You requested \(amount)" }
+            guard let senderName else { return nil }
+            return "\(senderName) requested \(amount)"
 
         case .widget(.unrecognized):
             return nil
@@ -2236,6 +2238,9 @@ final class ConversationController {
             _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, linkPreview: pending.linkPreview, to: conversationID)
         case .media(_, let caption):
             await retryMedia(clientMessageID: clientMessageID, caption: caption, repliedTo: pending.repliedTo, in: conversationID)
+        case .widget(.paymentRequest(let id)):
+            store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+            _ = await deliverPaymentRequest(id, clientMessageID: clientMessageID, to: conversationID, attempts: 1)
         case .encrypted, .cash, .deleted, .widget, .system:
             if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
                 logger.error("Cannot retry a send this client has no path to re-send", metadata: [
@@ -2302,19 +2307,28 @@ final class ConversationController {
         }
     }
 
-    /// Sends each staged chip as its own message, in chip order, with `caption` under the last and
-    /// `repliedTo` on the first; returns whether every one was delivered.
-    ///
-    /// Every pending bubble appears at once, even for a chip still uploading. Each message is then
-    /// posted only once its own chip's upload settles, so a later photo never lands before an
-    /// earlier one. A chip that fails marks only its own bubble `.failed`, and the next chip still
-    /// gets its turn.
-    /// The seal a photo staged for `conversationID` is encrypted with, nil when the chat takes
-    /// plaintext photos; throws when the chat encrypts but its seal can't be built.
-    /// Sends the widget for the payment request `id` into `conversationID`, retrying a failed send
-    /// with the same request. Throws the last send's error; the request itself already exists.
-    func sendPaymentRequest(_ id: PaymentRequestID, in conversationID: ConversationID, attempts: Int = 3) async throws {
+    /// Sends the widget for the payment request `id` into `conversationID` as a pending row, retrying a
+    /// failed send with the same request; returns whether it was delivered. A final failure leaves the
+    /// row failed in the transcript, where a tap retries it like any message.
+    @discardableResult
+    func sendPaymentRequest(_ id: PaymentRequestID, in conversationID: ConversationID, attempts: Int = 3) async -> Bool {
         let clientMessageID = UUID()
+        let pending = ConversationMessage(
+            id: .unassigned,
+            senderID: selfUserID,
+            content: .widget(.paymentRequest(id)),
+            date: .now,
+            unreadSeq: 0,
+            status: .sending,
+            clientMessageID: clientMessageID
+        )
+        let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
+        store.insertPending(pending, anchoredTo: anchor, into: conversationID)
+        receiptSettle.hold(clientMessageID.uuidString)
+        return await deliverPaymentRequest(id, clientMessageID: clientMessageID, to: conversationID, attempts: attempts)
+    }
+
+    private func deliverPaymentRequest(_ id: PaymentRequestID, clientMessageID: UUID, to conversationID: ConversationID, attempts: Int) async -> Bool {
         let chatType = conversation(withID: conversationID)?.type
         var lastError: Error = ErrorSendMessage.unknown
         for attempt in 0..<attempts {
@@ -2329,7 +2343,9 @@ final class ConversationController {
                     clientMessageID: clientMessageID
                 )
                 confirmed.clientMessageID = clientMessageID
-                if !persist(operation: "send-payment-request", { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
+                if persist(operation: "send-payment-request", { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
+                    store.dropPending(clientMessageID: clientMessageID, confirmedAt: confirmed.id, in: conversationID)
+                } else {
                     scheduleGapCatchUp(conversationID)
                 }
                 store.advanceLastActivity(to: confirmed.date, in: conversationID)
@@ -2339,7 +2355,7 @@ final class ConversationController {
                 refreshFeedPreview(for: conversationID)
                 persistConversation(conversationID)
                 Analytics.sentMessage(chatType: chatType)
-                return
+                return true
             } catch {
                 lastError = error
                 logger.warning("Failed to send payment request message", metadata: [
@@ -2349,11 +2365,21 @@ final class ConversationController {
                 ])
             }
         }
+        store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
         ErrorReporting.captureError(lastError, reason: "Failed to send payment request message")
         Analytics.sentMessage(chatType: chatType, error: lastError)
-        throw lastError
+        return false
     }
 
+    /// Sends each staged chip as its own message, in chip order, with `caption` under the last and
+    /// `repliedTo` on the first; returns whether every one was delivered.
+    ///
+    /// Every pending bubble appears at once, even for a chip still uploading. Each message is then
+    /// posted only once its own chip's upload settles, so a later photo never lands before an
+    /// earlier one. A chip that fails marks only its own bubble `.failed`, and the next chip still
+    /// gets its turn.
+    /// The seal a photo staged for `conversationID` is encrypted with, nil when the chat takes
+    /// plaintext photos; throws when the chat encrypts but its seal can't be built.
     func photoSeal(for conversationID: ConversationID) async throws -> ChatSeal? {
         try await messaging.photoSeal(owner: owner, conversationID: conversationID)
     }

@@ -90,6 +90,7 @@ struct PaymentRequestSpecTests {
     @Test("4: 7 days left") func sevenDays() { #expect(status(endingIn: 7 * 86_400) == "7 days left to pay") }
     @Test("5: 6 d 1 h rounds up to 7 days") func sixDaysOneHour() { #expect(status(endingIn: 6 * 86_400 + 3_600) == "7 days left to pay") }
     @Test("6: 23 h 10 min reads 24 hours") func underADay() { #expect(status(endingIn: 23 * 3_600 + 600) == "24 hours left to pay") }
+    @Test("22: exactly 24 hours reads in hours") func exactlyADay() { #expect(status(endingIn: 24 * 3_600) == "24 hours left to pay") }
     @Test("7: exactly 1 hour") func oneHour() { #expect(status(endingIn: 3_600) == "1 hour left to pay") }
     @Test("8: 30 s reads 1 minute") func thirtySeconds() { #expect(status(endingIn: 30) == "1 minute left to pay") }
 
@@ -184,6 +185,17 @@ struct PaymentRequestSpecTests {
         p.toggle(p.members[1])
         p.toggle(p.members[2])
         #expect(!p.isValid)
+        #expect(p.summaryValue == "0 People, Including You")
+        #expect(p.summarySecondLine == "You'll be marked as paid")
+    }
+
+    @Test("nobody selected reads Choose People")
+    func nobodySelected() {
+        var p = people(count: 3)
+        for member in p.members where p.selected.contains(member) { p.toggle(member) }
+        #expect(p.selected.isEmpty)
+        #expect(p.summaryValue == "Choose People")
+        #expect(p.summarySecondLine == nil)
     }
 
     @Test("18: checking a 101st share is refused and leaves the selection as it was")
@@ -254,6 +266,23 @@ struct PaymentRequestCreateCopyTests {
     func fourWeeks() {
         #expect(PaymentRequestDeadline.fourWeeks.endsAt(sentAt: now) == now.addingTimeInterval(28 * 86_400 - 300))
         #expect(PaymentRequestDeadline.oneWeek.summaryValue() == "7 Days To Pay")
+    }
+
+    @Test("the custom picker runs from an hour out to five minutes short of 28 days")
+    func customRange() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let range = PaymentRequestDeadline.customRange(openedAt: now)
+        #expect(range.lowerBound == now.addingTimeInterval(60 * 60))
+        #expect(range.upperBound == now.addingTimeInterval(28 * 24 * 60 * 60 - 5 * 60))
+    }
+
+    @Test("a custom deadline reads in medium date and short time, year included")
+    func customSummary() throws {
+        let locale = Locale(identifier: "en_US")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let date = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 2, hour: 18)))
+        #expect(PaymentRequestDeadline.custom(date).summaryValue(locale: locale) == "Until Nov 2, 2026, 6:00\u{202F}PM")
     }
 
     @Test("The default title is the weekday followed by Request")

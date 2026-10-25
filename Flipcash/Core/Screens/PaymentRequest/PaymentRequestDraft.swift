@@ -25,6 +25,11 @@ enum PaymentRequestDeadline: Hashable, Sendable {
     /// The soonest a custom deadline can be picked.
     static let minimumCustomLead: TimeInterval = 60 * 60
 
+    /// The dates the custom picker offers when it opens at `now`.
+    static func customRange(openedAt now: Date) -> ClosedRange<Date> {
+        now.addingTimeInterval(minimumCustomLead)...now.addingTimeInterval(maximumLead)
+    }
+
     /// `ends_at` for a request sent at `now`.
     func endsAt(sentAt now: Date) -> Date {
         let day: TimeInterval = 24 * 60 * 60
@@ -59,11 +64,9 @@ enum PaymentRequestDeadline: Hashable, Sendable {
         case .twoWeeks:  return "14 Days To Pay"
         case .fourWeeks: return "28 Days To Pay"
         case .custom(let date):
-            let formatted = date.formatted(
-                Date.FormatStyle(date: .abbreviated, time: .shortened, locale: locale)
-                    .year(.omitted)
-            )
-            return "Until \(formatted)"
+            let day = date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted, locale: locale))
+            let time = date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: locale))
+            return "Until \(day), \(time)"
         }
     }
 }
@@ -109,7 +112,7 @@ struct PaymentRequestPeople: Hashable, Sendable {
 
     /// The summary's People value.
     var summaryValue: String {
-        guard isValid else { return "Choose People" }
+        guard !selected.isEmpty else { return "Choose People" }
         let othersCount = members.filter { $0 != creator }.count
         let everyoneElse = askedCount == othersCount
         switch (everyoneElse, includesCreator) {
@@ -122,7 +125,7 @@ struct PaymentRequestPeople: Hashable, Sendable {
 
     /// The summary's second People line, shown when the creator is included.
     var summarySecondLine: String? {
-        isValid && includesCreator ? "You'll be marked as paid" : nil
+        includesCreator ? "You'll be marked as paid" : nil
     }
 
     /// The selected members in roster order, the creator first when included.

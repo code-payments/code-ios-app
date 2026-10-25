@@ -393,6 +393,16 @@ struct TipConversationRow: View {
         .task(id: UnreadCountSubject(conversation: conversation, selfUserID: conversationController.selfUserID)) {
             await conversationController.resolveUnreadCount(for: conversation)
         }
+        // A request's preview names its amount, which only the request itself carries.
+        .task(id: lastRequestID) {
+            guard let lastRequestID else { return }
+            await sessionContainer.paymentRequests.fetchIfMissing(lastRequestID)
+        }
+    }
+
+    private var lastRequestID: PaymentRequestID? {
+        guard case .widget(.paymentRequest(let id)) = conversation.lastMessage?.content else { return nil }
+        return id
     }
 
     /// The preview line: the last message, or an italic "Nothing yet" for a chat with no message

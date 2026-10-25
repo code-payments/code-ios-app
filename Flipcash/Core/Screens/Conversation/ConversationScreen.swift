@@ -728,7 +728,8 @@ struct ConversationScreen: View {
         // What it holds changes: the counterpart's name and avatar go, since the edit is about one
         // message rather than the person, and the back button backs out of the edit rather than the
         // chat — leaving the chevron alone in the bar.
-        .navigationBarBackButtonHidden(composer.isEditing)
+        // An expanded request deck takes the back button the same way: back collapses it first.
+        .navigationBarBackButtonHidden(composer.isEditing || paymentRequestDeck.phase != .collapsed)
         .toolbar {
             if composer.isEditing {
                 ToolbarItem(placement: .topBarLeading) {
@@ -741,6 +742,17 @@ struct ConversationScreen: View {
                     .accessibilityLabel("Stop editing")
                 }
             } else {
+                if paymentRequestDeck.phase != .collapsed {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            paymentRequestDeck.collapse()
+                        } label: {
+                            Image(systemName: "chevron.backward")
+                                .foregroundStyle(Color.textMain)
+                        }
+                        .accessibilityLabel("Collapse requests")
+                    }
+                }
                 ToolbarItem(placement: .principal) {
                     ConversationTitleItem(
                         title: title,

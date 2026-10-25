@@ -224,3 +224,9 @@ struct PaymentRequestPoll: Hashable {
     let conversationID: ConversationID?
     let isActive: Bool
 }
+
+/// What keys the details poll: it restarts when the request changes or the app returns to the foreground.
+struct PaymentRequestDetailsPoll: Hashable {
+    let requestID: PaymentRequestID
+    let isActive: Bool
+}

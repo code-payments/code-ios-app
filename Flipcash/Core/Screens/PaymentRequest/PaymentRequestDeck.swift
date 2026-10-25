@@ -177,6 +177,7 @@ struct PaymentRequestDeckOverlay: View {
 
     @Namespace private var namespace
     @State private var origin: CGPoint = .zero
+    @State private var cardHeight: CGFloat = 0
 
     private var isExpanded: Bool { state.phase == .expanded }
 
@@ -189,42 +190,52 @@ struct PaymentRequestDeckOverlay: View {
                 .accessibilityLabel("Collapse requests")
                 .accessibilityAddTraits(.isButton)
 
-            if let front = items.first {
-                if isExpanded {
-                    list
-                } else {
-                    PaymentRequestPillFace(item: front)
-                        .matchedGeometryEffect(id: front.id, in: namespace)
-                        .frame(width: state.pillFrame.width, height: state.pillFrame.height)
-                        .position(x: state.pillFrame.midX - origin.x, y: state.pillFrame.midY - origin.y)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .allowsHitTesting(false)
-                }
+            list
+            if let front = items.first, !isExpanded {
+                PaymentRequestPillFace(item: front)
+                    .matchedGeometryEffect(id: front.id, in: namespace)
+                    .frame(width: state.pillFrame.width, height: state.pillFrame.height)
+                    .position(x: state.pillFrame.midX - origin.x, y: state.pillFrame.midY - origin.y)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .allowsHitTesting(false)
             }
         }
         .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { origin = $0 }
         .gesture(DragGesture(minimumDistance: 12).onEnded { value in
-            if value.translation.height < -40 { state.collapse() }
+            // Dragging up, or swiping in from the leading edge as swipe-back would, collapses.
+            let fromEdge = value.startLocation.x < 24 && value.translation.width > 60
+            if value.translation.height < -40 || fromEdge { state.collapse() }
         })
     }
 
     private var list: some View {
         ScrollView {
             VStack(spacing: 10) {
-                ForEach(items) { item in
-                    Button { open(item.id) } label: {
-                        PaymentRequestCard(content: item.card)
-                            .padding(14)
-                            .background(Color.textMain.opacity(0.1), in: .rect(cornerRadius: 12))
-                            .opacity(item.card.isEnded ? 0.4 : 1)
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    if index == 0 {
+                        // While the front card is still the pill, an invisible copy holds its slot so
+                        // the rest know where to start from.
+                        if isExpanded {
+                            card(item)
+                                .matchedGeometryEffect(id: item.id, in: namespace)
+                                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { cardHeight = $0 }
+                        } else {
+                            card(item)
+                                .hidden()
+                                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { cardHeight = $0 }
+                        }
+                    } else {
+                        // The rest slide out from beneath the front card and back under it on collapse.
+                        card(item)
+                            .offset(y: isExpanded ? 0 : -CGFloat(index) * (cardHeight + 10))
+                            .opacity(isExpanded ? 1 : 0)
+                            .zIndex(Double(-index))
                     }
-                    .buttonStyle(.plain)
-                    .matchedGeometryEffect(id: item.id, in: namespace, isSource: item.id == items.first?.id)
-                    .transition(.offset(y: -24).combined(with: .opacity))
                 }
 
                 Capsule()
                     .fill(Color.textSecondary)
+                    .opacity(isExpanded ? 1 : 0)
                     .frame(width: 36, height: 5)
                     .padding(.top, 2)
                     .accessibilityHidden(true)
@@ -233,6 +244,17 @@ struct PaymentRequestDeckOverlay: View {
             .padding(.top, 8)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .allowsHitTesting(isExpanded)
+    }
+
+    private func card(_ item: PaymentRequestDeckItem) -> some View {
+        Button { open(item.id) } label: {
+            PaymentRequestCard(content: item.card)
+                .padding(14)
+                .background(Color.textMain.opacity(0.1), in: .rect(cornerRadius: 12))
+                .opacity(item.card.isEnded ? 0.4 : 1)
+        }
+        .buttonStyle(.plain)
     }
 }
 

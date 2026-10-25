@@ -762,6 +762,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatPaymentRequestCell:
             cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
+            cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
@@ -859,11 +860,13 @@ public final class ChatViewController: UICollectionViewController {
         onCashCardTap?(id)
     }
 
-    /// The id of the payment request whose card is at `indexPath`, or nil if that row isn't one.
+    /// The id of the payment request whose card is at `indexPath`, or nil if that row isn't one or
+    /// its message failed to send (the tap retries it instead).
     private func paymentRequestID(at indexPath: IndexPath) -> Data? {
         guard items.indices.contains(indexPath.item),
               case .message(let message) = items[indexPath.item],
-              case .paymentRequest(let request) = message.content else { return nil }
+              case .paymentRequest(let request) = message.content,
+              !message.isFailed else { return nil }
         return request.requestID
     }
 

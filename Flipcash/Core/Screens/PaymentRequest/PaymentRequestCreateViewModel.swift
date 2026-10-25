@@ -18,9 +18,9 @@ private let logger = Logger(label: "flipcash.payment-request-create")
 final class PaymentRequestCreateViewModel {
 
     enum Outcome: Equatable {
+        /// The request exists. Its chat message either went out or sits failed in the transcript,
+        /// where a tap retries it; the deck shows the request either way.
         case sent
-        /// The request exists but its chat message never went out; the deck still shows it.
-        case messageFailed
         case failed(DialogCopy)
     }
 
@@ -158,12 +158,7 @@ final class PaymentRequestCreateViewModel {
             }
         }
 
-        do {
-            try await conversationController.sendPaymentRequest(request.id, in: conversationID)
-        } catch {
-            finish()
-            return .messageFailed
-        }
+        await conversationController.sendPaymentRequest(request.id, in: conversationID)
         finish()
         return .sent
     }

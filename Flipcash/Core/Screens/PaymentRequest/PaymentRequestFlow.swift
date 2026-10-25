@@ -445,11 +445,6 @@ private struct PaymentRequestSummaryScreen: View {
         switch await viewModel.send() {
         case .sent:
             sent()
-        case .messageFailed:
-            // The request exists and the deck shows it; only its chat message failed.
-            dialogItem = .error(title: "Message Not Sent", subtitle: "Your request was created, but its message couldn't be sent to the chat.") {
-                DialogAction.okay(kind: .standard) { sent() }
-            }
         case .failed(let copy):
             dialogItem = .alert(title: copy.title, subtitle: copy.subtitle) {
                 DialogAction.okay(kind: .standard)
@@ -522,6 +517,7 @@ private struct PaymentRequestDeadlineSheet: View {
 
     @State private var customDate: Date = PaymentRequestDeadline.oneWeek.endsAt(sentAt: .now)
     @State private var isPickingCustom = false
+    @State private var customRange = PaymentRequestDeadline.customRange(openedAt: .now)
 
     var body: some View {
         NavigationStack {
@@ -533,7 +529,9 @@ private struct PaymentRequestDeadlineSheet: View {
                     }
                 }
                 row("Custom", isChecked: isCustom) {
+                    customRange = PaymentRequestDeadline.customRange(openedAt: .now)
                     if case .custom(let date) = deadline { customDate = date }
+                    customDate = min(max(customDate, customRange.lowerBound), customRange.upperBound)
                     isPickingCustom = true
                 }
             }
@@ -557,12 +555,11 @@ private struct PaymentRequestDeadlineSheet: View {
     }
 
     private var customPicker: some View {
-        let now = Date.now
-        return VStack {
+        VStack {
             DatePicker(
                 "Until",
                 selection: $customDate,
-                in: now.addingTimeInterval(PaymentRequestDeadline.minimumCustomLead)...now.addingTimeInterval(PaymentRequestDeadline.maximumLead),
+                in: customRange,
                 displayedComponents: [.date, .hourAndMinute]
             )
             .datePickerStyle(.graphical)
