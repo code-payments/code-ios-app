@@ -166,7 +166,7 @@ struct PaymentRequestPillFace: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded)
+            PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded, isClosed: item.request.status == .closed)
                 .deckPart(.ring, of: item.id, in: namespace)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.card.title)
@@ -221,7 +221,7 @@ private struct PaymentRequestDeckCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded, diameter: 36)
+                PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded, isClosed: item.request.status == .closed, diameter: 36)
                     .deckPart(.ring, of: item.id, in: namespace)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Request")

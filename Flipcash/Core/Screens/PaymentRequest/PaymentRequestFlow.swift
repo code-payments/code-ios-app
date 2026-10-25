@@ -12,6 +12,8 @@ import FlipcashCore
 // MARK: - Money actions -
 
 /// The sheet a private group's send-cash button opens: send money as today, or request it.
+///
+/// Two cards like the Add Money sheet's and nothing else, matching Android (node 12243:1009).
 struct MoneyActionsSheet: View {
 
     @Environment(\.dismiss) private var dismiss
@@ -21,52 +23,52 @@ struct MoneyActionsSheet: View {
 
     var body: some View {
         PartialSheet {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Money")
-                    .font(.appTitle)
-                    .foregroundStyle(Color.textMain)
-                    .padding(.bottom, 16)
-
-                row(symbol: "arrow.up", title: "Send Money", subtitle: "Send money to someone in the group, or multiple people") {
+            VStack(spacing: 12) {
+                row(icon: .withdraw, title: "Send Money", subtitle: "Send money to someone in the group, or multiple people", identifier: "money-action-send") {
                     dismiss()
                     sendMoney()
                 }
-                row(symbol: "arrow.down", title: "Request Money", subtitle: "Collect money from people in the group") {
+                row(icon: .deposit, title: "Request Money", subtitle: "Collect money from people in the group", identifier: "money-action-request") {
                     dismiss()
                     requestMoney()
                 }
-
-                CodeButton(style: .subtle, title: "Dismiss") { dismiss() }
-                    .padding(.top, 8)
             }
-            .padding(20)
+            .padding(.horizontal)
+            .padding(.vertical, 20)
         }
     }
 
-    private func row(symbol: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+    private func row(icon: Asset, title: String, subtitle: String, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(alignment: .top, spacing: 20) {
-                Image(systemName: symbol)
-                    .font(.system(size: 20, weight: .regular))
-                    .frame(width: 24)
-                    .padding(.top, 2)
+            HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.appTextLarge)
+                        .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
                     Text(subtitle)
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.leading)
                 }
-                Spacer(minLength: 0)
+                .multilineTextAlignment(.leading)
+
+                Spacer(minLength: 12)
+
+                Image.asset(icon)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 32, height: 32)
+                    .foregroundStyle(Color.textMain)
             }
-            .foregroundStyle(Color.textMain)
-            .padding(.vertical, 16)
-            .contentShape(.rect)
+            .padding(20)
+            .frame(maxWidth: .infinity)
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
     }
 }
 
