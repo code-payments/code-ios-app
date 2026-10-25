@@ -19,6 +19,9 @@ struct PaymentRequestDetailsScreen: View {
     @Environment(\.scenePhase) private var scenePhase
 
     let requestID: PaymentRequestID
+    /// Whether the screen is pushed onto an existing navigation stack, which then supplies the back
+    /// button in place of the close button.
+    var isPushed = false
 
     @State private var dialogItem: DialogItem?
     /// A confirm queued behind an options sheet, shown once that sheet is gone.
@@ -31,33 +34,11 @@ struct PaymentRequestDetailsScreen: View {
     @State private var isUpdating = false
 
     var body: some View {
-        NavigationStack {
-            // The status line counts down, so redraw at least once a minute.
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                if let content = content(at: context.date) {
-                    loaded(content)
-                } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .background(Color.backgroundMain)
-            .navigationTitle("Request")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    if content(at: .now)?.canClose == true {
-                        Button {
-                            presentCloseOptions()
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.appBarButton)
-                                .foregroundStyle(Color.textMain)
-                        }
-                        .accessibilityLabel("Options")
-                    }
-                    CloseButton(action: { dismiss() })
-                }
+        Group {
+            if isPushed {
+                screen
+            } else {
+                NavigationStack { screen }
             }
         }
         // Like the chat, details refetch on a 45 s poll while on screen in the foreground.
@@ -79,6 +60,38 @@ struct PaymentRequestDetailsScreen: View {
                     payeeID: creator,
                     amount: payAmount(payment)
                 )
+            }
+        }
+    }
+
+    private var screen: some View {
+        // The status line counts down, so redraw at least once a minute.
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            if let content = content(at: context.date) {
+                loaded(content)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(Color.backgroundMain)
+        .navigationTitle("Request")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if content(at: .now)?.canClose == true {
+                    Button {
+                        presentCloseOptions()
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.appBarButton)
+                            .foregroundStyle(Color.textMain)
+                    }
+                    .accessibilityLabel("Options")
+                }
+                if !isPushed {
+                    CloseButton(action: { dismiss() })
+                }
             }
         }
     }

@@ -109,7 +109,18 @@ struct RootSheetHostModifier: ViewModifier {
             // stack) — nested sheets mount inside this root sheet's content
             // via `.appRouterNestedSheet`.
             .sheet(item: Binding(
-                get: { router.rootSheet },
+                get: { router.rootSheet.flatMap { $0.coversFullScreen ? nil : $0 } },
+                set: { newValue in
+                    if newValue == nil {
+                        router.dismissSheet()
+                    }
+                }
+            ), onDismiss: router.sheetDidFinishDismissing) { sheet in
+                RoutedSheet(sheet: sheet)
+                    .appRouterNestedSheet()
+            }
+            .fullScreenCover(item: Binding(
+                get: { router.rootSheet.flatMap { $0.coversFullScreen ? $0 : nil } },
                 set: { newValue in
                     if newValue == nil {
                         router.dismissSheet()

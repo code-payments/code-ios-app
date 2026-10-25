@@ -33,7 +33,7 @@ final class PaymentRequestDeckState {
 
     var order = PaymentRequestDeckOrder()
     private(set) var phase: Phase = .collapsed
-    /// The pill's frame in global coordinates, where the shared front card starts and ends.
+    /// The pill's front card frame in global coordinates, where the shared front card starts and ends.
     var pillFrame: CGRect = .zero
 
     /// Lifts the front card into the overlay, then grows it into the expanded list.
@@ -58,8 +58,8 @@ final class PaymentRequestDeckState {
 
 // MARK: - Pill -
 
-/// The app-bar pill: the front request with up to two more peeking beneath it. Swipe down cycles;
-/// tap expands.
+/// The app-bar pill (concept B): the front request with up to two more peeking beneath it. Swipe
+/// down cycles; tap expands.
 struct PaymentRequestPill: View {
 
     let items: [PaymentRequestDeckItem]
@@ -67,26 +67,33 @@ struct PaymentRequestPill: View {
     @Bindable var state: PaymentRequestDeckState
 
     @State private var drag: CGFloat = 0
-    @State private var height: CGFloat = 43
+    @State private var frontSize = CGSize(width: 131, height: 43)
 
-    private static let peekOffset: CGFloat = 5
+    private static let peekStep: CGFloat = 5
+    private static let peekInset: CGFloat = 7
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            ForEach(Array(items.prefix(3).enumerated().reversed()), id: \.element.id) { index, item in
-                if index == 0 {
-                    PaymentRequestPillFace(item: item)
-                        .offset(y: drag)
-                        .opacity(1 - min(0.45, drag / max(height, 1) * 0.45))
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
-                } else {
-                    PaymentRequestPillLayer(index: index)
-                        .offset(x: CGFloat(index) * 7, y: CGFloat(index) * Self.peekOffset)
-                }
+        ZStack(alignment: .top) {
+            // The peeking cards, back first, each as tall as the front card and stepped in at both
+            // edges so only their bottoms show.
+            ForEach(Array(items.dropFirst().prefix(2).enumerated().reversed()), id: \.element.id) { offset, _ in
+                let depth = CGFloat(offset + 1)
+                PaymentRequestPillLayer(isBack: offset == 1)
+                    .frame(width: max(frontSize.width - 2 * Self.peekInset * depth, 0), height: frontSize.height)
+                    .offset(y: Self.peekStep * depth)
+            }
+            if let front = items.first {
+                PaymentRequestPillFace(item: front)
+                    .offset(y: drag)
+                    .opacity(1 - min(0.45, drag / max(frontSize.height, 1) * 0.45))
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
+                        frontSize = $0.size
+                        state.pillFrame = $0
+                    }
             }
         }
+        .padding(.bottom, Self.peekStep * CGFloat(min(max(items.count - 1, 0), 2)))
         .opacity(state.phase == .collapsed ? 1 : 0)
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { state.pillFrame = $0 }
         .contentShape(Rectangle())
         .onTapGesture { state.expand() }
         .gesture(cycleGesture)
@@ -111,7 +118,7 @@ struct PaymentRequestPill: View {
                 let finishes = items.count > 1 && PaymentRequestDeckOrder.finishesCycle(
                     translation: value.translation.height,
                     predictedTranslation: value.predictedEndTranslation.height,
-                    height: height
+                    height: frontSize.height
                 )
                 withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
                     if finishes { state.order.cycle() }
@@ -121,21 +128,55 @@ struct PaymentRequestPill: View {
     }
 }
 
+/// The parts of the front card that each move on their own between the pill and the expanded list.
+private enum DeckPart: Hashable {
+    case container
+    case ring
+    case title
+    case amounts
+}
+
+private struct DeckPartID: Hashable {
+    let request: PaymentRequestID
+    let part: DeckPart
+}
+
+private extension View {
+    /// Ties this view to the same part of the other state of the front card, when `namespace` is set.
+    @ViewBuilder
+    func deckPart(_ part: DeckPart, of request: PaymentRequestID, in namespace: Namespace.ID?) -> some View {
+        if let namespace {
+            // Text keeps its own size and only moves, so it never truncates mid-flight.
+            matchedGeometryEffect(
+                id: DeckPartID(request: request, part: part),
+                in: namespace,
+                properties: part == .title || part == .amounts ? .position : .frame
+            )
+        } else {
+            self
+        }
+    }
+}
+
 /// The front card of the pill: the ring, the title and "<paid> of <requested>".
 struct PaymentRequestPillFace: View {
 
     let item: PaymentRequestDeckItem
+    var namespace: Namespace.ID? = nil
 
     var body: some View {
         HStack(spacing: 8) {
             PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded)
-            VStack(alignment: .leading, spacing: 0) {
+                .deckPart(.ring, of: item.id, in: namespace)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.card.title)
-                    .font(.appTextSmall)
+                    .font(.appTextCaption)
                     .foregroundStyle(Color.textMain)
+                    .deckPart(.title, of: item.id, in: namespace)
                 Text(item.amounts)
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textSecondary)
+                    .deckPart(.amounts, of: item.id, in: namespace)
             }
             .lineLimit(1)
             .truncationMode(.tail)
@@ -144,31 +185,81 @@ struct PaymentRequestPillFace: View {
         .padding(.leading, 5)
         .padding(.trailing, 12)
         .padding(.vertical, 5)
-        .background(Color.backgroundMain, in: .rect(cornerRadius: 18))
-        .background(Color.textMain.opacity(0.06), in: .rect(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.textMain.opacity(0.1)))
         .opacity(item.card.isEnded ? 0.4 : 1)
+        .background {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.backgroundSecondary)
+                .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.rowSeparator))
+                .opacity(item.card.isEnded ? 0.4 : 1)
+                // The base keeps an ended card solid over the cards beneath it.
+                .background(Color.backgroundMain, in: .rect(cornerRadius: 18))
+                .deckPart(.container, of: item.id, in: namespace)
+        }
     }
 }
 
 /// A card peeking beneath the pill's front card.
 private struct PaymentRequestPillLayer: View {
 
-    let index: Int
+    let isBack: Bool
 
     var body: some View {
         RoundedRectangle(cornerRadius: 18)
-            .fill(Color.textMain.opacity(index == 1 ? 0.06 : 0.08))
-            .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.textMain.opacity(0.1)))
-            .frame(height: 36)
-            .padding(.trailing, CGFloat(index) * 14)
+            .fill(isBack ? Color.textMain.opacity(0.08) : Color.backgroundSecondary)
+            .background(Color.backgroundMain, in: .rect(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.rowSeparator))
+    }
+}
+
+/// A request in the expanded deck: the timeline card's lines under the ring and title, on the app's
+/// opaque card surface.
+private struct PaymentRequestDeckCard: View {
+
+    let item: PaymentRequestDeckItem
+    var namespace: Namespace.ID? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded, diameter: 36)
+                    .deckPart(.ring, of: item.id, in: namespace)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Request")
+                        .font(.appTextCaption)
+                        .foregroundStyle(Color.textSecondary)
+                    Text(item.card.title)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(2)
+                        .deckPart(.title, of: item.id, in: namespace)
+                }
+            }
+            Text(item.card.progressLine)
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
+                .deckPart(.amounts, of: item.id, in: namespace)
+            PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: item.card.isEnded)
+            Text(item.card.statusLine)
+                .font(.appTextCaption)
+                .foregroundStyle(Color.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .opacity(item.card.isEnded ? 0.4 : 1)
+        .background {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.backgroundSecondary)
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.rowSeparator))
+                .deckPart(.container, of: item.id, in: namespace)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
 // MARK: - Expanded -
 
 /// The expanded deck: every request as a full-width card beneath the app bar, over the dimmed chat.
-/// The front card moves in from the pill and back on collapse.
+/// The front card's container, ring, title and amounts move in from the pill and back on collapse.
 struct PaymentRequestDeckOverlay: View {
 
     let items: [PaymentRequestDeckItem]
@@ -178,6 +269,7 @@ struct PaymentRequestDeckOverlay: View {
     @Namespace private var namespace
     @State private var origin: CGPoint = .zero
     @State private var cardHeight: CGFloat = 0
+    @State private var viewportHeight: CGFloat = 0
 
     private var isExpanded: Bool { state.phase == .expanded }
 
@@ -192,8 +284,7 @@ struct PaymentRequestDeckOverlay: View {
 
             list
             if let front = items.first, !isExpanded {
-                PaymentRequestPillFace(item: front)
-                    .matchedGeometryEffect(id: front.id, in: namespace)
+                PaymentRequestPillFace(item: front, namespace: namespace)
                     .frame(width: state.pillFrame.width, height: state.pillFrame.height)
                     .position(x: state.pillFrame.midX - origin.x, y: state.pillFrame.midY - origin.y)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -216,8 +307,7 @@ struct PaymentRequestDeckOverlay: View {
                         // While the front card is still the pill, an invisible copy holds its slot so
                         // the rest know where to start from.
                         if isExpanded {
-                            card(item)
-                                .matchedGeometryEffect(id: item.id, in: namespace)
+                            card(item, namespace: namespace)
                                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { cardHeight = $0 }
                         } else {
                             card(item)
@@ -242,17 +332,20 @@ struct PaymentRequestDeckOverlay: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
+            // The scroll view covers the dimmed chat, so the space below the cards takes the
+            // scrim's tap; the cards' own buttons win over it.
+            .frame(minHeight: viewportHeight, alignment: .top)
+            .contentShape(Rectangle())
+            .onTapGesture { state.collapse() }
         }
         .scrollBounceBehavior(.basedOnSize)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { viewportHeight = $0 }
         .allowsHitTesting(isExpanded)
     }
 
-    private func card(_ item: PaymentRequestDeckItem) -> some View {
+    private func card(_ item: PaymentRequestDeckItem, namespace: Namespace.ID? = nil) -> some View {
         Button { open(item.id) } label: {
-            PaymentRequestCard(content: item.card)
-                .padding(14)
-                .background(Color.textMain.opacity(0.1), in: .rect(cornerRadius: 12))
-                .opacity(item.card.isEnded ? 0.4 : 1)
+            PaymentRequestDeckCard(item: item, namespace: namespace)
         }
         .buttonStyle(.plain)
     }

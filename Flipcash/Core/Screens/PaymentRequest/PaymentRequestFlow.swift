@@ -76,6 +76,7 @@ private enum PaymentRequestStep: Hashable {
     case amount
     case summary
     case selectPeople
+    case details(PaymentRequestID)
 }
 
 /// Request Money in a private group: the history, then New Request's amount, summary and confirm.
@@ -111,10 +112,10 @@ private struct PaymentRequestFlowContent: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            PaymentRequestHistoryScreen(history: history) {
+            PaymentRequestHistoryScreen(history: history, newRequest: {
                 viewModel.startNewRequest()
                 path.append(.amount)
-            }
+            }, open: { path.append(.details($0)) })
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     CloseButton(action: { dismiss() })
@@ -134,6 +135,8 @@ private struct PaymentRequestFlowContent: View {
                     PaymentRequestSelectPeopleScreen(viewModel: viewModel) {
                         path.removeLast()
                     }
+                case .details(let id):
+                    PaymentRequestDetailsScreen(requestID: id, isPushed: true)
                 }
             }
         }
@@ -225,8 +228,7 @@ private struct PaymentRequestHistoryScreen: View {
 
     let history: PaymentRequestHistory
     let newRequest: () -> Void
-
-    @State private var selection: PaymentRequestSelection?
+    let open: (PaymentRequestID) -> Void
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -257,9 +259,6 @@ private struct PaymentRequestHistoryScreen: View {
         .navigationTitle("Request Money")
         .navigationBarTitleDisplayMode(.inline)
         .task { await history.reload() }
-        .fullScreenCover(item: $selection) { selection in
-            PaymentRequestDetailsScreen(requestID: selection.id)
-        }
     }
 
     private func header(_ title: String) -> some View {
@@ -271,7 +270,7 @@ private struct PaymentRequestHistoryScreen: View {
     private func row(_ request: GroupPaymentRequest) -> some View {
         let copy = PaymentRequestCopy(session.displayCurrency)
         return Button {
-            selection = PaymentRequestSelection(id: request.id)
+            open(request.id)
         } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -562,7 +561,8 @@ private struct PaymentRequestDeadlineSheet: View {
                 in: customRange,
                 displayedComponents: [.date, .hourAndMinute]
             )
-            .datePickerStyle(.graphical)
+            .datePickerStyle(.wheel)
+            .labelsHidden()
             .padding(20)
             Spacer()
         }
