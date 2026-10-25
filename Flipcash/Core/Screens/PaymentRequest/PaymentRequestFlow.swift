@@ -485,7 +485,7 @@ private struct PaymentRequestNameScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("What's this request for?")
+                Text("What is the request for?")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
                     .padding(.top, 20)
