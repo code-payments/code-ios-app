@@ -6,9 +6,15 @@
 //
 
 import Testing
+import Observation
 import UIKit
 import FlipcashCore
 @testable import FlipcashUI
+
+@Observable
+private final class ReactionsModel {
+    var liked = false
+}
 
 @Suite("Chat photo viewer")
 @MainActor
@@ -108,11 +114,11 @@ struct ChatMediaViewerTests {
         onForward: @escaping () -> Void = {},
         onSave: @escaping (UIImage) async throws -> Void = { _ in },
         onReact: @escaping (String) -> Void = { _ in },
-        entries: [ReactionStrip.Entry] = [ReactionStrip.Entry(emoji: "👍", highlighted: false), ReactionStrip.Entry(emoji: "❤️", highlighted: false)]
+        entries: @escaping () -> [ReactionStrip.Entry] = { [ReactionStrip.Entry(emoji: "👍", highlighted: false), ReactionStrip.Entry(emoji: "❤️", highlighted: false)] }
     ) -> ChatMediaViewerController {
         let viewer = ChatMediaViewerController(
             request: request, onReply: onReply, onForward: onForward, onSave: onSave,
-            onReact: onReact, onMoreReactions: {}, reactionEntries: { entries }
+            onReact: onReact, onMoreReactions: {}, reactionEntries: entries
         )
         viewer.view.frame = CGRect(x: 0, y: 0, width: 400, height: 800)
         viewer.view.layoutIfNeeded()
@@ -237,6 +243,54 @@ struct ChatMediaViewerTests {
         viewer.setControlsHidden(true, animated: false)
         #expect(viewer.reactionStrip == nil)
         #expect(picked == nil)
+    }
+
+    @Test("The open strip re-reads its entries when the reactions it depends on change")
+    func stripFollowsLiveReactions() async throws {
+        let model = ReactionsModel()
+        var reads = 0
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: {
+            reads += 1
+            return [ReactionStrip.Entry(emoji: "👍", highlighted: model.liked)]
+        })
+        viewer.setControlsHidden(false, animated: false)
+        viewer.reactButton.sendActions(for: .touchUpInside)
+        let before = reads
+
+        model.liked = true
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(reads > before)
+        #expect(viewer.reactionStrip != nil)
+    }
+
+    @Test("Close sits above the tap catcher, so one tap on it still closes the viewer")
+    func closeStaysAboveCatcher() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        viewer.setControlsHidden(false, animated: false)
+        viewer.reactButton.sendActions(for: .touchUpInside)
+
+        let subviews = viewer.view.subviews
+        let catcher = try #require(subviews.first { $0 is UIControl && $0 !== viewer.closeButton })
+        let closeIndex = try #require(subviews.firstIndex(of: viewer.closeButton))
+        let catcherIndex = try #require(subviews.firstIndex(of: catcher))
+        #expect(closeIndex > catcherIndex)
+    }
+
+    @Test("With Reduce Motion on, zoom still changes scale and the strip appears without scaling")
+    func reduceMotion() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        viewer.reducesMotion = { true }
+        let center = CGPoint(x: viewer.imageView.bounds.midX, y: viewer.imageView.bounds.midY)
+
+        viewer.toggleZoom(about: center, animated: true)
+        #expect(viewer.scrollView.zoomScale > viewer.scrollView.minimumZoomScale)
+        viewer.toggleZoom(about: center, animated: true)
+        #expect(viewer.scrollView.zoomScale == viewer.scrollView.minimumZoomScale)
+
+        viewer.setControlsHidden(false, animated: false)
+        viewer.reactButton.sendActions(for: .touchUpInside)
+        #expect(viewer.reactionStrip?.transform == .identity)
     }
 
     @Test("A second React tap closes the strip")

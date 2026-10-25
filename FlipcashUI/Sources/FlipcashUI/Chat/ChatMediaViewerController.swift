@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import Observation
 import FlipcashCore
 import Kingfisher
 
@@ -89,6 +90,9 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     /// The views a tap shows and hides.
     private var chrome: [UIView] { [closeButton, leadingPill, trailingPill] }
+
+    /// Whether Reduce Motion is on. Settable so tests can drive both modes.
+    var reducesMotion: () -> Bool = { UIAccessibility.isReduceMotionEnabled }
 
     /// Whether the buttons are away. The photo opens with them hidden; a single tap toggles them.
     private(set) var areControlsHidden = true
@@ -329,13 +333,22 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     /// Zooms to the double-tap scale centered on `point` (in the image view's space), or back to the
     /// fitted size when already zoomed.
     func toggleZoom(about point: CGPoint, animated: Bool) {
-        let target = Self.doubleTapTargetScale(scrollView.zoomScale, scrollView.minimumZoomScale)
-        guard target > scrollView.minimumZoomScale else {
-            scrollView.setZoomScale(target, animated: animated)
-            return
+        // Reduce Motion swaps the scale animation for a crossfade between the two zoom states.
+        let slides = animated && !reducesMotion()
+        let apply = { [self] in
+            let target = Self.doubleTapTargetScale(scrollView.zoomScale, scrollView.minimumZoomScale)
+            guard target > scrollView.minimumZoomScale else {
+                scrollView.setZoomScale(target, animated: slides)
+                return
+            }
+            let size = CGSize(width: scrollView.bounds.width / target, height: scrollView.bounds.height / target)
+            scrollView.zoom(to: CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2, width: size.width, height: size.height), animated: slides)
         }
-        let size = CGSize(width: scrollView.bounds.width / target, height: scrollView.bounds.height / target)
-        scrollView.zoom(to: CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2, width: size.width, height: size.height), animated: animated)
+        if animated && !slides {
+            UIView.transition(with: scrollView, duration: 0.2, options: .transitionCrossDissolve, animations: apply)
+        } else {
+            apply()
+        }
     }
 
     // MARK: - Controls
@@ -385,7 +398,8 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         let catcher = UIControl()
         catcher.translatesAutoresizingMaskIntoConstraints = false
         catcher.addTarget(self, action: #selector(reactionCatcherTapped), for: .touchUpInside)
-        view.insertSubview(catcher, belowSubview: leadingPill)
+        // Under Close, so one tap on Close still closes the viewer while the strip is up.
+        view.insertSubview(catcher, belowSubview: closeButton)
 
         let strip = ReactionStripView()
         strip.configure(entries: entries)
@@ -410,9 +424,35 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         ])
         reactionStrip = strip
         reactionDismissCatcher = catcher
+        observeReactionEntries()
         reactButton.accessibilityLabel = "Close reactions"
         strip.alpha = 0
         UIView.animate(withDuration: 0.2) { strip.alpha = 1 }
+    }
+
+    /// Re-reads the entries whenever what `reactionEntries` reads changes, so the strip's highlights
+    /// follow the message's live reactions while it is open.
+    private func observeReactionEntries() {
+        guard reactionStrip != nil else { return }
+        let entries = withObservationTracking {
+            reactionEntries()
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.refreshReactionStrip()
+            }
+        }
+        _ = entries
+    }
+
+    private func refreshReactionStrip() {
+        guard let strip = reactionStrip else { return }
+        observeReactionEntries()
+        let fresh = reactionEntries()
+        if fresh.isEmpty {
+            dismissReactionStrip(animated: true)
+        } else {
+            strip.configure(entries: fresh)
+        }
     }
 
     func dismissReactionStrip(animated: Bool) {
