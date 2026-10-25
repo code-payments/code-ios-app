@@ -104,8 +104,8 @@ final class ReactionPillView: UIView {
         countWidth.constant = Self.countWidth(digits: max(countDigits, "\(pill.count)".count))
         let boostText = pill.boost.map { ($0.displayed ?? $0.usd).formatted() }
         boostLabel.text = boostText
-        boostLabel.isHidden = boostText == nil
-        countLabel.isHidden = boostText != nil && pill.count <= 1
+        Self.setHidden(boostLabel, boostText == nil)
+        Self.setHidden(countLabel, boostText != nil && pill.count <= 1)
 
         let isGold = pill.boost != nil && pill.selfReacted
         boostLabel.textColor = isGold ? Self.boosted : Self.othersBoostAmount
@@ -140,6 +140,13 @@ final class ReactionPillView: UIView {
             .compactMap { $0 }
             .joined(separator: ", ")
         accessibilityTraits = canReact ? .button : []
+    }
+
+    /// Writes `isHidden` only when it changes. Inside an animation, `UIStackView` counts each hide of an
+    /// already-hidden arranged subview, and one unhide then leaves the label at zero width: a boost that
+    /// arrives after a few animated reconfigures drew a gold pill with no amount.
+    private static func setHidden(_ view: UIView, _ hidden: Bool) {
+        if view.isHidden != hidden { view.isHidden = hidden }
     }
 
     /// The width `digits` digits of the count font can take, whichever digits they are.

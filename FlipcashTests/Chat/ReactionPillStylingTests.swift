@@ -79,4 +79,27 @@ struct ReactionPillStylingTests {
         #expect(view.layer.borderColor == Self.gold.cgColor)
         #expect(Self.same(try #require(Self.amountLabel(in: view)).textColor, Self.gold))
     }
+
+    /// Cells are reconfigured inside the transcript's animated updates, where a `UIStackView` counts
+    /// each `isHidden = true` on an already-hidden arranged subview and one `false` no longer shows it.
+    @Test("A boost that arrives after reconfigures inside animations still shows its amount")
+    func boostAfterAnimatedReconfigures_showsAmount() throws {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 200))
+        let view = ReactionPillView()
+        window.addSubview(view)
+        window.isHidden = false
+        view.configure(with: Self.pill(cents: nil, selfReacted: false), canReact: true)
+        for _ in 0..<3 {
+            UIView.animate(withDuration: 0.3) {
+                view.configure(with: Self.pill(cents: nil, selfReacted: true), canReact: true, animated: true)
+                view.layoutIfNeeded()
+            }
+        }
+        view.configure(with: Self.pill(cents: 100, selfReacted: true), canReact: true, animated: true)
+        view.frame = CGRect(origin: .zero, size: view.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize))
+        view.layoutIfNeeded()
+        let label = try #require(Self.amountLabel(in: view))
+        #expect(!label.isHidden)
+        #expect(label.bounds.width >= label.intrinsicContentSize.width - 0.5)
+    }
 }
