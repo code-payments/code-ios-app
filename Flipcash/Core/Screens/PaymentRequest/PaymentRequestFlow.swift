@@ -75,6 +75,7 @@ struct MoneyActionsSheet: View {
 private enum PaymentRequestStep: Hashable {
     case amount
     case summary
+    case name
     case selectPeople
     case details(PaymentRequestID)
 }
@@ -128,9 +129,16 @@ private struct PaymentRequestFlowContent: View {
                         path.append(.summary)
                     }
                 case .summary:
-                    PaymentRequestSummaryScreen(viewModel: viewModel, selectPeople: {
+                    PaymentRequestSummaryScreen(viewModel: viewModel, editName: {
+                        path.append(.name)
+                    }, selectPeople: {
                         path.append(.selectPeople)
                     }, sent: { dismiss() })
+                case .name:
+                    PaymentRequestNameScreen(title: viewModel.title) {
+                        viewModel.title = $0
+                        path.removeLast()
+                    }
                 case .selectPeople:
                     PaymentRequestSelectPeopleScreen(viewModel: viewModel) {
                         path.removeLast()
@@ -336,10 +344,10 @@ private struct PaymentRequestAmountScreen: View {
 private struct PaymentRequestSummaryScreen: View {
 
     @Bindable var viewModel: PaymentRequestCreateViewModel
+    let editName: () -> Void
     let selectPeople: () -> Void
     let sent: () -> Void
 
-    @State private var isEditingName = false
     @State private var isPickingDeadline = false
     @State private var dialogItem: DialogItem?
 
@@ -358,9 +366,7 @@ private struct PaymentRequestSummaryScreen: View {
                         }
                         .padding(.bottom, 8)
 
-                        summaryRow(label: "Name", value: viewModel.title, secondLine: nil) {
-                            isEditingName = true
-                        }
+                        summaryRow(label: "Name", value: viewModel.title, secondLine: nil, action: editName)
                         summaryRow(label: "People", value: viewModel.peopleValue, secondLine: viewModel.peopleSecondLine, action: selectPeople)
                         summaryRow(
                             label: "Timing",
@@ -389,9 +395,6 @@ private struct PaymentRequestSummaryScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()
-        }
-        .sheet(isPresented: $isEditingName) {
-            PaymentRequestNameEditor(title: viewModel.title) { viewModel.title = $0 }
         }
         .sheet(isPresented: $isPickingDeadline) {
             PaymentRequestDeadlineSheet(deadline: $viewModel.deadline)
@@ -454,14 +457,17 @@ private struct PaymentRequestSummaryScreen: View {
 
 // MARK: - Name -
 
-private struct PaymentRequestNameEditor: View {
-
-    @Environment(\.dismiss) private var dismiss
+/// The Name row's destination, drawn the way ``EditGroupNameScreen`` and ``ProfileNameScreen`` draw
+/// theirs: one field under a heading, a countdown near the cap, and a filled button at the bottom.
+private struct PaymentRequestNameScreen: View {
 
     @State private var text: String
     @FocusState private var isFocused: Bool
 
     let save: (String) -> Void
+
+    /// Same threshold as the profile and group name screens.
+    private static let countdownThreshold = 10
 
     init(title: String, save: @escaping (String) -> Void) {
         _text = State(initialValue: title)
@@ -470,39 +476,51 @@ private struct PaymentRequestNameEditor: View {
 
     private var validated: String? { PaymentRequestTitleValidator().validate(text) }
 
+    private var remainingScalars: Int {
+        PaymentRequestTitleValidator.maxScalars - text.unicodeScalars.count
+    }
+
     var body: some View {
-        NavigationStack {
-            Background(color: .backgroundMain) {
-                VStack(alignment: .leading, spacing: 8) {
-                    TextField("Name", text: $text)
-                        .font(.appTextLarge)
-                        .foregroundStyle(Color.textMain)
-                        .focused($isFocused)
-                        .submitLabel(.done)
-                        .onSubmit(done)
-                        .padding(14)
-                        .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
-                    Spacer()
+        Background(color: .backgroundMain) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("What's this request for?")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                    .padding(.top, 20)
+
+                TextField("Request Name", text: $text)
+                    .font(.appDisplayMedium)
+                    .foregroundStyle(Color.textMain)
+                    .focused($isFocused)
+                    .submitLabel(.done)
+                    .onSubmit(done)
+                    .padding(.top, 32)
+
+                Spacer()
+
+                if remainingScalars < Self.countdownThreshold {
+                    Text("\(remainingScalars) characters")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 12)
                 }
-                .padding(20)
+
+                Button("Done", action: done)
+                    .buttonStyle(.filled)
+                    .disabled(validated == nil)
+                    .padding(.bottom, 20)
             }
-            .navigationTitle("Name")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done", action: done)
-                        .disabled(validated == nil)
-                }
-            }
+            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .presentationDetents([.medium])
-        .onAppear { isFocused = true }
+        .navigationBarTitleDisplayMode(.inline)
+        .focusAfterPush($isFocused)
     }
 
     private func done() {
         guard let validated else { return }
         save(validated)
-        dismiss()
     }
 }
 
