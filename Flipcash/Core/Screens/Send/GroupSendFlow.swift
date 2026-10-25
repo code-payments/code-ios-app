@@ -53,9 +53,12 @@ private struct GroupSendFlowContent: View {
                 switch step {
                 case .selectPeople:
                     GroupSendSelectPeopleScreen(viewModel: viewModel)
+                        .toolbar { closeButton }
                 }
             }
         }
+        // Like the share-to-chats screen, the flow closes only from its X.
+        .interactiveDismissDisabled()
         .onChange(of: viewModel.depositMint) { _, mint in
             guard let mint else { return }
             viewModel.depositMint = nil
@@ -172,7 +175,7 @@ private struct GroupSendSelectPeopleScreen: View {
             await viewModel.refreshMembers()
         }
         .sheet(isPresented: $isConfirming) {
-            GroupSendConfirmSheet(viewModel: viewModel)
+            GroupSendConfirmSheet(viewModel: viewModel) { isConfirming = false }
         }
     }
 
@@ -207,6 +210,7 @@ private struct GroupSendConfirmSheet: View {
     @Environment(AppRouter.self) private var router
 
     let viewModel: GroupSendViewModel
+    let onClose: () -> Void
 
     @State private var didSucceed = false
     @State private var isShowingTokenSelection = false
@@ -270,6 +274,11 @@ private struct GroupSendConfirmSheet: View {
             .padding(.top, 30)
             .padding(.bottom, bottomPadding)
         }
+        .overlay(alignment: .topTrailing) {
+            CloseButton(action: onClose)
+                .padding(16)
+        }
+        .interactiveDismissDisabled()
         // Hold the success checkmark briefly, then dismiss the whole flow back to the chat.
         .task(id: didSucceed) {
             guard didSucceed else { return }
