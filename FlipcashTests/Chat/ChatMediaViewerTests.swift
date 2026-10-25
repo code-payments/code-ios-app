@@ -106,9 +106,14 @@ struct ChatMediaViewerTests {
         _ request: ChatMediaViewerRequest,
         onReply: @escaping () -> Void = {},
         onForward: @escaping () -> Void = {},
-        onSave: @escaping (UIImage) async throws -> Void = { _ in }
+        onSave: @escaping (UIImage) async throws -> Void = { _ in },
+        onReact: @escaping (String) -> Void = { _ in },
+        entries: [ReactionStrip.Entry] = [ReactionStrip.Entry(emoji: "👍", highlighted: false), ReactionStrip.Entry(emoji: "❤️", highlighted: false)]
     ) -> ChatMediaViewerController {
-        let viewer = ChatMediaViewerController(request: request, onReply: onReply, onForward: onForward, onSave: onSave)
+        let viewer = ChatMediaViewerController(
+            request: request, onReply: onReply, onForward: onForward, onSave: onSave,
+            onReact: onReact, onMoreReactions: {}, reactionEntries: { entries }
+        )
         viewer.view.frame = CGRect(x: 0, y: 0, width: 400, height: 800)
         viewer.view.layoutIfNeeded()
         return viewer
@@ -149,12 +154,12 @@ struct ChatMediaViewerTests {
     @Test("Every button carries an accessibility label")
     func buttonsAreLabelled() throws {
         let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
-        let labels = [viewer.closeButton, viewer.zoomButton, viewer.replyButton, viewer.saveButton, viewer.forwardButton].map(\.accessibilityLabel)
-        #expect(labels == ["Close", "Zoom", "Reply", "Save", "Forward"])
+        let labels = [viewer.closeButton, viewer.reactButton, viewer.replyButton, viewer.saveButton, viewer.forwardButton].map(\.accessibilityLabel)
+        #expect(labels == ["Close", "React", "Reply", "Save", "Forward"])
     }
 
-    @Test("Zoom and Save wait until the photo itself has loaded")
-    func zoomAndSaveWaitForPhoto() throws {
+    @Test("Save waits until the photo itself has loaded")
+    func saveWaitsForPhoto() throws {
         let placeholder = UIImage(systemName: "photo")!
         let request = try #require(ChatMediaViewerRequest(
             message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
@@ -163,25 +168,23 @@ struct ChatMediaViewerTests {
         let viewer = makeViewer(request, onSave: { saved = $0 })
 
         #expect(viewer.imageView.image === placeholder)
-        #expect(!viewer.zoomButton.isEnabled)
         #expect(!viewer.saveButton.isEnabled)
         viewer.saveButton.sendActions(for: .touchUpInside)
         #expect(saved == nil)
     }
 
-    @Test("Zoom and Save are enabled once the photo is loaded, and Save writes it")
-    func zoomAndSaveEnabledWhenLoaded() async throws {
+    @Test("Save is enabled once the photo is loaded, and writes it")
+    func saveEnabledWhenLoaded() async throws {
         var saved: UIImage?
         let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onSave: { saved = $0 })
 
-        #expect(viewer.zoomButton.isEnabled)
         #expect(viewer.saveButton.isEnabled)
         viewer.saveButton.sendActions(for: .touchUpInside)
         try await Task.sleep(for: .milliseconds(100))
         #expect(saved === Self.localImage)
     }
 
-    @Test("Zoom goes to the double-tap scale about the center, and a second press returns to fit")
+    @Test("The zoom toggle goes to the double-tap scale, and a second call returns to fit")
     func zoomButtonTogglesScale() throws {
         let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
         let center = CGPoint(x: viewer.imageView.bounds.midX, y: viewer.imageView.bounds.midY)
@@ -191,6 +194,57 @@ struct ChatMediaViewerTests {
 
         viewer.toggleZoom(about: center, animated: false)
         #expect(viewer.scrollView.zoomScale == viewer.scrollView.minimumZoomScale)
+    }
+
+    @Test("React shows only when the row can react, loaded photo or not")
+    func reactFollowsCanReact() throws {
+        let reactable = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        #expect(!reactable.reactButton.isHidden)
+
+        let placeholder = UIImage(systemName: "photo")!
+        let unloaded = try #require(ChatMediaViewerRequest(
+            message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
+        ) { nil })
+        #expect(!makeViewer(unloaded).reactButton.isHidden)
+
+        let locked = ChatMessage(id: "photo", content: .media(media()), sender: .other, canReact: false)
+        #expect(request(locked, localImage: Self.localImage) == nil)
+    }
+
+    @Test("React opens the strip, a pick calls the handler and dismisses it, and the viewer stays")
+    func reactStripPick() throws {
+        var picked: String?
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { picked = $0 })
+        viewer.setControlsHidden(false, animated: false)
+
+        viewer.reactButton.sendActions(for: .touchUpInside)
+        let strip = try #require(viewer.reactionStrip)
+        #expect(strip.superview === viewer.view)
+
+        strip.onSelect?("👍")
+        #expect(picked == "👍")
+        #expect(viewer.reactionStrip == nil)
+    }
+
+    @Test("Hiding the chrome dismisses the strip without reacting")
+    func hidingChromeDismissesStrip() throws {
+        var picked: String?
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { picked = $0 })
+        viewer.setControlsHidden(false, animated: false)
+        viewer.reactButton.sendActions(for: .touchUpInside)
+        #expect(viewer.reactionStrip != nil)
+
+        viewer.setControlsHidden(true, animated: false)
+        #expect(viewer.reactionStrip == nil)
+        #expect(picked == nil)
+    }
+
+    @Test("A second React tap closes the strip")
+    func secondTapClosesStrip() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        viewer.reactButton.sendActions(for: .touchUpInside)
+        viewer.reactButton.sendActions(for: .touchUpInside)
+        #expect(viewer.reactionStrip == nil)
     }
 
     @Test("Reply and Forward follow the row's context-menu actions")

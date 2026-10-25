@@ -521,7 +521,7 @@ struct ConversationScreen: View {
         composer.stageChip(image: capture.image, preview: capture.preview, uploader: mediaUploader)?.id
     }
 
-    /// Opens a tapped photo full screen, zooming out of its row, with reply, save and forward.
+    /// Opens a tapped photo full screen, zooming out of its row, with react, reply, save and forward.
     /// The transcript only hands over a request for a photo the viewer may see, so nothing here can
     /// open or download a BlurHash-only one.
     private func openMediaViewer(_ request: ChatMediaViewerRequest) {
@@ -534,7 +534,10 @@ struct ConversationScreen: View {
             request: request,
             onReply: { handleMessageAction(stableID, .reply) },
             onForward: { handleMessageAction(stableID, .forward) },
-            onSave: { image in try await PhotoLibrary.save(image: image) }
+            onSave: { image in try await PhotoLibrary.save(image: image) },
+            onReact: { emoji in toggleReaction(stableID, emoji: emoji) },
+            onMoreReactions: { openReactionPicker(stableID) },
+            reactionEntries: { chatMessage(withStableID: stableID).map(reactionStripEntries) ?? [] }
         )
         presenter.present(viewer, animated: true)
     }

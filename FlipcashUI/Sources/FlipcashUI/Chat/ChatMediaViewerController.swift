@@ -27,6 +27,8 @@ public struct ChatMediaViewerRequest {
     /// The on-screen view the photo zooms out of and back into, looked up on each use because the
     /// row's cell can be recycled while the viewer is up.
     public let sourceView: () -> UIView?
+    /// Whether the row takes reactions, by the same rule the transcript uses.
+    public let canReact: Bool
     /// Whether the row's context menu offers Reply, so the viewer does too.
     public let canReply: Bool
     /// Whether the row's context menu offers Forward, so the viewer does too.
@@ -52,14 +54,15 @@ public struct ChatMediaViewerRequest {
         self.remote = remote
         self.placeholder = placeholder
         self.sourceView = sourceView
+        self.canReact = message.canReact
         self.canReply = message.actions.contains(.reply)
         self.canForward = message.actions.contains(.forward)
     }
 }
 
 /// A full-screen photo, zoomed in from the tapped transcript row: pinch or double-tap to zoom, swipe
-/// down or close to put it back. It opens with no buttons; a tap shows or hides them. The buttons zoom,
-/// reply, save to Photos and forward, with zoom and save waiting for the photo itself to load.
+/// down or close to put it back. It opens with no buttons; a tap shows or hides them. The buttons react,
+/// reply, save to Photos and forward, with save waiting for the photo itself to load.
 public final class ChatMediaViewerController: UIViewController, UIScrollViewDelegate {
 
     private static let maximumZoomScale: CGFloat = 4
@@ -69,16 +72,20 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     private let onReply: () -> Void
     private let onForward: () -> Void
     private let onSave: (UIImage) async throws -> Void
+    private let onReact: (String) -> Void
+    private let onMoreReactions: () -> Void
+    private let reactionEntries: () -> [ReactionStrip.Entry]
 
     let scrollView = UIScrollView()
     let imageView = UIImageView()
     let closeButton = UIButton(configuration: .plain())
-    let zoomButton = UIButton(configuration: .plain())
+    let reactButton = UIButton(configuration: .plain())
     let replyButton = UIButton(configuration: .plain())
     let saveButton = UIButton(configuration: .plain())
     let forwardButton = UIButton(configuration: .plain())
-    let leadingPill = UIView()
-    let trailingPill = UIView()
+    /// The glass capsules behind each button pair, or plain translucent views before iOS 26.
+    let leadingPill = ChatMediaViewerController.makePill()
+    let trailingPill = ChatMediaViewerController.makePill()
 
     /// The views a tap shows and hides.
     private var chrome: [UIView] { [closeButton, leadingPill, trailingPill] }
@@ -88,11 +95,15 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     private var isSaving = false
 
+    /// The reaction strip above the React button while it is open, and the full-screen view that
+    /// catches a tap outside it.
+    private(set) var reactionStrip: ReactionStripView?
+    private var reactionDismissCatcher: UIControl?
+
     /// The photo itself, once drawn, never the placeholder, so save never writes a BlurHash.
     private var loadedImage: UIImage? {
         didSet {
             saveButton.isEnabled = loadedImage != nil
-            zoomButton.isEnabled = loadedImage != nil
         }
     }
 
@@ -100,16 +111,25 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     ///   - onReply: puts the composer into reply mode for the photo's message. Runs after the viewer dismisses.
     ///   - onForward: opens the message-link share for the photo's message. Runs after the viewer dismisses.
     ///   - onSave: writes the photo to the library, throwing when it can't.
+    ///   - onReact: toggles the picked emoji on the photo's message, the call the context-menu strip makes.
+    ///   - onMoreReactions: opens the full reaction picker. Runs after the viewer dismisses.
+    ///   - reactionEntries: the emoji the strip offers; empty means there is no strip.
     public init(
         request: ChatMediaViewerRequest,
         onReply: @escaping () -> Void,
         onForward: @escaping () -> Void,
-        onSave: @escaping (UIImage) async throws -> Void
+        onSave: @escaping (UIImage) async throws -> Void,
+        onReact: @escaping (String) -> Void,
+        onMoreReactions: @escaping () -> Void,
+        reactionEntries: @escaping () -> [ReactionStrip.Entry]
     ) {
         self.request = request
         self.onReply = onReply
         self.onForward = onForward
         self.onSave = onSave
+        self.onReact = onReact
+        self.onMoreReactions = onMoreReactions
+        self.reactionEntries = reactionEntries
         super.init(nibName: nil, bundle: nil)
 
         let zoom = UIViewController.Transition.ZoomOptions()
@@ -153,22 +173,33 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         scrollView.addGestureRecognizer(singleTap)
 
         configure(closeButton, symbol: "xmark", label: "Close", action: #selector(closeTapped))
-        configure(zoomButton, symbol: "plus.magnifyingglass", label: "Zoom", action: #selector(zoomTapped))
+        configure(reactButton, symbol: "face.smiling", label: "React", action: #selector(reactTapped))
         configure(replyButton, symbol: "arrowshape.turn.up.left", label: "Reply", action: #selector(replyTapped))
         configure(saveButton, symbol: "square.and.arrow.down", label: "Save", action: #selector(saveTapped))
         configure(forwardButton, symbol: "arrowshape.turn.up.right", label: "Forward", action: #selector(forwardTapped))
 
-        closeButton.backgroundColor = Self.chromeFill
-        closeButton.layer.cornerCurve = .continuous
+        if #available(iOS 26, *) {
+            var glass = UIButton.Configuration.glass()
+            glass.image = closeButton.configuration?.image
+            glass.baseForegroundColor = .white
+            glass.cornerStyle = .capsule
+            closeButton.configuration = glass
+        } else {
+            closeButton.backgroundColor = Self.chromeFill
+            closeButton.layer.cornerCurve = .continuous
+        }
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(closeButton)
 
+        // The icon the reaction strip's "+" uses.
+        reactButton.configuration?.image = UIImage.asset(.addReaction).withRenderingMode(.alwaysTemplate)
+        reactButton.isHidden = !request.canReact
         replyButton.isHidden = !request.canReply
         forwardButton.isHidden = !request.canForward
-        install(leadingPill, buttons: [zoomButton, replyButton])
+        install(leadingPill, buttons: [reactButton, replyButton])
         install(trailingPill, buttons: [saveButton, forwardButton])
         // A pill with no buttons left would be an empty capsule.
-        leadingPill.isHidden = [zoomButton, replyButton].allSatisfy(\.isHidden)
+        leadingPill.isHidden = [reactButton, replyButton].allSatisfy(\.isHidden)
         trailingPill.isHidden = [saveButton, forwardButton].allSatisfy(\.isHidden)
 
         NSLayoutConstraint.activate([
@@ -203,6 +234,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        guard #unavailable(iOS 26) else { return }
         closeButton.layer.cornerRadius = closeButton.bounds.height / 2
         for pill in [leadingPill, trailingPill] {
             pill.layer.cornerRadius = pill.bounds.height / 2
@@ -222,20 +254,31 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         button.addTarget(self, action: action, for: .touchUpInside)
     }
 
-    private func install(_ pill: UIView, buttons: [UIButton]) {
-        pill.backgroundColor = Self.chromeFill
+    private static func makePill() -> UIView {
+        if #available(iOS 26, *) {
+            let glass = UIVisualEffectView(effect: UIGlassEffect(style: .regular))
+            glass.cornerConfiguration = .capsule()
+            return glass
+        }
+        let pill = UIView()
+        pill.backgroundColor = chromeFill
         pill.layer.cornerCurve = .continuous
+        return pill
+    }
+
+    private func install(_ pill: UIView, buttons: [UIButton]) {
+        let content = (pill as? UIVisualEffectView)?.contentView ?? pill
         pill.translatesAutoresizingMaskIntoConstraints = false
         let stack = UIStackView(arrangedSubviews: buttons)
         stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
-        pill.addSubview(stack)
+        content.addSubview(stack)
         view.addSubview(pill)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: pill.topAnchor, constant: 4),
-            stack.bottomAnchor.constraint(equalTo: pill.bottomAnchor, constant: -4),
-            stack.leadingAnchor.constraint(equalTo: pill.leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(equalTo: pill.trailingAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 4),
+            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -4),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -12),
             pill.heightAnchor.constraint(equalToConstant: 56),
         ])
     }
@@ -283,11 +326,6 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         toggleZoom(about: recognizer.location(in: imageView), animated: true)
     }
 
-    @objc private func zoomTapped() {
-        guard loadedImage != nil else { return }
-        toggleZoom(about: CGPoint(x: imageView.bounds.midX, y: imageView.bounds.midY), animated: true)
-    }
-
     /// Zooms to the double-tap scale centered on `point` (in the image view's space), or back to the
     /// fitted size when already zoomed.
     func toggleZoom(about point: CGPoint, animated: Bool) {
@@ -309,6 +347,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     /// Fades the buttons out or back in; hidden buttons take no touches and drop out of VoiceOver.
     func setControlsHidden(_ hidden: Bool, animated: Bool) {
         areControlsHidden = hidden
+        if hidden { dismissReactionStrip(animated: false) }
         for view in chrome {
             view.isUserInteractionEnabled = !hidden
             view.accessibilityElementsHidden = hidden
@@ -327,6 +366,68 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     @objc private func closeTapped() {
         dismiss(animated: true)
+    }
+
+    @objc private func reactTapped() {
+        if reactionStrip != nil {
+            dismissReactionStrip(animated: true)
+        } else {
+            showReactionStrip()
+        }
+    }
+
+    /// Opens the strip just above the React button, with a full-screen catcher behind it so a tap
+    /// outside dismisses it without reacting.
+    func showReactionStrip() {
+        let entries = reactionEntries()
+        guard reactionStrip == nil, !entries.isEmpty else { return }
+
+        let catcher = UIControl()
+        catcher.translatesAutoresizingMaskIntoConstraints = false
+        catcher.addTarget(self, action: #selector(reactionCatcherTapped), for: .touchUpInside)
+        view.insertSubview(catcher, belowSubview: leadingPill)
+
+        let strip = ReactionStripView()
+        strip.configure(entries: entries)
+        strip.translatesAutoresizingMaskIntoConstraints = false
+        strip.onSelect = { [weak self] emoji in
+            self?.dismissReactionStrip(animated: true)
+            self?.onReact(emoji)
+        }
+        strip.onAdd = { [weak self] in
+            self?.dismissReactionStrip(animated: false)
+            self?.dismiss(animated: true) { self?.onMoreReactions() }
+        }
+        view.addSubview(strip)
+        NSLayoutConstraint.activate([
+            catcher.topAnchor.constraint(equalTo: view.topAnchor),
+            catcher.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            catcher.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            catcher.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            strip.leadingAnchor.constraint(equalTo: leadingPill.leadingAnchor),
+            strip.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            strip.bottomAnchor.constraint(equalTo: leadingPill.topAnchor, constant: -12),
+        ])
+        reactionStrip = strip
+        reactionDismissCatcher = catcher
+        reactButton.accessibilityLabel = "Close reactions"
+        strip.alpha = 0
+        UIView.animate(withDuration: 0.2) { strip.alpha = 1 }
+    }
+
+    func dismissReactionStrip(animated: Bool) {
+        guard let strip = reactionStrip else { return }
+        let catcher = reactionDismissCatcher
+        reactionStrip = nil
+        reactionDismissCatcher = nil
+        reactButton.accessibilityLabel = "React"
+        catcher?.removeFromSuperview()
+        guard animated else { strip.removeFromSuperview(); return }
+        UIView.animate(withDuration: 0.15, animations: { strip.alpha = 0 }) { _ in strip.removeFromSuperview() }
+    }
+
+    @objc private func reactionCatcherTapped() {
+        dismissReactionStrip(animated: true)
     }
 
     @objc private func replyTapped() {
