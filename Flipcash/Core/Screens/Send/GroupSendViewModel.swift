@@ -85,15 +85,15 @@ final class GroupSendViewModel {
         return (fiat?.onChainAmount.quarks ?? 0) > 0
     }
 
-    /// Whether the amount screen can go on to Select People; an amount over the balance shows the send flow's alert instead.
+    /// Whether the amount screen can go on to Select People; an amount over the balance shows the insufficient balance alert instead.
     func confirmAmount() -> Bool {
         guard let validatedEntered, let selectedBalance,
               let fiat = selectedBalance.enteredFiat(for: validatedEntered, rate: ratesController.rateForBalanceCurrency()) else {
             return false
         }
         switch session.hasSufficientFunds(for: fiat) {
-        case .insufficient(let shortfall):
-            if let shortfall { showYoureShortError(amount: shortfall) } else { showInsufficientBalanceError() }
+        case .insufficient:
+            showInsufficientBalanceError()
             return false
         case .sufficient:
             return true
@@ -237,8 +237,8 @@ final class GroupSendViewModel {
         }
 
         switch session.hasSufficientFunds(for: total) {
-        case .insufficient(let shortfall):
-            if let shortfall { showYoureShortError(amount: shortfall) } else { showInsufficientBalanceError() }
+        case .insufficient:
+            showInsufficientBalanceError()
             return .failed
         case .sufficient:
             break
@@ -298,27 +298,16 @@ final class GroupSendViewModel {
         )
     }
 
+    // Matches Android's StartChattingPayer.presentInsufficientBalance.
     private func showInsufficientBalanceError() {
-        session.dialogItem = .error(
-            title: "You Need More Cash",
-            subtitle: "Please add more cash, or try again with a lower amount"
+        session.dialogItem = .info(
+            title: "Insufficient Balance",
+            subtitle: "Add more money, or enter a smaller amount"
         ) {
-            .destructive("Add More Cash") { [weak self] in
+            .standard("Add Money") { [weak self] in
                 self?.presentDeposit()
             };
-            .dismiss(kind: .subtle)
-        }
-    }
-
-    private func showYoureShortError(amount: ExchangedFiat) {
-        session.dialogItem = .error(
-            title: "You're \(amount.nativeAmount.formatted()) Short",
-            subtitle: "Add more cash, or try again with a lower amount"
-        ) {
-            .destructive("Add More Cash") { [weak self] in
-                self?.presentDeposit()
-            };
-            .dismiss(kind: .subtle)
+            .cancel()
         }
     }
 

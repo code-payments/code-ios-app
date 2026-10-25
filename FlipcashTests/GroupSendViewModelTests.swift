@@ -46,12 +46,12 @@ struct GroupSendViewModelTests {
         #expect(payments.groupChatIDs == [Self.groupID])
     }
 
-    @Test("An amount over the balance shows the send flow's alert instead of moving on")
+    @Test("An amount over the balance shows the insufficient balance alert instead of moving on")
     func overBalanceIsRefusedOnNext() async throws {
         let (viewModel, _) = try await make(total: "101")
 
         #expect(viewModel.confirmAmount() == false)
-        #expect(viewModel.session.dialogItem?.title?.hasPrefix("You") == true)
+        #expect(viewModel.session.dialogItem?.title == "Insufficient Balance")
     }
 
     @Test("An amount within the balance moves on to Select People")
