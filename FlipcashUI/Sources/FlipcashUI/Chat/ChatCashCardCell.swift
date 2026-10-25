@@ -85,7 +85,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         eachLabel.font = .default(size: 12, weight: .bold)
         eachLabel.textColor = UIColor.white.withAlphaComponent(0.5)
 
-        configureCircle(centerCoinIcon, diameter: 32)
+        configureCircle(centerCoinIcon, diameter: 20)
         centerTokenLabel.font = .default(size: 12, weight: .bold)
         centerTokenLabel.textColor = .white
         centerTokenRow.addArrangedSubview(centerCoinIcon)

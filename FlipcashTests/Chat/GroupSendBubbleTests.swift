@@ -129,6 +129,7 @@ struct GroupSendDetailsTests {
         ))
         #expect(details.from.name == "Alex")
         #expect(details.recipients.map(\.name) == ["You", "Someone"])
+        #expect(details.recipients.map(\.isSelf) == [true, false])
     }
 
     @Test("a single send names its one receiver")
@@ -139,6 +140,7 @@ struct GroupSendDetailsTests {
             selfUserID: me
         ))
         #expect(details.from.name == "You")
+        #expect(details.from.isSelf)
         #expect(details.recipients.map(\.name) == ["Alex"])
     }
 

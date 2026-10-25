@@ -18,6 +18,8 @@ nonisolated struct GroupSendDetails: Identifiable, Hashable, Sendable {
         let userID: UserID?
         let name: String
         let picture: ProfilePicture?
+        /// True for the viewer, whose row doesn't open a profile.
+        var isSelf = false
     }
 
     let id: String
@@ -42,7 +44,7 @@ nonisolated struct GroupSendDetails: Identifiable, Hashable, Sendable {
             guard let userID else { return Person(userID: nil, name: "Someone", picture: nil) }
             let member = byID[userID]
             let name = userID == selfUserID ? "You" : member.map(ConversationLoadCoordinator.attributionName(for:)) ?? "Someone"
-            return Person(userID: userID, name: name, picture: member?.profilePicture)
+            return Person(userID: userID, name: name, picture: member?.profilePicture, isSelf: userID == selfUserID)
         }
         self.id = message.stableID
         self.mint = fiat.mint
@@ -106,7 +108,7 @@ struct GroupSendDetailsSheet: View {
     }
 
     private func personRow(label: String?, _ person: GroupSendDetails.Person) -> some View {
-        let action = person.userID.map { userID in { open { openProfile(userID) } } }
+        let action = person.isSelf ? nil : person.userID.map { userID in { open { openProfile(userID) } } }
         return row(label: label, action: action) {
             HStack(spacing: 8) {
                 ContactAvatarView(
