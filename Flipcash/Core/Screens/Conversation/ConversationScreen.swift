@@ -729,7 +729,7 @@ struct ConversationScreen: View {
         // message rather than the person, and the back button backs out of the edit rather than the
         // chat — leaving the chevron alone in the bar.
         // An expanded request deck takes the back button the same way: back collapses it first.
-        .navigationBarBackButtonHidden(composer.isEditing || paymentRequestDeck.phase != .collapsed)
+        .navigationBarBackButtonHidden(composer.isEditing || paymentRequestDeck.isOpen)
         .toolbar {
             if composer.isEditing {
                 ToolbarItem(placement: .topBarLeading) {
@@ -742,7 +742,8 @@ struct ConversationScreen: View {
                     .accessibilityLabel("Stop editing")
                 }
             } else {
-                if paymentRequestDeck.phase != .collapsed {
+                // Follows the target, so the bar changes as the deck starts to close, not as it lands.
+                if paymentRequestDeck.isOpen {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             paymentRequestDeck.collapse()
