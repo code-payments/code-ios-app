@@ -257,7 +257,7 @@ private struct PaymentRequestHistoryScreen: View {
         .navigationTitle("Request Money")
         .navigationBarTitleDisplayMode(.inline)
         .task { await history.reload() }
-        .sheet(item: $selection) { selection in
+        .fullScreenCover(item: $selection) { selection in
             PaymentRequestDetailsScreen(requestID: selection.id)
         }
     }

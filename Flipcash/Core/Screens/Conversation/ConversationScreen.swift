@@ -641,7 +641,7 @@ struct ConversationScreen: View {
                 if let conversationID { await sessionContainer.groupRosters.refresh(conversationID) }
             }
         }
-        .sheet(item: $paymentRequestDetails) { selection in
+        .fullScreenCover(item: $paymentRequestDetails) { selection in
             PaymentRequestDetailsScreen(requestID: selection.id)
         }
         .sheet(isPresented: $isShowingMoneyActions, onDismiss: runPendingMoneyAction) {
@@ -650,7 +650,7 @@ struct ConversationScreen: View {
                 requestMoney: { pendingMoneyAction = .request }
             )
         }
-        .sheet(isPresented: $isShowingRequestMoney) {
+        .fullScreenCover(isPresented: $isShowingRequestMoney) {
             if let conversationID {
                 PaymentRequestFlow(conversationID: conversationID)
             }
