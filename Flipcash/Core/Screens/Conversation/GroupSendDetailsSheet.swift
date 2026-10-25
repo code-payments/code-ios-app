@@ -98,7 +98,7 @@ struct GroupSendDetailsSheet: View {
                 url: balance?.imageURL,
                 monogramID: details.mint.base58,
                 name: balance?.name ?? "Cash",
-                iconSize: 32,
+                iconSize: 40,
                 font: .appTextMedium.bold()
             )
         }
@@ -114,7 +114,7 @@ struct GroupSendDetailsSheet: View {
                     displayName: person.name,
                     imageData: person.userID.flatMap { sessionContainer.profileAvatars.data(for: $0) },
                     blurhash: person.picture?.thumbnailBlurhash,
-                    size: 32
+                    size: 40
                 )
                 Text(person.name)
                     .font(.appTextMedium.bold())
@@ -146,7 +146,7 @@ struct GroupSendDetailsSheet: View {
                         .foregroundStyle(Color.textSecondary)
                 }
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

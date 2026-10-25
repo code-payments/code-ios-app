@@ -20,7 +20,7 @@ public final class ChatCashCardCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
 
-    /// The card's fixed height; width now tracks `maxWidth`.
+    /// A cash card's fixed height; a group card sizes to its lines instead. Width tracks `maxWidth`.
     static let cardHeight: CGFloat = 170
 
     private let card = BubbleBackgroundView()
@@ -38,7 +38,12 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let centerTokenLabel = UILabel()
     private let centerTokenRow = UIStackView()
     private let recipientsLabel = UILabel()
+    private let centerStack = UIStackView()
     private var cardWidthConstraint: NSLayoutConstraint!
+    // A cash card is a fixed height with its lines centred; a group card's four or five lines size
+    // it instead, so each set is active for one kind only.
+    private var cashCardConstraints: [NSLayoutConstraint] = []
+    private var groupCardConstraints: [NSLayoutConstraint] = []
     private var reactionRowWidthConstraint: NSLayoutConstraint!
 
     /// Dim the card while pressed so the tap-to-open-currency-info affordance reads as a button.
@@ -97,7 +102,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         recipientsLabel.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(recipientsLabel)
 
-        let centerStack = UIStackView(arrangedSubviews: [captionLabel, amountLabel, eachLabel, receivedLabel, centerTokenRow])
+        [captionLabel, amountLabel, eachLabel, receivedLabel, centerTokenRow].forEach(centerStack.addArrangedSubview)
         centerStack.axis = .vertical
         centerStack.spacing = 4
         centerStack.alignment = .center
@@ -114,9 +119,14 @@ public final class ChatCashCardCell: ChatColumnCell {
         let cardHeight = card.heightAnchor.constraint(equalToConstant: Self.cardHeight)
         cardHeight.priority = UILayoutPriority(999)
 
-        // Yields to the gap above the recipients line, which a group card's taller stack needs.
-        let centerY = centerStack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
-        centerY.priority = .defaultHigh
+        cashCardConstraints = [
+            cardHeight,
+            centerStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+        ]
+        groupCardConstraints = [
+            centerStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 24),
+            recipientsLabel.topAnchor.constraint(equalTo: centerStack.bottomAnchor, constant: 24),
+        ]
 
         cardWidthConstraint = card.widthAnchor.constraint(equalToConstant: 232)
         reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 232)
@@ -124,23 +134,21 @@ public final class ChatCashCardCell: ChatColumnCell {
         NSLayoutConstraint.activate([
             cardWidthConstraint,
             reactionRowWidthConstraint,
-            cardHeight,
 
             tokenRow.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 11),
             tokenRow.topAnchor.constraint(equalTo: card.topAnchor, constant: 8),
 
             centerStack.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            centerY,
             centerStack.topAnchor.constraint(greaterThanOrEqualTo: card.topAnchor, constant: 8),
-            centerStack.bottomAnchor.constraint(lessThanOrEqualTo: recipientsLabel.topAnchor, constant: -8),
 
             recipientsLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            recipientsLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14),
+            recipientsLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
             recipientsLabel.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
             recipientsLabel.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
             centerStack.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
             centerStack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
         ])
+        NSLayoutConstraint.activate(cashCardConstraints)
     }
 
     @available(*, unavailable)
@@ -208,6 +216,11 @@ public final class ChatCashCardCell: ChatColumnCell {
         if isGroup { centerCoinIcon.kf.setImage(with: cash.iconURL) }
         recipientsLabel.text = cash.group?.recipients
         recipientsLabel.isHidden = !isGroup
+        NSLayoutConstraint.deactivate(isGroup ? cashCardConstraints : groupCardConstraints)
+        NSLayoutConstraint.activate(isGroup ? groupCardConstraints : cashCardConstraints)
+        centerStack.setCustomSpacing(isGroup ? 12 : 4, after: captionLabel)
+        centerStack.setCustomSpacing(receivedLabel.isHidden ? 8 : 4, after: eachLabel)
+        centerStack.setCustomSpacing(8, after: receivedLabel)
 
         card.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),

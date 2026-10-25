@@ -609,7 +609,7 @@ struct ConversationScreen: View {
         }
         .sheet(item: $groupSendDetails) { details in
             GroupSendDetailsSheet(
-                details: details,
+                details: liveGroupSendDetails(details),
                 openToken: { mint in
                     Analytics.tokenInfoOpened(from: .openedFromChat, mint: mint)
                     router.push(.currencyInfo(mint))
@@ -618,6 +618,9 @@ struct ConversationScreen: View {
                     router.push(.userProfile(userID, origin: .groupMember))
                 }
             )
+            .task {
+                if let conversationID { await sessionContainer.groupRosters.refresh(conversationID) }
+            }
         }
         .sheet(item: $paidReactionTarget) { target in
             PaidReactionSheet(target: target, selfReactions: selfReactions(on: target.messageID))
@@ -1311,6 +1314,18 @@ struct ConversationScreen: View {
     private func retry(messageID: String) {
         guard let conversationID, let clientMessageID = UUID(uuidString: messageID) else { return }
         Task { await conversationController.retry(clientMessageID: clientMessageID, in: conversationID) }
+    }
+
+    /// `details` renamed from the current roster, so names the sheet's roster refresh brings in
+    /// replace the "Someone" a cold roster gave at tap time.
+    private func liveGroupSendDetails(_ details: GroupSendDetails) -> GroupSendDetails {
+        guard let conversationID,
+              let message = (coordinator?.loader.messages ?? []).first(where: { $0.stableID == details.id }) else { return details }
+        return GroupSendDetails(
+            message: message,
+            members: sessionContainer.groupRosters.members(for: conversationID, creator: groupConversation?.creator),
+            selfUserID: session.userID
+        ) ?? details
     }
 
     /// Push the tapped cash card's token currency info onto the current chat stack (so back returns
