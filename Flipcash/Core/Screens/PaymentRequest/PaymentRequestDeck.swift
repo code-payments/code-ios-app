@@ -95,6 +95,83 @@ final class PaymentRequestDeckState {
     }
 }
 
+// MARK: - Presence -
+
+/// Whether the pill is in the app bar, and how far it has faded in. It fades in and out in place
+/// when requests arrive or run out after the chat is on screen, and is simply there when the chat
+/// opens with requests already known.
+@MainActor
+@Observable
+final class PaymentRequestPillPresence {
+
+    /// The toolbar item exists; it outlives `isVisible` by the fade-out.
+    private(set) var isInBar = false
+    /// Drives the pill's opacity and scale, and the room the title leaves for it.
+    private(set) var isVisible = false
+    /// The last non-empty deck, drawn while the pill fades out after the requests are gone.
+    private(set) var lastItems: [PaymentRequestDeckItem] = []
+
+    /// The pill fades in when it first shows rather than being there from its first frame.
+    private(set) var fadesIn = false
+    private var hasSettled = false
+
+    static let fade = Animation.easeOut(duration: 0.25)
+
+    /// The items the pill draws: the live deck, or the last one while it fades out.
+    func items(_ live: [PaymentRequestDeckItem]) -> [PaymentRequestDeckItem] {
+        live.isEmpty ? lastItems : live
+    }
+
+    /// Follows the deck's contents; the first call sets the state without a fade.
+    func update(_ items: [PaymentRequestDeckItem]) {
+        if !items.isEmpty { lastItems = items }
+        let hasItems = !items.isEmpty
+        guard hasSettled else {
+            hasSettled = true
+            isInBar = hasItems
+            isVisible = hasItems
+            return
+        }
+        guard hasItems != isVisible else { return }
+        if hasItems {
+            // The toolbar builds the item's view on its own schedule, so the pill runs its own
+            // fade once it appears; this animation only moves the title out of its way.
+            fadesIn = true
+            isInBar = true
+            withAnimation(Self.fade) { isVisible = true }
+        } else {
+            withAnimation(Self.fade) {
+                isVisible = false
+            } completion: { [weak self] in
+                guard let self, !self.isVisible else { return }
+                self.isInBar = false
+                self.lastItems = []
+            }
+        }
+    }
+}
+
+/// Fades and scales the pill in place as `presence` shows and hides it.
+struct PaymentRequestPillAppearance: ViewModifier {
+
+    let presence: PaymentRequestPillPresence
+    @State private var hasAppeared = false
+
+    private var isShown: Bool {
+        presence.isVisible && (hasAppeared || !presence.fadesIn)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isShown ? 1 : 0)
+            .scaleEffect(isShown ? 1 : 0.95)
+            .allowsHitTesting(isShown)
+            .onAppear {
+                withAnimation(PaymentRequestPillPresence.fade) { hasAppeared = true }
+            }
+    }
+}
+
 // MARK: - Pill -
 
 /// The app-bar pill (concept B): the front request with up to two more peeking beneath it. Swipe

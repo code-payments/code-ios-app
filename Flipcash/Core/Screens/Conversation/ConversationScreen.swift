@@ -92,6 +92,7 @@ struct ConversationScreen: View {
     /// The payment request whose details sheet is open.
     @State private var paymentRequestDetails: PaymentRequestSelection?
     @State private var paymentRequestDeck = PaymentRequestDeckState()
+    @State private var requestPillPresence = PaymentRequestPillPresence()
     /// Whether a private group's Money sheet (Send or Request) is open.
     @State private var isShowingMoneyActions = false
     /// The Money sheet's choice, run once that sheet has gone so the next one can present.
@@ -611,6 +612,9 @@ struct ConversationScreen: View {
             guard let hostedConversationID else { return }
             Task { await sessionContainer.hostedLobbies.refresh(hostedConversationID) }
         }
+        .onChange(of: requestDeckItems, initial: true) { _, items in
+            requestPillPresence.update(items)
+        }
         .onChange(of: conversationController.reactions.error) { _, _ in
             scheduleReactionErrorDismissal()
         }
@@ -776,7 +780,7 @@ struct ConversationScreen: View {
                         opensProfile: profileTapAction != nil
                     )
                 }
-                if !requestDeckItems.isEmpty {
+                if requestPillPresence.isInBar {
                     // The pill draws its own capsule, so the iOS 26 platter stays off.
                     if #available(iOS 26.0, *) {
                         ToolbarItem(placement: .topBarTrailing) { requestPill }
@@ -814,10 +818,11 @@ struct ConversationScreen: View {
 
     private var requestPill: some View {
         PaymentRequestPill(
-            items: requestDeckItems,
+            items: requestPillPresence.items(requestDeckItems),
             accessibilityLabel: requestDeckAccessibilityLabel,
             state: paymentRequestDeck
         )
+        .modifier(PaymentRequestPillAppearance(presence: requestPillPresence))
     }
 
     private var requestDeckAccessibilityLabel: String {
@@ -828,7 +833,7 @@ struct ConversationScreen: View {
 
     /// The title's right margin, widened to clear the request pill while one shows.
     private var titleTrailingInset: CGFloat {
-        Self.titleTrailingInset + (requestDeckItems.isEmpty ? 0 : Self.requestPillWidth)
+        Self.titleTrailingInset + (requestPillPresence.isVisible ? Self.requestPillWidth : 0)
     }
 
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
