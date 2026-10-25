@@ -45,7 +45,8 @@ extension Client {
         )
     }
     
-    public func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, owner: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, chatMetadata: ChatPaymentMetadata? = nil, rendezvous: PublicKey) async throws {
+    /// Submits a transfer under `rendezvous` as its intent ID; pass `intentIDIsSensitive` for a server-issued ID that anyone reading the logs could spend before it settles.
+    public func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, owner: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, chatMetadata: ChatPaymentMetadata? = nil, rendezvous: PublicKey, intentIDIsSensitive: Bool = false) async throws {
         let appMetadata = try chatMetadata?.serializedAppMetadata()
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
@@ -56,7 +57,8 @@ extension Client {
                 destinationOwner: destinationOwner,
                 appMetadata: appMetadata,
                 owner: owner.authority.keyPair,
-                rendezvous: rendezvous
+                rendezvous: rendezvous,
+                intentIDIsSensitive: intentIDIsSensitive
             ) { c.resume(with: $0) }
         }
     }
