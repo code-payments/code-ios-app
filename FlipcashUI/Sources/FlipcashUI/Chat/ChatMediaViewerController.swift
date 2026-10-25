@@ -195,8 +195,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(closeButton)
 
-        // The icon the reaction strip's "+" uses.
-        reactButton.configuration?.image = UIImage.asset(.addReaction).withRenderingMode(.alwaysTemplate)
+        // A system symbol, not the strip's "+" asset: that SVG carries a 0.5 group opacity and read dimmer than its neighbours.
         reactButton.isHidden = !request.canReact
         replyButton.isHidden = !request.canReply
         forwardButton.isHidden = !request.canForward
