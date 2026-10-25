@@ -46,7 +46,7 @@ private struct GroupSendFlowContent: View {
     var body: some View {
         NavigationStack(path: $path) {
             GroupSendAmountScreen(viewModel: viewModel) {
-                path.append(.selectPeople)
+                if viewModel.confirmAmount() { path.append(.selectPeople) }
             }
             .toolbar { closeButton }
             .navigationDestination(for: GroupSendStep.self) { step in

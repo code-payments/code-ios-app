@@ -85,6 +85,21 @@ final class GroupSendViewModel {
         return (fiat?.onChainAmount.quarks ?? 0) > 0
     }
 
+    /// Whether the amount screen can go on to Select People; an amount over the balance shows the send flow's alert instead.
+    func confirmAmount() -> Bool {
+        guard let validatedEntered, let selectedBalance,
+              let fiat = selectedBalance.enteredFiat(for: validatedEntered, rate: ratesController.rateForBalanceCurrency()) else {
+            return false
+        }
+        switch session.hasSufficientFunds(for: fiat) {
+        case .insufficient(let shortfall):
+            if let shortfall { showYoureShortError(amount: shortfall) } else { showInsufficientBalanceError() }
+            return false
+        case .sufficient:
+            return true
+        }
+    }
+
     /// What's left to spend in the selected currency.
     var available: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
