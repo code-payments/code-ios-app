@@ -45,13 +45,20 @@ struct GroupSendBubbleTests {
         #expect(lines.recipients == "to Alex Morgan and 1 Other")
     }
 
-    @Test("an uneven split shows the smallest part with a tilde, and a paid viewer their own part")
+    @Test("a paid viewer sees their own part in place of the per-person line")
     func unevenSplitPaidViewer() throws {
         let lines = try #require(lines([payment(alex, 0.34), payment(me, 0.33), payment(kim, 0.33)], total: 1, sender: "Sam Chen"))
         #expect(lines.caption == "Sam Chen sent")
-        #expect(lines.each == "~$0.33 Each")
+        #expect(lines.each == nil)
         #expect(lines.received == "You received $0.33")
         #expect(lines.recipients == "to Alex Morgan and 2 Others")
+    }
+
+    @Test("an uneven split shows the smallest part with a tilde")
+    func unevenSplit() throws {
+        let lines = try #require(lines([payment(alex, 0.34), payment(sam, 0.33), payment(kim, 0.33)], total: 1, sender: "You"))
+        #expect(lines.each == "~$0.33 Each")
+        #expect(lines.received == nil)
     }
 
     @Test("an unnamed first recipient falls back to a count")

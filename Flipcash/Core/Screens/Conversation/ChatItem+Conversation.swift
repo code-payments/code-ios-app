@@ -694,10 +694,12 @@ extension ChatItem {
         let others = payments.count - 1
         let recipients = payments[0].receiverID.flatMap(name).map { "to \($0) and \(others) \(others == 1 ? "Other" : "Others")" }
             ?? "to \(payments.count) people"
+        // A paid viewer's own part stands in for the per-person line rather than repeating it.
+        let received = payments.first { $0.receiverID == selfUserID }.map { "You received \(formatted($0))" }
         return ChatCashContent.GroupSend(
             caption: "\(sender) sent",
-            each: isEven ? "\(formatted(smallest)) Each" : "~\(formatted(smallest)) Each",
-            received: payments.first { $0.receiverID == selfUserID }.map { "You received \(formatted($0))" },
+            each: received != nil ? nil : isEven ? "\(formatted(smallest)) Each" : "~\(formatted(smallest)) Each",
+            received: received,
             recipients: recipients
         )
     }
