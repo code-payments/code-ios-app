@@ -101,6 +101,16 @@ struct ChatMediaViewerTests {
         #expect(viewer.viewForZooming(in: viewer.scrollView) === viewer.imageView)
     }
 
+    @Test("The viewer is always dark, so its glass and glyphs match the black backdrop")
+    func viewerIsDark() throws {
+        let request = try #require(ChatMediaViewerRequest(
+            message: message(media()), localImage: Self.localImage, remote: nil, placeholder: nil
+        ) { nil })
+        let viewer = makeViewer(request)
+        #expect(viewer.overrideUserInterfaceStyle == .dark)
+        #expect(viewer.view.traitCollection.userInterfaceStyle == .dark)
+    }
+
     @Test("Double-tap zooms in, and a second double-tap zooms back out")
     func doubleTapTogglesZoom() {
         let scale = ChatMediaViewerController.doubleTapTargetScale

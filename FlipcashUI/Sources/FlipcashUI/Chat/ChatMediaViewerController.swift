@@ -151,6 +151,8 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     public override func viewDidLoad() {
         super.viewDidLoad()
+        // The photo sits on black, so the glass, strip and glyphs always take the dark variant.
+        overrideUserInterfaceStyle = .dark
         view.backgroundColor = .black
 
         scrollView.delegate = self
