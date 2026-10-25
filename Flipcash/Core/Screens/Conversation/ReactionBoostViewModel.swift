@@ -258,20 +258,7 @@ final class ReactionBoostViewModel {
 
     /// `cents` of USD in `mint` at the pinned rate, or nil when it can't be priced.
     private func price(cents: UInt64, mint: PublicKey, pin: VerifiedState) -> ExchangedFiat? {
-        let usd = FiatAmount(value: Decimal(cents) / 100, currency: pin.rate.currency)
-        if mint == .usdf {
-            return ExchangedFiat(nativeAmount: usd, rate: pin.rate)
-        }
-        let balance = session.balance(for: mint)
-        guard let supply = pin.supplyFromBonding else { return nil }
-        return ExchangedFiat.compute(
-            fromEntered: usd,
-            rate: pin.rate,
-            mint: mint,
-            supplyQuarks: supply,
-            balance: balance.map(\.usdf),
-            tokenBalanceQuarks: balance?.quarks
-        )
+        session.price(FiatAmount(value: Decimal(cents) / 100, currency: pin.rate.currency), mint: mint, at: pin)
     }
 
     // MARK: - Errors -

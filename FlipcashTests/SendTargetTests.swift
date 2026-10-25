@@ -14,13 +14,14 @@ struct SendTargetTests {
 
     private let chatID = Data([0xDE, 0xAD, 0xBE, 0xEF])
 
-    private func makeConversation(type: ConversationType, members: [ConversationMember]) -> Conversation {
+    private func makeConversation(type: ConversationType, members: [ConversationMember], isPrivate: Bool = false) -> Conversation {
         Conversation(
             id: ConversationID(data: Data(repeating: 0x01, count: 32)),
             members: members,
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 0),
-            type: type
+            type: type,
+            isPrivate: isPrivate
         )
     }
 
@@ -105,6 +106,19 @@ struct SendTargetTests {
         let target = try #require(SendTarget(conversation: convo, dmChatID: chatID, selfUserID: me))
 
         #expect(target == .group(convo.id))
+    }
+
+    @Test("A private group resolves to group send, since only its roster is complete on the client")
+    func privateGroupYieldsGroupSendTarget() throws {
+        let me = UUID()
+        let convo = makeConversation(type: .group, members: [
+            ConversationMember(userID: me, displayName: "Me"),
+            ConversationMember(userID: UUID(), displayName: "Alice"),
+        ], isPrivate: true)
+
+        let target = try #require(SendTarget(conversation: convo, dmChatID: chatID, selfUserID: me))
+
+        #expect(target == .privateGroup(convo.id))
     }
 
     @Test("A contact DM resolves through ResolvedContact rather than the tip path")

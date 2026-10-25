@@ -194,13 +194,18 @@ struct SendAmountSheetRoot: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        NavigationStack {
-            SendAmountScreen(target: target)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        CloseButton(action: router.dismissSheet)
+        switch target {
+        case .privateGroup(let conversationID):
+            GroupSendFlow(conversationID: conversationID)
+        case .contact, .tip, .group:
+            NavigationStack {
+                SendAmountScreen(target: target)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            CloseButton(action: router.dismissSheet)
+                        }
                     }
-                }
+            }
         }
     }
 }

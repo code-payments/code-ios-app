@@ -450,12 +450,34 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
     public let iconURL: URL?
     /// Whether the payment was a tip, which selects the caption verb ("tipped" vs "sent").
     public let isTip: Bool
+    /// The lines a payment in a group adds to a plain cash card; nil outside a group, or when the
+    /// card needs only the plain caption.
+    public let group: GroupSend?
 
-    public init(amount: String, token: String, iconURL: URL? = nil, isTip: Bool = false) {
+    /// The lines a payment in a group adds to a plain cash card.
+    public struct GroupSend: Hashable, Sendable, Codable {
+        /// Replaces the caption: "You sent", or the sender's name in place of "You".
+        public let caption: String
+        /// The per-person line: "$1.00 Each", or "~$0.33 Each" (the smallest part) when uneven; nil
+        /// for a payment to one member.
+        public let each: String?
+        /// Who was paid, at the foot of the card: "to Alex Morgan and 1 Other", or "to You and 1 Other"
+        /// when the viewer was paid.
+        public let recipients: String
+
+        public init(caption: String, each: String?, recipients: String) {
+            self.caption = caption
+            self.each = each
+            self.recipients = recipients
+        }
+    }
+
+    public init(amount: String, token: String, iconURL: URL? = nil, isTip: Bool = false, group: GroupSend? = nil) {
         self.amount = amount
         self.token = token
         self.iconURL = iconURL
         self.isTip = isTip
+        self.group = group
     }
 
     /// The caption shown above the amount on a cash card, selected by side and tip vs. plain send.

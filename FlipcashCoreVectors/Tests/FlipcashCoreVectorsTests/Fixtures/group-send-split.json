@@ -1,0 +1,181 @@
+{
+  "algorithm": "group-send-split",
+  "source": "docs/specs/group-send.md (Splitting the total); flipcash2-client-protocol 0.21.0 CashContent.multi_receiver; ocp SendPublicMultiPaymentMetadata",
+  "note": "Amounts are USD decimal strings. parts are in selection order: the first recipients checked get the leftover cents. Quarks are omitted: each part is priced from its own fiat at one verified state. expectedError names the rule, not a platform error type.",
+  "maxRecipients": 10,
+  "minimumPart": "0.01",
+  "vectors": [
+    {
+      "name": "one recipient",
+      "total": "5.00",
+      "recipients": 1,
+      "intent": "SendPublicPayment",
+      "parts": [
+        "5.00"
+      ]
+    },
+    {
+      "name": "two even",
+      "total": "2.00",
+      "recipients": 2,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "1.00",
+        "1.00"
+      ],
+      "eachLabel": "$1.00 Each"
+    },
+    {
+      "name": "three uneven",
+      "total": "5.00",
+      "recipients": 3,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "1.67",
+        "1.67",
+        "1.66"
+      ],
+      "eachLabel": "~$1.66 Each"
+    },
+    {
+      "name": "six uneven",
+      "total": "2.00",
+      "recipients": 6,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "0.34",
+        "0.34",
+        "0.33",
+        "0.33",
+        "0.33",
+        "0.33"
+      ],
+      "eachLabel": "~$0.33 Each"
+    },
+    {
+      "name": "six exact minimum",
+      "total": "0.06",
+      "recipients": 6,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01"
+      ],
+      "eachLabel": "$0.01 Each"
+    },
+    {
+      "name": "seven two cents left",
+      "total": "1.00",
+      "recipients": 7,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "0.15",
+        "0.15",
+        "0.14",
+        "0.14",
+        "0.14",
+        "0.14",
+        "0.14"
+      ],
+      "eachLabel": "~$0.14 Each"
+    },
+    {
+      "name": "ten even",
+      "total": "10.00",
+      "recipients": 10,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00"
+      ],
+      "eachLabel": "$1.00 Each"
+    },
+    {
+      "name": "ten uneven",
+      "total": "9.99",
+      "recipients": 10,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "0.99"
+      ],
+      "eachLabel": "~$0.99 Each"
+    },
+    {
+      "name": "ten exact minimum",
+      "total": "0.10",
+      "recipients": 10,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01"
+      ],
+      "eachLabel": "$0.01 Each"
+    },
+    {
+      "name": "large total",
+      "total": "123.45",
+      "recipients": 4,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "30.87",
+        "30.86",
+        "30.86",
+        "30.86"
+      ],
+      "eachLabel": "~$30.86 Each"
+    },
+    {
+      "name": "too small for six",
+      "total": "0.05",
+      "recipients": 6,
+      "expectedError": "part-below-minimum"
+    },
+    {
+      "name": "too small for two",
+      "total": "0.01",
+      "recipients": 2,
+      "expectedError": "part-below-minimum"
+    },
+    {
+      "name": "eleven recipients",
+      "total": "11.00",
+      "recipients": 11,
+      "expectedError": "too-many-recipients"
+    },
+    {
+      "name": "no recipients",
+      "total": "1.00",
+      "recipients": 0,
+      "expectedError": "no-recipients"
+    }
+  ]
+}

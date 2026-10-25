@@ -738,7 +738,9 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatCashCardCell:
-            cell.configure(with: message, maxWidth: cashCardWidth(available: available), authorImageData: authorImageData)
+            // Every cash card is one width, so an incoming card in a group doesn't give up the avatar
+            // gutter the way a bubble does.
+            cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }

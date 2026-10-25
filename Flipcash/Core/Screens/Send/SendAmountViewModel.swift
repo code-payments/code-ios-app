@@ -379,6 +379,9 @@ final class SendAmountViewModel {
             switch target {
             case .group(let conversationID):
                 payee = .cashLink(into: conversationID)
+            case .privateGroup:
+                assertionFailure("A private group sends through GroupSendViewModel")
+                return .failed
             case .contact, .tip:
                 switch await resolveRecipient() {
                 case .resolved(let owner):
@@ -502,7 +505,7 @@ final class SendAmountViewModel {
                 origin: effectiveTipOrigin ?? recipient.origin,
                 action: recipient.origin == .tipcard ? .tip : .send
             )
-        case .group:
+        case .group, .privateGroup:
             return nil
         }
     }
@@ -535,7 +538,7 @@ final class SendAmountViewModel {
                     owner = try await resolver.resolveContact(e164: contact.phoneE164)
                 case .tip(let recipient):
                     owner = try await resolver.resolveUserID(recipient.userID)
-                case .group:
+                case .group, .privateGroup:
                     assertionFailure("A group send funds a cash link and has no recipient to resolve")
                     return .failed
                 }
@@ -560,7 +563,7 @@ final class SendAmountViewModel {
         switch target {
         case .contact(let contact): contact.contactId
         case .tip(let recipient):   recipient.userID.uuidString
-        case .group(let id):        id.description
+        case .group(let id), .privateGroup(let id): id.description
         }
     }
 
@@ -593,7 +596,7 @@ final class SendAmountViewModel {
                     mint: mint
                 )
             }
-        case .contact, .group:
+        case .contact, .group, .privateGroup:
             pinnedState = await ratesController.currentPinnedState(
                 for: ratesController.balanceCurrency,
                 mint: mint
