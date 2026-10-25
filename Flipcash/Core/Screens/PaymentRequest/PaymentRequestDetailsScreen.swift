@@ -149,37 +149,46 @@ struct PaymentRequestDetailsScreen: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// A row with nothing to do is a plain view: a disabled button would dim the whole row.
+    @ViewBuilder
     private func shareRow(_ row: PaymentRequestDetailsContent.Row) -> some View {
-        Button {
-            switch row.action {
-            case .markPaid: presentMarkPaidOptions(row)
-            case .none:     break
+        switch row.action {
+        case .markPaid:
+            Button {
+                presentMarkPaidOptions(row)
+            } label: {
+                shareRowContent(row)
             }
-        } label: {
-            HStack(spacing: 12) {
-                PaymentRequestAvatar(userID: row.userID, member: member(row.userID), size: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(row.name)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                    Text(row.status)
-                        .font(.appTextSmall)
-                        .foregroundStyle(row.isPaid ? Color.textSuccess : Color.textSecondary)
-                }
-                Spacer(minLength: 8)
-                Text(row.amount)
+            .buttonStyle(.plain)
+            .disabled(isUpdating)
+            .accessibilityElement(children: .combine)
+        case .none:
+            shareRowContent(row)
+                .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func shareRowContent(_ row: PaymentRequestDetailsContent.Row) -> some View {
+        HStack(spacing: 12) {
+            PaymentRequestAvatar(userID: row.userID, member: member(row.userID), size: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.name)
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                Text(row.status)
+                    .font(.appTextSmall)
+                    .foregroundStyle(row.isPaid ? Color.textSuccess : Color.textSecondary)
             }
-            .padding(.horizontal, 12)
-            .frame(minHeight: 64)
-            .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
-            .contentShape(.rect)
+            Spacer(minLength: 8)
+            Text(row.amount)
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
         }
-        .buttonStyle(.plain)
-        .disabled(row.action == .none || isUpdating)
-        .accessibilityElement(children: .combine)
+        .padding(.horizontal, 12)
+        .frame(minHeight: 64)
+        .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
+        .contentShape(.rect)
     }
 
     /// The viewer's reading of the request, or nil until it and its title are loaded.
