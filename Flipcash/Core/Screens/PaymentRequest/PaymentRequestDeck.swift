@@ -680,15 +680,13 @@ private struct PaymentRequestDeckCard: View {
                         .deckPart(.title, measure)
                 }
             }
-            PaymentRequestViewerStatusLine(status: item.viewerStatus, amounts: item.amounts)
+            Text(item.card.progressLine)
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textMain)
                 .deckPart(.amounts, measure)
             PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: item.card.isEnded)
                 .deckPart(.bar, measure)
-            Text(item.card.statusLine)
-                .font(.appTextCaption)
-                .foregroundStyle(Color.textSecondary)
+            PaymentRequestDeckCardFooter(item: item)
                 .deckPart(.status, measure)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -701,6 +699,27 @@ private struct PaymentRequestDeckCard: View {
                 .deckPart(.container, measure)
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// An expanded card's footer: the time left, and the viewer's part of the status at the trailing end.
+private struct PaymentRequestDeckCardFooter: View {
+
+    let item: PaymentRequestDeckItem
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(item.card.statusLine)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            if let lead = item.viewerStatus.lead {
+                Text(lead)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+            }
+        }
+        .font(.appTextCaption)
+        .foregroundStyle(Color.textSecondary)
     }
 }
 
@@ -851,7 +870,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                     shared(.amounts, scale: Self.amountsScale, p: p, outgoing: amountsOut, incoming: amountsIn) { isCard in
                         Group {
                             if isCard {
-                                PaymentRequestViewerStatusLine(status: item.viewerStatus, amounts: item.amounts)
+                                Text(item.card.progressLine)
                             } else {
                                 source.amounts(item)
                             }
@@ -867,8 +886,8 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                         extra(.bar, in: box, from: cardBox, stretches: true) {
                             PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: item.card.isEnded)
                         }
-                        extra(.status, in: box, from: cardBox) {
-                            Text(item.card.statusLine).font(.appTextCaption).foregroundStyle(Color.textSecondary)
+                        extra(.status, in: box, from: cardBox, stretches: true) {
+                            PaymentRequestDeckCardFooter(item: item)
                         }
                     }
                     .opacity(extras)
