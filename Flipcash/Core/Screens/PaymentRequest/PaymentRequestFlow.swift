@@ -537,8 +537,6 @@ private struct PaymentRequestDeadlineSheet: View {
     @State private var picker: PaymentRequestDeadlinePicker
     @State private var height: CGFloat = 0
 
-    @Namespace private var chipSelection
-
     init(deadline: Binding<PaymentRequestDeadline>) {
         _deadline = deadline
         _picker = State(initialValue: PaymentRequestDeadlinePicker(deadline: deadline.wrappedValue))
@@ -589,17 +587,11 @@ private struct PaymentRequestDeadlineSheet: View {
             .padding(.vertical, 6)
             .background(Color.backgroundSecondary, in: .rect(cornerRadius: 12))
 
-            Button {
+            Button("Done") {
                 deadline = picker.choice
                 dismiss()
-            } label: {
-                Text("Done")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.black)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .background(Color.white, in: .capsule)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.filled)
             .padding(.bottom, 8)
         }
         .padding(.horizontal, 20)
@@ -649,21 +641,32 @@ private struct PaymentRequestDeadlineSheet: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
-                        .background {
-                            ZStack {
-                                Capsule().fill(Color.backgroundSecondary)
-                                if isSelected {
-                                    Capsule().fill(Color.white)
-                                        .matchedGeometryEffect(id: "chip", in: chipSelection)
-                                }
-                            }
-                        }
+                        .anchorPreference(key: SelectionAnchors<String>.self, value: .bounds) { [preset.rowTitle: $0] }
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
         .frame(maxWidth: .infinity)
+        .backgroundPreferenceValue(SelectionAnchors<String>.self) { anchors in
+            GeometryReader { proxy in
+                ForEach(Array(anchors.keys), id: \.self) { title in
+                    if let anchor = anchors[title] {
+                        let rect = proxy[anchor]
+                        Capsule().fill(Color.backgroundSecondary)
+                            .frame(width: rect.width, height: rect.height)
+                            .position(x: rect.midX, y: rect.midY)
+                    }
+                }
+                // One capsule for the selection, so it slides between chips instead of fading.
+                if let title = picker.selectedPreset?.rowTitle, let anchor = anchors[title] {
+                    let rect = proxy[anchor]
+                    Capsule().fill(Color.white)
+                        .frame(width: rect.width, height: rect.height)
+                        .position(x: rect.midX, y: rect.midY)
+                }
+            }
+        }
         .animation(.snappy(duration: 0.3), value: picker.selectedPreset)
     }
 }
@@ -672,8 +675,6 @@ private struct PaymentRequestDeadlineSheet: View {
 private struct PaymentRequestDeadlineGrid: View {
 
     let picker: PaymentRequestDeadlinePicker
-
-    @Namespace private var selection
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
 
@@ -687,6 +688,16 @@ private struct PaymentRequestDeadlineGrid: View {
             }
             ForEach(picker.gridDays, id: \.self) { day in
                 cell(day)
+            }
+        }
+        .backgroundPreferenceValue(SelectionAnchors<Date>.self) { anchors in
+            GeometryReader { proxy in
+                // One circle for the closing day, drawn under the cells so it slides between days instead of fading.
+                if let anchor = anchors[picker.selectedDay] {
+                    let rect = proxy[anchor]
+                    Circle().fill(Color.white).frame(width: Self.circle, height: Self.circle)
+                        .position(x: rect.midX, y: rect.midY)
+                }
             }
         }
         .padding(12)
@@ -716,10 +727,7 @@ private struct PaymentRequestDeadlineGrid: View {
                     bandPiece(band)
                         .transition(.scale(scale: 0, anchor: .leading).combined(with: .opacity))
                 }
-                if isSelected {
-                    Circle().fill(Color.white).frame(width: Self.circle, height: Self.circle)
-                        .matchedGeometryEffect(id: "selected", in: selection)
-                } else if isStart {
+                if isStart {
                     Circle().fill(Self.startGrey).frame(width: Self.circle, height: Self.circle)
                 }
                 Text("\(number)")
@@ -734,8 +742,10 @@ private struct PaymentRequestDeadlineGrid: View {
                         .padding(.top, 1)
                 }
             }
+            .frame(maxWidth: .infinity)
             .frame(height: 38)
             .contentShape(.rect)
+            .anchorPreference(key: SelectionAnchors<Date>.self, value: .bounds) { [calendar.startOfDay(for: day): $0] }
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -763,6 +773,15 @@ private struct PaymentRequestDeadlineGrid: View {
             Color.clear.frame(maxWidth: band.toCenter ? .infinity : 0)
         }
         .frame(height: Self.circle)
+    }
+}
+
+/// Each tappable item's bounds, so a selection highlight can be drawn once and slide between items.
+private struct SelectionAnchors<ID: Hashable>: PreferenceKey {
+    static var defaultValue: [ID: Anchor<CGRect>] { [:] }
+
+    static func reduce(value: inout [ID: Anchor<CGRect>], nextValue: () -> [ID: Anchor<CGRect>]) {
+        value.merge(nextValue()) { $1 }
     }
 }
 
