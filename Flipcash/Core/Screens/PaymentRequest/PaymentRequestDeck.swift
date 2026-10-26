@@ -205,7 +205,7 @@ struct PaymentRequestPillAppearance: ViewModifier {
 // MARK: - Strip collapse -
 
 /// How far the owed strip has shrunk into the app-bar pill, following the reader's scroll away
-/// from the newest messages.
+/// from the newest messages until it has shrunk all the way, then pinned there for the visit.
 @MainActor
 @Observable
 final class PaymentRequestStripCollapse {
@@ -214,6 +214,8 @@ final class PaymentRequestStripCollapse {
     /// Whether the collapsed deck reads as the pill. Flips past the middle of the collapse, with a
     /// band either side so a small scroll back and forth never flaps it.
     private(set) var isScrolledAway = false
+    /// Whether the strip has shrunk all the way into the pill, after which scrolling no longer moves it.
+    private(set) var isPinned = false
 
     /// The strip's slot under the bar and the pill's in it, in global space, where the collapse
     /// carries the one onto the other.
@@ -233,6 +235,7 @@ final class PaymentRequestStripCollapse {
 
     /// Follows the reader `distanceFromNewest` points above the newest messages.
     func update(distanceFromNewest: CGFloat) {
+        guard !isPinned else { return }
         let next = min(max(distanceFromNewest / Self.distance, 0), 1)
         if abs(next - progress) > 0.001 || (next != progress && (next == 0 || next == 1)) {
             progress = next
@@ -242,6 +245,18 @@ final class PaymentRequestStripCollapse {
         } else if isScrolledAway, next <= Self.backAt {
             isScrolledAway = false
         }
+        if next >= 1 - 0.001 {
+            progress = 1
+            isScrolledAway = true
+            isPinned = true
+        }
+    }
+
+    /// Brings the strip back out under the bar, for a request the viewer newly owes on.
+    func unpin() {
+        isPinned = false
+        isScrolledAway = false
+        progress = 0
     }
 }
 

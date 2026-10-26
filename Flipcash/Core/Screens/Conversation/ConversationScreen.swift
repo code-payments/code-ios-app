@@ -492,7 +492,7 @@ struct ConversationScreen: View {
             transcriptTopInset: [anchorHeight, stripHeight].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
             onDistanceFromNewestChange: { [stripCollapse] in stripCollapse.update(distanceFromNewest: $0) },
             // Released mid-way, the strip finishes the move it's nearer to rather than resting half-shrunk.
-            snapDistanceFromNewest: viewerOwes ? PaymentRequestStripCollapse.distance : nil,
+            snapDistanceFromNewest: viewerOwes && !stripCollapse.isPinned ? PaymentRequestStripCollapse.distance : nil,
             messageJump: messageJump
         )
     }
@@ -761,6 +761,9 @@ struct ConversationScreen: View {
         .onChange(of: requestDeckStyle, initial: true) { _, style in
             paymentRequestDeck.source = style
         }
+        .onChange(of: owedRequestIDs) { owed, owing in
+            if !owing.isSubset(of: owed) { stripCollapse.unpin() }
+        }
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
@@ -872,6 +875,10 @@ struct ConversationScreen: View {
 
     private var viewerOwes: Bool {
         requestDeckItems.contains { $0.owedShare != nil }
+    }
+
+    private var owedRequestIDs: Set<PaymentRequestID> {
+        Set(requestDeckItems.filter { $0.owedShare != nil }.map(\.id))
     }
 
     /// Kept in the bar under the strip, hidden, so the bar never rebuilds its item as the strip comes
