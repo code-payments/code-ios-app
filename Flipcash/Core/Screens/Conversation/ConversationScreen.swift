@@ -96,9 +96,8 @@ struct ConversationScreen: View {
     @State private var requestPillPresence = PaymentRequestPillPresence()
     /// Paying a share from the owed strip's Pay button.
     @State private var requestPayFlow = PaymentRequestPayFlow()
-    @State private var requestAutoExpand = PaymentRequestAutoExpand()
     /// Whether the reader has scrolled away from the newest messages, which shrinks the owed strip
-    /// into the green app-bar pill.
+    /// into the app-bar pill.
     @State private var isScrolledAway = false
     /// The owed strip's measured height, reserved at the transcript's top; 0 while hidden.
     @State private var stripHeight: CGFloat = 0
@@ -134,8 +133,6 @@ struct ConversationScreen: View {
     /// Whether the keyboard is up, which holds the update toast back.
     @State private var isKeyboardUp = false
 
-    @Environment(\.accessibilityVoiceOverEnabled) private var isVoiceOverOn
-    @Environment(\.accessibilityReduceMotion) private var reducesMotion
 
     /// This conversation's id when the viewer hosts it as a private group; the anchor is host-only.
     private var hostedConversationID: ConversationID? {
@@ -757,7 +754,6 @@ struct ConversationScreen: View {
             .animation(Self.deckStyleMotion, value: requestDeckStyle)
         }
         .paymentRequestPaySheet(requestPayFlow)
-        .task(id: owedRequestIDs) { await autoExpandForNewOwedRequests() }
         .onChange(of: requestDeckStyle, initial: true) { _, style in
             paymentRequestDeck.source = style
         }
@@ -863,16 +859,10 @@ struct ConversationScreen: View {
 
     private static let deckStyleMotion = Animation.spring(duration: 0.4, bounce: 0.12)
 
-    /// Where the collapsed deck sits: the strip under the bar while the viewer owes, shrunk into the
-    /// green app-bar pill while they read older messages, otherwise the grey pill.
+    /// Where the collapsed deck sits: the strip under the bar while the viewer owes and reads the
+    /// newest messages, otherwise the app-bar pill.
     private var requestDeckStyle: PaymentRequestDeckStyle {
-        guard requestDeckItems.contains(where: { $0.owedShare != nil }) else { return .pill }
-        return isScrolledAway ? .compact : .strip
-    }
-
-    /// The requests the viewer owes on, which the deck opens itself for once each.
-    private var owedRequestIDs: [PaymentRequestID] {
-        requestDeckItems.filter { $0.owedShare != nil }.map(\.id)
+        .collapsed(owes: requestDeckItems.contains { $0.owedShare != nil }, isScrolledAway: isScrolledAway)
     }
 
     /// Kept in the bar under the strip, hidden, so the bar never rebuilds its item as the strip comes
@@ -881,7 +871,7 @@ struct ConversationScreen: View {
         let style = requestDeckStyle
         return PaymentRequestPill(
             items: requestPillPresence.items(requestDeckItems),
-            style: style == .strip ? .pill : style,
+            style: .pill,
             accessibilityLabel: requestDeckAccessibilityLabel,
             state: paymentRequestDeck
         )
@@ -894,7 +884,7 @@ struct ConversationScreen: View {
 
     private var requestDeckAccessibilityLabel: String {
         guard let front = requestDeckItems.first else { return "" }
-        if let share = front.owedShare {
+        if requestDeckStyle == .strip, let share = front.owedShare {
             return PaymentRequestCopy.owedAccessibilityLabel(
                 share: share,
                 title: front.card.title,
@@ -914,21 +904,6 @@ struct ConversationScreen: View {
 
     private func payRequest(_ id: PaymentRequestID) {
         Task { await requestPayFlow.start(id, sessionContainer: sessionContainer) }
-    }
-
-    /// Opens the deck by itself once the chat has settled, for owed requests this device hasn't
-    /// opened it for, with the nearest of them in front.
-    private func autoExpandForNewOwedRequests() async {
-        guard !owedRequestIDs.isEmpty, !isVoiceOverOn, !reducesMotion else { return }
-        try? await Task.sleep(for: UpdatePolicy.chatSettle)
-        guard !Task.isCancelled, paymentRequestDeck.phase == .collapsed, !composer.isEditing else { return }
-        let fresh = requestAutoExpand.claim(owedRequestIDs)
-        guard !fresh.isEmpty, let group = groupConversation else { return }
-        let deck = sessionContainer.paymentRequests.deck(for: group.id, viewer: session.userID, at: .now)
-        if let index = deck.firstIndex(where: { fresh.contains($0.id) }) {
-            paymentRequestDeck.order.bringToFront(index)
-        }
-        paymentRequestDeck.autoExpand(showing: Set(fresh), for: PaymentRequestAutoExpand.duration)
     }
 
     /// The fetches the transcript needs: gate token names, sender names, and avatars.

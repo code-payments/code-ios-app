@@ -178,18 +178,11 @@ struct PaymentRequestSpecTests {
         #expect(!paid.isOwed(by: viewer, at: now))
     }
 
-    @Test("26: the deck opens itself for a new owed request once per device")
-    func autoExpandOnce() throws {
-        let defaults = try #require(UserDefaults(suiteName: "PaymentRequestSpecTests.autoExpand"))
-        defaults.removePersistentDomain(forName: "PaymentRequestSpecTests.autoExpand")
-        let first = request(id: 1).id
-        let second = request(id: 2).id
-
-        var firstOpen = PaymentRequestAutoExpand(defaults: defaults)
-        #expect(firstOpen.claim([first]) == [first])
-        var secondOpen = PaymentRequestAutoExpand(defaults: defaults)
-        #expect(secondOpen.claim([first]).isEmpty)
-        #expect(secondOpen.claim([first, second]) == [second])
+    @Test("26: viewer owes and scrolls away, so the strip shrinks into the pill and grows back")
+    func stripShrinksWhenScrolledAway() {
+        #expect(PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: false) == .strip)
+        #expect(PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: true) == .pill)
+        #expect(PaymentRequestDeckStyle.collapsed(owes: false, isScrolledAway: false) == .pill)
     }
 
     // MARK: - People -
