@@ -531,6 +531,7 @@ private struct PaymentRequestNameScreen: View {
 private struct PaymentRequestDeadlineSheet: View {
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Binding var deadline: PaymentRequestDeadline
 
@@ -667,12 +668,14 @@ private struct PaymentRequestDeadlineSheet: View {
                 }
             }
         }
-        .animation(.snappy(duration: 0.3), value: picker.selectedPreset)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: picker.selectedPreset)
     }
 }
 
 /// The Time To Pay grid: five weeks from today's, with only today through today + 28 days tappable.
 private struct PaymentRequestDeadlineGrid: View {
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let picker: PaymentRequestDeadlinePicker
 
@@ -706,7 +709,7 @@ private struct PaymentRequestDeadlineGrid: View {
         }
         .padding(12)
         .background(Color.backgroundSecondary, in: .rect(cornerRadius: 16))
-        .animation(.snappy(duration: 0.3), value: picker.selectedDay)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: picker.selectedDay)
     }
 
     private var weekdaySymbols: [String] {

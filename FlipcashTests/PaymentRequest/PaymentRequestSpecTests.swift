@@ -540,6 +540,7 @@ struct PaymentRequestDeadlinePickerTests {
         #expect(picker.band(for: date(11, 3)) == nil)
         #expect(picker.closesValue == "≈ Mon, Nov 2")
         #expect(picker.summaryLine == "1 Week · closes 7 days after you send")
+        #expect(picker.timeText(picker.timeRowDate) == "11:39\u{202F}AM")
     }
 
     @Test("35: tapping a day makes it custom at 6:00 PM")
@@ -579,17 +580,37 @@ struct PaymentRequestDeadlinePickerTests {
         #expect(picker.selectedDay == date(11, 9))
         #expect(picker.band(for: date(11, 9))?.toCenter == true)
         #expect(picker.summaryLine == "2 Weeks · closes 14 days after you send")
+        #expect(picker.timeRowDate == date(11, 9, 11, 39))
     }
 
-    @Test("A preset shows its closing time, and changing it makes that day custom")
+    @Test("41: changing a preset's time makes its closing day custom at that time")
     func presetTime() {
         let picker = picker(openedAt: date(10, 26, 11, 39))
-        #expect(picker.timeRowDate == date(11, 2, 11, 39))
-        picker.setTime(date(10, 26, 20, 15))
+        picker.setTime(date(10, 26, 15))
         #expect(picker.selectedPreset == nil)
-        #expect(picker.customDate == date(11, 2, 20, 15))
+        #expect(picker.customDate == date(11, 2, 15))
+        #expect(picker.closesValue == "Mon, Nov 2, 3:00\u{202F}PM")
+        #expect(picker.summaryLine == "Custom · 7 days")
+        #expect(picker.choice == .custom(date(11, 2, 15)))
+    }
+
+    @Test("42: a time past 4 Weeks moves down to 28 days less five minutes from now")
+    func presetTimeClamp() {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        picker.select(.fourWeeks)
+        picker.setTime(date(10, 26, 11, 50))
+        #expect(picker.selectedPreset == nil)
+        #expect(picker.customDate == date(11, 23, 11, 34))
+        #expect(picker.selectedDay == date(11, 23))
+    }
+
+    @Test("45: tapping a day after changing the time keeps that time")
+    func dayKeepsTime() {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        picker.setTime(date(10, 26, 15))
         picker.select(day: date(11, 5))
-        #expect(picker.customDate == date(11, 5, 20, 15))
+        #expect(picker.customDate == date(11, 5, 15))
+        #expect(picker.closesValue == "Thu, Nov 5, 3:00\u{202F}PM")
     }
 
     @Test("39: the summary keeps its choice until Done, and reopening shows the current one")
