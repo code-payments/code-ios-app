@@ -14,6 +14,10 @@ struct PaymentRequestDeckItem: Identifiable, Hashable {
     let request: GroupPaymentRequest
     let card: PaymentRequestCardContent
     let amounts: String
+    /// The viewer's unpaid share while the request is open: "$20". Nil when they owe nothing on it.
+    let owedShare: String?
+    /// The status line without "to pay": "2 days left".
+    let timeLeft: String
 
     var id: PaymentRequestID { request.id }
 }
@@ -40,12 +44,22 @@ final class PaymentRequestDeckState {
     private(set) var isOverlayPresented = false
     /// Open and at rest, so the list's own front card shows in place of the moving one.
     private(set) var isSettled = false
-    /// The front card's parts in global coordinates, in the pill and in the expanded list.
-    var pillFrames: [DeckPart: CGRect] = [:]
+    /// The front card's parts in global coordinates in each collapsed face, and in the expanded list.
+    var faceFrames: [PaymentRequestDeckStyle: [DeckPart: CGRect]] = [:]
     var cardFrames: [DeckPart: CGRect] = [:]
-    /// The pill's Dynamic Type size. The toolbar can lay its text out at a different size than the
-    /// overlay, so the moving copy draws the pill's text at this one to land on it exactly.
-    var pillTypeSize: DynamicTypeSize = .large
+    /// The front card's parts in the face the deck collapses into.
+    var pillFrames: [DeckPart: CGRect] { faceFrames[source] ?? [:] }
+    /// The app-bar pill's frame, where the expanded deck's close button sits whichever face it opened from.
+    var barFrame: CGRect? { faceFrames[source == .compact ? .compact : .pill]?[.container] }
+    /// Each collapsed face's Dynamic Type size. The toolbar can lay its text out at a different size
+    /// than the overlay, so the moving copy draws the face's text at its own size to land on it exactly.
+    var faceTypeSizes: [PaymentRequestDeckStyle: DynamicTypeSize] = [:]
+    /// The Dynamic Type size of the face the deck collapses into.
+    var pillTypeSize: DynamicTypeSize { faceTypeSizes[source] ?? .large }
+    /// The face the deck collapses into, so the moving card starts from it and lands back on it.
+    var source: PaymentRequestDeckStyle = .pill
+    /// The requests the deck opened itself to show, each with a "NEW" chip until it collapses.
+    var newIDs: Set<PaymentRequestID> = []
     private var generation = 0
 
     private static let motion = Animation.spring(duration: 0.4, bounce: 0.12)
@@ -70,6 +84,20 @@ final class PaymentRequestDeckState {
         }
     }
 
+    /// Opens the deck on its own with a "NEW" chip on each of `ids`, then collapses it after
+    /// `duration` unless a tap or a swipe moved it first.
+    func autoExpand(showing ids: Set<PaymentRequestID>, for duration: Duration) {
+        guard !isOpen else { return }
+        newIDs = ids
+        expand()
+        let generation = generation
+        Task { @MainActor in
+            try? await Task.sleep(for: duration)
+            guard generation == self.generation else { return }
+            self.collapse()
+        }
+    }
+
     /// Shrinks the front card back into the pill, from wherever it is.
     func collapse() {
         guard isOpen else { return }
@@ -85,6 +113,7 @@ final class PaymentRequestDeckState {
         guard isOpen else { return }
         isOpen = false
         isSettled = false
+        newIDs = []
         generation += 1
         var transaction = Transaction()
         transaction.disablesAnimations = true
@@ -108,6 +137,7 @@ final class PaymentRequestDeckState {
                 self.isSettled = true
             } else {
                 self.isOverlayPresented = false
+                self.newIDs = []
             }
         }
     }
@@ -190,15 +220,88 @@ struct PaymentRequestPillAppearance: ViewModifier {
     }
 }
 
+// MARK: - Style -
+
+/// Where the collapsed deck sits: the grey app-bar pill; the strip under the bar while the viewer
+/// owes; or the green app-bar pill the strip shrinks into while they read older messages.
+enum PaymentRequestDeckStyle: Hashable {
+    case pill
+    case compact
+    case strip
+
+    /// The face `item` shows in this style: only a card the viewer owes on turns the pill green.
+    func face(for item: PaymentRequestDeckItem) -> PaymentRequestDeckStyle {
+        self == .compact && item.owedShare == nil ? .pill : self
+    }
+
+    var ringDiameter: CGFloat {
+        switch self {
+        case .pill, .compact: 26
+        case .strip: 32
+        }
+    }
+
+    var cornerRadius: CGFloat {
+        switch self {
+        case .pill, .compact: 18
+        case .strip: 14
+        }
+    }
+
+    /// The title's font and its point size, which the expand morph scales from.
+    var titleFont: Font {
+        switch self {
+        case .pill, .compact: .appTextCaption
+        case .strip: .appTextSmall
+        }
+    }
+
+    var titleSize: CGFloat {
+        switch self {
+        case .pill, .compact: 12
+        case .strip: 14
+        }
+    }
+
+    /// The face's title line: the green pill folds the whole owed summary into it.
+    func title(_ item: PaymentRequestDeckItem) -> String {
+        switch self {
+        case .pill, .strip:
+            item.card.title
+        case .compact:
+            item.owedShare.map { "You owe \($0) · \(item.card.title) · \(item.timeLeft)" } ?? item.card.title
+        }
+    }
+
+    /// The face's second line: "You owe $5 · 2 days left" on the strip while owed, or
+    /// "<paid> of <requested>". The green pill has none.
+    func amounts(_ item: PaymentRequestDeckItem) -> AttributedString {
+        switch self {
+        case .pill:
+            return AttributedString(item.amounts)
+        case .compact:
+            return AttributedString()
+        case .strip:
+            guard let share = item.owedShare else { return AttributedString(item.amounts) }
+            var owe = AttributedString("You owe \(share)")
+            owe.foregroundColor = Color.textSuccess
+            return owe + AttributedString(" · \(item.timeLeft)")
+        }
+    }
+}
+
 // MARK: - Pill -
 
-/// The app-bar pill (concept B): the front request with up to two more peeking beneath it, as a
-/// stack of cards. Swipe down cycles; tap expands.
+/// The collapsed deck (concept B): the front request with up to two more peeking beneath it, as a
+/// stack of cards, in the app bar or as the strip under it. Swipe down cycles; tap expands.
 struct PaymentRequestPill: View {
 
     let items: [PaymentRequestDeckItem]
+    var style: PaymentRequestDeckStyle = .pill
     let accessibilityLabel: String
     @Bindable var state: PaymentRequestDeckState
+    /// Starts paying the viewer's share of a request, from the strip's Pay button.
+    var pay: ((PaymentRequestID) -> Void)? = nil
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The finger's downward travel, not the front card's: the card rubber-bands past one pill height.
@@ -216,7 +319,7 @@ struct PaymentRequestPill: View {
         // drawn over it move freely without feeding back into the bar's layout.
         ZStack(alignment: .top) {
             if let front = items.first {
-                PaymentRequestPillFace(item: front) { state.pillFrames[$0] = $1 }
+                PaymentRequestPillFace(item: front, style: style, measure: report)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { frontHeight = $0 }
                     .opacity(0)
             }
@@ -229,23 +332,32 @@ struct PaymentRequestPill: View {
             }
         }
         .padding(.bottom, Self.peekStep * CGFloat(min(max(items.count - 1, 0), 2)))
-        .onChange(of: typeSize, initial: true) { state.pillTypeSize = typeSize }
+        .onChange(of: typeSize, initial: true) { state.faceTypeSizes[style] = typeSize }
+        .onChange(of: style) { state.faceTypeSizes[style] = typeSize }
         .contentShape(Rectangle())
         .onTapGesture { state.expand() }
         .gesture(cycleGesture)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction { state.expand() }
-        .accessibilityAction(named: "Next request") {
-            guard items.count > 1 else { return }
-            withAnimation(Self.settle) { state.order.cycle() }
+        .accessibilityRepresentation {
+            Button(accessibilityLabel) { state.expand() }
+                .accessibilityAction(named: "Next request") {
+                    guard items.count > 1 else { return }
+                    withAnimation(Self.settle) { state.order.cycle() }
+                }
+            if style == .strip, let front = items.first, let share = front.owedShare, let pay {
+                Button("Pay \(share)") { pay(front.id) }
+            }
         }
     }
 
     /// `item` at `index` in the deck: the front card follows the finger, and each card behind rises
     /// a step toward the front as the drag nears one pill height. Past the second card they stack
     /// in the back slot, so a card sent to the back slides up under the others.
+    /// Records a part of the front card for the expand morph under this face, so a face animating
+    /// out of view can't overwrite the one the deck collapses into.
+    private func report(_ part: DeckPart, _ frame: CGRect) {
+        state.faceFrames[style, default: [:]][part] = frame
+    }
+
     private func card(_ item: PaymentRequestDeckItem, at index: Int) -> some View {
         let height = max(frontHeight, 1)
         let rise = items.count > 1 ? min(1, drag / height) : 0
@@ -253,16 +365,18 @@ struct PaymentRequestPill: View {
         let scale = index == 0 ? 1 - Self.depthScale * 0.5 * rise : 1 - Self.depthScale * depth
         // Anchored at the top, a card's scaled bottom sits a peek step lower per step back.
         let offset = index == 0 ? frontTravel(height: height) : height * (1 - scale) + Self.peekStep * depth
-        return PaymentRequestPillFace(item: item, fillsWidth: true)
+        return PaymentRequestPillFace(item: item, style: style, fillsWidth: true, pay: pay)
             .overlay {
-                RoundedRectangle(cornerRadius: 18)
+                RoundedRectangle(cornerRadius: style.cornerRadius)
                     .fill(Color.backgroundMain.opacity(Self.depthDim * depth))
                     .allowsHitTesting(false)
             }
             .scaleEffect(scale, anchor: .top)
             .offset(y: offset)
             // The moving copy stands in for the front card until it lands back here.
-            .opacity(index == 0 && state.phase != .collapsed ? 0 : 1)
+            .opacity(index == 0 && state.source == style && state.phase != .collapsed ? 0 : 1)
+            // Only the front card's Pay button takes a tap; the rest peek.
+            .allowsHitTesting(index == 0)
             .zIndex(Double(items.count - index))
     }
 
@@ -328,18 +442,38 @@ private extension View {
     }
 }
 
-/// The front card of the pill: the ring, the title and "<paid> of <requested>".
+/// A card in the collapsed deck: the ring, the title and "<paid> of <requested>" in the grey pill;
+/// the owed summary in the green one; and on the strip, the owed line with a Pay button.
 struct PaymentRequestPillFace: View {
 
     let item: PaymentRequestDeckItem
+    var style: PaymentRequestDeckStyle = .pill
     /// Stretches the card to the width it's offered, so a card in the stack matches the front one.
     var fillsWidth = false
     var measure: DeckPartMeasure? = nil
+    var pay: ((PaymentRequestID) -> Void)? = nil
 
     var body: some View {
+        switch style.face(for: item) {
+        case .pill: pill
+        case .compact: compact
+        case .strip: strip
+        }
+    }
+
+    private var ring: some View {
+        PaymentRequestRing(
+            fraction: item.card.fraction,
+            isEnded: item.card.isEnded,
+            isClosed: item.request.status == .closed,
+            diameter: style.ringDiameter
+        )
+        .deckPart(.ring, measure)
+    }
+
+    private var pill: some View {
         HStack(spacing: 8) {
-            PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded, isClosed: item.request.status == .closed)
-                .deckPart(.ring, measure)
+            ring
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.card.title)
                     .font(.appTextCaption)
@@ -369,6 +503,71 @@ struct PaymentRequestPillFace: View {
                 .deckPart(.container, measure)
         }
     }
+
+    private var compact: some View {
+        HStack(spacing: 8) {
+            ring
+            Text(style.title(item))
+                .font(.appTextCaption)
+                .foregroundStyle(Color.backgroundMain)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 100, alignment: .leading)
+                // One line stands for both; the expanded card's amounts grow out of it.
+                .deckPart(.title, measure)
+                .deckPart(.amounts, measure)
+        }
+        .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .leading)
+        .padding(.leading, 5)
+        .padding(.trailing, 12)
+        .padding(.vertical, 5)
+        .background {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.success)
+                .background(Color.backgroundMain, in: .rect(cornerRadius: 18))
+                .deckPart(.container, measure)
+        }
+    }
+
+    private var strip: some View {
+        HStack(spacing: 12) {
+            ring
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.card.title)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textMain)
+                    .deckPart(.title, measure)
+                Text(style.amounts(item))
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textSecondary)
+                    .deckPart(.amounts, measure)
+            }
+            .lineLimit(1)
+            .truncationMode(.tail)
+            Spacer(minLength: 0)
+            if item.owedShare != nil {
+                Button("Pay") { pay?(item.id) }
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.backgroundMain)
+                    .padding(.horizontal, 18)
+                    .frame(height: 32)
+                    .background(Color.success, in: .capsule)
+                    .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(item.card.isEnded ? 0.4 : 1)
+        .background {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.backgroundSecondary)
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(item.owedShare != nil ? Color.success : Color.rowSeparator))
+                .opacity(item.card.isEnded ? 0.4 : 1)
+                .background(Color.backgroundMain, in: .rect(cornerRadius: 14))
+                .deckPart(.container, measure)
+        }
+    }
 }
 
 /// A request in the expanded deck: the timeline card's lines under the ring and title, on the app's
@@ -376,6 +575,7 @@ struct PaymentRequestPillFace: View {
 private struct PaymentRequestDeckCard: View {
 
     let item: PaymentRequestDeckItem
+    var isNew = false
     var measure: DeckPartMeasure? = nil
 
     var body: some View {
@@ -409,6 +609,17 @@ private struct PaymentRequestDeckCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .opacity(item.card.isEnded ? 0.4 : 1)
+        .overlay(alignment: .topTrailing) {
+            if isNew {
+                Text("NEW")
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.backgroundMain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.success, in: .capsule)
+                    .padding(14)
+            }
+        }
         .background {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.backgroundSecondary)
@@ -447,6 +658,7 @@ struct PaymentRequestDeckOverlay: View {
                     pill: state.pillFrames,
                     card: state.cardFrames,
                     pillTypeSize: state.pillTypeSize,
+                    source: state.source.face(for: front),
                     origin: origin
                 )
                 .opacity(state.isSettled ? 0 : 1)
@@ -496,7 +708,7 @@ struct PaymentRequestDeckOverlay: View {
 
     private func card(_ item: PaymentRequestDeckItem, measure: DeckPartMeasure? = nil) -> some View {
         Button { open(item.id) } label: {
-            PaymentRequestDeckCard(item: item, measure: measure)
+            PaymentRequestDeckCard(item: item, isNew: state.newIDs.contains(item.id), measure: measure)
         }
         .buttonStyle(.plain)
     }
@@ -512,6 +724,8 @@ private struct PaymentRequestDeckMorph: View, Animatable {
     let pill: [DeckPart: CGRect]
     let card: [DeckPart: CGRect]
     let pillTypeSize: DynamicTypeSize
+    /// The collapsed face the card moves from and back to.
+    let source: PaymentRequestDeckStyle
     let origin: CGPoint
 
     var animatableData: CGFloat {
@@ -519,10 +733,9 @@ private struct PaymentRequestDeckMorph: View, Animatable {
         set { progress = newValue }
     }
 
-    private static let pillRing: CGFloat = 26
     private static let cardRing: CGFloat = 36
-    /// appTextMedium over appTextCaption, the title's two sizes.
-    private static let titleScale: CGFloat = 16 / 12
+    /// appTextMedium over the collapsed title's size.
+    private var titleScale: CGFloat { 16 / source.titleSize }
     /// appTextSmall over appTextCaption, the amounts' two sizes.
     private static let amountsScale: CGFloat = 14 / 12
 
@@ -539,24 +752,36 @@ private struct PaymentRequestDeckMorph: View, Animatable {
             let amountsIn = min(1, max(0, (p - 0.35) / 0.3))
             let extras = max(0, (p - 0.6) / 0.4)
 
+            let radius = source.cornerRadius + (12 - source.cornerRadius) * p
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 18 + (12 - 18) * p)
+                RoundedRectangle(cornerRadius: radius)
                     .fill(Color.backgroundSecondary)
+                    .overlay {
+                        // The green pill's fill drains as it grows into the grey card.
+                        if source == .compact {
+                            RoundedRectangle(cornerRadius: radius).fill(Color.success).opacity(1 - p)
+                        }
+                    }
                     .opacity(item.card.isEnded ? 0.4 + 0.6 * p : 1)
-                    .background(Color.backgroundMain, in: .rect(cornerRadius: 18 + (12 - 18) * p))
-                    .overlay(RoundedRectangle(cornerRadius: 18 + (12 - 18) * p).strokeBorder(Color.rowSeparator))
+                    .background(Color.backgroundMain, in: .rect(cornerRadius: radius))
+                    .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(Color.rowSeparator))
+                    .overlay {
+                        if source == .strip, item.owedShare != nil {
+                            RoundedRectangle(cornerRadius: radius).strokeBorder(Color.success).opacity(1 - p)
+                        }
+                    }
                     .place(box, origin)
 
                 Group {
                     ring(p)
-                    shared(.title, scale: Self.titleScale, p: p, outgoing: outgoing, incoming: incoming) { isCard in
-                        Text(item.card.title)
-                            .font(isCard ? .appTextMedium : .appTextCaption)
-                            .foregroundStyle(Color.textMain)
+                    shared(.title, scale: titleScale, p: p, outgoing: outgoing, incoming: incoming) { isCard in
+                        Text(isCard ? item.card.title : source.title(item))
+                            .font(isCard ? .appTextMedium : source.titleFont)
+                            .foregroundStyle(isCard || source != .compact ? Color.textMain : Color.backgroundMain)
                             .lineLimit(isCard ? 2 : 1)
                     }
                     shared(.amounts, scale: Self.amountsScale, p: p, outgoing: amountsOut, incoming: amountsIn) { isCard in
-                        Text(isCard ? item.card.progressLine : item.amounts)
+                        Text(isCard ? AttributedString(item.card.progressLine) : source.amounts(item))
                             .font(isCard ? .appTextSmall : .appTextCaption)
                             .foregroundStyle(isCard ? Color.textMain : Color.textSecondary)
                             .lineLimit(1)
@@ -586,7 +811,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
     private func ring(_ p: CGFloat) -> some View {
         if let from = pill[.ring], let to = card[.ring] {
             let frame = lerp(from, to, p)
-            let base = p < 0.5 ? Self.pillRing : Self.cardRing
+            let base = p < 0.5 ? source.ringDiameter : Self.cardRing
             PaymentRequestRing(
                 fraction: item.card.fraction,
                 isEnded: item.card.isEnded,
@@ -668,16 +893,23 @@ extension PaymentRequests {
     /// isn't open yet stay out until it is.
     func deckItems(
         for conversationID: ConversationID,
+        viewer: UserID?,
         order: PaymentRequestDeckOrder,
         copy: PaymentRequestCopy,
         now: Date
     ) -> [PaymentRequestDeckItem] {
-        order.apply(to: deck(for: conversationID, at: now)).compactMap { request in
+        order.apply(to: deck(for: conversationID, viewer: viewer, at: now)).compactMap { request in
             guard let text = text(of: request) else { return nil }
+            let owed = viewer.flatMap { viewer in
+                request.isOwed(by: viewer, at: now) ? request.share(for: viewer) : nil
+            }
+            let deadline = request.deadline(at: now)
             return PaymentRequestDeckItem(
                 request: request,
                 card: PaymentRequestCardContent(request: request, title: text.title, copy: copy, now: now),
-                amounts: copy.deckAmounts(request)
+                amounts: copy.deckAmounts(request),
+                owedShare: owed.map { copy.shareText($0, of: request) },
+                timeLeft: PaymentRequestCopy.timeLeft(deadline)
             )
         }
     }

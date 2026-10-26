@@ -94,6 +94,14 @@ struct ConversationScreen: View {
     @State private var paymentRequestDeck = PaymentRequestDeckState()
     @State private var deckWindow = PaymentRequestDeckWindow()
     @State private var requestPillPresence = PaymentRequestPillPresence()
+    /// Paying a share from the owed strip's Pay button.
+    @State private var requestPayFlow = PaymentRequestPayFlow()
+    @State private var requestAutoExpand = PaymentRequestAutoExpand()
+    /// Whether the reader has scrolled away from the newest messages, which shrinks the owed strip
+    /// into the green app-bar pill.
+    @State private var isScrolledAway = false
+    /// The owed strip's measured height, reserved at the transcript's top; 0 while hidden.
+    @State private var stripHeight: CGFloat = 0
     /// Whether a private group's Money sheet (Send or Request) is open.
     @State private var isShowingMoneyActions = false
     /// The Money sheet's choice, run once that sheet has gone so the next one can present.
@@ -125,6 +133,9 @@ struct ConversationScreen: View {
     @State private var anchorHeight: CGFloat = 0
     /// Whether the keyboard is up, which holds the update toast back.
     @State private var isKeyboardUp = false
+
+    @Environment(\.accessibilityVoiceOverEnabled) private var isVoiceOverOn
+    @Environment(\.accessibilityReduceMotion) private var reducesMotion
 
     /// This conversation's id when the viewer hosts it as a private group; the anchor is host-only.
     private var hostedConversationID: ConversationID? {
@@ -480,7 +491,11 @@ struct ConversationScreen: View {
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
-            transcriptTopInset: anchorHeight > 0 ? anchorHeight + 8 : 0,
+            // Each anchor shown takes its height and the stack's 8-point gap.
+            transcriptTopInset: [anchorHeight, stripHeight].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
+            onScrolledAwayChange: { away in
+                withAnimation(Self.deckStyleMotion) { isScrolledAway = away }
+            },
             messageJump: messageJump
         )
     }
@@ -718,6 +733,20 @@ struct ConversationScreen: View {
                     .onDisappear { anchorHeight = 0 }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
+                if requestDeckStyle == .strip {
+                    PaymentRequestPill(
+                        items: requestDeckItems,
+                        style: .strip,
+                        accessibilityLabel: requestDeckAccessibilityLabel,
+                        state: paymentRequestDeck,
+                        pay: payRequest
+                    )
+                    .padding(.horizontal, BarMetrics.edgeInset)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stripHeight = $0 }
+                    .onDisappear { stripHeight = 0 }
+                    // Shrinks toward the pill's slot at the bar's trailing edge, and grows out of it.
+                    .transition(.scale(scale: 0.3, anchor: .topTrailing).combined(with: .opacity))
+                }
                 if let reactionToastText {
                     ToastLabel(reactionToastText)
                         .allowsHitTesting(false)
@@ -725,6 +754,12 @@ struct ConversationScreen: View {
                 }
             }
             .padding(.top, 8)
+            .animation(Self.deckStyleMotion, value: requestDeckStyle)
+        }
+        .paymentRequestPaySheet(requestPayFlow)
+        .task(id: owedRequestIDs) { await autoExpandForNewOwedRequests() }
+        .onChange(of: requestDeckStyle, initial: true) { _, style in
+            paymentRequestDeck.source = style
         }
         .background(Color.backgroundMain)
         .navigationTitle("")
@@ -819,30 +854,81 @@ struct ConversationScreen: View {
         guard let group = groupConversation, group.isPrivate else { return [] }
         return sessionContainer.paymentRequests.deckItems(
             for: group.id,
+            viewer: session.userID,
             order: paymentRequestDeck.order,
             copy: PaymentRequestCopy(session.displayCurrency),
             now: .now
         )
     }
 
+    private static let deckStyleMotion = Animation.spring(duration: 0.4, bounce: 0.12)
+
+    /// Where the collapsed deck sits: the strip under the bar while the viewer owes, shrunk into the
+    /// green app-bar pill while they read older messages, otherwise the grey pill.
+    private var requestDeckStyle: PaymentRequestDeckStyle {
+        guard requestDeckItems.contains(where: { $0.owedShare != nil }) else { return .pill }
+        return isScrolledAway ? .compact : .strip
+    }
+
+    /// The requests the viewer owes on, which the deck opens itself for once each.
+    private var owedRequestIDs: [PaymentRequestID] {
+        requestDeckItems.filter { $0.owedShare != nil }.map(\.id)
+    }
+
+    /// Kept in the bar under the strip, hidden, so the bar never rebuilds its item as the strip comes
+    /// and goes. Hidden, it still marks the bar's slot for the expanded deck's close button.
     private var requestPill: some View {
-        PaymentRequestPill(
+        let style = requestDeckStyle
+        return PaymentRequestPill(
             items: requestPillPresence.items(requestDeckItems),
+            style: style == .strip ? .pill : style,
             accessibilityLabel: requestDeckAccessibilityLabel,
             state: paymentRequestDeck
         )
+        .opacity(style == .strip ? 0 : 1)
+        .allowsHitTesting(style != .strip)
+        .accessibilityHidden(style == .strip)
+        .animation(Self.deckStyleMotion, value: style)
         .modifier(PaymentRequestPillAppearance(presence: requestPillPresence))
     }
 
     private var requestDeckAccessibilityLabel: String {
         guard let front = requestDeckItems.first else { return "" }
+        if let share = front.owedShare {
+            return PaymentRequestCopy.owedAccessibilityLabel(
+                share: share,
+                title: front.card.title,
+                deadline: front.request.deadline(at: .now),
+                count: requestDeckItems.count
+            )
+        }
         return PaymentRequestCopy(session.displayCurrency)
             .deckAccessibilityLabel(front: front.request, title: front.card.title, count: requestDeckItems.count, now: .now)
     }
 
-    /// The title's right margin, widened to clear the request pill while one shows.
+    /// The title's right margin, widened to clear the request pill while one shows in the bar.
     private var titleTrailingInset: CGFloat {
-        Self.titleTrailingInset + (requestPillPresence.isVisible ? Self.requestPillWidth : 0)
+        let showsPill = requestPillPresence.isVisible && requestDeckStyle != .strip
+        return Self.titleTrailingInset + (showsPill ? Self.requestPillWidth : 0)
+    }
+
+    private func payRequest(_ id: PaymentRequestID) {
+        Task { await requestPayFlow.start(id, sessionContainer: sessionContainer) }
+    }
+
+    /// Opens the deck by itself once the chat has settled, for owed requests this device hasn't
+    /// opened it for, with the nearest of them in front.
+    private func autoExpandForNewOwedRequests() async {
+        guard !owedRequestIDs.isEmpty, !isVoiceOverOn, !reducesMotion else { return }
+        try? await Task.sleep(for: UpdatePolicy.chatSettle)
+        guard !Task.isCancelled, paymentRequestDeck.phase == .collapsed, !composer.isEditing else { return }
+        let fresh = requestAutoExpand.claim(owedRequestIDs)
+        guard !fresh.isEmpty, let group = groupConversation else { return }
+        let deck = sessionContainer.paymentRequests.deck(for: group.id, viewer: session.userID, at: .now)
+        if let index = deck.firstIndex(where: { fresh.contains($0.id) }) {
+            paymentRequestDeck.order.bringToFront(index)
+        }
+        paymentRequestDeck.autoExpand(showing: Set(fresh), for: PaymentRequestAutoExpand.duration)
     }
 
     /// The fetches the transcript needs: gate token names, sender names, and avatars.

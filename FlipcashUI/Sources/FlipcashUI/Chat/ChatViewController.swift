@@ -242,10 +242,14 @@ public final class ChatViewController: UICollectionViewController {
     /// Fires when the jump-to-bottom button should appear or go: the opening scroll has landed and the
     /// reader is outside ``bottomThreshold`` of the newest message.
     var onJumpButtonVisibilityChange: ((Bool) -> Void)?
+    /// Fires when the reader leaves or comes back to the newest messages, once the opening scroll has
+    /// landed. Unlike the jump button it ignores a pending return to a quote.
+    var onScrolledAwayChange: ((Bool) -> Void)?
     /// Fires when the reader starts a drag after the opening scroll has landed — the signal that
     /// ends the jump badge's frozen count. Programmatic scrolls never fire it.
     public var onUserScrollBegan: (() -> Void)?
     private var isJumpButtonVisible = false
+    private var isScrolledAway = false
     /// What this visit has reported read so far.
     private var readProgress = ReadProgress()
     /// Whether a read report is queued for the next main-queue turn, so a burst of scroll ticks
@@ -1168,6 +1172,11 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     private func publishJumpButtonState() {
+        let away = hasPositioned && !wasAtBottom
+        if away != isScrolledAway {
+            isScrolledAway = away
+            onScrolledAwayChange?(away)
+        }
         let visible = hasPositioned && (!wasAtBottom || !replyReturns.isEmpty)
         guard visible != isJumpButtonVisible else { return }
         isJumpButtonVisible = visible

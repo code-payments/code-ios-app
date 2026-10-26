@@ -28,9 +28,7 @@ struct PaymentRequestDetailsScreen: View {
     @State private var queuedDialog: DialogItem?
     /// Whether the last fetch carried an intent ID; the ID itself stays with ``PaymentRequestPayment``.
     @State private var hasPaymentIntent = false
-    @State private var payment: PaymentRequestPayment?
-    @State private var isPreparing = false
-    @State private var isPaying = false
+    @State private var payFlow = PaymentRequestPayFlow()
     @State private var isUpdating = false
 
     var body: some View {
@@ -52,16 +50,7 @@ struct PaymentRequestDetailsScreen: View {
             }
         }
         .dialog(item: $dialogItem)
-        .sheet(isPresented: $isPaying) {
-            if let payment, let creator = payment.request?.creator {
-                PaymentRequestPaySheet(
-                    payment: payment,
-                    payee: member(creator),
-                    payeeID: creator,
-                    amount: payAmount(payment)
-                )
-            }
-        }
+        .paymentRequestPaySheet(payFlow)
     }
 
     private var screen: some View {
@@ -114,7 +103,7 @@ struct PaymentRequestDetailsScreen: View {
             }
             .softScrollEdge(for: [.top, .bottom])
             if let sendTitle = content.sendTitle {
-                CodeButton(isLoading: isPreparing, style: .filled, title: sendTitle) {
+                CodeButton(isLoading: payFlow.isPreparing, style: .filled, title: sendTitle) {
                     pay()
                 }
                 .padding(.horizontal, 20)
@@ -214,11 +203,6 @@ struct PaymentRequestDetailsScreen: View {
             .first { $0.userID == userID }
     }
 
-    private func payAmount(_ payment: PaymentRequestPayment) -> String {
-        guard let request = payment.request, let share = payment.share else { return "" }
-        return PaymentRequestCopy(session.displayCurrency).shareText(share, of: request)
-    }
-
     // MARK: - Actions -
 
     private func load() async {
@@ -240,13 +224,9 @@ struct PaymentRequestDetailsScreen: View {
     /// Refetches for the intent ID right before the swipe sheet, as the spec requires.
     private func pay() {
         Task {
-            isPreparing = true
-            defer { isPreparing = false }
-            let payment = self.payment ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer)
-            self.payment = payment
-            switch await payment.prepare() {
+            switch await payFlow.start(requestID, sessionContainer: sessionContainer) {
             case .ready:
-                isPaying = true
+                break
             case .nothingToPay, .closed, .failed:
                 hasPaymentIntent = false
             }
@@ -347,6 +327,66 @@ private struct PaymentRequestAvatar: View {
 }
 
 private struct PaymentRequestPayDismissed: Error {}
+
+// MARK: - Pay flow -
+
+/// Paying a share from wherever it starts: refetches the request for its intent ID, then shows the
+/// swipe sheet when the share is still payable.
+@MainActor
+@Observable
+final class PaymentRequestPayFlow {
+
+    private(set) var isPreparing = false
+    var isPaying = false
+    private(set) var payment: PaymentRequestPayment?
+
+    /// Prepares to pay the viewer's share of `requestID` and shows the sheet when it is payable.
+    @discardableResult
+    func start(_ requestID: PaymentRequestID, sessionContainer: SessionContainer) async -> PaymentRequestPayment.Preparation {
+        guard !isPreparing else { return .failed }
+        isPreparing = true
+        defer { isPreparing = false }
+        let payment = self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
+            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer)
+        self.payment = payment
+        let preparation = await payment.prepare()
+        if preparation == .ready { isPaying = true }
+        return preparation
+    }
+}
+
+extension View {
+    /// Shows `flow`'s swipe-to-send sheet while it is paying.
+    func paymentRequestPaySheet(_ flow: PaymentRequestPayFlow) -> some View {
+        modifier(PaymentRequestPaySheetPresenter(flow: flow))
+    }
+}
+
+private struct PaymentRequestPaySheetPresenter: ViewModifier {
+
+    @Bindable var flow: PaymentRequestPayFlow
+
+    @Environment(Session.self) private var session
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $flow.isPaying) {
+            // The share reads paid once the payment lands; the sheet stays up through its success state.
+            if let payment = flow.payment, let request = payment.request, let creator = request.creator {
+                PaymentRequestPaySheet(
+                    payment: payment,
+                    payee: request.chatID.flatMap { chatID in
+                        sessionContainer.groupRosters
+                            .members(for: chatID, creator: creator)
+                            .first { $0.userID == creator }
+                    },
+                    payeeID: creator,
+                    amount: payment.share.map { PaymentRequestCopy(session.displayCurrency).shareText($0, of: request) } ?? ""
+                )
+            }
+        }
+    }
+}
 
 /// The swipe-to-send sheet for the viewer's share: the creator, the amount, the token picker.
 private struct PaymentRequestPaySheet: View {

@@ -123,9 +123,17 @@ extension GroupPaymentRequest {
 
 extension GroupPaymentRequest {
 
-    /// The requests a chat's deck shows as of `now`, in deck order: open requests by nearest
-    /// deadline, then those that ended within ``deckRetention``, most recently ended first.
-    public static func deckOrder(_ requests: [GroupPaymentRequest], at now: Date) -> [GroupPaymentRequest] {
+    /// Whether `userID` has an unpaid share in this request while it is open as of `now`. The creator
+    /// never owes on their own request.
+    public func isOwed(by userID: UserID, at now: Date) -> Bool {
+        guard userID != creator, effectiveStatus(at: now) == .open, let share = share(for: userID) else { return false }
+        return !share.isPaid
+    }
+
+    /// The requests a chat's deck shows as of `now`, in deck order: open requests `viewer` owes on,
+    /// then other open requests, each by nearest deadline, then those that ended within
+    /// ``deckRetention``, most recently ended first.
+    public static func deckOrder(_ requests: [GroupPaymentRequest], viewer: UserID? = nil, at now: Date) -> [GroupPaymentRequest] {
         var open: [GroupPaymentRequest] = []
         var ended: [(request: GroupPaymentRequest, closedAt: Date)] = []
 
@@ -142,7 +150,13 @@ extension GroupPaymentRequest {
             }
         }
 
-        open.sort { ($0.split?.endsAt ?? .distantFuture) < ($1.split?.endsAt ?? .distantFuture) }
+        open.sort { lhs, rhs in
+            if let viewer {
+                let lhsOwed = lhs.isOwed(by: viewer, at: now)
+                if lhsOwed != rhs.isOwed(by: viewer, at: now) { return lhsOwed }
+            }
+            return (lhs.split?.endsAt ?? .distantFuture) < (rhs.split?.endsAt ?? .distantFuture)
+        }
         ended.sort { $0.closedAt > $1.closedAt }
         return open + ended.map(\.request)
     }

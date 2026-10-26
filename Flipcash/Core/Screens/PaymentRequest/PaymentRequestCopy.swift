@@ -93,6 +93,20 @@ struct PaymentRequestCopy {
         }
     }
 
+    /// The status line without "to pay", as the owed strip shows it: "2 days left".
+    static func timeLeft(_ deadline: GroupPaymentRequest.Deadline) -> String {
+        switch deadline {
+        case .daysLeft(let days):
+            return days == 1 ? "1 day left" : "\(days) days left"
+        case .hoursLeft(let hours):
+            return hours == 1 ? "1 hour left" : "\(hours) hours left"
+        case .minutesLeft(let minutes):
+            return minutes == 1 ? "1 minute left" : "\(minutes) minutes left"
+        case .paidInFull, .closed, .expired:
+            return statusLine(deadline)
+        }
+    }
+
     /// A share row's status: "✓ Paid", or "Hasn't paid yet" / "Didn't pay" depending on whether the
     /// request is still open.
     static func shareStatus(_ share: GroupPaymentRequest.Share, requestIsOpen: Bool) -> String {
@@ -103,6 +117,12 @@ struct PaymentRequestCopy {
     /// The deck's VoiceOver label: "<N> requests, <title>, <paid> of <requested> paid, <status>".
     func deckAccessibilityLabel(front: GroupPaymentRequest, title: String, count: Int, now: Date) -> String {
         let summary = "\(title), \(deckAmounts(front)) paid, \(Self.statusLine(front.deadline(at: now)))"
+        return count > 1 ? "\(count) requests, \(summary)" : summary
+    }
+
+    /// The owed strip's VoiceOver label: "<N> requests, You owe <share> for <title>, <status>".
+    static func owedAccessibilityLabel(share: String, title: String, deadline: GroupPaymentRequest.Deadline, count: Int) -> String {
+        let summary = "You owe \(share) for \(title), \(statusLine(deadline))"
         return count > 1 ? "\(count) requests, \(summary)" : summary
     }
 }

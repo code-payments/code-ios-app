@@ -83,12 +83,12 @@ private struct PaymentRequestDeckWindowContent: View {
         }
     }
 
-    /// Sits where the pill does, so it reads as the pill turned into a close. It fades in with the
-    /// backdrop and out over the first quarter of a collapse, before the front card gets back to the
-    /// pill.
+    /// Sits where the app-bar pill does, so it reads as the pill turned into a close. It fades in
+    /// with the backdrop and out over the first quarter of a collapse, before the front card gets
+    /// back to the pill.
     @ViewBuilder
     private var closeButton: some View {
-        if let pill = state.pillFrames[.container] {
+        if let pill = state.barFrame {
             let opacity = state.isOpen ? state.progress : max(0, (state.progress - 0.75) / 0.25)
             CloseButton(style: .glass) { state.collapse() }
                 .accessibilityLabel("Collapse requests")

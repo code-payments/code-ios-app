@@ -18,6 +18,7 @@ struct PaymentRequestSpecTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
     private let chat = ConversationID.test(1)
     private let creator = UUID()
+    private let viewer = UUID()
     private let copy = PaymentRequestCopy(displayCurrency: .usd, rates: [:])
 
     private func request(
@@ -32,7 +33,7 @@ struct PaymentRequestSpecTests {
     ) -> GroupPaymentRequest {
         let list = (0..<shares).map { index in
             GroupPaymentRequest.Share(
-                userID: index == 0 ? creator : UUID(),
+                userID: index == 0 ? creator : (index == 1 ? viewer : UUID()),
                 nativeAmount: amount,
                 settlement: index < paid ? (index == 0 ? .creator : .manual) : nil
             )
@@ -142,6 +143,53 @@ struct PaymentRequestSpecTests {
         let deck = GroupPaymentRequest.deckOrder([closed, expired, fiveDays, twoDays], at: now)
 
         #expect(deck.map(\.id) == [twoDays.id, fiveDays.id, closed.id])
+    }
+
+    @Test("23: an OPEN request the viewer owes on sorts before one they have paid")
+    func deckOrderOwedFirst() {
+        let owedFiveDays = request(id: 1, paid: 1, endsAt: now.addingTimeInterval(5 * 86_400))
+        let paidTwoDays = request(id: 2, paid: 2, endsAt: now.addingTimeInterval(2 * 86_400))
+
+        let deck = GroupPaymentRequest.deckOrder([paidTwoDays, owedFiveDays], viewer: viewer, at: now)
+
+        #expect(deck.map(\.id) == [owedFiveDays.id, paidTwoDays.id])
+        #expect(owedFiveDays.isOwed(by: viewer, at: now))
+        #expect(!paidTwoDays.isOwed(by: viewer, at: now))
+        #expect(PaymentRequestCopy.timeLeft(owedFiveDays.deadline(at: now)) == "5 days left")
+        #expect(PaymentRequestCopy.owedAccessibilityLabel(share: "$20", title: "Dinner", deadline: owedFiveDays.deadline(at: now), count: 2)
+            == "2 requests, You owe $20 for Dinner, 5 days left to pay")
+    }
+
+    @Test("24: the creator never owes, and an ended request is never owed")
+    func creatorNeverOwes() {
+        let open = request(id: 1, paid: 0)
+        let expired = request(id: 2, endsAt: now.addingTimeInterval(-60))
+
+        #expect(!open.isOwed(by: creator, at: now))
+        #expect(!expired.isOwed(by: viewer, at: now))
+    }
+
+    @Test("25: the viewer's only owed share becomes paid, so nothing is owed")
+    func owedShareBecomesPaid() {
+        let owed = request(id: 1, paid: 1, version: 1)
+        let paid = request(id: 1, paid: 2, version: 2)
+
+        #expect(owed.isOwed(by: viewer, at: now))
+        #expect(!paid.isOwed(by: viewer, at: now))
+    }
+
+    @Test("26: the deck opens itself for a new owed request once per device")
+    func autoExpandOnce() throws {
+        let defaults = try #require(UserDefaults(suiteName: "PaymentRequestSpecTests.autoExpand"))
+        defaults.removePersistentDomain(forName: "PaymentRequestSpecTests.autoExpand")
+        let first = request(id: 1).id
+        let second = request(id: 2).id
+
+        var firstOpen = PaymentRequestAutoExpand(defaults: defaults)
+        #expect(firstOpen.claim([first]) == [first])
+        var secondOpen = PaymentRequestAutoExpand(defaults: defaults)
+        #expect(secondOpen.claim([first]).isEmpty)
+        #expect(secondOpen.claim([first, second]) == [second])
     }
 
     // MARK: - People -

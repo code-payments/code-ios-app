@@ -142,8 +142,10 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? = { nil }
     /// Fired when the user taps a photo the viewer may see. The owner opens the full-screen viewer.
     var onMediaTap: (ChatMediaViewerRequest) -> Void = { _ in }
-    /// Room the transcript reserves under the navigation bar for the join-requests anchor.
+    /// Room the transcript reserves under the navigation bar for the anchors above it.
     var transcriptTopInset: CGFloat = 0
+    /// Fired when the reader leaves or comes back to the newest messages.
+    var onScrolledAwayChange: (Bool) -> Void = { _ in }
     /// The latest request to land on a message, from a message link; each new token scrolls once.
     var messageJump: MessageJump? = nil
 
@@ -171,6 +173,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.barRestingDrop = BarMetrics.compactDrop
         screen.authorAvatars = authorAvatars
         screen.transcriptTopInset = transcriptTopInset
+        screen.onScrolledAwayChange = onScrolledAwayChange
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
@@ -235,6 +238,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.showsGatePlaceholder = showsGatePlaceholder
         screen.barRestingDrop = BarMetrics.compactDrop
         screen.transcriptTopInset = transcriptTopInset
+        screen.onScrolledAwayChange = onScrolledAwayChange
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry

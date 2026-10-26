@@ -128,9 +128,9 @@ final class PaymentRequests {
         requests[id]
     }
 
-    /// `conversationID`'s requests the deck shows as of `now`, in deck order.
-    func deck(for conversationID: ConversationID, at now: Date) -> [GroupPaymentRequest] {
-        GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID }, at: now)
+    /// `conversationID`'s requests the deck shows to `viewer` as of `now`, in deck order.
+    func deck(for conversationID: ConversationID, viewer: UserID?, at now: Date) -> [GroupPaymentRequest] {
+        GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID }, viewer: viewer, at: now)
     }
 
     /// Merges fetched copies into the store.

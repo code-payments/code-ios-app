@@ -318,6 +318,13 @@ public final class ChatScreenViewController: UIViewController {
         }
     }
 
+    /// Fires when the reader leaves or comes back to the newest messages — see
+    /// ``ChatViewController/onScrolledAwayChange``.
+    public var onScrolledAwayChange: ((Bool) -> Void)? {
+        get { transcript.onScrolledAwayChange }
+        set { transcript.onScrolledAwayChange = newValue }
+    }
+
     /// Fires on the reader's first drag after the opening scroll — see
     /// ``ChatViewController/onUserScrollBegan``.
     public var onUserScrollBegan: (() -> Void)? {

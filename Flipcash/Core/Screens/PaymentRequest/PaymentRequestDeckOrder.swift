@@ -34,6 +34,11 @@ struct PaymentRequestDeckOrder: Hashable {
         rotation = 0
     }
 
+    /// Brings the card at `index` of the default order to the front.
+    mutating func bringToFront(_ index: Int) {
+        rotation = index
+    }
+
     /// Whether a drag of `translation` points over a pill `height` points tall, ending at
     /// `predictedTranslation`, finishes a cycle.
     static func finishesCycle(translation: CGFloat, predictedTranslation: CGFloat, height: CGFloat) -> Bool {
