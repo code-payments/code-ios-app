@@ -1005,27 +1005,57 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Centers a row that is already in `items` and flashes it, so the jump lands on a message the
     /// eye can pick out of the transcript rather than on an unmarked one in the middle of the screen.
+    ///
+    /// Rows that have never been on screen sit at the layout's 56pt estimate, so an offset worked out
+    /// before the jump lands short of a target far up a transcript of photos. The destination is
+    /// settled by re-anchoring on the target until the rows around it have self-sized, then the scroll
+    /// runs to that measured offset.
     private func scrollToRow(id: String, animated: Bool) {
         guard let index = items.firstIndex(where: { $0.messageID == id }) else { return }
         let indexPath = IndexPath(item: index, section: 0)
         positionClaim += 1
         let claim = positionClaim
         guard animated else {
-            collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            centerRow(at: indexPath)
             wasAtBottom = isNearBottomByGeometry
             flashAttention(forStableID: id)
+            // Re-anchor once the rows the jump brought on screen have self-sized.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, positionClaim == claim else { return }
+                centerRow(at: indexPath)
+                wasAtBottom = isNearBottomByGeometry
+            }
             return
         }
+        // Measure the destination, then put the reader back where they were so the scroll starts
+        // from what is on screen. All of it runs before the next frame, so none of it is drawn.
+        let origin = chatLayout.getContentOffsetSnapshot(from: .bottom)
+        centerRow(at: indexPath)
+        centerRow(at: indexPath)
+        let destination = collectionView.contentOffset
+        if let origin { chatLayout.restoreContentOffset(with: origin) }
         ChatMotion.scroll.animate {
-            self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            self.collectionView.setContentOffset(destination, animated: false)
         } completion: { _ in
             guard self.positionClaim == claim else { return }
+            // Rows between the reader and the target self-size as the scroll passes them.
+            self.centerRow(at: indexPath)
             self.wasAtBottom = self.isNearBottomByGeometry
         }
         // Alongside the scroll rather than after it: the flash's rise is shorter than the scroll's
         // settle, so the row is already lit when it arrives and there is no beat where the transcript
         // has stopped on a message that looks like every other one.
         flashAttention(forStableID: id)
+    }
+
+    /// Puts the row at `indexPath` in the middle of the visible area by its current height, without
+    /// animating. A row taller than the visible area is top-aligned instead, so it reads from its start.
+    private func centerRow(at indexPath: IndexPath) {
+        guard let frame = chatLayout.layoutAttributesForItem(at: indexPath)?.frame else { return }
+        let inset = collectionView.adjustedContentInset
+        let visibleHeight = collectionView.bounds.height - inset.top - inset.bottom
+        let offset = max(0, (visibleHeight - frame.height) / 2) - chatLayout.settings.additionalInsets.top
+        chatLayout.restoreContentOffset(with: ChatLayoutPositionSnapshot(indexPath: indexPath, edge: .top, offset: offset))
     }
 
     /// Puts the top of the row at `indexPath` at the top of the visible area, without animating. The
