@@ -192,8 +192,8 @@ struct PaymentRequestPillAppearance: ViewModifier {
 
 // MARK: - Pill -
 
-/// The app-bar pill (concept B): the front request with up to two more peeking beneath it. Swipe
-/// down cycles; tap expands.
+/// The app-bar pill (concept B): the front request with up to two more peeking beneath it, as a
+/// stack of cards. Swipe down cycles; tap expands.
 struct PaymentRequestPill: View {
 
     let items: [PaymentRequestDeckItem]
@@ -201,34 +201,30 @@ struct PaymentRequestPill: View {
     @Bindable var state: PaymentRequestDeckState
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// The finger's downward travel, not the front card's: the card rubber-bands past one pill height.
     @State private var drag: CGFloat = 0
     @State private var frontHeight: CGFloat = 43
 
     private static let peekStep: CGFloat = 5
-    private static let peekInset: CGFloat = 7
+    /// How much each step back shrinks a card, so its sides tuck in under the one in front.
+    private static let depthScale: CGFloat = 0.08
+    private static let depthDim: CGFloat = 0.25
+    private static let settle = Animation.spring(duration: 0.35, bounce: 0.15)
 
     var body: some View {
+        // The front request at rest sets the pill's size and is what the deck measures; the cards
+        // drawn over it move freely without feeding back into the bar's layout.
         ZStack(alignment: .top) {
             if let front = items.first {
                 PaymentRequestPillFace(item: front) { state.pillFrames[$0] = $1 }
-                    .offset(y: drag)
-                    .opacity(1 - min(0.45, drag / max(frontHeight, 1) * 0.45))
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { frontHeight = $0 }
-                    // The moving copy stands in for it until it lands back here.
-                    .opacity(state.phase == .collapsed ? 1 : 0)
+                    .opacity(0)
             }
         }
-        // The peeking cards, back first, each as tall as the front card and stepped in at both
-        // edges so only their bottoms show. A background takes the front card's size and adds none
-        // of its own: sized from a measurement in the same stack, a peek could outgrow a front card
-        // the bar had just narrowed and the bar would re-measure the pill forever.
-        .background(alignment: .top) {
+        .overlay(alignment: .top) {
             ZStack(alignment: .top) {
-                ForEach(Array(items.dropFirst().prefix(2).enumerated().reversed()), id: \.element.id) { offset, _ in
-                    let depth = CGFloat(offset + 1)
-                    PaymentRequestPillLayer(isBack: offset == 1)
-                        .padding(.horizontal, Self.peekInset * depth)
-                        .offset(y: Self.peekStep * depth)
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    card(item, at: index)
                 }
             }
         }
@@ -243,16 +239,50 @@ struct PaymentRequestPill: View {
         .accessibilityAction { state.expand() }
         .accessibilityAction(named: "Next request") {
             guard items.count > 1 else { return }
-            state.order.cycle()
+            withAnimation(Self.settle) { state.order.cycle() }
         }
+    }
+
+    /// `item` at `index` in the deck: the front card follows the finger, and each card behind rises
+    /// a step toward the front as the drag nears one pill height. Past the second card they stack
+    /// in the back slot, so a card sent to the back slides up under the others.
+    private func card(_ item: PaymentRequestDeckItem, at index: Int) -> some View {
+        let height = max(frontHeight, 1)
+        let rise = items.count > 1 ? min(1, drag / height) : 0
+        let depth = index == 0 ? 0 : min(max(0, CGFloat(index) - rise), 2)
+        let scale = index == 0 ? 1 - Self.depthScale * 0.5 * rise : 1 - Self.depthScale * depth
+        // Anchored at the top, a card's scaled bottom sits a peek step lower per step back.
+        let offset = index == 0 ? frontTravel(height: height) : height * (1 - scale) + Self.peekStep * depth
+        return PaymentRequestPillFace(item: item, fillsWidth: true)
+            .overlay {
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.backgroundMain.opacity(Self.depthDim * depth))
+                    .allowsHitTesting(false)
+            }
+            .scaleEffect(scale, anchor: .top)
+            .offset(y: offset)
+            // The moving copy stands in for the front card until it lands back here.
+            .opacity(index == 0 && state.phase != .collapsed ? 0 : 1)
+            .zIndex(Double(items.count - index))
+    }
+
+    /// How far the front card has moved: with the finger at first, then rubber-banding so it never
+    /// travels more than one pill height. A lone request only pulls elastically.
+    private func frontTravel(height: CGFloat) -> CGFloat {
+        guard items.count > 1 else { return sqrt(drag) * 2 }
+        let knee = height * 0.7
+        guard drag > knee else { return drag }
+        let room = height - knee
+        return knee + room * (1 - exp(-(drag - knee) / room))
     }
 
     private var cycleGesture: some Gesture {
         DragGesture(minimumDistance: 6)
             .onChanged { value in
-                let down = max(0, value.translation.height)
-                // One request only pulls elastically.
-                drag = items.count > 1 ? down : sqrt(down) * 2
+                // A short spring picks the cards up from wherever a release left them mid-flight.
+                withAnimation(.interactiveSpring(duration: 0.15)) {
+                    drag = max(0, value.translation.height)
+                }
             }
             .onEnded { value in
                 let finishes = items.count > 1 && PaymentRequestDeckOrder.finishesCycle(
@@ -260,7 +290,9 @@ struct PaymentRequestPill: View {
                     predictedTranslation: value.predictedEndTranslation.height,
                     height: frontHeight
                 )
-                withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
+                // Past the threshold the front card drops behind into the back slot as the rest
+                // finish rising; short of it, everything springs back together.
+                withAnimation(Self.settle) {
                     if finishes { state.order.cycle() }
                     drag = 0
                 }
@@ -300,6 +332,8 @@ private extension View {
 struct PaymentRequestPillFace: View {
 
     let item: PaymentRequestDeckItem
+    /// Stretches the card to the width it's offered, so a card in the stack matches the front one.
+    var fillsWidth = false
     var measure: DeckPartMeasure? = nil
 
     var body: some View {
@@ -320,6 +354,7 @@ struct PaymentRequestPillFace: View {
             .truncationMode(.tail)
             .frame(maxWidth: 90, alignment: .leading)
         }
+        .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .leading)
         .padding(.leading, 5)
         .padding(.trailing, 12)
         .padding(.vertical, 5)
@@ -333,19 +368,6 @@ struct PaymentRequestPillFace: View {
                 .background(Color.backgroundMain, in: .rect(cornerRadius: 18))
                 .deckPart(.container, measure)
         }
-    }
-}
-
-/// A card peeking beneath the pill's front card.
-private struct PaymentRequestPillLayer: View {
-
-    let isBack: Bool
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 18)
-            .fill(isBack ? Color.textMain.opacity(0.08) : Color.backgroundSecondary)
-            .background(Color.backgroundMain, in: .rect(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.rowSeparator))
     }
 }
 
