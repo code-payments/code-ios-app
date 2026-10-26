@@ -957,9 +957,17 @@ struct ConversationScreen: View {
         .task(id: PaymentRequestPoll(conversationID: groupConversation?.id, isActive: scenePhase == .active)) {
             guard let groupID = groupConversation?.id, scenePhase == .active else { return }
             let requests = sessionContainer.paymentRequests
+            var retries = 0
             while !Task.isCancelled {
                 await requests.refreshChat(groupID)
-                try? await Task.sleep(for: PaymentRequests.pollInterval)
+                // A card still loading after a failed read retries sooner than the poll.
+                if requests.isSettling(groupID) {
+                    try? await Task.sleep(for: PaymentRequests.retryDelay(attempt: retries))
+                    retries += 1
+                } else {
+                    try? await Task.sleep(for: PaymentRequests.pollInterval)
+                    retries = 0
+                }
             }
         }
         // One picker per visit, so its suggestion fetch runs once per visit.

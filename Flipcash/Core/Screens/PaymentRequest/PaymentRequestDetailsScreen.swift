@@ -43,8 +43,16 @@ struct PaymentRequestDetailsScreen: View {
         .task(id: PaymentRequestDetailsPoll(requestID: requestID, isActive: scenePhase == .active)) {
             guard scenePhase == .active else { return }
             await load()
+            var retries = 0
             while !Task.isCancelled {
-                try? await Task.sleep(for: PaymentRequests.pollInterval)
+                // Still loading after a failed read retries sooner than the poll.
+                if sessionContainer.paymentRequests.isSettling(request: requestID) {
+                    try? await Task.sleep(for: PaymentRequests.retryDelay(attempt: retries))
+                    retries += 1
+                } else {
+                    try? await Task.sleep(for: PaymentRequests.pollInterval)
+                    retries = 0
+                }
                 guard !Task.isCancelled else { return }
                 await refresh()
             }

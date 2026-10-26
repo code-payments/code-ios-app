@@ -38,6 +38,12 @@ final class PaymentRequests {
     /// How often an on-screen chat or details sheet refetches.
     static let pollInterval: Duration = .seconds(45)
 
+    /// How long an on-screen poll waits before its `attempt`th retry of a read that left something
+    /// loading: 2 s doubling, never past ``pollInterval``.
+    static func retryDelay(attempt: Int) -> Duration {
+        min(.seconds(2 << min(attempt, 5)), pollInterval)
+    }
+
     private var requests: [PaymentRequestID: GroupPaymentRequest] = [:]
     /// Requests the server answered `DENIED` or `NOT_FOUND` for; their cards render as unsupported.
     private(set) var unavailable: Set<PaymentRequestID> = []
@@ -56,6 +62,10 @@ final class PaymentRequests {
     @ObservationIgnored private let getPage: GetPage
     @ObservationIgnored private var inFlight: Set<PaymentRequestID> = []
     @ObservationIgnored private var sealReads: Set<ConversationID> = []
+    /// Requests whose last read failed short of a server answer, retried on the next chat refetch.
+    @ObservationIgnored private var failedReads: Set<PaymentRequestID> = []
+    /// Chats whose last section read failed.
+    @ObservationIgnored private var failedChats: Set<ConversationID> = []
 
     init(
         getChatPage: @escaping GetChatPage,
@@ -159,13 +169,34 @@ final class PaymentRequests {
             async let resolved = getChatPage(conversationID, .resolved, Self.resolvedPageSize)
             ingest(try await open + resolved)
             chatRefreshes[conversationID, default: 0] += 1
+            failedChats.remove(conversationID)
         } catch {
+            failedChats.insert(conversationID)
             logger.warning("Failed to read a chat's payment requests", metadata: [
                 "conversationID": "\(conversationID)",
                 "error": "\(error)",
             ])
         }
         await sealed
+        for id in failedReads {
+            await fetchIfMissing(id)
+        }
+    }
+
+    /// Whether `conversationID` still has something loading that a sooner refetch could fill: a failed
+    /// section or request read, or encrypted text with no seal to open it.
+    func isSettling(_ conversationID: ConversationID) -> Bool {
+        if failedChats.contains(conversationID) || !failedReads.isEmpty { return true }
+        guard seals[conversationID] == nil else { return false }
+        return requests.values.contains { $0.chatID == conversationID && $0.hasEncryptedText }
+    }
+
+    /// Whether `id` is still loading: not read yet, or its encrypted text waits on the chat's seal.
+    func isSettling(request id: PaymentRequestID) -> Bool {
+        if unavailable.contains(id) { return false }
+        guard let request = requests[id] else { return true }
+        guard request.hasEncryptedText, let chatID = request.chatID else { return false }
+        return seals[chatID] == nil
     }
 
     /// Reads one page of a chat's `section` for Request Money history and merges it. Returns the page's
@@ -207,9 +238,22 @@ final class PaymentRequests {
         defer { inFlight.remove(id) }
         do {
             try await refresh(id)
+            failedReads.remove(id)
         } catch {
+            if unavailable.contains(id) {
+                failedReads.remove(id)
+            } else {
+                failedReads.insert(id)
+            }
             logger.warning("Failed to read a payment request", metadata: ["error": "\(error)"])
         }
+    }
+}
+
+private extension GroupPaymentRequest {
+    var hasEncryptedText: Bool {
+        if case .encrypted = split?.text { return true }
+        return false
     }
 }
 
