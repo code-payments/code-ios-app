@@ -179,7 +179,7 @@ struct TransactionDetailsTests {
         #expect(alone.chatAction == nil)
     }
 
-    // MARK: - Boost header and card rows
+    // MARK: - Boost header
 
     private func boostDetails(
         kind: Activity.Kind = .gave,
@@ -187,7 +187,8 @@ struct TransactionDetailsTests {
         counterparty: Activity.Counterparty? = nil,
         boosted: Bool = true,
         name: String? = nil,
-        chat: String? = nil
+        chat: String? = nil,
+        isGroup: Bool = false
     ) -> TransactionDetails {
         TransactionDetails(
             activity: Activity(
@@ -196,84 +197,87 @@ struct TransactionDetailsTests {
                 counterparty: counterparty, boostedReaction: boosted ? boost() : nil
             ),
             counterpartyName: name,
-            boostChatName: chat
+            boostChatName: chat,
+            boostChatIsGroup: isGroup
         )
     }
 
-    @Test("H1: a sent boost keeps the name as the heading, with the boost line under it")
-    func sentBoostHeader() {
-        let details = boostDetails(counterparty: counterparty, name: "Sally")
-        #expect(details.title == "Sally")
-        #expect(details.subtitle == "You boosted")
+    @Test("H1: a sent boost in a stored group names the chat under the name")
+    func sentBoostInGroup() {
+        let details = boostDetails(counterparty: counterparty, name: "Grampa", chat: "Grampa's Photo Community", isGroup: true)
+        #expect(details.title == "Grampa")
+        #expect(details.subtitle == "You boosted 🔥 in Grampa's Photo Community")
     }
 
-    @Test("H2: a received boost reads Boost received under the name")
-    func receivedBoostHeader() {
-        let details = boostDetails(kind: .received, title: "Received", counterparty: counterparty, name: "Sally")
+    @Test("H2: a sent boost in a DM drops the chat")
+    func sentBoostInDM() {
+        let details = boostDetails(counterparty: counterparty, name: "Sally", chat: "Sally")
         #expect(details.title == "Sally")
-        #expect(details.subtitle == "Boost received")
+        #expect(details.subtitle == "You boosted 🔥")
     }
 
     @Test("H3: a boost wins over the tip heading")
     func boostBeatsTip() {
-        let unresolved = boostDetails(title: "Tipped Sally", counterparty: counterparty)
-        #expect(unresolved.title == "You boosted")
-        #expect(unresolved.subtitle == nil)
-
-        let resolved = boostDetails(title: "Tipped Sally", counterparty: counterparty, name: "Sally")
-        #expect(resolved.title == "Sally")
-        #expect(resolved.subtitle == "You boosted")
+        let details = boostDetails(title: "Tipped Sally", counterparty: counterparty, name: "Sally", chat: "Sally")
+        #expect(details.title == "Sally")
+        #expect(details.subtitle == "You boosted 🔥")
     }
 
-    @Test("H4: a split boost is headed by the stored chat's name")
+    @Test("H4: a split boost is headed by the stored chat, with no \"in\"")
     func splitBoostWithChat() {
-        let details = boostDetails(chat: "Design Team")
+        let details = boostDetails(chat: "Design Team", isGroup: true)
         #expect(details.title == "Design Team")
-        #expect(details.subtitle == "You boosted")
+        #expect(details.subtitle == "You boosted 🔥")
     }
 
     @Test("H5: a split boost with no stored chat is headed by the boost line alone")
     func splitBoostWithoutChat() {
         let details = boostDetails()
-        #expect(details.title == "You boosted")
+        #expect(details.title == "You boosted 🔥")
         #expect(details.subtitle == nil)
     }
 
-    @Test("H6: without a boost the header is unchanged")
+    @Test("H6: a received boost in a stored group names the chat")
+    func receivedBoostInGroup() {
+        let details = boostDetails(kind: .received, title: "Received", counterparty: counterparty, name: "Sally", chat: "Design Team", isGroup: true)
+        #expect(details.title == "Sally")
+        #expect(details.subtitle == "Boost 🔥 received in Design Team")
+    }
+
+    @Test("H7: a received boost in a DM drops the chat")
+    func receivedBoostInDM() {
+        let details = boostDetails(kind: .received, title: "Received", counterparty: counterparty, name: "Sally", chat: "Sally")
+        #expect(details.title == "Sally")
+        #expect(details.subtitle == "Boost 🔥 received")
+    }
+
+    @Test("H8: a boost in a chat that is not stored drops the chat")
+    func boostChatNotStored() {
+        let details = boostDetails(counterparty: counterparty, name: "Grampa")
+        #expect(details.title == "Grampa")
+        #expect(details.subtitle == "You boosted 🔥")
+    }
+
+    @Test("H9: an unresolved counterparty never borrows the chat name as the heading")
+    func unresolvedCounterparty() {
+        let group = boostDetails(counterparty: counterparty, chat: "Design Team", isGroup: true)
+        #expect(group.title == "You boosted 🔥 in Design Team")
+        #expect(group.subtitle == nil)
+
+        let dm = boostDetails(counterparty: counterparty, chat: "Sally")
+        #expect(dm.title == "You boosted 🔥")
+        #expect(dm.subtitle == nil)
+    }
+
+    @Test("H10: without a boost the header is unchanged")
     func noBoostHeader() {
-        let details = boostDetails(title: "Tipped Sally", counterparty: counterparty, boosted: false, name: "Sally", chat: "Design Team")
+        let details = boostDetails(title: "Tipped Sally", counterparty: counterparty, boosted: false, name: "Sally", chat: "Design Team", isGroup: true)
         #expect(details.title == "Sally")
         #expect(details.subtitle == nil)
-        #expect(details.boostEmoji == nil)
     }
 
-    @Test("C1: a boost in a stored chat shows both rows")
-    func cardRowsWithChat() {
-        let details = boostDetails(chat: "Design Team")
-        #expect(details.boostEmoji == "🔥")
-        #expect(details.boostChatName == "Design Team")
-    }
-
-    @Test("C2: a boost in an unstored chat shows the reaction only")
-    func cardRowsWithoutChat() {
-        let details = boostDetails(chat: nil)
-        #expect(details.boostEmoji == "🔥")
-        #expect(details.boostChatName == nil)
-        #expect(boostDetails(chat: "  ").boostChatName == nil)
-    }
-
-    @Test("C3: a DM boost carries the partner's name as the chat")
-    func cardRowsDM() {
-        let details = boostDetails(counterparty: counterparty, name: "Sally", chat: "Sally")
-        #expect(details.boostChatName == "Sally")
-    }
-
-    @Test("C4: without a boost neither row is shown")
-    func cardRowsNoBoost() {
-        let details = boostDetails(boosted: false, chat: "Design Team")
-        #expect(details.boostEmoji == nil)
-        #expect(details.boostChatName == nil)
-    }
+    // H11 (no Reaction or Chat receipt row) holds by construction: TransactionDetails carries
+    // neither value and the receipt card has no row for them.
 
     // MARK: - Actions
 
