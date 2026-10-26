@@ -54,16 +54,19 @@ struct TransactionDetailsScreen: View {
             counterpartyName: resolution.counterpartyName,
             fromTokenName: fromTokenName,
             toTokenName: toTokenName,
-            boostChatName: boostChatName,
+            boostChatName: boostChat?.name,
+            boostChatIsGroup: boostChat?.isGroup ?? false,
         )
     }
 
-    /// The boosted chat's name from the local chat store, never fetched. A DM reads as its
-    /// partner, as the chat list does. `nil` when the chat is not stored.
-    private var boostChatName: String? {
+    /// The boosted chat's name and kind from the local chat store, never fetched. A DM reads as
+    /// its partner, as the chat list does. `nil` when the chat is not stored.
+    private var boostChat: (name: String, isGroup: Bool)? {
         guard let boost = activity.boostedReaction else { return nil }
         let controller = sessionContainer.conversationController
-        return controller.conversation(withID: boost.conversationID).map(controller.displayName(for:))
+        return controller.conversation(withID: boost.conversationID).map {
+            (controller.displayName(for: $0), $0.type == .group)
+        }
     }
 
     var body: some View {
@@ -152,6 +155,8 @@ struct TransactionDetailsScreen: View {
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
                 }
             }
 
@@ -207,12 +212,6 @@ struct TransactionDetailsScreen: View {
             ReceiptRow(label: "Currency", value: details.currency.rawValue.uppercased())
             ReceiptRow(label: "Exchange Rate", value: Self.rateFormatter.string(for: details.exchangeRate) ?? "")
             ReceiptRow(label: "Date", value: details.date.formatted(Self.dateFormat))
-            if let emoji = details.boostEmoji {
-                ReceiptRow(label: "Reaction", value: emoji)
-            }
-            if let chatName = details.boostChatName {
-                ReceiptRow(label: "Chat", value: chatName)
-            }
             ReceiptRow(label: "Tokens", value: details.tokenAmount.formattedQuantity())
 
             if let fee = details.fee {

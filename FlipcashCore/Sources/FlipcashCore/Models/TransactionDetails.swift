@@ -136,13 +136,6 @@ public struct TransactionDetails: Sendable, Equatable, Hashable {
     /// when the payment had no counterparty to open.
     public let chatAction: ChatAction?
 
-    /// The boosted emoji, for the receipt's Reaction row. `nil` for a payment that boosted nothing.
-    public let boostEmoji: String?
-
-    /// The boosted chat's display name, for the receipt's Chat row. `nil` when the payment boosted
-    /// nothing or the chat is not in the local store, which leaves the row out.
-    public let boostChatName: String?
-
     public enum ChatAction: Sendable, Equatable, Hashable {
         /// Opens the message a boost was for.
         case viewMessage(Activity.BoostedReaction)
@@ -181,6 +174,7 @@ extension TransactionDetails {
         fromTokenName: String? = nil,
         toTokenName: String? = nil,
         boostChatName: String? = nil,
+        boostChatIsGroup: Bool = false,
     ) {
         let kind = TransactionKind(activity: activity)
         let swap = activity.swapMetadata
@@ -193,19 +187,19 @@ extension TransactionDetails {
         if let boost = activity.boostedReaction {
             // A boost wins over the tip heading. The name stays the large heading and the boost
             // line goes under it; with no name to lead, the boost line is the heading.
-            let boostLine = activity.kind == .received ? Self.boostReceivedHeading : Self.boostedHeading
+            let received = activity.kind == .received
             // A split boost has no counterparty, so the chat names it; a counterparty that has not
             // resolved yet must not borrow the chat's name.
-            let lead = name ?? (activity.counterparty == nil ? chatName : nil)
-            self.heading = lead ?? boostLine
-            self.subtitle = lead == nil ? nil : boostLine
-            self.boostEmoji = boost.emoji
-            self.boostChatName = chatName
+            let chatLeads = name == nil && activity.counterparty == nil && chatName != nil
+            let lead = name ?? (chatLeads ? chatName : nil)
+            // "in {chat}" only for a stored group, and never when the chat already is the heading.
+            let place = chatLeads || !boostChatIsGroup ? nil : chatName
+            let line = Self.boostLine(emoji: boost.emoji, received: received, chat: place)
+            self.heading = lead ?? line
+            self.subtitle = lead == nil ? nil : line
         } else {
             self.heading = name
             self.subtitle = Self.subtitle(kind: kind, fromTokenName: fromTokenName, toTokenName: toTokenName)
-            self.boostEmoji = nil
-            self.boostChatName = nil
         }
         self.signPrefix = activity.kind.signPrefix
         self.amount = activity.exchangedFiat
@@ -228,8 +222,11 @@ extension TransactionDetails {
         }
     }
 
-    static let boostedHeading = "You boosted"
-    static let boostReceivedHeading = "Boost received"
+    /// "You boosted 🔥", or "Boost 🔥 received", with " in {chat}" when `chat` is given.
+    static func boostLine(emoji: String, received: Bool, chat: String?) -> String {
+        let base = received ? "Boost \(emoji) received" : "You boosted \(emoji)"
+        return chat.map { "\(base) in \($0)" } ?? base
+    }
 
     /// The other side of the movement, for the kinds whose heading doesn't
     /// already carry it. `nil` wherever the header already says everything, and
