@@ -908,8 +908,8 @@ struct ConversationScreen: View {
 
     /// The title's right margin, widened to clear the request pill while one shows in the bar.
     private var titleTrailingInset: CGFloat {
-        let showsPill = requestPillPresence.isVisible && requestDeckStyle != .strip
-        return Self.titleTrailingInset + (showsPill ? Self.requestPillWidth : 0)
+        // Behind the strip the pill is only transparent, so it still takes its slot in the bar.
+        Self.titleTrailingInset + (requestPillPresence.isVisible ? Self.requestPillWidth : 0)
     }
 
     private func payRequest(_ id: PaymentRequestID) {
