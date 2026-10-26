@@ -179,6 +179,102 @@ struct TransactionDetailsTests {
         #expect(alone.chatAction == nil)
     }
 
+    // MARK: - Boost header and card rows
+
+    private func boostDetails(
+        kind: Activity.Kind = .gave,
+        title: String = "Sent",
+        counterparty: Activity.Counterparty? = nil,
+        boosted: Bool = true,
+        name: String? = nil,
+        chat: String? = nil
+    ) -> TransactionDetails {
+        TransactionDetails(
+            activity: Activity(
+                id: .jeffy, state: .completed, kind: kind, title: title,
+                exchangedFiat: Self.usd(1), date: .now, metadata: nil,
+                counterparty: counterparty, boostedReaction: boosted ? boost() : nil
+            ),
+            counterpartyName: name,
+            boostChatName: chat
+        )
+    }
+
+    @Test("H1: a sent boost keeps the name as the heading, with the boost line under it")
+    func sentBoostHeader() {
+        let details = boostDetails(counterparty: counterparty, name: "Sally")
+        #expect(details.title == "Sally")
+        #expect(details.subtitle == "You boosted")
+    }
+
+    @Test("H2: a received boost reads Boost received under the name")
+    func receivedBoostHeader() {
+        let details = boostDetails(kind: .received, title: "Received", counterparty: counterparty, name: "Sally")
+        #expect(details.title == "Sally")
+        #expect(details.subtitle == "Boost received")
+    }
+
+    @Test("H3: a boost wins over the tip heading")
+    func boostBeatsTip() {
+        let unresolved = boostDetails(title: "Tipped Sally", counterparty: counterparty)
+        #expect(unresolved.title == "You boosted")
+        #expect(unresolved.subtitle == nil)
+
+        let resolved = boostDetails(title: "Tipped Sally", counterparty: counterparty, name: "Sally")
+        #expect(resolved.title == "Sally")
+        #expect(resolved.subtitle == "You boosted")
+    }
+
+    @Test("H4: a split boost is headed by the stored chat's name")
+    func splitBoostWithChat() {
+        let details = boostDetails(chat: "Design Team")
+        #expect(details.title == "Design Team")
+        #expect(details.subtitle == "You boosted")
+    }
+
+    @Test("H5: a split boost with no stored chat is headed by the boost line alone")
+    func splitBoostWithoutChat() {
+        let details = boostDetails()
+        #expect(details.title == "You boosted")
+        #expect(details.subtitle == nil)
+    }
+
+    @Test("H6: without a boost the header is unchanged")
+    func noBoostHeader() {
+        let details = boostDetails(title: "Tipped Sally", counterparty: counterparty, boosted: false, name: "Sally", chat: "Design Team")
+        #expect(details.title == "Sally")
+        #expect(details.subtitle == nil)
+        #expect(details.boostEmoji == nil)
+    }
+
+    @Test("C1: a boost in a stored chat shows both rows")
+    func cardRowsWithChat() {
+        let details = boostDetails(chat: "Design Team")
+        #expect(details.boostEmoji == "🔥")
+        #expect(details.boostChatName == "Design Team")
+    }
+
+    @Test("C2: a boost in an unstored chat shows the reaction only")
+    func cardRowsWithoutChat() {
+        let details = boostDetails(chat: nil)
+        #expect(details.boostEmoji == "🔥")
+        #expect(details.boostChatName == nil)
+        #expect(boostDetails(chat: "  ").boostChatName == nil)
+    }
+
+    @Test("C3: a DM boost carries the partner's name as the chat")
+    func cardRowsDM() {
+        let details = boostDetails(counterparty: counterparty, name: "Sally", chat: "Sally")
+        #expect(details.boostChatName == "Sally")
+    }
+
+    @Test("C4: without a boost neither row is shown")
+    func cardRowsNoBoost() {
+        let details = boostDetails(boosted: false, chat: "Design Team")
+        #expect(details.boostEmoji == nil)
+        #expect(details.boostChatName == nil)
+    }
+
     // MARK: - Actions
 
     @Test("Only an open cash link can be cancelled")

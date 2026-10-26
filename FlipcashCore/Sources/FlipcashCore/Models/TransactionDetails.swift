@@ -136,6 +136,13 @@ public struct TransactionDetails: Sendable, Equatable, Hashable {
     /// when the payment had no counterparty to open.
     public let chatAction: ChatAction?
 
+    /// The boosted emoji, for the receipt's Reaction row. `nil` for a payment that boosted nothing.
+    public let boostEmoji: String?
+
+    /// The boosted chat's display name, for the receipt's Chat row. `nil` when the payment boosted
+    /// nothing or the chat is not in the local store, which leaves the row out.
+    public let boostChatName: String?
+
     public enum ChatAction: Sendable, Equatable, Hashable {
         /// Opens the message a boost was for.
         case viewMessage(Activity.BoostedReaction)
@@ -173,14 +180,33 @@ extension TransactionDetails {
         counterpartyName: String? = nil,
         fromTokenName: String? = nil,
         toTokenName: String? = nil,
+        boostChatName: String? = nil,
     ) {
         let kind = TransactionKind(activity: activity)
         let swap = activity.swapMetadata
 
         self.id = activity.id.base58
         self.kind = kind
-        self.heading = counterpartyName?.trimmingCharacters(in: .whitespaces).nilIfEmpty
-        self.subtitle = Self.subtitle(kind: kind, fromTokenName: fromTokenName, toTokenName: toTokenName)
+        let name = counterpartyName?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+        let chatName = boostChatName?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+
+        if let boost = activity.boostedReaction {
+            // A boost wins over the tip heading. The name stays the large heading and the boost
+            // line goes under it; with no name to lead, the boost line is the heading.
+            let boostLine = activity.kind == .received ? Self.boostReceivedHeading : Self.boostedHeading
+            // A split boost has no counterparty, so the chat names it; a counterparty that has not
+            // resolved yet must not borrow the chat's name.
+            let lead = name ?? (activity.counterparty == nil ? chatName : nil)
+            self.heading = lead ?? boostLine
+            self.subtitle = lead == nil ? nil : boostLine
+            self.boostEmoji = boost.emoji
+            self.boostChatName = chatName
+        } else {
+            self.heading = name
+            self.subtitle = Self.subtitle(kind: kind, fromTokenName: fromTokenName, toTokenName: toTokenName)
+            self.boostEmoji = nil
+            self.boostChatName = nil
+        }
         self.signPrefix = activity.kind.signPrefix
         self.amount = activity.exchangedFiat
         self.date = activity.date
@@ -201,6 +227,9 @@ extension TransactionDetails {
             self.chatAction = nil
         }
     }
+
+    static let boostedHeading = "You boosted"
+    static let boostReceivedHeading = "Boost received"
 
     /// The other side of the movement, for the kinds whose heading doesn't
     /// already carry it. `nil` wherever the header already says everything, and
