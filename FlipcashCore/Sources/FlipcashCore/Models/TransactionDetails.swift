@@ -132,6 +132,17 @@ public struct TransactionDetails: Sendable, Equatable, Hashable {
     /// Whether the counterparty can be opened from here: their DM, or their profile until it exists.
     public let canViewInChat: Bool
 
+    /// The chat button the screen draws, or `nil` for none. A boost opens the boosted message, even
+    /// when the payment had no counterparty to open.
+    public let chatAction: ChatAction?
+
+    public enum ChatAction: Sendable, Equatable, Hashable {
+        /// Opens the message a boost was for.
+        case viewMessage(Activity.BoostedReaction)
+        /// Opens the counterparty's DM, or their profile until the DM exists.
+        case viewCounterparty(UserID)
+    }
+
     /// The line the header actually renders.
     public var title: String { heading ?? kind.heading }
 
@@ -181,6 +192,14 @@ extension TransactionDetails {
         // identifies one — a phone-number counterparty has no chat or profile.
         // The display name is not required: the profile fetches its own.
         self.canViewInChat = activity.counterparty?.userID != nil
+        // A boost wins over the counterparty: the message it was for is the more specific place.
+        if let boost = activity.boostedReaction {
+            self.chatAction = .viewMessage(boost)
+        } else if let userID = activity.counterparty?.userID {
+            self.chatAction = .viewCounterparty(userID)
+        } else {
+            self.chatAction = nil
+        }
     }
 
     /// The other side of the movement, for the kinds whose heading doesn't
