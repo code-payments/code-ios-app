@@ -528,6 +528,8 @@ enum DeckPart: Hashable {
     case ring
     case title
     case amounts
+    /// The strip's Pay button, which the moving card fades out on its way into the list and back in as it lands.
+    case pay
     /// The parts only the expanded card shows.
     case label
     case bar
@@ -630,14 +632,10 @@ struct PaymentRequestPillFace: View {
             .truncationMode(.tail)
             Spacer(minLength: 0)
             if item.owedShare != nil {
-                Button("Pay") { pay?(item.id) }
-                    .opacity(max(0, 1 - 2 * Double(stripCollapse)))
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.backgroundMain)
-                    .padding(.horizontal, 18)
-                    .frame(height: 32)
-                    .background(Color.success, in: .capsule)
+                Button { pay?(item.id) } label: { PaymentRequestStripPayLabel() }
                     .buttonStyle(.plain)
+                    .deckPart(.pay, measure)
+                    .opacity(max(0, 1 - 2 * Double(stripCollapse)))
             }
         }
         .padding(.horizontal, 12)
@@ -652,6 +650,18 @@ struct PaymentRequestPillFace: View {
                 .background(Color.backgroundMain, in: .rect(cornerRadius: 14))
                 .deckPart(.container, measure)
         }
+    }
+}
+
+/// The strip's green Pay capsule.
+private struct PaymentRequestStripPayLabel: View {
+    var body: some View {
+        Text("Pay")
+            .font(.appTextSmall)
+            .foregroundStyle(Color.backgroundMain)
+            .padding(.horizontal, 18)
+            .frame(height: 32)
+            .background(Color.success, in: .capsule)
     }
 }
 
@@ -861,6 +871,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
 
                 Group {
                     ring(p)
+                    stripPay(in: box, from: pillBox, opacity: amountsOut)
                     shared(.title, scale: titleScale, p: p, outgoing: outgoing, incoming: incoming) { isCard in
                         Text(item.card.title)
                             .font(isCard ? .appTextMedium : source.titleFont)
@@ -932,9 +943,11 @@ private struct PaymentRequestDeckMorph: View, Animatable {
         if let from = pill[part], let to = card[part] {
             let corner = CGPoint(x: from.minX + (to.minX - from.minX) * p - origin.x, y: from.minY + (to.minY - from.minY) * p - origin.y)
             let grow = 1 + (scale - 1) * p
+            // A point over the measured width: laid out at exactly its own fractional width, the face's
+            // text can round down and truncate.
             text(false)
                 .dynamicTypeSize(pillTypeSize)
-                .frame(width: from.width, height: from.height, alignment: .topLeading)
+                .frame(width: from.width + 1, height: from.height, alignment: .topLeading)
                 .scaleEffect(grow, anchor: .topLeading)
                 .offset(x: corner.x, y: corner.y)
                 .opacity(outgoing)
@@ -943,6 +956,19 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                 .scaleEffect(grow / scale, anchor: .topLeading)
                 .offset(x: corner.x, y: corner.y)
                 .opacity(incoming)
+        }
+    }
+
+    /// The strip's Pay button, held the same distance from the moving container's trailing edge so it
+    /// is in place before the card lands, rather than appearing a frame after it.
+    @ViewBuilder
+    private func stripPay(in box: CGRect, from pillBox: CGRect, opacity: CGFloat) -> some View {
+        if source == .strip, item.owedShare != nil, let rest = pill[.pay] {
+            PaymentRequestStripPayLabel()
+                .dynamicTypeSize(pillTypeSize)
+                .frame(width: rest.width, height: rest.height)
+                .offset(x: box.maxX - (pillBox.maxX - rest.minX) - origin.x, y: box.minY + (rest.minY - pillBox.minY) - origin.y)
+                .opacity(opacity)
         }
     }
 
