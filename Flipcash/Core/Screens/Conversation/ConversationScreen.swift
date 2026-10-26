@@ -957,7 +957,6 @@ struct ConversationScreen: View {
         .task(id: PaymentRequestPoll(conversationID: groupConversation?.id, isActive: scenePhase == .active)) {
             guard let groupID = groupConversation?.id, scenePhase == .active else { return }
             let requests = sessionContainer.paymentRequests
-            await requests.loadSeal(for: groupID)
             while !Task.isCancelled {
                 await requests.refreshChat(groupID)
                 try? await Task.sleep(for: PaymentRequests.pollInterval)

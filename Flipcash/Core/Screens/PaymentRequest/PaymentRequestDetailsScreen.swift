@@ -209,7 +209,6 @@ struct PaymentRequestDetailsScreen: View {
         let requests = sessionContainer.paymentRequests
         await refresh()
         guard let chatID = requests.request(requestID)?.chatID else { return }
-        await requests.loadSeal(for: chatID)
         await sessionContainer.groupRosters.refresh(chatID)
     }
 

@@ -55,6 +55,7 @@ final class PaymentRequests {
     @ObservationIgnored private let markPaidShare: MarkPaid
     @ObservationIgnored private let getPage: GetPage
     @ObservationIgnored private var inFlight: Set<PaymentRequestID> = []
+    @ObservationIgnored private var sealReads: Set<ConversationID> = []
 
     init(
         getChatPage: @escaping GetChatPage,
@@ -96,9 +97,12 @@ final class PaymentRequests {
         ingest([try await markPaidShare(id, userID)])
     }
 
-    /// Loads `conversationID`'s opening seal if it isn't held yet, so encrypted titles can open.
+    /// Loads `conversationID`'s opening seal if it isn't held or being read yet, so encrypted titles
+    /// can open.
     func loadSeal(for conversationID: ConversationID) async {
-        guard seals[conversationID] == nil, let seal = await openingSeal(conversationID) else { return }
+        guard seals[conversationID] == nil, sealReads.insert(conversationID).inserted else { return }
+        defer { sealReads.remove(conversationID) }
+        guard let seal = await openingSeal(conversationID) else { return }
         seals[conversationID] = seal
     }
 
@@ -146,8 +150,10 @@ final class PaymentRequests {
         }
     }
 
-    /// Reads `conversationID`'s OPEN and RESOLVED first pages. A failed read keeps what was held.
+    /// Reads `conversationID`'s OPEN and RESOLVED first pages, and its seal if not held yet. A failed
+    /// read keeps what was held.
     func refreshChat(_ conversationID: ConversationID) async {
+        async let sealed: Void = loadSeal(for: conversationID)
         do {
             async let open = getChatPage(conversationID, .open, Self.openPageSize)
             async let resolved = getChatPage(conversationID, .resolved, Self.resolvedPageSize)
@@ -159,6 +165,7 @@ final class PaymentRequests {
                 "error": "\(error)",
             ])
         }
+        await sealed
     }
 
     /// Reads one page of a chat's `section` for Request Money history and merges it. Returns the page's
@@ -174,13 +181,14 @@ final class PaymentRequests {
         return (page.requests.map(\.id), page.nextPagingToken)
     }
 
-    /// Reads one request and merges it. Returns the intent id the viewer pays under, `nil` when the
-    /// viewer has no unpaid share. Throws what the read threw.
+    /// Reads one request, and its chat's seal if not held yet, and merges it. Returns the intent id the
+    /// viewer pays under, `nil` when the viewer has no unpaid share. Throws what the read threw.
     @discardableResult
     func refresh(_ id: PaymentRequestID) async throws -> Data? {
         do {
             let fetched = try await getRequest(id)
             ingest([fetched.request])
+            if let chatID = fetched.request.chatID { await loadSeal(for: chatID) }
             return fetched.paymentIntentID
         } catch let error as ErrorGetPaymentRequest {
             switch error {
