@@ -1638,13 +1638,13 @@ final class ConversationController {
     /// whoever wrote it. `currencyName` resolves a mint to its display name; nil —
     /// or the reserve, whose formatted amount already names itself — drops the
     /// "of …" suffix. `knownAuthors` names a group sender the chat's roster subset leaves out.
-    /// `viewerAmount` restates a payment in the display currency. `requestAmount` is a payment
-    /// request's per-person share as the viewer reads it, nil while the request isn't loaded.
+    /// `viewerAmount` restates a payment in the display currency. `requestTitle` is a payment
+    /// request's title as the viewer reads it, nil while it isn't loaded or can't be opened.
     func lastMessagePreview(
         for conversation: Conversation,
         knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
         viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
-        requestAmount: (PaymentRequestID) -> FiatAmount? = { _ in nil },
+        requestTitle: (PaymentRequestID) -> String? = { _ in nil },
         currencyName: (PublicKey) -> String?
     ) -> String? {
         if isCounterpartTyping(in: conversation.id) {
@@ -1709,11 +1709,12 @@ final class ConversationController {
             return "Shared a profile"
 
         case .widget(.paymentRequest(let id)):
-            // Until the request loads, or while the sender can't be named, the line stays blank.
-            guard let amount = requestAmount(id)?.formatted() else { return nil }
-            if isFromSelf { return "You requested \(amount)" }
+            // A title that hasn't loaded or won't open drops the "for …" rather than blanking the line.
+            let subject = requestTitle(id).map { " for \($0)" } ?? ""
+            if isFromSelf { return "You sent request\(subject)" }
             guard let senderName else { return nil }
-            return "\(senderName) requested \(amount)"
+            let firstName = senderName.split(separator: " ").first.map(String.init) ?? senderName
+            return "\(firstName) sent request\(subject)"
 
         case .widget(.unrecognized):
             return nil

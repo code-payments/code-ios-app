@@ -393,10 +393,11 @@ struct TipConversationRow: View {
         .task(id: UnreadCountSubject(conversation: conversation, selfUserID: conversationController.selfUserID)) {
             await conversationController.resolveUnreadCount(for: conversation)
         }
-        // A request's preview names its amount, which only the request itself carries.
+        // A request's preview names its title, which only the request itself carries, sealed to the chat.
         .task(id: lastRequestID) {
             guard let lastRequestID else { return }
             await sessionContainer.paymentRequests.fetchIfMissing(lastRequestID)
+            await sessionContainer.paymentRequests.loadSeal(for: conversation.id)
         }
     }
 
@@ -414,8 +415,8 @@ struct TipConversationRow: View {
             for: conversation,
             knownAuthors: sessionContainer.knownAuthors.snapshot,
             viewerAmount: session.displayCurrency.amount,
-            requestAmount: { id in
-                sessionContainer.paymentRequests.request(id).flatMap(PaymentRequestCopy(session.displayCurrency).perPersonAmount)
+            requestTitle: { id in
+                sessionContainer.paymentRequests.request(id).flatMap(sessionContainer.paymentRequests.text)?.title
             },
             currencyName: { session.balance(for: $0)?.name }
         ) {

@@ -1799,27 +1799,27 @@ struct ConversationControllerTests {
         #expect(controller.lastMessagePreview(for: conversation, knownAuthors: knownAuthors) { _ in nil } == "Alice: gm")
     }
 
-    @Test("a request previews as \"<sender> requested <share>\", or \"You requested <share>\"")
-    func requestPreviewNamesSenderAndShare() {
+    @Test("a request previews as \"<first name> sent request for <title>\", or \"You sent request for <title>\"")
+    func requestPreviewNamesSenderAndTitle() {
         let me = UUID()
         let them = UUID()
         let controller = makeController(MockConversations(), selfUserID: me)
-        let share = FiatAmount(value: 20, currency: .usd)
 
-        let fromThem = requestConversation(from: them, members: [member(them, named: "Alice")])
+        let fromThem = requestConversation(from: them, members: [member(them, named: "Alice Smith")])
         let fromMe = requestConversation(from: me, members: [])
-        #expect(controller.lastMessagePreview(for: fromThem, requestAmount: { _ in share }) { _ in nil } == "Alice requested $20.00")
-        #expect(controller.lastMessagePreview(for: fromMe, requestAmount: { _ in share }) { _ in nil } == "You requested $20.00")
+        #expect(controller.lastMessagePreview(for: fromThem, requestTitle: { _ in "Dinner" }) { _ in nil } == "Alice sent request for Dinner")
+        #expect(controller.lastMessagePreview(for: fromMe, requestTitle: { _ in "Dinner" }) { _ in nil } == "You sent request for Dinner")
     }
 
-    @Test("a request previews as nothing until it loads, or while its sender can't be named")
-    func requestPreviewIsBlankWithoutAmountOrSender() {
+    @Test("a request whose title can't be read previews without it, and as nothing while its sender can't be named")
+    func requestPreviewWithoutTitleOrSender() {
         let me = UUID()
+        let them = UUID()
         let controller = makeController(MockConversations(), selfUserID: me)
-        let share = FiatAmount(value: 20, currency: .usd)
 
-        #expect(controller.lastMessagePreview(for: requestConversation(from: me, members: [])) { _ in nil } == nil)
-        #expect(controller.lastMessagePreview(for: requestConversation(from: UUID(), members: []), requestAmount: { _ in share }) { _ in nil } == nil)
+        #expect(controller.lastMessagePreview(for: requestConversation(from: me, members: [])) { _ in nil } == "You sent request")
+        #expect(controller.lastMessagePreview(for: requestConversation(from: them, members: [member(them, named: "Alice")])) { _ in nil } == "Alice sent request")
+        #expect(controller.lastMessagePreview(for: requestConversation(from: UUID(), members: []), requestTitle: { _ in "Dinner" }) { _ in nil } == nil)
     }
 
     private func requestConversation(from sender: UUID, members: [ConversationMember]) -> Conversation {
