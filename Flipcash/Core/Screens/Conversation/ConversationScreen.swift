@@ -521,7 +521,7 @@ struct ConversationScreen: View {
         composer.stageChip(image: capture.image, preview: capture.preview, uploader: mediaUploader)?.id
     }
 
-    /// Opens a tapped photo full screen, zooming out of its row, with share through the system sheet.
+    /// Opens a tapped photo full screen, zooming out of its row, with react, reply, save and forward.
     /// The transcript only hands over a request for a photo the viewer may see, so nothing here can
     /// open or download a BlurHash-only one.
     private func openMediaViewer(_ request: ChatMediaViewerRequest) {
@@ -529,9 +529,16 @@ struct ConversationScreen: View {
         while let presented = presenter.presentedViewController {
             presenter = presented
         }
-        let viewer = ChatMediaViewerController(request: request) { image in
-            ShareSheet.present(activityItems: [image]) { _ in }
-        }
+        let stableID = request.messageID
+        let viewer = ChatMediaViewerController(
+            request: request,
+            onReply: { handleMessageAction(stableID, .reply) },
+            onForward: { handleMessageAction(stableID, .forward) },
+            onSave: { image, original in try await PhotoLibrary.save(image: image, original: original) },
+            onReact: { emoji in toggleReaction(stableID, emoji: emoji) },
+            onMoreReactions: { openReactionPicker(stableID) },
+            reactionEntries: { chatMessage(withStableID: stableID).map(reactionStripEntries) ?? [] }
+        )
         presenter.present(viewer, animated: true)
     }
 
@@ -975,6 +982,7 @@ struct ConversationScreen: View {
             ])
             if matched {
                 conversationController.visibleConversationID = nil
+                conversationController.reactionAlerts?.scrollToMessage = nil
             }
         }
         // Donate the open chat for Siri prediction, Handoff, and Spotlight.
@@ -1019,6 +1027,8 @@ struct ConversationScreen: View {
             "conversationID": id.map { "\($0)" } ?? "nil",
         ])
         conversationController.visibleConversationID = id
+        // A tapped alert pill for this chat scrolls to its message and pulses it.
+        conversationController.reactionAlerts?.scrollToMessage = id == nil ? nil : { messageID in land(on: messageID) }
     }
 
     /// Opens the native iOS contact card for the counterpart: their

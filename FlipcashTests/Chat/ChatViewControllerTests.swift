@@ -183,6 +183,44 @@ struct ChatViewControllerTests {
         #expect(flashing.count == 1, "exactly one row should be flashing, not \(flashing.count)")
     }
 
+    @Test("A jump far up a transcript of tall rows lands with the target centred", arguments: [false, true])
+    func scrollToMessage_tallRows_landsCentred(animated: Bool) async {
+        let controller = ChatViewController()
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        // Every row is several times the layout's 56pt estimate, as a photo is, so rows that have
+        // never been on screen sit at estimated positions until something lays them out.
+        let tall = Array(repeating: "a line long enough to wrap across the bubble", count: 6).joined(separator: " ")
+        let items = (0..<60).map { i in
+            ChatItem.message(ChatMessage(id: "msg-\(i)", text: "\(i) \(tall)", sender: i.isMultiple(of: 2) ? .me : .other))
+        }
+        controller.update(items: items)
+        for _ in 0..<6 {
+            controller.view.layoutIfNeeded()
+            try? await Task.sleep(for: .milliseconds(40))
+        }
+
+        if animated {
+            controller.scrollToMessage(id: "msg-10")
+        } else {
+            // The deferred path: the page carrying the row arrives after the jump was asked for.
+            controller.update(items: Array(items.suffix(20)))
+            controller.scrollToMessage(id: "msg-10")
+            controller.update(items: items)
+        }
+        for _ in 0..<15 {
+            controller.view.layoutIfNeeded()
+            try? await Task.sleep(for: .milliseconds(40))
+        }
+
+        let collectionView = controller.collectionView!
+        let frame = collectionView.layoutAttributesForItem(at: IndexPath(item: 10, section: 0))!.frame
+        let visible = collectionView.bounds.inset(by: collectionView.adjustedContentInset)
+        #expect(visible.contains(frame), "target \(frame) should be on screen in \(visible)")
+        #expect(abs(frame.midY - visible.midY) < 2, "target centre \(frame.midY) vs visible centre \(visible.midY)")
+    }
+
     @Test("A row asked for before it is loaded flashes once the page carrying it arrives")
     func scrollToMessage_pendingTarget_flashesOnArrival() {
         let controller = ChatViewController()

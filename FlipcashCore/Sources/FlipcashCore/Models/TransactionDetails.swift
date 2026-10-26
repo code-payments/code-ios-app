@@ -132,6 +132,17 @@ public struct TransactionDetails: Sendable, Equatable, Hashable {
     /// Whether the counterparty can be opened from here: their DM, or their profile until it exists.
     public let canViewInChat: Bool
 
+    /// The chat button the screen draws, or `nil` for none. A boost opens the boosted message, even
+    /// when the payment had no counterparty to open.
+    public let chatAction: ChatAction?
+
+    public enum ChatAction: Sendable, Equatable, Hashable {
+        /// Opens the message a boost was for.
+        case viewMessage(Activity.BoostedReaction)
+        /// Opens the counterparty's DM, or their profile until the DM exists.
+        case viewCounterparty(UserID)
+    }
+
     /// The line the header actually renders.
     public var title: String { heading ?? kind.heading }
 
@@ -162,14 +173,34 @@ extension TransactionDetails {
         counterpartyName: String? = nil,
         fromTokenName: String? = nil,
         toTokenName: String? = nil,
+        boostChatName: String? = nil,
+        boostChatIsGroup: Bool = false,
     ) {
         let kind = TransactionKind(activity: activity)
         let swap = activity.swapMetadata
 
         self.id = activity.id.base58
         self.kind = kind
-        self.heading = counterpartyName?.trimmingCharacters(in: .whitespaces).nilIfEmpty
-        self.subtitle = Self.subtitle(kind: kind, fromTokenName: fromTokenName, toTokenName: toTokenName)
+        let name = counterpartyName?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+        let chatName = boostChatName?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+
+        if let boost = activity.boostedReaction {
+            // A boost wins over the tip heading. The name stays the large heading and the boost
+            // line goes under it; with no name to lead, the boost line is the heading.
+            let received = activity.kind == .received
+            // A split boost has no counterparty, so the chat names it; a counterparty that has not
+            // resolved yet must not borrow the chat's name.
+            let chatLeads = name == nil && activity.counterparty == nil && chatName != nil
+            let lead = name ?? (chatLeads ? chatName : nil)
+            // "in {chat}" only for a stored group, and never when the chat already is the heading.
+            let place = chatLeads || !boostChatIsGroup ? nil : chatName
+            let line = Self.boostLine(emoji: boost.emoji, received: received, chat: place)
+            self.heading = lead ?? line
+            self.subtitle = lead == nil ? nil : line
+        } else {
+            self.heading = name
+            self.subtitle = Self.subtitle(kind: kind, fromTokenName: fromTokenName, toTokenName: toTokenName)
+        }
         self.signPrefix = activity.kind.signPrefix
         self.amount = activity.exchangedFiat
         self.date = activity.date
@@ -181,6 +212,20 @@ extension TransactionDetails {
         // identifies one — a phone-number counterparty has no chat or profile.
         // The display name is not required: the profile fetches its own.
         self.canViewInChat = activity.counterparty?.userID != nil
+        // A boost wins over the counterparty: the message it was for is the more specific place.
+        if let boost = activity.boostedReaction {
+            self.chatAction = .viewMessage(boost)
+        } else if let userID = activity.counterparty?.userID {
+            self.chatAction = .viewCounterparty(userID)
+        } else {
+            self.chatAction = nil
+        }
+    }
+
+    /// "You boosted 🔥", or "Boost 🔥 received", with " in {chat}" when `chat` is given.
+    static func boostLine(emoji: String, received: Bool, chat: String?) -> String {
+        let base = received ? "Boost \(emoji) received" : "You boosted \(emoji)"
+        return chat.map { "\(base) in \($0)" } ?? base
     }
 
     /// The other side of the movement, for the kinds whose heading doesn't

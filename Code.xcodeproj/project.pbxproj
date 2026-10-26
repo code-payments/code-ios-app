@@ -1250,7 +1250,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Upload your contacts to Flipcash's servers to send cash and get in touch with your friends and help us provide a better experience.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key and any photo you choose to save from a chat to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -1305,7 +1305,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Upload your contacts to Flipcash's servers to send cash and get in touch with your friends and help us provide a better experience.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key and any photo you choose to save from a chat to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -1356,7 +1356,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Upload your contacts to Flipcash's servers to send cash and get in touch with your friends and help us provide a better experience.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key and any photo you choose to save from a chat to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -1406,7 +1406,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Upload your contacts to Flipcash's servers to send cash and get in touch with your friends and help us provide a better experience.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key and any photo you choose to save from a chat to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;

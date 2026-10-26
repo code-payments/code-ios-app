@@ -231,7 +231,7 @@ struct DeepLinkAction {
     /// joined this link is the only way in — and the screen it lands on is the one that offers the join.
     ///
     /// `landing` names the message a message link points at; the transcript opens on it.
-    private static func routeChat(
+    static func routeChat(
         _ conversationID: ConversationID,
         landing: MessageLanding? = nil,
         origin: DeepLinkOrigin,
