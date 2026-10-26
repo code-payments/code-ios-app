@@ -147,7 +147,7 @@ struct AlertPill: View {
             Spacer(minLength: 8)
             switch content.trailing {
             case .amount(let text):
-                Text(text).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.alertGreen)
+                Text(text).font(.appTextSmall).foregroundStyle(Color.textSuccess)
             case .emoji(let emoji):
                 Text(emoji).font(.system(size: 18, weight: .semibold))
             case .emojis(let emojis):
@@ -171,18 +171,18 @@ struct AlertPill: View {
                 avatars(content.avatars)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(content.topRow)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.5))
+                        .font(.appTextCaption)
+                        .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)
                     Text(content.title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.appTextSmall)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                     if !content.subtitle.isEmpty {
                         Text(content.subtitle)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.5))
+                            .font(.appTextCaption)
+                            .foregroundStyle(Color.textSecondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
@@ -221,7 +221,7 @@ struct AlertPill: View {
             Text(emojis.suffix(2).joined()).font(.system(size: 20, weight: .semibold))
                 .fixedSize()
         case .amount(let text):
-            Text(text).font(.system(size: 20, weight: .semibold)).foregroundStyle(Color.alertGreen)
+            Text(text).font(.appTextLarge).foregroundStyle(Color.textSuccess)
         }
     }
 
@@ -362,14 +362,9 @@ private struct AlertAvatarView: View {
 
     private var initialText: some View {
         Text(avatar.initial)
-            .font(.system(size: diameter * 0.4, weight: .semibold))
+            .font(.default(size: diameter * 0.4, weight: .semibold))
             .foregroundStyle(Color.black)
     }
-}
-
-private extension Color {
-    /// The boost amount's green, `#34C759` in the component.
-    static var alertGreen: Color { Color(r: 52, g: 199, b: 89) }
 }
 
 /// The top-anchored half of the toast host. The pill draws in its own window, shown only while a pill
