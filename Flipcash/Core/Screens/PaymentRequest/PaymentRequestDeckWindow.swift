@@ -20,8 +20,9 @@ final class PaymentRequestDeckWindow {
     var items: [PaymentRequestDeckItem] = []
     /// Where the expanded list goes, in screen coordinates: the screen's content area below the bar.
     var listFrame: CGRect = .zero
-    /// The request whose details show over the expanded deck. They open from this window so the
-    /// deck stays expanded under them, and going back finds it as it was.
+    /// The request whose details show over the expanded deck. They open from this window so nothing
+    /// of the deck draws over them; once they cover the screen the deck snaps back to the pill, so
+    /// going back finds it minimized.
     var details: PaymentRequestSelection?
 
     private var window: UIWindow?
@@ -76,7 +77,10 @@ private struct PaymentRequestDeckWindowContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .ignoresSafeArea()
-        .fullScreenCover(item: $window.details) { details($0.id) }
+        .fullScreenCover(item: $window.details, onDismiss: state.endPresentation) {
+            details($0.id)
+                .background(AppearanceReader(didAppear: state.snapToPill))
+        }
     }
 
     /// Sits where the pill does, so it reads as the pill turned into a close. It fades in with the
@@ -91,6 +95,36 @@ private struct PaymentRequestDeckWindowContent: View {
                 .position(x: pill.maxX - pill.height / 2, y: pill.midY)
                 .opacity(opacity)
                 .allowsHitTesting(state.isOpen)
+        }
+    }
+}
+
+/// Calls `didAppear` once the screen it sits in has finished appearing, after any presentation
+/// transition, which SwiftUI's `onAppear` doesn't wait for.
+private struct AppearanceReader: UIViewControllerRepresentable {
+
+    let didAppear: () -> Void
+
+    func makeUIViewController(context: Context) -> Controller {
+        Controller(didAppear: didAppear)
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {}
+
+    final class Controller: UIViewController {
+
+        let didAppear: () -> Void
+
+        init(didAppear: @escaping () -> Void) {
+            self.didAppear = didAppear
+            super.init(nibName: nil, bundle: nil)
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            didAppear()
         }
     }
 }

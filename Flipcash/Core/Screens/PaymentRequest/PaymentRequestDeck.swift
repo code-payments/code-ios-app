@@ -79,6 +79,24 @@ final class PaymentRequestDeckState {
         move(to: 0, generation: generation)
     }
 
+    /// Puts the front card back at the pill with no animation, for when the deck is hidden behind a
+    /// screen. The overlay stays up, drawing the card where the pill is, until `endPresentation()`.
+    func snapToPill() {
+        guard isOpen else { return }
+        isOpen = false
+        isSettled = false
+        generation += 1
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { progress = 0 }
+    }
+
+    /// Takes the overlay down once the card rests at the pill, handing back to the pill itself.
+    func endPresentation() {
+        guard !isOpen, progress == 0 else { return }
+        isOverlayPresented = false
+    }
+
     private func move(to target: CGFloat, generation: Int) {
         guard generation == self.generation else { return }
         // `.removed` waits for the spring to come fully to rest, so nothing swaps while it still moves.
