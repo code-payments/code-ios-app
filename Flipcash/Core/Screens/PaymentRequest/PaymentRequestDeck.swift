@@ -375,7 +375,8 @@ private struct PaymentRequestDeckCard: View {
 
 // MARK: - Expanded -
 
-/// The expanded deck: every request as a full-width card beneath the app bar, over the dimmed chat.
+/// The expanded deck: every request as a full-width card beneath the app bar. `PaymentRequestDeckWindow`
+/// puts it over the chat's backdrop.
 /// While it opens or closes, `PaymentRequestDeckMorph` draws the front card between the pill and the
 /// list.
 struct PaymentRequestDeckOverlay: View {
@@ -390,15 +391,10 @@ struct PaymentRequestDeckOverlay: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            Color.backgroundMain
-                .opacity(0.85 * state.progress)
-                .ignoresSafeArea()
-                .onTapGesture { state.collapse() }
-                .accessibilityLabel("Collapse requests")
-                .accessibilityAddTraits(.isButton)
-
             list
-            if let front = items.first, !state.isSettled {
+            if let front = items.first {
+                // Kept mounted and hidden at rest: inserted in the same update that starts a collapse,
+                // it would have no starting value to animate from and jump straight to the pill.
                 PaymentRequestDeckMorph(
                     item: front,
                     progress: state.progress,
@@ -407,6 +403,7 @@ struct PaymentRequestDeckOverlay: View {
                     pillTypeSize: state.pillTypeSize,
                     origin: origin
                 )
+                .opacity(state.isSettled ? 0 : 1)
                 .allowsHitTesting(false)
             }
         }
@@ -446,8 +443,8 @@ struct PaymentRequestDeckOverlay: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            // The scroll view covers the dimmed chat, so the space below the cards takes the
-            // scrim's tap; the cards' own buttons win over it.
+            // The scroll view covers the backdrop, so the space below the cards takes the backdrop's
+            // tap; the cards' own buttons win over it.
             .frame(minHeight: viewportHeight, alignment: .top)
             .contentShape(Rectangle())
             .onTapGesture { state.collapse() }

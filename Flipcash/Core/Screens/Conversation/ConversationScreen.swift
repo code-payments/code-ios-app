@@ -92,6 +92,7 @@ struct ConversationScreen: View {
     /// The payment request whose details sheet is open.
     @State private var paymentRequestDetails: PaymentRequestSelection?
     @State private var paymentRequestDeck = PaymentRequestDeckState()
+    @State private var deckWindow = PaymentRequestDeckWindow()
     @State private var requestPillPresence = PaymentRequestPillPresence()
     /// Whether a private group's Money sheet (Send or Request) is open.
     @State private var isShowingMoneyActions = false
@@ -791,14 +792,21 @@ struct ConversationScreen: View {
                 }
             }
         }
-        .overlay {
-            if paymentRequestDeck.phase != .collapsed {
-                PaymentRequestDeckOverlay(items: requestDeckItems, state: paymentRequestDeck) { id in
+        // The expanded deck goes in a window of its own so the backdrop covers the app bar too.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { deckWindow.listFrame = $0 }
+        .onChange(of: paymentRequestDeck.phase != .collapsed) { _, isUp in
+            if isUp {
+                deckWindow.items = requestDeckItems
+                deckWindow.present(state: paymentRequestDeck) { id in
                     paymentRequestDeck.collapse()
                     paymentRequestDetails = PaymentRequestSelection(id: id)
                 }
+            } else {
+                deckWindow.dismiss()
             }
         }
+        .onChange(of: requestDeckItems.map(\.id)) { deckWindow.items = requestDeckItems }
+        .onDisappear { deckWindow.dismiss() }
         // Each refetch puts the deck back in its default order.
         .onChange(of: groupConversation.map { sessionContainer.paymentRequests.chatRefreshes[$0.id] }) {
             paymentRequestDeck.order.reset()
