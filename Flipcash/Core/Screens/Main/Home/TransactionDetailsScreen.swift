@@ -54,7 +54,16 @@ struct TransactionDetailsScreen: View {
             counterpartyName: resolution.counterpartyName,
             fromTokenName: fromTokenName,
             toTokenName: toTokenName,
+            boostChatName: boostChatName,
         )
+    }
+
+    /// The boosted chat's name from the local chat store, never fetched. A DM reads as its
+    /// partner, as the chat list does. `nil` when the chat is not stored.
+    private var boostChatName: String? {
+        guard let boost = activity.boostedReaction else { return nil }
+        let controller = sessionContainer.conversationController
+        return controller.conversation(withID: boost.conversationID).map(controller.displayName(for:))
     }
 
     var body: some View {
@@ -198,6 +207,12 @@ struct TransactionDetailsScreen: View {
             ReceiptRow(label: "Currency", value: details.currency.rawValue.uppercased())
             ReceiptRow(label: "Exchange Rate", value: Self.rateFormatter.string(for: details.exchangeRate) ?? "")
             ReceiptRow(label: "Date", value: details.date.formatted(Self.dateFormat))
+            if let emoji = details.boostEmoji {
+                ReceiptRow(label: "Reaction", value: emoji)
+            }
+            if let chatName = details.boostChatName {
+                ReceiptRow(label: "Chat", value: chatName)
+            }
             ReceiptRow(label: "Tokens", value: details.tokenAmount.formattedQuantity())
 
             if let fee = details.fee {
