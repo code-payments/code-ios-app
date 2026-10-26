@@ -418,7 +418,7 @@ private struct PaymentRequestPaySheet: View {
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                     if let handle = payee?.username?.handle {
-                        Text("@\(handle)")
+                        Text(handle)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
                     }
