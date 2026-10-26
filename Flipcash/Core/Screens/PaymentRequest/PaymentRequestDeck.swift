@@ -631,7 +631,7 @@ struct PaymentRequestPillFace: View {
             Spacer(minLength: 0)
             if item.owedShare != nil {
                 Button("Pay") { pay?(item.id) }
-                    .opacity(max(0, 1 - 2 * stripCollapse))
+                    .opacity(max(0, 1 - 2 * Double(stripCollapse)))
                     .font(.appTextSmall)
                     .foregroundStyle(Color.backgroundMain)
                     .padding(.horizontal, 18)
