@@ -434,12 +434,6 @@ struct PaymentRequestDeckOverlay: View {
                     }
                 }
 
-                Capsule()
-                    .fill(Color.textSecondary)
-                    .opacity(state.isOpen ? 1 : 0)
-                    .frame(width: 36, height: 5)
-                    .padding(.top, 2)
-                    .accessibilityHidden(true)
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)

@@ -798,8 +798,9 @@ struct ConversationScreen: View {
             if isUp {
                 deckWindow.items = requestDeckItems
                 deckWindow.present(state: paymentRequestDeck) { id in
-                    paymentRequestDeck.collapse()
-                    paymentRequestDetails = PaymentRequestSelection(id: id)
+                    PaymentRequestDetailsScreen(requestID: id)
+                        .injectingEnvironment(from: sessionContainer)
+                        .injectingEnvironment(from: container)
                 }
             } else {
                 deckWindow.dismiss()

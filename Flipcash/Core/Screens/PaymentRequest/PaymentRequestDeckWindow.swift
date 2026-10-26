@@ -20,14 +20,20 @@ final class PaymentRequestDeckWindow {
     var items: [PaymentRequestDeckItem] = []
     /// Where the expanded list goes, in screen coordinates: the screen's content area below the bar.
     var listFrame: CGRect = .zero
+    /// The request whose details show over the expanded deck. They open from this window so the
+    /// deck stays expanded under them, and going back finds it as it was.
+    var details: PaymentRequestSelection?
 
     private var window: UIWindow?
 
     /// Puts the window up over the app. Presenting twice is a no-op.
-    func present(state: PaymentRequestDeckState, open: @escaping (PaymentRequestID) -> Void) {
+    /// `details` builds a request's details screen with the environment it needs, which a second
+    /// window doesn't inherit from the app's.
+    func present<Details: View>(state: PaymentRequestDeckState, details: @escaping (PaymentRequestID) -> Details) {
         let scene = UIApplication.shared.firstWindowScene
         guard window == nil, let scene else { return }
-        let host = UIHostingController(rootView: PaymentRequestDeckWindowContent(window: self, state: state, open: open))
+        let content = PaymentRequestDeckWindowContent(window: self, state: state) { AnyView(details($0)) }
+        let host = UIHostingController(rootView: content)
         host.view.backgroundColor = .clear
         let window = UIWindow(windowScene: scene)
         // Above the app, below the dialogs `DialogWindow` raises at `.alert`.
@@ -40,6 +46,7 @@ final class PaymentRequestDeckWindow {
 
     /// Takes the window down.
     func dismiss() {
+        details = nil
         window?.isHidden = true
         window = nil
     }
@@ -47,9 +54,9 @@ final class PaymentRequestDeckWindow {
 
 private struct PaymentRequestDeckWindowContent: View {
 
-    let window: PaymentRequestDeckWindow
+    @Bindable var window: PaymentRequestDeckWindow
     @Bindable var state: PaymentRequestDeckState
-    let open: (PaymentRequestID) -> Void
+    let details: (PaymentRequestID) -> AnyView
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -60,12 +67,30 @@ private struct PaymentRequestDeckWindowContent: View {
                 .accessibilityLabel("Collapse requests")
                 .accessibilityAddTraits(.isButton)
 
-            PaymentRequestDeckOverlay(items: window.items, state: state, open: open)
+            PaymentRequestDeckOverlay(items: window.items, state: state) { window.details = PaymentRequestSelection(id: $0) }
                 .frame(width: window.listFrame.width, height: window.listFrame.height)
                 .padding(.leading, window.listFrame.minX)
                 .padding(.top, window.listFrame.minY)
+
+            closeButton
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .ignoresSafeArea()
+        .fullScreenCover(item: $window.details) { details($0.id) }
+    }
+
+    /// Sits where the pill does, so it reads as the pill turned into a close. It fades in with the
+    /// backdrop and out over the first quarter of a collapse, before the front card gets back to the
+    /// pill.
+    @ViewBuilder
+    private var closeButton: some View {
+        if let pill = state.pillFrames[.container] {
+            let opacity = state.isOpen ? state.progress : max(0, (state.progress - 0.75) / 0.25)
+            CloseButton(style: .glass) { state.collapse() }
+                .accessibilityLabel("Collapse requests")
+                .position(x: pill.maxX - pill.height / 2, y: pill.midY)
+                .opacity(opacity)
+                .allowsHitTesting(state.isOpen)
+        }
     }
 }
