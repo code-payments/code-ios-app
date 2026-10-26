@@ -132,8 +132,6 @@ private struct GroupSendAmountScreen: View {
 
 private struct GroupSendSelectPeopleScreen: View {
 
-    @Environment(SessionContainer.self) private var sessionContainer
-
     let viewModel: GroupSendViewModel
 
     @State private var isConfirming = false
@@ -141,20 +139,12 @@ private struct GroupSendSelectPeopleScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                List {
-                    Section {
-                        ForEach(viewModel.members, id: \.userID) { portrait in
-                            row(portrait)
-                        }
-                    } header: {
-                        Text("Members")
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
-                            .textCase(nil)
-                    }
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                SelectPeopleList(
+                    members: viewModel.members,
+                    isSelected: viewModel.isSelected,
+                    toggle: viewModel.toggle,
+                    rowIdentifier: "group-send-member-row"
+                )
 
                 CodeButton(
                     style: .filled,
@@ -177,9 +167,39 @@ private struct GroupSendSelectPeopleScreen: View {
             GroupSendConfirmSheet(viewModel: viewModel)
         }
     }
+}
+
+// MARK: - Member checklist -
+
+/// The checklist of a group's members that group send and a new request both pick from.
+struct SelectPeopleList: View {
+
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    let members: [GroupPortrait]
+    let isSelected: (UserID) -> Bool
+    let toggle: (UserID) -> Void
+    let rowIdentifier: String
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(members, id: \.userID) { portrait in
+                    row(portrait)
+                }
+            } header: {
+                Text("Members")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .textCase(nil)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+    }
 
     private func row(_ portrait: GroupPortrait) -> some View {
-        let isSelected = viewModel.isSelected(portrait.userID)
+        let checked = isSelected(portrait.userID)
         return RecipientRowScaffold(
             avatarID: portrait.userID.uuidString,
             title: portrait.name,
@@ -187,14 +207,14 @@ private struct GroupSendSelectPeopleScreen: View {
             imageData: sessionContainer.profileAvatars.data(for: portrait.userID),
             blurhash: portrait.picture?.thumbnailBlurhash,
             accessibilityLabel: portrait.name,
-            onTap: { viewModel.toggle(portrait.userID) }
+            onTap: { toggle(portrait.userID) }
         ) {
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            Image(systemName: checked ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 22))
-                .foregroundStyle(isSelected ? Color.textMain : Color.textSecondary)
+                .foregroundStyle(checked ? Color.textMain : Color.textSecondary)
         }
-        .accessibilityIdentifier("group-send-member-row")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier(rowIdentifier)
+        .accessibilityAddTraits(checked ? .isSelected : [])
         .task(id: portrait.userID) {
             await sessionContainer.profileAvatars.load(userID: portrait.userID, picture: portrait.picture)
         }

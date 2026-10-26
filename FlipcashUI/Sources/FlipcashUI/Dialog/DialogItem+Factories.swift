@@ -68,3 +68,22 @@ extension DialogItem {
         )
     }
 }
+
+extension DialogItem {
+
+    /// Grey sheet of actions with no banner text, or with an optional heading, for an overflow menu.
+    public static func options(
+        title: String? = nil,
+        subtitle: String? = nil,
+        @ActionBuilder actions: () -> [DialogAction]
+    ) -> DialogItem {
+        DialogItem(
+            style: .standard,
+            title: title,
+            subtitle: subtitle,
+            dismissable: true,
+            tracked: false,
+            actions: actions
+        )
+    }
+}

@@ -164,7 +164,7 @@ struct DatabaseConversationsTests {
         #expect(loaded.map(\.cashReceiverID) == [receiver, nil])
     }
 
-    @Test("Widget messages round-trip, and a widget with no username reads back as unrecognized")
+    @Test("Widget messages round-trip, including a payment request, and a widget with no username reads back as unrecognized")
     func widgetMessageRoundTrip() throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
@@ -175,12 +175,16 @@ struct DatabaseConversationsTests {
                                 date: Date(timeIntervalSince1970: TimeInterval(n)), unreadSeq: n)
         }
         try database.upsertConversationMessages(
-            [widget(1, .shareProfile(ShareProfileWidget(username: alice))), widget(2, .unrecognized)],
+            [
+                widget(1, .shareProfile(ShareProfileWidget(username: alice))), widget(2, .unrecognized),
+                widget(3, .paymentRequest(PaymentRequestID(data: Data([1, 2, 3])))),
+            ],
             conversationID: id
         )
         let loaded = try database.getConversationMessages(conversationID: id)
         #expect(loaded.map(\.content) == [
             .widget(.shareProfile(ShareProfileWidget(username: alice))), .widget(.unrecognized),
+            .widget(.paymentRequest(PaymentRequestID(data: Data([1, 2, 3])))),
         ])
     }
 

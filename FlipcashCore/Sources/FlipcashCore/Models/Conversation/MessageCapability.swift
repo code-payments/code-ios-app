@@ -126,6 +126,9 @@ extension MessageCapability {
             // so the only capability is Reply, which the quote panel supports. Reply follows the
             // chat's speaker rule like any message. Sharing is the card's own button, not a menu action.
             return [.reply]
+        case .widget(.paymentRequest):
+            // Server-authored like the profile card: Reply only. Paying and closing live on the card.
+            return [.reply]
         case .text:
             hasText = true
             hasCopyableText = true

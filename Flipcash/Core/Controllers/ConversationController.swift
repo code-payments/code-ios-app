@@ -1614,7 +1614,7 @@ final class ConversationController {
     /// bump per feed apply costs a single window re-read for the open chat.
     private static let messageWriteOperations: Set<String> = [
         "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
-        "send-message", "send-media-message", "reset-resync", "edit-message", "delete-message",
+        "send-message", "send-media-message", "send-payment-request", "reset-resync", "edit-message", "delete-message",
         "upsert-conversation", "replace-feed", "replace-group-feed",
     ]
 
@@ -1638,11 +1638,13 @@ final class ConversationController {
     /// whoever wrote it. `currencyName` resolves a mint to its display name; nil —
     /// or the reserve, whose formatted amount already names itself — drops the
     /// "of …" suffix. `knownAuthors` names a group sender the chat's roster subset leaves out.
-    /// `viewerAmount` restates a payment in the display currency.
+    /// `viewerAmount` restates a payment in the display currency. `requestTitle` is a payment
+    /// request's title as the viewer reads it, nil while it isn't loaded or can't be opened.
     func lastMessagePreview(
         for conversation: Conversation,
         knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
         viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
+        requestTitle: (PaymentRequestID) -> String? = { _ in nil },
         currencyName: (PublicKey) -> String?
     ) -> String? {
         if isCounterpartTyping(in: conversation.id) {
@@ -1705,6 +1707,14 @@ final class ConversationController {
         case .widget(.shareProfile):
             // The server sends it; no user is the sender to name.
             return "Shared a profile"
+
+        case .widget(.paymentRequest(let id)):
+            // A title that hasn't loaded or won't open drops the "for …" rather than blanking the line.
+            let subject = requestTitle(id).map { " for \($0)" } ?? ""
+            if isFromSelf { return "You sent request\(subject)" }
+            guard let senderName else { return nil }
+            let firstName = senderName.split(separator: " ").first.map(String.init) ?? senderName
+            return "\(firstName) sent request\(subject)"
 
         case .widget(.unrecognized):
             return nil
@@ -2229,6 +2239,9 @@ final class ConversationController {
             _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, linkPreview: pending.linkPreview, to: conversationID)
         case .media(_, let caption):
             await retryMedia(clientMessageID: clientMessageID, caption: caption, repliedTo: pending.repliedTo, in: conversationID)
+        case .widget(.paymentRequest(let id)):
+            store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+            _ = await deliverPaymentRequest(id, clientMessageID: clientMessageID, to: conversationID, attempts: 1)
         case .encrypted, .cash, .deleted, .widget, .system:
             if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
                 logger.error("Cannot retry a send this client has no path to re-send", metadata: [
@@ -2295,6 +2308,70 @@ final class ConversationController {
         }
     }
 
+    /// Sends the widget for the payment request `id` into `conversationID` as a pending row, retrying a
+    /// failed send with the same request; returns whether it was delivered. A final failure leaves the
+    /// row failed in the transcript, where a tap retries it like any message.
+    @discardableResult
+    func sendPaymentRequest(_ id: PaymentRequestID, in conversationID: ConversationID, attempts: Int = 3) async -> Bool {
+        let clientMessageID = UUID()
+        let pending = ConversationMessage(
+            id: .unassigned,
+            senderID: selfUserID,
+            content: .widget(.paymentRequest(id)),
+            date: .now,
+            unreadSeq: 0,
+            status: .sending,
+            clientMessageID: clientMessageID
+        )
+        let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
+        store.insertPending(pending, anchoredTo: anchor, into: conversationID)
+        receiptSettle.hold(clientMessageID.uuidString)
+        return await deliverPaymentRequest(id, clientMessageID: clientMessageID, to: conversationID, attempts: attempts)
+    }
+
+    private func deliverPaymentRequest(_ id: PaymentRequestID, clientMessageID: UUID, to conversationID: ConversationID, attempts: Int) async -> Bool {
+        let chatType = conversation(withID: conversationID)?.type
+        var lastError: Error = ErrorSendMessage.unknown
+        for attempt in 0..<attempts {
+            if attempt > 0 {
+                try? await Task.sleep(for: .seconds(attempt))
+            }
+            do {
+                var confirmed = try await messaging.sendPaymentRequestMessage(
+                    owner: owner,
+                    conversationID: conversationID,
+                    paymentRequestID: id,
+                    clientMessageID: clientMessageID
+                )
+                confirmed.clientMessageID = clientMessageID
+                if persist(operation: "send-payment-request", { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
+                    store.dropPending(clientMessageID: clientMessageID, confirmedAt: confirmed.id, in: conversationID)
+                } else {
+                    scheduleGapCatchUp(conversationID)
+                }
+                store.advanceLastActivity(to: confirmed.date, in: conversationID)
+                if advanceReadPointer(to: confirmed.id, in: conversationID) {
+                    confirmedOwnSendCounts[conversationID, default: 0] += 1
+                }
+                refreshFeedPreview(for: conversationID)
+                persistConversation(conversationID)
+                Analytics.sentMessage(chatType: chatType)
+                return true
+            } catch {
+                lastError = error
+                logger.warning("Failed to send payment request message", metadata: [
+                    "conversationID": "\(conversationID)",
+                    "attempt": "\(attempt)",
+                    "error": "\(error)",
+                ])
+            }
+        }
+        store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
+        ErrorReporting.captureError(lastError, reason: "Failed to send payment request message")
+        Analytics.sentMessage(chatType: chatType, error: lastError)
+        return false
+    }
+
     /// Sends each staged chip as its own message, in chip order, with `caption` under the last and
     /// `repliedTo` on the first; returns whether every one was delivered.
     ///
@@ -2306,6 +2383,12 @@ final class ConversationController {
     /// plaintext photos; throws when the chat encrypts but its seal can't be built.
     func photoSeal(for conversationID: ConversationID) async throws -> ChatSeal? {
         try await messaging.photoSeal(owner: owner, conversationID: conversationID)
+    }
+
+    /// The seal that opens `conversationID`'s payment-request text, nil while the chat's key is
+    /// unknown or the chat doesn't encrypt.
+    func openingSeal(for conversationID: ConversationID) async -> ChatSeal? {
+        await messaging.openingSeal(owner: owner, conversationID: conversationID)
     }
 
     /// Decrypts `conversationID`'s end-to-end encrypted photo blobs, or nil while the chat's key is

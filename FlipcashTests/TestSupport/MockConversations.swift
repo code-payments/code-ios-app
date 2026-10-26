@@ -445,6 +445,15 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         nil
     }
 
+    func sendPaymentRequestMessage(owner: KeyPair, conversationID: ConversationID, paymentRequestID id: PaymentRequestID, clientMessageID: UUID) async throws -> ConversationMessage {
+        lock.withLock { _sentClientIDs.append(clientMessageID) }
+        if let error = sendError { throw error }
+        return sendResult ?? ConversationMessage(
+            id: MessageID(value: 1), senderID: nil, content: .widget(.paymentRequest(id)),
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 0
+        )
+    }
+
     func photoSeal(owner: KeyPair, conversationID: ConversationID) async throws -> ChatSeal? {
         nil
     }

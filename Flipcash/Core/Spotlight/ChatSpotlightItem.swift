@@ -66,6 +66,7 @@ nonisolated struct ChatSpotlightItem {
         case .text(let text):    text
         case .cash(let amount):  "Cash · \(viewerAmount(amount).formatted())"
         case .widget(.shareProfile): "Shared a profile"
+        case .widget(.paymentRequest): "Request"
         case .media(_, let caption): ChatMediaStrings.listPreview(caption: caption)
         case .system(let text, _):  text.isEmpty ? nil : text
         case .deleted, .encrypted, .widget(.unrecognized), nil: nil

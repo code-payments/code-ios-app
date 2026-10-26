@@ -89,6 +89,24 @@ struct ConversationScreen: View {
     @State private var paidReactionTarget: ReactionBoostTarget?
     /// The group send whose card was tapped, shown in the details sheet.
     @State private var groupSendDetails: GroupSendDetails?
+    /// The payment request whose details sheet is open.
+    @State private var paymentRequestDetails: PaymentRequestSelection?
+    @State private var paymentRequestDeck = PaymentRequestDeckState()
+    @State private var deckWindow = PaymentRequestDeckWindow()
+    @State private var requestPillPresence = PaymentRequestPillPresence()
+    /// Paying a share from the owed strip's Pay button.
+    @State private var requestPayFlow = PaymentRequestPayFlow()
+    /// How far the reader's scroll away from the newest messages has shrunk the owed strip into
+    /// the app-bar pill.
+    @State private var stripCollapse = PaymentRequestStripCollapse()
+    /// The owed strip's measured height, reserved at the transcript's top; 0 while hidden.
+    @State private var stripHeight: CGFloat = 0
+    /// Whether a private group's Money sheet (Send or Request) is open.
+    @State private var isShowingMoneyActions = false
+    /// The Money sheet's choice, run once that sheet has gone so the next one can present.
+    @State private var pendingMoneyAction: MoneyAction?
+    /// Whether the Request Money flow is open.
+    @State private var isShowingRequestMoney = false
     /// The stable id, pill set, and long-pressed emoji the reactors sheet is open for, or nil.
     @State private var reactorsRequest: ReactorsRequest?
     /// A reactor whose profile opens once the reactors sheet has finished dismissing.
@@ -115,6 +133,7 @@ struct ConversationScreen: View {
     /// Whether the keyboard is up, which holds the update toast back.
     @State private var isKeyboardUp = false
 
+
     /// This conversation's id when the viewer hosts it as a private group; the anchor is host-only.
     private var hostedConversationID: ConversationID? {
         guard let conversationID,
@@ -133,6 +152,8 @@ struct ConversationScreen: View {
     private static let titleLeadingInset: CGFloat = 72
     /// Where the title ends: the bar's trailing margin, since nothing sits on that side.
     private static let titleTrailingInset: CGFloat = 16
+    /// Room the request pill takes at the bar's trailing edge.
+    private static let requestPillWidth: CGFloat = 150
 
     /// The synced contact for the counterpart, resolved live from the directory
     /// so a `dmChatID` stored after the first payment flows in. Falls back to
@@ -409,6 +430,7 @@ struct ConversationScreen: View {
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
+            onPaymentRequestTap: { paymentRequestDetails = PaymentRequestSelection(id: PaymentRequestID(data: $0)) },
             onOpenURL: openLink,
             onMentionTap: openMention,
             onShareProfile: shareProfile,
@@ -466,7 +488,11 @@ struct ConversationScreen: View {
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
-            transcriptTopInset: anchorHeight > 0 ? anchorHeight + 8 : 0,
+            // Each anchor shown takes its height and the stack's 8-point gap.
+            transcriptTopInset: [anchorHeight, stripHeight].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
+            onDistanceFromNewestChange: { [stripCollapse] in stripCollapse.update(distanceFromNewest: $0) },
+            // Released mid-way, the strip finishes the move it's nearer to rather than resting half-shrunk.
+            snapDistanceFromNewest: viewerOwes && !stripCollapse.isPinned ? PaymentRequestStripCollapse.distance : nil,
             messageJump: messageJump
         )
     }
@@ -599,6 +625,9 @@ struct ConversationScreen: View {
             guard let hostedConversationID else { return }
             Task { await sessionContainer.hostedLobbies.refresh(hostedConversationID) }
         }
+        .onChange(of: requestDeckItems, initial: true) { _, items in
+            requestPillPresence.update(items)
+        }
         .onChange(of: conversationController.reactions.error) { _, _ in
             scheduleReactionErrorDismissal()
         }
@@ -627,6 +656,20 @@ struct ConversationScreen: View {
             )
             .task {
                 if let conversationID { await sessionContainer.groupRosters.refresh(conversationID) }
+            }
+        }
+        .fullScreenCover(item: $paymentRequestDetails) { selection in
+            PaymentRequestDetailsScreen(requestID: selection.id)
+        }
+        .sheet(isPresented: $isShowingMoneyActions, onDismiss: runPendingMoneyAction) {
+            MoneyActionsSheet(
+                sendMoney: { pendingMoneyAction = .send },
+                requestMoney: { pendingMoneyAction = .request }
+            )
+        }
+        .fullScreenCover(isPresented: $isShowingRequestMoney) {
+            if let conversationID {
+                PaymentRequestFlow(conversationID: conversationID)
             }
         }
         .sheet(item: $paidReactionTarget) { target in
@@ -687,6 +730,24 @@ struct ConversationScreen: View {
                     .onDisappear { anchorHeight = 0 }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
+                // Mounted for as long as the viewer owes, so scrolling only moves it: its slot at the
+                // transcript's top stays put, and the strip shrinks into the pill in step with the scroll.
+                if viewerOwes {
+                    PaymentRequestPill(
+                        items: requestDeckItems,
+                        style: .strip,
+                        accessibilityLabel: requestDeckAccessibilityLabel,
+                        state: paymentRequestDeck,
+                        pay: payRequest
+                    )
+                    .modifier(PaymentRequestStripCollapseEffect(collapse: stripCollapse))
+                    // The slot, not the moving strip: the collapse's transforms leave it alone.
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.stripFrame = $0 }
+                    .padding(.horizontal, BarMetrics.edgeInset)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stripHeight = $0 }
+                    .onDisappear { stripHeight = 0 }
+                    .transition(.scale(scale: 0.3, anchor: .topTrailing).combined(with: .opacity))
+                }
                 if let reactionToastText {
                     ToastLabel(reactionToastText)
                         .allowsHitTesting(false)
@@ -694,6 +755,14 @@ struct ConversationScreen: View {
                 }
             }
             .padding(.top, 8)
+            .animation(Self.deckStyleMotion, value: viewerOwes)
+        }
+        .paymentRequestPaySheet(requestPayFlow)
+        .onChange(of: requestDeckStyle, initial: true) { _, style in
+            paymentRequestDeck.source = style
+        }
+        .onChange(of: owedRequestIDs) { owed, owing in
+            if !owing.isSubset(of: owed) { stripCollapse.unpin() }
         }
         .background(Color.backgroundMain)
         .navigationTitle("")
@@ -702,7 +771,8 @@ struct ConversationScreen: View {
         // What it holds changes: the counterpart's name and avatar go, since the edit is about one
         // message rather than the person, and the back button backs out of the edit rather than the
         // chat — leaving the chevron alone in the bar.
-        .navigationBarBackButtonHidden(composer.isEditing)
+        // An expanded request deck takes the back button the same way: back collapses it first.
+        .navigationBarBackButtonHidden(composer.isEditing || paymentRequestDeck.isOpen)
         .toolbar {
             if composer.isEditing {
                 ToolbarItem(placement: .topBarLeading) {
@@ -715,6 +785,18 @@ struct ConversationScreen: View {
                     .accessibilityLabel("Stop editing")
                 }
             } else {
+                // Follows the target, so the bar changes as the deck starts to close, not as it lands.
+                if paymentRequestDeck.isOpen {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            paymentRequestDeck.collapse()
+                        } label: {
+                            Image(systemName: "chevron.backward")
+                                .foregroundStyle(Color.textMain)
+                        }
+                        .accessibilityLabel("Collapse requests")
+                    }
+                }
                 ToolbarItem(placement: .principal) {
                     ConversationTitleItem(
                         title: title,
@@ -731,14 +813,114 @@ struct ConversationScreen: View {
                             ?? tipCounterpart?.profilePicture?.thumbnailBlurhash,
                         // Too wide to centre, the bar lays the item out from just past the back
                         // button, so the width alone sets where it ends; no offset is needed.
-                        width: max(navBarWidth - Self.titleLeadingInset - Self.titleTrailingInset, 0),
+                        width: max(navBarWidth - Self.titleLeadingInset - titleTrailingInset, 0),
                         mute: viewerMute,
                         onTap: titleTapAction,
                         opensProfile: profileTapAction != nil
                     )
                 }
+                if requestPillPresence.isInBar {
+                    // The pill draws its own capsule, so the iOS 26 platter stays off.
+                    if #available(iOS 26.0, *) {
+                        ToolbarItem(placement: .topBarTrailing) { requestPill }
+                            .sharedBackgroundVisibility(.hidden)
+                    } else {
+                        ToolbarItem(placement: .topBarTrailing) { requestPill }
+                    }
+                }
             }
         }
+        // The expanded deck goes in a window of its own so the backdrop covers the app bar too.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { deckWindow.listFrame = $0 }
+        .onChange(of: paymentRequestDeck.phase != .collapsed) { _, isUp in
+            if isUp {
+                deckWindow.items = requestDeckItems
+                deckWindow.present(state: paymentRequestDeck) { id in
+                    PaymentRequestDetailsScreen(requestID: id)
+                        .injectingEnvironment(from: sessionContainer)
+                        .injectingEnvironment(from: container)
+                }
+            } else {
+                deckWindow.dismiss()
+            }
+        }
+        .onChange(of: requestDeckItems.map(\.id)) { deckWindow.items = requestDeckItems }
+        .onChange(of: scenePhase, initial: true) { _, phase in deckWindow.scenePhase = phase }
+        .onDisappear { deckWindow.dismiss() }
+        // Each refetch puts the deck back in its default order.
+        .onChange(of: groupConversation.map { sessionContainer.paymentRequests.chatRefreshes[$0.id] }) {
+            paymentRequestDeck.order.reset()
+        }
+    }
+
+    /// The private group's open and recently ended requests, worded for the viewer, in deck order.
+    private var requestDeckItems: [PaymentRequestDeckItem] {
+        guard let group = groupConversation, group.isPrivate else { return [] }
+        return sessionContainer.paymentRequests.deckItems(
+            for: group.id,
+            viewer: session.userID,
+            order: paymentRequestDeck.order,
+            copy: PaymentRequestCopy(session.displayCurrency),
+            now: .now
+        )
+    }
+
+    private static let deckStyleMotion = Animation.spring(duration: 0.4, bounce: 0.12)
+
+    /// Where the collapsed deck sits: the strip under the bar while the viewer owes and reads the
+    /// newest messages, otherwise the app-bar pill.
+    private var requestDeckStyle: PaymentRequestDeckStyle {
+        .collapsed(owes: viewerOwes, isScrolledAway: stripCollapse.isScrolledAway)
+    }
+
+    private var viewerOwes: Bool {
+        requestDeckItems.contains { $0.owedShare != nil }
+    }
+
+    private var owedRequestIDs: Set<PaymentRequestID> {
+        Set(requestDeckItems.filter { $0.owedShare != nil }.map(\.id))
+    }
+
+    /// Kept in the bar under the strip, hidden, so the bar never rebuilds its item as the strip comes
+    /// and goes. Hidden, it still marks the bar's slot for the expanded deck's close button.
+    private var requestPill: some View {
+        let style = requestDeckStyle
+        return PaymentRequestPill(
+            items: requestPillPresence.items(requestDeckItems),
+            style: .pill,
+            accessibilityLabel: requestDeckAccessibilityLabel,
+            state: paymentRequestDeck
+        )
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.pillFrame = $0 }
+        .modifier(PaymentRequestPillRevealEffect(collapse: stripCollapse, isBehindStrip: viewerOwes))
+        .allowsHitTesting(style != .strip)
+        .accessibilityHidden(style == .strip)
+        .animation(Self.deckStyleMotion, value: viewerOwes)
+        .modifier(PaymentRequestPillAppearance(presence: requestPillPresence))
+    }
+
+    private var requestDeckAccessibilityLabel: String {
+        guard let front = requestDeckItems.first else { return "" }
+        if requestDeckStyle == .strip, let share = front.owedShare {
+            return PaymentRequestCopy.owedAccessibilityLabel(
+                share: share,
+                title: front.card.title,
+                deadline: front.request.deadline(at: .now),
+                count: requestDeckItems.count
+            )
+        }
+        return PaymentRequestCopy(session.displayCurrency)
+            .deckAccessibilityLabel(front: front.request, title: front.card.title, viewerStatus: front.viewerStatus, count: requestDeckItems.count, now: .now)
+    }
+
+    /// The title's right margin, widened to clear the request pill while one shows in the bar.
+    private var titleTrailingInset: CGFloat {
+        // Behind the strip the pill is only transparent, so it still takes its slot in the bar.
+        Self.titleTrailingInset + (requestPillPresence.isVisible ? Self.requestPillWidth : 0)
+    }
+
+    private func payRequest(_ id: PaymentRequestID) {
+        Task { await requestPayFlow.start(id, sessionContainer: sessionContainer) }
     }
 
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
@@ -785,6 +967,24 @@ struct ConversationScreen: View {
         .task(id: groupConversation?.id) {
             guard groupConversation != nil else { return }
             await sessionContainer.knownAuthors.reload()
+        }
+        // Payment requests change with no event, so poll while the chat is on screen in the
+        // foreground. A return to the foreground re-keys the task, which refetches at once.
+        .task(id: PaymentRequestPoll(conversationID: groupConversation?.id, isActive: scenePhase == .active)) {
+            guard let groupID = groupConversation?.id, scenePhase == .active else { return }
+            let requests = sessionContainer.paymentRequests
+            var retries = 0
+            while !Task.isCancelled {
+                await requests.refreshChat(groupID)
+                // A card still loading after a failed read retries sooner than the poll.
+                if requests.isSettling(groupID) {
+                    try? await Task.sleep(for: PaymentRequests.retryDelay(attempt: retries))
+                    retries += 1
+                } else {
+                    try? await Task.sleep(for: PaymentRequests.pollInterval)
+                    retries = 0
+                }
+            }
         }
         // One picker per visit, so its suggestion fetch runs once per visit.
         .onChange(of: groupConversation?.id, initial: true) { _, groupID in
@@ -1253,6 +1453,8 @@ struct ConversationScreen: View {
             (ChatQuote.deletedSnippet, .unavailable)
         case .widget(.shareProfile):
             (ChatQuote.sharedProfileSnippet, .text)
+        case .widget(.paymentRequest):
+            (ChatQuote.paymentRequestSnippet, .text)
         case .encrypted, .widget(.unrecognized), .system:
             (ChatQuote.unavailableSnippet, .unavailable)
         }
@@ -1307,6 +1509,16 @@ struct ConversationScreen: View {
 
     private func sendCash() {
         guard let sendTarget else { return }
+        switch sendTarget {
+        case .privateGroup:
+            // Requesting needs no balance, so the give-cash gate waits for the Send choice.
+            isShowingMoneyActions = true
+        case .contact, .tip, .group:
+            presentSendAmount(sendTarget)
+        }
+    }
+
+    private func presentSendAmount(_ sendTarget: SendTarget) {
         let context: AddMoneyContext = switch sendTarget {
         case .tip:              .sendTips
         case .contact, .group, .privateGroup: .giveCash
@@ -1317,6 +1529,20 @@ struct ConversationScreen: View {
             return
         }
         router.presentSendAmount(sendTarget)
+    }
+
+    private enum MoneyAction {
+        case send
+        case request
+    }
+
+    private func runPendingMoneyAction() {
+        guard let action = pendingMoneyAction, let sendTarget else { return }
+        pendingMoneyAction = nil
+        switch action {
+        case .send:    presentSendAmount(sendTarget)
+        case .request: isShowingRequestMoney = true
+        }
     }
 
     /// Re-send a failed message tapped in the transcript. The id is the row's stable id, which for a
@@ -1631,6 +1857,7 @@ struct ConversationScreen: View {
                 controller: conversationController,
                 session: session,
                 knownAuthors: sessionContainer.knownAuthors,
+                paymentRequests: sessionContainer.paymentRequests,
                 openingLoadLanded: loadedConversationID == id
             )
         }

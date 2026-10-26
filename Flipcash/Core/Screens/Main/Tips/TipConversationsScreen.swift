@@ -393,6 +393,17 @@ struct TipConversationRow: View {
         .task(id: UnreadCountSubject(conversation: conversation, selfUserID: conversationController.selfUserID)) {
             await conversationController.resolveUnreadCount(for: conversation)
         }
+        // A request's preview names its title, which only the request itself carries, sealed to the chat.
+        .task(id: lastRequestID) {
+            guard let lastRequestID else { return }
+            await sessionContainer.paymentRequests.fetchIfMissing(lastRequestID)
+            await sessionContainer.paymentRequests.loadSeal(for: conversation.id)
+        }
+    }
+
+    private var lastRequestID: PaymentRequestID? {
+        guard case .widget(.paymentRequest(let id)) = conversation.lastMessage?.content else { return nil }
+        return id
     }
 
     /// The preview line: the last message, or an italic "Nothing yet" for a chat with no message
@@ -404,6 +415,9 @@ struct TipConversationRow: View {
             for: conversation,
             knownAuthors: sessionContainer.knownAuthors.snapshot,
             viewerAmount: session.displayCurrency.amount,
+            requestTitle: { id in
+                sessionContainer.paymentRequests.request(id).flatMap(sessionContainer.paymentRequests.text)?.title
+            },
             currencyName: { session.balance(for: $0)?.name }
         ) {
             return AttributedString(preview)

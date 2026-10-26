@@ -83,6 +83,18 @@ struct RootSheetHostModifier: ViewModifier {
         session.transactionNotificationPrompt.pending && !router.isSheetDismissing
     }
 
+    /// The root sheet when it presents the way `fullScreen` asks for, else nil; writing nil dismisses it.
+    private func presentedRootSheet(fullScreen: Bool) -> Binding<AppRouter.SheetPresentation?> {
+        Binding(
+            get: { router.rootSheet.flatMap { $0.coversFullScreen == fullScreen ? $0 : nil } },
+            set: { newValue in
+                if newValue == nil {
+                    router.dismissSheet()
+                }
+            }
+        )
+    }
+
     func body(content: Content) -> some View {
         content
             // Resume a tip held for profile creation the moment the profile
@@ -108,14 +120,11 @@ struct RootSheetHostModifier: ViewModifier {
             // write through here. Bound to `rootSheet` (bottom of the sheet
             // stack) — nested sheets mount inside this root sheet's content
             // via `.appRouterNestedSheet`.
-            .sheet(item: Binding(
-                get: { router.rootSheet },
-                set: { newValue in
-                    if newValue == nil {
-                        router.dismissSheet()
-                    }
-                }
-            ), onDismiss: router.sheetDidFinishDismissing) { sheet in
+            .sheet(item: presentedRootSheet(fullScreen: false), onDismiss: router.sheetDidFinishDismissing) { sheet in
+                RoutedSheet(sheet: sheet)
+                    .appRouterNestedSheet()
+            }
+            .fullScreenCover(item: presentedRootSheet(fullScreen: true), onDismiss: router.sheetDidFinishDismissing) { sheet in
                 RoutedSheet(sheet: sheet)
                     .appRouterNestedSheet()
             }

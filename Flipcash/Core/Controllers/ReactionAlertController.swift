@@ -300,6 +300,7 @@ final class ReactionAlertController {
         case .media(_, let caption): ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption))
         case .deleted: ChatQuote.deletedSnippet
         case .widget(.shareProfile): ChatQuote.sharedProfileSnippet
+        case .widget(.paymentRequest): ChatQuote.paymentRequestSnippet
         case .encrypted, .widget(.unrecognized), .system: ChatQuote.unavailableSnippet
         }
     }

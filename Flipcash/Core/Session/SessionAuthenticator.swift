@@ -654,6 +654,9 @@ final class SessionContainer {
     /// The members of the private groups the signed-in user has opened, kept live from the stream.
     let groupRosters: GroupRosters
 
+    /// The group payment requests the signed-in user's private chats carry, refetched by the chat screen.
+    let paymentRequests: PaymentRequests
+
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
 
@@ -897,6 +900,41 @@ final class SessionContainer {
         )
         conversationController.groupRosters = groupRosters
         self.groupRosters = groupRosters
+        self.paymentRequests = PaymentRequests(
+            getChatPage: { [flipClient, owner = session.ownerKeyPair] conversationID, section, pageSize in
+                try await flipClient.getChatPaymentRequestsPage(
+                    owner: owner,
+                    conversationID: conversationID,
+                    section: section,
+                    pageSize: pageSize,
+                    pagingToken: nil
+                ).requests
+            },
+            getRequest: { [flipClient, owner = session.ownerKeyPair] id in
+                try await flipClient.getPaymentRequest(owner: owner, id: id)
+            },
+            openingSeal: { [conversationController] conversationID in
+                await conversationController.openingSeal(for: conversationID)
+            },
+            create: { [flipClient, owner = session.ownerKeyPair] key, conversationID, split in
+                try await flipClient.createPaymentRequest(owner: owner, idempotencyKey: key, chatID: conversationID, split: split)
+            },
+            close: { [flipClient, owner = session.ownerKeyPair] id in
+                try await flipClient.closePaymentRequest(owner: owner, id: id)
+            },
+            markPaid: { [flipClient, owner = session.ownerKeyPair] id, userID in
+                try await flipClient.markPaid(owner: owner, id: id, userID: userID)
+            },
+            getPage: { [flipClient, owner = session.ownerKeyPair] conversationID, section, pageSize, pagingToken in
+                try await flipClient.getChatPaymentRequestsPage(
+                    owner: owner,
+                    conversationID: conversationID,
+                    section: section,
+                    pageSize: pageSize,
+                    pagingToken: pagingToken
+                )
+            }
+        )
         self.rosterSearch = mentionSearch
 
         // The blocklist drives which conversations the feed hides: it supplies the

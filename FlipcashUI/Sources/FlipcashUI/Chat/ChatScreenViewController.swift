@@ -198,6 +198,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onCashCardTap = newValue }
     }
 
+    /// Called with a payment request's id bytes when its card is tapped.
+    public var onPaymentRequestTap: ((Data) -> Void)? {
+        get { transcript.onPaymentRequestTap }
+        set { transcript.onPaymentRequestTap = newValue }
+    }
+
     public var onOpenURL: ((URL) -> Void)? {
         get { transcript.onOpenURL }
         set { transcript.onOpenURL = newValue }
@@ -310,6 +316,27 @@ public final class ChatScreenViewController: UIViewController {
             guard transcriptTopInset != oldValue else { return }
             transcript.setTopInset(transcriptTopInset)
         }
+    }
+
+    /// Fires when the reader leaves or comes back to the newest messages — see
+    /// ``ChatViewController/onScrolledAwayChange``.
+    public var onScrolledAwayChange: ((Bool) -> Void)? {
+        get { transcript.onScrolledAwayChange }
+        set { transcript.onScrolledAwayChange = newValue }
+    }
+
+    /// Fires as the reader scrolls, with how far they sit from the newest messages — see
+    /// ``ChatViewController/onDistanceFromNewestChange``.
+    public var onDistanceFromNewestChange: ((CGFloat) -> Void)? {
+        get { transcript.onDistanceFromNewestChange }
+        set { transcript.onDistanceFromNewestChange = newValue }
+    }
+
+    /// A band above the newest messages a released scroll never rests inside — see
+    /// ``ChatViewController/snapDistanceFromNewest``.
+    public var snapDistanceFromNewest: CGFloat? {
+        get { transcript.snapDistanceFromNewest }
+        set { transcript.snapDistanceFromNewest = newValue }
     }
 
     /// Fires on the reader's first drag after the opening scroll — see

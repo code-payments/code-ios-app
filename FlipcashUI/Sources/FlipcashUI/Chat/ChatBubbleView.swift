@@ -232,7 +232,7 @@ public final class ChatBubbleView: UIView {
         case .unavailable(let unavailableHint):
             hint = unavailableHint.text
             isUpdateBubble = false
-        case .text, .cash, .deleted, .shareProfile, .media:
+        case .text, .cash, .deleted, .shareProfile, .media, .paymentRequest:
             hint = nil
             isUpdateBubble = false
         }
@@ -305,7 +305,7 @@ public final class ChatBubbleView: UIView {
         case .text:    message.isEdited
         case .deleted: false
         case .cash:    false
-        case .unavailable, .shareProfile, .media: false
+        case .unavailable, .shareProfile, .media, .paymentRequest: false
         }
     }
 
@@ -315,7 +315,7 @@ public final class ChatBubbleView: UIView {
         switch message.content {
         case .unavailable(.updateApp):  .dashedOverWash
         case .unavailable(.askToResend), .unavailable(.resend): .dashed
-        case .text, .cash, .deleted, .shareProfile, .media: .hairline
+        case .text, .cash, .deleted, .shareProfile, .media, .paymentRequest: .hairline
         }
     }
 
@@ -371,7 +371,7 @@ public final class ChatBubbleView: UIView {
             return updateAppText()
         case .unavailable(.askToResend), .unavailable(.resend):
             return unavailableText()
-        case .cash, .shareProfile, .media:
+        case .cash, .shareProfile, .media, .paymentRequest:
             return nil
         }
 

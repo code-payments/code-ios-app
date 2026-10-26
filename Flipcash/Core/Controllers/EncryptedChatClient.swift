@@ -155,6 +155,16 @@ extension EncryptedChatClient: ConversationMessaging {
         }
     }
 
+    /// Requests exist only in private groups, which always encrypt, so a chat without a seal fails.
+    func sendPaymentRequestMessage(owner: KeyPair, conversationID: ConversationID, paymentRequestID id: PaymentRequestID, clientMessageID: UUID) async throws -> ConversationMessage {
+        try await refetchingOnRefusal(conversationID) {
+            guard let seal = try await sealForSending(conversationID, owner: owner) else {
+                throw ErrorSendMessage.encryptionRequired
+            }
+            return try await client.sendPaymentRequestMessage(owner: owner, conversationID: conversationID, paymentRequestID: id, seal: seal, clientMessageID: clientMessageID)
+        }
+    }
+
     func photoSeal(owner: KeyPair, conversationID: ConversationID) async throws -> ChatSeal? {
         try await sealForSending(conversationID, owner: owner)
     }

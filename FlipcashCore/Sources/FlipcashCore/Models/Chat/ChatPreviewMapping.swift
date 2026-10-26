@@ -96,6 +96,8 @@ extension ChatItem {
                 ))
             case .widget(.shareProfile(let share)):
                 content = .shareProfile(LinkCard.User(profileOf: share.username))
+            case .widget(.paymentRequest(let id)):
+                content = .paymentRequest(ChatPaymentRequestContent(requestID: id.data, card: nil))
             case .widget(.unrecognized):
                 content = .unavailable(.updateApp)
             case .media(let attachments, let caption):

@@ -27,6 +27,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a cash card; the argument is the message's stable id. The owner opens
     /// that token's currency info.
     let onCashCardTap: (String) -> Void
+    /// Fired with a payment request's id bytes when its card is tapped. The owner opens Request details.
+    var onPaymentRequestTap: (Data) -> Void = { _ in }
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
@@ -140,8 +142,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? = { nil }
     /// Fired when the user taps a photo the viewer may see. The owner opens the full-screen viewer.
     var onMediaTap: (ChatMediaViewerRequest) -> Void = { _ in }
-    /// Room the transcript reserves under the navigation bar for the join-requests anchor.
+    /// Room the transcript reserves under the navigation bar for the anchors above it.
     var transcriptTopInset: CGFloat = 0
+    /// Fired as the reader scrolls, with how far in points they sit above the newest messages.
+    var onDistanceFromNewestChange: (CGFloat) -> Void = { _ in }
+    /// A band above the newest messages a released scroll settles out of, to either edge.
+    var snapDistanceFromNewest: CGFloat? = nil
     /// The latest request to land on a message, from a message link; each new token scrolls once.
     var messageJump: MessageJump? = nil
 
@@ -169,9 +175,12 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.barRestingDrop = BarMetrics.compactDrop
         screen.authorAvatars = authorAvatars
         screen.transcriptTopInset = transcriptTopInset
+        screen.onDistanceFromNewestChange = onDistanceFromNewestChange
+        screen.snapDistanceFromNewest = snapDistanceFromNewest
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
+        screen.onPaymentRequestTap = onPaymentRequestTap
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile
@@ -232,10 +241,13 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.showsGatePlaceholder = showsGatePlaceholder
         screen.barRestingDrop = BarMetrics.compactDrop
         screen.transcriptTopInset = transcriptTopInset
+        screen.onDistanceFromNewestChange = onDistanceFromNewestChange
+        screen.snapDistanceFromNewest = snapDistanceFromNewest
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
+        screen.onPaymentRequestTap = onPaymentRequestTap
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile

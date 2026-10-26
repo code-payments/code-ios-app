@@ -1097,6 +1097,23 @@ class Session {
     /// VM time-authority and carried alongside `recipientOwner` so the
     /// server recognises a Code-managed destination.
     func send(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?) async throws {
+        try await submitDirect(amount: amount, verifiedState: verifiedState, to: recipientOwner, chat: chat, intentID: nil)
+    }
+
+    /// Pays the viewer's share of a payment request to its creator under the server-issued
+    /// `intentID`, which is never logged or reported: anyone holding it before the share is paid
+    /// can use it up.
+    func payRequestShare(amount: ExchangedFiat, verifiedState: VerifiedState, to creatorOwner: PublicKey, chatID: ConversationID, paymentRequestID: PaymentRequestID, intentID: PublicKey) async throws {
+        try await submitDirect(
+            amount: amount,
+            verifiedState: verifiedState,
+            to: creatorOwner,
+            chat: .requestedPayment(chatID: chatID, paymentRequestID: paymentRequestID),
+            intentID: intentID
+        )
+    }
+
+    private func submitDirect(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?, intentID: PublicKey?) async throws {
         try assertFresh(verifiedState, operation: "send", currency: amount.nativeAmount.currency, mint: amount.mint)
 
         let mint = amount.mint
@@ -1110,14 +1127,15 @@ class Session {
             timeAuthority: vmAuthority
         ).vault.publicKey
 
-        let rendezvous = PublicKey.generate()!
+        let rendezvous = intentID ?? PublicKey.generate()!
+        let tracesRendezvous = intentID == nil
 
         logger.info("Sending direct transfer", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
             "mint": "\(mint.base58)",
             "recipientOwner": "\(recipientOwner.base58)",
             "recipientVault": "\(recipientVault.base58)",
-            "rendezvous": "\(rendezvous.base58)",
+            "rendezvous": "\(tracesRendezvous ? rendezvous.base58 : "server-issued")",
             "hasChatMetadata": "\(chat != nil)",
         ])
 
@@ -1138,16 +1156,20 @@ class Session {
             guard !(error is CancellationError) else { throw error }
             logger.error("Send failed", metadata: [
                 "recipientOwner": "\(recipientOwner.base58)",
-                "rendezvous": "\(rendezvous.base58)",
+                "rendezvous": "\(tracesRendezvous ? rendezvous.base58 : "server-issued")",
                 "amount": "\(amount.nativeAmount.formatted())",
                 "error": "\(error)",
             ])
-            ErrorReporting.capturePayment(
-                error: error,
-                rendezvous: rendezvous,
-                exchangedFiat: amount,
-                userFacing: true
-            )
+            if tracesRendezvous {
+                ErrorReporting.capturePayment(
+                    error: error,
+                    rendezvous: rendezvous,
+                    exchangedFiat: amount,
+                    userFacing: true
+                )
+            } else {
+                ErrorReporting.captureError(error, reason: "Requested payment failed", userFacing: true)
+            }
             throw error
         }
     }
