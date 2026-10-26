@@ -325,6 +325,13 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onScrolledAwayChange = newValue }
     }
 
+    /// Fires as the reader scrolls, with how far they sit from the newest messages — see
+    /// ``ChatViewController/onDistanceFromNewestChange``.
+    public var onDistanceFromNewestChange: ((CGFloat) -> Void)? {
+        get { transcript.onDistanceFromNewestChange }
+        set { transcript.onDistanceFromNewestChange = newValue }
+    }
+
     /// Fires on the reader's first drag after the opening scroll — see
     /// ``ChatViewController/onUserScrollBegan``.
     public var onUserScrollBegan: (() -> Void)? {

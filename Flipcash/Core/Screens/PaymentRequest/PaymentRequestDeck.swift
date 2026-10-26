@@ -202,6 +202,68 @@ struct PaymentRequestPillAppearance: ViewModifier {
     }
 }
 
+// MARK: - Strip collapse -
+
+/// How far the owed strip has shrunk into the app-bar pill, following the reader's scroll away
+/// from the newest messages.
+@MainActor
+@Observable
+final class PaymentRequestStripCollapse {
+    /// 0 with the strip fully out under the bar, 1 with it fully shrunk into the pill.
+    private(set) var progress: CGFloat = 0
+    /// Whether the collapsed deck reads as the pill. Flips past the middle of the collapse, with a
+    /// band either side so a small scroll back and forth never flaps it.
+    private(set) var isScrolledAway = false
+
+    /// Points scrolled away from the newest messages over which the strip shrinks into the pill.
+    static let distance: CGFloat = 140
+    private static let awayAt: CGFloat = 0.65
+    private static let backAt: CGFloat = 0.35
+
+    /// Follows the reader `distanceFromNewest` points above the newest messages.
+    func update(distanceFromNewest: CGFloat) {
+        let next = min(max(distanceFromNewest / Self.distance, 0), 1)
+        if abs(next - progress) > 0.001 || (next != progress && (next == 0 || next == 1)) {
+            progress = next
+        }
+        if !isScrolledAway, next >= Self.awayAt {
+            isScrolledAway = true
+        } else if isScrolledAway, next <= Self.backAt {
+            isScrolledAway = false
+        }
+    }
+}
+
+/// Shrinks the owed strip toward the pill's slot at the bar's trailing edge as `collapse` runs,
+/// fading it out on the way; it stops taking touches once it is mostly the pill's.
+struct PaymentRequestStripCollapseEffect: ViewModifier {
+    let collapse: PaymentRequestStripCollapse
+
+    func body(content: Content) -> some View {
+        let progress = collapse.progress
+        content
+            .scaleEffect(1 - 0.65 * progress, anchor: .topTrailing)
+            .offset(y: -Self.lift * progress)
+            .opacity(max(0, 1 - 1.4 * progress))
+            .allowsHitTesting(progress < 0.5)
+            .accessibilityHidden(progress >= 0.5)
+    }
+
+    /// How far the strip rises into the bar by the end of the collapse.
+    private static let lift: CGFloat = 36
+}
+
+/// Fades the app-bar pill in over the second half of `collapse` while the strip stands in for it,
+/// so the two hand over in the bar's trailing slot.
+struct PaymentRequestPillRevealEffect: ViewModifier {
+    let collapse: PaymentRequestStripCollapse
+    let isBehindStrip: Bool
+
+    func body(content: Content) -> some View {
+        content.opacity(isBehindStrip ? min(max((collapse.progress - 0.35) / 0.65, 0), 1) : 1)
+    }
+}
+
 // MARK: - Style -
 
 /// Where the collapsed deck sits: the app-bar pill, or the strip under the bar while the viewer

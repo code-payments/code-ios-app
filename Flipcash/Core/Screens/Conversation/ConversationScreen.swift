@@ -96,9 +96,9 @@ struct ConversationScreen: View {
     @State private var requestPillPresence = PaymentRequestPillPresence()
     /// Paying a share from the owed strip's Pay button.
     @State private var requestPayFlow = PaymentRequestPayFlow()
-    /// Whether the reader has scrolled away from the newest messages, which shrinks the owed strip
-    /// into the app-bar pill.
-    @State private var isScrolledAway = false
+    /// How far the reader's scroll away from the newest messages has shrunk the owed strip into
+    /// the app-bar pill.
+    @State private var stripCollapse = PaymentRequestStripCollapse()
     /// The owed strip's measured height, reserved at the transcript's top; 0 while hidden.
     @State private var stripHeight: CGFloat = 0
     /// Whether a private group's Money sheet (Send or Request) is open.
@@ -490,9 +490,7 @@ struct ConversationScreen: View {
             onMediaTap: openMediaViewer,
             // Each anchor shown takes its height and the stack's 8-point gap.
             transcriptTopInset: [anchorHeight, stripHeight].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
-            onScrolledAwayChange: { away in
-                withAnimation(Self.deckStyleMotion) { isScrolledAway = away }
-            },
+            onDistanceFromNewestChange: { [stripCollapse] in stripCollapse.update(distanceFromNewest: $0) },
             messageJump: messageJump
         )
     }
@@ -730,7 +728,9 @@ struct ConversationScreen: View {
                     .onDisappear { anchorHeight = 0 }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                if requestDeckStyle == .strip {
+                // Mounted for as long as the viewer owes, so scrolling only moves it: its slot at the
+                // transcript's top stays put, and the strip shrinks into the pill in step with the scroll.
+                if viewerOwes {
                     PaymentRequestPill(
                         items: requestDeckItems,
                         style: .strip,
@@ -738,10 +738,10 @@ struct ConversationScreen: View {
                         state: paymentRequestDeck,
                         pay: payRequest
                     )
+                    .modifier(PaymentRequestStripCollapseEffect(collapse: stripCollapse))
                     .padding(.horizontal, BarMetrics.edgeInset)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stripHeight = $0 }
                     .onDisappear { stripHeight = 0 }
-                    // Shrinks toward the pill's slot at the bar's trailing edge, and grows out of it.
                     .transition(.scale(scale: 0.3, anchor: .topTrailing).combined(with: .opacity))
                 }
                 if let reactionToastText {
@@ -751,7 +751,7 @@ struct ConversationScreen: View {
                 }
             }
             .padding(.top, 8)
-            .animation(Self.deckStyleMotion, value: requestDeckStyle)
+            .animation(Self.deckStyleMotion, value: viewerOwes)
         }
         .paymentRequestPaySheet(requestPayFlow)
         .onChange(of: requestDeckStyle, initial: true) { _, style in
@@ -863,7 +863,11 @@ struct ConversationScreen: View {
     /// Where the collapsed deck sits: the strip under the bar while the viewer owes and reads the
     /// newest messages, otherwise the app-bar pill.
     private var requestDeckStyle: PaymentRequestDeckStyle {
-        .collapsed(owes: requestDeckItems.contains { $0.owedShare != nil }, isScrolledAway: isScrolledAway)
+        .collapsed(owes: viewerOwes, isScrolledAway: stripCollapse.isScrolledAway)
+    }
+
+    private var viewerOwes: Bool {
+        requestDeckItems.contains { $0.owedShare != nil }
     }
 
     /// Kept in the bar under the strip, hidden, so the bar never rebuilds its item as the strip comes
@@ -876,10 +880,10 @@ struct ConversationScreen: View {
             accessibilityLabel: requestDeckAccessibilityLabel,
             state: paymentRequestDeck
         )
-        .opacity(style == .strip ? 0 : 1)
+        .modifier(PaymentRequestPillRevealEffect(collapse: stripCollapse, isBehindStrip: viewerOwes))
         .allowsHitTesting(style != .strip)
         .accessibilityHidden(style == .strip)
-        .animation(Self.deckStyleMotion, value: style)
+        .animation(Self.deckStyleMotion, value: viewerOwes)
         .modifier(PaymentRequestPillAppearance(presence: requestPillPresence))
     }
 

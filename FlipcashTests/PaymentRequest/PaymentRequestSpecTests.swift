@@ -185,6 +185,36 @@ struct PaymentRequestSpecTests {
         #expect(PaymentRequestDeckStyle.collapsed(owes: false, isScrolledAway: false) == .pill)
     }
 
+    @Test("26: the strip shrinks in step with the scroll, not at a single point")
+    @MainActor
+    func stripTracksScroll() {
+        let collapse = PaymentRequestStripCollapse()
+        let distance = PaymentRequestStripCollapse.distance
+
+        collapse.update(distanceFromNewest: distance / 4)
+        #expect(collapse.progress == 0.25)
+        collapse.update(distanceFromNewest: distance * 3)
+        #expect(collapse.progress == 1)
+        collapse.update(distanceFromNewest: -20)
+        #expect(collapse.progress == 0)
+    }
+
+    @Test("26: a small scroll back and forth past the middle never flaps the style")
+    @MainActor
+    func stripStyleHasHysteresis() {
+        let collapse = PaymentRequestStripCollapse()
+        let distance = PaymentRequestStripCollapse.distance
+
+        collapse.update(distanceFromNewest: distance * 0.55)
+        #expect(!collapse.isScrolledAway)
+        collapse.update(distanceFromNewest: distance * 0.7)
+        #expect(collapse.isScrolledAway)
+        collapse.update(distanceFromNewest: distance * 0.45)
+        #expect(collapse.isScrolledAway)
+        collapse.update(distanceFromNewest: distance * 0.3)
+        #expect(!collapse.isScrolledAway)
+    }
+
     // MARK: - People -
 
     private func people(count: Int) -> PaymentRequestPeople {

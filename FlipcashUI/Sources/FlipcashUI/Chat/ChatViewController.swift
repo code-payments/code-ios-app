@@ -245,6 +245,9 @@ public final class ChatViewController: UICollectionViewController {
     /// Fires when the reader leaves or comes back to the newest messages, once the opening scroll has
     /// landed. Unlike the jump button it ignores a pending return to a quote.
     var onScrolledAwayChange: ((Bool) -> Void)?
+    /// Fires on every scroll once the opening scroll has landed, with how far in points the
+    /// newest message's edge sits below the visible area; zero at the newest messages.
+    var onDistanceFromNewestChange: ((CGFloat) -> Void)?
     /// Fires when the reader starts a drag after the opening scroll has landed — the signal that
     /// ends the jump badge's frozen count. Programmatic scrolls never fire it.
     public var onUserScrollBegan: (() -> Void)?
@@ -1167,8 +1170,13 @@ public final class ChatViewController: UICollectionViewController {
     /// Whether the offset sits within ``bottomThreshold`` of the bottom edge. Geometry only; unlike
     /// ``wasAtBottom`` it reads the live offset, so it is right after a programmatic move.
     private var isNearBottomByGeometry: Bool {
+        distanceFromNewest < Self.bottomThreshold
+    }
+
+    /// How far the offset sits above the bottom edge, from the live geometry.
+    private var distanceFromNewest: CGFloat {
         let maxOffset = chatLayout.collectionViewContentSize.height - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
-        return maxOffset - collectionView.contentOffset.y < Self.bottomThreshold
+        return maxOffset - collectionView.contentOffset.y
     }
 
     private func publishJumpButtonState() {
@@ -1268,6 +1276,9 @@ public final class ChatViewController: UICollectionViewController {
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
         onScroll?()
+        if hasPositioned {
+            onDistanceFromNewestChange?(max(0, distanceFromNewest))
+        }
         scheduleReadReport()
         // Track "at the bottom" only from real user scrolling, so an inset change (keyboard) or
         // content settling doesn't flip it.
