@@ -295,7 +295,7 @@ struct ChatMediaViewerTests {
     }
 
     private func titleText(_ viewer: ChatMediaViewerController) -> String? {
-        viewer.reactButton.configuration?.attributedTitle.map { String($0.characters) }
+        viewer.reactChips.isEmpty ? nil : viewer.reactChips.joined()
     }
 
     @Test("With no reactions of its own the React button keeps the face icon")
@@ -309,7 +309,6 @@ struct ChatMediaViewerTests {
     @Test("One own reaction replaces the icon with that emoji")
     func reactButtonOneReaction() throws {
         let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["❤️"]) })
-        #expect(viewer.reactButton.configuration?.image == nil)
         #expect(titleText(viewer) == "❤️")
         #expect(viewer.reactButton.accessibilityLabel == "React, you reacted ❤️")
     }
@@ -326,6 +325,16 @@ struct ChatMediaViewerTests {
         let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["👍", "❤️", "😂", "🔥", "😮"]) })
         #expect(titleText(viewer) == "👍❤️+3")
         #expect(viewer.reactButton.accessibilityLabel?.hasPrefix("React, you reacted 👍") == true)
+    }
+
+    @Test("The chip stack grows by a chip minus the overlap, and the overlap stays under half a chip")
+    func reactChipStackWidth() {
+        let one = ChatMediaViewerController.reactChipStack(["👍"]).size
+        let three = ChatMediaViewerController.reactChipStack(["👍", "❤️", "😂"]).size
+        let step = ChatMediaViewerController.reactChipDiameter - ChatMediaViewerController.reactChipOverlap
+        #expect(three.width - one.width == step * 2)
+        #expect(one.height == three.height)
+        #expect(ChatMediaViewerController.reactChipOverlap <= ChatMediaViewerController.reactChipDiameter * 0.4)
     }
 
     @Test("The React button follows a pick or unpick while the viewer is open")

@@ -80,6 +80,8 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     private let reactionEntries: () -> [ReactionStrip.Entry]
     /// The user's own reaction emoji the React button currently shows, in strip order.
     private var ownReactionEmoji: [String] = []
+    /// What the React button's chip stack currently draws; empty while it shows the face icon.
+    private(set) var reactChips: [String] = []
 
     let scrollView = UIScrollView()
     let imageView = UIImageView()
@@ -486,24 +488,47 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         guard own != ownReactionEmoji else { return }
         ownReactionEmoji = own
         guard !own.isEmpty else {
-            reactButton.configuration?.attributedTitle = nil
+            reactChips = []
             reactButton.configuration?.image = Self.reactSymbol
             return
         }
-        let glyph = Self.reactGlyph(for: own)
-        let text = NSMutableAttributedString()
-        let emojiFont = UIFont.systemFont(ofSize: 22)
-        for (index, emoji) in glyph.emoji.enumerated() {
-            let isLast = index == glyph.emoji.count - 1 && glyph.overflow == 0
-            text.append(NSAttributedString(string: emoji, attributes: [.font: emojiFont, .kern: isLast ? 0 : -9]))
-        }
-        if glyph.overflow > 0 {
-            text.append(NSAttributedString(string: "+\(glyph.overflow)", attributes: [
-                .font: UIFont.systemFont(ofSize: 15, weight: .semibold), .foregroundColor: UIColor.white,
-            ]))
-        }
-        reactButton.configuration?.image = nil
-        reactButton.configuration?.attributedTitle = AttributedString(text)
+        reactChips = Self.reactChipLabels(for: own)
+        reactButton.configuration?.image = Self.reactChipStack(reactChips)
+    }
+
+    /// The chips the React button draws: each own emoji, or the first two and a "+N" chip.
+    static func reactChipLabels(for own: [String]) -> [String] {
+        let glyph = reactGlyph(for: own)
+        return glyph.emoji + (glyph.overflow > 0 ? ["+\(glyph.overflow)"] : [])
+    }
+
+    static let reactChipDiameter: CGFloat = 28
+    static let reactChipRing: CGFloat = 2
+    /// How much of each chip the next one covers, about a fifth of its width, plus the ring, so each emoji stays readable.
+    static let reactChipOverlap: CGFloat = 6
+    /// Opaque, matching the glass's dark tint, so a chip and its ring cut cleanly into the one below.
+    static let reactChipColor = UIColor(white: 0.14, alpha: 1)
+
+    /// Avatar-stack of circular chips, first leftmost and later ones on top.
+    static func reactChipStack(_ labels: [String]) -> UIImage {
+        let d = reactChipDiameter, ring = reactChipRing
+        let step = d - reactChipOverlap
+        let size = CGSize(width: d + step * CGFloat(max(labels.count - 1, 0)) + ring * 2, height: d + ring * 2)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            for (index, label) in labels.enumerated() {
+                let rect = CGRect(x: ring + step * CGFloat(index), y: ring, width: d, height: d)
+                reactChipColor.setFill()
+                UIBezierPath(ovalIn: rect.insetBy(dx: -ring, dy: -ring)).fill()
+                let isCount = label.hasPrefix("+")
+                let font = isCount ? UIFont.systemFont(ofSize: 13, weight: .semibold) : UIFont.systemFont(ofSize: 17)
+                let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor.white]
+                let textSize = (label as NSString).size(withAttributes: attributes)
+                (label as NSString).draw(
+                    at: CGPoint(x: rect.midX - textSize.width / 2, y: rect.midY - textSize.height / 2),
+                    withAttributes: attributes
+                )
+            }
+        }.withRenderingMode(.alwaysOriginal)
     }
 
     static let reactSymbol = UIImage(systemName: "face.smiling", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
