@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Photos
 import FlipcashUI
 import FlipcashCore
 
@@ -15,6 +16,40 @@ enum PhotoLibrary {
         writer.writeImage(image)
     }
     
+    /// Adds `image` to the user's photo library, throwing when Photos refuses it.
+    static func save(image: UIImage) async throws {
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) -> Void in
+            write(image: image) { error in
+                if let error { c.resume(throwing: error) } else { c.resume(returning: ()) }
+            }
+        }
+    }
+
+    /// Adds the photo's original bytes to the library untouched, so a PNG, HEIC or GIF keeps its format.
+    /// Needs only the add-only permission.
+    static func save(originalData data: Data) async throws {
+        try await PHPhotoLibrary.shared().performChanges {
+            PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
+        }
+    }
+
+    /// Saves `original` when it is an image Photos takes, and the drawn `image` when it is missing,
+    /// not an image, or refused.
+    static func save(
+        image: UIImage,
+        original: Data?,
+        writeOriginal: (Data) async throws -> Void = { try await save(originalData: $0) },
+        writeImage: (UIImage) async throws -> Void = { try await save(image: $0) }
+    ) async throws {
+        if let original, ChatMediaImageSource.isLibraryImage(original) {
+            do {
+                try await writeOriginal(original)
+                return
+            } catch {}
+        }
+        try await writeImage(image)
+    }
+
     static func saveSecretRecoveryPhraseSnapshot(for mnemonic: MnemonicPhrase) async throws {
         let snapshot = createSnapshotImage(mnemonic: mnemonic)
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) -> Void in
