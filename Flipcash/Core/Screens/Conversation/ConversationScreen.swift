@@ -910,7 +910,7 @@ struct ConversationScreen: View {
             )
         }
         return PaymentRequestCopy(session.displayCurrency)
-            .deckAccessibilityLabel(front: front.request, title: front.card.title, count: requestDeckItems.count, now: .now)
+            .deckAccessibilityLabel(front: front.request, title: front.card.title, viewerStatus: front.viewerStatus, count: requestDeckItems.count, now: .now)
     }
 
     /// The title's right margin, widened to clear the request pill while one shows in the bar.

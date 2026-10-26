@@ -255,6 +255,90 @@ struct PaymentRequestSpecTests {
         #expect(!collapse.isScrolledAway)
     }
 
+    // MARK: - Viewer status -
+
+    /// A $45 request in $5 shares: the creator's, the viewer's, then seven others, `othersPaid` of
+    /// them paid.
+    private func ninePeople(viewerPaid: Bool, othersPaid: Int, version: UInt64 = 1) -> GroupPaymentRequest {
+        let others = (0..<7).map { index in
+            GroupPaymentRequest.Share(userID: UUID(), nativeAmount: 5, settlement: index < othersPaid ? .manual : nil)
+        }
+        let shares = [
+            GroupPaymentRequest.Share(userID: creator, nativeAmount: 5, settlement: .creator),
+            GroupPaymentRequest.Share(userID: viewer, nativeAmount: 5, settlement: viewerPaid ? .manual : nil),
+        ] + others
+        return GroupPaymentRequest(
+            id: PaymentRequestID(data: Data([9])),
+            creator: creator,
+            createdAt: now.addingTimeInterval(-60),
+            status: .open,
+            closedAt: nil,
+            version: version,
+            chatID: chat,
+            split: .init(
+                text: .plaintext(title: "Dinner", description: ""),
+                currency: "usd",
+                endsAt: now.addingTimeInterval(7 * 24 * 3600),
+                shares: shares
+            )
+        )
+    }
+
+    private func line(_ status: PaymentRequestViewerStatus, _ request: GroupPaymentRequest) -> String {
+        String(status.line(amounts: copy.deckAmounts(request)).characters)
+    }
+
+    @Test("29: viewer paid their $5 share of a request at $15 of $45")
+    func viewerPaid() {
+        let r = ninePeople(viewerPaid: true, othersPaid: 1)
+        let status = PaymentRequestViewerStatus(request: r, viewer: viewer, copy: copy)
+        #expect(status.showsPaidBadge)
+        #expect(line(status, r) == "✓ You paid $5 · $15 of $45")
+        #expect(status.lead.map { String($0.characters) } == "✓ You paid $5")
+        #expect(
+            copy.deckAccessibilityLabel(front: r, title: "Dinner", viewerStatus: status, count: 1, now: now)
+                == "Dinner, you paid $5, $15 of $45 paid, 7 days left to pay"
+        )
+    }
+
+    @Test("30: viewer owes $5 on a request at $10 of $45")
+    func viewerOwes() {
+        let r = ninePeople(viewerPaid: false, othersPaid: 1)
+        let status = PaymentRequestViewerStatus(request: r, viewer: viewer, copy: copy)
+        #expect(!status.showsPaidBadge)
+        #expect(line(status, r) == "You owe $5 · $10 of $45")
+    }
+
+    @Test("31: viewer created the request")
+    func viewerCreated() {
+        let r = ninePeople(viewerPaid: true, othersPaid: 1)
+        let status = PaymentRequestViewerStatus(request: r, viewer: creator, copy: copy)
+        #expect(!status.showsPaidBadge)
+        #expect(line(status, r) == "Your request · $15 of $45")
+    }
+
+    @Test("32: viewer has no share")
+    func viewerHasNoShare() {
+        let r = ninePeople(viewerPaid: true, othersPaid: 1)
+        let status = PaymentRequestViewerStatus(request: r, viewer: UUID(), copy: copy)
+        #expect(!status.showsPaidBadge)
+        #expect(line(status, r) == "$15 of $45")
+        #expect(
+            copy.deckAccessibilityLabel(front: r, title: "Dinner", viewerStatus: status, count: 2, now: now)
+                == "2 requests, Dinner, $15 of $45 paid, 7 days left to pay"
+        )
+    }
+
+    @Test("33: the creator marks the viewer's share paid, and the refetched request shows it")
+    func markedPaidAfterRefetch() {
+        let before = ninePeople(viewerPaid: false, othersPaid: 1)
+        let after = GroupPaymentRequest.merged(existing: before, incoming: ninePeople(viewerPaid: true, othersPaid: 1, version: 2))
+        #expect(!PaymentRequestViewerStatus(request: before, viewer: viewer, copy: copy).showsPaidBadge)
+        let status = PaymentRequestViewerStatus(request: after, viewer: viewer, copy: copy)
+        #expect(status.showsPaidBadge)
+        #expect(line(status, after) == "✓ You paid $5 · $15 of $45")
+    }
+
     // MARK: - People -
 
     private func people(count: Int) -> PaymentRequestPeople {

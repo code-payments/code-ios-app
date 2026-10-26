@@ -114,9 +114,10 @@ struct PaymentRequestCopy {
         return requestIsOpen ? "Hasn't paid yet" : "Didn't pay"
     }
 
-    /// The deck's VoiceOver label: "<N> requests, <title>, <paid> of <requested> paid, <status>".
-    func deckAccessibilityLabel(front: GroupPaymentRequest, title: String, count: Int, now: Date) -> String {
-        let summary = "\(title), \(deckAmounts(front)) paid, \(Self.statusLine(front.deadline(at: now)))"
+    /// The deck's VoiceOver label: "<N> requests, <title>, <viewer status>, <paid> of <requested> paid, <status>".
+    func deckAccessibilityLabel(front: GroupPaymentRequest, title: String, viewerStatus: PaymentRequestViewerStatus, count: Int, now: Date) -> String {
+        let parts = [title, viewerStatus.accessibilityText, "\(deckAmounts(front)) paid", Self.statusLine(front.deadline(at: now))]
+        let summary = parts.compactMap { $0 }.joined(separator: ", ")
         return count > 1 ? "\(count) requests, \(summary)" : summary
     }
 

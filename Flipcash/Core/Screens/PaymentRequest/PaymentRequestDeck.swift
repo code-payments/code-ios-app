@@ -13,7 +13,9 @@ import FlipcashCore
 struct PaymentRequestDeckItem: Identifiable, Hashable {
     let request: GroupPaymentRequest
     let card: PaymentRequestCardContent
+    /// "$180 of $520".
     let amounts: String
+    let viewerStatus: PaymentRequestViewerStatus
     /// The viewer's unpaid share while the request is open: "$20". Nil when they owe nothing on it.
     let owedShare: String?
     /// The status line without "to pay": "2 days left".
@@ -383,17 +385,14 @@ enum PaymentRequestDeckStyle: Hashable {
         }
     }
 
-    /// The face's second line: "You owe $5 · 2 days left" on the strip while owed, or
-    /// "<paid> of <requested>".
-    func amounts(_ item: PaymentRequestDeckItem) -> AttributedString {
-        switch self {
-        case .pill:
-            return AttributedString(item.amounts)
-        case .strip:
-            guard let share = item.owedShare else { return AttributedString(item.amounts) }
-            var owe = AttributedString("You owe \(share)")
-            owe.foregroundColor = Color.textSuccess
-            return owe + AttributedString(" · \(item.timeLeft)")
+    /// The face's second line: "You owe $5 · 2 days left" on the strip while owed, otherwise the
+    /// viewer status line.
+    @ViewBuilder
+    func amounts(_ item: PaymentRequestDeckItem) -> some View {
+        if self == .strip, let share = item.owedShare {
+            Text(PaymentRequestViewerStatus.owedLead(share) + AttributedString(" · \(item.timeLeft)"))
+        } else {
+            PaymentRequestViewerStatusLine(status: item.viewerStatus, amounts: item.amounts)
         }
     }
 }
@@ -577,6 +576,7 @@ struct PaymentRequestPillFace: View {
             isClosed: item.request.status == .closed,
             diameter: style.ringDiameter
         )
+        .paidBadge(item.viewerStatus.showsPaidBadge, diameter: style.ringDiameter, isEnded: item.card.isEnded)
         .deckPart(.ring, measure)
     }
 
@@ -588,7 +588,7 @@ struct PaymentRequestPillFace: View {
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textMain)
                     .deckPart(.title, measure)
-                Text(item.amounts)
+                style.amounts(item)
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textSecondary)
                     .deckPart(.amounts, measure)
@@ -621,7 +621,7 @@ struct PaymentRequestPillFace: View {
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textMain)
                     .deckPart(.title, measure)
-                Text(style.amounts(item))
+                style.amounts(item)
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textSecondary)
                     .deckPart(.amounts, measure)
@@ -666,6 +666,7 @@ private struct PaymentRequestDeckCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded, isClosed: item.request.status == .closed, diameter: 36)
+                    .paidBadge(item.viewerStatus.showsPaidBadge, diameter: 36, isEnded: item.card.isEnded)
                     .deckPart(.ring, measure)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Request")
@@ -679,7 +680,7 @@ private struct PaymentRequestDeckCard: View {
                         .deckPart(.title, measure)
                 }
             }
-            Text(item.card.progressLine)
+            PaymentRequestViewerStatusLine(status: item.viewerStatus, amounts: item.amounts)
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textMain)
                 .deckPart(.amounts, measure)
@@ -848,10 +849,16 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                             .lineLimit(isCard ? 2 : 1)
                     }
                     shared(.amounts, scale: Self.amountsScale, p: p, outgoing: amountsOut, incoming: amountsIn) { isCard in
-                        Text(isCard ? AttributedString(item.card.progressLine) : source.amounts(item))
-                            .font(isCard ? .appTextSmall : .appTextCaption)
-                            .foregroundStyle(isCard ? Color.textMain : Color.textSecondary)
-                            .lineLimit(1)
+                        Group {
+                            if isCard {
+                                PaymentRequestViewerStatusLine(status: item.viewerStatus, amounts: item.amounts)
+                            } else {
+                                source.amounts(item)
+                            }
+                        }
+                        .font(isCard ? .appTextSmall : .appTextCaption)
+                        .foregroundStyle(isCard ? Color.textMain : Color.textSecondary)
+                        .lineLimit(1)
                     }
                     Group {
                         extra(.label, in: box, from: cardBox) {
@@ -885,6 +892,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                 isClosed: item.request.status == .closed,
                 diameter: base
             )
+            .paidBadge(item.viewerStatus.showsPaidBadge, diameter: base, isEnded: item.card.isEnded)
             .scaleEffect(frame.width / base)
             .frame(width: base, height: base)
             .position(x: frame.midX - origin.x, y: frame.midY - origin.y)
@@ -975,6 +983,7 @@ extension PaymentRequests {
                 request: request,
                 card: PaymentRequestCardContent(request: request, title: text.title, copy: copy, now: now),
                 amounts: copy.deckAmounts(request),
+                viewerStatus: PaymentRequestViewerStatus(request: request, viewer: viewer, copy: copy),
                 owedShare: owed.map { copy.shareText($0, of: request) },
                 timeLeft: PaymentRequestCopy.timeLeft(deadline)
             )
