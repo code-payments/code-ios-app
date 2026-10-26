@@ -570,7 +570,7 @@ struct PaymentRequestDeadlinePickerTests {
         #expect(picker.customDate == date(11, 23, 11, 34))
     }
 
-    @Test("38: a chip after a custom day hides the time and highlights its day")
+    @Test("38: a chip after a custom day clears the custom date and highlights its day")
     func chipAfterCustom() {
         let picker = picker(openedAt: date(10, 26, 11, 39))
         picker.select(day: date(11, 5))
@@ -579,6 +579,17 @@ struct PaymentRequestDeadlinePickerTests {
         #expect(picker.selectedDay == date(11, 9))
         #expect(picker.band(for: date(11, 9))?.toCenter == true)
         #expect(picker.summaryLine == "2 Weeks · closes 14 days after you send")
+    }
+
+    @Test("A preset shows its closing time, and changing it makes that day custom")
+    func presetTime() {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        #expect(picker.timeRowDate == date(11, 2, 11, 39))
+        picker.setTime(date(10, 26, 20, 15))
+        #expect(picker.selectedPreset == nil)
+        #expect(picker.customDate == date(11, 2, 20, 15))
+        picker.select(day: date(11, 5))
+        #expect(picker.customDate == date(11, 5, 20, 15))
     }
 
     @Test("39: the summary keeps its choice until Done, and reopening shows the current one")

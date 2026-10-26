@@ -129,22 +129,30 @@ final class PaymentRequestDeadlinePicker {
         }
     }
 
-    /// Sets the custom time from the Time row and keeps it for later days.
-    func setCustomDate(_ date: Date) {
-        guard customDate != nil else { return }
-        let clamped = clamped(date)
+    /// The time the Time row shows: the custom time, or for a preset the time it closes if sent now.
+    var timeRowDate: Date {
+        customDate ?? choice.endsAt(sentAt: openedAt)
+    }
+
+    /// Sets the time from the Time row on the selected day and keeps it for later days; a preset
+    /// becomes a custom choice on its closing day.
+    func setTime(_ date: Date) {
+        var components = calendar.dateComponents([.year, .month, .day], from: selectedDay)
+        let time = calendar.dateComponents([.hour, .minute], from: date)
+        components.hour = time.hour
+        components.minute = time.minute
+        let clamped = clamped(calendar.date(from: components) ?? date)
         customTime = calendar.dateComponents([.hour, .minute], from: clamped)
         choice = .custom(clamped)
     }
 
-    /// The times the Time row offers on the chosen custom day.
-    var customTimeRange: ClosedRange<Date> {
+    /// The times the Time row offers on the selected day.
+    var timeRange: ClosedRange<Date> {
         let bounds = allowedRange
-        guard let day = customDate.map({ calendar.startOfDay(for: $0) }),
-              let dayEnd = calendar.date(byAdding: DateComponents(day: 1, minute: -1), to: day) else {
+        guard let dayEnd = calendar.date(byAdding: DateComponents(day: 1, minute: -1), to: selectedDay) else {
             return bounds
         }
-        let lower = max(day, bounds.lowerBound)
+        let lower = max(selectedDay, bounds.lowerBound)
         let upper = min(dayEnd, bounds.upperBound)
         return lower <= upper ? lower...upper : bounds
     }

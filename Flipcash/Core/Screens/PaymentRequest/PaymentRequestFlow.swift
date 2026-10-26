@@ -537,6 +537,8 @@ private struct PaymentRequestDeadlineSheet: View {
     @State private var picker: PaymentRequestDeadlinePicker
     @State private var height: CGFloat = 0
 
+    @Namespace private var chipSelection
+
     init(deadline: Binding<PaymentRequestDeadline>) {
         _deadline = deadline
         _picker = State(initialValue: PaymentRequestDeadlinePicker(deadline: deadline.wrappedValue))
@@ -568,26 +570,24 @@ private struct PaymentRequestDeadlineSheet: View {
 
             PaymentRequestDeadlineGrid(picker: picker)
 
-            if let date = picker.customDate {
-                HStack {
-                    Text("Time")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                    Spacer()
-                    DatePicker(
-                        "Time",
-                        selection: Binding(get: { date }, set: { picker.setCustomDate($0) }),
-                        in: picker.customTimeRange,
-                        displayedComponents: .hourAndMinute
-                    )
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
-                }
-                .padding(.leading, 16)
-                .padding(.trailing, 8)
-                .padding(.vertical, 6)
-                .background(Color.backgroundSecondary, in: .rect(cornerRadius: 12))
+            HStack {
+                Text("Time")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                Spacer()
+                DatePicker(
+                    "Time",
+                    selection: Binding(get: { picker.timeRowDate }, set: { picker.setTime($0) }),
+                    in: picker.timeRange,
+                    displayedComponents: .hourAndMinute
+                )
+                .datePickerStyle(.compact)
+                .labelsHidden()
             }
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
+            .padding(.vertical, 6)
+            .background(Color.backgroundSecondary, in: .rect(cornerRadius: 12))
 
             Button {
                 deadline = picker.choice
@@ -599,13 +599,14 @@ private struct PaymentRequestDeadlineSheet: View {
                     .frame(maxWidth: .infinity, minHeight: 52)
                     .background(Color.white, in: .capsule)
             }
+            .buttonStyle(.plain)
             .padding(.bottom, 8)
         }
         .padding(.horizontal, 20)
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.backgroundMain)
+        .presentationBackground(Color.backgroundMain)
         .presentationDetents([height > 0 ? .height(height) : .large])
         .presentationDragIndicator(.visible)
     }
@@ -648,12 +649,22 @@ private struct PaymentRequestDeadlineSheet: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
-                        .background(isSelected ? Color.white : Color.backgroundSecondary, in: .capsule)
+                        .background {
+                            ZStack {
+                                Capsule().fill(Color.backgroundSecondary)
+                                if isSelected {
+                                    Capsule().fill(Color.white)
+                                        .matchedGeometryEffect(id: "chip", in: chipSelection)
+                                }
+                            }
+                        }
                 }
+                .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
         .frame(maxWidth: .infinity)
+        .animation(.snappy(duration: 0.3), value: picker.selectedPreset)
     }
 }
 
@@ -661,6 +672,8 @@ private struct PaymentRequestDeadlineSheet: View {
 private struct PaymentRequestDeadlineGrid: View {
 
     let picker: PaymentRequestDeadlinePicker
+
+    @Namespace private var selection
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
 
@@ -678,6 +691,7 @@ private struct PaymentRequestDeadlineGrid: View {
         }
         .padding(12)
         .background(Color.backgroundSecondary, in: .rect(cornerRadius: 16))
+        .animation(.snappy(duration: 0.3), value: picker.selectedDay)
     }
 
     private var weekdaySymbols: [String] {
@@ -700,9 +714,11 @@ private struct PaymentRequestDeadlineGrid: View {
             ZStack {
                 if let band = picker.band(for: day) {
                     bandPiece(band)
+                        .transition(.scale(scale: 0, anchor: .leading).combined(with: .opacity))
                 }
                 if isSelected {
                     Circle().fill(Color.white).frame(width: Self.circle, height: Self.circle)
+                        .matchedGeometryEffect(id: "selected", in: selection)
                 } else if isStart {
                     Circle().fill(Self.startGrey).frame(width: Self.circle, height: Self.circle)
                 }
