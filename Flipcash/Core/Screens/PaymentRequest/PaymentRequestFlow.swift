@@ -534,87 +534,176 @@ private struct PaymentRequestDeadlineSheet: View {
 
     @Binding var deadline: PaymentRequestDeadline
 
-    @State private var customDate: Date = PaymentRequestDeadline.oneWeek.endsAt(sentAt: .now)
-    @State private var isPickingCustom = false
-    @State private var customRange = PaymentRequestDeadline.customRange(openedAt: .now)
+    @State private var picker: PaymentRequestDeadlinePicker
+    @State private var height: CGFloat = 0
+
+    init(deadline: Binding<PaymentRequestDeadline>) {
+        _deadline = deadline
+        _picker = State(initialValue: PaymentRequestDeadlinePicker(deadline: deadline.wrappedValue))
+    }
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(PaymentRequestDeadline.presets, id: \.rowTitle) { preset in
-                    row(preset.rowTitle, isChecked: preset == deadline) {
-                        deadline = preset
-                        dismiss()
-                    }
-                }
-                row("Custom", isChecked: isCustom) {
-                    customRange = PaymentRequestDeadline.customRange(openedAt: .now)
-                    if case .custom(let date) = deadline { customDate = date }
-                    customDate = min(max(customDate, customRange.lowerBound), customRange.upperBound)
-                    isPickingCustom = true
-                }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Color.backgroundMain)
-            .navigationTitle("Time To Pay")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(isPresented: $isPickingCustom) {
-                customPicker
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
+        VStack(spacing: 16) {
+            Text("Time To Pay")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+                .padding(.top, 24)
 
-    private var isCustom: Bool {
-        switch deadline {
-        case .custom:                                              true
-        case .oneDay, .threeDays, .oneWeek, .twoWeeks, .fourWeeks: false
-        }
-    }
-
-    private var customPicker: some View {
-        VStack {
-            DatePicker(
-                "Until",
-                selection: $customDate,
-                in: customRange,
-                displayedComponents: [.date, .hourAndMinute]
-            )
-            .datePickerStyle(.wheel)
-            .labelsHidden()
-            .padding(20)
-            Spacer()
-        }
-        .background(Color.backgroundMain)
-        .navigationTitle("Custom")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    deadline = .custom(customDate)
-                    dismiss()
-                }
-            }
-        }
-    }
-
-    private func row(_ title: String, isChecked: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Text(title)
-                    .font(.appTextMedium)
+            VStack(spacing: 6) {
+                Text(picker.readoutTitle)
+                    .font(.appDisplayCompact)
                     .foregroundStyle(Color.textMain)
-                Spacer()
-                if isChecked {
-                    Image(systemName: "checkmark")
+                Text(picker.readoutSubtitle)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .accessibilityElement(children: .combine)
+            .onChange(of: picker.readoutTitle) { _, title in
+                AccessibilityNotification.Announcement(title).post()
+            }
+
+            chips
+
+            PaymentRequestDeadlineGrid(picker: picker)
+
+            if let date = picker.customDate {
+                HStack {
+                    Text("Time")
+                        .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
+                    Spacer()
+                    DatePicker(
+                        "Time",
+                        selection: Binding(get: { date }, set: { picker.setCustomDate($0) }),
+                        in: picker.customTimeRange,
+                        displayedComponents: .hourAndMinute
+                    )
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                }
+                .padding(.leading, 16)
+                .padding(.trailing, 8)
+                .padding(.vertical, 6)
+                .background(Color.backgroundSecondary, in: .rect(cornerRadius: 12))
+            }
+
+            Button {
+                deadline = picker.choice
+                dismiss()
+            } label: {
+                Text("Done")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.black)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .background(Color.white, in: .capsule)
+            }
+            .padding(.bottom, 8)
+        }
+        .padding(.horizontal, 20)
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.backgroundMain)
+        .presentationDetents([height > 0 ? .height(height) : .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var chips: some View {
+        HStack(spacing: 6) {
+            ForEach(PaymentRequestDeadline.presets, id: \.rowTitle) { preset in
+                let isSelected = picker.selectedPreset == preset
+                Button {
+                    picker.select(preset)
+                } label: {
+                    Text(preset.rowTitle)
+                        .font(.appTextSmall)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(isSelected ? Color.black : Color.textMain)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(isSelected ? Color.white : Color.backgroundSecondary, in: .capsule)
+                }
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// The Time To Pay grid: five weeks from today's, with only today through today + 28 days tappable.
+private struct PaymentRequestDeadlineGrid: View {
+
+    let picker: PaymentRequestDeadlinePicker
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
+                Text(symbol)
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textSecondary)
+                    .accessibilityHidden(true)
+            }
+            ForEach(picker.gridDays, id: \.self) { day in
+                cell(day)
+            }
+        }
+        .padding(12)
+        .background(Color.backgroundSecondary, in: .rect(cornerRadius: 16))
+    }
+
+    private var weekdaySymbols: [String] {
+        let calendar = picker.calendar
+        let symbols = calendar.veryShortStandaloneWeekdaySymbols
+        let first = calendar.firstWeekday - 1
+        return Array(symbols[first...] + symbols[..<first])
+    }
+
+    @ViewBuilder
+    private func cell(_ day: Date) -> some View {
+        let calendar = picker.calendar
+        let isEnabled = picker.isEnabled(day)
+        let isSelected = calendar.isDate(day, inSameDayAs: picker.selectedDay)
+        let isToday = calendar.isDate(day, inSameDayAs: picker.today)
+        let number = calendar.component(.day, from: day)
+        Button {
+            picker.select(day: day)
+        } label: {
+            ZStack {
+                if picker.isInBand(day) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.1))
+                }
+                if isSelected {
+                    Circle().fill(Color.white).frame(width: 34, height: 34)
+                } else if isToday {
+                    Circle().strokeBorder(Color.textSecondary, lineWidth: 1).frame(width: 34, height: 34)
+                }
+                Text("\(number)")
+                    .font(.appTextMedium)
+                    .foregroundStyle(isSelected ? Color.black : Color.textMain)
+                    .opacity(isEnabled ? 1 : 0.3)
+                if number == 1 {
+                    Text(day.formatted(.dateTime.month(.abbreviated).locale(picker.locale)).uppercased())
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(Color.textSecondary)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .padding(.top, 1)
                 }
             }
+            .frame(height: 38)
             .contentShape(.rect)
         }
-        .listRowBackground(Color.clear)
-        .accessibilityAddTraits(isChecked ? .isSelected : [])
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityHidden(!isEnabled)
+        .accessibilityLabel(picker.accessibilityDay(day))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

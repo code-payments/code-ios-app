@@ -496,3 +496,90 @@ struct PaymentRequestCreateCopyTests {
         #expect(validator.validate(String(repeating: "a", count: 101)) == nil)
     }
 }
+
+@Suite("Group payment requests: Time To Pay sheet")
+@MainActor
+struct PaymentRequestDeadlinePickerTests {
+
+    private let locale = Locale(identifier: "en_US")
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        // A fixed offset, so the spec's wall-clock times hold across the November DST change.
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.firstWeekday = 1
+        return calendar
+    }()
+
+    private func date(_ month: Int, _ day: Int, _ hour: Int = 0, _ minute: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: hour, minute: minute))!
+    }
+
+    private func picker(_ deadline: PaymentRequestDeadline = .oneWeek, openedAt now: Date) -> PaymentRequestDeadlinePicker {
+        PaymentRequestDeadlinePicker(deadline: deadline, now: now, calendar: calendar, locale: locale)
+    }
+
+    @Test("34: the grid starts on the locale's first weekday and enables today through today + 28 days")
+    func grid() {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        #expect(picker.gridDays.count == 35)
+        #expect(picker.gridDays.first == date(10, 25))
+        #expect(!picker.isEnabled(date(10, 25)))
+        #expect(picker.isEnabled(date(10, 26)))
+        #expect(picker.isEnabled(date(11, 23)))
+        #expect(!picker.isEnabled(date(11, 24)))
+        #expect(picker.selectedPreset == .oneWeek)
+        #expect(picker.selectedDay == date(11, 2))
+        #expect(picker.customDate == nil)
+        #expect(picker.readoutTitle == "1 Week")
+        #expect(picker.readoutSubtitle == "Closes 7 days after you send · around Mon, Nov 2")
+    }
+
+    @Test("35: tapping a day makes it custom at 6:00 PM")
+    func customDay() throws {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        picker.select(day: date(11, 5))
+        #expect(picker.selectedPreset == nil)
+        let custom = try #require(picker.customDate)
+        #expect(custom == date(11, 5, 18))
+        #expect(picker.timeText(custom) == "6:00\u{202F}PM")
+        #expect(picker.readoutTitle == "Until Nov 5, 6:00\u{202F}PM")
+        #expect(picker.readoutSubtitle == "Custom · 10 days from now")
+    }
+
+    @Test("36: today's default time moves up to an hour from now")
+    func clampToday() {
+        let picker = picker(openedAt: date(10, 26, 17, 30))
+        picker.select(day: date(10, 26))
+        #expect(picker.customDate == date(10, 26, 18, 30))
+    }
+
+    @Test("37: the last day's default time moves down to 28 days less five minutes from now")
+    func clampLastDay() {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        picker.select(day: date(11, 23))
+        #expect(picker.customDate == date(11, 23, 11, 34))
+    }
+
+    @Test("38: a chip after a custom day hides the time and highlights its day")
+    func chipAfterCustom() {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        picker.select(day: date(11, 5))
+        picker.select(.twoWeeks)
+        #expect(picker.customDate == nil)
+        #expect(picker.selectedDay == date(11, 9))
+        #expect(picker.readoutTitle == "2 Weeks")
+    }
+
+    @Test("39: the summary keeps its choice until Done, and reopening shows the current one")
+    func dismissKeepsChoice() {
+        let deadline = PaymentRequestDeadline.oneWeek
+        let picker = picker(deadline, openedAt: date(10, 26, 11, 39))
+        picker.select(day: date(11, 5))
+        #expect(deadline.summaryValue() == "7 Days To Pay")
+
+        let reopened = self.picker(picker.choice, openedAt: date(10, 26, 11, 45))
+        #expect(reopened.customDate == date(11, 5, 18))
+        reopened.select(day: date(11, 7))
+        #expect(reopened.customDate == date(11, 7, 18))
+    }
+}
