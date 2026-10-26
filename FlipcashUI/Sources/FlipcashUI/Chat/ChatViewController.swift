@@ -248,6 +248,10 @@ public final class ChatViewController: UICollectionViewController {
     /// Fires on every scroll once the opening scroll has landed, with how far in points the
     /// newest message's edge sits below the visible area; zero at the newest messages.
     var onDistanceFromNewestChange: ((CGFloat) -> Void)?
+    /// A band this many points above the newest messages that a released scroll never rests inside: it
+    /// settles at whichever edge is nearer, so what follows the band (a collapsing header) ends at
+    /// one end or the other. Nil leaves releases alone.
+    var snapDistanceFromNewest: CGFloat?
     /// Fires when the reader starts a drag after the opening scroll has landed — the signal that
     /// ends the jump badge's frozen count. Programmatic scrolls never fire it.
     public var onUserScrollBegan: (() -> Void)?
@@ -1266,8 +1270,37 @@ public final class ChatViewController: UICollectionViewController {
         trackUserScrollPosition()
     }
 
+    public override func scrollViewWillEndDragging(
+        _ scrollView: UIScrollView,
+        withVelocity velocity: CGPoint,
+        targetContentOffset: UnsafeMutablePointer<CGPoint>
+    ) {
+        // A release with no fling is settled in `scrollViewDidEndDragging`: a target moved without
+        // velocity jumps rather than animates.
+        guard velocity.y != 0, let snapped = snappedOffset(forResting: targetContentOffset.pointee.y) else { return }
+        targetContentOffset.pointee.y = snapped
+    }
+
     public override func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        if !decelerate { trackUserScrollPosition() }
+        if !decelerate {
+            if let snapped = snappedOffset(forResting: scrollView.contentOffset.y) {
+                scrollView.setContentOffset(CGPoint(x: 0, y: snapped), animated: true)
+            }
+            trackUserScrollPosition()
+        }
+    }
+
+    /// Where a scroll resting at `offset` settles instead, when it would rest inside
+    /// ``snapDistanceFromNewest``; nil when it's outside the band or the transcript can't scroll
+    /// the band's full height.
+    private func snappedOffset(forResting offset: CGFloat) -> CGFloat? {
+        guard hasPositioned, let band = snapDistanceFromNewest, band > 0 else { return nil }
+        let maxOffset = chatLayout.collectionViewContentSize.height - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
+        let minOffset = -collectionView.adjustedContentInset.top
+        let distance = maxOffset - offset
+        guard distance > 0.5, distance < band - 0.5 else { return nil }
+        guard maxOffset - minOffset >= band else { return maxOffset }
+        return distance < band / 2 ? maxOffset : maxOffset - band
     }
 
     public override func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {

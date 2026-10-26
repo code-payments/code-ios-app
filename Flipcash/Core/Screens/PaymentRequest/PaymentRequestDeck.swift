@@ -215,8 +215,19 @@ final class PaymentRequestStripCollapse {
     /// band either side so a small scroll back and forth never flaps it.
     private(set) var isScrolledAway = false
 
+    /// The strip's slot under the bar and the pill's in it, in global space, where the collapse
+    /// carries the one onto the other.
+    var stripFrame: CGRect = .zero
+    var pillFrame: CGRect = .zero
+
     /// Points scrolled away from the newest messages over which the strip shrinks into the pill.
     static let distance: CGFloat = 140
+
+    /// How far the moving strip has handed over to the pill, 0 to 1: it does so over the last part
+    /// of the move, once their bounds nearly agree.
+    static func handover(_ progress: CGFloat) -> CGFloat {
+        min(max((progress - 0.6) / 0.4, 0), 1)
+    }
     private static let awayAt: CGFloat = 0.65
     private static let backAt: CGFloat = 0.35
 
@@ -234,34 +245,84 @@ final class PaymentRequestStripCollapse {
     }
 }
 
-/// Shrinks the owed strip toward the pill's slot at the bar's trailing edge as `collapse` runs,
-/// fading it out on the way; it stops taking touches once it is mostly the pill's.
+/// Carries the owed strip into the app-bar pill as one stack as `collapse` runs: its bounds move
+/// and shrink from the strip's slot onto the pill's, then it hands over to the pill in place. It
+/// stops taking touches once it is mostly the pill's.
 struct PaymentRequestStripCollapseEffect: ViewModifier {
     let collapse: PaymentRequestStripCollapse
 
     func body(content: Content) -> some View {
         let progress = collapse.progress
+        let morph = Morph(from: collapse.stripFrame, to: collapse.pillFrame, progress: progress)
         content
-            .scaleEffect(1 - 0.65 * progress, anchor: .topTrailing)
-            .offset(y: -Self.lift * progress)
-            .opacity(max(0, 1 - 1.4 * progress))
+            // The strip lays out at the width that, once scaled, spans the moving bounds, so its
+            // text stays upright instead of squeezing.
+            .frame(width: progress > 0 ? morph?.layoutWidth : nil, alignment: .leading)
+            .environment(\.paymentRequestStripCollapse, progress)
+            .scaleEffect(morph?.scale ?? 1, anchor: .topLeading)
+            .offset(morph?.offset ?? .zero)
+            // One layer, so the cards beneath never show through the front one as it fades.
+            .compositingGroup()
+            .opacity(1 - PaymentRequestStripCollapse.handover(progress))
+            .modifier(StripSlot())
             .allowsHitTesting(progress < 0.5)
             .accessibilityHidden(progress >= 0.5)
     }
 
-    /// How far the strip rises into the bar by the end of the collapse.
-    private static let lift: CGFloat = 36
+    /// The strip's bounds partway onto the pill's, as a layout width plus a scale and offset that
+    /// leave its layout slot alone. Nil until both have been measured.
+    private struct Morph {
+        let layoutWidth: CGFloat
+        let scale: CGFloat
+        let offset: CGSize
+
+        init?(from strip: CGRect, to pill: CGRect, progress: CGFloat) {
+            guard strip.height > 0, strip.width > 0, pill.height > 0, pill.width > 0 else { return nil }
+            let endScale = pill.height / strip.height
+            scale = 1 + (endScale - 1) * progress
+            layoutWidth = strip.width + (pill.width / endScale - strip.width) * progress
+            offset = CGSize(
+                width: (pill.minX - strip.minX) * progress,
+                height: (pill.minY - strip.minY) * progress
+            )
+        }
+    }
 }
 
-/// Fades the app-bar pill in over the second half of `collapse` while the strip stands in for it,
-/// so the two hand over in the bar's trailing slot.
+/// Takes the width it's offered whatever the moving strip inside lays out at, so the slot measured
+/// around it never follows the strip's own width back into the morph.
+private struct StripSlot: ViewModifier {
+    func body(content: Content) -> some View {
+        StripSlotLayout { content }
+    }
+}
+
+private struct StripSlotLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let child = subviews.first?.sizeThatFits(proposal) ?? .zero
+        return CGSize(width: proposal.width ?? child.width, height: child.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, anchor: .topLeading, proposal: proposal)
+    }
+}
+
+/// Fades the app-bar pill in as the strip hands over to it at the end of `collapse`.
 struct PaymentRequestPillRevealEffect: ViewModifier {
     let collapse: PaymentRequestStripCollapse
     let isBehindStrip: Bool
 
     func body(content: Content) -> some View {
-        content.opacity(isBehindStrip ? min(max((collapse.progress - 0.35) / 0.65, 0), 1) : 1)
+        content
+            .compositingGroup()
+            .opacity(isBehindStrip ? PaymentRequestStripCollapse.handover(collapse.progress) : 1)
     }
+}
+
+extension EnvironmentValues {
+    /// How far the strip around this view has shrunk into the pill, 0 to 1.
+    @Entry var paymentRequestStripCollapse: CGFloat = 0
 }
 
 // MARK: - Style -
@@ -485,6 +546,8 @@ struct PaymentRequestPillFace: View {
     var measure: DeckPartMeasure? = nil
     var pay: ((PaymentRequestID) -> Void)? = nil
 
+    @Environment(\.paymentRequestStripCollapse) private var stripCollapse
+
     var body: some View {
         switch style {
         case .pill: pill
@@ -553,6 +616,7 @@ struct PaymentRequestPillFace: View {
             Spacer(minLength: 0)
             if item.owedShare != nil {
                 Button("Pay") { pay?(item.id) }
+                    .opacity(max(0, 1 - 2 * stripCollapse))
                     .font(.appTextSmall)
                     .foregroundStyle(Color.backgroundMain)
                     .padding(.horizontal, 18)

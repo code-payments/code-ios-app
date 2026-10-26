@@ -332,6 +332,13 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onDistanceFromNewestChange = newValue }
     }
 
+    /// A band above the newest messages a released scroll never rests inside — see
+    /// ``ChatViewController/snapDistanceFromNewest``.
+    public var snapDistanceFromNewest: CGFloat? {
+        get { transcript.snapDistanceFromNewest }
+        set { transcript.snapDistanceFromNewest = newValue }
+    }
+
     /// Fires on the reader's first drag after the opening scroll — see
     /// ``ChatViewController/onUserScrollBegan``.
     public var onUserScrollBegan: (() -> Void)? {

@@ -146,6 +146,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var transcriptTopInset: CGFloat = 0
     /// Fired as the reader scrolls, with how far in points they sit above the newest messages.
     var onDistanceFromNewestChange: (CGFloat) -> Void = { _ in }
+    /// A band above the newest messages a released scroll settles out of, to either edge.
+    var snapDistanceFromNewest: CGFloat? = nil
     /// The latest request to land on a message, from a message link; each new token scrolls once.
     var messageJump: MessageJump? = nil
 
@@ -174,6 +176,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.authorAvatars = authorAvatars
         screen.transcriptTopInset = transcriptTopInset
         screen.onDistanceFromNewestChange = onDistanceFromNewestChange
+        screen.snapDistanceFromNewest = snapDistanceFromNewest
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
@@ -239,6 +242,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.barRestingDrop = BarMetrics.compactDrop
         screen.transcriptTopInset = transcriptTopInset
         screen.onDistanceFromNewestChange = onDistanceFromNewestChange
+        screen.snapDistanceFromNewest = snapDistanceFromNewest
         screen.authorAvatars = authorAvatars
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry

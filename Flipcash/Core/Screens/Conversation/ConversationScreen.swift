@@ -491,6 +491,8 @@ struct ConversationScreen: View {
             // Each anchor shown takes its height and the stack's 8-point gap.
             transcriptTopInset: [anchorHeight, stripHeight].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
             onDistanceFromNewestChange: { [stripCollapse] in stripCollapse.update(distanceFromNewest: $0) },
+            // Released mid-way, the strip finishes the move it's nearer to rather than resting half-shrunk.
+            snapDistanceFromNewest: viewerOwes ? PaymentRequestStripCollapse.distance : nil,
             messageJump: messageJump
         )
     }
@@ -739,6 +741,8 @@ struct ConversationScreen: View {
                         pay: payRequest
                     )
                     .modifier(PaymentRequestStripCollapseEffect(collapse: stripCollapse))
+                    // The slot, not the moving strip: the collapse's transforms leave it alone.
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.stripFrame = $0 }
                     .padding(.horizontal, BarMetrics.edgeInset)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stripHeight = $0 }
                     .onDisappear { stripHeight = 0 }
@@ -880,6 +884,7 @@ struct ConversationScreen: View {
             accessibilityLabel: requestDeckAccessibilityLabel,
             state: paymentRequestDeck
         )
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.pillFrame = $0 }
         .modifier(PaymentRequestPillRevealEffect(collapse: stripCollapse, isBehindStrip: viewerOwes))
         .allowsHitTesting(style != .strip)
         .accessibilityHidden(style == .strip)
