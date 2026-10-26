@@ -968,6 +968,14 @@ public final class ChatViewController: UICollectionViewController {
         return frame.minY < chatLayout.visibleBounds.minY
     }
 
+    /// The stable ids of the message rows that are on screen now, for deciding whether an alert about
+    /// a message needs a pill or whether the message is already in front of the reader.
+    public var visibleMessageIDs: Set<String> {
+        Set(collectionView.indexPathsForVisibleItems.compactMap { indexPath in
+            items.indices.contains(indexPath.item) ? items[indexPath.item].messageID : nil
+        })
+    }
+
     /// Scrolls the given row into view, or waits for the update that brings it in.
     public func scrollToMessage(id: String) {
         guard items.contains(where: { $0.messageID == id }) else {

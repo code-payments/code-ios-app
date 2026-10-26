@@ -273,6 +273,9 @@ final class ConversationController {
     /// it's excluded from observation.
     @ObservationIgnored var visibleConversationID: ConversationID?
 
+    /// Raises the in-app pill for reactions on the user's own messages; wired at session setup.
+    @ObservationIgnored var reactionAlerts: ReactionAlertController?
+
     var store: ConversationStore
 
     /// The current blocklist (wired to `BlocklistController`), used to reconcile
@@ -866,6 +869,7 @@ final class ConversationController {
     private func applyReactions(_ event: ConversationStreamEvent) {
         guard case .reactionsChanged(let conversationID, let updates) = event else { return }
         reactions.apply(updates, in: conversationID)
+        reactionAlerts?.handle(updates, in: conversationID)
     }
 
     /// Returns whether another member is currently typing in the conversation.
