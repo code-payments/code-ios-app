@@ -733,16 +733,17 @@ private struct PaymentRequestDeadlineGrid: View {
                 if isStart {
                     Circle().fill(Self.startGrey).frame(width: Self.circle, height: Self.circle)
                 }
-                Text("\(number)")
-                    .font(.appTextMedium)
-                    .foregroundStyle(isSelected ? Color.black : Color.textMain)
-                    .opacity(isEnabled ? 1 : 0.3)
-                if number == 1 {
-                    Text(day.formatted(.dateTime.month(.abbreviated).locale(picker.locale)).uppercased())
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(Color.textSecondary)
-                        .frame(maxHeight: .infinity, alignment: .top)
-                        .padding(.top, 1)
+                // The 1st stacks its month label above the number, centred as one group in the circle.
+                VStack(spacing: 0) {
+                    if number == 1 {
+                        Text(day.formatted(.dateTime.month(.abbreviated).locale(picker.locale)).uppercased())
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(monthLabelColor(isEnabled: isEnabled, isSelected: isSelected, isStart: isStart, inBand: picker.band(for: day) != nil))
+                    }
+                    Text("\(number)")
+                        .font(.appTextMedium)
+                        .foregroundStyle(isSelected ? Color.black : Color.textMain)
+                        .opacity(isEnabled ? 1 : 0.3)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -755,6 +756,17 @@ private struct PaymentRequestDeadlineGrid: View {
         .accessibilityHidden(!isEnabled)
         .accessibilityLabel(picker.accessibilityDay(day))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func monthLabelColor(isEnabled: Bool, isSelected: Bool, isStart: Bool, inBand: Bool) -> Color {
+        if isSelected { return Self.grey(0x59) }
+        if isStart { return Self.grey(0xD9) }
+        if isEnabled && inBand { return Self.grey(0x9E) }
+        return Self.grey(0x7B)
+    }
+
+    private static func grey(_ value: Double) -> Color {
+        Color(red: value / 255, green: value / 255, blue: value / 255)
     }
 
     private static let circle: CGFloat = 34
