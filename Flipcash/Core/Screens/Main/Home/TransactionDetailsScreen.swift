@@ -70,7 +70,13 @@ struct TransactionDetailsScreen: View {
                         receiptCard
                         idCard
 
-                        if let userID = activity.counterparty?.userID, details.canViewInChat {
+                        switch details.chatAction {
+                        case .viewMessage(let boost):
+                            Button("View Message") {
+                                viewMessage(boost)
+                            }
+                            .buttonStyle(.filled05)
+                        case .viewCounterparty(let userID):
                             let dmID = sessionContainer.conversationController.tipDMID(withUserID: userID)
                             Button(dmID == nil ? "View Profile" : "View in Chat") {
                                 // Pushed onto the stack this screen is already
@@ -83,6 +89,8 @@ struct TransactionDetailsScreen: View {
                                 router.push(DMRoute.destination(for: userID, dmID: dmID, origin: .transaction))
                             }
                             .buttonStyle(.filled05)
+                        case nil:
+                            EmptyView()
                         }
                     }
                 }
@@ -294,6 +302,20 @@ struct TransactionDetailsScreen: View {
             withAnimation(.easeInOut(duration: 0.15)) {
                 didCopyID = false
             }
+        }
+    }
+
+    /// Opens the boosted message through the deep link's own hydration, so a chat the viewer has
+    /// not synced is fetched first and a private group they are not in lands on its profile.
+    private func viewMessage(_ boost: Activity.BoostedReaction) {
+        Task {
+            await DeepLinkAction.routeChat(
+                boost.conversationID,
+                landing: MessageLanding(messageID: boost.messageID, returnTo: nil),
+                // Not an invite: the viewer is opening a message from their own history.
+                origin: .activity,
+                in: sessionContainer
+            )
         }
     }
 

@@ -96,12 +96,17 @@ nonisolated extension Database {
             s.toCurrency,
             s.feeNativeAmount,
             s.feeCurrency,
-            s.state AS swapState
+            s.state AS swapState,
+
+            b.conversationID AS boostConversationID,
+            b.messageID AS boostMessageID,
+            b.emoji AS boostEmoji
 
         FROM activity a
 
         LEFT JOIN cashLinkMetadata c ON c.id = a.id
         LEFT JOIN swapMetadata s ON s.id = a.id
+        LEFT JOIN boostedReaction b ON b.id = a.id
 
         WHERE a.mint = ?
 
@@ -143,12 +148,17 @@ nonisolated extension Database {
             s.toCurrency,
             s.feeNativeAmount,
             s.feeCurrency,
-            s.state AS swapState
+            s.state AS swapState,
+
+            b.conversationID AS boostConversationID,
+            b.messageID AS boostMessageID,
+            b.emoji AS boostEmoji
 
         FROM activity a
 
         LEFT JOIN cashLinkMetadata c ON c.id = a.id
         LEFT JOIN swapMetadata s ON s.id = a.id
+        LEFT JOIN boostedReaction b ON b.id = a.id
 
         ORDER BY a.date DESC
         LIMIT ?;
@@ -188,7 +198,26 @@ nonisolated extension Database {
             ),
             date: row[a.date],
             metadata: metadata(for: kind, row: row),
-            counterparty: Activity.Counterparty(userID: row[a.counterpartyUserID], phone: row[a.counterpartyPhone])
+            counterparty: Activity.Counterparty(userID: row[a.counterpartyUserID], phone: row[a.counterpartyPhone]),
+            boostedReaction: boostedReaction(from: row)
+        )
+    }
+
+    /// Reads the joined `boostedReaction` columns, aliased in the SELECT to stay clear of the
+    /// activity and swap columns. All three are NULL for a payment that boosted nothing.
+    private func boostedReaction(from row: RowIterator.Element) -> Activity.BoostedReaction? {
+        guard
+            let conversationID = row[Expression<Data?>("boostConversationID")],
+            let messageID      = row[Expression<UInt64?>("boostMessageID")],
+            let emoji          = row[Expression<String?>("boostEmoji")]
+        else {
+            return nil
+        }
+
+        return Activity.BoostedReaction(
+            conversationID: ConversationID(data: conversationID),
+            messageID: MessageID(value: messageID),
+            emoji: emoji
         )
     }
 
@@ -288,6 +317,24 @@ nonisolated extension Database {
                 if case .swap(let metadata) = activity.metadata {
                     try insertSwapMetadata(id: activity.id, metadata: metadata)
                 }
+            }
+
+            // A re-sync of the same activity replaces the row, so a boost the server no longer
+            // reports is removed rather than left behind.
+            let boostTable = BoostedReactionTable()
+            if let boost = activity.boostedReaction {
+                try writer.run(
+                    boostTable.table.upsert(
+                        boostTable.id             <- activity.id,
+                        boostTable.conversationID <- boost.conversationID.data,
+                        boostTable.messageID      <- boost.messageID.value,
+                        boostTable.emoji          <- boost.emoji,
+
+                        onConflictOf: boostTable.id,
+                    )
+                )
+            } else {
+                try writer.run(boostTable.table.filter(boostTable.id == activity.id).delete())
             }
         }
     }

@@ -130,6 +130,55 @@ struct TransactionDetailsTests {
         #expect(details.canViewInChat == false)
     }
 
+    // MARK: - Boosted reaction
+
+    private func boost() -> Activity.BoostedReaction {
+        Activity.BoostedReaction(
+            conversationID: ConversationID(data: Data(repeating: 3, count: 16)),
+            messageID: MessageID(value: 9),
+            emoji: "🔥"
+        )
+    }
+
+    @Test("D1: a boost with a counterparty opens the boosted message")
+    func boostWithCounterpartyViewsMessage() {
+        let boost = boost()
+        let details = TransactionDetails(
+            activity: Activity(
+                id: .jeffy, state: .completed, kind: .gave, title: "Sent",
+                exchangedFiat: Self.usd(1), date: .now, metadata: nil,
+                counterparty: counterparty, boostedReaction: boost
+            )
+        )
+
+        #expect(details.chatAction == .viewMessage(boost))
+    }
+
+    @Test("D2: a split boost with no counterparty still opens the boosted message")
+    func splitBoostViewsMessage() {
+        let boost = boost()
+        let details = TransactionDetails(
+            activity: Activity(
+                id: .jeffy, state: .completed, kind: .gave, title: "Sent",
+                exchangedFiat: Self.usd(1), date: .now, metadata: nil,
+                counterparty: nil, boostedReaction: boost
+            )
+        )
+
+        #expect(details.canViewInChat == false)
+        #expect(details.chatAction == .viewMessage(boost))
+    }
+
+    @Test("D3: without a boost the counterparty action is unchanged")
+    func noBoostKeepsCounterpartyAction() throws {
+        let withPerson = TransactionDetails(activity: activity(kind: .gave, counterparty: counterparty))
+        let userID = try #require(counterparty.userID)
+        #expect(withPerson.chatAction == .viewCounterparty(userID))
+
+        let alone = TransactionDetails(activity: activity(kind: .gave))
+        #expect(alone.chatAction == nil)
+    }
+
     // MARK: - Actions
 
     @Test("Only an open cash link can be cancelled")
