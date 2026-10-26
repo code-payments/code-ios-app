@@ -28,8 +28,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     /// withdrawals). Used to resolve an avatar and a richer name in feed rows.
     public let counterparty: Counterparty?
 
-    /// The reaction this payment boosted, when it was a boost. Not persisted: an activity restored
-    /// from the local database reports `nil` until the server's copy refreshes it.
+    /// The reaction this payment boosted, when it was a boost.
     public let boostedReaction: BoostedReaction?
 
     public var cancellableCashLinkMetadata: CashLinkMetadata? {
