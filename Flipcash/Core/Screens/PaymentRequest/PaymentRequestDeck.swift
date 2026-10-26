@@ -202,28 +202,34 @@ struct PaymentRequestPill: View {
 
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var drag: CGFloat = 0
-    @State private var frontSize = CGSize(width: 131, height: 43)
+    @State private var frontHeight: CGFloat = 43
 
     private static let peekStep: CGFloat = 5
     private static let peekInset: CGFloat = 7
 
     var body: some View {
         ZStack(alignment: .top) {
-            // The peeking cards, back first, each as tall as the front card and stepped in at both
-            // edges so only their bottoms show.
-            ForEach(Array(items.dropFirst().prefix(2).enumerated().reversed()), id: \.element.id) { offset, _ in
-                let depth = CGFloat(offset + 1)
-                PaymentRequestPillLayer(isBack: offset == 1)
-                    .frame(width: max(frontSize.width - 2 * Self.peekInset * depth, 0), height: frontSize.height)
-                    .offset(y: Self.peekStep * depth)
-            }
             if let front = items.first {
                 PaymentRequestPillFace(item: front) { state.pillFrames[$0] = $1 }
                     .offset(y: drag)
-                    .opacity(1 - min(0.45, drag / max(frontSize.height, 1) * 0.45))
-                    .onGeometryChange(for: CGSize.self) { $0.size } action: { frontSize = $0 }
+                    .opacity(1 - min(0.45, drag / max(frontHeight, 1) * 0.45))
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { frontHeight = $0 }
                     // The moving copy stands in for it until it lands back here.
                     .opacity(state.phase == .collapsed ? 1 : 0)
+            }
+        }
+        // The peeking cards, back first, each as tall as the front card and stepped in at both
+        // edges so only their bottoms show. A background takes the front card's size and adds none
+        // of its own: sized from a measurement in the same stack, a peek could outgrow a front card
+        // the bar had just narrowed and the bar would re-measure the pill forever.
+        .background(alignment: .top) {
+            ZStack(alignment: .top) {
+                ForEach(Array(items.dropFirst().prefix(2).enumerated().reversed()), id: \.element.id) { offset, _ in
+                    let depth = CGFloat(offset + 1)
+                    PaymentRequestPillLayer(isBack: offset == 1)
+                        .padding(.horizontal, Self.peekInset * depth)
+                        .offset(y: Self.peekStep * depth)
+                }
             }
         }
         .padding(.bottom, Self.peekStep * CGFloat(min(max(items.count - 1, 0), 2)))
@@ -252,7 +258,7 @@ struct PaymentRequestPill: View {
                 let finishes = items.count > 1 && PaymentRequestDeckOrder.finishesCycle(
                     translation: value.translation.height,
                     predictedTranslation: value.predictedEndTranslation.height,
-                    height: frontSize.height
+                    height: frontHeight
                 )
                 withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
                     if finishes { state.order.cycle() }
