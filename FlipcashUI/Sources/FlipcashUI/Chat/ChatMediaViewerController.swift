@@ -72,7 +72,9 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     private let request: ChatMediaViewerRequest
     private let onReply: () -> Void
     private let onForward: () -> Void
-    private let onSave: (UIImage) async throws -> Void
+    private let onSave: (UIImage, Data?) async throws -> Void
+    /// The photo's bytes as sent, read at save time; nil falls back to the drawn image.
+    var originalData: () -> Data?
     private let onReact: (String) -> Void
     private let onMoreReactions: () -> Void
     private let reactionEntries: () -> [ReactionStrip.Entry]
@@ -116,7 +118,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     /// - Parameters:
     ///   - onReply: puts the composer into reply mode for the photo's message. Runs after the viewer dismisses.
     ///   - onForward: opens the message-link share for the photo's message. Runs after the viewer dismisses.
-    ///   - onSave: writes the photo to the library, throwing when it can't.
+    ///   - onSave: writes the photo to the library, throwing when it can't. Gets the original bytes when held.
     ///   - onReact: toggles the picked emoji on the photo's message, the call the context-menu strip makes.
     ///   - onMoreReactions: opens the full reaction picker. Runs after the viewer dismisses.
     ///   - reactionEntries: the emoji the strip offers; empty means there is no strip.
@@ -124,7 +126,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         request: ChatMediaViewerRequest,
         onReply: @escaping () -> Void,
         onForward: @escaping () -> Void,
-        onSave: @escaping (UIImage) async throws -> Void,
+        onSave: @escaping (UIImage, Data?) async throws -> Void,
         onReact: @escaping (String) -> Void,
         onMoreReactions: @escaping () -> Void,
         reactionEntries: @escaping () -> [ReactionStrip.Entry]
@@ -133,6 +135,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         self.onReply = onReply
         self.onForward = onForward
         self.onSave = onSave
+        self.originalData = { [blobID = request.blobID] in ChatMediaImageSource.originalData(blobID: blobID) }
         self.onReact = onReact
         self.onMoreReactions = onMoreReactions
         self.reactionEntries = reactionEntries
@@ -531,9 +534,10 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     @objc private func saveTapped() {
         guard let image = loadedImage, !isSaving else { return }
         isSaving = true
+        let original = originalData()
         Task { [weak self, onSave] in
             do {
-                try await onSave(image)
+                try await onSave(image, original)
                 self?.showSaved()
             } catch {
                 self?.showSaveFailure()

@@ -122,7 +122,7 @@ struct ChatMediaViewerTests {
         _ request: ChatMediaViewerRequest,
         onReply: @escaping () -> Void = {},
         onForward: @escaping () -> Void = {},
-        onSave: @escaping (UIImage) async throws -> Void = { _ in },
+        onSave: @escaping (UIImage, Data?) async throws -> Void = { _, _ in },
         onReact: @escaping (String) -> Void = { _ in },
         entries: @escaping () -> [ReactionStrip.Entry] = { [ReactionStrip.Entry(emoji: "👍", highlighted: false), ReactionStrip.Entry(emoji: "❤️", highlighted: false)] }
     ) -> ChatMediaViewerController {
@@ -181,7 +181,7 @@ struct ChatMediaViewerTests {
             message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
         ) { nil })
         var saved: UIImage?
-        let viewer = makeViewer(request, onSave: { saved = $0 })
+        let viewer = makeViewer(request, onSave: { image, _ in saved = image })
 
         #expect(viewer.imageView.image === placeholder)
         #expect(!viewer.saveButton.isEnabled)
@@ -192,12 +192,28 @@ struct ChatMediaViewerTests {
     @Test("Save is enabled once the photo is loaded, and writes it")
     func saveEnabledWhenLoaded() async throws {
         var saved: UIImage?
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onSave: { saved = $0 })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onSave: { image, _ in saved = image })
 
         #expect(viewer.saveButton.isEnabled)
         viewer.saveButton.sendActions(for: .touchUpInside)
         try await Task.sleep(for: .milliseconds(100))
         #expect(saved === Self.localImage)
+    }
+
+    @Test("Save hands the photo's original bytes to the writer when held, and nil when not")
+    func saveCarriesOriginalBytes() async throws {
+        let original = Data([0xFF, 0xD8, 0xFF, 0xE0])
+        var received: [Data?] = []
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onSave: { _, data in received.append(data) })
+
+        viewer.originalData = { original }
+        viewer.saveButton.sendActions(for: .touchUpInside)
+        try await Task.sleep(for: .milliseconds(100))
+        viewer.originalData = { nil }
+        viewer.saveButton.sendActions(for: .touchUpInside)
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(received == [original, nil])
     }
 
     @Test("The zoom toggle goes to the double-tap scale, and a second call returns to fit")

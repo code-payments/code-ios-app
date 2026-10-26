@@ -534,7 +534,7 @@ struct ConversationScreen: View {
             request: request,
             onReply: { handleMessageAction(stableID, .reply) },
             onForward: { handleMessageAction(stableID, .forward) },
-            onSave: { image in try await PhotoLibrary.save(image: image) },
+            onSave: { image, original in try await PhotoLibrary.save(image: image, original: original) },
             onReact: { emoji in toggleReaction(stableID, emoji: emoji) },
             onMoreReactions: { openReactionPicker(stableID) },
             reactionEntries: { chatMessage(withStableID: stableID).map(reactionStripEntries) ?? [] }
