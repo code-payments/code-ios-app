@@ -692,6 +692,10 @@ private struct PaymentRequestDeadlineGrid: View {
         }
         .backgroundPreferenceValue(SelectionAnchors<Date>.self) { anchors in
             GeometryReader { proxy in
+                // One band per week row, so a change grows or shrinks it without seams between cells.
+                ForEach(0..<weeks.count, id: \.self) { row in
+                    bandRow(weeks[row], anchors: anchors, proxy: proxy)
+                }
                 // One circle for the closing day, drawn under the cells so it slides between days instead of fading.
                 if let anchor = anchors[picker.selectedDay] {
                     let rect = proxy[anchor]
@@ -723,10 +727,6 @@ private struct PaymentRequestDeadlineGrid: View {
             picker.select(day: day)
         } label: {
             ZStack {
-                if let band = picker.band(for: day) {
-                    bandPiece(band)
-                        .transition(.scale(scale: 0, anchor: .leading).combined(with: .opacity))
-                }
                 if isStart {
                     Circle().fill(Self.startGrey).frame(width: Self.circle, height: Self.circle)
                 }
@@ -757,22 +757,37 @@ private struct PaymentRequestDeadlineGrid: View {
     private static let circle: CGFloat = 34
     private static let startGrey = Color(red: 0x6B / 255, green: 0x6B / 255, blue: 0x6E / 255)
 
-    /// One cell's slice of the range band, flat where a circle caps it and rounded where the week wraps.
-    private func bandPiece(_ band: RangeBand) -> some View {
-        let radius = Self.circle / 2
-        return HStack(spacing: 0) {
-            Color.clear.frame(maxWidth: band.fromCenter ? .infinity : 0)
+    private var weeks: [[Date]] {
+        stride(from: 0, to: picker.gridDays.count, by: 7).map { Array(picker.gridDays[$0..<min($0 + 7, picker.gridDays.count)]) }
+    }
+
+    /// A week row's part of the range band, collapsed to the row's leading edge when the range misses it.
+    @ViewBuilder
+    private func bandRow(_ week: [Date], anchors: [Date: Anchor<CGRect>], proxy: GeometryProxy) -> some View {
+        if let first = week.first.flatMap({ anchors[$0] }), let last = week.last.flatMap({ anchors[$0] }) {
+            let rowStart = proxy[first]
+            let rowEnd = proxy[last]
+            let inRange = week.compactMap { day in picker.band(for: day).map { (day, $0) } }
+            let radius = Self.circle / 2
+            let leading: CGFloat = inRange.first.flatMap { day, band in
+                anchors[day].map { band.fromCenter ? proxy[$0].midX : proxy[$0].minX }
+            } ?? rowStart.minX
+            let trailing: CGFloat = inRange.last.flatMap { day, band in
+                anchors[day].map { band.toCenter ? proxy[$0].midX : proxy[$0].maxX }
+            } ?? rowStart.minX
+            let roundedLeading = inRange.first?.1.roundedLeading ?? true
+            let roundedTrailing = inRange.last?.1.roundedTrailing ?? true
             UnevenRoundedRectangle(
-                topLeadingRadius: band.roundedLeading ? radius : 0,
-                bottomLeadingRadius: band.roundedLeading ? radius : 0,
-                bottomTrailingRadius: band.roundedTrailing ? radius : 0,
-                topTrailingRadius: band.roundedTrailing ? radius : 0
+                topLeadingRadius: roundedLeading ? radius : 0,
+                bottomLeadingRadius: roundedLeading ? radius : 0,
+                bottomTrailingRadius: roundedTrailing ? radius : 0,
+                topTrailingRadius: roundedTrailing ? radius : 0
             )
             .fill(Color.white.opacity(0.12))
-            .frame(maxWidth: .infinity)
-            Color.clear.frame(maxWidth: band.toCenter ? .infinity : 0)
+            .frame(width: max(trailing - leading, 0), height: Self.circle)
+            .position(x: (leading + trailing) / 2, y: rowEnd.midY)
+            .opacity(inRange.isEmpty ? 0 : 1)
         }
-        .frame(height: Self.circle)
     }
 }
 
