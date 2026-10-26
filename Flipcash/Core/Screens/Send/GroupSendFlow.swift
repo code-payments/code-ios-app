@@ -56,6 +56,8 @@ private struct GroupSendFlowContent: View {
                 }
             }
         }
+        // Like the share-to-chats screen, the flow closes only from its X.
+        .interactiveDismissDisabled()
         .onChange(of: viewModel.depositMint) { _, mint in
             guard let mint else { return }
             viewModel.depositMint = nil
