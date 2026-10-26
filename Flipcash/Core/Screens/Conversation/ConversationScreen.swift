@@ -838,6 +838,7 @@ struct ConversationScreen: View {
             }
         }
         .onChange(of: requestDeckItems.map(\.id)) { deckWindow.items = requestDeckItems }
+        .onChange(of: scenePhase, initial: true) { _, phase in deckWindow.scenePhase = phase }
         .onDisappear { deckWindow.dismiss() }
         // Each refetch puts the deck back in its default order.
         .onChange(of: groupConversation.map { sessionContainer.paymentRequests.chatRefreshes[$0.id] }) {

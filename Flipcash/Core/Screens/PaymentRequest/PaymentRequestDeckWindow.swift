@@ -24,6 +24,8 @@ final class PaymentRequestDeckWindow {
     /// of the deck draws over them; once they cover the screen the deck snaps back to the pill, so
     /// going back finds it minimized.
     var details: PaymentRequestSelection?
+    /// The app's scene phase, which a second window's views don't receive on their own.
+    var scenePhase: ScenePhase = .active
 
     private var window: UIWindow?
 
@@ -79,6 +81,8 @@ private struct PaymentRequestDeckWindowContent: View {
         .ignoresSafeArea()
         .fullScreenCover(item: $window.details, onDismiss: state.endPresentation) {
             details($0.id)
+                // Details poll and fetch the pay intent only while active.
+                .environment(\.scenePhase, window.scenePhase)
                 .background(AppearanceReader(didAppear: state.snapToPill))
         }
     }
