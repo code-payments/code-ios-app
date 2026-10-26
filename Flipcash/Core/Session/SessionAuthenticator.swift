@@ -341,6 +341,26 @@ final class SessionAuthenticator {
         alerts.displayCurrency = { [weak ratesController = sessionContainer.ratesController] in
             ratesController?.displayCurrency ?? DisplayCurrency(currency: .usd, rates: [:])
         }
+        alerts.knownName = { [weak knownAuthors = sessionContainer.knownAuthors] userID in
+            guard let knownAuthors else { return nil }
+            if knownAuthors.snapshot.membersByUserID[userID] == nil {
+                await knownAuthors.resolve([userID])
+            }
+            return knownAuthors.snapshot.membersByUserID[userID]?.displayName
+        }
+        alerts.avatarData = { [weak sessionContainer] userID in
+            guard let sessionContainer else { return nil }
+            if let data = sessionContainer.profileAvatars.data(for: userID) { return data }
+            let rosterMember = sessionContainer.conversationController.conversations
+                .lazy
+                .flatMap(\.members)
+                .first { $0.userID == userID && $0.profilePicture != nil }
+            guard let picture = (rosterMember ?? sessionContainer.knownAuthors.snapshot.membersByUserID[userID])?.profilePicture else {
+                return nil
+            }
+            await sessionContainer.profileAvatars.load(userID: userID, picture: picture)
+            return sessionContainer.profileAvatars.data(for: userID)
+        }
         alerts.openMessage = { [weak sessionContainer] conversationID, messageID in
             guard let sessionContainer else { return }
             // The alert is only ever for a chat the user posted in, so it is a member's transcript.

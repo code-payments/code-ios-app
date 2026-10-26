@@ -6,6 +6,9 @@
 //
 
 import UIKit
+#if DEBUG
+import notify
+#endif
 import FlipcashCore
 import FlipcashUI
 
@@ -43,6 +46,14 @@ final class ReactionAlertController {
     /// Set by the open chat: scrolls to a message of this chat and pulses it.
     var scrollToMessage: ((MessageID) -> Void)?
 
+    /// Names a user the chat's own roster leaves out, fetching their profile when nothing on the
+    /// device has a name for them. A large group embeds only part of its roster.
+    var knownName: (UserID) async -> String? = { _ in nil }
+    /// The reactor's profile photo, loading it first if it isn't cached. Nil when they have none.
+    var avatarData: (UserID) async -> Data? = { _ in nil }
+    /// Photos fetched for reactors in the current alert, keyed by user.
+    private var avatarDataByActor: [UserID: Data] = [:]
+
     /// Opens a chat at a message, for a pill tapped anywhere else.
     var openMessage: (ConversationID, MessageID) -> Void = { _, _ in }
 
@@ -56,6 +67,9 @@ final class ReactionAlertController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.reset() }
         }
+        #if DEBUG
+        registerDebugTriggers()
+        #endif
     }
 
     deinit {
@@ -114,12 +128,15 @@ final class ReactionAlertController {
             messageID: update.messageID,
             emoji: update.emoji,
             actor: update.actor,
-            actorName: actorName(update.actor, in: conversationID, using: conversations),
+            actorName: await actorName(update.actor, in: conversationID, using: conversations),
             isBoost: isBoost,
             boostDeltaCents: isBoost ? delta : 0,
             snippet: Self.snippet(for: message, display: displayCurrency()),
             topRow: topRow
         )
+        if avatarDataByActor[update.actor] == nil, let data = await avatarData(update.actor) {
+            avatarDataByActor[update.actor] = data
+        }
         switch queue.enqueue(event) {
         case .started, .merged: present()
         case .queued: break
@@ -144,12 +161,16 @@ final class ReactionAlertController {
         }
     }
 
-    private func actorName(_ actor: UserID, in conversationID: ConversationID, using conversations: ConversationController) -> String {
+    private func actorName(_ actor: UserID, in conversationID: ConversationID, using conversations: ConversationController) async -> String {
         guard let conversation = conversations.conversation(withID: conversationID) else { return "Someone" }
         if let name = conversation.members.first(where: { $0.userID == actor })?.displayName, !name.isEmpty {
             return name
         }
-        return conversation.type == .group ? "Someone" : conversations.displayName(for: conversation)
+        guard conversation.type == .group else { return conversations.displayName(for: conversation) }
+        if let name = await knownName(actor), !name.isEmpty {
+            return name
+        }
+        return "Someone"
     }
 
     // MARK: - Pill -
@@ -163,7 +184,11 @@ final class ReactionAlertController {
         let display = displayCurrency()
         let actors = current.actors
         let avatars = actors.map {
-            AlertPillContent.Avatar(initial: String($0.actorName.first ?? "?").uppercased(), seed: $0.actorName.hashValue)
+            AlertPillContent.Avatar(
+                initial: String($0.actorName.first ?? "?").uppercased(),
+                seed: $0.actorName.hashValue,
+                imageData: avatarDataByActor[$0.actor]
+            )
         }
         let trailing: AlertPillContent.Trailing
         if let cents = current.boostCents {
@@ -202,6 +227,68 @@ final class ReactionAlertController {
         guard queue.advance() != nil else { return }
         present()
     }
+
+    #if DEBUG
+    // MARK: - Debug triggers -
+
+    /// Fires canned alerts so the banner can be recorded without a second account:
+    /// `xcrun simctl spawn <udid> notifyutil -p flipcash.debug.alert.reaction` (also `.boost`, `.stack`).
+    private var debugTokens: [Int32] = []
+    private var debugStack = 0
+
+    private func registerDebugTriggers() {
+        for kind in ["reaction", "boost", "stack"] {
+            var token: Int32 = 0
+            notify_register_dispatch("flipcash.debug.alert.\(kind)", &token, .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.fireDebugAlert(kind) }
+            }
+            debugTokens.append(token)
+        }
+    }
+
+    private func fireDebugAlert(_ kind: String) {
+        let quote = "Sorry for the delay! 2026.10.3 dropped this morning"
+        let content: AlertPillContent
+        switch kind {
+        case "boost":
+            debugStack = 0
+            content = AlertPillContent(
+                topRow: "🚀 Release Central", title: "Chloe boosted their 🔥", subtitle: quote,
+                trailing: .amount("+$5.00"), avatars: [.init(initial: "C", seed: 3)]
+            )
+        case "stack":
+            debugStack += 1
+            let names = ["Chloe", "Sam", "Ana", "Ted"]
+            let emojis = ["🔥", "❤️", "🎉", "👍"]
+            let count = min(debugStack + 1, names.count)
+            content = AlertPillContent(
+                topRow: "🚀 Release Central",
+                title: count == 1 ? "Chloe reacted to your message" : "Chloe and \(count - 1) other\(count == 2 ? "" : "s") reacted",
+                subtitle: quote,
+                trailing: count == 1 ? .emoji("🔥") : .emojis(Array(emojis.prefix(min(count, 3)))),
+                avatars: names.prefix(count).enumerated().map { .init(initial: String($1.first!), seed: $0 + 3) }
+            )
+        default:
+            debugStack = 0
+            // A real member, so the photo goes through the same lookup a live reaction uses.
+            Task { await fireDebugReactionFromRealMember(quote: quote) }
+            return
+        }
+        pill.present(content, hold: kind == "boost" ? .seconds(3.5) : .seconds(2.5), haptic: kind == "boost" ? .success : .light) {}
+    }
+
+    private func fireDebugReactionFromRealMember(quote: String) async {
+        let member = conversations?.conversations.lazy.flatMap(\.members).first { $0.displayName == "XCTests" }
+        let name = member?.displayName ?? "XCTests"
+        var data: Data?
+        if let userID = member?.userID { data = await avatarData(userID) }
+        let content = AlertPillContent(
+            topRow: "🚀 Release Central", title: "\(name) reacted to your message", subtitle: quote,
+            trailing: .emoji("❤️"), avatars: [.init(initial: "X", seed: 1, imageData: data)]
+        )
+        pill.present(content, hold: .seconds(2.5), haptic: .light) {}
+    }
+    #endif
 
     // MARK: - Snippet -
 

@@ -6,6 +6,7 @@
 import SwiftUI
 import UIKit
 import FlipcashCore
+import Observation
 
 /// The in-app reaction and boost alert: a black capsule drawn over the Dynamic Island that grows into
 /// a card, or a banner dropped from the top on a phone with no island. Sizes are the `Alert/Reaction
@@ -28,7 +29,12 @@ struct AlertPill: View {
 
     @State private var phase: Phase = .rest
     @State private var textVisible = false
-    @State private var opacity: Double = 1
+    @State private var opacity: Double = 0
+    /// The banner's entrance and exit: a short drop from just above its slot, growing from slightly
+    /// small and unblurring, rather than a full slide that would cross the status bar.
+    @State private var lift: CGFloat = -28
+    @State private var scale: CGFloat = 0.92
+    @State private var blur: CGFloat = 6
     @State private var expandedHeight: CGFloat = 96
     @State private var dismissRequested = false
     @State private var dragOffset: CGFloat = 0
@@ -37,7 +43,9 @@ struct AlertPill: View {
     private static let expandedWidth: CGFloat = 378
     private static let compactSize = CGSize(width: 236, height: 36)
 
-    private var island: CGRect? { IslandGeometry.island(safeAreaTop: safeAreaTop, screenWidth: screenWidth) }
+    /// Always the glass banner for now: the system draws the status bar over any card grown out of the
+    /// island, and no app window can cover or hide it. The island morph below is unused until that changes.
+    private var island: CGRect? { nil }
 
     private var expandedWidth: CGFloat { min(Self.expandedWidth, screenWidth - 24) }
 
@@ -55,31 +63,35 @@ struct AlertPill: View {
 
     private func shape(for content: AlertPillContent) -> some View {
         let size = frameSize
-        return RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color.black)
+        return Color.clear
+            .alertGlassBackground(cornerRadius: cornerRadius)
             .overlay(alignment: .top) {
                 ZStack {
                     compactContent(content).opacity(phase == .compact ? 1 : 0)
                     expandedContent(content)
                         .opacity(textVisible && phase == .expanded ? 1 : 0)
+                        .animation(.smooth(duration: 0.15), value: presented.revision)
                         .frame(width: expandedWidth, alignment: .top)
                 }
                 .frame(width: size.width, height: size.height, alignment: .top)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             }
             .frame(width: size.width, height: size.height)
+            .scaleEffect(scale, anchor: .top)
+            .blur(radius: blur)
             .opacity(opacity)
-            .offset(y: restingY + min(0, dragOffset))
+            .offset(y: restingY + lift + dragResistance)
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { controller.pillFrame = $0 }
             .contentShape(Rectangle())
             .onTapGesture { dismiss(thenTap: true) }
             .gesture(
                 DragGesture(minimumDistance: 8)
-                    .onChanged { dragOffset = min(0, $0.translation.height) }
+                    .onChanged { dragOffset = $0.translation.height }
                     .onEnded { value in
                         if value.translation.height < -20 || value.predictedEndTranslation.height < -60 {
                             dismiss(thenTap: false)
                         } else {
-                            withAnimation(.spring(duration: 0.25)) { dragOffset = 0 }
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { dragOffset = 0 }
                         }
                     }
             )
@@ -87,6 +99,11 @@ struct AlertPill: View {
             .accessibilityLabel("\(content.title). \(content.subtitle)")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction(named: "Dismiss") { dismiss(thenTap: false) }
+    }
+
+    /// Follows an upward drag one to one and resists a downward one, so the banner feels held in place.
+    private var dragResistance: CGFloat {
+        dragOffset < 0 ? dragOffset : 10 * log1p(dragOffset / 10)
     }
 
     private var frameSize: CGSize {
@@ -112,7 +129,7 @@ struct AlertPill: View {
     /// Where the card's top edge sits. A banner starts above the screen and drops in.
     private var restingY: CGFloat {
         guard let island else {
-            return phase == .rest ? -(expandedHeight + safeAreaTop) : safeAreaTop + 4
+            return safeAreaTop + 4
         }
         switch phase {
         case .rest, .compact where !reduceMotion:
@@ -144,23 +161,24 @@ struct AlertPill: View {
 
     private func expandedContent(_ content: AlertPillContent) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(content.topRow)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                Text("now")
+            // Left empty over the island: another app's Live Activity in it draws over anything the
+            // pill puts in this row. The banner sits below the status bar and needs no gap.
+            if island != nil {
+                Color.clear.frame(height: 16)
             }
-            .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(Color.white.opacity(0.5))
 
             HStack(spacing: 12) {
                 avatars(content.avatars)
                 VStack(alignment: .leading, spacing: 2) {
+                    Text(content.topRow)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.5))
+                        .lineLimit(1)
                     Text(content.title)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Color.textMain)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                     if !content.subtitle.isEmpty {
                         Text(content.subtitle)
                             .font(.system(size: 13, weight: .medium))
@@ -173,18 +191,19 @@ struct AlertPill: View {
                 trailing(content.trailing)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 18)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
     }
 
     @ViewBuilder
     private func avatars(_ avatars: [AlertPillContent.Avatar]) -> some View {
         if avatars.count > 1 {
-            HStack(spacing: -14) {
-                ForEach(Array(avatars.prefix(3).enumerated()), id: \.offset) { _, avatar in
-                    AlertAvatarView(avatar: avatar, diameter: 40)
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+            // Smaller and overlapped less than a single avatar, with the first reactor on top.
+            HStack(spacing: -10) {
+                ForEach(Array(avatars.prefix(3).enumerated()), id: \.offset) { index, avatar in
+                    AlertAvatarView(avatar: avatar, diameter: 32)
+                        .overlay(Circle().stroke(Color.black.opacity(0.6), lineWidth: 2))
+                        .zIndex(Double(-index))
                 }
             }
         } else {
@@ -198,7 +217,9 @@ struct AlertPill: View {
         case .emoji(let emoji):
             Text(emoji).font(.system(size: 30, weight: .semibold))
         case .emojis(let emojis):
-            Text(emojis.joined()).font(.system(size: 20, weight: .semibold))
+            // The newest two; the title already counts everyone.
+            Text(emojis.suffix(2).joined()).font(.system(size: 20, weight: .semibold))
+                .fixedSize()
         case .amount(let text):
             Text(text).font(.system(size: 20, weight: .semibold)).foregroundStyle(Color.alertGreen)
         }
@@ -219,9 +240,16 @@ struct AlertPill: View {
 
     private func run() async {
         dismissRequested = false
-        if phase != .expanded || !textVisible {
+        let isUpdate = phase == .expanded && textVisible
+        if !isUpdate {
             await open()
+        } else if !reduceMotion {
+            // A new reaction on the banner already up: a small bump so the change is noticed.
+            withAnimation(.spring(response: 0.18, dampingFraction: 0.6)) { scale = 1.025 }
+            _ = try? await Task.sleep(for: .milliseconds(110))
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.7)) { scale = 1 }
         }
+        controller.playHaptic(presented.haptic, isUpdate: isUpdate)
         // Wait out the hold in short steps so a swipe or tap can end it early.
         let step = Duration.milliseconds(50)
         var waited = Duration.zero
@@ -233,31 +261,64 @@ struct AlertPill: View {
     }
 
     private func open() async {
-        if island == nil || reduceMotion {
+        if reduceMotion {
+            lift = 0
+            scale = 1
+            blur = 0
             withAnimation(.easeInOut(duration: 0.2)) {
                 phase = .expanded
                 opacity = 1
                 textVisible = true
             }
-            if island == nil { return }
+            _ = try? await Task.sleep(for: .milliseconds(200))
             return
         }
+        if island == nil {
+            // Drops a short way into its slot with a small settle; the haptic plays as it lands.
+            phase = .expanded
+            textVisible = true
+            withAnimation(.easeOut(duration: 0.18)) {
+                opacity = 1
+                blur = 0
+            }
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.72)) {
+                lift = 0
+                scale = 1
+            }
+            _ = try? await Task.sleep(for: .milliseconds(240))
+            return
+        }
+        lift = 0
+        scale = 1
+        blur = 0
+        opacity = 1
         if phase == .rest {
             withAnimation(.easeInOut(duration: 0.18)) { phase = .compact }
             guard (try? await Task.sleep(for: .milliseconds(180))) != nil else { return }
         }
         withAnimation(.spring(response: 0.42, dampingFraction: 0.78)) { phase = .expanded }
-        withAnimation(.easeIn(duration: 0.18).delay(0.1)) { textVisible = true }
-        _ = try? await Task.sleep(for: .milliseconds(240))
+        // The text waits until the height has mostly opened, so it doesn't peek out under a pill
+        // that is still growing.
+        withAnimation(.easeIn(duration: 0.15).delay(0.28)) { textVisible = true }
+        _ = try? await Task.sleep(for: .milliseconds(430))
     }
 
     private func close() async {
-        if island == nil || reduceMotion {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                opacity = 0
-                textVisible = false
-            }
+        if reduceMotion {
+            withAnimation(.easeInOut(duration: 0.2)) { opacity = 0 }
             _ = try? await Task.sleep(for: .milliseconds(220))
+            controller.finish(presented.id)
+            return
+        }
+        if island == nil {
+            // Lifts back the way it came, picking up from wherever a swipe left it.
+            withAnimation(.easeIn(duration: 0.22)) {
+                lift = -24
+                scale = 0.94
+                blur = 4
+                opacity = 0
+            }
+            _ = try? await Task.sleep(for: .milliseconds(230))
             controller.finish(presented.id)
             return
         }
@@ -288,8 +349,9 @@ private struct AlertAvatarView: View {
     var body: some View {
         ZStack {
             Circle().fill(Self.palette[abs(avatar.seed) % Self.palette.count])
-            if let url = avatar.imageURL {
-                AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: { initialText }
+            if let data = avatar.imageData, let image = UIImage(data: data) {
+                Image(uiImage: image).resizable().scaledToFill()
+                    .frame(width: diameter, height: diameter)
                     .clipShape(Circle())
             } else {
                 initialText
@@ -310,8 +372,74 @@ private extension Color {
     static var alertGreen: Color { Color(r: 52, g: 199, b: 89) }
 }
 
-/// The top-anchored half of the toast host.
+/// The top-anchored half of the toast host. The pill draws in its own window, shown only while a pill
+/// is up.
 struct AlertPillHost: View {
+    let controller: AlertPillController
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onAppear { AlertPillWindow.attach(controller) }
+            .onDisappear { AlertPillWindow.detach(controller) }
+    }
+}
+
+/// The pill's window: above the status bar, passing every touch through except those on the pill.
+@MainActor
+private enum AlertPillWindow {
+    private static var window: PassthroughWindow?
+    private static var attachments = 0
+
+    static func attach(_ controller: AlertPillController) {
+        attachments += 1
+        guard window == nil, let scene = activeScene else { return }
+        let window = PassthroughWindow(windowScene: scene)
+        window.windowLevel = .statusBar + 1
+        window.backgroundColor = .clear
+        window.controller = controller
+        let host = UIHostingController(rootView: AlertPillRoot(controller: controller))
+        host.view.backgroundColor = .clear
+        window.rootViewController = host
+        self.window = window
+        showWhilePresenting(window, controller)
+    }
+
+    /// Keeps the window hidden while no pill is up, so it never decides the status bar otherwise.
+    private static func showWhilePresenting(_ window: PassthroughWindow, _ controller: AlertPillController) {
+        withObservationTracking {
+            window.isHidden = controller.current == nil
+        } onChange: { [weak window, weak controller] in
+            Task { @MainActor in
+                guard let window, let controller, self.window === window else { return }
+                showWhilePresenting(window, controller)
+            }
+        }
+    }
+
+    static func detach(_ controller: AlertPillController) {
+        attachments = max(0, attachments - 1)
+        guard attachments == 0 else { return }
+        window?.isHidden = true
+        window = nil
+    }
+
+    private static var activeScene: UIWindowScene? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+    }
+}
+
+private final class PassthroughWindow: UIWindow {
+    weak var controller: AlertPillController?
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard let controller, controller.current != nil, controller.pillFrame.contains(point) else { return nil }
+        return super.hitTest(point, with: event)
+    }
+}
+
+private struct AlertPillRoot: View {
     let controller: AlertPillController
 
     var body: some View {
@@ -326,16 +454,30 @@ struct AlertPillHost: View {
                 .id(presented.id)
             }
         }
-        .ignoresSafeArea(.container, edges: .top)
-        .allowsHitTesting(controller.current != nil)
+        .ignoresSafeArea()
     }
 
-    /// The window's top inset: inside an overlay that ignores the safe area a `GeometryReader` reports 0.
+    /// The app window's top inset: inside an overlay that ignores the safe area a `GeometryReader`
+    /// reports 0.
     private static var windowSafeAreaTop: CGFloat {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .first(where: \.isKeyWindow)?
             .safeAreaInsets.top ?? 0
+    }
+}
+
+private extension View {
+
+    /// The panel glass with a dark tint, so the alert reads as a solid surface over busy content.
+    @ViewBuilder
+    func alertGlassBackground(cornerRadius: CGFloat) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.regular.tint(Color.black.opacity(0.55)), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
+                .background(Color.black.opacity(0.55), in: .rect(cornerRadius: cornerRadius))
+        }
     }
 }

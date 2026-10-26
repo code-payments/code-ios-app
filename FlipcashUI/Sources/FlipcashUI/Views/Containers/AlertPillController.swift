@@ -25,12 +25,12 @@ public struct AlertPillContent: Equatable, Sendable {
     public struct Avatar: Equatable, Sendable {
         public let initial: String
         public let seed: Int
-        public let imageURL: URL?
+        public let imageData: Data?
 
-        public init(initial: String, seed: Int, imageURL: URL? = nil) {
+        public init(initial: String, seed: Int, imageData: Data? = nil) {
             self.initial = initial
             self.seed = seed
-            self.imageURL = imageURL
+            self.imageData = imageData
         }
     }
 
@@ -73,15 +73,22 @@ public final class AlertPillController {
         public fileprivate(set) var hold: Duration
         /// Bumped by every in-place swap, so the host restarts the hold without replaying the entrance.
         public fileprivate(set) var revision: Int
+        fileprivate(set) var haptic: Haptic
         fileprivate(set) var onTap: () -> Void
     }
 
     /// The pill on screen, or `nil` when none is.
     public private(set) var current: Presented?
+    /// Where the pill is on screen, so its window can pass every other touch through.
+    @ObservationIgnored var pillFrame: CGRect = .null
 
     /// Called once with the pill's id when it has finished closing, by timeout, tap or swipe, or when
     /// it was dropped; the owner shows the next one from here.
     @ObservationIgnored public var onFinished: ((UUID) -> Void)?
+
+    @ObservationIgnored private let impact = UIImpactFeedbackGenerator(style: .rigid)
+    @ObservationIgnored private let notification = UINotificationFeedbackGenerator()
+    @ObservationIgnored private let selection = UISelectionFeedbackGenerator()
 
     public init() {}
 
@@ -93,22 +100,33 @@ public final class AlertPillController {
         haptic: Haptic,
         onTap: @escaping () -> Void
     ) -> UUID {
-        switch haptic {
-        case .light: UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        case .success: UINotificationFeedbackGenerator().notificationOccurred(.success)
-        }
+        // Warmed here and played by the banner once it has landed, so the tap lines up with what you see.
+        impact.prepare()
+        notification.prepare()
+        selection.prepare()
         AccessibilityNotification.Announcement("\(content.title). \(content.subtitle)").post()
         if var presented = current {
             presented.content = content
             presented.hold = hold
             presented.revision += 1
+            presented.haptic = haptic
             presented.onTap = onTap
             current = presented
             return presented.id
         }
-        let presented = Presented(id: UUID(), content: content, hold: hold, revision: 0, onTap: onTap)
+        let presented = Presented(id: UUID(), content: content, hold: hold, revision: 0, haptic: haptic, onTap: onTap)
         current = presented
         return presented.id
+    }
+
+    /// Plays the haptic for the banner as it lands. A banner updated in place gets a lighter tick,
+    /// unless the update turned it into a boost.
+    func playHaptic(_ haptic: Haptic, isUpdate: Bool) {
+        switch (haptic, isUpdate) {
+        case (.success, _): notification.notificationOccurred(.success)
+        case (.light, false): impact.impactOccurred(intensity: 0.75)
+        case (.light, true): selection.selectionChanged()
+        }
     }
 
     /// Removes the pill `id` once the host has played its close, if it is still the one showing.
