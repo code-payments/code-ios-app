@@ -76,6 +76,8 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     private let onReact: (String) -> Void
     private let onMoreReactions: () -> Void
     private let reactionEntries: () -> [ReactionStrip.Entry]
+    /// The user's own reaction emoji the React button currently shows, in strip order.
+    private var ownReactionEmoji: [String] = []
 
     let scrollView = UIScrollView()
     let imageView = UIImageView()
@@ -232,6 +234,8 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
             trailingPill.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
         ])
 
+        updateReactButton(entries: reactionEntries())
+        observeReactionEntries()
         loadedImage = nil
         setControlsHidden(true, animated: false)
         loadImage()
@@ -425,30 +429,28 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         ])
         reactionStrip = strip
         reactionDismissCatcher = catcher
-        observeReactionEntries()
         reactButton.accessibilityLabel = "Close reactions"
         strip.alpha = 0
         UIView.animate(withDuration: 0.2) { strip.alpha = 1 }
     }
 
-    /// Re-reads the entries whenever what `reactionEntries` reads changes, so the strip's highlights
-    /// follow the message's live reactions while it is open.
+    /// Re-reads the entries whenever what `reactionEntries` reads changes, so the React button's emoji
+    /// and, while it is open, the strip's highlights follow the message's live reactions.
     private func observeReactionEntries() {
-        guard reactionStrip != nil else { return }
-        let entries = withObservationTracking {
+        _ = withObservationTracking {
             reactionEntries()
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
-                self?.refreshReactionStrip()
+                self?.refreshReactionChrome()
             }
         }
-        _ = entries
     }
 
-    private func refreshReactionStrip() {
-        guard let strip = reactionStrip else { return }
+    private func refreshReactionChrome() {
         observeReactionEntries()
         let fresh = reactionEntries()
+        updateReactButton(entries: fresh)
+        guard let strip = reactionStrip else { return }
         if fresh.isEmpty {
             dismissReactionStrip(animated: true)
         } else {
@@ -456,12 +458,59 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         }
     }
 
+    /// The most emoji the React button draws before it folds the rest into "+N".
+    static let reactButtonEmojiLimit = 3
+
+    /// What the React button shows for the user's own reactions: nothing to draw for none, up to
+    /// three emoji, or the first two and the count of the rest.
+    static func reactGlyph(for own: [String]) -> (emoji: [String], overflow: Int) {
+        if own.count <= reactButtonEmojiLimit { return (own, 0) }
+        return (Array(own.prefix(reactButtonEmojiLimit - 1)), own.count - (reactButtonEmojiLimit - 1))
+    }
+
+    static func reactAccessibilityLabel(for own: [String]) -> String {
+        switch own.count {
+        case 0: "React"
+        case 1: "React, you reacted \(own[0])"
+        default: "React, you reacted \(own.dropLast().joined(separator: ", ")) and \(own[own.count - 1])"
+        }
+    }
+
+    /// Swaps the face icon for the user's own reaction emoji, overlapped tightly, when they have any.
+    private func updateReactButton(entries: [ReactionStrip.Entry]) {
+        let own = entries.filter(\.highlighted).map(\.emoji)
+        if reactionStrip == nil { reactButton.accessibilityLabel = Self.reactAccessibilityLabel(for: own) }
+        guard own != ownReactionEmoji else { return }
+        ownReactionEmoji = own
+        guard !own.isEmpty else {
+            reactButton.configuration?.attributedTitle = nil
+            reactButton.configuration?.image = Self.reactSymbol
+            return
+        }
+        let glyph = Self.reactGlyph(for: own)
+        let text = NSMutableAttributedString()
+        let emojiFont = UIFont.systemFont(ofSize: 22)
+        for (index, emoji) in glyph.emoji.enumerated() {
+            let isLast = index == glyph.emoji.count - 1 && glyph.overflow == 0
+            text.append(NSAttributedString(string: emoji, attributes: [.font: emojiFont, .kern: isLast ? 0 : -9]))
+        }
+        if glyph.overflow > 0 {
+            text.append(NSAttributedString(string: "+\(glyph.overflow)", attributes: [
+                .font: UIFont.systemFont(ofSize: 15, weight: .semibold), .foregroundColor: UIColor.white,
+            ]))
+        }
+        reactButton.configuration?.image = nil
+        reactButton.configuration?.attributedTitle = AttributedString(text)
+    }
+
+    static let reactSymbol = UIImage(systemName: "face.smiling", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+
     func dismissReactionStrip(animated: Bool) {
         guard let strip = reactionStrip else { return }
         let catcher = reactionDismissCatcher
         reactionStrip = nil
         reactionDismissCatcher = nil
-        reactButton.accessibilityLabel = "React"
+        reactButton.accessibilityLabel = Self.reactAccessibilityLabel(for: ownReactionEmoji)
         catcher?.removeFromSuperview()
         guard animated else { strip.removeFromSuperview(); return }
         UIView.animate(withDuration: 0.15, animations: { strip.alpha = 0 }) { _ in strip.removeFromSuperview() }

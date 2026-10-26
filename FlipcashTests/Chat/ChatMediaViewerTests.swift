@@ -274,6 +274,64 @@ struct ChatMediaViewerTests {
         #expect(viewer.reactionStrip != nil)
     }
 
+    private func ownEntries(_ own: [String]) -> [ReactionStrip.Entry] {
+        ["👍", "❤️", "😂", "🔥", "😮"].map { ReactionStrip.Entry(emoji: $0, highlighted: own.contains($0)) }
+    }
+
+    private func titleText(_ viewer: ChatMediaViewerController) -> String? {
+        viewer.reactButton.configuration?.attributedTitle.map { String($0.characters) }
+    }
+
+    @Test("With no reactions of its own the React button keeps the face icon")
+    func reactButtonNoOwnReactions() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries([]) })
+        #expect(viewer.reactButton.configuration?.image != nil)
+        #expect(titleText(viewer) == nil)
+        #expect(viewer.reactButton.accessibilityLabel == "React")
+    }
+
+    @Test("One own reaction replaces the icon with that emoji")
+    func reactButtonOneReaction() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["❤️"]) })
+        #expect(viewer.reactButton.configuration?.image == nil)
+        #expect(titleText(viewer) == "❤️")
+        #expect(viewer.reactButton.accessibilityLabel == "React, you reacted ❤️")
+    }
+
+    @Test("Three own reactions show all three, in strip order")
+    func reactButtonThreeReactions() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["🔥", "👍", "😂"]) })
+        #expect(titleText(viewer) == "👍😂🔥")
+        #expect(viewer.reactButton.accessibilityLabel == "React, you reacted 👍, 😂 and 🔥")
+    }
+
+    @Test("More than three own reactions show the first two and a +N count")
+    func reactButtonOverflow() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["👍", "❤️", "😂", "🔥", "😮"]) })
+        #expect(titleText(viewer) == "👍❤️+3")
+        #expect(viewer.reactButton.accessibilityLabel?.hasPrefix("React, you reacted 👍") == true)
+    }
+
+    @Test("The React button follows a pick or unpick while the viewer is open")
+    func reactButtonFollowsLiveReactions() async throws {
+        let model = ReactionsModel()
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: {
+            [ReactionStrip.Entry(emoji: "👍", highlighted: model.liked)]
+        })
+        #expect(titleText(viewer) == nil)
+
+        model.liked = true
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(titleText(viewer) == "👍")
+        #expect(viewer.reactButton.accessibilityLabel == "React, you reacted 👍")
+
+        model.liked = false
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(titleText(viewer) == nil)
+        #expect(viewer.reactButton.configuration?.image != nil)
+        #expect(viewer.reactButton.accessibilityLabel == "React")
+    }
+
     @Test("Close sits above the tap catcher, so one tap on it still closes the viewer")
     func closeStaysAboveCatcher() throws {
         let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
