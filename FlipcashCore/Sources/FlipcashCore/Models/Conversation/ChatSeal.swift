@@ -104,7 +104,8 @@ public struct ChatSeal: @unchecked Sendable {
         })
     }
 
-    private func seal(_ plaintext: Flipcash_Messaging_V1_Content) throws -> Flipcash_Messaging_V1_Content {
+    /// Encrypts `plaintext` into the content to send in its place.
+    func seal(_ plaintext: Flipcash_Messaging_V1_Content) throws -> Flipcash_Messaging_V1_Content {
         let bytes = SharedBytes.shared
         let content = bytes.byteArray(data: try plaintext.serializedData())
         let payload: EncryptedPayload
@@ -391,7 +392,15 @@ extension Flipcash_Messaging_V1_Content {
             case .cash, .system, .widget, .deleted, .encrypted, .reply, nil:
                 return nil
             }
-        case .cash, .system, .widget, .deleted, .encrypted, nil:
+        case .widget(let widget):
+            // A request is the one card a member seals; a profile share comes only from the server.
+            switch widget.type {
+            case .paymentRequest(let request) where request.hasPaymentRequestID:
+                return (.widget(.paymentRequest(PaymentRequestID(request.paymentRequestID))), nil, nil)
+            case .paymentRequest, .shareProfile, .poll, nil:
+                return nil
+            }
+        case .cash, .system, .deleted, .encrypted, nil:
             return nil
         }
     }
