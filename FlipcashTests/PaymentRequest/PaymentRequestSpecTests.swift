@@ -613,6 +613,17 @@ struct PaymentRequestDeadlinePickerTests {
         #expect(picker.closesValue == "Thu, Nov 5, 3:00\u{202F}PM")
     }
 
+    @Test("48: the band runs square up to the start and end circles")
+    func squareEnds() {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        let start = picker.band(for: date(10, 26))
+        let end = picker.band(for: date(11, 2))
+        #expect(start?.fromCenter == true)
+        #expect(start?.roundedLeading == false)
+        #expect(end?.toCenter == true)
+        #expect(end?.roundedTrailing == false)
+    }
+
     @Test("39: the summary keeps its choice until Done, and reopening shows the current one")
     func dismissKeepsChoice() {
         let deadline = PaymentRequestDeadline.oneWeek

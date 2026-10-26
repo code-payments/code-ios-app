@@ -790,18 +790,18 @@ private struct PaymentRequestDeadlineGrid: View {
             let trailing: CGFloat = inRange.last.flatMap { day, band in
                 anchors[day].map { band.toCenter ? proxy[$0].midX : proxy[$0].maxX }
             } ?? rowStart.minX
-            let roundedLeading = inRange.first?.1.roundedLeading ?? true
-            let roundedTrailing = inRange.last?.1.roundedTrailing ?? true
-            UnevenRoundedRectangle(
-                topLeadingRadius: roundedLeading ? radius : 0,
-                bottomLeadingRadius: roundedLeading ? radius : 0,
-                bottomTrailingRadius: roundedTrailing ? radius : 0,
-                topTrailingRadius: roundedTrailing ? radius : 0
-            )
-            .fill(Color.white.opacity(0.12))
-            .frame(width: max(trailing - leading, 0), height: Self.circle)
-            .position(x: (leading + trailing) / 2, y: rowEnd.midY)
-            .opacity(inRange.isEmpty ? 0 : 1)
+            // Square ends clipped to a capsule spanning the row: only the row's edges ever round, so an end
+            // sliding with the circle never animates a corner radius.
+            Rectangle()
+                .fill(Color.white.opacity(0.12))
+                .frame(width: max(trailing - leading, 0), height: Self.circle)
+                .position(x: (leading + trailing) / 2, y: rowEnd.midY)
+                .mask {
+                    Capsule()
+                        .frame(width: rowEnd.maxX - rowStart.minX, height: radius * 2)
+                        .position(x: (rowStart.minX + rowEnd.maxX) / 2, y: rowEnd.midY)
+                }
+                .opacity(inRange.isEmpty ? 0 : 1)
         }
     }
 }
