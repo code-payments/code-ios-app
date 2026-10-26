@@ -21,8 +21,8 @@ final class PaymentRequestDeckWindow {
     /// Where the expanded list goes, in screen coordinates: the screen's content area below the bar.
     var listFrame: CGRect = .zero
     /// The request whose details show over the expanded deck. They open from this window so nothing
-    /// of the deck draws over them; once they cover the screen the deck snaps back to the pill, so
-    /// going back finds it minimized.
+    /// of the deck draws over them; as they start to close, while they still cover the screen, the
+    /// deck snaps back to the pill, so going back finds it minimized.
     var details: PaymentRequestSelection?
     /// The app's scene phase, which a second window's views don't receive on their own.
     var scenePhase: ScenePhase = .active
@@ -83,7 +83,7 @@ private struct PaymentRequestDeckWindowContent: View {
             details($0.id)
                 // Details poll and fetch the pay intent only while active.
                 .environment(\.scenePhase, window.scenePhase)
-                .background(AppearanceReader(didAppear: state.snapToPill))
+                .background(DisappearanceReader(willDisappear: state.snapToPill))
         }
     }
 
@@ -103,32 +103,33 @@ private struct PaymentRequestDeckWindowContent: View {
     }
 }
 
-/// Calls `didAppear` once the screen it sits in has finished appearing, after any presentation
-/// transition, which SwiftUI's `onAppear` doesn't wait for.
-private struct AppearanceReader: UIViewControllerRepresentable {
+/// Calls `willDisappear` as the screen it sits in starts to go, before any dismissal transition
+/// uncovers what is beneath. SwiftUI's `onDisappear` comes only once it has gone, and the
+/// appearance callbacks arrive while a presentation is still sliding in.
+private struct DisappearanceReader: UIViewControllerRepresentable {
 
-    let didAppear: () -> Void
+    let willDisappear: () -> Void
 
     func makeUIViewController(context: Context) -> Controller {
-        Controller(didAppear: didAppear)
+        Controller(willDisappear: willDisappear)
     }
 
     func updateUIViewController(_ controller: Controller, context: Context) {}
 
     final class Controller: UIViewController {
 
-        let didAppear: () -> Void
+        let willDisappear: () -> Void
 
-        init(didAppear: @escaping () -> Void) {
-            self.didAppear = didAppear
+        init(willDisappear: @escaping () -> Void) {
+            self.willDisappear = willDisappear
             super.init(nibName: nil, bundle: nil)
         }
 
         required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-        override func viewDidAppear(_ animated: Bool) {
-            super.viewDidAppear(animated)
-            didAppear()
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            willDisappear()
         }
     }
 }
