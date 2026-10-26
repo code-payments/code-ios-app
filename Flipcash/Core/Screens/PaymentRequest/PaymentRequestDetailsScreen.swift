@@ -390,6 +390,12 @@ private struct PaymentRequestPaySheetPresenter: ViewModifier {
                     payeeID: creator,
                     amount: payment.share.map { PaymentRequestCopy(session.displayCurrency).shareText($0, of: request) } ?? ""
                 )
+                .task {
+                    // Opened from the chat's strip, nothing else has loaded the roster that names the payee.
+                    if let chatID = request.chatID, !sessionContainer.groupRosters.isLoaded(chatID) {
+                        await sessionContainer.groupRosters.refresh(chatID)
+                    }
+                }
             }
         }
     }
