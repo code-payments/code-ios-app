@@ -530,8 +530,16 @@ struct PaymentRequestDeadlinePickerTests {
         #expect(picker.selectedPreset == .oneWeek)
         #expect(picker.selectedDay == date(11, 2))
         #expect(picker.customDate == nil)
-        #expect(picker.readoutTitle == "1 Week")
-        #expect(picker.readoutSubtitle == "Closes 7 days after you send · around Mon, Nov 2")
+        #expect(picker.rangeStart == date(10, 26))
+        #expect(picker.band(for: date(10, 25)) == nil)
+        #expect(picker.band(for: date(10, 26)) == RangeBand(fromCenter: true, toCenter: false, roundedLeading: false, roundedTrailing: false))
+        #expect(picker.band(for: date(10, 28)) == RangeBand(fromCenter: false, toCenter: false, roundedLeading: false, roundedTrailing: false))
+        #expect(picker.band(for: date(10, 31)) == RangeBand(fromCenter: false, toCenter: false, roundedLeading: false, roundedTrailing: true))
+        #expect(picker.band(for: date(11, 1)) == RangeBand(fromCenter: false, toCenter: false, roundedLeading: true, roundedTrailing: false))
+        #expect(picker.band(for: date(11, 2)) == RangeBand(fromCenter: false, toCenter: true, roundedLeading: false, roundedTrailing: false))
+        #expect(picker.band(for: date(11, 3)) == nil)
+        #expect(picker.closesValue == "≈ Mon, Nov 2")
+        #expect(picker.summaryLine == "1 Week · closes 7 days after you send")
     }
 
     @Test("35: tapping a day makes it custom at 6:00 PM")
@@ -542,8 +550,10 @@ struct PaymentRequestDeadlinePickerTests {
         let custom = try #require(picker.customDate)
         #expect(custom == date(11, 5, 18))
         #expect(picker.timeText(custom) == "6:00\u{202F}PM")
-        #expect(picker.readoutTitle == "Until Nov 5, 6:00\u{202F}PM")
-        #expect(picker.readoutSubtitle == "Custom · 10 days from now")
+        #expect(picker.closesValue == "Thu, Nov 5, 6:00\u{202F}PM")
+        #expect(picker.summaryLine == "Custom · 10 days")
+        #expect(picker.band(for: date(11, 5))?.toCenter == true)
+        #expect(picker.band(for: date(11, 6)) == nil)
     }
 
     @Test("36: today's default time moves up to an hour from now")
@@ -567,7 +577,8 @@ struct PaymentRequestDeadlinePickerTests {
         picker.select(.twoWeeks)
         #expect(picker.customDate == nil)
         #expect(picker.selectedDay == date(11, 9))
-        #expect(picker.readoutTitle == "2 Weeks")
+        #expect(picker.band(for: date(11, 9))?.toCenter == true)
+        #expect(picker.summaryLine == "2 Weeks · closes 14 days after you send")
     }
 
     @Test("39: the summary keeps its choice until Done, and reopening shows the current one")
@@ -581,5 +592,15 @@ struct PaymentRequestDeadlinePickerTests {
         #expect(reopened.customDate == date(11, 5, 18))
         reopened.select(day: date(11, 7))
         #expect(reopened.customDate == date(11, 7, 18))
+    }
+
+    @Test("40: today tapped shows only the closing circle, with no band")
+    func closesToday() {
+        let picker = picker(openedAt: date(10, 26, 11, 39))
+        picker.select(day: date(10, 26))
+        #expect(picker.selectedDay == date(10, 26))
+        #expect(picker.rangeStart == nil)
+        #expect(picker.band(for: date(10, 26)) == nil)
+        #expect(picker.closesValue == "Mon, Oct 26, 6:00\u{202F}PM")
     }
 }

@@ -75,10 +75,25 @@ final class PaymentRequestDeadlinePicker {
         calendar.startOfDay(for: choice.endsAt(sentAt: openedAt))
     }
 
-    /// Whether `day` sits between today and the chosen day, so it carries the selection band.
-    func isInBand(_ day: Date) -> Bool {
-        let start = calendar.startOfDay(for: day)
-        return start > today && start < selectedDay
+    /// The range's grey start circle: today, or nil when the choice closes today.
+    var rangeStart: Date? {
+        selectedDay > today ? today : nil
+    }
+
+    /// The part of the range band `day`'s cell draws, or nil when the band does not reach it.
+    func band(for day: Date) -> RangeBand? {
+        guard let start = rangeStart else { return nil }
+        let day = calendar.startOfDay(for: day)
+        guard day >= start, day <= selectedDay else { return nil }
+        let column = gridDays.firstIndex(of: day).map { $0 % 7 }
+        let fromCenter = day == start
+        let toCenter = day == selectedDay
+        return RangeBand(
+            fromCenter: fromCenter,
+            toCenter: toCenter,
+            roundedLeading: !fromCenter && column == 0,
+            roundedTrailing: !toCenter && column == 6
+        )
     }
 
     /// The preset currently chosen, nil for a custom day.
@@ -153,27 +168,21 @@ final class PaymentRequestDeadlinePicker {
         return minute.addingTimeInterval(60)
     }
 
-    // MARK: - Readout -
+    // MARK: - Starts / Closes -
 
-    /// The readout's large line: "1 Week", or "Until Nov 5, 6:00 PM".
-    var readoutTitle: String {
-        guard let date = customDate else { return choice.rowTitle }
-        return "Until \(dayText(date)), \(timeText(date))"
+    /// The Closes field: "≈ Mon, Nov 2" for a preset, "Thu, Nov 5, 6:00 PM" for a custom day.
+    var closesValue: String {
+        guard let date = customDate else { return "≈ \(dayText(choice.endsAt(sentAt: openedAt)))" }
+        return "\(dayText(date)), \(timeText(date))"
     }
 
-    /// The readout's small line: "Closes 7 days after you send · around Mon, Nov 2", or
-    /// "Custom · 10 days from now".
-    var readoutSubtitle: String {
+    /// The grey line under the fields: "1 Week · closes 7 days after you send", or "Custom · 10 days".
+    var summaryLine: String {
         guard let date = customDate else {
-            let days = presetDays
-            let around = choice.endsAt(sentAt: openedAt).formatted(
-                Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
-                    .weekday(.abbreviated).month(.abbreviated).day()
-            )
-            return "Closes \(Self.days(days)) after you send · around \(around)"
+            return "\(choice.rowTitle) · closes \(Self.days(presetDays)) after you send"
         }
         let days = calendar.dateComponents([.day], from: today, to: calendar.startOfDay(for: date)).day ?? 0
-        return days == 0 ? "Custom · Today" : "Custom · \(Self.days(days)) from now"
+        return days == 0 ? "Custom · Today" : "Custom · \(Self.days(days))"
     }
 
     /// The Time row's value: "6:00 PM".
@@ -192,7 +201,7 @@ final class PaymentRequestDeadlinePicker {
     private func dayText(_ date: Date) -> String {
         date.formatted(
             Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
-                .month(.abbreviated).day()
+                .weekday(.abbreviated).month(.abbreviated).day()
         )
     }
 
@@ -210,4 +219,16 @@ final class PaymentRequestDeadlinePicker {
     private static func days(_ count: Int) -> String {
         count == 1 ? "1 day" : "\(count) days"
     }
+}
+
+/// The slice of the Time To Pay range band one grid cell draws.
+struct RangeBand: Equatable {
+    /// Starts at the cell's centre, under the grey start circle.
+    var fromCenter: Bool
+    /// Stops at the cell's centre, under the white closing circle.
+    var toCenter: Bool
+    /// Ends rounded at the row's leading edge, where the range wraps from the week before.
+    var roundedLeading: Bool
+    /// Ends rounded at the row's trailing edge, where the range wraps to the next week.
+    var roundedTrailing: Bool
 }

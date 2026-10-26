@@ -549,19 +549,19 @@ private struct PaymentRequestDeadlineSheet: View {
                 .foregroundStyle(Color.textMain)
                 .padding(.top, 24)
 
-            VStack(spacing: 6) {
-                Text(picker.readoutTitle)
-                    .font(.appDisplayCompact)
-                    .foregroundStyle(Color.textMain)
-                Text(picker.readoutSubtitle)
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    field(label: "Starts", value: "Today, on send", isEditing: false)
+                    field(label: "Closes", value: picker.closesValue, isEditing: true)
+                        .onChange(of: picker.closesValue) { _, value in
+                            AccessibilityNotification.Announcement("Closes \(value)").post()
+                        }
+                }
+                Text(picker.summaryLine)
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .accessibilityElement(children: .combine)
-            .onChange(of: picker.readoutTitle) { _, title in
-                AccessibilityNotification.Announcement(title).post()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             chips
@@ -608,6 +608,29 @@ private struct PaymentRequestDeadlineSheet: View {
         .background(Color.backgroundMain)
         .presentationDetents([height > 0 ? .height(height) : .large])
         .presentationDragIndicator(.visible)
+    }
+
+    private func field(label: String, value: String, isEditing: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.appTextCaption)
+                .foregroundStyle(Color.textSecondary)
+            Text(value)
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.backgroundSecondary, in: .rect(cornerRadius: 12))
+        .overlay {
+            if isEditing {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white, lineWidth: 1.5)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var chips: some View {
@@ -669,20 +692,19 @@ private struct PaymentRequestDeadlineGrid: View {
         let calendar = picker.calendar
         let isEnabled = picker.isEnabled(day)
         let isSelected = calendar.isDate(day, inSameDayAs: picker.selectedDay)
-        let isToday = calendar.isDate(day, inSameDayAs: picker.today)
+        let isStart = picker.rangeStart.map { calendar.isDate(day, inSameDayAs: $0) } ?? false
         let number = calendar.component(.day, from: day)
         Button {
             picker.select(day: day)
         } label: {
             ZStack {
-                if picker.isInBand(day) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.1))
+                if let band = picker.band(for: day) {
+                    bandPiece(band)
                 }
                 if isSelected {
-                    Circle().fill(Color.white).frame(width: 34, height: 34)
-                } else if isToday {
-                    Circle().strokeBorder(Color.textSecondary, lineWidth: 1).frame(width: 34, height: 34)
+                    Circle().fill(Color.white).frame(width: Self.circle, height: Self.circle)
+                } else if isStart {
+                    Circle().fill(Self.startGrey).frame(width: Self.circle, height: Self.circle)
                 }
                 Text("\(number)")
                     .font(.appTextMedium)
@@ -704,6 +726,27 @@ private struct PaymentRequestDeadlineGrid: View {
         .accessibilityHidden(!isEnabled)
         .accessibilityLabel(picker.accessibilityDay(day))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private static let circle: CGFloat = 34
+    private static let startGrey = Color(red: 0x6B / 255, green: 0x6B / 255, blue: 0x6E / 255)
+
+    /// One cell's slice of the range band, flat where a circle caps it and rounded where the week wraps.
+    private func bandPiece(_ band: RangeBand) -> some View {
+        let radius = Self.circle / 2
+        return HStack(spacing: 0) {
+            Color.clear.frame(maxWidth: band.fromCenter ? .infinity : 0)
+            UnevenRoundedRectangle(
+                topLeadingRadius: band.roundedLeading ? radius : 0,
+                bottomLeadingRadius: band.roundedLeading ? radius : 0,
+                bottomTrailingRadius: band.roundedTrailing ? radius : 0,
+                topTrailingRadius: band.roundedTrailing ? radius : 0
+            )
+            .fill(Color.white.opacity(0.12))
+            .frame(maxWidth: .infinity)
+            Color.clear.frame(maxWidth: band.toCenter ? .infinity : 0)
+        }
+        .frame(height: Self.circle)
     }
 }
 
