@@ -356,9 +356,15 @@ struct TipConversationRow: View {
     var body: some View {
         let counterpart = conversation.counterpart(excluding: conversationController.selfUserID)
         let title = conversationController.displayName(for: conversation)
-        let subtitle = self.subtitle
-        let hasUnread = conversation.hasUnread(for: conversationController.selfUserID)
-        let unreadCount = hasUnread ? conversationController.unreadCount(for: conversation) : nil
+        let joinRequests = ChatRowJoinRequests(conversationController.joinRequests(for: conversation.id))
+        let hasUnreadMessages = conversation.hasUnread(for: conversationController.selfUserID)
+        let unreadMessageCount = hasUnreadMessages ? conversationController.unreadCount(for: conversation) : nil
+        let subtitle = joinRequests.subtitle(preview: self.subtitle, hasUnreadMessages: hasUnreadMessages)
+        let hasUnread = hasUnreadMessages || joinRequests.count > 0
+        let unreadCount = joinRequests.pillCount(hasUnreadMessages: hasUnreadMessages, unreadMessageCount: unreadMessageCount)
+        // A pending request moves the row up, so the time shown is the one it sorts by.
+        let timestamp = conversationController.chatListJoinRequests(for: conversation.id)
+            .sortTime(after: conversation.lastActivity)
         // Read once, for the label only — the bell keeps its own clock. A label can't: VoiceOver
         // reads it when it lands on the row, and this view redraws on store changes rather than at
         // the instant a timed mute lapses, so it can be a moment stale.
@@ -374,11 +380,17 @@ struct TipConversationRow: View {
             blurhash: avatarPicture?.thumbnailBlurhash,
             accessoryPlacement: .titleLine,
             mute: conversation.viewerState?.mute,
-            accessibilityLabel: accessibilityLabel(title: title, hasUnread: hasUnread, unreadCount: unreadCount, isMuted: isMuted),
+            accessibilityLabel: accessibilityLabel(
+                title: title,
+                joinRequests: joinRequests.line,
+                hasUnreadMessages: hasUnreadMessages,
+                unreadMessageCount: unreadMessageCount,
+                isMuted: isMuted
+            ),
             onTap: onTap
         ) {
             RecipientRowAccessory(
-                timestamp: conversation.lastActivity,
+                timestamp: timestamp,
                 isUnknown: false,
                 hasUnread: hasUnread,
                 unreadCount: unreadCount
@@ -439,8 +451,14 @@ struct TipConversationRow: View {
     }
 
     /// The row reads as one element, so the bell's own label is discarded — it has to be said here.
-    private func accessibilityLabel(title: String, hasUnread: Bool, unreadCount: Int?, isMuted: Bool) -> String {
-        [title, hasUnread ? unreadLabel(count: unreadCount) : nil, isMuted ? "muted" : nil]
+    private func accessibilityLabel(
+        title: String,
+        joinRequests: String?,
+        hasUnreadMessages: Bool,
+        unreadMessageCount: Int?,
+        isMuted: Bool
+    ) -> String {
+        [title, joinRequests, hasUnreadMessages ? unreadLabel(count: unreadMessageCount) : nil, isMuted ? "muted" : nil]
             .compactMap { $0 }
             .joined(separator: ", ")
     }

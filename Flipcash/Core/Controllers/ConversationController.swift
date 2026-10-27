@@ -111,10 +111,23 @@ final class ConversationController {
                 isArchived: archived.contains(conversation.id),
                 isMuted: conversation.isMuted(at: .now),
                 isHidden: conversation.isHidden,
-                unread: chatListUnread(for: conversation)
+                unread: chatListUnread(for: conversation),
+                joinRequests: chatListJoinRequests(for: conversation.id)
             )
         }
         return ChatListProjection.project(entries)
+    }
+
+    /// The people waiting to join `conversationID`, newest first; empty for a chat the user doesn't host.
+    func joinRequests(for conversationID: ConversationID) -> [LobbyMember] {
+        hostedLobbies?.requests(for: conversationID) ?? []
+    }
+
+    /// The join requests a chat's row and list position reflect.
+    func chatListJoinRequests(for conversationID: ConversationID) -> ChatListJoinRequests {
+        let requests = joinRequests(for: conversationID)
+        guard !requests.isEmpty else { return .none }
+        return ChatListJoinRequests(count: requests.count, newestEnteredAt: requests.compactMap(\.enteredAt).max())
     }
 
     private func chatListUnread(for conversation: Conversation) -> ChatListUnread {
