@@ -7,7 +7,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The post-login root. Hosts the four tabs, opens on the tab it is given, and owns the
+/// The post-login root. Hosts the four tabs, opens on `HomeTab.initial`, and owns the
 /// app-level `router.rootSheet` host so `router.present(_:)` works from any tab.
 ///
 /// On iOS 26 the tabs live in a native `TabView`, which renders the system
@@ -37,9 +37,9 @@ struct HomeTabView: View {
     /// than by either bar, because both bars want the same download.
     @State private var profilePhoto = TabBarProfilePhoto()
 
-    init(initialTab: HomeTab = .initial) {
-        _selection = State(initialValue: initialTab)
-        _hasOpenedChat = State(initialValue: initialTab == .chat)
+    init() {
+        _selection = State(initialValue: HomeTab.initial)
+        _hasOpenedChat = State(initialValue: HomeTab.initial == .chat)
 
         // Color the tab glyphs white in both states, as iOS 27 already does; the
         // outline-vs-filled glyph carries the selection. The iOS 26 tab bar

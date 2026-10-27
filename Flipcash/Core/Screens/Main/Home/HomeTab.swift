@@ -7,7 +7,7 @@ import SwiftUI
 
 /// The tabs of the v2 tab-bar UI, in display order (left → right). Chat sits
 /// second, beside the scanner that feeds it. Declaration order is the bar's
-/// order, not the launch tab; see ``initial`` and ``postOnboarding``. Matches Android's
+/// order, not the launch tab; see ``initial``. Matches Android's
 /// `NavBarButton.tabs`.
 ///
 /// Icons are the Figma tab-bar glyphs (`Nav*` template imagesets, from the same
@@ -20,12 +20,9 @@ enum HomeTab: Int, CaseIterable, Identifiable, Hashable {
 
     var id: Int { rawValue }
 
-    /// The tab selected on cold launch and after signing in to an existing
-    /// account.
+    /// The tab selected on cold launch, after signing in to an existing
+    /// account, and when onboarding finishes creating a new one.
     static let initial: HomeTab = .chat
-
-    /// The tab selected when onboarding finishes creating a new account.
-    static let postOnboarding: HomeTab = .wallet
 
     /// The asset-catalog name of the tab's template glyph. Selected tabs use a
     /// filled glyph and the rest an outline, per the tab bar spec.

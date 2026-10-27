@@ -238,7 +238,7 @@ class OnboardingViewModel {
             return
         }
 
-        sessionAuthenticator.completeLogin(with: initializedAccount, landingTab: .postOnboarding)
+        sessionAuthenticator.completeLogin(with: initializedAccount)
 
         Analytics.onboardingCompleted()
     }
