@@ -231,6 +231,30 @@ struct ChatSearchTests {
         #expect(model.scope == .all)
     }
 
+    @Test("Reset returns the model to a first open and keeps the loaded messages")
+    func resetStartsFresh() async {
+        let hit = text(1, "hello jeff")
+        let model = ChatSearchModel(
+            conversations: { [] },
+            loadMessages: { [hit] },
+            currencySearch: LocalCurrencyNameSearch(candidates: { [] }),
+            chatName: { _ in "" },
+            senderName: { _, _ in nil }
+        )
+        await model.load()
+        model.query = "hello"
+        model.scope = .messages
+        model.reset()
+        #expect(model.query.isEmpty)
+        #expect(model.isIdle)
+        #expect(model.scope == .all)
+        #expect(model.results == .empty)
+
+        model.query = "hello"
+        try? await Task.sleep(for: .milliseconds(400))
+        #expect(model.results.messages.count == 1)
+    }
+
     @Test("A currency card shows weekly change and new members only from Discover's weekly metrics")
     func currencyCardLines() {
         let withMetrics = mint(Self.mintA, name: "Jeffy", withMetrics: true)

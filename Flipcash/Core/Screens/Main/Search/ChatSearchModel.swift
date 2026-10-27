@@ -87,6 +87,15 @@ final class ChatSearchModel {
         scheduleSearch(debounce: false)
     }
 
+    /// Puts the screen back to a first open: empty query, All chip, no results. The messages read
+    /// by `load()` stay, so the next query needs no reload.
+    func reset() {
+        searchTask?.cancel()
+        query = ""
+        scope = .all
+        results = .empty
+    }
+
     /// The name of the chat a result belongs to.
     func chatName(for conversationID: ConversationID) -> String? {
         conversations().first { $0.id == conversationID }.map(chatName)
