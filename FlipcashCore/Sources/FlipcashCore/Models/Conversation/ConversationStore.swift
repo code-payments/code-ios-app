@@ -556,6 +556,29 @@ public struct ConversationStore: Sendable {
         conversations[index].viewerState = viewerState
     }
 
+    /// Takes the viewer's permissions from a freshly fetched chat, leaving mute, silence and version as
+    /// they are. Permissions are computed by the server and do not advance the viewer-state version, so
+    /// ``applyViewerStateChanged(_:in:)`` drops a fetch whose version has not moved. That left a chat
+    /// stored before the moderation permissions existed with `canSilence` and `canBan` false for good.
+    /// Returns whether anything changed, so the caller knows to persist.
+    @discardableResult
+    public mutating func refreshViewerPermissions(from fetched: ConversationViewerState, in conversationID: ConversationID) -> Bool {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return false }
+        let current = conversations[index].viewerState ?? ConversationViewerState()
+        guard current.canEdit != fetched.canEdit || current.canSilence != fetched.canSilence || current.canBan != fetched.canBan else {
+            return false
+        }
+        conversations[index].viewerState = ConversationViewerState(
+            mute: current.mute,
+            canEdit: fetched.canEdit,
+            version: current.version,
+            silence: current.silence,
+            canSilence: fetched.canSilence,
+            canBan: fetched.canBan
+        )
+        return true
+    }
+
     /// Apply a title change delivered via `MetadataUpdate.TitleChanged`. Best-effort and applied as
     /// received — the update carries no version to compare, unlike ``applyRosterUpdates(_:in:)`` and
     /// ``applyViewerStateChanged(_:in:)`` — so a delayed or reordered delivery can in principle

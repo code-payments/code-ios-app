@@ -258,6 +258,7 @@ struct ChatProfileScreen: View {
             let conversation = await conversationController.hydratedConversation(withID: conversationID)
             await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
             await conversationController.fillCoverPicture(for: conversationID)
+            await conversationController.refreshViewerPermissions(for: conversationID)
         }
         // No push says a request was decided, so every visit asks. Keyed on membership so an
         // admission that lands while the profile is open stops the asking.

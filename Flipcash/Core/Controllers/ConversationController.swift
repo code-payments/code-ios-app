@@ -270,6 +270,20 @@ final class ConversationController {
         applyCover(cover, to: conversationID)
     }
 
+    /// Re-reads the viewer's permissions for a stored chat. The row keeps the state it was saved with
+    /// and the stream only carries version changes, so a chat saved before the moderation permissions
+    /// existed would never show its host the Silence and Ban actions. A failed fetch leaves it as is.
+    func refreshViewerPermissions(for conversationID: ConversationID) async {
+        guard conversation(withID: conversationID) != nil,
+              let fetched = try? await fetching.getChat(owner: owner, conversationID: conversationID),
+              let viewerState = fetched.viewerState else {
+            return
+        }
+        if store.refreshViewerPermissions(from: viewerState, in: conversationID) {
+            persistConversation(conversationID)
+        }
+    }
+
     private func applyCover(_ cover: ProfilePicture, to conversationID: ConversationID) {
         _ = store.apply(.coverPictureChanged(conversationID: conversationID, coverPicture: cover))
         persistConversation(conversationID)

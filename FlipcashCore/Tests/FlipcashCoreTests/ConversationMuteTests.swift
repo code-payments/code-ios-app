@@ -108,4 +108,42 @@ struct ConversationMuteTests {
 
         #expect(store.conversations[0].isMuted(at: noon) == false)
     }
+
+    @Test("A viewer state stored before the moderation permissions decodes, keeping its mute")
+    func legacyViewerStateDecodes() throws {
+        let forever = try JSONEncoder().encode(ConversationViewerState(mute: .forever, canEdit: true, version: 4))
+        var object = try #require(JSONSerialization.jsonObject(with: forever) as? [String: Any])
+        object.removeValue(forKey: "canSilence")
+        object.removeValue(forKey: "canBan")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(ConversationViewerState.self, from: legacy)
+
+        #expect(decoded.isMuted(at: noon))
+        #expect(decoded.canEdit)
+        #expect(decoded.version == 4)
+        #expect(decoded.canSilence == false)
+        #expect(decoded.canBan == false)
+    }
+
+    @Test("Fresh permissions replace stale ones at the same version, and mute is untouched")
+    func refreshViewerPermissionsIgnoresTheVersionGate() {
+        var store = ConversationStore()
+        store.apply(.metadataRefresh(conversation(1, viewerState: ConversationViewerState(mute: .forever, version: 2))))
+
+        let fetched = ConversationViewerState(mute: nil, version: 2, canSilence: true, canBan: true)
+        // The versioned path drops an equal version, which is why a stale row never recovered.
+        store.applyViewerStateChanged(fetched, in: conversationID(1))
+        #expect(store.conversations[0].viewerState?.canSilence == false)
+
+        let changed = store.refreshViewerPermissions(from: fetched, in: conversationID(1))
+        #expect(changed)
+        #expect(store.conversations[0].viewerState?.canSilence == true)
+        #expect(store.conversations[0].viewerState?.canBan == true)
+        #expect(store.conversations[0].isMuted(at: noon))
+        #expect(store.conversations[0].viewerState?.version == 2)
+
+        let again = store.refreshViewerPermissions(from: fetched, in: conversationID(1))
+        #expect(again == false)
+    }
 }
