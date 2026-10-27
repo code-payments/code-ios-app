@@ -25,7 +25,7 @@ struct RestrictedUsersScreen: View {
 
     private var title: String {
         switch list {
-        case .silenced: "Silenced"
+        case .silenced: "Restricted"
         case .removed:  "Removed"
         }
     }
@@ -106,7 +106,7 @@ struct RestrictedUsersScreen: View {
         do {
             try await model.undo(user)
         } catch {
-            let action = list == .silenced ? "unsilence" : "unban"
+            let action = list == .silenced ? "lift the restriction on" : "unban"
             sessionContainer.session.dialogItem = .error(
                 title: "Something Went Wrong",
                 subtitle: "We were unable to \(action) \(GroupModerationCopy.firstName(of: user.displayName)). Please try again"
@@ -153,7 +153,7 @@ private struct RestrictedUserRow: View {
 
             Button(action: undo) {
                 // The label keeps its width while the spinner shows.
-                Text(list == .silenced ? "Unsilence" : "Unban")
+                Text(list == .silenced ? "Lift" : "Unban")
                     .opacity(isWorking ? 0 : 1)
                     .overlay {
                         if isWorking {

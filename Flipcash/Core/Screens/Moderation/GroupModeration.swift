@@ -58,11 +58,11 @@ enum SilenceDuration: CaseIterable, Hashable {
 enum GroupModerationCopy {
 
     static func silenceTitle(firstName: String) -> String {
-        "Silence \(firstName)"
+        "Restrict \(firstName)"
     }
 
-    static func silenceCaption(groupName: String) -> String {
-        "They can still read and react in \(groupName), but can't send messages. Only they're told"
+    static func silenceCaption(firstName: String) -> String {
+        "\(firstName) can still read the group but can't send messages"
     }
 
     static func removeTitle(firstName: String) -> String {
@@ -81,10 +81,10 @@ enum GroupModerationCopy {
 
     static func silencedToast(firstName: String, duration: SilenceDuration) -> String {
         switch duration {
-        case .oneHour:    "\(firstName) is silenced for 1 hour"
-        case .eightHours: "\(firstName) is silenced for 8 hours"
-        case .oneWeek:    "\(firstName) is silenced for 1 week"
-        case .forever:    "\(firstName) is silenced"
+        case .oneHour:    "\(firstName) can't send messages for 1 hour"
+        case .eightHours: "\(firstName) can't send messages for 8 hours"
+        case .oneWeek:    "\(firstName) can't send messages for 1 week"
+        case .forever:    "\(firstName) can't send messages in this group"
         }
     }
 
@@ -102,9 +102,9 @@ enum GroupModerationCopy {
         previous != nil && current == nil
     }
 
-    static let noSilenced = "No One Silenced"
+    static let noSilenced = "No One Restricted"
     static let noRemoved = "No One Removed"
-    static let noSilencedBody = "Stop someone from sending messages in this group by tapping their profile and selecting Silence"
+    static let noSilencedBody = "Stop someone from sending messages in this group by tapping their profile and selecting Restrict"
     static let noRemovedBody = "Remove someone from this group by tapping their profile and selecting Remove from Group"
 
     /// The first word of a display name, which is how the host's prompts address the member.
@@ -183,14 +183,14 @@ extension ConversationRestrictedUser {
         case .silenced:
             switch silence {
             case .until(let end):
-                return "Silenced · until \(ConversationGatePanel.endText(end, now: now, calendar: calendar, locale: locale))"
+                return "Restricted · until \(ConversationGatePanel.endText(end, now: now, calendar: calendar, locale: locale))"
             case .forever, nil:
-                return "Silenced · forever"
+                return "Restricted · forever"
             }
         case .removed:
             let date = (bannedAt ?? now).formatted(Date.FormatStyle().month(.abbreviated).day().locale(locale))
             let base = "Removed \(date)"
-            return isSilenced(at: now) ? "\(base) · also silenced" : base
+            return isSilenced(at: now) ? "\(base) · also restricted" : base
         }
     }
 }

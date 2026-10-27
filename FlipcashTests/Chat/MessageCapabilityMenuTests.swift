@@ -157,7 +157,7 @@ struct LiftMenuRowsTests {
             .liftMenuActions(for: ChatMessage(id: "1", text: "hi", sender: .other, actions: [.copy, .reply, .forward, .report, .silence, .remove]))
         #expect(rows.map(\.title).count == 6)
         #expect(rows.map(\.title).first == "Copy")
-        #expect(rows.map(\.title).contains { $0.hasPrefix("Silence") })
+        #expect(rows.map(\.title).contains { $0.hasPrefix("Restrict") })
         #expect(rows.map(\.title).contains { $0.hasPrefix("Remove") })
     }
 
@@ -171,5 +171,15 @@ struct LiftMenuRowsTests {
         let flat = MessageMenuView.size(for: [copy, report])
         // Two dividers (before Report, before Silence) over two extra rows.
         #expect(MessageMenuView.size(for: rows).height - flat.height == CGFloat(2 * 44 + 13))
+    }
+}
+
+@MainActor
+@Suite("Moderation row titles")
+struct ModerationRowTitleTests {
+    @Test("Restrict names the sender with no ellipsis; Remove keeps its ellipsis")
+    func titles() {
+        #expect(MessageCapability.silence.menuTitle(naming: "Ada") == "Restrict Ada")
+        #expect(MessageCapability.remove.menuTitle(naming: "Ada") == "Remove Ada…")
     }
 }

@@ -35,7 +35,7 @@ extension MessageCapability {
         case .report: "Report"
         case .forward: "Forward"
         // The transcript menu adds the sender's first name; this is the fallback when none is known.
-        case .silence: "Silence"
+        case .silence: "Restrict"
         case .remove:  "Remove"
         }
     }

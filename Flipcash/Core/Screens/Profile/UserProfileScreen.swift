@@ -322,7 +322,7 @@ private struct UserProfileContent: View {
                 }
                 // Menu icons follow the app's white tint while the title follows the role, so a
                 // destructive entry's icon is tinted red to match its title.
-                .tint(item.isDestructive ? .red : nil)
+                .tint(item.isDestructive ? Color.textError : nil)
             }
             if !moderationItems.isEmpty {
                 Section(moderationGroup?.title.map { "In \($0)" } ?? "In this group") {
@@ -332,7 +332,7 @@ private struct UserProfileContent: View {
                         } label: {
                             Label(item.title, systemImage: item.systemImage)
                         }
-                        .tint(item.isDestructive ? .red : nil)
+                        .tint(item.isDestructive ? Color.textError : nil)
                     }
                 }
             }

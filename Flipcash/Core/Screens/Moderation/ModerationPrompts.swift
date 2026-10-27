@@ -36,7 +36,7 @@ struct SilenceUserSheet: View {
     var body: some View {
         ChatDurationSheet(
             title: GroupModerationCopy.silenceTitle(firstName: target.firstName),
-            caption: GroupModerationCopy.silenceCaption(groupName: target.groupName),
+            caption: GroupModerationCopy.silenceCaption(firstName: target.firstName),
             isPresented: $isPresented
         ) {
             ForEach(SilenceDuration.allCases, id: \.self) { duration in
@@ -74,7 +74,7 @@ struct SilenceUserSheet: View {
             isPresented = false
             sessionContainer.session.dialogItem = .error(
                 title: "Something Went Wrong",
-                subtitle: "We were unable to silence \(target.firstName). Please try again"
+                subtitle: "We were unable to restrict \(target.firstName). Please try again"
             )
             ErrorReporting.captureError(error, reason: "Failed to silence user")
         }

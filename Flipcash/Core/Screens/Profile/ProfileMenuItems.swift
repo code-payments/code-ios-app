@@ -20,7 +20,7 @@ nonisolated enum ProfileMenuItem: Equatable {
         case .report:  return "Report"
         case .block:   return "Block"
         case .unblock: return "Unblock"
-        case .silence: return "Silence…"
+        case .silence: return "Restrict"
         case .removeFromGroup: return "Remove from Group"
         }
     }

@@ -95,7 +95,7 @@ struct ConversationGatePanel: View {
     static let unsupportedSentence = "Update Flipcash to send messages"
 
     /// "You're silenced until 6:02 PM" for a timed silence — the time alone when it ends today,
-    /// otherwise the date and time — or "You're silenced in this group" for a forever one.
+    /// otherwise the date and time — or "You can't send messages in this group" for a forever one.
     static func silencedSentence(
         _ silence: ConversationSilenceState,
         now: Date,
@@ -104,9 +104,9 @@ struct ConversationGatePanel: View {
     ) -> String {
         switch silence {
         case .forever:
-            return "You're silenced in this group"
+            return "You can't send messages in this group"
         case .until(let end):
-            return "You're silenced until \(endText(end, now: now, calendar: calendar, locale: locale))"
+            return "You can't send messages until \(endText(end, now: now, calendar: calendar, locale: locale))"
         }
     }
 

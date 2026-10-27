@@ -25,12 +25,12 @@ struct GroupModerationTests {
         #expect(!u.belongs(on: .removed, at: now))
     }
 
-    @Test("A user who is both banned and silenced appears only under Removed, marked also silenced")
+    @Test("A user who is both banned and silenced appears only under Removed, marked also restricted")
     func both_onlyRemoved() {
         let u = user(silence: .forever, bannedAt: now)
         #expect(!u.belongs(on: .silenced, at: now))
         #expect(u.belongs(on: .removed, at: now))
-        #expect(u.detail(on: .removed, now: now).hasSuffix(" · also silenced"))
+        #expect(u.detail(on: .removed, now: now).hasSuffix(" · also restricted"))
     }
 
     @Test("A lapsed timed silence drops off the Silenced list")
@@ -41,9 +41,9 @@ struct GroupModerationTests {
 
     @Test("Row details read forever and removed")
     func details() {
-        #expect(user(silence: .forever).detail(on: .silenced, now: now) == "Silenced · forever")
+        #expect(user(silence: .forever).detail(on: .silenced, now: now) == "Restricted · forever")
         #expect(user(bannedAt: now).detail(on: .removed, now: now).hasPrefix("Removed "))
-        #expect(!user(bannedAt: now).detail(on: .removed, now: now).contains("also silenced"))
+        #expect(!user(bannedAt: now).detail(on: .removed, now: now).contains("also restricted"))
     }
 
     @Test("Silence durations resolve to an end instant or forever")
@@ -64,8 +64,8 @@ struct GroupModerationTests {
 
     @Test("The pill sentence names the end time, or says forever")
     func sentence() {
-        #expect(ConversationGatePanel.silencedSentence(.forever, now: now) == "You're silenced in this group")
-        #expect(ConversationGatePanel.silencedSentence(.until(now.addingTimeInterval(3600)), now: now).hasPrefix("You're silenced until "))
+        #expect(ConversationGatePanel.silencedSentence(.forever, now: now) == "You can't send messages in this group")
+        #expect(ConversationGatePanel.silencedSentence(.until(now.addingTimeInterval(3600)), now: now).hasPrefix("You can't send messages until "))
     }
 
     @Test("Prompts use the member's first name and the group's name")
@@ -77,10 +77,10 @@ struct GroupModerationTests {
 
     @Test("Toast copy names the member and the duration")
     func toastCopy() {
-        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .oneHour) == "McAnsh is silenced for 1 hour")
-        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .eightHours) == "McAnsh is silenced for 8 hours")
-        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .oneWeek) == "McAnsh is silenced for 1 week")
-        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .forever) == "McAnsh is silenced")
+        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .oneHour) == "McAnsh can't send messages for 1 hour")
+        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .eightHours) == "McAnsh can't send messages for 8 hours")
+        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .oneWeek) == "McAnsh can't send messages for 1 week")
+        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .forever) == "McAnsh can't send messages in this group")
         #expect(GroupModerationCopy.unsilencedToast(firstName: "McAnsh") == "McAnsh can send messages again")
     }
 
@@ -111,7 +111,7 @@ struct GroupModerationTests {
 
         try await moderation.silence(UUID(), firstName: "McAnsh", duration: .oneWeek)
         try await moderation.unsilence(UUID(), firstName: "McAnsh")
-        #expect(announced == ["McAnsh is silenced for 1 week", "McAnsh can send messages again"])
+        #expect(announced == ["McAnsh can't send messages for 1 week", "McAnsh can send messages again"])
 
         server.fails = true
         await #expect(throws: (any Error).self) { try await moderation.silence(UUID(), firstName: "McAnsh", duration: .forever) }

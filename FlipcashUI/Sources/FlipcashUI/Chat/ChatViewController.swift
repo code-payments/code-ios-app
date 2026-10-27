@@ -2005,7 +2005,7 @@ protocol BubbleCarrying {
 }
 #endif
 
-private extension MessageCapability {
+extension MessageCapability {
 
     /// The menu row's glyph. Lives here rather than on the action itself because `SystemSymbol` is
     /// this module's symbol registry, and `MessageCapability` is a core model.
@@ -2033,7 +2033,11 @@ private extension MessageCapability {
     /// says a choice follows, the way Silence's duration sheet and Remove's confirm do.
     func menuTitle(naming senderName: String?) -> String {
         switch self {
-        case .silence, .remove:
+        // Remove asks a follow-up, so its label ends in an ellipsis; Restrict opens a sheet and does not.
+        case .silence:
+            guard let senderName else { return title }
+            return "\(title) \(senderName)"
+        case .remove:
             guard let senderName else { return "\(title)…" }
             return "\(title) \(senderName)…"
         case .copy, .reply, .edit, .delete, .report, .forward:
