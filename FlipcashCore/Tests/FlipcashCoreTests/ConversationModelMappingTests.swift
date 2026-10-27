@@ -75,6 +75,31 @@ struct ConversationModelMappingTests {
         #expect(message.content == .system(fallbackText: "fallback", event: .userJoined(userID: joiner, admittedBy: admitter)))
     }
 
+    @Test("An invited join maps to a userJoinedViaInvite event carrying the inviter")
+    func invitedJoin() throws {
+        let joiner = UUID()
+        let inviter = UUID()
+        let message = try systemMessage {
+            $0.userJoined = .with {
+                $0.userID = .with { $0.value = joiner.data }
+                $0.invited = .with { $0.invitedBy = .with { $0.value = inviter.data } }
+            }
+        }
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoinedViaInvite(userID: joiner, invitedBy: inviter)))
+    }
+
+    @Test("An invited join without invited_by still reads as an invite join")
+    func invitedWithoutInviter() throws {
+        let joiner = UUID()
+        let message = try systemMessage {
+            $0.userJoined = .with {
+                $0.userID = .with { $0.value = joiner.data }
+                $0.invited = .init()
+            }
+        }
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoinedViaInvite(userID: joiner, invitedBy: nil)))
+    }
+
     @Test("A join with no method is a direct join")
     func joinWithoutMethod() throws {
         let joiner = UUID()
@@ -639,6 +664,34 @@ struct ConversationModelMappingTests {
         }
 
         #expect(ConversationViewerState(proto).canEdit)
+    }
+
+    @Test("ViewerState maps permissions.canInvite and defaults it to false")
+    func viewerStateMapsCanInvite() {
+        let granted = Flipcash_Chat_V1_ViewerState.with { $0.permissions = .with { $0.canInvite = true } }
+        #expect(ConversationViewerState(granted).canInvite)
+        #expect(ConversationViewerState(Flipcash_Chat_V1_ViewerState()).canInvite == false)
+    }
+
+    @Test("Invite maps its fields and status")
+    func inviteMapping() {
+        let creator = UUID()
+        let proto = Flipcash_Chat_V1_Invite.with {
+            $0.inviteID = .with { $0.value = Data(repeating: 1, count: 16) }
+            $0.chatID = .with { $0.value = Data(repeating: 2, count: 32) }
+            $0.createdBy = .with { $0.value = creator.data }
+            $0.maxUses = 5
+            $0.useCount = 2
+            $0.status = .exhausted
+            $0.secretEnvelope = .with { $0.scheme = .x25519Xchacha20Poly1305; $0.nonce = Data([1]); $0.ciphertext = Data([2]) }
+        }
+        let invite = Invite(proto)
+        #expect(invite.id.data == Data(repeating: 1, count: 16))
+        #expect(invite.createdBy == creator)
+        #expect(invite.maxUses == 5 && invite.useCount == 2)
+        #expect(invite.status == .exhausted)
+        #expect(invite.expiresAt == nil)
+        #expect(invite.secretEnvelope == InviteSecretEnvelope(scheme: 1, nonce: Data([1]), ciphertext: Data([2])))
     }
 
     @Test("ViewerState without permissions defaults canEdit to false (never derivable client-side)")

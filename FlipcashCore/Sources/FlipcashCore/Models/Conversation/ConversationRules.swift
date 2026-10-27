@@ -72,13 +72,17 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
     /// Whether the viewer may ban other members. Server-computed; never derive it client-side.
     public let canBan: Bool
 
-    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false) {
+    /// Whether the viewer may create invites to this chat. Server-computed; never derive it client-side.
+    public let canInvite: Bool
+
+    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false, canInvite: Bool = false) {
         self.mute = mute
         self.canEdit = canEdit
         self.version = version
         self.silence = silence
         self.canSilence = canSilence
         self.canBan = canBan
+        self.canInvite = canInvite
     }
 }
 
@@ -90,7 +94,8 @@ extension ConversationViewerState {
             version: proto.version,
             silence: (proto.hasRestrictions && proto.restrictions.hasSilence) ? ConversationSilenceState(proto.restrictions.silence) : nil,
             canSilence: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canSilence : false,
-            canBan: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canBan : false
+            canBan: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canBan : false,
+            canInvite: proto.hasPermissions ? proto.permissions.canInvite : false
         )
     }
 }

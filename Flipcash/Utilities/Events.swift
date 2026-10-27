@@ -569,6 +569,10 @@ extension Analytics {
             case .notFound:                                       "NotFound"
             case .rulesNotSatisfied:                              "RulesNotSatisfied"
             case .banned:                                         "Banned"
+            case .inviteNotFound:                                 "InviteNotFound"
+            case .inviteExhausted:                                "InviteExhausted"
+            case .inviteExpired:                                  "InviteExpired"
+            case .inviteRevoked:                                  "InviteRevoked"
             case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
             }
         case let error as ErrorLeaveChat:
