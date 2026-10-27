@@ -274,6 +274,12 @@ final class ConversationController {
     /// and the stream only carries version changes, so a chat saved before the moderation permissions
     /// existed would never show its host the Silence and Ban actions. A failed fetch leaves it as is.
     func refreshViewerPermissions(for conversationID: ConversationID) async {
+        // The transcript and the profile both ask when opened; one fetch serves a visit that
+        // touches both, and a later visit asks again.
+        if let last = lastPermissionsRefresh[conversationID], Date.now.timeIntervalSince(last) < 30 {
+            return
+        }
+        lastPermissionsRefresh[conversationID] = .now
         guard conversation(withID: conversationID) != nil,
               let fetched = try? await fetching.getChat(owner: owner, conversationID: conversationID),
               let viewerState = fetched.viewerState else {
@@ -360,6 +366,8 @@ final class ConversationController {
     @ObservationIgnored private let contactNaming: any DMContactNaming
     @ObservationIgnored let database: Database
     @ObservationIgnored let owner: KeyPair
+    /// When each chat last had its viewer permissions re-read, so a transcript and a profile opened together share one fetch.
+    @ObservationIgnored private var lastPermissionsRefresh: [ConversationID: Date] = [:]
     @ObservationIgnored private var startTask: Task<Void, Never>?
     /// The feed load in flight, joined by every caller that arrives before it finishes.
     @ObservationIgnored private var feedLoadTask: Task<Void, Never>?

@@ -1012,6 +1012,12 @@ struct ConversationScreen: View {
             guard groupConversation != nil else { return }
             await sessionContainer.knownAuthors.reload()
         }
+        // A group saved before the moderation permissions existed holds them as false, so the host
+        // would see no Silence or Remove row. The controller fetches once per open, shared with the profile.
+        .task(id: groupConversation?.id) {
+            guard let id = groupConversation?.id else { return }
+            await conversationController.refreshViewerPermissions(for: id)
+        }
         // Payment requests change with no event, so poll while the chat is on screen in the
         // foreground. A return to the foreground re-keys the task, which refetches at once.
         .task(id: PaymentRequestPoll(conversationID: groupConversation?.id, isActive: scenePhase == .active)) {

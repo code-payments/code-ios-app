@@ -146,4 +146,20 @@ struct ConversationMuteTests {
         let again = store.refreshViewerPermissions(from: fetched, in: conversationID(1))
         #expect(again == false)
     }
+
+    @Test("A feed row that omits the permissions or is older does not reset the stored viewer state")
+    func metadataRefreshKeepsStoredPermissions() {
+        var store = ConversationStore()
+        store.apply(.metadataRefresh(conversation(1, viewerState: ConversationViewerState(mute: .forever, version: 2, canSilence: true, canBan: true))))
+
+        store.apply(.metadataRefresh(conversation(1, viewerState: ConversationViewerState(mute: .forever, version: 2))))
+        #expect(store.conversations[0].viewerState?.canSilence == true)
+        #expect(store.conversations[0].viewerState?.canBan == true)
+
+        store.apply(.metadataRefresh(conversation(1, viewerState: ConversationViewerState(mute: nil, version: 1))))
+        #expect(store.conversations[0].isMuted(at: noon))
+
+        store.apply(.metadataRefresh(conversation(1, viewerState: nil)))
+        #expect(store.conversations[0].viewerState?.canSilence == true)
+    }
 }
