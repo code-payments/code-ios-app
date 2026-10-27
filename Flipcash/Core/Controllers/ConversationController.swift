@@ -1959,7 +1959,7 @@ final class ConversationController {
                 case .delete: "Couldn't Delete Message"
                 // Neither of these mutates the transcript, so neither can raise a mutation alert.
                 // Report files straight from its sheet and reports its own outcome there.
-                case .copy, .reply, .report, .forward: "Something Went Wrong"
+                case .copy, .reply, .report, .forward, .silence, .remove: "Something Went Wrong"
                 }
             }
         }

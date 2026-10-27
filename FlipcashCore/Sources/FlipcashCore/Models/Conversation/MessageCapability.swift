@@ -17,6 +17,10 @@ public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable
     case report
     /// Send a link to the message into other chats, or out through the system share sheet.
     case forward
+    /// Host-only: stop the message's sender from posting in this group. Picks a duration next.
+    case silence
+    /// Host-only: put the message's sender out of this group and bar them from rejoining.
+    case remove
 }
 
 extension MessageCapability {
@@ -30,6 +34,9 @@ extension MessageCapability {
         case .delete: "Delete"
         case .report: "Report"
         case .forward: "Forward"
+        // The transcript menu adds the sender's first name; this is the fallback when none is known.
+        case .silence: "Silence"
+        case .remove:  "Remove"
         }
     }
 
@@ -38,7 +45,7 @@ extension MessageCapability {
         switch self {
         // Report is red to match Report on the profile menus, though nothing is destroyed.
         case .copy, .reply, .edit, .forward: false
-        case .delete, .report:     true
+        case .delete, .report, .silence, .remove: true
         }
     }
 }
@@ -93,7 +100,27 @@ extension MessageCapability {
         if !isMember || !canPost {
             capabilities.remove(.reply)
         }
+        capabilities.formUnion(moderationCapabilities(for: message, in: conversation, baseline: capabilities))
         return capabilities
+    }
+
+    /// Silence and Remove, which follow the viewer's server-computed `canSilence` / `canBan` and
+    /// never an "is creator" check on the viewer. They ride on Report's rule: another participant's
+    /// real message. The group's creator is never offered, whoever holds the flags.
+    private static func moderationCapabilities(
+        for message: ConversationMessage,
+        in conversation: Conversation?,
+        baseline: Set<MessageCapability>
+    ) -> Set<MessageCapability> {
+        guard baseline.contains(.report),
+              let viewerState = conversation?.viewerState,
+              let sender = message.senderID,
+              sender != conversation?.creator
+        else { return [] }
+        var granted: Set<MessageCapability> = []
+        if viewerState.canSilence { granted.insert(.silence) }
+        if viewerState.canBan { granted.insert(.remove) }
+        return granted
     }
 
     private static func memberCapabilities(

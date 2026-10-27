@@ -680,7 +680,7 @@ extension ChatItem {
     /// last: it is the rarest row and the only one that never appears on your own message, so the
     /// menu reads "yours ends with delete, theirs ends with report".
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
-        [.copy, .reply, .forward, .edit, .delete, .report].filter(capabilities.contains)
+        [.copy, .reply, .forward, .edit, .delete, .report, .silence, .remove].filter(capabilities.contains)
     }
 
     /// The group lines for a payment in a group chat, or nil when its receiver isn't known; a
