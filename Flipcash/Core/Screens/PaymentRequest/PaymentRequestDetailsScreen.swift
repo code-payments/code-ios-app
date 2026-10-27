@@ -460,7 +460,7 @@ private struct PaymentRequestPaySheet: View {
         // Hold the success checkmark briefly, then return to the details, now showing the row paid.
         .task(id: didSucceed) {
             guard didSucceed else { return }
-            try? await Task.delay(seconds: 1)
+            try? await Task.sleep(for: PaymentSuccess.hold)
             guard !Task.isCancelled else { return }
             dismiss()
         }

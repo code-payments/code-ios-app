@@ -138,7 +138,7 @@ private struct StartChattingSheetContent: View {
         // `.task` so a dismissal during the hold cancels the dismiss.
         .task(id: didSucceed) {
             guard didSucceed else { return }
-            try? await Task.delay(seconds: 1)
+            try? await Task.sleep(for: PaymentSuccess.hold)
             guard !Task.isCancelled else { return }
             dismiss()
         }

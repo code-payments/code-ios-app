@@ -136,3 +136,31 @@ struct CurrencyInfoSendTests {
         #expect(CommunityChats.preview([]).isEmpty)
     }
 }
+
+@Suite("PaymentSuccess")
+struct PaymentSuccessTests {
+
+    @Test("The payment hold is one second")
+    func holdIsOneSecond() {
+        #expect(PaymentSuccess.hold == .seconds(1))
+    }
+
+    @Test("Release runs after the hold, not before")
+    func releasesAfterHold() async {
+        var events: [String] = []
+        await PaymentSuccess.release(after: .milliseconds(20)) { events.append("release") }
+        events.append("after")
+        #expect(events == ["release", "after"])
+    }
+
+    @Test("A cancelled hold does not release")
+    func cancelledHoldSkipsRelease() async {
+        let task = Task { () -> Bool in
+            var released = false
+            await PaymentSuccess.release(after: .seconds(5)) { released = true }
+            return released
+        }
+        task.cancel()
+        #expect(await task.value == false)
+    }
+}

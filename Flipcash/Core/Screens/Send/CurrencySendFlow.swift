@@ -355,9 +355,7 @@ private struct CurrencySendConfirmSheet: View {
         // Hold the success checkmark briefly, then hand off to the presenter to dismiss.
         .task(id: didSucceed) {
             guard didSucceed else { return }
-            try? await Task.delay(seconds: 1)
-            guard !Task.isCancelled else { return }
-            onSent()
+            await PaymentSuccess.release { onSent() }
         }
     }
 

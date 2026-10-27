@@ -121,9 +121,7 @@ private struct PaidReactionSheetContent: View {
         }
         .task(id: didSucceed) {
             guard didSucceed else { return }
-            try? await Task.delay(seconds: 1)
-            guard !Task.isCancelled else { return }
-            dismiss()
+            await PaymentSuccess.release { dismiss() }
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             let options = viewModel.paymentOptions
