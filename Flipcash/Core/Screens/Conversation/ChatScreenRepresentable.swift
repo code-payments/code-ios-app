@@ -224,9 +224,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.reportsReads = reportsReads
         perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
-        // The alert pill asks which messages are in front of the reader, so a reaction on one of
-        // them animates its chip instead of raising a pill. Weak, so a closed chat answers nothing.
-        conversationController.reactionAlerts?.visibleMessageIDs = { [weak screen] in screen?.visibleMessageIDs ?? [] }
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
         context.coordinator.lastMessageID = lastMessageID(of: items)

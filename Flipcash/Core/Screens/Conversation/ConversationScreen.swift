@@ -1182,7 +1182,6 @@ struct ConversationScreen: View {
             ])
             if matched {
                 conversationController.visibleConversationID = nil
-                conversationController.reactionAlerts?.scrollToMessage = nil
             }
         }
         // Donate the open chat for Siri prediction, Handoff, and Spotlight.
@@ -1227,8 +1226,7 @@ struct ConversationScreen: View {
             "conversationID": id.map { "\($0)" } ?? "nil",
         ])
         conversationController.visibleConversationID = id
-        // A tapped alert pill for this chat scrolls to its message and pulses it.
-        conversationController.reactionAlerts?.scrollToMessage = id == nil ? nil : { messageID in land(on: messageID) }
+        if let id { conversationController.reactionAlerts?.conversationOpened(id) }
     }
 
     /// Opens the native iOS contact card for the counterpart: their

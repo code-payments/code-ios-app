@@ -115,24 +115,24 @@ struct ReactionAlertPlacementTests {
     private static let chat = ConversationID(data: Data(repeating: 1, count: 32))
     private static let elsewhere = ConversationID(data: Data(repeating: 2, count: 32))
 
-    @Test("Open chat, message on screen: bubble only")
-    func onScreen() {
-        #expect(ReactionAlertPlacement.decide(alertConversation: Self.chat, openConversation: Self.chat, messageOnScreen: true) == .bubbleOnly)
+    // Rows 1-2: the open chat raises no pill. `decide` takes no on-screen flag, so a message
+    // scrolled off the screen gets the same answer as one in view.
+    @Test("Open chat: bubble only, whether or not the message is on screen")
+    func openChat() {
+        #expect(ReactionAlertPlacement.decide(alertConversation: Self.chat, openConversation: Self.chat) == .bubbleOnly)
     }
 
-    @Test("Open chat, message scrolled off: pill reading This chat")
-    func scrolledOff() {
-        #expect(ReactionAlertPlacement.decide(alertConversation: Self.chat, openConversation: Self.chat, messageOnScreen: false) == .pill(.thisChat))
-    }
-
-    @Test("Another chat open: pill with the chat name, whether or not the id is on screen there")
+    // Rows 3 and 8: a reaction or a boost in another chat takes the pill. The controller sends both
+    // through `decide`; only the event's content differs.
+    @Test("Another chat open: pill with the chat name")
     func otherChat() {
-        #expect(ReactionAlertPlacement.decide(alertConversation: Self.chat, openConversation: Self.elsewhere, messageOnScreen: true) == .pill(.chatName))
+        #expect(ReactionAlertPlacement.decide(alertConversation: Self.chat, openConversation: Self.elsewhere) == .pill(.chatName))
     }
 
+    // Row 4.
     @Test("No chat open: pill with the chat name")
     func noChat() {
-        #expect(ReactionAlertPlacement.decide(alertConversation: Self.chat, openConversation: nil, messageOnScreen: false) == .pill(.chatName))
+        #expect(ReactionAlertPlacement.decide(alertConversation: Self.chat, openConversation: nil) == .pill(.chatName))
     }
 }
 
@@ -140,8 +140,10 @@ struct ReactionAlertPlacementTests {
 struct ReactionAlertQueueTests {
 
     private static let chat = ConversationID(data: Data(repeating: 1, count: 32))
+    private static let other = ConversationID(data: Data(repeating: 2, count: 32))
 
     private static func event(
+        conversation: ConversationID = chat,
         message: UInt64 = 1,
         emoji: String = "🔥",
         actor: UserID = UUID(),
@@ -149,9 +151,35 @@ struct ReactionAlertQueueTests {
         boost: UInt64? = nil
     ) -> ReactionAlertEvent {
         ReactionAlertEvent(
-            conversationID: chat, messageID: MessageID(value: message), emoji: emoji, actor: actor, actorName: name,
+            conversationID: conversation, messageID: MessageID(value: message), emoji: emoji, actor: actor, actorName: name,
             isBoost: boost != nil, boostDeltaCents: boost ?? 0, snippet: "hello", topRow: "Moony"
         )
+    }
+
+    // Row 5: the pill on screen is the opened chat's, so the caller closes it and the queue moves on.
+    @Test("Opening a chat leaves its showing pill to be closed, then advance promotes the next")
+    func openedChatShowingPill() {
+        var queue = ReactionAlertQueue()
+        queue.enqueue(Self.event(conversation: Self.chat))
+        queue.enqueue(Self.event(conversation: Self.other, message: 2))
+        queue.removeWaiting(for: Self.chat)
+        #expect(queue.current?.conversationID == Self.chat)
+        #expect(queue.advance()?.conversationID == Self.other)
+    }
+
+    // Row 6.
+    @Test("Opening a chat drops its waiting pills and keeps the others in order")
+    func openedChatWaitingDropped() {
+        var queue = ReactionAlertQueue()
+        queue.enqueue(Self.event(conversation: Self.other, message: 9))
+        queue.enqueue(Self.event(conversation: Self.chat, message: 1))
+        queue.enqueue(Self.event(conversation: Self.other, message: 2))
+        queue.enqueue(Self.event(conversation: Self.chat, message: 3, boost: 500))
+        queue.removeWaiting(for: Self.chat)
+        #expect(queue.current?.messageID == MessageID(value: 9))
+        #expect(queue.waiting.map(\.messageID) == [MessageID(value: 2)])
+        #expect(queue.advance()?.conversationID == Self.other)
+        #expect(queue.advance() == nil)
     }
 
     @Test("The first event starts a pill")
