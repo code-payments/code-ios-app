@@ -9,7 +9,7 @@ import FlipcashCore
 /// Who Currency Info's Select Recipient step lists: the chat list's 1:1 chats, in the chat list's
 /// order, narrowed by a search over name and username. Groups never appear, and neither do the
 /// device's contacts — this is a view of the chat list, not an address book.
-enum CurrencySendRecipients {
+nonisolated enum CurrencySendRecipients {
 
     /// `chats` is the chat list as it is drawn; `name` is how a row titles a chat.
     static func recipients(
