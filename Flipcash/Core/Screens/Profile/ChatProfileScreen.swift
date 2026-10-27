@@ -187,14 +187,14 @@ struct ChatProfileScreen: View {
                             count: conversation?.rosterSummary.memberCount,
                             onCount: rosterPortraits.isEmpty ? nil : { router.push(.groupMembers(conversationID)) }
                         ) { userID in
-                            router.push(.userProfile(userID, origin: .groupMember))
+                            router.push(.userProfile(userID, origin: .groupMember(conversationID)))
                         }
                         .padding(.top, 24)
                     }
 
                     if GroupChattingGrid.isVisible(isPrivate: isPrivate, chatters: chatters) {
                         GroupChattingGrid(chatters: chatters) { userID in
-                            router.push(.userProfile(userID, origin: .groupMember))
+                            router.push(.userProfile(userID, origin: .groupMember(conversationID)))
                         }
                         .padding(.top, 24)
                     }

@@ -404,8 +404,9 @@ private struct UserProfileContent: View {
 nonisolated enum UserProfileOrigin: Hashable {
     /// The title or card of the DM with this person.
     case directMessage
-    /// Their face in a group transcript.
-    case groupMember
+    /// Their face in a group transcript or its member list. Carries the group, since the host's
+    /// Silence and Remove act on that group only.
+    case groupMember(ConversationID)
     /// Their `@handle` or person link card tapped in a message, in a chat that is not a DM with them.
     case mention
     /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.
