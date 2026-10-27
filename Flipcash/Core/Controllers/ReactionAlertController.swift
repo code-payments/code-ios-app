@@ -40,12 +40,6 @@ final class ReactionAlertController {
     /// The display currency amounts are shown in.
     var displayCurrency: () -> DisplayCurrency = { DisplayCurrency(currency: .usd, rates: [:]) }
 
-    /// Set by the open chat: the ids of the messages on screen.
-    var visibleMessageIDs: () -> Set<String> = { [] }
-
-    /// Set by the open chat: scrolls to a message of this chat and pulses it.
-    var scrollToMessage: ((MessageID) -> Void)?
-
     /// Names a user the chat's own roster leaves out, fetching their profile when nothing on the
     /// device has a name for them. A large group embeds only part of its roster.
     var knownName: (UserID) async -> String? = { _ in nil }
@@ -82,6 +76,15 @@ final class ReactionAlertController {
         pill.cancel()
     }
 
+    /// Clears a chat's pills for the chat being opened: drops the ones waiting, then closes the one
+    /// on screen if it is that chat's, which promotes the next.
+    func conversationOpened(_ conversationID: ConversationID) {
+        queue.removeWaiting(for: conversationID)
+        if queue.current?.conversationID == conversationID {
+            pill.cancel()
+        }
+    }
+
     // MARK: - Updates -
 
     /// Considers each update of one stream event, in order.
@@ -112,13 +115,11 @@ final class ReactionAlertController {
 
         let placement = ReactionAlertPlacement.decide(
             alertConversation: conversationID,
-            openConversation: conversations.visibleConversationID,
-            messageOnScreen: visibleMessageIDs().contains(String(update.messageID.value))
+            openConversation: conversations.visibleConversationID
         )
         let topRow: String
         switch placement {
         case .bubbleOnly: return
-        case .pill(.thisChat): topRow = "This chat ↓"
         case .pill(.chatName): topRow = conversations.displayName(forConversationID: conversationID)
         }
 
@@ -216,11 +217,7 @@ final class ReactionAlertController {
     }
 
     private func tapped(conversationID: ConversationID, messageID: MessageID) {
-        if conversations?.visibleConversationID == conversationID, let scrollToMessage {
-            scrollToMessage(messageID)
-        } else {
-            openMessage(conversationID, messageID)
-        }
+        openMessage(conversationID, messageID)
     }
 
     private func pillFinished() {

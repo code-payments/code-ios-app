@@ -85,23 +85,20 @@ public enum ReactionAlertPlacement: Hashable, Sendable {
 
     /// What the pill's top row reads.
     public enum TopRow: Hashable, Sendable {
-        /// The message is in the open chat but scrolled off: "This chat".
-        case thisChat
         /// Any other screen: the chat's name.
         case chatName
     }
 
-    /// The bubble's own animation covers it; no pill.
+    /// The message is in the open chat: its bubble's own animation covers it, and an off-screen
+    /// reaction waits in the transcript. No pill.
     case bubbleOnly
     case pill(TopRow)
 
     public static func decide(
         alertConversation: ConversationID,
-        openConversation: ConversationID?,
-        messageOnScreen: Bool
+        openConversation: ConversationID?
     ) -> ReactionAlertPlacement {
-        guard alertConversation == openConversation else { return .pill(.chatName) }
-        return messageOnScreen ? .bubbleOnly : .pill(.thisChat)
+        alertConversation == openConversation ? .bubbleOnly : .pill(.chatName)
     }
 }
 
@@ -117,7 +114,7 @@ public struct ReactionAlertEvent: Hashable, Sendable {
     public let boostDeltaCents: UInt64
     /// The quoted message text.
     public let snippet: String
-    /// The top row: "This chat" or the chat's name.
+    /// The top row: the chat's name.
     public let topRow: String
 
     public init(
@@ -248,6 +245,12 @@ public struct ReactionAlertQueue: Sendable {
     public mutating func advance() -> ReactionAlertPill? {
         current = waiting.isEmpty ? nil : waiting.removeFirst()
         return current
+    }
+
+    /// Drops the pills waiting for a chat, for that chat being opened. The pill on screen is left to
+    /// the caller to close, which promotes the next one.
+    public mutating func removeWaiting(for conversationID: ConversationID) {
+        waiting.removeAll { $0.conversationID == conversationID }
     }
 
     /// Drops everything, for a sign-out or a trip to the background.
