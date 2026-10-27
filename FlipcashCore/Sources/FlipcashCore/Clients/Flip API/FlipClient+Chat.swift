@@ -144,6 +144,14 @@ extension FlipClient {
         }
     }
 
+    /// Joins a private group through an invite link. The failures include `.inviteNotFound`,
+    /// `.inviteExhausted`, `.inviteExpired` and `.inviteRevoked`.
+    public func joinChat(owner: KeyPair, conversationID: ConversationID, invite: InviteJoinParameters) async throws -> Conversation {
+        try await withCheckedThrowingContinuation { c in
+            chatService.joinChat(owner: owner, conversationID: conversationID, invite: invite) { c.resume(with: $0) }
+        }
+    }
+
     /// Leaves a group chat. The caller's own `rosterChanged` event (naming itself) is what actually
     /// drops the chat from the local feed and database — this call just tells the server to emit it.
     public func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws {
@@ -169,14 +177,16 @@ extension FlipClient {
     /// consuming its `subscribeConversationStream` events — as with `getDmChatFeed`/
     /// `getGroupChatFeed` — and must merge the result against them by ``ConversationMember/version``
     /// rather than treating it as an authoritative snapshot; see ``RosterPage``.
-    public func getRoster(owner: KeyPair, conversationID: ConversationID) async throws -> RosterPage {
+    ///
+    /// `owner` may be `nil` when `inviteToken` is given: the token stands in for auth.
+    public func getRoster(owner: KeyPair?, conversationID: ConversationID, inviteToken: InviteToken? = nil) async throws -> RosterPage {
         var members: [ConversationMember] = []
         var rosterSummary = ConversationRosterSummary(memberCount: 0, version: 0)
         var pagingToken: Data?
 
         while true {
             let page = try await withCheckedThrowingContinuation { c in
-                chatService.getRoster(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
+                chatService.getRoster(owner: owner, conversationID: conversationID, inviteToken: inviteToken, pagingToken: pagingToken) { c.resume(with: $0) }
             }
             members.append(contentsOf: page.members)
             rosterSummary = page.rosterSummary
@@ -462,6 +472,52 @@ extension FlipClient {
         let result = try await withCheckedThrowingContinuation { c in
             chatService.getKeyEnvelope(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
         }
-        return (result.envelope, result.wrappedBy)
+        // An invite-joined member has only the invite's copy until they store their own envelope.
+        guard let own = result.ownEnvelope else { throw ErrorGetKeyEnvelope.noEnvelope }
+        return own
+    }
+
+    // MARK: - Invites -
+
+    /// Creates an invite to a private group the caller may invite to (``ConversationViewerState/canInvite``).
+    /// Idempotent on `token`; `maxUses` of `0` means unlimited. The caller supplies the envelopes —
+    /// deriving and sealing them is not implemented in this client yet.
+    public func createInvite(owner: KeyPair, conversationID: ConversationID, token: InviteToken, keyEnvelope: InviteKeyEnvelope, secretEnvelope: InviteSecretEnvelope, maxUses: UInt32 = 0, expiresAt: Date? = nil) async throws -> Invite {
+        try await withCheckedThrowingContinuation { c in
+            chatService.createInvite(owner: owner, conversationID: conversationID, token: token, keyEnvelope: keyEnvelope, secretEnvelope: secretEnvelope, maxUses: maxUses, expiresAt: expiresAt) { c.resume(with: $0) }
+        }
+    }
+
+    /// Reads the group an invite is for and the invite's status. `owner` is optional: the read is
+    /// allowed anonymously.
+    public func getInvite(owner: KeyPair?, token: InviteToken) async throws -> (conversation: Conversation, status: Invite.Status) {
+        let preview = try await withCheckedThrowingContinuation { c in
+            chatService.getInvite(owner: owner, token: token) { c.resume(with: $0) }
+        }
+        return (preview.conversation, preview.status)
+    }
+
+    /// A group's invites, paged to exhaustion.
+    public func getChatInvites(owner: KeyPair, conversationID: ConversationID) async throws -> [Invite] {
+        var invites: [Invite] = []
+        var pagingToken: Data?
+
+        while true {
+            let page = try await withCheckedThrowingContinuation { c in
+                chatService.getChatInvites(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
+            }
+            invites.append(contentsOf: page.invites)
+            if !page.hasMore { break }
+            pagingToken = page.pagingToken
+        }
+
+        return invites
+    }
+
+    /// Revokes an invite. A ban does not stop a link holder, so revoke the invite too when banning.
+    public func revokeInvite(owner: KeyPair, conversationID: ConversationID, inviteID: InviteID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.revokeInvite(owner: owner, conversationID: conversationID, inviteID: inviteID) { c.resume(with: $0) }
+        }
     }
 }

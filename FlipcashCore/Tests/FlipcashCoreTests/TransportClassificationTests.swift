@@ -98,6 +98,10 @@ struct TransportClassificationTests {
     @Test func errorGetPolls() { assertClassifies(ErrorGetPolls.self) }
     @Test func errorVote() { assertClassifies(ErrorVote.self) }
     @Test func errorJoinChat() { assertClassifies(ErrorJoinChat.self) }
+    @Test func errorCreateInvite() { assertClassifies(ErrorCreateInvite.self) }
+    @Test func errorGetInvite() { assertClassifies(ErrorGetInvite.self) }
+    @Test func errorGetChatInvites() { assertClassifies(ErrorGetChatInvites.self) }
+    @Test func errorRevokeInvite() { assertClassifies(ErrorRevokeInvite.self) }
     @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }
     @Test func errorMuteChat() { assertClassifies(ErrorMuteChat.self) }
     @Test func errorUnmuteChat() { assertClassifies(ErrorUnmuteChat.self) }

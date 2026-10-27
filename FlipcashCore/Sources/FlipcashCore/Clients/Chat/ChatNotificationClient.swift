@@ -94,7 +94,9 @@ public final class ChatNotificationClient: Sendable {
                         continuation.resume(with: $0)
                     }
                 }
-                return (result.envelope, result.wrappedBy)
+                // An invite-joined member has only the invite's copy until they store their own.
+                guard let own = result.ownEnvelope else { throw ErrorGetKeyEnvelope.noEnvelope }
+                return own
             },
             resolveKey: resolveKey
         )

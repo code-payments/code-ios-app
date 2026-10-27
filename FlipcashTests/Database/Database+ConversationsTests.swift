@@ -574,7 +574,9 @@ struct DatabaseConversationsTests {
         try database.upsertConversationMessages(
             [system(1, .userJoined(userID: joiner, admittedBy: nil)),
              system(2, .userJoined(userID: joiner, admittedBy: admitter)),
-             system(3, nil)],
+             system(3, nil),
+             system(4, .userJoinedViaInvite(userID: joiner, invitedBy: admitter)),
+             system(5, .userJoinedViaInvite(userID: joiner, invitedBy: nil))],
             conversationID: id
         )
         let loaded = try database.getConversationMessages(conversationID: id)
@@ -582,6 +584,8 @@ struct DatabaseConversationsTests {
             .system(fallbackText: "notice 1", event: .userJoined(userID: joiner, admittedBy: nil)),
             .system(fallbackText: "notice 2", event: .userJoined(userID: joiner, admittedBy: admitter)),
             .system(fallbackText: "notice 3", event: nil),
+            .system(fallbackText: "notice 4", event: .userJoinedViaInvite(userID: joiner, invitedBy: admitter)),
+            .system(fallbackText: "notice 5", event: .userJoinedViaInvite(userID: joiner, invitedBy: nil)),
         ])
     }
 

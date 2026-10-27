@@ -38,6 +38,10 @@ public enum SystemNoticeStrings {
             guard let admitterName = nameOf(admitter) else { return fallbackText }
             if isViewerJoiner { return "\(admitterName) added you" }
             return nameOf(joiner).map { "\(admitterName) added \($0)" } ?? fallbackText
+        case .userJoinedViaInvite(let joiner, _):
+            // Worded as a plain join until the invite notice copy is settled with Android.
+            if joiner == selfID { return "You joined the group" }
+            return nameOf(joiner).map { "\($0) joined the group" } ?? fallbackText
         }
     }
 }
