@@ -112,6 +112,9 @@ extension LobbyRequests.RequestError {
             "Too many people are waiting for the host to respond. Try again later"
         case .tooManyLobbies:
             "You have too many pending requests. Cancel one to request another"
+        case .banned:
+            // Not shown: the banned request is worded by ``GroupModerationCopy`` with its own title.
+            "The host removed you from this group"
         }
     }
 }

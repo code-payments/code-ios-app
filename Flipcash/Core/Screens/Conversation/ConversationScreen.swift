@@ -1766,9 +1766,10 @@ struct ConversationScreen: View {
                 await loadTranscript(for: conversationID)
             } catch {
                 Analytics.groupJoined(error: error, memberCount: memberCount, gated: gated)
+                let banned: Bool = { if case ErrorJoinChat.banned = error { return true } else { return false } }()
                 session.dialogItem = DialogItem.alert(
-                    title: "Couldn't Join Chat",
-                    subtitle: joinFailureSubtitle(error)
+                    title: banned ? GroupModerationCopy.bannedTitle : "Couldn't Join Chat",
+                    subtitle: banned ? GroupModerationCopy.bannedSubtitle(groupName: title) : joinFailureSubtitle(error)
                 ) {
                     DialogAction.okay(kind: .standard)
                 }

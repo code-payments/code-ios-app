@@ -591,8 +591,8 @@ struct ChatProfileScreen: View {
             }
         } catch let error as LobbyRequests.RequestError {
             dialogItem = .info(
-                title: PrivateGroupCopy.unavailableTitle(groupName: title),
-                subtitle: error.explanation
+                title: error == .banned ? GroupModerationCopy.bannedTitle : PrivateGroupCopy.unavailableTitle(groupName: title),
+                subtitle: error == .banned ? GroupModerationCopy.bannedSubtitle(groupName: title) : error.explanation
             ) {
                 DialogAction.okay(kind: .standard)
             }
