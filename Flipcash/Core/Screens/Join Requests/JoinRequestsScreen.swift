@@ -47,7 +47,7 @@ struct JoinRequestsScreen: View {
         }
         .fullScreenCover(isPresented: $isInviting) {
             ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
-                router.push(.tipConversation(chatID))
+                router.openSharedChat(chatID)
             }
         }
     }

@@ -31,7 +31,7 @@ struct CurrencyInfoSendTests {
     @Test("More lists Convert, Withdraw and Deposit, and USDF has no Deposit")
     func moreRows() {
         #expect(CurrencyInfoActions.moreRows(isUSDF: false) == [.convert, .withdraw, .deposit])
-        #expect(CurrencyInfoActions.moreRows(isUSDF: true) == [.convert, .withdraw])
+        #expect(CurrencyInfoActions.moreRows(isUSDF: true) == [.convert, .withdraw, .deposit])
     }
 
     @Test("More row subtitles name the currency")
@@ -85,6 +85,25 @@ struct CurrencyInfoSendTests {
         #expect(names(CurrencySendRecipients.recipients(in: chats, query: " al ", selfUserID: me, name: name)) == ["Al"])
         #expect(names(CurrencySendRecipients.recipients(in: chats, query: "@bee", selfUserID: me, name: name)) == ["Bea"])
         #expect(CurrencySendRecipients.recipients(in: chats, query: "zzz", selfUserID: me, name: name).isEmpty)
+    }
+
+    // MARK: - Send hand-off
+
+    @Test("Leaving the flow waits for the sheet to dismiss after a send")
+    func handoffAfterSend() {
+        var handoff = CurrencySendHandoff()
+        handoff.sendSucceeded()
+        let first = handoff.sheetDidDismiss()
+        let second = handoff.sheetDidDismiss()
+        #expect(first)
+        #expect(!second)
+    }
+
+    @Test("A sheet closed without a send returns to the list")
+    func handoffWithoutSend() {
+        var handoff = CurrencySendHandoff()
+        let left = handoff.sheetDidDismiss()
+        #expect(!left)
     }
 
     // MARK: - Community chats

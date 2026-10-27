@@ -31,16 +31,17 @@ nonisolated enum CurrencyInfoActions {
         return isUSDF ? [.send, .transactions, .more] : [.send, .buy, .transactions, .more]
     }
 
-    /// Convert, Withdraw and Deposit. USDF has no per-currency deposit address, so it stops at two.
+    /// Convert, Withdraw and Deposit. Deposit opens the per-currency address, or for USDF the
+    /// Add Dollars choice of how to deposit.
     static func moreRows(isUSDF: Bool) -> [MoreRow] {
-        isUSDF ? [.convert, .withdraw] : [.convert, .withdraw, .deposit]
+        [.convert, .withdraw, .deposit]
     }
 
-    static func subtitle(for row: MoreRow, name: String) -> String {
+    static func subtitle(for row: MoreRow, name: String, isUSDF: Bool = false) -> String {
         switch row {
         case .convert:  "Convert \(name) to another community currency on Flipcash"
         case .withdraw: "Withdraw \(name) to a different Solana crypto wallet"
-        case .deposit:  "Deposit \(name) from a different Solana crypto wallet"
+        case .deposit:  isUSDF ? "Add \(name) with a card or from a crypto wallet" : "Deposit \(name) from a different Solana crypto wallet"
         }
     }
 

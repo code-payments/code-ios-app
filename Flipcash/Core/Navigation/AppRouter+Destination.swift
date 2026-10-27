@@ -29,6 +29,10 @@ extension AppRouter {
         case marketCapExplainer(PublicKey)
         /// Every ranked community chat for one currency ("View All" on Currency Info).
         case topCommunityChats(PublicKey)
+        /// Send from Currency Info, step one: the amount, pushed onto the current stack.
+        case currencySendAmount(PublicKey)
+        /// Send from Currency Info, step two: Select Recipient, carrying the typed amount.
+        case currencySendRecipient(PublicKey, amount: String)
         /// The unified, cross-token activity history — the "dive in" from the
         /// Wallet's Recent section. `transactionHistory` is the per-token slice.
         case activity
@@ -163,7 +167,7 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .marketCapExplainer, .topCommunityChats, .activity, .transactionDetails, .give,
+                 .transactionHistory, .marketCapExplainer, .topCommunityChats, .currencySendAmount, .currencySendRecipient, .activity, .transactionDetails, .give,
                  .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .depositCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
@@ -195,6 +199,8 @@ extension AppRouter {
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
             case .topCommunityChats:            "topCommunityChats"
+            case .currencySendAmount:           "currencySendAmount"
+            case .currencySendRecipient:        "currencySendRecipient"
             case .marketCapExplainer:           "marketCapExplainer"
             case .activity:                     "activity"
             case .transactionDetails:           "transactionDetails"
@@ -258,6 +264,8 @@ extension AppRouter {
                  .transactionHistory(let mint),
                  .marketCapExplainer(let mint),
                  .topCommunityChats(let mint),
+                 .currencySendAmount(let mint),
+                 .currencySendRecipient(let mint, _),
                  .give(let mint),
                  .buyCurrency(let mint),
                  .depositCurrency(let mint),

@@ -208,6 +208,18 @@ final class AppRouter {
         pop(on: stack)
     }
 
+    /// What every share-to-chats sheet does once a send lands: the sheet has already closed itself,
+    /// and the chat picked first opens on the current stack.
+    func openSharedChat(_ id: ConversationID) {
+        push(.tipConversation(id))
+    }
+
+    /// Pops up to `count` destinations from whichever stack the presented sheet (or active tab) hosts.
+    func popTopmost(_ count: Int) {
+        guard let stack = topmostStack else { return }
+        popLast(count, on: stack)
+    }
+
     /// Atomic replace of the topmost destination on whichever stack is
     /// topmost: pops the current top, then pushes
     /// `value` in a single mutation. Mirrors the `push` / `pushAny` split —
@@ -463,16 +475,6 @@ final class AppRouter {
             present(.sendAmount(target))
         } else {
             presentNested(.sendAmount(target))
-        }
-    }
-
-    /// Presents Send for one currency from its Currency Info page, as the root sheet or stacked on
-    /// whatever sheet Currency Info is itself in.
-    func presentCurrencySend(_ mint: PublicKey) {
-        if presentedSheets.isEmpty {
-            present(.currencySend(mint))
-        } else {
-            presentNested(.currencySend(mint))
         }
     }
 

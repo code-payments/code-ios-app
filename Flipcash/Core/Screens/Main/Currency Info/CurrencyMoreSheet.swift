@@ -17,6 +17,7 @@ struct CurrencyMoreSheet: View {
     let rows: [CurrencyInfoActions.MoreRow]
     /// False dims Convert and stops it opening, as the Dollars tile did when there was nothing to convert into.
     var canConvert: Bool = true
+    var isUSDF = false
     let onSelect: (CurrencyInfoActions.MoreRow) -> Void
 
     var body: some View {
@@ -27,7 +28,7 @@ struct CurrencyMoreSheet: View {
                     ActionCardRow(
                         icon: icon(for: row),
                         title: CurrencyInfoActions.title(for: row),
-                        subtitle: CurrencyInfoActions.subtitle(for: row, name: name),
+                        subtitle: CurrencyInfoActions.subtitle(for: row, name: name, isUSDF: isUSDF),
                         identifier: "currency-more-\(CurrencyInfoActions.title(for: row).lowercased())"
                     ) {
                         dismiss()

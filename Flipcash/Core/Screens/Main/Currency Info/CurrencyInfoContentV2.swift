@@ -148,6 +148,12 @@ struct CurrencyInfoContentV2: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
 
+                CurrencyInfoAboutSection(
+                    description: currencyDescription,
+                    socialLinks: isUSDF ? [] : decodedMetadata.socialLinks
+                )
+                .padding(.horizontal, 20)
+
                 // Everything below is laid out and shown from the first frame,
                 // so the page arrives complete rather than in stages. Nothing
                 // here is gated on loading: the activity read is quick and runs
@@ -173,12 +179,6 @@ struct CurrencyInfoContentV2: View {
                         .padding(.horizontal, 20)
                     }
                 }
-
-                CurrencyInfoAboutSection(
-                    description: currencyDescription,
-                    socialLinks: isUSDF ? [] : decodedMetadata.socialLinks
-                )
-                .padding(.horizontal, 20)
 
                 if !isUSDF, let createdAt = metadata.createdAt {
                     Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))".uppercased())

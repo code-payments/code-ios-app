@@ -120,7 +120,7 @@ struct YouScreen: View {
                 ),
                 isPresented: $isSharingToChats
             ) { chatID in
-                router.push(.tipConversation(chatID))
+                router.openSharedChat(chatID)
             }
         }
     }

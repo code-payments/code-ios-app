@@ -77,9 +77,6 @@ private struct NestedSheetRootView: View {
             case .sendAmount(let target):
                 SendAmountSheetRoot(target: target)
 
-            case .currencySend(let mint):
-                CurrencySendFlow(mint: mint)
-
             case .addMoney:
                 AddMoneySheetRoot()
 

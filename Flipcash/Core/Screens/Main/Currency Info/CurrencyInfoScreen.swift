@@ -255,7 +255,7 @@ private struct CurrencyInfoScreenContent: View {
                     session: session,
                     onSend: {
                         Analytics.buttonTapped(name: .give)
-                        router.presentCurrencySend(mint)
+                        router.push(.currencySendAmount(mint))
                     },
                     // Buy pushes onto the current stack rather than presenting as a
                     // sheet, so it keeps this screen behind it.
@@ -358,14 +358,15 @@ private struct CurrencyInfoScreenContent: View {
                 name: mintMetadata?.name ?? "",
                 rows: CurrencyInfoActions.moreRows(isUSDF: isUSDF),
                 canConvert: !isUSDF || viewModel.canConvert,
+                isUSDF: isUSDF,
                 onSelect: { pendingMoreRow = $0 }
             )
         }
-        .sheet(isPresented: $isShowingShare) {
+        .fullScreenCover(isPresented: $isShowingShare) {
             ShareToChatsSheet(
                 subject: .currency(url: Self.shareURL(for: mint), name: mintMetadata?.name ?? ""),
                 isPresented: $isShowingShare,
-                onInvited: { _ in }
+                onInvited: { router.openSharedChat($0) }
             )
         }
         .task { await viewModel.loadCommunityChats() }
@@ -391,7 +392,13 @@ private struct CurrencyInfoScreenContent: View {
         switch row {
         case .convert:  router.push(.convertCurrency(mint))
         case .withdraw: router.push(.withdrawCurrency(mint))
-        case .deposit:  router.push(.depositCurrency(mint))
+        case .deposit:
+            // Dollars have no address of their own: the Add Dollars choice is how they come in.
+            if mint == .usdf {
+                router.presentAddMoney(.general, source: .balance)
+            } else {
+                router.push(.depositCurrency(mint))
+            }
         }
     }
 

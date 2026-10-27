@@ -57,6 +57,12 @@ struct DestinationView: View {
             TopCommunityChatsDestination(mint: mint)
                 .id(mint)
 
+        case .currencySendAmount(let mint):
+            CurrencySendAmountDestination(mint: mint)
+
+        case .currencySendRecipient(let mint, let amount):
+            CurrencySendRecipientDestination(mint: mint, amount: amount)
+
         case .marketCapExplainer(let mint):
             MarketCapExplainerScreen(
                 mint: mint,

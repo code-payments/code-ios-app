@@ -23,8 +23,6 @@ extension AppRouter {
         /// Send Cash amount entry, stacked on top of the chat via
         /// `presentNested(.sendAmount)`. Dismissing it reveals the chat.
         case sendAmount(SendTarget)
-        /// Send this currency to a person from its Currency Info page: amount, recipient, then the swipe.
-        case currencySend(PublicKey)
         /// My Tipcard, or the invitation to create a profile when there isn't one.
         case tips
         /// The account switcher, opened by long-pressing the You tab. Settings
@@ -39,7 +37,7 @@ extension AppRouter {
             switch self {
             case .sendAmount(.privateGroup):
                 true
-            case .give, .buy, .addMoney, .downloadApp, .sendAmount, .currencySend, .tips, .switchAccount:
+            case .give, .buy, .addMoney, .downloadApp, .sendAmount, .tips, .switchAccount:
                 false
             }
         }
@@ -53,7 +51,7 @@ extension AppRouter {
             case .buy:          .buy
             case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
-            case .sendAmount, .currencySend: .sendAmount
+            case .sendAmount: .sendAmount
             case .tips:         .tips
             case .switchAccount: .switchAccount
             }
@@ -69,7 +67,6 @@ extension AppRouter {
             case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
             case .sendAmount:   .sendAmount
-            case .currencySend: .currencySend
             case .tips:         .tips
             case .switchAccount: .switchAccount
             }
@@ -81,7 +78,6 @@ extension AppRouter {
             case addMoney
             case downloadApp
             case sendAmount
-            case currencySend
             case tips
             case switchAccount
         }
@@ -93,7 +89,6 @@ extension AppRouter {
             case .addMoney:     "addMoney"
             case .downloadApp:  "downloadApp"
             case .sendAmount:   "sendAmount"
-            case .currencySend: "currencySend"
             case .tips:         "tips"
             case .switchAccount: "switchAccount"
             }

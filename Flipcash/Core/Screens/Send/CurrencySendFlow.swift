@@ -10,62 +10,86 @@ import FlipcashCore
 /// Thrown to reset the SwipeControl knob without its success checkmark when a send doesn't complete.
 private struct CurrencySendDismissed: Error {}
 
+/// What the confirm sheet's dismissal means: a send that succeeded leaves Select Recipient for
+/// Currency Info once the sheet is gone, and a sheet closed any other way just returns to the list.
+nonisolated struct CurrencySendHandoff {
+    private(set) var sent = false
+
+    mutating func sendSucceeded() { sent = true }
+
+    /// Whether to leave the flow now that the sheet has finished dismissing. Reads once.
+    mutating func sheetDidDismiss() -> Bool {
+        defer { sent = false }
+        return sent
+    }
+}
+
 /// Send one currency from its Currency Info page: the amount, then who gets it, then the swipe in a
-/// sheet over that list. "Or Give As Cash" skips the person and goes straight to the bill.
-struct CurrencySendFlow: View {
+/// sheet over that list. "Or Give As Cash" skips the person and goes straight to the bill. The
+/// amount and the recipient list are pushed onto Currency Info's stack; only the swipe is a sheet.
+struct CurrencySendAmountDestination: View {
+
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    let mint: PublicKey
+
+    var body: some View {
+        CurrencySendAmountHost(sessionContainer: sessionContainer, mint: mint)
+    }
+}
+
+private struct CurrencySendAmountHost: View {
+
+    @Environment(AppRouter.self) private var router
+
+    @State private var viewModel: CurrencySendViewModel
+
+    private let mint: PublicKey
+
+    init(sessionContainer: SessionContainer, mint: PublicKey) {
+        self.mint = mint
+        _viewModel = State(initialValue: CurrencySendViewModel(sessionContainer: sessionContainer, mint: mint))
+    }
+
+    var body: some View {
+        CurrencySendAmountScreen(viewModel: viewModel) {
+            router.push(.currencySendRecipient(mint, amount: viewModel.enteredAmount))
+        }
+    }
+}
+
+/// Select Recipient, pushed over the amount. It carries the typed amount in its route and rebuilds
+/// the view model from it, so the two screens share nothing but the route.
+struct CurrencySendRecipientDestination: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(Container.self) private var container
 
     let mint: PublicKey
+    let amount: String
 
     var body: some View {
-        CurrencySendFlowContent(sessionContainer: sessionContainer, container: container, mint: mint)
+        CurrencySendRecipientHost(sessionContainer: sessionContainer, container: container, mint: mint, amount: amount)
     }
 }
 
-private enum CurrencySendStep: Hashable {
-    case selectRecipient
-}
-
-private struct CurrencySendFlowContent: View {
-
-    @Environment(AppRouter.self) private var router
+private struct CurrencySendRecipientHost: View {
 
     @State private var viewModel: CurrencySendViewModel
-    @State private var path: [CurrencySendStep] = []
 
     private let container: Container
     private let sessionContainer: SessionContainer
 
-    init(sessionContainer: SessionContainer, container: Container, mint: PublicKey) {
+    init(sessionContainer: SessionContainer, container: Container, mint: PublicKey, amount: String) {
         self.container = container
         self.sessionContainer = sessionContainer
-        _viewModel = State(initialValue: CurrencySendViewModel(sessionContainer: sessionContainer, mint: mint))
+        let model = CurrencySendViewModel(sessionContainer: sessionContainer, mint: mint)
+        model.enteredAmount = amount
+        _viewModel = State(initialValue: model)
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            CurrencySendAmountScreen(viewModel: viewModel) {
-                path.append(.selectRecipient)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    CloseButton(action: router.dismissSheet)
-                }
-            }
-            .navigationDestination(for: CurrencySendStep.self) { step in
-                switch step {
-                case .selectRecipient:
-                    CurrencySelectRecipientScreen(
-                        viewModel: viewModel,
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
-                }
-            }
-        }
-        .interactiveDismissDisabled()
+        CurrencySelectRecipientScreen(viewModel: viewModel, container: container, sessionContainer: sessionContainer)
     }
 }
 
@@ -124,6 +148,7 @@ private struct CurrencySelectRecipientScreen: View {
 
     @State private var query = ""
     @State private var confirming: ConfirmTarget?
+    @State private var handoff = CurrencySendHandoff()
 
     /// What the confirm sheet is open for: the recipient, and the send view model built for them.
     private struct ConfirmTarget: Identifiable {
@@ -168,8 +193,14 @@ private struct CurrencySelectRecipientScreen: View {
         .navigationTitle("Select Recipient")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
-        .sheet(item: $confirming) { target in
-            CurrencySendConfirmSheet(target: target.model, amount: viewModel.enteredTotal, name: target.name, username: target.username, userID: target.userID, picture: target.picture)
+        .sheet(item: $confirming, onDismiss: {
+            // After the dismiss animation: nothing on the stack moves while the sheet is up.
+            if handoff.sheetDidDismiss() { leaveFlow() }
+        }) { target in
+            CurrencySendConfirmSheet(target: target.model, amount: viewModel.enteredTotal, name: target.name, username: target.username, userID: target.userID, picture: target.picture) {
+                handoff.sendSucceeded()
+                confirming = nil
+            }
         }
     }
 
@@ -179,21 +210,43 @@ private struct CurrencySelectRecipientScreen: View {
         let name = conversationController.displayName(for: chat)
         let subject: ProfileAvatarStore.AvatarSubject = counterpart?.userID.map { .user($0) } ?? .chat(chat.id)
 
-        RecipientRowScaffold(
-            avatarID: counterpart?.userID?.uuidString ?? chat.id.description,
-            title: name,
-            subtitle: nil,
-            imageData: sessionContainer.profileAvatars.data(for: subject),
-            blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
-            accessibilityLabel: name,
-            onTap: { select(chat, name: name, counterpart: counterpart) }
-        ) {
-            EmptyView()
+        // Compact, per the design: a 24pt avatar and a 17pt semibold name, 48pt tall. The chat list's
+        // row is 44pt of avatar and a bold 16pt title, which reads as twice the size here.
+        Button {
+            select(chat, name: name, counterpart: counterpart)
+        } label: {
+            HStack(spacing: 16) {
+                ContactAvatarView(
+                    id: counterpart?.userID?.uuidString ?? chat.id.description,
+                    displayName: name,
+                    imageData: sessionContainer.profileAvatars.data(for: subject),
+                    blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
+                    size: 24
+                )
+                Text(name)
+                    .font(.default(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        // The divider starts under the name, not under the avatar.
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 40 }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(name))
+        .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("currency-send-recipient-row")
         .task(id: subject) {
             await sessionContainer.profileAvatars.load(subject, picture: counterpart?.profilePicture)
         }
+    }
+
+    /// Back to Currency Info: pops the recipient list and the amount beneath it.
+    private func leaveFlow() {
+        router.popTopmost(2)
     }
 
     private func select(_ chat: Conversation, name: String, counterpart: ConversationMember?) {
@@ -218,7 +271,7 @@ private struct CurrencySelectRecipientScreen: View {
     private func giveAsCash() {
         let give = GiveViewModel(container: container, sessionContainer: sessionContainer, mint: viewModel.mint)
         give.enteredAmount = viewModel.enteredAmount
-        give.onBillPresented = { router.dismissSheet() }
+        give.onBillPresented = { leaveFlow() }
         give.giveAction()
     }
 }
@@ -237,6 +290,8 @@ private struct CurrencySendConfirmSheet: View {
     let username: Username?
     let userID: UserID?
     let picture: ProfilePicture?
+    /// Called once the success state has been held; the presenter dismisses the sheet and then leaves.
+    let onSent: () -> Void
 
     @State private var didSucceed = false
     /// From the swipe's start until it fails: the sheet stays put while the send is in flight.
@@ -286,10 +341,7 @@ private struct CurrencySendConfirmSheet: View {
                     switch await target.sendAction() {
                     case .success:
                         didSucceed = true
-                    case .recipientNotFound:
-                        router.dismissSheet()
-                        throw CurrencySendDismissed()
-                    case .failed:
+                    case .recipientNotFound, .failed:
                         isSending = false
                         throw CurrencySendDismissed()
                     }
@@ -300,12 +352,12 @@ private struct CurrencySendConfirmSheet: View {
             .padding(.bottom, bottomPadding)
         }
         .task { await target.prewarmVerifiedRate() }
-        // Hold the success checkmark briefly, then dismiss the whole flow back to Currency Info.
+        // Hold the success checkmark briefly, then hand off to the presenter to dismiss.
         .task(id: didSucceed) {
             guard didSucceed else { return }
             try? await Task.delay(seconds: 1)
             guard !Task.isCancelled else { return }
-            router.dismissSheet()
+            onSent()
         }
     }
 
