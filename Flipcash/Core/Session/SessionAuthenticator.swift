@@ -33,9 +33,6 @@ final class SessionAuthenticator {
     /// The top-level authentication state driving the view hierarchy.
     private(set) var state: AuthenticationState = .migrating
 
-    /// The tab the home screen opens on for the current login.
-    private(set) var landingTab: HomeTab = .initial
-
     /// Feature flags available before authentication (e.g. minimum build version).
     private(set) var unauthenticatedUserFlags: UnauthenticatedUserFlags?
 
@@ -464,8 +461,8 @@ final class SessionAuthenticator {
         }
     }
     
-    /// Builds the session for `initializedAccount` and shows the home screen on `landingTab`.
-    func completeLogin(with initializedAccount: InitializedAccount, landingTab: HomeTab = .initial) {
+    /// Builds the session for `initializedAccount` and shows the home screen on `HomeTab.initial`.
+    func completeLogin(with initializedAccount: InitializedAccount) {
         logger.info("completeLogin", metadata: ["owner": "\(initializedAccount.keyAccount.ownerPublicKey)"])
         
         let session = createSessionContainer(
@@ -473,7 +470,6 @@ final class SessionAuthenticator {
             initializedAccount: initializedAccount
         )
         
-        self.landingTab = landingTab
         state = .loggedIn(session)
         session.quickActionsController.configure()
         UserDefaults.wasLoggedIn = true

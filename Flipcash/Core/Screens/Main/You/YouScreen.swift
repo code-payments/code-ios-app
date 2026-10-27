@@ -31,9 +31,6 @@ struct YouScreen: View {
     /// lands on the tap; keyed by user.
     @State private var previewCache = TipCodePreviewCache()
 
-    /// The balance gate, raised when the claim row is tapped below the minimum.
-    @State private var usernameDialog: DialogItem?
-
     @State private var isSharingToChats = false
 
     /// The gap the page keeps between its last row and the tab bar.
@@ -71,7 +68,13 @@ struct YouScreen: View {
                         )
                         .padding(.top, 19)
 
-                        FeaturedGroupsSection(groups: sessionContainer.featuredGroups.groups) { id in
+                        FeaturedGroupsSection(
+                            groups: sessionContainer.featuredGroups.groups,
+                            showsEmptyState: FeaturedGroupsSection.ownProfileShowsEmptyState(
+                                hasUsername: username != nil,
+                                isLoaded: sessionContainer.featuredGroups.isLoaded
+                            )
+                        ) { id in
                             if let group = sessionContainer.featuredGroups.group(withID: id) {
                                 conversationController.hold(group)
                             }
@@ -106,7 +109,6 @@ struct YouScreen: View {
             guard let username else { return }
             await sessionContainer.featuredGroups.load(username: username)
         }
-        .dialog(item: $usernameDialog)
         .fullScreenCover(isPresented: $isSharingToChats) {
             ShareToChatsSheet(
                 subject: .user(
@@ -142,7 +144,10 @@ struct YouScreen: View {
             bannerControls: { EmptyView() },
             coverAccessory: { EmptyView() },
             rowActions: {
-                ProfileEditCapsule {
+                ProfileEditCapsule(
+                    title: editButton.title,
+                    isAccented: editButton.isAccented
+                ) {
                     router.push(.editProfile)
                 }
                 .accessibilityIdentifier("you-edit-profile")
@@ -151,19 +156,12 @@ struct YouScreen: View {
                     shareButton
                 }
             },
-            underSubtitle: {
-                if shouldPromptForUsername {
-                    Button(action: claimUsername) {
-                        Text("Claim your username ›")
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textMain)
-                            .frame(minHeight: 22)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("you-claim-username")
-                }
-            }
+            underSubtitle: { EmptyView() }
         )
+    }
+
+    private var editButton: EditProfileButtonState {
+        EditProfileButtonState(isProfileComplete: profile?.isComplete == true)
     }
 
     private var shareButton: some View {
@@ -278,17 +276,6 @@ struct YouScreen: View {
         height: 242 * TipcardView.aspectRatio
     )
 
-    // MARK: - Username claim -
-
-    /// The balance's standing against the username minimum. Read once per
-    /// render and switched on here rather than re-derived at tap time.
-    private var usernameProgress: UsernameGate {
-        usernameGate(
-            session: sessionContainer.session,
-            minimum: sessionContainer.session.userFlags?.usernameMinBalance
-        )
-    }
-
     // MARK: - Content -
 
     private var profile: Profile? { sessionContainer.session.profile }
@@ -301,39 +288,22 @@ struct YouScreen: View {
 
     private var username: Username? { profile?.username }
 
-    /// Whether to offer the handle: the user has none, or the one they have was
-    /// auto-assigned by the server and they haven't picked their own. Re-derived
-    /// from the profile on every render, so a handle that disappears across a
-    /// refresh puts the offer back on its own.
-    private var shouldPromptForUsername: Bool {
-        usernameNeedsClaim(
-            username: username,
-            isAutoAssigned: profile?.isUsernameAutoAssigned == true
-        )
-    }
-
     private var codeData: Data {
         TipCode.Payload(userID: sessionContainer.session.userID).codeData()
     }
+}
 
-    // MARK: - Actions -
+/// The label and style of the You tab's edit button for a profile's completeness.
+struct EditProfileButtonState: Equatable {
 
-    /// Opens the claim screen once the balance clears the minimum, and the
-    /// balance gate until then.
-    private func claimUsername() {
-        switch usernameProgress {
-        case .proceed:
-            router.push(.username(username))
-        case .addMoney(let minimum, _, _):
-            presentBalanceGate(minimum: minimum)
-        }
-    }
+    /// "Complete Your Profile" until the profile is complete, then "Edit Profile".
+    let title: String
+    /// Whether the button takes the accent fill rather than today's gray capsule.
+    let isAccented: Bool
 
-    /// Names the minimum and offers the way to meet it. The row draws no
-    /// shortfall, so the dialog is where the squatting rule gets stated.
-    private func presentBalanceGate(minimum: FiatAmount) {
-        usernameDialog = .usernameMinimumBalance(minimum: ratesController.displayCurrency.amount(minimum)) {
-            router.presentAddMoney(.general, source: .usernameShortfall)
-        }
+    /// The state for a profile that is, or is not yet, complete (see `Profile.isComplete`).
+    init(isProfileComplete: Bool) {
+        title = isProfileComplete ? "Edit Profile" : "Complete Your Profile"
+        isAccented = !isProfileComplete
     }
 }

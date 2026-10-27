@@ -18,7 +18,7 @@ import XCTest
 /// **Fixture.** Needs the standing `FLIPCASH_UI_TEST_ACCESS_KEY` account rather
 /// than a fresh one: `WalletScreen` draws the tiles only when
 /// `session.hasEverAddedMoney()` is true, and gives an unfunded account the
-/// new-user tutorial in their place. The test only navigates, so it leaves the
+/// Add Money row in their place. The test only navigates, so it leaves the
 /// account untouched.
 final class DiscoverCurrenciesSmokeTests: BaseUITestCase {
 

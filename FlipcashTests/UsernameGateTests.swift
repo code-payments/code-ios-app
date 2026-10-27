@@ -38,6 +38,14 @@ struct UsernameGateTests {
         TokenAmount(wholeTokens: usd, mint: .usdf)
     }
 
+    @Test("Tapping the Username row: a chosen handle skips the gate, an unclaimed one is gated")
+    func usernameRowDestinations() {
+        let short = UsernameGate.addMoney(minimum: .usd(100), shortfall: .usd(100), fraction: 0)
+        #expect(usernameRowDestination(needsClaim: false, gate: short) == .username)
+        #expect(usernameRowDestination(needsClaim: true, gate: .proceed) == .username)
+        #expect(usernameRowDestination(needsClaim: true, gate: short) == .balanceRequired(minimum: .usd(100)))
+    }
+
     @Test("A balance below the minimum is sent to Add Money, carrying the shortfall")
     func gate_belowMinimum_addMoney() {
         let gate = usernameGate(session: StubBalances(usd: 87.5), minimum: minimum(usd: 100))

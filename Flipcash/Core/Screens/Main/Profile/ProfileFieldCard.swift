@@ -13,7 +13,6 @@ struct FieldCard: View {
     let title: String
     let value: String?
     let placeholder: String
-    var valueIsPrompt = false
     var lineLimit = 1
     let action: VoidAction
 
@@ -26,7 +25,7 @@ struct FieldCard: View {
                         .foregroundStyle(Color.textSecondary)
                     Text(value ?? placeholder)
                         .font(.appTextMedium)
-                        .foregroundStyle(value == nil || valueIsPrompt ? Color.textSecondary : Color.textMain)
+                        .foregroundStyle(value == nil ? Color.textSecondary : Color.textMain)
                         .lineLimit(lineLimit)
                         .multilineTextAlignment(.leading)
                 }
@@ -46,7 +45,7 @@ struct FieldCard: View {
     }
 }
 
-/// The "Change cover" button over the cover photo: an interactive Liquid Glass capsule on iOS 26, and on iOS 18 an
+/// The cover photo's "Add cover photo" / "Change cover" button: an interactive Liquid Glass capsule on iOS 26, and on iOS 18 an
 /// opaque chip, since the standard chip's row fill is translucent and vanishes on a photo.
 struct CoverChip: ViewModifier {
     func body(content: Content) -> some View {

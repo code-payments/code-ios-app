@@ -24,7 +24,7 @@ struct AddMoneyStartScreen {
 
     /// The "No Balance Yet" primary CTA, scoped to the dialog. An unscoped
     /// "Add Money" match can resolve to the wallet behind the dialog, which has
-    /// both a tile and a new-user tutorial row under that label.
+    /// an "Add Money" button of its own.
     var addMoneyButton: XCUIElement {
         app.otherElements["No Balance Yet"].buttons["Add Money"]
     }
