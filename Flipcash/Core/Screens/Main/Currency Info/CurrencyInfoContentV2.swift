@@ -306,9 +306,9 @@ struct CurrencyInfoContentV2: View {
                 case .buyIn:
                     actionTile("Buy In", icon: .asset("IconArrowDown"), action: onBuy)
                 case .transactions:
-                    actionTile("Transactions", icon: .system("list.bullet"), action: onShowTransactionHistory)
+                    actionTile("Transactions", icon: .system("clock.arrow.circlepath"), action: onShowTransactionHistory)
                 case .more:
-                    actionTile("More", icon: .system("plus"), action: onMore)
+                    actionTile("More", icon: .system("ellipsis"), action: onMore)
                 }
             }
         }

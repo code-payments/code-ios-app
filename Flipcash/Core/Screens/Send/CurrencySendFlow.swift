@@ -150,7 +150,7 @@ private struct CurrencySelectRecipientScreen: View {
                 ForEach(recipients) { chat in
                     row(chat)
                         .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                        .listRowSeparatorTint(.rowSeparator)
                         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                 }
             }
