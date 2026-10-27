@@ -366,7 +366,7 @@ private struct UserProfileContent: View {
             silenceTarget = moderationTarget
         case .removeFromGroup:
             guard let target = moderationTarget else { return }
-            let moderation = GroupModeration(moderation: container.flipClient, owner: sessionContainer.session.ownerKeyPair, conversationID: target.conversationID)
+            let moderation = GroupModeration(moderation: container.flipClient, owner: sessionContainer.session.ownerKeyPair, conversationID: target.conversationID, didRemove: { [rosters = sessionContainer.groupRosters] in rosters.remove($0, from: target.conversationID) })
             dialogItem = target.removeDialog(moderation: moderation) { error in
                 sessionContainer.session.dialogItem = .error(
                     title: "Something Went Wrong",

@@ -102,10 +102,10 @@ enum GroupModerationCopy {
         previous != nil && current == nil
     }
 
-    static let noSilenced = "No one is silenced"
-    static let noRemoved = "No one has been removed"
-    static let noSilencedBody = "Silence a member from their profile or by pressing and holding their message. They can still read, but not send"
-    static let noRemovedBody = "Members you remove from the group will show up here, where you can let them back in"
+    static let noSilenced = "No One Silenced"
+    static let noRemoved = "No One Removed"
+    static let noSilencedBody = "Stop someone from sending messages in this group by tapping their profile and selecting Silence"
+    static let noRemovedBody = "Remove someone from this group by tapping their profile and selecting Remove from Group"
 
     /// The first word of a display name, which is how the host's prompts address the member.
     static func firstName(of name: String) -> String {
@@ -122,6 +122,8 @@ struct GroupModeration {
     let conversationID: ConversationID
     /// Told the toast message once a silence change has succeeded, never on a failure.
     var announce: @MainActor (String) -> Void = { _ in }
+    /// Told the member once a removal has succeeded, so the roster can drop them with the count.
+    var didRemove: @MainActor (UserID) -> Void = { _ in }
 
     func silence(_ userID: UserID, firstName: String, duration: SilenceDuration, now: Date = .now) async throws {
         try await moderation.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: duration.silence(from: now))
@@ -137,6 +139,7 @@ struct GroupModeration {
     /// the `MemberLeft` update the other members get, so nothing local needs to move.
     func remove(_ userID: UserID) async throws {
         try await moderation.banUser(owner: owner, conversationID: conversationID, userID: userID)
+        didRemove(userID)
     }
 
     func unban(_ userID: UserID) async throws {

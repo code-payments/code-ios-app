@@ -1371,7 +1371,7 @@ struct ConversationScreen: View {
     }
 
     private func groupModeration(_ conversationID: ConversationID) -> GroupModeration {
-        GroupModeration(moderation: container.flipClient, owner: session.ownerKeyPair, conversationID: conversationID)
+        GroupModeration(moderation: container.flipClient, owner: session.ownerKeyPair, conversationID: conversationID, didRemove: { [rosters = sessionContainer.groupRosters] in rosters.remove($0, from: conversationID) })
     }
 
     /// The transcript's own `ChatMessage` for a row, by its stable id — what the reaction handlers

@@ -26,6 +26,10 @@ final class GroupRosters {
     /// The roster version at which each departed member left, so a trailing page can't resurrect them.
     private var departures: [ConversationID: [UserID: UInt64]] = [:]
 
+    /// Members the stream delivered while a read of that chat was in flight. The read was pinned
+    /// before them, so its page cannot be taken as proof they are gone.
+    private var joinedDuringRead: [ConversationID: Set<UserID>] = [:]
+
     @ObservationIgnored private let getRoster: GetRoster
 
     init(getRoster: @escaping GetRoster) {
@@ -44,10 +48,17 @@ final class GroupRosters {
 
     /// Reads `conversationID`'s roster and merges it into what the stream has delivered. A failed
     /// read keeps what was held.
+    ///
+    /// The read pages to exhaustion, so it is the whole roster: a held member it leaves out was removed
+    /// without the stream naming them (a ban reaches the other members as an undisclosed
+    /// `membershipChanged`, which moves the count and nothing else), and is dropped here.
     func refresh(_ conversationID: ConversationID) async {
+        joinedDuringRead[conversationID] = []
+        defer { joinedDuringRead[conversationID] = nil }
         do {
             let page = try await getRoster(conversationID)
             merge(page, into: conversationID)
+            dropMembers(missingFrom: page, in: conversationID)
         } catch {
             logger.warning("Failed to read a group roster", metadata: [
                 "conversationID": "\(conversationID)",
@@ -66,13 +77,32 @@ final class GroupRosters {
             case .joined(let member, _):
                 guard let userID = member.userID else { continue }
                 departures[conversationID]?[userID] = nil
+                joinedDuringRead[conversationID]?.insert(userID)
                 insert(member, userID: userID, into: conversationID)
             case .left(let userID):
                 members[conversationID]?[userID] = nil
                 departures[conversationID, default: [:]][userID] = update.rosterSummary.version
             case .membershipChanged:
-                break
+                // The update names no one, so the list can't be patched. The count has moved, and a
+                // list left as it was would still show whoever was removed: read it again.
+                Task { await refresh(conversationID) }
             }
+        }
+    }
+
+    /// Drops `userID` at once, for a removal this device just made. The server sends the host no
+    /// departure for it, and the list should change in the same beat as the count.
+    func remove(_ userID: UserID, from conversationID: ConversationID) {
+        guard let held = members[conversationID]?[userID] else { return }
+        members[conversationID]?[userID] = nil
+        departures[conversationID, default: [:]][userID] = held.version
+    }
+
+    private func dropMembers(missingFrom page: [ConversationMember], in conversationID: ConversationID) {
+        let pageIDs = Set(page.compactMap(\.userID))
+        let kept = joinedDuringRead[conversationID] ?? []
+        for userID in Array((members[conversationID] ?? [:]).keys) where !pageIDs.contains(userID) && !kept.contains(userID) {
+            members[conversationID]?[userID] = nil
         }
     }
 
