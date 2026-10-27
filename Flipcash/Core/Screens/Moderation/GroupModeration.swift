@@ -92,6 +92,16 @@ enum GroupModerationCopy {
         "\(firstName) can send messages again"
     }
 
+    static let silenceLiftedToast = "You are now able to chat again"
+
+    /// Whether the viewer's silence just lifted: they were under one and now are not. It is the one
+    /// transition both the host's unsilence and a timed silence running out pass through, so keying on
+    /// it shows the toast once per lift. Opening a chat already unsilenced has no earlier silence, and a
+    /// silence replaced by another is not a lift.
+    static func silenceLifted(from previous: ConversationSilenceState?, to current: ConversationSilenceState?) -> Bool {
+        previous != nil && current == nil
+    }
+
     static let noSilenced = "No one is silenced"
     static let noRemoved = "No one has been removed"
     static let noSilencedBody = "Silence a member from their profile or by pressing and holding their message. They can still read, but not send"

@@ -84,6 +84,20 @@ struct GroupModerationTests {
         #expect(GroupModerationCopy.unsilencedToast(firstName: "McAnsh") == "McAnsh can send messages again")
     }
 
+    @Test("The lifted toast fires once, on the way out of a silence")
+    func silenceLiftedOnce() {
+        let timed = ConversationSilenceState.until(now.addingTimeInterval(60))
+        // The host unsilences, or the timer runs out: both end as an active silence becoming none.
+        #expect(GroupModerationCopy.silenceLifted(from: timed, to: nil))
+        #expect(GroupModerationCopy.silenceLifted(from: .forever, to: nil))
+        // Opened already unsilenced, and the later no-op re-evaluation that follows a lift.
+        #expect(!GroupModerationCopy.silenceLifted(from: nil, to: nil))
+        // Being silenced, or silenced again for a different time, is not a lift.
+        #expect(!GroupModerationCopy.silenceLifted(from: nil, to: timed))
+        #expect(!GroupModerationCopy.silenceLifted(from: timed, to: .forever))
+        #expect(GroupModerationCopy.silenceLiftedToast == "You are now able to chat again")
+    }
+
     @Test("A silence change announces only after the server call succeeds")
     func toastOnlyOnSuccess() async throws {
         let server = FakeModeration()

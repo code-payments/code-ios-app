@@ -1040,6 +1040,10 @@ struct ConversationScreen: View {
         .onChange(of: groupConversation?.id, initial: true) { _, groupID in
             mentions = groupID.map { MentionPickerModel(source: sessionContainer.rosterSearch, chatID: $0) }
         }
+        .onChange(of: activeSilence) { previous, current in
+            guard GroupModerationCopy.silenceLifted(from: previous, to: current) else { return }
+            container.toasts.show(.init(GroupModerationCopy.silenceLiftedToast, systemImage: "bubble.left", duration: .seconds(3)))
+        }
         .task(id: activeSilence) {
             silenceClock = .now
             guard case .until(let end)? = activeSilence else { return }
