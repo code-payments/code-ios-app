@@ -235,6 +235,15 @@ public struct ConversationRestrictedUser: Hashable, Sendable, Identifiable {
     public let bannedAt: Date?
 
     public var id: String { userID?.uuidString ?? displayName }
+
+    public init(userID: UserID?, displayName: String, username: Username? = nil, profilePicture: ProfilePicture? = nil, silence: ConversationSilenceState? = nil, bannedAt: Date? = nil) {
+        self.userID = userID
+        self.displayName = displayName
+        self.username = username
+        self.profilePicture = profilePicture
+        self.silence = silence
+        self.bannedAt = bannedAt
+    }
 }
 
 extension ConversationRestrictedUser {
