@@ -139,3 +139,37 @@ struct MessageCapabilityMenuTests {
         #expect(menu(controller, at: 0) == nil)
     }
 }
+
+@MainActor
+@Suite("Long-press lift menu rows")
+struct LiftMenuRowsTests {
+
+    private func controller(actions: [MessageCapability]) -> ChatViewController {
+        let controller = ChatViewController()
+        controller.loadViewIfNeeded()
+        controller.update(items: [.message(ChatMessage(id: "1", text: "hi", sender: .other, actions: actions))])
+        return controller
+    }
+
+    @Test("The lift menu carries the moderation rows, which the context menu nests in an inline section")
+    func liftRowsIncludeModeration() {
+        let rows = controller(actions: [.copy, .reply, .forward, .report, .silence, .remove])
+            .liftMenuActions(for: ChatMessage(id: "1", text: "hi", sender: .other, actions: [.copy, .reply, .forward, .report, .silence, .remove]))
+        #expect(rows.map(\.title).count == 6)
+        #expect(rows.map(\.title).first == "Copy")
+        #expect(rows.map(\.title).contains { $0.hasPrefix("Silence") })
+        #expect(rows.map(\.title).contains { $0.hasPrefix("Remove") })
+    }
+
+    @Test("A divider sets moderation apart from Report, and Remove does not add another")
+    func dividersAroundModeration() {
+        let report = UIAction(title: "Report", attributes: .destructive) { _ in }
+        let silence = UIAction(title: "Silence") { _ in }
+        let remove = UIAction(title: "Remove", attributes: .destructive) { _ in }
+        let copy = UIAction(title: "Copy") { _ in }
+        let rows = [copy, report, silence, remove]
+        let flat = MessageMenuView.size(for: [copy, report])
+        // Two dividers (before Report, before Silence) over two extra rows.
+        #expect(MessageMenuView.size(for: rows).height - flat.height == CGFloat(2 * 44 + 13))
+    }
+}

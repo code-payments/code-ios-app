@@ -1809,6 +1809,20 @@ extension ChatViewController {
         return UIMenu(title: "", children: children)
     }
 
+    /// The rows the long-press lift menu draws for `message`. The lift draws a flat list, so the
+    /// inline section that holds the moderation rows is flattened into it; reading only the top
+    /// level would drop Silence and Remove.
+    func liftMenuActions(for message: ChatMessage) -> [UIAction] {
+        func flatten(_ elements: [UIMenuElement]) -> [UIAction] {
+            elements.flatMap { element -> [UIAction] in
+                if let action = element as? UIAction { return [action] }
+                if let menu = element as? UIMenu { return flatten(menu.children) }
+                return []
+            }
+        }
+        return flatten(contextMenu(for: message)?.children ?? [])
+    }
+
     private func isInReactionRow(_ point: CGPoint) -> Bool {
         var view = collectionView.hitTest(point, with: nil)
         while let current = view {

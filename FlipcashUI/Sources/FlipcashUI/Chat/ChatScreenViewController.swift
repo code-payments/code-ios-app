@@ -475,7 +475,7 @@ public final class ChatScreenViewController: UIViewController {
     private func presentLift(for message: ChatMessage, withMenu: Bool, press: CGPoint? = nil) {
         guard lift == nil, let scene = view.window?.windowScene else { return }
         let entries = stripEntries(for: message)
-        let actions = withMenu ? transcript.contextMenu(for: message)?.children.compactMap { $0 as? UIAction } : nil
+        let actions = withMenu ? transcript.liftMenuActions(for: message) : nil
         guard entries != nil || actions?.isEmpty == false,
               let (copy, frame) = transcript.beginLift(for: message, in: view) else { return }
         if withMenu {
