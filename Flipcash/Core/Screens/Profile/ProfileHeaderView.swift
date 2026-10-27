@@ -141,10 +141,11 @@ struct ProfileActionCircle: View {
     }
 }
 
-/// The header's edit button ("Edit Profile" unless titled otherwise), a flat filled capsule beside ``ProfileActionCircle``.
+/// The header's edit button ("Edit Profile" unless titled otherwise), a flat filled capsule, blue when `isAccented`, beside ``ProfileActionCircle``.
 struct ProfileEditCapsule: View {
 
     var title: String = "Edit Profile"
+    var isAccented: Bool = false
     let action: () -> Void
 
     var body: some View {
@@ -153,7 +154,7 @@ struct ProfileEditCapsule: View {
                 .font(.appTextSmall)
                 .padding(.horizontal, 18)
         }
-        .buttonStyle(ProfileActionButtonStyle())
+        .buttonStyle(ProfileActionButtonStyle(isAccented: isAccented))
     }
 }
 
@@ -163,11 +164,14 @@ private struct ProfileActionButtonStyle: ButtonStyle {
 
     static var height: CGFloat { 38 }
 
+    /// Fills the capsule with the currency creator's `Next` blue and a white label instead.
+    var isAccented = false
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(Color.textMain)
+            .foregroundStyle(isAccented ? Color.white : Color.textMain)
             .frame(height: Self.height)
-            .background(Capsule().fill(Color.action.opacity(0.1)))
+            .background(Capsule().fill(isAccented ? Color.blue : Color.action.opacity(0.1)))
             .contentShape(Capsule())
             .opacity(configuration.isPressed ? 0.7 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)

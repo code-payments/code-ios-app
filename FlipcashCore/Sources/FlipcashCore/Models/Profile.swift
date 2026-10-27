@@ -194,3 +194,12 @@ extension TipCardCustomization {
         .with { $0.hex = colorHex }
     }
 }
+
+extension Profile {
+    /// Whether the profile has a photo, a cover and a non-blank bio.
+    public var isComplete: Bool {
+        profilePicture != nil
+            && coverPicture != nil
+            && bio?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+}

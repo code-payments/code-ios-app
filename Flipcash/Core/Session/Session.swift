@@ -236,11 +236,6 @@ class Session {
         updateableBalances.value.contains { $0.quarks > 0 }
     }
 
-    /// Whether the caller has ever sent a tip — the "scan a tip card" milestone.
-    func hasEverTipped() -> Bool {
-        (try? database.hasEverTipped(selfUserID: userID)) ?? false
-    }
-
     /// The mint's bill-customization colors (the `#RRGGBB` palette users pick in
     /// the currency creator), used to paint its token card. Empty when the mint
     /// has no stored metadata or no customization.
