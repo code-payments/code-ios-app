@@ -262,6 +262,14 @@ struct DestinationView: View {
         case .groupInvite(let secret):
             GroupInviteScreen(secret: secret)
 
+        case .silencedMembers(let conversationID):
+            RestrictedUsersScreen(conversationID: conversationID, list: .silenced)
+                .id(conversationID)
+
+        case .removedMembers(let conversationID):
+            RestrictedUsersScreen(conversationID: conversationID, list: .removed)
+                .id(conversationID)
+
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID))

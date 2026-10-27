@@ -639,6 +639,12 @@ struct ChatProfileScreen: View {
 
     // MARK: - Overflow -
 
+    /// Whether the viewer may silence or ban in this group, which is what opens the Moderation row.
+    private var canModerate: Bool {
+        guard let state = conversation?.viewerState else { return false }
+        return state.canSilence || state.canBan
+    }
+
     private var overflowMenu: some View {
         Menu {
             Button {
@@ -652,6 +658,24 @@ struct ChatProfileScreen: View {
                     isPickingMuteDuration = true
                 } label: {
                     Label("Mute Notifications", systemImage: "bell.slash")
+                }
+            }
+            // The host's two lists, behind one row so the overflow stays short. Gated on the
+            // viewer's server-computed flags, never on being the creator.
+            if canModerate {
+                Menu {
+                    Button {
+                        router.push(.silencedMembers(conversationID))
+                    } label: {
+                        Label("Silenced", systemImage: "speaker.slash")
+                    }
+                    Button {
+                        router.push(.removedMembers(conversationID))
+                    } label: {
+                        Label("Removed", systemImage: "person.badge.minus")
+                    }
+                } label: {
+                    Label("Moderation", systemImage: "shield")
                 }
             }
             Divider()
