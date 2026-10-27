@@ -400,7 +400,7 @@ struct HomeTabView: View {
                 Color.backgroundMain
             }
         case .wallet:
-            WalletScreen(onScanTipCard: { selection = .scan })
+            WalletScreen()
                 .environment(cardExpansion)
         case .chat:
             // Building the conversation list costs 300–550 ms, so when the app

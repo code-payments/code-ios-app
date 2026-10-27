@@ -15,11 +15,8 @@ struct WalletScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
-    /// Invoked by the tutorial's "Scan a Profile Card" step to switch to the Scan tab.
-    let onScanTipCard: () -> Void
-
     var body: some View {
-        WalletScreenContent(sessionContainer: sessionContainer, onScanTipCard: onScanTipCard)
+        WalletScreenContent(sessionContainer: sessionContainer)
     }
 }
 
@@ -33,13 +30,10 @@ private struct WalletScreenContent: View {
     @Environment(WalletCardExpansion.self) private var cardExpansion
 
     let session: Session
-    let onScanTipCard: () -> Void
-
     @State private var cards: [TokenCardData] = []
     @State private var total: ExchangedFiat
     @State private var appreciation: (amount: FiatAmount, isPositive: Bool)
     @State private var hasAddedMoney: Bool
-    @State private var hasTipped: Bool
     /// The unified recent-activity preview (newest first).
     @State private var recentActivities: [Activity]
 
@@ -139,9 +133,8 @@ private struct WalletScreenContent: View {
         return Self.tabBarGap + HomeTabView.legacyPillClearance
     }
 
-    init(sessionContainer: SessionContainer, onScanTipCard: @escaping () -> Void) {
+    init(sessionContainer: SessionContainer) {
         self.session = sessionContainer.session
-        self.onScanTipCard = onScanTipCard
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         // Seed synchronously so the first render shows real balances, not an
         // empty-state flash.
@@ -157,16 +150,14 @@ private struct WalletScreenContent: View {
         _arrivalProgress = State(initialValue: landing?.isNewToken == true ? 0 : 1)
         _appreciation = State(initialValue: seed.appreciation)
         _hasAddedMoney = State(initialValue: sessionContainer.session.hasEverAddedMoney())
-        _hasTipped = State(initialValue: sessionContainer.session.hasEverTipped())
         _recentActivities = State(initialValue: sessionContainer.session.recentActivities(limit: Self.recentPreviewCount))
     }
 
     private var rate: Rate { ratesController.rateForBalanceCurrency() }
 
-    private var tutorialState: NewUserTutorialState {
-        NewUserTutorialState(
+    private var addMoneyRowState: AddMoneyRowState {
+        AddMoneyRowState(
             hasAddedMoney: hasAddedMoney,
-            hasTipped: hasTipped,
             historySyncState: historyController.syncState,
             hasStoredActivity: !recentActivities.isEmpty
         )
@@ -247,7 +238,7 @@ private struct WalletScreenContent: View {
             .onChange(of: rate) { _, _ in refresh() }
             // Activities land in the DB independently of a balance change (e.g.
             // a synced history page), and both the recent preview and the
-            // onboarding milestones are derived from them — so reload both on
+            // add-money milestone are derived from them — so reload both on
             // any DB change rather than only when a balance moves.
             .onReceive(NotificationCenter.default.publisher(for: .databaseDidChange)) { _ in
                 reloadHistoryState()
@@ -496,7 +487,7 @@ private struct WalletScreenContent: View {
     private var walletContent: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
-                // Header + tutorial scroll off first; the card stack then reaches the
+                // Header + Add Money row scroll off first; the card stack then reaches the
                 // top and collapses into its back card. The stack measures the
                 // scroll itself (via `.visualEffect`), so no height plumbing here.
                 VStack(spacing: 0) {
@@ -506,13 +497,9 @@ private struct WalletScreenContent: View {
                         .padding(.top, headerTopPadding)
                         .padding(.bottom, 44)
 
-                    if tutorialState.isVisible {
-                        TutorialChecklistCard(
-                            title: "Send Your First Tip",
-                            items: tutorialState.items,
-                            onTap: handleTutorialTap
-                        )
-                        .padding(.bottom, 20)
+                    if addMoneyRowState.isVisible {
+                        addMoneyRow
+                            .padding(.bottom, 20)
                     }
                 }
                 // The stack is deliberately outside the fade: its cards carry
@@ -542,8 +529,8 @@ private struct WalletScreenContent: View {
                     }
 
                     // Returning users (already funded) get the tile shortcuts
-                    // below the activity; new users use the tutorial's own steps
-                    // instead.
+                    // below the activity; new users get the Add Money row
+                    // above instead.
                     if hasAddedMoney {
                         walletTiles
                             .padding(.top, 24)
@@ -621,9 +608,7 @@ private struct WalletScreenContent: View {
     /// A tile-style entry point: icon top-leading, label pinned bottom-leading,
     /// inside a translucent rounded card. They tile two-up per row.
     ///
-    /// `identifier` is what tests target: several of these titles also appear on
-    /// the new-user tutorial rows above, where a completed milestone renders
-    /// disabled, so matching on the label alone can resolve to an untappable row.
+    /// `identifier` is what tests target, so they do not depend on the label.
     private func walletTile(icon: TileGlyph, title: String, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
@@ -671,13 +656,34 @@ private struct WalletScreenContent: View {
         .padding(.top, 24)
     }
 
-    private func handleTutorialTap(_ item: TutorialItem) {
-        switch item {
-        case .addMoney:
+    private var addMoneyRow: some View {
+        Button {
             router.presentAddMoney(.general, source: .balance)
-        case .scanTipCard:
-            onScanTipCard()
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "plus.circle")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .foregroundStyle(Color.textSecondary)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Add Money")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                    Text("Add money to your account")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .background(Color.backgroundRow)
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("wallet-add-money-row")
     }
 
     // MARK: - Deposit
@@ -748,24 +754,21 @@ private struct WalletScreenContent: View {
     }
 
     /// Re-reads the history-derived state: the recent-activity preview and the
-    /// two onboarding milestones. All three come from the activity and message
-    /// tables, which a history sync writes without touching balances — so they
+    /// add-money milestone. Both come from the activity table, which a history
+    /// sync writes without touching balances — so they
     /// cannot ride on ``refresh()``'s balance trigger, and a deposit's activity
     /// row routinely lands after the balance rise that preceded it.
     private func reloadHistoryState() {
         let activities = session.recentActivities(limit: Self.recentPreviewCount)
         let addedMoney = session.hasEverAddedMoney()
-        let tipped = session.hasEverTipped()
 
         guard activities != recentActivities
                 || addedMoney != hasAddedMoney
-                || tipped != hasTipped
         else { return }
 
         withAnimation(.default) {
             recentActivities = activities
             hasAddedMoney = addedMoney
-            hasTipped = tipped
         }
     }
 

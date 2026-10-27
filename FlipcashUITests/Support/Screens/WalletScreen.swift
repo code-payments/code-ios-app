@@ -45,9 +45,8 @@ struct WalletScreen {
     /// The balance header button that shows the flag + total amount + chevron.
     var balanceHeader: XCUIElement { app.buttons["balance-header"] }
 
-    /// The "Add Money" tile. Matched by identifier, not label: the new-user
-    /// tutorial above it renders an "Add Money" row too, and on a funded account
-    /// that row is completed and therefore disabled.
+    /// The "Add Money" tile. Matched by identifier, which is stable
+    /// across label changes.
     var addMoneyTile: XCUIElement { app.buttons["wallet-tile-add-money"] }
 
     /// The "Withdraw Money" tile, which pushes the currency picker onto the
