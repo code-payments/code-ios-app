@@ -239,9 +239,11 @@ private struct CurrencySendConfirmSheet: View {
     let picture: ProfilePicture?
 
     @State private var didSucceed = false
+    /// From the swipe's start until it fails: the sheet stays put while the send is in flight.
+    @State private var isSending = false
 
     var body: some View {
-        PartialSheet(background: .clear) {
+        PartialSheet(background: .clear, canDismiss: !isSending && !didSucceed) {
             VStack(spacing: 25) {
                 VStack(spacing: 8) {
                     ContactAvatarView(
@@ -280,6 +282,7 @@ private struct CurrencySendConfirmSheet: View {
                     .padding(.top, 4)
                 }
                 SwipeControl(text: target.swipeLabel) {
+                    isSending = true
                     switch await target.sendAction() {
                     case .success:
                         didSucceed = true
@@ -287,6 +290,7 @@ private struct CurrencySendConfirmSheet: View {
                         router.dismissSheet()
                         throw CurrencySendDismissed()
                     case .failed:
+                        isSending = false
                         throw CurrencySendDismissed()
                     }
                 }

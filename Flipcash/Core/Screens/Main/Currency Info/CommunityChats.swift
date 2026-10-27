@@ -33,7 +33,7 @@ nonisolated enum CommunityChats {
     static let rankingTitle = "How Chats Are Ranked"
 
     static func rankingMessage(currencyName: String) -> String {
-        "Chats are ranked by the total amount of \(currencyName) held by their members. Chats with higher combined holdings appear higher."
+        "Chats are ranked by the total amount of \(currencyName) held by their members. Chats with higher combined holdings appear higher"
     }
 }
 
