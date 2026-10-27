@@ -27,6 +27,8 @@ extension AppRouter {
         case transactionHistory(PublicKey)
         /// The "How Market Cap Works" explainer for one currency.
         case marketCapExplainer(PublicKey)
+        /// Every ranked community chat for one currency ("View All" on Currency Info).
+        case topCommunityChats(PublicKey)
         /// The unified, cross-token activity history — the "dive in" from the
         /// Wallet's Recent section. `transactionHistory` is the per-token slice.
         case activity
@@ -161,7 +163,7 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .marketCapExplainer, .activity, .transactionDetails, .give,
+                 .transactionHistory, .marketCapExplainer, .topCommunityChats, .activity, .transactionDetails, .give,
                  .buyCurrency, .convertCurrency,
                  .withdrawCurrency, .depositCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
@@ -192,6 +194,7 @@ extension AppRouter {
             case .currencyCreationSummary:      "currencyCreationSummary"
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
+            case .topCommunityChats:            "topCommunityChats"
             case .marketCapExplainer:           "marketCapExplainer"
             case .activity:                     "activity"
             case .transactionDetails:           "transactionDetails"
@@ -254,6 +257,7 @@ extension AppRouter {
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
                  .marketCapExplainer(let mint),
+                 .topCommunityChats(let mint),
                  .give(let mint),
                  .buyCurrency(let mint),
                  .depositCurrency(let mint),

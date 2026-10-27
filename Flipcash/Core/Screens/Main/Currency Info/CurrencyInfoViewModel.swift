@@ -152,6 +152,37 @@ class CurrencyInfoViewModel {
         }
     }
 
+    /// The community's chats ranked by members' holdings. Empty until loaded, and again if the call
+    /// fails, which is how the section hides itself.
+    private(set) var communityChats: [Conversation] = []
+
+    /// "$10,840 of Jeffy held by 44 members", the holdings valued at the curve's current supply and
+    /// shown in the user's display currency.
+    func communitySubtitle(for chat: Conversation) -> String {
+        var amount: String?
+        if let holdings = chat.holdingsSummary, let stored = mintMetadata {
+            let value = ExchangedFiat.compute(
+                onChainAmount: TokenAmount(quarks: holdings.quarks, mint: mint),
+                rate: ratesController.rateForBalanceCurrency(),
+                supplyQuarks: stored.supplyFromBonding
+            )
+            amount = value.nativeAmount.formattedDroppingZeroFraction()
+        }
+        return CommunityChats.subtitle(
+            amount: amount,
+            currencyName: mintMetadata?.name ?? "",
+            memberCount: chat.rosterSummary.memberCount
+        )
+    }
+
+    func loadCommunityChats() async {
+        do {
+            communityChats = try await session.fetchCommunity(mint: mint).topHolderChats
+        } catch {
+            communityChats = []
+        }
+    }
+
     /// Loads the newest `limit` activities for this token into ``recentActivities``.
     func loadRecentActivities(limit: Int) async {
         let all = (try? await database.getActivities(mint: mint)) ?? []

@@ -43,6 +43,10 @@ struct CurrencyInfoContentV2: View {
     let onShowTransactionHistory: () -> Void
     /// More — opens the sheet carrying Convert, Withdraw and Deposit.
     let onMore: () -> Void
+    /// Opens a community chat's group profile.
+    let onSelectCommunityChat: (Conversation) -> Void
+    let onShowCommunityRankingInfo: () -> Void
+    let onShowAllCommunityChats: () -> Void
     /// Opens "How Market Cap Works".
     let onShowMarketCapExplainer: () -> Void
     /// Fires when the hero card's title scrolls out from under the toolbar, so
@@ -132,6 +136,17 @@ struct CurrencyInfoContentV2: View {
                 Group {
                     actionTiles
                     .padding(.horizontal, 20)
+
+                    CommunityChatsSection(
+                        chats: viewModel.communityChats,
+                        currencyName: metadata.name,
+                        subtitle: viewModel.communitySubtitle(for:),
+                        onSelect: onSelectCommunityChat,
+                        onInfo: onShowCommunityRankingInfo,
+                        onViewAll: onShowAllCommunityChats
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
 
                 // Everything below is laid out and shown from the first frame,
                 // so the page arrives complete rather than in stages. Nothing

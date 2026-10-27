@@ -53,6 +53,10 @@ struct DestinationView: View {
         case .transactionHistory(let mint):
             TransactionHistoryScreen(mint: mint)
 
+        case .topCommunityChats(let mint):
+            TopCommunityChatsDestination(mint: mint)
+                .id(mint)
+
         case .marketCapExplainer(let mint):
             MarketCapExplainerScreen(
                 mint: mint,

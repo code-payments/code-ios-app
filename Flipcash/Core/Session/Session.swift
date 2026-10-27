@@ -380,6 +380,11 @@ class Session {
     
     // MARK: - Info -
     
+    /// The community of the currency launched as `mint`, with its ranked top-holder chats.
+    func fetchCommunity(mint: PublicKey) async throws -> Community {
+        try await flipClient.fetchCommunity(mint: mint, owner: ownerKeyPair)
+    }
+
     func updateProfile() async throws {
         let fetched = try await Task.retry(
             maxAttempts: 3,

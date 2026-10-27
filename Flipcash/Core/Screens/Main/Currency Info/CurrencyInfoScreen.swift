@@ -73,6 +73,7 @@ private struct CurrencyInfoScreenContent: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AppRouter.self) private var router
+    @Environment(ConversationController.self) private var conversationController
     /// Set by the wallet so this screen zooms out of the tapped token card.
     @Environment(\.walletCardNamespace) private var cardNamespace
 
@@ -261,6 +262,12 @@ private struct CurrencyInfoScreenContent: View {
                     onBuy: { router.push(.buyCurrency(mint)) },
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onMore: { isShowingMore = true },
+                    onSelectCommunityChat: { chat in
+                        conversationController.hold(chat)
+                        router.push(.chatProfile(chat.id, origin: .featuredGroup))
+                    },
+                    onShowCommunityRankingInfo: { session.dialogItem = .info(title: CommunityChats.rankingTitle, subtitle: CommunityChats.rankingMessage(currencyName: metadata.name)) },
+                    onShowAllCommunityChats: { router.push(.topCommunityChats(metadata.mint)) },
                     onShowMarketCapExplainer: { router.push(.marketCapExplainer(metadata.mint)) },
                     onScrolledPastTitle: { scrolledPast in
                         guard showsToolbarTitle != scrolledPast else { return }
@@ -361,6 +368,7 @@ private struct CurrencyInfoScreenContent: View {
                 onInvited: { _ in }
             )
         }
+        .task { await viewModel.loadCommunityChats() }
         .task {
             ratesController.ensureMintSubscribed(mint)
             await viewModel.loadMintMetadata()
