@@ -32,6 +32,12 @@ struct ChatSearchScreen: View {
     /// Where a result opens. Nil pushes onto the stack this screen is on.
     var navigate: ((AppRouter.Destination) -> Void)?
 
+    /// Whether this screen is the one in front. The search tab stays alive while other tabs show,
+    /// so leaving and returning to it is what counts as closing and reopening search.
+    var isActive = true
+
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var model: ChatSearchModel?
     /// The chip whose results are showing; trails the selected chip while they fade through.
     @State private var shownScope: ChatSearchScope = .all
@@ -74,6 +80,10 @@ struct ChatSearchScreen: View {
             .animation(.easeInOut(duration: 0.2), value: model?.isIdle ?? true)
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: isActive) { _, _ in startFresh() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { startFresh() }
+        }
         .task {
             guard model == nil else { return }
             let model = makeModel()
@@ -110,6 +120,15 @@ struct ChatSearchScreen: View {
                 resultsOpacity = 1
             }
         }
+    }
+
+    /// Every open starts from an empty field, the All chip and the top of Recent. Recent's saved
+    /// history is not search input and stays.
+    private func startFresh() {
+        model?.reset()
+        shownScope = .all
+        resultsOpacity = 1
+        resultsScroll.scrollTo(edge: .top)
     }
 
     private var queryBinding: Binding<String> {

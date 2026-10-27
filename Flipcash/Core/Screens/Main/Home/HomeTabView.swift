@@ -262,7 +262,7 @@ struct HomeTabView: View {
             }
             Tab(value: NativeTab.search, role: .search) {
                 NavigationStack {
-                    ChatSearchScreen(chrome: .tab, navigate: openFromSearch)
+                    ChatSearchScreen(chrome: .tab, navigate: openFromSearch, isActive: isSearchSelected)
                 }
                 .toastHost(container.toasts, isEnabled: isSearchSelected)
                 .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
