@@ -17,6 +17,27 @@ public enum ChatListUnread: Equatable, Sendable {
     }
 }
 
+/// The join requests waiting on a group the viewer hosts, as the list rules see them.
+public struct ChatListJoinRequests: Equatable, Sendable {
+    /// No one is waiting, which is every chat the viewer doesn't host.
+    public static let none = ChatListJoinRequests(count: 0, newestEnteredAt: nil)
+
+    public let count: Int
+    /// When the newest request arrived; nil when no request carries a time.
+    public let newestEnteredAt: Date?
+
+    public init(count: Int, newestEnteredAt: Date?) {
+        self.count = count
+        self.newestEnteredAt = newestEnteredAt
+    }
+
+    /// The time a chat sorts by and shows: its last activity, or the newest request when that is later.
+    public func sortTime(after lastActivity: Date) -> Date {
+        guard count > 0, let newestEnteredAt else { return lastActivity }
+        return max(lastActivity, newestEnteredAt)
+    }
+}
+
 /// The few facts of a chat the list rules need, decoupled from `Conversation` so the cross-platform
 /// fixture can drive them directly. The controller maps a `Conversation` onto this.
 public struct ChatListEntry<ID: Hashable & Sendable>: Sendable {
@@ -27,6 +48,13 @@ public struct ChatListEntry<ID: Hashable & Sendable>: Sendable {
     public let isMuted: Bool
     public let isHidden: Bool
     public let unread: ChatListUnread
+    public let joinRequests: ChatListJoinRequests
+
+    /// The time the list orders this chat by.
+    public var sortTime: Date { joinRequests.sortTime(after: lastActivity) }
+
+    /// Unread messages or a pending join request; either puts the chat under Unread and on the badge.
+    public var isUnread: Bool { unread.isUnread || joinRequests.count > 0 }
 
     public init(
         id: ID,
@@ -35,7 +63,8 @@ public struct ChatListEntry<ID: Hashable & Sendable>: Sendable {
         isArchived: Bool,
         isMuted: Bool,
         isHidden: Bool,
-        unread: ChatListUnread
+        unread: ChatListUnread,
+        joinRequests: ChatListJoinRequests = .none
     ) {
         self.id = id
         self.type = type
@@ -44,6 +73,7 @@ public struct ChatListEntry<ID: Hashable & Sendable>: Sendable {
         self.isMuted = isMuted
         self.isHidden = isHidden
         self.unread = unread
+        self.joinRequests = joinRequests
     }
 }
 
@@ -51,13 +81,13 @@ public struct ChatListEntry<ID: Hashable & Sendable>: Sendable {
 /// tab badge hold. One function feeds all of them so they cannot disagree.
 public struct ChatListProjection<ID: Hashable & Sendable>: Sendable {
 
-    /// Not archived, not hidden, newest activity first. The Chats tab's rows.
+    /// Not archived, not hidden, newest ``ChatListEntry/sortTime`` first. The Chats tab's rows.
     public let main: [ID]
     /// `main` filtered to unread.
     public let unreadChip: [ID]
     /// `main` filtered to groups. Counts toward the chip only when unread; see `groupsChipCount`.
     public let groupsChip: [ID]
-    /// Archived and not hidden, newest activity first.
+    /// Archived and not hidden, newest ``ChatListEntry/sortTime`` first.
     public let archived: [ID]
     /// Unread chats inside `unreadChip`.
     public let unreadChipCount: Int
@@ -75,8 +105,8 @@ public struct ChatListProjection<ID: Hashable & Sendable>: Sendable {
         func ordered(_ chats: [ChatListEntry<ID>]) -> [ChatListEntry<ID>] {
             chats.enumerated()
                 .sorted { l, r in
-                    l.element.lastActivity != r.element.lastActivity
-                        ? l.element.lastActivity > r.element.lastActivity
+                    l.element.sortTime != r.element.sortTime
+                        ? l.element.sortTime > r.element.sortTime
                         : l.offset < r.offset
                 }
                 .map(\.element)
@@ -85,7 +115,7 @@ public struct ChatListProjection<ID: Hashable & Sendable>: Sendable {
         let visible = entries.filter { !$0.isHidden }
         let main = ordered(visible.filter { !$0.isArchived })
         let archived = ordered(visible.filter(\.isArchived))
-        let unread = main.filter { $0.unread.isUnread }
+        let unread = main.filter(\.isUnread)
         let groups = main.filter { $0.type == .group }
 
         return ChatListProjection(
@@ -94,9 +124,9 @@ public struct ChatListProjection<ID: Hashable & Sendable>: Sendable {
             groupsChip: groups.map(\.id),
             archived: archived.map(\.id),
             unreadChipCount: unread.count,
-            groupsChipCount: groups.count { $0.unread.isUnread },
+            groupsChipCount: groups.count(where: \.isUnread),
             archivedRowVisible: !archived.isEmpty,
-            archivedRowCount: archived.count { $0.unread.isUnread && !$0.isMuted },
+            archivedRowCount: archived.count { $0.isUnread && !$0.isMuted },
             tabBadge: unread.count
         )
     }
