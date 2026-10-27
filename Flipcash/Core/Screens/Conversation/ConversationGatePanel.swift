@@ -94,6 +94,29 @@ struct ConversationGatePanel: View {
     static let creatorSentence = "Only the creator can send messages"
     static let unsupportedSentence = "Update Flipcash to send messages"
 
+    /// "You're silenced until 6:02 PM" for a timed silence — the time alone when it ends today,
+    /// otherwise the date and time — or "You're silenced in this group" for a forever one.
+    static func silencedSentence(
+        _ silence: ConversationSilenceState,
+        now: Date,
+        calendar: Calendar = .current,
+        locale: Locale = .current
+    ) -> String {
+        switch silence {
+        case .forever:
+            return "You're silenced in this group"
+        case .until(let end):
+            return "You're silenced until \(endText(end, now: now, calendar: calendar, locale: locale))"
+        }
+    }
+
+    /// An end time as the time alone when it falls today, otherwise the date and time.
+    static func endText(_ end: Date, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
+        let style = Date.FormatStyle(date: .omitted, time: .shortened).locale(locale)
+        let dated = Date.FormatStyle(date: .abbreviated, time: .shortened).locale(locale)
+        return calendar.isDate(end, inSameDayAs: now) ? end.formatted(style) : end.formatted(dated)
+    }
+
     private var card: some View {
         VStack(spacing: Layout.gap) {
             if let sentence {
@@ -158,6 +181,9 @@ struct ConversationGatePanel: View {
             return Self.creatorSentence
         case .unsupported:
             return Self.unsupportedSentence
+        case .silenced(let silence):
+            // Drawn as the pill too.
+            return Self.silencedSentence(silence, now: .now)
         }
     }
 
@@ -198,7 +224,7 @@ struct ConversationGatePanel: View {
                 Button(addFundsTitle(mint: mint), action: onAddFunds)
                     .accessibilityIdentifier("conversation-gate-add-funds")
                     .buttonStyle(.filled)
-            case .staff, .never, .creator, .unsupported:
+            case .staff, .never, .creator, .unsupported, .silenced:
                 // Nothing the user can do about being staff, about a chat nobody may post in, or about not being its creator,
                 // so a button here would be a lie.
                 EmptyView()
@@ -246,8 +272,8 @@ private extension ConversationGateRequirement {
     /// Whether the read-only state is drawn as the composer-shaped pill: the ones with no action.
     var isStaticReadOnly: Bool {
         switch self {
-        case .never, .creator, .unsupported:  true
-        case .minimumBalance, .staff:         false
+        case .never, .creator, .unsupported, .silenced:  true
+        case .minimumBalance, .staff:                    false
         }
     }
 }

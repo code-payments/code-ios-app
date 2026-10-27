@@ -83,6 +83,10 @@ struct ConversationScreen: View {
     /// Whether the encryption explainer opened from the transcript's marker is showing.
     @State private var isShowingEncryptionInfo = false
     @State private var messageReport: MessageReportRequest?
+    @State private var silenceTarget: ModerationTarget?
+    /// The instant ``gate`` judges a timed silence against. A silence lapses with no event, so
+    /// ``silenceExpiry`` moves this to the end and the composer returns without reopening the chat.
+    @State private var silenceClock = Date.now
     @State private var messageShare: MessageShareRequest?
     /// Whether `Group: Gate Shown` has gone out for this visit. The destination is keyed by
     /// conversation ID, so a new push is a new visit; a return from a pushed screen is not.
@@ -219,7 +223,12 @@ struct ConversationScreen: View {
     /// Tapping a face in the gutter opens that person's profile — the same screen the counterpart's
     /// own card opens in a DM.
     private func openAuthorProfile(_ userID: UserID) {
-        router.push(.userProfile(userID, origin: .groupMember))
+        router.push(.userProfile(userID, origin: groupMemberOrigin))
+    }
+
+    /// Where a profile opened from this transcript says it came from. Only a group has members.
+    private var groupMemberOrigin: UserProfileOrigin {
+        conversationID.map(UserProfileOrigin.groupMember) ?? .directMessage
     }
 
     /// Tapping the title opens the counterpart's contact card: their address-book
@@ -270,6 +279,16 @@ struct ConversationScreen: View {
             return awaitingMetadata ? .undetermined : .open
         }
         return conversationGatePresentation(gateVerdicts, isMember: conversationController.isMember(of: conversation))
+            .silenced(by: conversation.viewerState?.silence, at: silenceClock)
+    }
+
+    /// The silence the viewer is under, when the host has set one that hasn't lapsed.
+    private var activeSilence: ConversationSilenceState? {
+        guard let conversationID,
+              let silence = conversationController.conversation(withID: conversationID)?.viewerState?.silence,
+              silence.isActive(at: silenceClock)
+        else { return nil }
+        return silence
     }
 
     /// Whether this chat's rules are simply unknown, rather than absent.
@@ -394,7 +413,7 @@ struct ConversationScreen: View {
         switch requirement {
         case .minimumBalance(let amount, let mint):
             return balanceShortfall(of: amount, mint: mint, holdings: session, rates: ratesController.cachedRates)
-        case .staff, .never, .creator, .unsupported:
+        case .staff, .never, .creator, .unsupported, .silenced:
             return nil
         }
     }
@@ -402,7 +421,7 @@ struct ConversationScreen: View {
     private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
         switch requirement {
         case .minimumBalance(_, let mint):  mint
-        case .staff, .never, .creator, .unsupported:  nil
+        case .staff, .never, .creator, .unsupported, .silenced:  nil
         }
     }
 
@@ -657,7 +676,7 @@ struct ConversationScreen: View {
                     router.push(.currencyInfo(mint))
                 },
                 openProfile: { userID in
-                    router.push(.userProfile(userID, origin: .groupMember))
+                    router.push(.userProfile(userID, origin: groupMemberOrigin))
                 }
             )
             .task {
@@ -690,7 +709,7 @@ struct ConversationScreen: View {
         .sheet(item: $reactorsRequest, onDismiss: {
             guard let userID = pendingReactorProfile else { return }
             pendingReactorProfile = nil
-            router.push(.userProfile(userID, origin: groupConversation == nil ? .directMessage : .groupMember))
+            router.push(.userProfile(userID, origin: groupConversation == nil ? .directMessage : groupMemberOrigin))
         }) { request in
             ReactorsSheet(pills: request.pills, model: request.model) { userID in
                 pendingReactorProfile = userID
@@ -1015,6 +1034,13 @@ struct ConversationScreen: View {
         .onChange(of: groupConversation?.id, initial: true) { _, groupID in
             mentions = groupID.map { MentionPickerModel(source: sessionContainer.rosterSearch, chatID: $0) }
         }
+        .task(id: activeSilence) {
+            silenceClock = .now
+            guard case .until(let end)? = activeSilence else { return }
+            try? await Task.sleep(for: .seconds(max(0, end.timeIntervalSinceNow)) + .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            silenceClock = .now
+        }
         // Name the senders the chat's roster and the local cache both leave out. Keyed on that set,
         // so it runs when a page of older messages reveals a sender nothing here can name — and not
         // again once the fetch has landed them.
@@ -1076,6 +1102,7 @@ struct ConversationScreen: View {
                 router.push(.tipConversation(chatID))
             }
         }
+        .silenceUserSheet($silenceTarget)
         .fullScreenCover(item: $messageReport) { report in
             NavigationStack {
                 ReportFlowScreen(
@@ -1307,7 +1334,34 @@ struct ConversationScreen: View {
         case .forward:
             guard let conversationID else { return }
             messageShare = MessageShareRequest(id: stableID, url: .messageLink(in: conversationID, messageID: message.id))
+        case .silence:
+            silenceTarget = moderationTarget(for: message)
+        case .remove:
+            guard let target = moderationTarget(for: message) else { return }
+            session.dialogItem = target.removeDialog(moderation: groupModeration(target.conversationID)) { error in
+                session.dialogItem = .error(
+                    title: "Something Went Wrong",
+                    subtitle: "We were unable to remove \(target.firstName). Please try again"
+                )
+                ErrorReporting.captureError(error, reason: "Failed to remove user")
+            }
         }
+    }
+
+    /// The sender of `message` as the host's Silence and Remove prompts address them.
+    private func moderationTarget(for message: ConversationMessage) -> ModerationTarget? {
+        guard let conversationID, let senderID = message.senderID else { return nil }
+        let name = coordinator?.attributedName(for: senderID) ?? ""
+        return ModerationTarget(
+            conversationID: conversationID,
+            userID: senderID,
+            firstName: name.isEmpty ? "Member" : GroupModerationCopy.firstName(of: name),
+            groupName: title
+        )
+    }
+
+    private func groupModeration(_ conversationID: ConversationID) -> GroupModeration {
+        GroupModeration(moderation: container.flipClient, owner: session.ownerKeyPair, conversationID: conversationID)
     }
 
     /// The transcript's own `ChatMessage` for a row, by its stable id — what the reaction handlers

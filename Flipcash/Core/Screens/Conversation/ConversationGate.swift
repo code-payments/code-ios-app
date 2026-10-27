@@ -37,6 +37,10 @@ enum ConversationGateRequirement: Equatable {
     case creator
     /// A speaker rule this build can't read. Blocks for everyone; the fix is updating the app.
     case unsupported
+    /// The group's host silenced the viewer. Not a rule of the chat, so ``conversationGate`` never
+    /// produces it; ``ConversationGatePresentation/silenced(by:at:)`` lays it over the verdict.
+    /// There is no action a user can take, so no CTA.
+    case silenced(ConversationSilenceState)
 }
 
 /// Whether one class of rules is met, and if not, which of them aren't.
@@ -167,7 +171,7 @@ func conversationGate(
     // can fail (never, balance, staff) blocks both, and so does an unmet listener rule.
     let blocksReactions = !listenerUnmet.isEmpty || speakerUnmet.contains { requirement in
         switch requirement {
-        case .creator, .unsupported:               return false
+        case .creator, .unsupported, .silenced:    return false
         case .minimumBalance, .staff, .never:      return true
         }
     }
@@ -345,6 +349,23 @@ enum ConversationGatePresentation: Equatable {
     }
 }
 
+extension ConversationGatePresentation {
+
+    /// Lays the viewer's silence over the rules' verdict: a member the host silenced reads and
+    /// reacts but doesn't post, so an open composer or any other read-only reason becomes the
+    /// silence pill. A viewer who isn't in the chat yet, or who is refused it, sees no change.
+    ///
+    /// Takes `now` rather than reading the clock, because a timed silence lapses with no event
+    /// and the caller owns the wake-up that re-asks.
+    func silenced(by silence: ConversationSilenceState?, at now: Date) -> ConversationGatePresentation {
+        guard let silence, silence.isActive(at: now) else { return self }
+        switch self {
+        case .open, .readOnly:               return .readOnly(.silenced(silence))
+        case .join, .blocked, .undetermined: return self
+        }
+    }
+}
+
 /// Why a cash link in a chat can't be collected from it.
 enum CashCollectionBlock: Equatable {
     /// The viewer reads the chat but hasn't joined it.
@@ -393,7 +414,7 @@ func groupRequirementLine(_ headline: ConversationGateRequirement?, mintName: St
         return "Balance Requirement:\n\(holding)"
     case .staff:
         return "This chat is for Flipcash staff"
-    case .never, .creator, .unsupported:
+    case .never, .creator, .unsupported, .silenced:
         return nil
     case nil:
         return nil

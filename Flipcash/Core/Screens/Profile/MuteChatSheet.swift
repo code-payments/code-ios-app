@@ -73,64 +73,25 @@ struct MuteChatSheet: View {
     }
 
     var body: some View {
-        PartialSheet(background: .backgroundMain) {
-            VStack(spacing: 20) {
-                header
-
-                // What muting does and doesn't do, the way WhatsApp captions the same sheet. Worth
-                // saying here because the answer isn't obvious and is easy to get wrong: a muted
-                // chat still delivers, still stores, and still counts unread.
-                Text("You'll still receive messages and see unread counts. Only notifications are silenced")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                    // The only flexible row in this stack, so a height proposal short of what the
-                    // content needs lands here -- and a `Text` answers that by dropping lines and
-                    // ellipsizing. `PartialSheet` opens at the full screen height and corrects to
-                    // its measured height, and the row count changes with the unmute row, so short
-                    // proposals do happen. `fixedSize` makes the wrapped height a floor instead.
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
-
-                VStack(spacing: 12) {
-                    ForEach(options, id: \.title) { row in
-                        ChatActionRow(
-                            icon: .system(icon(for: row.option)),
-                            title: row.title,
-                            accessibilityIdentifier: "mute-chat-\(identifier(for: row.option))"
-                        ) {
-                            guard !isWorking else { return }
-                            Task { await apply(row.option) }
-                        }
-                    }
+        // What muting does and doesn't do, the way WhatsApp captions the same sheet. Worth saying
+        // here because the answer isn't obvious and is easy to get wrong: a muted chat still
+        // delivers, still stores, and still counts unread.
+        ChatDurationSheet(
+            title: "Mute Notifications",
+            caption: "You'll still receive messages and see unread counts. Only notifications are silenced",
+            isPresented: $isPresented
+        ) {
+            ForEach(options, id: \.title) { row in
+                ChatActionRow(
+                    icon: .system(icon(for: row.option)),
+                    title: row.title,
+                    accessibilityIdentifier: "mute-chat-\(identifier(for: row.option))"
+                ) {
+                    guard !isWorking else { return }
+                    Task { await apply(row.option) }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 20)
-            .padding(.bottom, bottomPadding)
         }
-    }
-
-    /// The sheet's own title bar — ``PartialSheet`` sizes itself to its content, so there is no
-    /// navigation bar to hang a title on. Mirrors ``ShareToChatsSheet/header``.
-    private var header: some View {
-        ZStack {
-            Text("Mute Notifications")
-                .font(.appBarButton)
-                .foregroundStyle(Color.textMain)
-
-            HStack {
-                Spacer()
-                CloseButton(style: .glass, binding: $isPresented)
-            }
-        }
-    }
-
-    /// The design's 16 under the last row, less whatever the sheet already holds back for the home
-    /// indicator.
-    private var bottomPadding: CGFloat {
-        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
-        return max(0, 16 - reserved)
     }
 
     private func icon(for option: Option) -> SystemSymbol {
@@ -189,5 +150,65 @@ struct MuteChatSheet: View {
         case .forever:                Analytics.chatMuted(chatType: chatType, duration: .always, error: error)
         case .never:                  Analytics.chatUnmuted(chatType: chatType, error: error)
         }
+    }
+}
+
+/// The layout the chat duration sheets share: a title bar with a close button, one caption saying
+/// what the choice does, and a stack of ``ChatActionRow``s. ``MuteChatSheet`` and
+/// ``SilenceUserSheet`` differ only in copy and in what a row does.
+struct ChatDurationSheet<Rows: View>: View {
+
+    let title: String
+    let caption: String
+    @Binding var isPresented: Bool
+    @ViewBuilder let rows: () -> Rows
+
+    var body: some View {
+        PartialSheet(background: .backgroundMain) {
+            VStack(spacing: 20) {
+                header
+
+                Text(caption)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    // The only flexible row in this stack, so a height proposal short of what the
+                    // content needs lands here -- and a `Text` answers that by dropping lines and
+                    // ellipsizing. `PartialSheet` opens at the full screen height and corrects to
+                    // its measured height, and the row count can change, so short proposals do
+                    // happen. `fixedSize` makes the wrapped height a floor instead.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+
+                VStack(spacing: 12) {
+                    rows()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+            .padding(.bottom, bottomPadding)
+        }
+    }
+
+    /// The sheet's own title bar — ``PartialSheet`` sizes itself to its content, so there is no
+    /// navigation bar to hang a title on. Mirrors ``ShareToChatsSheet/header``.
+    private var header: some View {
+        ZStack {
+            Text(title)
+                .font(.appBarButton)
+                .foregroundStyle(Color.textMain)
+
+            HStack {
+                Spacer()
+                CloseButton(style: .glass, binding: $isPresented)
+            }
+        }
+    }
+
+    /// The design's 16 under the last row, less whatever the sheet already holds back for the home
+    /// indicator.
+    private var bottomPadding: CGFloat {
+        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
+        return max(0, 16 - reserved)
     }
 }
