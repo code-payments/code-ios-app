@@ -81,9 +81,27 @@ func usernameGate(session: some UsernameBalanceReading, minimum: TokenAmount?) -
     return .proceed
 }
 
-/// Whether to offer the custom-username card: true unless the user holds a
-/// handle they chose themselves. A server-assigned handle still counts as
-/// unclaimed.
+/// Whether the handle is still unclaimed: true unless the user holds one they
+/// chose themselves. A server-assigned handle still counts as unclaimed, and
+/// an unclaimed handle is what the balance gate applies to.
 func usernameNeedsClaim(username: Username?, isAutoAssigned: Bool) -> Bool {
     username == nil || isAutoAssigned
+}
+
+/// Where tapping the Username row on Edit Profile goes.
+enum UsernameRowDestination: Equatable {
+    /// The username screen.
+    case username
+    /// The balance dialog, naming `minimum`.
+    case balanceRequired(minimum: FiatAmount)
+}
+
+/// A handle the user chose opens directly, since they cleared the gate when they
+/// claimed it; otherwise `gate` decides between the username screen and the balance dialog.
+func usernameRowDestination(needsClaim: Bool, gate: UsernameGate) -> UsernameRowDestination {
+    guard needsClaim else { return .username }
+    switch gate {
+    case .proceed: return .username
+    case .addMoney(let minimum, _, _): return .balanceRequired(minimum: minimum)
+    }
 }

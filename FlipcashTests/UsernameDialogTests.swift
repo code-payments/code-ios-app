@@ -19,8 +19,8 @@ struct UsernameDialogTests {
     func gateDialog_namesMinimum() {
         let item = DialogItem.usernameMinimumBalance(minimum: .usd(100), onAddMoney: {})
 
-        #expect(item.title == "$100 Minimum Balance Required")
-        #expect(item.subtitle?.contains("$100 USD") == true)
+        #expect(item.title == "$100 Balance Required")
+        #expect(item.subtitle == "Setting a custom username requires a balance of $100 or more")
     }
 
     @Test("The gate drops trailing zeros rather than reading $100.00")
@@ -98,7 +98,7 @@ struct UsernameDialogTests {
     func submissionDialog_insufficientBalance_isGateDialog() {
         let item = DialogItem.usernameSubmission(.insufficientBalance, minimum: .usd(100), onAddMoney: {})
 
-        #expect(item.title == "$100 Minimum Balance Required")
+        #expect(item.title == "$100 Balance Required")
         #expect(item.actions[0].title == "Add Money")
     }
 
@@ -126,12 +126,11 @@ struct UsernameDialogTests {
         #expect(item.subtitle == "Try again")
     }
 
-    @Test("The gate names the minimum's own currency rather than assuming USD")
-    func gateDialog_nonUSDMinimum_namesItsCurrency() {
-        let item = DialogItem.usernameMinimumBalance(minimum: FiatAmount(value: 100, currency: .cad), onAddMoney: {})
+    @Test("A fractional minimum keeps its cents")
+    func gateDialog_fractionalMinimum() {
+        let item = DialogItem.usernameMinimumBalance(minimum: FiatAmount(value: Decimal(string: "12.50")!, currency: .usd), onAddMoney: {})
 
-        #expect(item.subtitle?.contains("CAD") == true)
-        #expect(item.subtitle?.contains("USD") == false)
+        #expect(item.title == "$12.50 Balance Required")
     }
 
     @Test("Every rejection the user can type their way out of uses the grey banner")

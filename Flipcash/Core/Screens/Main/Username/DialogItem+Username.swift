@@ -25,12 +25,13 @@ extension DialogItem {
     /// than a constant — the number is a flag, and the copy has to track it.
     static func usernameMinimumBalance(minimum: FiatAmount, onAddMoney: @escaping () -> Void) -> DialogItem {
         // Whole amounts read as "$100", not "$100.00" — this is a threshold
-        // being quoted, not a balance being reported.
-        let amount = minimum.formatted(minimumFractionDigits: 0)
+        // being quoted, not a balance being reported. A fractional one keeps
+        // both digits ("$12.50").
+        let amount = minimum.formattedDroppingZeroFraction()
 
         return .info(
-            title: "\(amount) Minimum Balance Required",
-            subtitle: "In order to stop username squatting getting a username requires a total Flipcash balance of at least \(amount) \(minimum.currency.rawValue.uppercased())"
+            title: "\(amount) Balance Required",
+            subtitle: "Setting a custom username requires a balance of \(amount) or more"
         ) {
             .standard("Add Money", action: onAddMoney);
             .dismiss(kind: .subtle)
