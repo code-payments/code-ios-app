@@ -292,6 +292,7 @@ struct CurrencyInfoContentV2: View {
     private enum TileIcon {
         case system(String)
         case asset(String)
+        case uiAsset(Asset)
     }
 
     @ViewBuilder private var actionTiles: some View {
@@ -299,7 +300,7 @@ struct CurrencyInfoContentV2: View {
             ForEach(CurrencyInfoActions.tiles(isOwned: isOwned, isUSDF: isUSDF), id: \.self) { tile in
                 switch tile {
                 case .send:
-                    actionTile("Send", icon: .asset("IconPaperPlaneTopRight"), action: onSend)
+                    actionTile("Send", icon: .uiAsset(.paperPlaneTopRight), action: onSend)
                 case .buy:
                     actionTile("Buy", icon: .asset("IconArrowDown"), action: onBuy)
                 case .buyIn:
@@ -342,6 +343,11 @@ struct CurrencyInfoContentV2: View {
         case .system(let name):
             Image(systemName: name)
                 .font(.system(size: 22, weight: .regular))
+        case .uiAsset(let asset):
+            Image.asset(asset)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
         case .asset(let name):
             // Figma exports these glyphs at 28×28 (template-rendered, so they
             // tint with the tile's foreground).

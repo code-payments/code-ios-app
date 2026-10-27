@@ -64,6 +64,7 @@ struct CommunityChatRow: View {
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
