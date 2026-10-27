@@ -79,8 +79,23 @@ enum GroupModerationCopy {
         "The host removed you from \(groupName)"
     }
 
+    static func silencedToast(firstName: String, duration: SilenceDuration) -> String {
+        switch duration {
+        case .oneHour:    "\(firstName) is silenced for 1 hour"
+        case .eightHours: "\(firstName) is silenced for 8 hours"
+        case .oneWeek:    "\(firstName) is silenced for 1 week"
+        case .forever:    "\(firstName) is silenced"
+        }
+    }
+
+    static func unsilencedToast(firstName: String) -> String {
+        "\(firstName) can send messages again"
+    }
+
     static let noSilenced = "No one is silenced"
     static let noRemoved = "No one has been removed"
+    static let noSilencedBody = "Silence a member from their profile or by pressing and holding their message. They can still read, but not send"
+    static let noRemovedBody = "Members you remove from the group will show up here, where you can let them back in"
 
     /// The first word of a display name, which is how the host's prompts address the member.
     static func firstName(of name: String) -> String {
@@ -95,13 +110,17 @@ struct GroupModeration {
     let moderation: any ConversationModeration
     let owner: KeyPair
     let conversationID: ConversationID
+    /// Told the toast message once a silence change has succeeded, never on a failure.
+    var announce: @MainActor (String) -> Void = { _ in }
 
-    func silence(_ userID: UserID, _ silence: ConversationSilenceState) async throws {
-        try await moderation.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: silence)
+    func silence(_ userID: UserID, firstName: String, duration: SilenceDuration, now: Date = .now) async throws {
+        try await moderation.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: duration.silence(from: now))
+        announce(GroupModerationCopy.silencedToast(firstName: firstName, duration: duration))
     }
 
-    func unsilence(_ userID: UserID) async throws {
+    func unsilence(_ userID: UserID, firstName: String) async throws {
         try await moderation.unsilenceUser(owner: owner, conversationID: conversationID, userID: userID)
+        announce(GroupModerationCopy.unsilencedToast(firstName: firstName))
     }
 
     /// Puts `userID` out of the group and bars them from rejoining. The roster drops them through
@@ -214,7 +233,7 @@ final class RestrictedUsersModel {
         inFlight.insert(user.id)
         defer { inFlight.remove(user.id) }
         switch list {
-        case .silenced: try await moderation.unsilence(userID)
+        case .silenced: try await moderation.unsilence(userID, firstName: GroupModerationCopy.firstName(of: user.displayName))
         case .removed:  try await moderation.unban(userID)
         }
         users.removeAll { $0.id == user.id }

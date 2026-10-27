@@ -23,16 +23,10 @@ struct BlockedUsersScreen: View {
         Background(color: .backgroundMain) {
             Group {
                 if blocklistController.blockedUsers.isEmpty && hasLoaded {
-                    VStack(spacing: 8) {
-                        Text("No One Blocked")
-                            .font(.appTextLarge)
-                            .foregroundStyle(.textMain)
-                        Text("Block people from sending you messages by tapping their profile and selecting block")
-                            .font(.appTextSmall)
-                            .foregroundStyle(.textSecondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.horizontal, 40)
+                    EmptyStateMessage(
+                        "No One Blocked",
+                        message: "Block people from sending you messages by tapping their profile and selecting block"
+                    )
                 } else if !blocklistController.blockedUsers.isEmpty {
                     ScrollView(showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 0) {

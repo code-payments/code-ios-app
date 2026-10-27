@@ -74,4 +74,47 @@ struct GroupModerationTests {
         #expect(GroupModerationCopy.removeTitle(firstName: "Grampa") == "Remove Grampa?")
         #expect(GroupModerationCopy.bannedSubtitle(groupName: "Jeffy") == "The host removed you from Jeffy")
     }
+
+    @Test("Toast copy names the member and the duration")
+    func toastCopy() {
+        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .oneHour) == "McAnsh is silenced for 1 hour")
+        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .eightHours) == "McAnsh is silenced for 8 hours")
+        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .oneWeek) == "McAnsh is silenced for 1 week")
+        #expect(GroupModerationCopy.silencedToast(firstName: "McAnsh", duration: .forever) == "McAnsh is silenced")
+        #expect(GroupModerationCopy.unsilencedToast(firstName: "McAnsh") == "McAnsh can send messages again")
+    }
+
+    @Test("A silence change announces only after the server call succeeds")
+    func toastOnlyOnSuccess() async throws {
+        let server = FakeModeration()
+        var announced: [String] = []
+        let moderation = GroupModeration(
+            moderation: server,
+            owner: .mock,
+            conversationID: ConversationID(data: Data(repeating: 1, count: 32)),
+            announce: { announced.append($0) }
+        )
+
+        try await moderation.silence(UUID(), firstName: "McAnsh", duration: .oneWeek)
+        try await moderation.unsilence(UUID(), firstName: "McAnsh")
+        #expect(announced == ["McAnsh is silenced for 1 week", "McAnsh can send messages again"])
+
+        server.fails = true
+        await #expect(throws: (any Error).self) { try await moderation.silence(UUID(), firstName: "McAnsh", duration: .forever) }
+        await #expect(throws: (any Error).self) { try await moderation.unsilence(UUID(), firstName: "McAnsh") }
+        #expect(announced.count == 2)
+    }
+}
+
+private final class FakeModeration: ConversationModeration, @unchecked Sendable {
+    struct Failure: Error {}
+    var fails = false
+
+    func silenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, silence: ConversationSilenceState) async throws { try check() }
+    func unsilenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws { try check() }
+    func banUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws { try check() }
+    func unbanUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws { try check() }
+    func getRestrictedUsers(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationRestrictedUser] { try check(); return [] }
+
+    private func check() throws { if fails { throw Failure() } }
 }

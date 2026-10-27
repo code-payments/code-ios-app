@@ -18,6 +18,7 @@ struct RestrictedUsersScreen: View {
 
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(ToastController.self) private var toasts
     @Environment(AppRouter.self) private var router
 
     @State private var model: RestrictedUsersModel?
@@ -41,7 +42,8 @@ struct RestrictedUsersScreen: View {
                 moderation: GroupModeration(
                     moderation: container.flipClient,
                     owner: sessionContainer.session.ownerKeyPair,
-                    conversationID: conversationID
+                    conversationID: conversationID,
+                    announce: { toasts.show(.init($0, systemImage: "speaker.wave.2", duration: .seconds(3))) }
                 )
             )
             self.model = model
@@ -57,12 +59,15 @@ struct RestrictedUsersScreen: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed:
-                message("Couldn't load this list")
+                EmptyStateMessage("Couldn't load this list")
             case .loaded:
                 TimelineView(.everyMinute) { context in
                     let rows = model.rows(at: context.date)
                     if rows.isEmpty {
-                        message(list == .silenced ? GroupModerationCopy.noSilenced : GroupModerationCopy.noRemoved)
+                        EmptyStateMessage(
+                            list == .silenced ? GroupModerationCopy.noSilenced : GroupModerationCopy.noRemoved,
+                            message: list == .silenced ? GroupModerationCopy.noSilencedBody : GroupModerationCopy.noRemovedBody
+                        )
                     } else {
                         List(rows) { user in
                             RestrictedUserRow(
@@ -90,15 +95,6 @@ struct RestrictedUsersScreen: View {
         } else {
             Color.clear
         }
-    }
-
-    private func message(_ text: String) -> some View {
-        Text(text)
-            .font(.appTextMedium)
-            .foregroundStyle(Color.textSecondary)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 40)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func openProfile(_ user: ConversationRestrictedUser) {

@@ -29,6 +29,7 @@ struct SilenceUserSheet: View {
 
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(ToastController.self) private var toasts
 
     @State private var isWorking = false
 
@@ -57,10 +58,17 @@ struct SilenceUserSheet: View {
         let moderation = GroupModeration(
             moderation: container.flipClient,
             owner: sessionContainer.session.ownerKeyPair,
-            conversationID: target.conversationID
+            conversationID: target.conversationID,
+            announce: { message in
+                // The sheet is still on its way out, and a toast shown over it is dropped.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    toasts.show(.init(message, systemImage: "speaker.slash", duration: .seconds(3)))
+                }
+            }
         )
         do {
-            try await moderation.silence(target.userID, duration.silence(from: .now))
+            try await moderation.silence(target.userID, firstName: target.firstName, duration: duration)
             isPresented = false
         } catch {
             isPresented = false
