@@ -166,7 +166,7 @@ class CurrencyInfoViewModel {
                 rate: ratesController.rateForBalanceCurrency(),
                 supplyQuarks: stored.supplyFromBonding
             )
-            amount = value.nativeAmount.formattedDroppingZeroFraction()
+            amount = CommunityChats.holdingsText(value.nativeAmount)
         }
         return CommunityChats.subtitle(
             amount: amount,

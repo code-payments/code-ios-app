@@ -30,6 +30,12 @@ nonisolated enum CommunityChats {
         return "\(amount) of \(currencyName) held by \(members)"
     }
 
+    /// Holdings valued on the curve carry a sub-cent remainder, which would keep a whole-dollar
+    /// figure from dropping its ".00". Round to the currency's cents first.
+    static func holdingsText(_ amount: FiatAmount) -> String {
+        amount.roundedToSmallestUnit().formattedDroppingZeroFraction()
+    }
+
     static let rankingTitle = "How Chats Are Ranked"
 
     static func rankingMessage(currencyName: String) -> String {

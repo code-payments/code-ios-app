@@ -96,6 +96,20 @@ struct CurrencyInfoSendTests {
         #expect(CommunityChats.subtitle(amount: nil, currencyName: "Jeffy", memberCount: 3) == "3 members")
     }
 
+    @Test("A curve-valued holding with a sub-cent remainder still drops its zero fraction")
+    func communityHoldingsRounding() {
+        let mint = PublicKey.generate()!
+        let value = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 123_456_789_012, mint: mint),
+            rate: Rate(fx: 1, currency: .usd),
+            supplyQuarks: 10_000 * 10_000_000_000
+        )
+        #expect(value.nativeAmount.value != value.nativeAmount.roundedToSmallestUnit().value)
+        #expect(CommunityChats.holdingsText(FiatAmount.usd(111_137.004)) == "$111,137")
+        #expect(CommunityChats.holdingsText(FiatAmount.usd(2.504)) == "$2.50")
+        #expect(!CommunityChats.holdingsText(value.nativeAmount).contains(".00"))
+    }
+
     @Test("The section previews three chats and is empty when there are none")
     func communityPreview() {
         let chats = (1...5).map { chat(UInt8($0), type: .group, name: "G\($0)") }
