@@ -188,6 +188,11 @@ struct DestinationView: View {
                 onComplete: { sessionContainer.appRouter.popToRoot() }
             )
 
+        case .depositCurrency(let mint):
+            if let screen = DepositScreen.currencyDeposit(mint: mint, session: sessionContainer.session) {
+                screen
+            }
+
         case .usdcDepositEducation:
             USDCDepositEducationScreen(
                 onNext: { sessionContainer.appRouter.push(.usdcDepositAddress) }

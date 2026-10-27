@@ -466,6 +466,16 @@ final class AppRouter {
         }
     }
 
+    /// Presents Send for one currency from its Currency Info page, as the root sheet or stacked on
+    /// whatever sheet Currency Info is itself in.
+    func presentCurrencySend(_ mint: PublicKey) {
+        if presentedSheets.isEmpty {
+            present(.currencySend(mint))
+        } else {
+            presentNested(.currencySend(mint))
+        }
+    }
+
     /// Whether the Add Money sheet is stacked directly over the buy sheet.
     var isAddMoneyOverBuy: Bool {
         guard presentedSheets.count >= 2 else { return false }

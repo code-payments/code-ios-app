@@ -49,6 +49,8 @@ extension AppRouter {
         /// any other currency on the amount screen. Pushed from the Wallet
         /// "Withdraw Dollars" tile (`nil`) and Currency Info (a mint).
         case withdrawCurrency(PublicKey?)
+        /// The deposit address for one currency, from Currency Info's More sheet.
+        case depositCurrency(PublicKey)
         /// USDC → USDF deposit education screen.
         case usdcDepositEducation
         /// USDC → USDF deposit address screen. Shows the user's authority
@@ -161,7 +163,7 @@ extension AppRouter {
                  .currencyCreationSummary, .currencyCreationWizard,
                  .transactionHistory, .marketCapExplainer, .activity, .transactionDetails, .give,
                  .buyCurrency, .convertCurrency,
-                 .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
+                 .withdrawCurrency, .depositCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture, .username,
@@ -197,6 +199,7 @@ extension AppRouter {
             case .buyCurrency:                  "buyCurrency"
             case .convertCurrency:              "convertCurrency"
             case .withdrawCurrency:             "withdrawCurrency"
+            case .depositCurrency:              "depositCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
             case .settings:                     "settings"
@@ -253,6 +256,7 @@ extension AppRouter {
                  .marketCapExplainer(let mint),
                  .give(let mint),
                  .buyCurrency(let mint),
+                 .depositCurrency(let mint),
                  .convertCurrency(let mint):
                 return mint.base58
             case .withdrawCurrency(let mint):

@@ -26,6 +26,8 @@ enum ShareToChatsSubject {
     /// A link to one message, `/chat/{chatId}/m/{seq}`. The recipient's app draws the message card
     /// from it, so the link is all that goes out.
     case message(URL)
+    /// A currency's public page, the link the Currency Info share button has always handed out.
+    case currency(url: URL, name: String)
 }
 
 /// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a link by Share or Copy,
@@ -70,6 +72,7 @@ struct ShareToChatsSheet: View {
         case .group(let id): .groupChatInvite(for: id)
         case .user(let userID, let username, _, _, _): .tipcard(for: userID, username: username)
         case .message(let url): url
+        case .currency(let url, _): url
         }
         self._model = State(initialValue: InvitePeopleViewModel(url: url))
     }
@@ -78,7 +81,7 @@ struct ShareToChatsSheet: View {
     private var groupID: ConversationID? {
         switch subject {
         case .group(let id): id
-        case .user, .message: nil
+        case .user, .message, .currency: nil
         }
     }
 
@@ -88,7 +91,7 @@ struct ShareToChatsSheet: View {
         case .group(let id): id
         case .user(_, _, _, _, let directChatID): directChatID
         // The message's own chat stays: a link sent there points at something further up.
-        case .message: nil
+        case .message, .currency: nil
         }
     }
 
@@ -96,7 +99,7 @@ struct ShareToChatsSheet: View {
     /// display name, who has no card.
     private var card: ProfileCardScreen.Card? {
         switch subject {
-        case .group, .message:
+        case .group, .message, .currency:
             return nil
         case .user(let userID, let username, let displayName, _, _):
             guard let displayName, !displayName.isEmpty else { return nil }
@@ -108,7 +111,7 @@ struct ShareToChatsSheet: View {
     nonisolated static func showsGroupCardTile(for subject: ShareToChatsSubject) -> Bool {
         switch subject {
         case .group: true
-        case .user, .message: false
+        case .user, .message, .currency: false
         }
     }
 
@@ -130,20 +133,21 @@ struct ShareToChatsSheet: View {
         case .group: "Invite People"
         case .user: "Share Profile"
         case .message: "Share Message"
+        case .currency(_, let name): "Share \(name)"
         }
     }
 
     private var copyTitle: String {
         switch subject {
         case .group: "Copy Invite Link"
-        case .user, .message: "Copy Link"
+        case .user, .message, .currency: "Copy Link"
         }
     }
 
     private var sendTitle: String {
         switch subject {
         case .group: "Invite"
-        case .user, .message: "Send"
+        case .user, .message, .currency: "Send"
         }
     }
 
@@ -185,7 +189,7 @@ struct ShareToChatsSheet: View {
             [GroupInviteShareItem(url: model.url, title: title, icon: icon())]
         case .user(_, _, let displayName, let preview, _):
             [TipCodeShareItem.profile(url: model.url, displayName: displayName, preview: preview)]
-        case .message:
+        case .message, .currency:
             // The URL itself, not an item source: the system builds the preview card from the link
             // rather than from a group invite's fallback title.
             [model.url]

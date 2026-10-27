@@ -2,9 +2,9 @@
 //  CurrencyInfoContentV2.swift
 //  Flipcash
 //
-//  The currency info layout: a hero bill card, inline Give / Buy More /
-//  Convert tiles (Give / Convert / Withdraw for Dollars, a lone Buy In for a
-//  currency that isn't held), a per-token Recent preview, the reused market-cap
+//  The currency info layout: a hero bill card, inline Send / Buy /
+//  Transactions / More tiles (no Buy for Dollars, a lone Buy In for a
+//  currency that isn't held), the reused market-cap
 //  chart, the About block, and a created-at footer.
 //
 
@@ -36,16 +36,13 @@ struct CurrencyInfoContentV2: View {
     let marketCapController: MarketCapController
     let session: Session
 
-    /// Give — owned community tokens only.
-    let onGive: () -> Void
-    /// Convert — sells this currency into a chosen destination.
-    let onConvert: () -> Void
+    /// Send — pays a person this currency; owned currencies only.
+    let onSend: () -> Void
     /// Buy — routes to the buy flow, whether or not the currency is held.
     let onBuy: () -> Void
-    /// Withdraw — the existing flow, pre-selected to this currency. Only the
-    /// Dollars row carries the tile; anything else withdraws from Settings.
-    let onWithdraw: () -> Void
     let onShowTransactionHistory: () -> Void
+    /// More — opens the sheet carrying Convert, Withdraw and Deposit.
+    let onMore: () -> Void
     /// Opens "How Market Cap Works".
     let onShowMarketCapExplainer: () -> Void
     /// Fires when the hero card's title scrolls out from under the toolbar, so
@@ -75,7 +72,6 @@ struct CurrencyInfoContentV2: View {
     /// recognises on touch-down, which cancels the stack's interactive pop.
     var supportsPullToClose: Bool = false
 
-    private static let recentPreviewCount = 3
     /// Scroll distance that puts the hero card's title row behind the toolbar.
     private static let titleHandoffOffset: CGFloat = 52
 
@@ -144,11 +140,6 @@ struct CurrencyInfoContentV2: View {
                 // full height around a placeholder plot. Revealing these later —
                 // even all at once — reads as the tiles landing and the rest of
                 // the screen following a beat behind.
-                if isOwned && !viewModel.recentActivities.isEmpty {
-                    recentSection
-                        .padding(.horizontal, 20)
-                }
-
                 // The market-cap value, monthly delta, chart, and range picker
                 // all live inside this reused, self-contained section, which
                 // manages its own insets.
@@ -254,13 +245,6 @@ struct CurrencyInfoContentV2: View {
             didScrub = false
             pullDistance = 0
         }
-        // Started immediately rather than after the transition: the read itself
-        // runs off the main thread, so it costs the animation nothing, and it
-        // lands well before the page finishes fading in — which is what keeps
-        // Recent from arriving as a second stage.
-        .task {
-            await viewModel.loadRecentActivities(limit: Self.recentPreviewCount)
-        }
     }
 
     // MARK: - Hero
@@ -297,26 +281,19 @@ struct CurrencyInfoContentV2: View {
 
     @ViewBuilder private var actionTiles: some View {
         HStack(spacing: 12) {
-            if isOwned {
-                actionTile("Cash", icon: .asset("IconBanknote"), action: onGive)
-                if isUSDF {
-                    // Dollars is what the other currencies are bought with, so
-                    // there is nothing to buy more of — it withdraws instead.
-                    // Its Convert goes out via a reserves buy, so it needs
-                    // another holding to buy into.
-                    actionTile(
-                        "Convert",
-                        icon: .asset("IconArrowBottomTop"),
-                        isEnabled: viewModel.canConvert,
-                        action: onConvert
-                    )
-                    actionTile("Withdraw", icon: .asset("IconArrowUp"), action: onWithdraw)
-                } else {
-                    actionTile("Buy More", icon: .asset("IconArrowDown"), action: onBuy)
-                    actionTile("Convert", icon: .asset("IconArrowBottomTop"), action: onConvert)
+            ForEach(CurrencyInfoActions.tiles(isOwned: isOwned, isUSDF: isUSDF), id: \.self) { tile in
+                switch tile {
+                case .send:
+                    actionTile("Send", icon: .asset("IconPaperPlaneTopRight"), action: onSend)
+                case .buy:
+                    actionTile("Buy", icon: .asset("IconArrowDown"), action: onBuy)
+                case .buyIn:
+                    actionTile("Buy In", icon: .asset("IconArrowDown"), action: onBuy)
+                case .transactions:
+                    actionTile("Transactions", icon: .system("list.bullet"), action: onShowTransactionHistory)
+                case .more:
+                    actionTile("More", icon: .system("plus"), action: onMore)
                 }
-            } else {
-                actionTile("Buy In", icon: .asset("IconArrowDown"), action: onBuy)
             }
         }
     }
@@ -358,15 +335,6 @@ struct CurrencyInfoContentV2: View {
                 .scaledToFit()
                 .frame(width: 28, height: 28)
         }
-    }
-
-    // MARK: - Recent
-
-    private var recentSection: some View {
-        RecentActivitySection(
-            activities: viewModel.recentActivities,
-            onShowAll: onShowTransactionHistory
-        )
     }
 
     // MARK: - Copy
