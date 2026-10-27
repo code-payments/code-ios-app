@@ -130,3 +130,31 @@ final class HostedLobbies {
             .sorted { ($0.enteredAt ?? .distantPast) > ($1.enteredAt ?? .distantPast) }
     }
 }
+
+#if DEBUG
+extension HostedLobbies {
+
+    /// Held from first use so a reread doesn't move the stand-ins' request times.
+    private static let stubEpoch = Date.now
+
+    /// Stand-in requesters for every empty hosted lobby when launched with
+    /// `--stub-join-requests=N`, so the Chats row's request states can be seen with one test
+    /// account. DEBUG-only; approving one fails, since no real user is behind it.
+    static func stubbedMembers() -> [LobbyMember]? {
+        let prefix = "--stub-join-requests="
+        guard let count = ProcessInfo.processInfo.arguments
+            .first(where: { $0.hasPrefix(prefix) })
+            .flatMap({ Int($0.dropFirst(prefix.count)) }),
+              count > 0
+        else { return nil }
+        let names = ["Jasper", "Ann", "Bo", "Cy", "Dee"]
+        return (0..<count).map { index in
+            LobbyMember(
+                profile: Profile(displayName: names[index % names.count], phone: nil as Phone?, email: nil, userID: UUID()),
+                publicKey: KeyPair.generate()!.publicKey,
+                enteredAt: stubEpoch.addingTimeInterval(TimeInterval(-60 * (index + 1)))
+            )
+        }
+    }
+}
+#endif

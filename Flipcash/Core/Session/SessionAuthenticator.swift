@@ -874,7 +874,11 @@ final class SessionContainer {
 
         let hostedLobbies = HostedLobbies(
             getMembers: { [flipClient, owner = session.ownerKeyPair] conversationID in
-                try await flipClient.getLobbyMembers(owner: owner, conversationID: conversationID)
+                let members = try await flipClient.getLobbyMembers(owner: owner, conversationID: conversationID)
+                #if DEBUG
+                if members.isEmpty, let stub = HostedLobbies.stubbedMembers() { return stub }
+                #endif
+                return members
             },
             wrapKey: { [groupKeys = self.groupKeys] recipient, conversationID in
                 try await groupKeys.wrap(for: recipient, in: conversationID)
