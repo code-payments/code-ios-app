@@ -34,8 +34,8 @@ public extension View {
 
 // MARK: - Thumb surfaces
 
-/// The thumb's surface with `content` on it: Liquid Glass on iOS 26, a thin material with a
-/// hairline on iOS 18. The lens look draws a see-through glass rim while idle.
+/// The thumb's surface with `content` on it: the composer's glass (a tinted material before
+/// iOS 26). The lens look draws a see-through glass rim while idle, with `content` above it.
 struct SwipeThumbSurface<Content: View>: View {
 
     let look: SwipeControlLook
@@ -43,49 +43,39 @@ struct SwipeThumbSurface<Content: View>: View {
     let glassNamespace: Namespace.ID
     @ViewBuilder let content: Content
 
-    @Environment(\.displayScale) private var displayScale
-
     var body: some View {
-        if #available(iOS 26, *) {
-            if SwipeMetrics.usesGlass {
-                glass
-            } else {
-                material
-            }
-        } else {
-            material
+        GlassContainer {
+            surface
         }
+        // Outside the container, which composites its glass above sibling content.
+        .overlay {
+            if showsRim {
+                face
+            }
+        }
+    }
+
+    private var showsRim: Bool {
+        look == .lens && isIdle && SwipeMetrics.usesGlass
     }
 
     private var face: some View {
         content.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    @available(iOS 26, *)
     @ViewBuilder
-    private var glass: some View {
-        switch look {
-        case .lens where isIdle:
-            face.background { lensRim }
-        case .glassThumb, .morphFill, .lens:
+    private var surface: some View {
+        if SwipeMetrics.forcesFallback { // LOCAL-TUNER: draws `composerGlass`'s iOS 18 branch on iOS 26
             face
-                .glassEffect(
-                    .regular
-                        .tint(.white.opacity(SwipeMetrics.glassTint))
-                        .interactive(SwipeMetrics.glassInteractive),
-                    in: .capsule
-                )
-                .glassEffectID(glassID, in: glassNamespace)
-        }
-    }
-
-    private var material: some View {
-        face
-            .background(.thinMaterial, in: .capsule)
-            .overlay {
-                Capsule()
-                    .strokeBorder(.white.opacity(SwipeMetrics.fallbackHairline), lineWidth: 1 / displayScale)
+                .background(Color.white.opacity(0.03), in: .capsule) // LOCAL-TUNER
+                .background(.ultraThinMaterial, in: .capsule) // LOCAL-TUNER
+        } else if showsRim {
+            if #available(iOS 26, *) {
+                lensRim
             }
+        } else {
+            face.composerGlass(in: Capsule(), id: glassID, namespace: glassNamespace, isInteractive: SwipeMetrics.glassInteractive)
+        }
     }
 
     /// Clear glass masked to a soft ring, so the label reads through the middle.

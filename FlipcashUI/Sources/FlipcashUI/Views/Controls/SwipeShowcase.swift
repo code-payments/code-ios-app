@@ -94,7 +94,7 @@ public struct SwipeShowcaseScreen: View {
         case .fails:
             return {
                 try await Task.sleep(for: .seconds(1))
-                throw ShowcaseFailure()
+                throw SwipeControlFailure()
             }
         }
     }
@@ -128,9 +128,6 @@ extension SwipeShowcaseScreen {
             }
         }
     }
-
-    /// The error the "Fails" outcome throws.
-    private struct ShowcaseFailure: Error {}
 }
 
 #Preview("Swipe showcase") {

@@ -40,8 +40,8 @@ enum SwipeMetrics {
     static var arrowSize: CGFloat { layout("Arrow size", 20, 12...32) } // LOCAL-TUNER
     /// The track's `action` wash, as today's control draws it.
     static var fillOpacity: Double { Tuner.shared.value("Swipe Layout/Fill opacity", default: 0.1, in: 0...0.3) } // LOCAL-TUNER
-    /// The hairline's `textSecondary` opacity; 0.3 is `Metrics.inputFieldStrokeColor(highlighted: false)`.
-    static var strokeOpacity: Double { Tuner.shared.value("Swipe Layout/Stroke opacity", default: 0.3, source: "Metrics.inputFieldStrokeColor(highlighted: false)", in: 0...1) } // LOCAL-TUNER
+    /// The track's hairline, the input field's resting stroke.
+    static var strokeColor: Color { Tuner.shared.value("Swipe Layout/Stroke", default: Metrics.inputFieldStrokeColor(highlighted: false), source: "Metrics.inputFieldStrokeColor(highlighted: false)") } // LOCAL-TUNER
     static var disabledOpacity: Double { Tuner.shared.value("Swipe Layout/Disabled opacity", default: 0.4, in: 0...1) } // LOCAL-TUNER
 
     // MARK: - Label
@@ -57,12 +57,8 @@ enum SwipeMetrics {
 
     // MARK: - Thumb
 
-    /// The white tint over the thumb's glass.
-    static var glassTint: Double { Tuner.shared.value("Swipe Layout/Glass tint", default: 0, in: 0...0.3) } // LOCAL-TUNER
-    /// Whether the thumb's glass answers the finger the way system glass controls do.
-    static var glassInteractive: Bool { Tuner.shared.value("Swipe Layout/Glass interactive", default: true) } // LOCAL-TUNER
-    /// The hairline round the iOS 18 material thumb, as white opacity.
-    static var fallbackHairline: Double { Tuner.shared.value("Swipe Layout/Fallback hairline", default: 0.2, in: 0...1) } // LOCAL-TUNER
+    /// Whether the thumb's glass also swells under the finger, on top of the press scale.
+    static var glassInteractive: Bool { Tuner.shared.value("Swipe Layout/Glass interactive", default: false) } // LOCAL-TUNER
     /// How far the idle nudge pushes the thumb right.
     static var nudgeDistance: CGFloat { layout("Nudge distance", 20, 0...40) } // LOCAL-TUNER
 
@@ -78,13 +74,15 @@ enum SwipeMetrics {
     // MARK: - Motion
 
     /// The thumb settling: snapping back from a short drag, parking at the end, returning after a send.
-    static var snapBack: ChatSpring { spring("Swipe Motion/Snap back", 0.5, 0) } // LOCAL-TUNER
+    static var snapBack: ChatSpring { spring("Swipe Motion/Snap back", 0.4, 0) } // LOCAL-TUNER
     /// The thumb growing to fill the track on commit, in the morph look.
     static var morph: ChatSpring { spring("Swipe Motion/Morph", 0.4, 0) } // LOCAL-TUNER
     /// The thumb lifting under the finger and settling on release.
     static var press: ChatSpring { spring("Swipe Motion/Press", 0.3, 0.25) } // LOCAL-TUNER
     /// The idle nudge's push and return.
     static var nudge: ChatSpring { spring("Swipe Motion/Nudge", 0.25, 0) } // LOCAL-TUNER
+    /// With Reduce Motion on, the crossfade that replaces the morph and the thumb's return after a send.
+    static var reduceMotionFade: TimeInterval { Tuner.shared.value("Swipe Motion/Reduce Motion fade", default: 0.2, in: 0...0.5, unit: .seconds) } // LOCAL-TUNER
 
     // MARK: - Lens
 

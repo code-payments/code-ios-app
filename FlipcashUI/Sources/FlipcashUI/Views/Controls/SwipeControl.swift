@@ -9,10 +9,18 @@
 import SwiftUI
 import FlipcashCore
 
+/// Thrown by a ``SwipeControl`` action when the send went out and didn't go
+/// through (a network error, say), so the control plays its failure look before
+/// it resets. Any other error resets it silently.
+public struct SwipeControlFailure: Error {
+    public init() {}
+}
+
 /// A slide-to-confirm control. The user drags the knob along the track; once it
 /// passes the commit threshold the `action` runs, showing a loading indicator
-/// and then a success checkmark before the knob resets. A thrown error shows a
-/// brief failure before the reset.
+/// and then a success checkmark before the knob resets. An action that throws
+/// ``SwipeControlFailure`` shows a brief failure before the reset; any other
+/// error resets it silently.
 ///
 /// The knob commits when dragged past 70% of the track, or past 50% with a fast
 /// release velocity.
@@ -70,7 +78,7 @@ public struct SwipeControl: View {
         }
         .overlay {
             Capsule()
-                .strokeBorder(.textSecondary.opacity(SwipeMetrics.strokeOpacity), lineWidth: 1 / displayScale)
+                .strokeBorder(SwipeMetrics.strokeColor, lineWidth: 1 / displayScale)
         }
         .modifier(SwipeShake(phase: shakePhase, distance: SwipeMetrics.shakeDistance, count: SwipeMetrics.shakeCount))
         .opacity(isEnabled ? 1 : SwipeMetrics.disabledOpacity)
@@ -109,13 +117,20 @@ public struct SwipeControl: View {
         knobX = maxX
         do {
             try await action()
+        } catch {
+            if error is SwipeControlFailure {
+                state = .failure
+                try? await Task.delay(milliseconds: Int(SwipeMetrics.failureHold * 1000))
+            }
+            state = .normal
+            knobX = 0
+            return
+        }
+        do {
             state = .success
             try await completion?()
             try await Task.delay(seconds: 2)
-        } catch {
-            state = .failure
-            try? await Task.delay(milliseconds: Int(SwipeMetrics.failureHold * 1000))
-        }
+        } catch {}
         state = .normal
         knobX = 0
     }
@@ -156,7 +171,7 @@ private struct SwipingTrack: View {
         let isNormal = state == .normal
         let isTouching = dragOffset != nil
         let position = knobX + (dragOffset ?? 0)
-        let nudgeX: CGFloat = (isNormal && isEnabled && dragOffset == nil && isNudging) ? SwipeMetrics.nudgeDistance : 0
+        let nudgeX: CGFloat = (isNormal && isEnabled && dragOffset == nil && isNudging && !reduceMotion) ? SwipeMetrics.nudgeDistance : 0
         let fills = look == .morphFill && !isNormal
         let snap = SwipeMetrics.snapBack.animation(reduceMotion: reduceMotion)
         let nudge = SwipeMetrics.nudge.animation(reduceMotion: reduceMotion)
@@ -167,61 +182,65 @@ private struct SwipingTrack: View {
         let wipeX = SwipeMetrics.labelWipes ? position + diameter * wipeEdge : 0
         let liftScale = isLifted && !reduceMotion ? pressScale : 1
 
-        GlassContainer {
-            ZStack(alignment: .leading) {
-                Text(text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(SwipeMetrics.labelMinimumScale)
-                    .font(.appTextMedium)
-                    .foregroundStyle(.textMain)
-                    .padding(.horizontal, diameter)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity) // span the track so the mask and lens are in track coordinates
-                    .modifier(SwipeLensEffect(
-                        centerX: position + nudgeX + diameter / 2,
-                        radius: diameter / 2 * liftScale,
-                        bend: SwipeMetrics.lensBend,
-                        band: SwipeMetrics.lensBand,
-                        isEnabled: look == .lens && SwipeMetrics.usesGlass
-                    ))
-                    .animation(snap, value: position)
-                    .animation(nudge, value: nudgeX)
-                    .animation(press, value: isLifted)
-                    .mask(alignment: .leading) {
-                        Color.black
-                            .opacity(labelOpacity)
-                            .offset(x: wipeX)
-                            .animation(snap, value: wipeX)
-                    }
-                    .opacity(isNormal ? 1 : 0)
-
-                SwipeThumbSurface(look: look, isIdle: isNormal, glassNamespace: glassNamespace) {
-                    thumbIcon
-                }
-                .animation(press) { $0.scaleEffect(liftScale) }
-                .opacity(isLifted && reduceMotion ? SwipeMetrics.pressDim : 1)
-                .frame(width: fills ? maxX + diameter : diameter, height: diameter)
-                .offset(x: fills ? 0 : position)
+        ZStack(alignment: .leading) {
+            Text(text)
+                .lineLimit(1)
+                .minimumScaleFactor(SwipeMetrics.labelMinimumScale)
+                .font(.appTextMedium)
+                .foregroundStyle(.textMain)
+                .padding(.horizontal, diameter)
+                .frame(maxWidth: .infinity, maxHeight: .infinity) // span the track so the mask and lens are in track coordinates
+                .modifier(SwipeLensEffect(
+                    centerX: position + nudgeX + diameter / 2,
+                    radius: diameter / 2 * liftScale,
+                    bend: SwipeMetrics.lensBend,
+                    band: SwipeMetrics.lensBand,
+                    isEnabled: look == .lens && SwipeMetrics.usesGlass
+                ))
                 .animation(snap, value: position)
-                .animation(SwipeMetrics.morph.animation(reduceMotion: reduceMotion), value: fills)
-                .offset(x: nudgeX)
                 .animation(nudge, value: nudgeX)
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .updating($dragOffset) { value, dragState, transaction in
-                            transaction.disablesAnimations = true
-                            dragState = min(max(value.translation.width, 0), maxX)
-                        }
-                        .onEnded { value in
-                            let offset = min(max(value.translation.width, 0), maxX)
-                            let velocity = value.predictedEndLocation.x - value.location.x
-                            let percent = maxX > 0 ? offset / maxX : 0
-                            guard SwipeControl.shouldCommit(percent: percent, velocity: velocity) else { return }
-                            onCommit()
-                        }
-                )
-                .disabled(!isNormal)
+                .animation(press, value: isLifted)
+                .mask(alignment: .leading) {
+                    Color.black
+                        .opacity(labelOpacity)
+                        .offset(x: wipeX)
+                        .animation(snap, value: wipeX)
+                }
+                .opacity(isNormal ? 1 : 0)
+
+            SwipeThumbSurface(look: look, isIdle: isNormal, glassNamespace: glassNamespace) {
+                thumbIcon
             }
+            .animation(press) { $0.scaleEffect(liftScale) }
+            .opacity(isLifted && reduceMotion ? SwipeMetrics.pressDim : 1)
+            .frame(width: fills ? maxX + diameter : diameter, height: diameter)
+            .contentShape(.capsule) // the lens's see-through middle takes the touch too
+            .offset(x: fills ? 0 : position)
+            .animation(snap, value: position)
+            .animation(SwipeMetrics.morph.animation(reduceMotion: reduceMotion), value: fills)
+            .offset(x: nudgeX)
+            .animation(nudge, value: nudgeX)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($dragOffset) { value, dragState, transaction in
+                        transaction.disablesAnimations = true
+                        dragState = min(max(value.translation.width, 0), maxX)
+                    }
+                    .onEnded { value in
+                        let offset = min(max(value.translation.width, 0), maxX)
+                        let velocity = value.predictedEndLocation.x - value.location.x
+                        let percent = maxX > 0 ? offset / maxX : 0
+                        guard SwipeControl.shouldCommit(percent: percent, velocity: velocity) else { return }
+                        onCommit()
+                    }
+            )
+            .disabled(!isNormal)
+            // Reduce Motion swaps the thumb by identity at commit and reset, so the morph and
+            // the return after a send crossfade rather than travel.
+            .id(reduceMotion ? isNormal : true)
+            .transition(.opacity)
         }
+        .animation(reduceMotion ? .easeInOut(duration: SwipeMetrics.reduceMotionFade) : nil, value: isNormal)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: isTouching) { _, touching in
             isLifted = touching
@@ -261,7 +280,7 @@ private struct SwipingTrack: View {
                     .foregroundStyle(.textMain)
             case .loading:
                 ButtonStateLabel(text, state: .loading)
-                    .tint(.textMain)
+                    .tint(.textSecondary)
             case .success:
                 ButtonStateLabel(text, state: .success)
             case .failure:
@@ -299,7 +318,7 @@ private enum KnobState {
 
             SwipeControl(text: "Swipe to Fail") {
                 try await Task.delay(seconds: 1)
-                throw CancellationError()
+                throw SwipeControlFailure()
             }
 
             SwipeControl(text: "Swipe to Send") {
