@@ -347,6 +347,43 @@ mutuals, presence or message previews.
 To fit, padding above the identity block was cut to 4 and the section-title padding to 12, which makes this row's
 cover slightly shorter than row 5's.
 
+### D: pulse refined, plus group bio, then a polish pass (2026-10-28) ★ Aiden: "by far the best yet"
+
+Row 8 of section D: Default 885:14427, Busy 885:14621, Quiet 885:14819, Nobody this week 885:15013. Row 7 (the refined
+carousel 880:5920 / 880:6224 / 880:6528, plus the anatomy board 881:14237) is parked; Aiden prefers low-detail
+participants.
+
+The layout, top to bottom:
+1. Cover melting into the derived navy.
+2. Avatar, name, "Public group · N members".
+3. **Bio** (`Conversation.description`, at most 160 characters, white 16 regular).
+4. The outline **Share** pill.
+5. **Requirements:** the pass tile with status line A.
+6. **Chatting recently:** the pulse card, made of a facepile (up to 5 faces at 36, −10 overlap, plus a "+N" bubble), the
+   headline "N chatting this week", the meta line "Last message 2m ago · 22 members", a hairline, and a footer row
+   "Hosted by **Ted Livingston** ›" (avatar 28 with the hand badge, 44 tap height).
+7. Open Chat.
+
+Copy rules by state:
+- **Busy:** "84 chatting this week" plus "+79".
+- **Quiet:** singular, "1 chatting this week", so the copy must inflect.
+- **Nobody this week:** "Quiet this week", no facepile, no bio.
+
+The bio isn't persisted locally, so it can arrive late after a cold start. Avoid a layout jump (dev).
+
+**Polish pass:**
+- One spacing scale. Identity: avatar → name 12, name → meta 4, meta → bio 8, bio → Share 16. Sections: Share → title
+  16, title → card 8, card → title 16. Requirement-tile hairlines have 8 above and below; pulse-card hairlines 12.
+- A single outline Share (transparent, 1.5pt tint stroke). The duplicate share circle was removed; row 6's source still
+  has it.
+- The "Chatting recently" title was restored.
+- Tile and card padding is 16, with baselines aligned.
+- Section titles stay at the kit's bound 14pt.
+
+**Open:** in Default and Quiet the pulse card ends at about y 805, so its "Hosted by" row sits behind Open Chat at
+rest (it scrolls). Either accept the scroll, or move Share into the nav bar as a glass circle next to ⋯ (saves about
+60pt and is control-layer glass). That's Aiden's call.
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
