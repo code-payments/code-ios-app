@@ -169,13 +169,15 @@ private struct SwipingTrack: View {
 
     @GestureState private var dragOffset: CGFloat? = nil
     @State private var isNudging = false
-    // Follows the touch one update after the drag's, whose transaction disables animations.
+    @State private var isPressed = false
+    // Set on the press spring, outside the drag's animation-disabled transaction.
     @State private var isLifted = false
     @Namespace private var glassNamespace
 
     var body: some View {
         let isNormal = state == .normal
         let isTouching = dragOffset != nil
+        let wantsLift = (isPressed || isTouching) && isNormal && isEnabled
         let position = knobX + (dragOffset ?? 0)
         let nudgeX: CGFloat = (isNormal && isEnabled && dragOffset == nil && isNudging && !reduceMotion) ? SwipeMetrics.nudgeDistance : 0
         let fills = look == .morphFill && !isNormal
@@ -232,6 +234,8 @@ private struct SwipingTrack: View {
             .animation(SwipeMetrics.morph.animation(reduceMotion: reduceMotion), value: fills)
             .offset(x: nudgeX)
             .animation(nudge, value: nudgeX)
+            // Sees touch-down even where a sheet holds the drag back until the finger moves.
+            .gesture(SwipePressDetector { isPressed = $0 })
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .updating($dragOffset) { value, dragState, transaction in
@@ -262,11 +266,11 @@ private struct SwipingTrack: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
-        .onChange(of: isTouching) { _, touching in
-            isLifted = touching
+        .onChange(of: wantsLift) { _, lift in
+            withAnimation(press) { isLifted = lift }
         }
-        .sensoryFeedback(.impact(flexibility: .soft, intensity: SwipeMetrics.touchHaptic), trigger: isTouching) { wasTouching, touching in
-            !wasTouching && touching
+        .sensoryFeedback(.impact(flexibility: .soft, intensity: SwipeMetrics.touchHaptic), trigger: wantsLift) { wasLifted, lift in
+            !wasLifted && lift
         }
         .task {
             do {
