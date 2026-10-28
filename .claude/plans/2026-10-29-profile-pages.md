@@ -271,6 +271,23 @@ Rest states:
 - The User poster's Favorite Groups card sits under the CTA fade. It's meant to scroll.
 - On the private page, Leave Chat brushes the fade.
 
+### D revision 1 (Aiden's feedback, 2026-10-28)
+
+- **Private:** members are a 3-column grid of 72pt avatars with names inside a `list/card` card, the host first with a
+  Hand5Finger badge, under the header "Members · 5".
+- **Public requirements:** a "requirement pass" tile with the amount as the hero (`type/amount`), then "of ◉ Jeffy" and
+  "to join and chat".
+  - When join == chat it collapses to one tile. The dev needs to confirm that comparison: same currency, same amount.
+  - The new frame 863:4171 covers Join ≠ Chat, with two tiles ($50 to join, $100 to chat).
+  - "Your balance" stays as the footer.
+  - "Jeffy" is a sample currency name.
+- **User:**
+  - "Joined" moves out of the Details card into a `text/tertiary` footnote at the end of the scroll.
+  - Socials are a horizontally scrolling chip row in the identity block (X with verified mark, Instagram, TikTok;
+    Central brand icons). Own profile adds a dashed "+ Add" chip.
+  - The Details card holds only "Minimum to chat".
+  - Instagram and TikTok are drawn as if linked. They need backend fields and link flows (the proto has X only).
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
