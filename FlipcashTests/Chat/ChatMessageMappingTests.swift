@@ -322,6 +322,20 @@ struct ChatMessageMappingTests {
         #expect(!broken[1].isContinuationFromPrevious)
     }
 
+    @Test("A 90-minute pause opens a date separator; a 30-minute pause does not")
+    func hourGapOpensSeparator() {
+        func separators(afterPause pause: TimeInterval) -> Int {
+            let rows = [
+                ConversationMessage(id: MessageID(value: 1), senderID: me, content: .text("a"), date: base, unreadSeq: 1),
+                ConversationMessage(id: MessageID(value: 2), senderID: me, content: .text("b"), date: base.addingTimeInterval(pause), unreadSeq: 2),
+            ]
+            return separatorCount(ChatItem.from(rows, selfUserID: me))
+        }
+
+        #expect(separators(afterPause: 30 * 60) == 1)  // only the one opening the transcript
+        #expect(separators(afterPause: 90 * 60) == 2)  // the pause heads the second message
+    }
+
     @Test("A run does not carry across a change of day, however short the pause")
     func dayChangeBreaksRun() {
         // Straddling local midnight, so the two rows are minutes apart but on different dates.

@@ -244,7 +244,7 @@ struct ChatPreviewMappingTests {
 
     @Test("Messages within the gap share a single opening separator")
     func messagesWithinGapShareSeparator() {
-        // ids 1 and 2 → dates 1s apart, well under the 15-minute gap.
+        // ids 1 and 2 → dates 1s apart, well under the one-hour gap.
         let messages = [
             textMessage(id: 1, senderID: meID, text: "a"),
             textMessage(id: 2, senderID: meID, text: "b"),
@@ -253,15 +253,26 @@ struct ChatPreviewMappingTests {
         #expect(separators(items).count == 1)
     }
 
-    @Test("A gap longer than 15 minutes inserts another separator")
+    @Test("A gap longer than one hour inserts another separator")
     func gapInsertsSeparator() {
-        // ids 1 and 1000 → dates 999s (~16.6 min) apart, beyond the 15-minute gap.
+        // ids 1 and 5401 → dates 5400s (90 min) apart, beyond the one-hour gap.
         let messages = [
             textMessage(id: 1, senderID: meID, text: "a"),
-            textMessage(id: 1000, senderID: meID, text: "b"),
+            textMessage(id: 5401, senderID: meID, text: "b"),
         ]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
         #expect(separators(items).count == 2)
+    }
+
+    @Test("A pause of 30 minutes does not insert another separator")
+    func shortPauseKeepsOneSeparator() {
+        // ids 1 and 1801 → dates 1800s (30 min) apart, under the one-hour gap.
+        let messages = [
+            textMessage(id: 1, senderID: meID, text: "a"),
+            textMessage(id: 1801, senderID: meID, text: "b"),
+        ]
+        let items = ChatItem.preview(from: messages, selfUserID: meID)
+        #expect(separators(items).count == 1)
     }
 
     // MARK: - Cache serialization
