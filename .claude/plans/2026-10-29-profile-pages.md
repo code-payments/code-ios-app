@@ -109,7 +109,8 @@ Avoid three-stat columns, upsell cards and glass on content.
 
 All three share:
 - The CTA is a 54pt capsule, `.filled`, the only filled button on the screen.
-- Glass only on the back and ⋯ circles and the CTA bar on iOS 26+, with a material fallback on iOS 18.
+- Glass only on the back and ⋯ circles, on iOS 26+, with a material fallback on iOS 18. The CTA floats over
+  the shipped fade: no bar surface and no glass.
 - 20pt margins (`screen/margin`).
 - 2pt Central icons and rows v2.
 - Presses are a small scale; state changes snap.
@@ -157,5 +158,63 @@ References: Family, Base token card, the Flipcash tip card.
 7. Loading and error: there's no skeleton, and a failed fetch is silent. Is a design-only skeleton OK?
 8. Own profile: your own handle routes to the tip card, not this screen. The Oct 3 design had "the You tab becomes your profile". Out of scope here?
 
-## 9. Log
+## 9. Round 1 frames (Figma)
+
+Page Profiles `814:2`. Sections and frames (User / Private / Public, iOS, Dark):
+
+| Direction | Section | Frames |
+|---|---|---|
+| A · Editorial | 818:2 | 822:2 · 822:162 · 822:360 |
+| B · Cover stage | 818:5 | 822:3997 · 825:4344 · 828:935 |
+| C · The card | 818:8 | 823:460 · 824:572 · 827:811 |
+
+The states drawn:
+- User: a new contact, with "Send £1.51 to Start Chatting".
+- Private: a member who arrived from a link, with Open Chat.
+- Public: a non-member, with Open Chat.
+
+Photos are gradient stand-ins named `⚠︎ photo:`. New pieces are named `⚠︎ not in Screen Kit:` (header wash, cover fade,
+identity block, facepile, stat card, profile card).
+
+**The critique (design-critic, fresh context)** returned "approve with changes". It was folded in as follows:
+- **Leave Chat restored on C · Private.** Also removed there: the redundant "See all 5" row and the slab behind the CTA.
+- **CTA fade.** B gets the shipped fade, and B's cover is shortened so content clears the CTA.
+- **B · Public logo:** the "f" glyph read as Facebook's logo, so it was replaced.
+- **Copy:** "Invite only" became "The host approves who joins"; "Favourite groups" became the shipped "Favorite Public
+  Groups".
+- **Public "22 members":** the chevron is gone, because non-members have no roster.
+- **Hit areas:** Share is 44pt, and C's share circle has no glass.
+
+Kept against the critique:
+- **"Your Balance" on public groups:** it ships today (`ChatProfileScreen.swift:453`).
+- **Pure black page:** Aiden chose #000000 on 2026-10-28. The critic read `backgroundMain` #19191A in design-standard
+  §1, so that doc is out of date.
+
+**Not drawn yet (round 2, for the chosen direction):**
+- **Group opened from its chat:** no pinned CTA, and Leave Chat ends the scroll. This is the most common route.
+- **User CTA states:** Start Chatting (fee unknown), Open Chat (DM), Unblock, and own profile (no CTA).
+- **Private CTA states:** Request to Join; "Requested Xm ago" plus Cancel Request (two controls in one slot);
+  Join Group (invite preview, Brandon); and the host with the Join Requests card.
+- **Empty and fallback states:** loading, empty bio, no favourites, long title, and AX5.
+
+## 10. Taste calls after round 1
+
+1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
+2. Identity alignment: left-aligned (A, C) or centred (B).
+3. Cover: a wash (A), a full-bleed photo (B), or held inside the card (C). Empty cover: a tint from the avatar, or
+   nothing.
+4. Minimum to chat: CTA only (A), or a stat plus the CTA (B, C).
+5. Leave Chat: at the end of the scroll (A, C), or in the ⋯ menu (B, needs the dev's OK). Red or `.subtle`.
+6. Private members: a full list (A, C), or a facepile (B).
+7. Name size: 34 (A), 28 (B) or 24 (C).
+8. CTA inset: 32 (the Amount and tray decision of 2026-10-19), or 20 (the content edge, which the critic prefers).
+9. Card radius: 12 (standard rule 15), or about 22 (`card/radius`, rows v2 style B and trays).
+
+The standard is silent on:
+- whether a profile counts as a money screen (layout rule 2: money is the largest text);
+- section-heading casing;
+- a header avatar size token.
+
+## 11. Log
 - 2026-10-28: worktree set up; four surveys and the prior-art report done; Profiles page created; directions proposed.
+- 2026-10-28: round 1 built (A, B, C × 3 types); critique run; fix pass folded in.
