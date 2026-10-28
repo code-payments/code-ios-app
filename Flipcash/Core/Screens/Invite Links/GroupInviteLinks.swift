@@ -124,6 +124,8 @@ final class GroupInviteLinks {
     /// The secret of the create in flight or last failed, reused on retry so a retried
     /// `CreateInvite` carries the same token, on which the server is idempotent.
     @ObservationIgnored private var pendingSecret: Data?
+    /// The load in flight, which a second caller joins.
+    @ObservationIgnored private var loading: Task<Void, Error>?
     @ObservationIgnored private let service: Service
     @ObservationIgnored private let now: () -> Date
 
@@ -172,7 +174,19 @@ final class GroupInviteLinks {
     // MARK: - Load -
 
     /// Reads every invite, newest first. Throws the server's error so a screen can tell `DENIED`.
+    ///
+    /// A call while a load is in flight waits for that load rather than starting a second one.
     func load() async throws {
+        if let loading {
+            return try await loading.value
+        }
+        let task = Task { try await performLoad() }
+        loading = task
+        defer { loading = nil }
+        try await task.value
+    }
+
+    private func performLoad() async throws {
         loadState = .loading
         do {
             let invites = try await service.list(conversationID)
@@ -197,7 +211,13 @@ final class GroupInviteLinks {
         if let url = current?.url {
             return url
         }
-        let entry = try await create(expiry: .sevenDays, limit: .unlimited)
+        let entry: Entry
+        do {
+            entry = try await create(expiry: .sevenDays, limit: .unlimited)
+        } catch is CreatedUnusable {
+            // Only a retry can come back non-ACTIVE; that secret is spent, so start over once.
+            entry = try await create(expiry: .sevenDays, limit: .unlimited)
+        }
         guard let url = entry.url else { throw CreatedUnusable() }
         return url
     }

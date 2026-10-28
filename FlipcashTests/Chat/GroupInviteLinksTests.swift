@@ -179,11 +179,24 @@ struct GroupInviteLinksTests {
     @Test("An OK that isn't active is not used as a link")
     func inactiveCreateRejected() async {
         let server = Server()
-        server.createResults = [.success(.revoked)]
+        server.createResults = [.success(.revoked), .success(.revoked)]
         let links = makeLinks(server)
 
         await #expect(throws: GroupInviteLinks.CreatedUnusable.self) { try await links.currentLink() }
         #expect(links.current == nil)
+    }
+
+    @Test("An OK that isn't active starts over once with a new secret")
+    func inactiveCreateRestarts() async throws {
+        let server = Server()
+        server.createResults = [.success(.revoked), .success(.active)]
+        let links = makeLinks(server)
+
+        _ = try await links.currentLink()
+
+        #expect(server.createdSecrets.count == 2)
+        #expect(server.createdSecrets[0] != server.createdSecrets[1])
+        #expect(links.current != nil)
     }
 
     @Test("A new link from 2d becomes current; Never sends no expiry")
@@ -223,5 +236,28 @@ struct GroupInviteLinksTests {
 
         await #expect(throws: ErrorGetChatInvites.denied) { try await links.load() }
         #expect(links.loadState == .failed)
+    }
+
+    @Test("The invite link's share sheet has no group card (Decision 6)")
+    func inviteSheetHasNoGroupCard() {
+        let links = makeLinks(Server())
+        #expect(!ShareToChatsSheet.showsGroupCardTile(for: .inviteLink(group, links)))
+        #expect(ShareToChatsSheet.showsGroupCardTile(for: .group(group)))
+    }
+
+    @Test("The invite share sheet's meta line describes the link itself")
+    func sheetMeta() {
+        let limited = Invite(
+            id: InviteID(data: Data(repeating: 1, count: 16)),
+            conversationID: group,
+            createdBy: me,
+            maxUses: 10,
+            useCount: 3,
+            createdAt: now,
+            expiresAt: nil,
+            status: .active,
+            secretEnvelope: nil
+        )
+        #expect(InviteLinkCopy.sheetMeta(limited) == "Never expires · 3 of 10 joined")
     }
 }

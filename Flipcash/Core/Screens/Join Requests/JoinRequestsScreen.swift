@@ -49,14 +49,13 @@ struct JoinRequestsScreen: View {
         .task(id: conversationID) {
             await lobbies.refresh(conversationID)
         }
-        .fullScreenCover(isPresented: $isInviting) {
-            ShareToChatsSheet(
-                subject: .group(conversationID),
-                isPresented: $isInviting,
-                onManageInvites: { router.push(.inviteLinks(conversationID)) }
-            ) { chatID in
-                router.openSharedChat(chatID)
-            }
+        .invitePeople(
+            conversationID,
+            canInvite: canInvite,
+            isPresented: $isInviting,
+            onManageInvites: { router.push(.inviteLinks(conversationID)) }
+        ) { chatID in
+            router.openSharedChat(chatID)
         }
     }
 

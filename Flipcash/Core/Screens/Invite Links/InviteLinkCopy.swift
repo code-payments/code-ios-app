@@ -11,9 +11,7 @@ import FlipcashCore
 /// The invite sheet's and Manage Invites' strings (frames 1a–1e, 2a–2e).
 enum InviteLinkCopy {
 
-    static let sheetSubtitle = "Private group · Invite link"
     static let creating = "Creating link…"
-    static let defaultExpiry = "Expires in 7 days"
     static let footnote = "Anyone with this link can join and see who’s in the group. Share it only with people you want in the group"
     static let cantShare = "Can’t share from this device"
 

@@ -36,7 +36,7 @@ enum InviteLinkDialogs {
                 DialogAction.cancel()
             }
         default:
-            .error(title: "Couldn’t Create Link", subtitle: "Something went wrong.")
+            .error(title: "Couldn’t Create Link", subtitle: "Something went wrong. Please try again")
         }
     }
 
