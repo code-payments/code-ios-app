@@ -17,9 +17,12 @@ extension CallOptions {
     /// so they fail fast on a dead connection instead of waiting for the OS TCP
     /// timeout. Streaming RPCs deliberately use `.defaults` (no deadline) so
     /// long-lived streams aren't killed at the 15s mark.
-    static var unaryDefault: CallOptions {
+    static var unaryDefault: CallOptions { unaryDefault(timeout: .seconds(15)) }
+
+    /// ``unaryDefault`` with a different deadline, for a caller on a tighter budget.
+    static func unaryDefault(timeout: Duration) -> CallOptions {
         var options = CallOptions.defaults
-        options.timeout = .seconds(15)
+        options.timeout = timeout
         return options
     }
 }
