@@ -314,6 +314,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         logger.error("Push notification registration failed", metadata: ["error": "\(error)"])
+
+        // Before login there is no session to keep it for; the status page only exists after.
+        sessionContainer?.pushController.didFailToRegisterForRemoteNotifications(with: error)
     }
 
 }

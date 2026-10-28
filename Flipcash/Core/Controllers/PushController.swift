@@ -43,6 +43,15 @@ class PushController {
         set { delegate.isArchived = newValue }
     }
 
+    /// Opens the notification status page when the user taps the test notification.
+    var openNotificationStatus: (@MainActor () -> Void)? {
+        get { delegate.openNotificationStatus }
+        set { delegate.openNotificationStatus = newValue }
+    }
+
+    /// The last `didFailToRegisterForRemoteNotifications` error this launch, for the report.
+    @ObservationIgnored private(set) var lastAPNsError: String?
+
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let client: FlipClient
     @ObservationIgnored private let center: UNUserNotificationCenter
@@ -51,6 +60,7 @@ class PushController {
     @ObservationIgnored private var apnsToken: Data?
     @ObservationIgnored private var uploadedFirebaseToken: String?
     @ObservationIgnored private var activeObserver: Any?
+    @ObservationIgnored private let registrationStore: NotificationRegistrationStore
 
     // MARK: - Init -
 
@@ -59,6 +69,7 @@ class PushController {
         self.client   = client
         self.center   = .current()
         self.delegate = NotificationDelegate()
+        self.registrationStore = NotificationRegistrationStore(owner: owner.publicKey)
 
         delegate.didReceiveFCMToken = { [weak self] token in
             try await self?.didReceiveFirebaseToken(token: token)
@@ -109,9 +120,16 @@ class PushController {
             try await didReceiveFirebaseToken(token: token)
         }
     }
+
+    /// Called by the app delegate when APNs registration fails. Kept for the status page's report.
+    func didFailToRegisterForRemoteNotifications(with error: Error) {
+        lastAPNsError = "\(error)"
+    }
     
     /// Deletes the FCM token from the server and unregisters from APNs.
     func prepareForLogout() {
+        registrationStore.clear()
+
         Task {
             guard uploadedFirebaseToken != nil else {
                 return
@@ -148,7 +166,67 @@ class PushController {
 
     /// Re-fetches the notification authorization status from the system.
     func refreshAuthorizationStatus() async {
-        authorizationStatus = await Self.fetchStatus()
+        authorizationStatus = await Self.fetchStatus().authorizationStatus
+    }
+
+    // MARK: - Notification Status -
+
+    /// The last recorded `AddToken` outcome for this account, from any call site.
+    var savedRegistration: NotificationStatus.RegistrationRecord? {
+        registrationStore.record
+    }
+
+    /// The last six characters of the current FCM token, for the report.
+    var tokenSuffix: String? {
+        uploadedFirebaseToken.map { String($0.suffix(6)) }
+    }
+
+    /// Fetches the current FCM token and calls `AddToken` with it, whether or not this token was
+    /// already uploaded, so the status page sees a fresh answer. Gives up after
+    /// ``NotificationStatus/registrationTimeout``.
+    func checkRegistration(deletingToken: Bool = false) async -> NotificationStatus.Registration {
+        let messaging = Messaging.messaging()
+        if deletingToken {
+            do {
+                try await messaging.deleteToken()
+            } catch {
+                ErrorReporting.captureError(error, reason: "Failed to delete local FCM token")
+            }
+        }
+
+        let token: String
+        do {
+            token = try await Self.withTimeout { try await Messaging.messaging().token() }
+        } catch {
+            if messaging.apnsToken == nil {
+                logger.warning("No APNs token for registration check", metadata: ["error": "\(error)"])
+                return .noAPNsToken
+            }
+            let result: NotificationStatus.RegistrationResult = error is CancellationError ? .transport : .unknown
+            ErrorReporting.captureError(error, reason: "Failed to fetch FCM token for registration check")
+            registrationStore.record = .init(at: .now, result: result, source: .statusPage)
+            return .finished(result)
+        }
+
+        return .finished(await upload(token: token, source: .statusPage))
+    }
+
+    /// Posts the local test notification ``NotificationStatus/testDelay`` seconds from now. It has no
+    /// category, so it carries neither the chat Reply action nor the chat content extension.
+    func scheduleTestNotification() async throws {
+        let content = UNMutableNotificationContent()
+        content.title = "Test notification"
+        content.body = "If you can see this, notifications are working."
+        content.sound = .default
+        content.threadIdentifier = NotificationStatus.testThreadIdentifier
+        content.userInfo = [NotificationStatus.testUserInfoKey: true]
+
+        let request = UNNotificationRequest(
+            identifier: NotificationStatus.testThreadIdentifier,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: NotificationStatus.testDelay, repeats: false)
+        )
+        try await center.add(request)
     }
     
     // MARK: - Firebase -
@@ -161,13 +239,54 @@ class PushController {
         }
         
         if uploadedFirebaseToken != token {
-            try await client.addToken(
-                token: token,
-                installationID: try await Self.installationID(),
-                owner: owner
-            )
+            // A first upload this launch follows login or launch; any later one is a rotation.
+            let source: NotificationStatus.RegistrationSource = uploadedFirebaseToken == nil ? .login : .refresh
+            await upload(token: token, source: source)
+        }
+    }
+
+    /// Calls `AddToken`, caches the token on success and records the outcome for this account.
+    @discardableResult
+    private func upload(token: String, source: NotificationStatus.RegistrationSource) async -> NotificationStatus.RegistrationResult {
+        let result: NotificationStatus.RegistrationResult
+        do {
+            let client = client
+            let owner = owner
+            try await Self.withTimeout {
+                try await client.addToken(
+                    token: token,
+                    installationID: try await Self.installationID(),
+                    owner: owner
+                )
+            }
             uploadedFirebaseToken = token // Cache uploaded token
-            
+            result = .ok
+        } catch let error as ErrorAddToken {
+            result = .init(error)
+            ErrorReporting.captureError(error, reason: "Failed to add push token", metadata: ["source": source.rawValue])
+        } catch is CancellationError {
+            result = .transport
+        } catch {
+            result = .unknown
+            ErrorReporting.captureError(error, reason: "Failed to add push token", metadata: ["source": source.rawValue])
+        }
+
+        registrationStore.record = .init(at: .now, result: result, source: source)
+        logger.info("Recorded push registration", metadata: ["source": "\(source.rawValue)", "result": "\(result.rawValue)"])
+        return result
+    }
+
+    /// Runs `operation`, throwing `CancellationError` if it outlasts ``NotificationStatus/registrationTimeout``.
+    private static func withTimeout<T: Sendable>(_ operation: @escaping @Sendable () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(for: NotificationStatus.registrationTimeout)
+                throw CancellationError()
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else { throw CancellationError() }
+            return first
         }
     }
     
@@ -231,8 +350,8 @@ extension PushController {
         return granted
     }
     
-    static func fetchStatus() async -> UNAuthorizationStatus {
-        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    static func fetchStatus() async -> UNNotificationSettings {
+        await UNUserNotificationCenter.current().notificationSettings()
     }
     
     static func installationID() async throws -> String {
@@ -277,6 +396,7 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
     var isViewingConversation: (@MainActor (ConversationID) -> Bool)?
     var isArchived: (@MainActor (ConversationID) -> Bool)?
+    var openNotificationStatus: (@MainActor () -> Void)?
 
     override init() {
         super.init()
@@ -292,6 +412,11 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         ])
         
         let userInfo = notification.request.content.userInfo
+
+        // The local test notification has no push payload; show it even in the foreground.
+        if NotificationStatus.isTestNotification(userInfo) {
+            return [.banner, .list, .sound]
+        }
 
         Messaging.messaging().appDidReceiveMessage(userInfo)
 
@@ -329,6 +454,11 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         logger.info("Received notification response", metadata: ["action": "\(response.actionIdentifier)"])
+
+        if NotificationStatus.isTestNotification(response.notification.request.content.userInfo) {
+            openNotificationStatus?()
+            return
+        }
 
         Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
 

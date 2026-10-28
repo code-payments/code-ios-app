@@ -211,7 +211,7 @@ struct NotificationPrompt {
     static let shownKey = "flipcash-transaction-notify-prompt-shown"
 
     var defaults: UserDefaults = .standard
-    var status: () async -> UNAuthorizationStatus = { await PushController.fetchStatus() }
+    var status: () async -> UNAuthorizationStatus = { await PushController.fetchStatus().authorizationStatus }
     var authorize: () async -> Void = { _ = try? await PushController.authorizeAndRegister() }
 
     var hasShown: Bool { defaults.bool(forKey: Self.shownKey) }

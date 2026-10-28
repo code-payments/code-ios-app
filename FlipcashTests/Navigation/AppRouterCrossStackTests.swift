@@ -175,6 +175,7 @@ struct AppRouterCrossStackTests {
             (AppRouter.Destination.settingsAdvancedBetaFeatures,    AppRouter.Stack.you),
             (AppRouter.Destination.settingsAccountSelection,        AppRouter.Stack.you),
             (AppRouter.Destination.settingsApplicationLogs,         AppRouter.Stack.you),
+            (AppRouter.Destination.settingsNotificationStatus,      AppRouter.Stack.you),
             (AppRouter.Destination.accessKey,                       AppRouter.Stack.you),
             (AppRouter.Destination.withdraw,                        AppRouter.Stack.you),
         ]
