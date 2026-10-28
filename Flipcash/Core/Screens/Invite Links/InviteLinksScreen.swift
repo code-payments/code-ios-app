@@ -10,7 +10,7 @@ import UIKit
 import FlipcashUI
 import FlipcashCore
 
-/// Manage Invites (frame 2a, node 12844:209): a hosted private group's invite links, Active then
+/// Manage Invites (frame 2a, node 12844:200): a hosted private group's invite links, Active then
 /// Inactive, with sharing, revoking and making new ones. Pushed from the invite sheet and from the
 /// profile's ⋯ menu.
 struct InviteLinksScreen: View {
@@ -25,6 +25,7 @@ struct InviteLinksScreen: View {
     @State private var selected: GroupInviteLinks.Entry?
     @State private var isMakingLink = false
     @State private var dialogItem: DialogItem?
+    @State private var newLinkHeight: CGFloat = 0
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -69,8 +70,12 @@ struct InviteLinksScreen: View {
                 NewInviteLinkSheet(isCreating: links.isCreating) { expiry, limit in
                     await create(expiry: expiry, limit: limit)
                 }
-                .presentationDetents([.medium])
-                .presentationBackground(Color.backgroundMain)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { newLinkHeight = $0 }
+                .frame(maxHeight: .infinity, alignment: .top)
+                .presentationDetents([newLinkHeight > 0 ? .height(newLinkHeight) : .medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.backgroundSecondary)
             }
         }
         .dialog(item: $dialogItem)
@@ -137,71 +142,96 @@ struct InviteLinksContent: View {
     let onNewLink: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            if active.isEmpty && inactive.isEmpty {
-                empty
-            } else {
+        if active.isEmpty && inactive.isEmpty {
+            empty
+        } else {
+            VStack(spacing: 0) {
                 list
+                Button("New Link", action: onNewLink)
+                    .buttonStyle(.filled)
+                    .padding(.horizontal, InviteLinksMetrics.inset)
+                    .padding(.bottom, 16)
+                    .accessibilityIdentifier("invite-links-new")
             }
-            Button("New Link", action: onNewLink)
-                .buttonStyle(.filled)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-                .accessibilityIdentifier("invite-links-new")
         }
     }
 
-    /// Frame 2e.
+    /// Frame 2e (node 12844:395): a capsule New Link under the message, no bottom button.
     private var empty: some View {
-        VStack(spacing: 8) {
-            Spacer()
+        VStack(spacing: 0) {
             Text("No invite links")
-                .font(.appTextLarge)
+                .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
             Text("Make a link to let people join without waiting for approval.")
-                .font(.appTextMedium)
+                .font(.default(size: 14, weight: .medium))
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
-            Spacer()
+                .frame(maxWidth: 260)
+                .padding(.top, 8)
+            Button(action: onNewLink) {
+                Text("New Link")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textMain)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(InviteLinksMetrics.panel, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 24)
+            .accessibilityIdentifier("invite-links-new")
         }
-        .padding(.horizontal, 40)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var list: some View {
-        List {
-            if !active.isEmpty {
-                Section {
-                    ForEach(active) { entry in
-                        Button { onSelect(entry) } label: {
-                            InviteLinkRow(entry: entry, isCurrent: entry.id == currentID, isActive: true)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                } header: {
-                    sectionHeader("ACTIVE")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                if !active.isEmpty {
+                    section("ACTIVE", entries: active, isActive: true)
+                }
+                if !inactive.isEmpty {
+                    section("INACTIVE", entries: inactive, isActive: false)
                 }
             }
-            if !inactive.isEmpty {
-                Section {
-                    ForEach(inactive) { entry in
-                        InviteLinkRow(entry: entry, isCurrent: false, isActive: false)
-                    }
-                } header: {
-                    sectionHeader("INACTIVE")
-                }
-            }
+            .padding(.horizontal, InviteLinksMetrics.inset)
+            .padding(.vertical, 12)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .listRowBackground(Color.clear)
     }
 
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.appTextHeading)
-            .foregroundStyle(Color.textSecondary)
+    /// A section header over a rounded card of rows, as frame 2a draws them.
+    private func section(_ title: String, entries: [GroupInviteLinks.Entry], isActive: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.appTextHeading)
+                .foregroundStyle(Color.textSecondary)
+                .padding(.horizontal, 16)
+            VStack(spacing: 0) {
+                ForEach(entries) { entry in
+                    let row = InviteLinkRow(entry: entry, isCurrent: entry.id == currentID, isActive: isActive)
+                    if isActive {
+                        Button { onSelect(entry) } label: { row }
+                            .buttonStyle(.plain)
+                    } else {
+                        row
+                    }
+                    if entry.id != entries.last?.id {
+                        Rectangle()
+                            .fill(Color.rowSeparator)
+                            .frame(height: 1)
+                            .padding(.leading, 16)
+                    }
+                }
+            }
+            .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+        }
     }
+}
+
+private enum InviteLinksMetrics {
+    /// Frame 2a's card inset from the screen edge.
+    static let inset: CGFloat = 22
+    /// The chip and capsule fill (card/panel, white 8%).
+    static let panel = Color.white.opacity(0.08)
 }
 
 private struct InviteLinkRow: View {
@@ -212,35 +242,40 @@ private struct InviteLinkRow: View {
     let isActive: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(InviteLinkCopy.created(entry.invite) ?? "")
                     .font(.appTextMedium)
+                    .foregroundStyle(isActive ? Color.textMain : Color.textMain.opacity(0.5))
                 Text(InviteLinkCopy.rowDetail(entry))
                     .font(.appTextCaption)
                     .foregroundStyle(isActive ? Color.textSecondary : Color.textMain.opacity(0.5))
             }
-            Spacer()
+            .lineLimit(1)
+            Spacer(minLength: 0)
             if isCurrent {
                 Text("Current")
-                    .font(.appTextCaption)
+                    .font(.appTextHeading)
                     .foregroundStyle(Color.textMain)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.backgroundRow, in: Capsule())
+                    .padding(.vertical, 3)
+                    .background(InviteLinksMetrics.panel, in: Capsule())
+            }
+            if isActive {
+                Image(systemName: "chevron.right")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
             }
         }
-        .foregroundStyle(isActive ? Color.textMain : Color.textMain.opacity(0.5))
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .frame(height: 64)
         .contentShape(Rectangle())
-        .listRowBackground(Color.clear)
-        .listRowSeparatorTint(Color.rowSeparator)
     }
 }
 
 // MARK: - New link -
 
-/// Frame 2d (node 12844:268): expiry and use-limit presets, then Create Link.
+/// Frame 2d (node 12844:334): expiry and use-limit presets, then Create Link.
 struct NewInviteLinkSheet: View {
 
     let isCreating: Bool
@@ -253,15 +288,16 @@ struct NewInviteLinkSheet: View {
     @State private var isSubmitting = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 0) {
             Text("New Invite Link")
                 .font(.appTextLarge)
                 .foregroundStyle(Color.textMain)
+                .padding(.bottom, 28)
 
             chips("Expires", options: GroupInviteLinks.Expiry.allCases, selection: $expiry, title: \.title)
+                .padding(.bottom, 24)
             chips("Who can join", options: GroupInviteLinks.UseLimit.allCases, selection: $limit, title: \.title)
-
-            Spacer(minLength: 0)
+                .padding(.bottom, 28)
 
             Button {
                 Task {
@@ -276,30 +312,17 @@ struct NewInviteLinkSheet: View {
             .disabled(isSubmitting || isCreating)
             .accessibilityIdentifier("new-invite-link-create")
         }
-        .padding(20)
+        .padding(.horizontal, 16)
+        .padding(.top, 32)
+        .padding(.bottom, 8)
     }
 
     private func chips<Option: Hashable>(_ heading: String, options: [Option], selection: Binding<Option>, title: KeyPath<Option, String>) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(heading)
-                .font(.appTextSmall)
+                .font(.default(size: 13, weight: .medium))
                 .foregroundStyle(Color.textSecondary)
-            HStack(spacing: 8) {
-                ForEach(options, id: \.self) { option in
-                    let isSelected = option == selection.wrappedValue
-                    Button {
-                        selection.wrappedValue = option
-                    } label: {
-                        Text(option[keyPath: title])
-                            .font(.appTextSmall)
-                            .foregroundStyle(isSelected ? Color.textAction : Color.textMain)
-                            .padding(.horizontal, 14)
-                            .frame(height: 36)
-                            .background(isSelected ? Color.action : Color.backgroundRow, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            SlidingChipPicker(options, selection: selection) { $0[keyPath: title] }
         }
     }
 }
