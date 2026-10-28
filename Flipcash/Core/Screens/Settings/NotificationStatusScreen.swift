@@ -244,7 +244,25 @@ private struct CheckRow: View {
     let row: NotificationStatus.Row
     let onFix: (NotificationStatus.Fix) -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
+        // At accessibility sizes the fix button drops under the text, so the title keeps the
+        // full width instead of breaking mid-word beside it.
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 12) {
+                label
+                fixButton
+            }
+        } else {
+            HStack(spacing: 12) {
+                label
+                fixButton
+            }
+        }
+    }
+
+    private var label: some View {
         HStack(spacing: 12) {
             StatusMark(status: row.status, size: .small)
 
@@ -276,19 +294,22 @@ private struct CheckRow: View {
             }
 
             Spacer(minLength: 0)
+        }
+    }
 
-            if let fix = row.fix, let fixTitle = row.fixTitle {
-                Button(fixTitle) { onFix(fix) }
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textAction)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(Color.action))
-                    .buttonStyle(.plain)
-                    .disabled(row.status == .checking)
-                    .accessibilityIdentifier("notification-status-fix-\(row.check.rawValue)")
-                    .transition(.opacity)
-            }
+    @ViewBuilder
+    private var fixButton: some View {
+        if let fix = row.fix, let fixTitle = row.fixTitle {
+            Button(fixTitle) { onFix(fix) }
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textAction)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(Color.action))
+                .buttonStyle(.plain)
+                .disabled(row.status == .checking)
+                .accessibilityIdentifier("notification-status-fix-\(row.check.rawValue)")
+                .transition(.opacity)
         }
     }
 }
