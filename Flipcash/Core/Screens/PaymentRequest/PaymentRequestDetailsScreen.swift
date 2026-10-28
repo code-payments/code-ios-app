@@ -232,7 +232,7 @@ struct PaymentRequestDetailsScreen: View {
     private func pay() {
         Task {
             switch await payFlow.start(requestID, sessionContainer: sessionContainer) {
-            case .ready, .insufficientFunds:
+            case .ready:
                 break
             case .nothingToPay, .closed, .failed:
                 hasPaymentIntent = false
