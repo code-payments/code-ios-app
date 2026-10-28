@@ -308,6 +308,27 @@ Colour and treatment:
 `balanceShortfall`, `GroupProfileState.swift:95`). The view never compares amounts. Option C, a "Buy $X to Join" CTA,
 is parked because it changes what the button does.
 
+### D: public group immersive colour (Aiden's reference: cooking-app recipe page), 2026-10-28
+
+The cover melts into a deep colour derived from it, which becomes the whole page background. Secondary text takes a
+light tint of the hue instead of grey, the surfaces are a lighter tint, and Share is an outline pill in the tint. The
+CTA stays the white capsule, with its fade ramping into the page colour. Row 5 of section D (now 2008×5864).
+
+| Frame | id | Page / tint / surface |
+|---|---|---|
+| Blue · Met | 870:5124 | #0B1F4D / #A9C1F5 / #1F315B |
+| Warm cover · Met | 870:5287 | #3A1606 / #F2C9A8 / #4A291A |
+| Blue · Short | 870:5450 | as Blue; `text/warning` (#FFF383) reads on navy, "You hold" in tint |
+| No cover (from avatar) | 870:5610 | #0C1C42, a radial glow of the logo blue behind the avatar |
+
+Hairlines are the tint at 20%. Every colour is a literal named "· derived from cover (literal)".
+
+**For the dev: the colour source.** The cover's blurhash already encodes its average colour (the DC term), so the colour
+can be derived client-side with no new backend data. Clamp the lightness for contrast, e.g. OKLCH L ≈ 0.20–0.24.
+With no cover, derive it from the avatar.
+
+**Known nit:** on the warm frame, the amber-to-umber melt is a little abrupt and shows a faint band.
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
