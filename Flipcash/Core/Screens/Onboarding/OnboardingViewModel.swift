@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import UserNotifications
 
 @Observable
 class OnboardingViewModel {
@@ -23,6 +24,9 @@ class OnboardingViewModel {
     @ObservationIgnored private let container: Container
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
     @ObservationIgnored private var initializedAccount: InitializedAccount?
+    @ObservationIgnored private let pushStatus: () async -> UNAuthorizationStatus
+    @ObservationIgnored private let hasDisplayName: (InitializedAccount) async -> Bool?
+    @ObservationIgnored private let finishLogin: (InitializedAccount) -> Void
 
     /// Built on first call to ``navigateToDisplayName``; the display-name step
     /// runs pre-login, so it owns its submission against the in-flight owner.
@@ -30,9 +34,29 @@ class OnboardingViewModel {
 
     // MARK: - Init -
 
-    init(container: Container) {
+    /// The closures are seams for tests; the defaults read the real notification status and
+    /// profile, and open the session.
+    ///
+    /// - Parameters:
+    ///   - pushStatus: the current notification authorization.
+    ///   - hasDisplayName: whether the account's profile already has a display name, or `nil`
+    ///     when that can't be determined.
+    ///   - finishLogin: opens the session once onboarding is done.
+    init(
+        container: Container,
+        pushStatus: @escaping () async -> UNAuthorizationStatus = { await PushController.fetchStatus() },
+        hasDisplayName: ((InitializedAccount) async -> Bool?)? = nil,
+        finishLogin: ((InitializedAccount) -> Void)? = nil
+    ) {
         self.container            = container
         self.sessionAuthenticator = container.sessionAuthenticator
+        self.pushStatus           = pushStatus
+        self.hasDisplayName       = hasDisplayName ?? { [flipClient = container.flipClient, accountManager = container.accountManager] account in
+            await Self.lookUpDisplayName(for: account, flipClient: flipClient, accountManager: accountManager)
+        }
+        self.finishLogin          = finishLogin ?? { [authenticator = container.sessionAuthenticator] account in
+            authenticator.completeLogin(with: account)
+        }
     }
 
     // MARK: - Action -
@@ -133,7 +157,7 @@ class OnboardingViewModel {
     /// undetermined, otherwise finishes login. Contacts access is requested
     /// later, in-app.
     private func advanceFromNameStep() async {
-        let pushStatus = await PushController.fetchStatus()
+        let pushStatus = await pushStatus()
         switch pushStatus {
         case .notDetermined:
             navigateToPushNotifications()
@@ -160,7 +184,7 @@ class OnboardingViewModel {
                 )
 
                 try await Task.delay(milliseconds: 500)
-                sessionAuthenticator.completeLogin(with: initializedAccount)
+                sessionAuthenticator.beginOnboarding(with: initializedAccount)
             } catch {
                 // Login failed silently
             }
@@ -238,9 +262,48 @@ class OnboardingViewModel {
             return
         }
 
-        sessionAuthenticator.completeLogin(with: initializedAccount)
+        OnboardingProgress.setCompleted(true, owner: initializedAccount.keyAccount.ownerPublicKey)
+        finishLogin(initializedAccount)
 
         Analytics.onboardingCompleted()
+    }
+
+    // MARK: - Resume -
+
+    /// Runs the onboarding steps still owed by an account that is already signed in: a launch
+    /// after a kill mid-onboarding, or an interactive login (seed entry, account picker, deep
+    /// link). Asks for a display name only when the profile has none, then applies the same
+    /// push rule as a new account, so already-decided permissions finish straight away.
+    func resumeOnboarding(with account: InitializedAccount) async {
+        initializedAccount = account
+        nameViewModel = nil
+
+        let named = await hasDisplayName(account)
+        guard named == false else {
+            await advanceFromNameStep()
+            return
+        }
+
+        navigateToDisplayName(owner: account.keyAccount.owner)
+    }
+
+    private static func lookUpDisplayName(
+        for account: InitializedAccount,
+        flipClient: FlipClient,
+        accountManager: AccountManager
+    ) async -> Bool? {
+        do {
+            let profile = try await flipClient.fetchProfile(userID: account.userID, owner: account.keyAccount.owner)
+            accountManager.cacheProfile(profile, ownerPublicKey: account.keyAccount.ownerPublicKey)
+            return profile.displayName?.isEmpty == false
+        } catch {
+            // Offline: trust the name cached on the account's keychain entry, and when that
+            // is blank too, skip the step rather than block the way home.
+            let cached = accountManager.fetchHistorical()
+                .first { $0.account.ownerPublicKey == account.keyAccount.ownerPublicKey }?
+                .displayName
+            return cached?.isEmpty == false ? true : nil
+        }
     }
 
     // MARK: - Navigation -
@@ -269,10 +332,10 @@ class OnboardingViewModel {
         path.append(.pushNotificationsDenied)
     }
 
-    func navigateToDisplayName() {
+    func navigateToDisplayName(owner: KeyPair? = nil) {
         if nameViewModel == nil {
             let vm = OnboardingNameViewModel(
-                owner: inflightMnemonic.solanaKeyPair(),
+                owner: owner ?? inflightMnemonic.solanaKeyPair(),
                 flipClient: container.flipClient,
             )
             vm.onComplete = { [weak self] in

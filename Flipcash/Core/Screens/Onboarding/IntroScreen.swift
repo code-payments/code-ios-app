@@ -138,6 +138,10 @@ private struct IntroScreenContent: View {
                 }
             }
         }
+        .task(id: sessionAuthenticator.pendingOnboarding?.keyAccount.ownerPublicKey.base58) {
+            guard let account = sessionAuthenticator.pendingOnboarding else { return }
+            await viewModel.resumeOnboarding(with: account)
+        }
     }
 }
 
