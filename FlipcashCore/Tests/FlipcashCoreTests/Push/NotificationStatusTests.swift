@@ -19,12 +19,14 @@ struct NotificationStatusTests {
     private static func page(
         _ snapshot: NotificationStatus.Snapshot = allowed,
         registration: NotificationStatus.Registration = .finished(.ok),
-        saved: NotificationStatus.RegistrationRecord? = nil
+        saved: NotificationStatus.RegistrationRecord? = nil,
+        hasChecked: Bool = false
     ) -> NotificationStatus.Page {
         NotificationStatus.evaluate(
             snapshot: snapshot,
             registration: registration,
             saved: saved,
+            hasChecked: hasChecked,
             now: now,
             locale: Locale(identifier: "en_US")
         )
@@ -227,6 +229,16 @@ struct NotificationStatusTests {
         let page = Self.page(snapshot, registration: .checking)
         #expect(page.summary.status == expected)
         #expect(page.summary.detail == nil, "The second line waits for the first run to finish")
+    }
+
+    @Test("After the first run, a later run keeps Checked just now", arguments: [
+        NotificationStatus.Snapshot(authorization: .authorized),
+        .init(authorization: .authorized, alertStyle: .none),
+        .init(authorization: .denied),
+    ])
+    func laterRunKeepsChecked(snapshot: NotificationStatus.Snapshot) {
+        let page = Self.page(snapshot, registration: .checking, hasChecked: true)
+        #expect(page.summary.detail == "Checked just now")
     }
 
     @Test("13: a fail outranks a warning in the summary")

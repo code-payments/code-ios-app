@@ -166,6 +166,55 @@ struct NotificationStatusViewModelTests {
         #expect(model.page?.rows.allSatisfy { $0.status != .fail && $0.status != .warning } == true)
     }
 
+    @Test("Turn On re-runs registration only when permission is granted", arguments: [true, false])
+    func turnOnRegistersOnlyWhenGranted(granted: Bool) async {
+        var snapshot = NotificationStatus.Snapshot(authorization: .notDetermined)
+        let registration = Gate<NotificationStatus.Registration>(.noAPNsToken)
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { snapshot },
+            registrationCheck: { _ in await registration.next() },
+            requestAuthorization: {
+                snapshot = .init(authorization: granted ? .authorized : .denied)
+                return granted
+            },
+            recheckPause: .zero
+        )
+
+        await model.runChecks()
+        await until { !model.isRunning }
+        #expect(registration.calls == 1)
+
+        await model.perform(.requestAuthorization)
+        await until { !model.isRunning }
+
+        #expect(registration.calls == (granted ? 2 : 1))
+        #expect(model.snapshot?.authorization == (granted ? .authorized : .denied))
+    }
+
+    @Test("Try Again keeps Checked just now while registration runs again")
+    func tryAgainKeepsChecked() async {
+        let registration = Gate<NotificationStatus.Registration>(.finished(.unknown))
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { .init(authorization: .authorized) },
+            registrationCheck: { _ in await registration.next() },
+            recheckPause: .zero
+        )
+
+        await model.runChecks()
+        await until { !model.isRunning }
+        #expect(model.page?.summary.detail == "Checked just now")
+
+        registration.holdsNext = true
+        await model.perform(.retryRegistration)
+        await until { registration.isHolding }
+
+        #expect(model.page?.summary.status == .checking)
+        #expect(model.page?.summary.detail == "Checked just now")
+        registration.release()
+    }
+
     // MARK: - Support -
 
     /// Yields until `condition` holds, so the view model's unstructured registration task can run.

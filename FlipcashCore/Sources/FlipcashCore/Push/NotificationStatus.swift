@@ -311,11 +311,13 @@ extension NotificationStatus {
     ///
     /// `saved` is the `AddToken` record as it stood before this registration attempt started;
     /// a past `ok` in it softens a transport failure into a warning, since the server most likely
-    /// still holds a good registration.
+    /// still holds a good registration. `hasChecked` is whether a run on this page has finished
+    /// before, which keeps the summary's "Checked just now" up while a later run is in progress.
     public static func evaluate(
         snapshot: Snapshot,
         registration: Registration,
         saved: RegistrationRecord?,
+        hasChecked: Bool = false,
         now: Date,
         locale: Locale = .current
     ) -> Page {
@@ -333,7 +335,7 @@ extension NotificationStatus {
 
         return Page(
             rows: rows,
-            summary: summary(rows),
+            summary: summary(rows, hasChecked: hasChecked),
             isTestEnabled: !permissionFails,
             foldedTitle: allPass ? plural(rows.count, "check passed", "checks passed") : nil
         )
@@ -411,11 +413,12 @@ extension NotificationStatus {
         }
     }
 
-    static func summary(_ rows: [Row]) -> Summary {
+    static func summary(_ rows: [Row], hasChecked: Bool) -> Summary {
         let fails = rows.filter { $0.status == .fail }
         let warnings = rows.filter { $0.status == .warning }
-        // The second line waits for every check to finish.
-        let checked = rows.contains { $0.status == .checking } ? nil : "Checked just now"
+        // The second line waits for the first run to finish, then stays through later runs.
+        let isChecking = rows.contains { $0.status == .checking }
+        let checked = hasChecked || !isChecking ? "Checked just now" : nil
 
         if !fails.isEmpty {
             let title = fails.contains { $0.check == .permission }
@@ -426,8 +429,8 @@ extension NotificationStatus {
         if !warnings.isEmpty {
             return Summary(status: .warning, title: plural(warnings.count, "thing to check", "things to check"), detail: checked)
         }
-        if rows.contains(where: { $0.status == .checking }) {
-            return Summary(status: .checking, title: "Checking…", detail: nil)
+        if isChecking {
+            return Summary(status: .checking, title: "Checking…", detail: checked)
         }
         return Summary(status: .pass, title: "Notifications are working", detail: checked)
     }

@@ -25,16 +25,21 @@ final class NotificationStatusViewModel {
     /// The saved `AddToken` record as it stood when the current registration started, before
     /// that attempt overwrote it.
     private var savedBeforeRegistration: NotificationStatus.RegistrationRecord?
+    /// Whether a run has finished since the page opened, after which the summary keeps
+    /// "Checked just now" through every later run.
+    private var hasChecked = false
 
     @ObservationIgnored private let pushController: PushController
     @ObservationIgnored private let readSettings: () async -> NotificationStatus.Snapshot
     @ObservationIgnored private let registrationCheck: (_ deletingToken: Bool) async -> NotificationStatus.Registration
     @ObservationIgnored private let savedRegistration: () -> NotificationStatus.RegistrationRecord?
+    @ObservationIgnored private let requestAuthorization: () async throws -> Bool
     @ObservationIgnored private let recheckPause: Duration
     @ObservationIgnored private var registrationTask: Task<Void, Never>?
 
-    /// `readSettings`, `registrationCheck` and `savedRegistration` default to the phone's settings,
-    /// ``PushController/checkRegistration(deletingToken:)`` and ``PushController/savedRegistration``.
+    /// `readSettings`, `registrationCheck`, `savedRegistration` and `requestAuthorization` default to
+    /// the phone's settings, ``PushController/checkRegistration(deletingToken:)``,
+    /// ``PushController/savedRegistration`` and ``PushController/authorizeAndRegister()``.
     /// `recheckPause` is the least time "Check Again" shows the rows as Checking, so a fast
     /// re-check still reads as one.
     init(
@@ -42,6 +47,7 @@ final class NotificationStatusViewModel {
         readSettings: (() async -> NotificationStatus.Snapshot)? = nil,
         registrationCheck: ((_ deletingToken: Bool) async -> NotificationStatus.Registration)? = nil,
         savedRegistration: (() -> NotificationStatus.RegistrationRecord?)? = nil,
+        requestAuthorization: (() async throws -> Bool)? = nil,
         recheckPause: Duration = .milliseconds(500)
     ) {
         self.pushController = pushController
@@ -50,6 +56,7 @@ final class NotificationStatusViewModel {
             await pushController.checkRegistration(deletingToken: $0)
         }
         self.savedRegistration = savedRegistration ?? { [pushController] in pushController.savedRegistration }
+        self.requestAuthorization = requestAuthorization ?? { try await PushController.authorizeAndRegister() }
         self.recheckPause = recheckPause
     }
 
@@ -63,6 +70,7 @@ final class NotificationStatusViewModel {
                 snapshot: $0,
                 registration: registration,
                 saved: savedBeforeRegistration,
+                hasChecked: hasChecked,
                 now: .now
             )
         }
@@ -138,6 +146,7 @@ final class NotificationStatusViewModel {
             let result = await registrationCheck(deletingToken)
             guard !Task.isCancelled else { return }
             registration = result
+            hasChecked = true
             registrationTask = nil
         }
     }
@@ -150,12 +159,17 @@ final class NotificationStatusViewModel {
             guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
             await UIApplication.shared.open(url)
         case .requestAuthorization:
+            var granted = false
             do {
-                try await PushController.authorizeAndRegister()
+                granted = try await requestAuthorization()
             } catch {
                 ErrorReporting.captureError(error, reason: "Failed to request notification authorization")
             }
-            await runChecks()
+            await refreshSettings()
+            // The phone can only register once notifications are allowed.
+            if granted {
+                register()
+            }
         case .retryRegistration:
             register()
         case .retryRegistrationDeletingToken:
