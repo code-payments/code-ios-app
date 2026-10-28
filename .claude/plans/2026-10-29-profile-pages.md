@@ -197,6 +197,48 @@ Kept against the critique:
   Join Group (invite preview, Brandon); and the host with the Join Requests card.
 - **Empty and fallback states:** loading, empty bio, no favourites, long title, and AX5.
 
+## 9b. Round 2: states and social links (2026-10-28)
+
+The sections are now 2490×3340 each: A at y 0, B at y 3500, C at y 7000. Row 1 is unchanged except for the X link. Row 2
+holds the User states (Own profile / Already chatting / Blocked). Row 3 holds the Group states (Private requester /
+Private requested / Private host / Public opened from its chat / Private invite preview).
+
+| Direction | User states | Group states |
+|---|---|---|
+| A | 840:1015 · 840:1153 · 840:1278 | 840:1410 · 840:1573 · 840:1749 · 840:1942 · 840:2091 |
+| B | 842:1788 · 842:1951 · 842:2096 | 842:2248 · 842:2376 · 842:2517 · 842:2688 · 842:2864 |
+| C | 846:2571 · 846:2735 · 846:2891 | 846:3054 · 846:3252 · 846:3463 · 846:3673 · 846:3856 |
+
+**Social links.** The proto has X only: `UserProfile.social_profiles`, at most one item, an `XProfile` with username, name,
+`verified_type` and `follower_count`. The `LinkSocialAccount` and `UnlinkSocialAccount` RPCs exist. Swift `Profile`
+doesn't map any of it yet, and Instagram and the other networks are absent.
+
+How the frames use it:
+- X is drawn with sample data (@tedlivingston, verified, 12.4K followers).
+- A shows it as an inline link, B as a centred chip, and C as a row in the details card.
+- The own profile shows "Connect X".
+- Questions for the dev and backend: map `social_profiles`; add the link flow; other networks need backend fields.
+
+**CTA by state** (labels as shipped):
+
+| State | CTA |
+|---|---|
+| Own profile | none (Edit Profile and Share sit at the header) |
+| Already chatting | Open Chat |
+| Blocked | Unblock, plus a Blocked chip |
+| Private requester | Request to Join, with the roster hidden |
+| Private requested | the approval line, a disabled "Requested 2h ago" and a subtle Cancel Request |
+| Private host | Edit Group plus a Join Requests card ("3 people are waiting"), then Open Chat |
+| Public opened from its chat | no pinned CTA, and Leave Chat ends the scroll |
+| Private invite preview | Join Group (Brandon's in-flight design), 48 members, "+38 more" |
+
+Deviations noted by the builder:
+- On the host frames in A and C, Leave Chat sits below the fold.
+- In B, opened from its chat, Leave Chat ends the scroll (as today) instead of moving to the ⋯ menu as B's round 1 had it.
+- To keep content clear of the fade, B's body moved up and C's card was trimmed to 196.
+
+No critique was run on round 2 (Aiden asked for one agent). Run `/critique` on the chosen direction before code.
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
