@@ -153,6 +153,30 @@ struct NotificationStatusTests {
         #expect(page.foldedTitle == nil)
     }
 
+    @Test("Before the settings are read, every check is listed as checking")
+    func checkingPage() {
+        let page = NotificationStatus.checkingPage()
+
+        #expect(page.rows.map(\.check) == NotificationStatus.Check.allCases)
+        #expect(page.rows.allSatisfy { $0.status == .checking })
+        #expect(Self.row(.registration, in: page)?.title == "Checking registration…")
+        #expect(page.summary.status == .checking)
+        #expect(page.isTestEnabled == false)
+        #expect(page.foldedTitle == nil)
+    }
+
+    @Test("A re-run keeps every row and its text, marked as checking")
+    func recheckingKeepsRows() {
+        let page = Self.page(.init(authorization: .denied), registration: .noAPNsToken)
+        let rechecking = page.rechecking
+
+        #expect(rechecking.rows.map(\.check) == page.rows.map(\.check))
+        #expect(rechecking.rows.map(\.title) == page.rows.map(\.title))
+        #expect(rechecking.rows.allSatisfy { $0.status == .checking })
+        #expect(rechecking.summary.status == .checking)
+        #expect(rechecking.isTestEnabled == page.isTestEnabled)
+    }
+
     @Test("13: a fail outranks a warning in the summary")
     func failOutranksWarning() {
         let page = Self.page(.init(authorization: .authorized, alertStyle: .none), registration: .finished(.unknown))

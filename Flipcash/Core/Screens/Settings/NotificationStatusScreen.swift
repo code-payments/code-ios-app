@@ -17,16 +17,36 @@ struct NotificationStatusScreen: View {
     @State private var model: NotificationStatusViewModel?
 
     var body: some View {
+        // The page lays out every check before the first read so nothing moves as results land;
+        // status changes, hidden rows and the fold all animate in place.
+        let page = model?.page
+        let shown = page ?? NotificationStatus.checkingPage()
+
         Background(color: .backgroundMain) {
-            if let model, let page = model.page {
-                content(model: model, page: page)
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    SummaryCard(summary: shown.summary)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+
+                    checks(page: shown)
+                }
+                .padding(.bottom, 20)
+                .animation(.smooth, value: shown)
+                .animation(.smooth, value: model?.isExpanded)
             }
+        }
+        // A scroll edge bar, so the checks fade out under the buttons.
+        .scrollEdgeBar(.bottom) {
+            footer(page: page)
         }
         .navigationTitle("Notifications")
         .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                checkAgainButton
+            }
+        }
         .task {
             let model = model ?? NotificationStatusViewModel(pushController: pushController)
             self.model = model
@@ -42,59 +62,73 @@ struct NotificationStatusScreen: View {
         }
     }
 
-    @ViewBuilder
-    private func content(model: NotificationStatusViewModel, page: NotificationStatus.Page) -> some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    SummaryCard(summary: page.summary)
-                        .padding(.top, 20)
-
-                    if let foldedTitle = page.foldedTitle, !model.isExpanded {
-                        FoldedRow(title: foldedTitle) {
-                            model.isExpanded = true
-                        }
-                        .padding(.top, 12)
-                    } else {
-                        ForEach(NotificationStatus.Group.allCases, id: \.self) { group in
-                            let rows = page.rows(in: group)
-                            if !rows.isEmpty {
-                                SettingsSectionHeader(group.title)
-                                    .padding(.horizontal, -20)
-                                CheckGroup(rows: rows) { fix in
-                                    Task { await model.perform(fix) }
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-
-            footer(model: model, page: page)
+    private var checkAgainButton: some View {
+        Button {
+            guard let model else { return }
+            Task { await model.checkAgain() }
+        } label: {
+            Image(systemName: "arrow.clockwise")
         }
+        .disabled(model?.isRunning != false)
+        .accessibilityLabel("Check again")
+        .accessibilityIdentifier("notification-status-check-again")
     }
 
     @ViewBuilder
-    private func footer(model: NotificationStatusViewModel, page: NotificationStatus.Page) -> some View {
+    private func checks(page: NotificationStatus.Page) -> some View {
+        if let foldedTitle = page.foldedTitle, model?.isExpanded != true {
+            FoldedRow(title: foldedTitle) {
+                model?.isExpanded = true
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .transition(.opacity)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(NotificationStatus.Group.allCases, id: \.self) { group in
+                    let rows = page.rows(in: group)
+                    if !rows.isEmpty {
+                        SettingsSectionHeader(group.title)
+                        CheckGroup(rows: rows) { fix in
+                            guard let model else { return }
+                            Task { await model.perform(fix) }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+            }
+            .transition(.opacity)
+        }
+    }
+
+    /// `page` is `nil` until the phone's settings have been read; the test stays off until then.
+    @ViewBuilder
+    private func footer(page: NotificationStatus.Page?) -> some View {
+        let isTestSent = model?.isTestSent == true
+        let isTestEnabled = page?.isTestEnabled == true
+
         VStack(spacing: 12) {
-            Button(model.isTestSent ? "Send again" : "Send test notification") {
+            Button(isTestSent ? "Send again" : "Send test notification") {
+                guard let model else { return }
                 Task { await model.sendTest() }
             }
-            .buttonStyle(model.isTestSent ? .filled20 : .filled)
-            .disabled(!page.isTestEnabled)
+            .buttonStyle(isTestSent ? .filled20 : .filled)
+            // Both fills are translucent; without this the checks show through them.
+            .background(Color.backgroundMain, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius))
+            .disabled(!isTestEnabled)
             .accessibilityIdentifier("notification-status-send-test")
 
-            ShareLink(item: model.report) {
+            ShareLink(item: model?.report ?? "") {
                 Text("Share report")
             }
             .buttonStyle(.subtle)
+            .disabled(model == nil)
 
             Group {
-                if !page.isTestEnabled {
+                if page != nil, !isTestEnabled {
                     Text("Turn on notifications to send a test.")
                         .foregroundStyle(Color.textSecondary)
-                } else if model.isTestSent {
+                } else if isTestSent {
                     Text("Sent. Lock your phone in the next 3 seconds to see it on the Lock Screen.")
                         .foregroundStyle(Color.textSuccess)
                 } else {
@@ -107,6 +141,7 @@ struct NotificationStatusScreen: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 20)
+        .padding(.top, 12)
         .padding(.bottom, 20)
     }
 }
@@ -131,6 +166,7 @@ private struct SummaryCard: View {
                         .foregroundStyle(Color.textSecondary)
                 }
             }
+            .contentTransition(.opacity)
             Spacer(minLength: 0)
         }
         .padding(16)
@@ -187,6 +223,8 @@ private struct CheckRow: View {
     let row: NotificationStatus.Row
     let onFix: (NotificationStatus.Fix) -> Void
 
+    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 36
+
     var body: some View {
         HStack(spacing: 12) {
             StatusMark(status: row.status, size: .small)
@@ -201,6 +239,7 @@ private struct CheckRow: View {
                         .foregroundStyle(Color.textSecondary)
                 }
             }
+            .contentTransition(.opacity)
             .accessibilityElement(children: .combine)
 
             Spacer(minLength: 0)
@@ -213,9 +252,14 @@ private struct CheckRow: View {
                     .padding(.vertical, 8)
                     .background(Capsule().fill(Color.action))
                     .buttonStyle(.plain)
+                    .disabled(row.status == .checking)
                     .accessibilityIdentifier("notification-status-fix-\(row.check.rawValue)")
+                    .transition(.opacity)
             }
         }
+        // Tall enough for a title and a detail line, so a row keeps its height when its detail
+        // comes or goes.
+        .frame(minHeight: rowHeight)
     }
 }
 
@@ -243,10 +287,13 @@ private struct StatusMark: View {
                 ProgressView()
                     .controlSize(.mini)
                     .tint(Color.textAction)
+                    .transition(.opacity)
             } else {
                 Image(systemName: glyph)
                     .font(size.glyph)
                     .foregroundStyle(Color.textAction)
+                    .contentTransition(.symbolEffect(.replace))
+                    .transition(.opacity)
             }
         }
         .frame(width: size.width, height: size.height)

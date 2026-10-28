@@ -18,17 +18,39 @@ final class NotificationStatusViewModel {
     var isExpanded = false
     /// Whether a test notification was scheduled since the page opened.
     private(set) var isTestSent = false
+    /// The page as it stood when "Check again" was tapped, shown with every row Checking until
+    /// that run ends.
+    private var recheckingFrom: NotificationStatus.Page?
 
     @ObservationIgnored private let pushController: PushController
+    @ObservationIgnored private let readSettings: () async -> NotificationStatus.Snapshot
+    @ObservationIgnored private let registrationCheck: (_ deletingToken: Bool) async -> NotificationStatus.Registration
+    @ObservationIgnored private let recheckPause: Duration
     @ObservationIgnored private var registrationTask: Task<Void, Never>?
 
-    init(pushController: PushController) {
+    /// `readSettings` and `registrationCheck` default to the phone's settings and
+    /// ``PushController/checkRegistration(deletingToken:)``. `recheckPause` is the least time
+    /// "Check again" shows the rows as Checking, so a fast re-check still reads as one.
+    init(
+        pushController: PushController,
+        readSettings: (() async -> NotificationStatus.Snapshot)? = nil,
+        registrationCheck: ((_ deletingToken: Bool) async -> NotificationStatus.Registration)? = nil,
+        recheckPause: Duration = .milliseconds(500)
+    ) {
         self.pushController = pushController
+        self.readSettings = readSettings ?? { NotificationStatus.Snapshot(await PushController.fetchStatus()) }
+        self.registrationCheck = registrationCheck ?? { [pushController] in
+            await pushController.checkRegistration(deletingToken: $0)
+        }
+        self.recheckPause = recheckPause
     }
 
     /// `nil` until the phone's settings have been read once.
     var page: NotificationStatus.Page? {
-        snapshot.map {
+        if let recheckingFrom {
+            return recheckingFrom.rechecking
+        }
+        return snapshot.map {
             NotificationStatus.evaluate(
                 snapshot: $0,
                 registration: registration,
@@ -36,6 +58,11 @@ final class NotificationStatusViewModel {
                 now: .now
             )
         }
+    }
+
+    /// Whether a run is in progress, during which "Check again" is disabled.
+    var isRunning: Bool {
+        recheckingFrom != nil || registration == .checking
     }
 
     var report: String {
@@ -64,6 +91,19 @@ final class NotificationStatusViewModel {
         }
     }
 
+    /// Re-runs every check, including a fresh `AddToken`, keeping the rows the page shows now.
+    /// Returns once the run has finished; does nothing while a run is already in progress.
+    func checkAgain() async {
+        guard !isRunning, let page else { return }
+        recheckingFrom = page
+        register()
+        async let pause: Void? = try? Task.sleep(for: recheckPause)
+        await refreshSettings()
+        await registrationTask?.value
+        _ = await pause
+        recheckingFrom = nil
+    }
+
     /// Marks an unfinished registration as interrupted when the page goes away.
     func stop() {
         guard let registrationTask else { return }
@@ -73,15 +113,14 @@ final class NotificationStatusViewModel {
     }
 
     private func refreshSettings() async {
-        let settings = await PushController.fetchStatus()
-        snapshot = NotificationStatus.Snapshot(settings)
+        snapshot = await readSettings()
     }
 
     private func register(deletingToken: Bool = false) {
         registrationTask?.cancel()
         registration = .checking
-        registrationTask = Task { [pushController] in
-            let result = await pushController.checkRegistration(deletingToken: deletingToken)
+        registrationTask = Task { [registrationCheck] in
+            let result = await registrationCheck(deletingToken)
             guard !Task.isCancelled else { return }
             registration = result
             registrationTask = nil

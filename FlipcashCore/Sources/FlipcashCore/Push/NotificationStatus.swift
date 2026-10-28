@@ -250,12 +250,39 @@ extension NotificationStatus {
         public func rows(in group: Group) -> [Row] {
             rows.filter { $0.check.group == group }
         }
+
+        /// This page while its checks run again: the same rows with the same text, each marked
+        /// Checking, so nothing on the page moves until the new results land.
+        public var rechecking: Page {
+            var page = self
+            for index in page.rows.indices {
+                page.rows[index].status = .checking
+            }
+            page.summary = Summary(status: .checking, title: "Checking…")
+            return page
+        }
     }
 }
 
 // MARK: - Evaluate -
 
 extension NotificationStatus {
+
+    /// What the page shows before the phone's settings have been read: every check, still running.
+    public static func checkingPage() -> Page {
+        Page(
+            rows: Check.allCases.map { check in
+                switch check {
+                case .permission, .display, .soundsAndBadges:
+                    Row(check: check, status: .checking, title: check.name, raw: "checking")
+                case .registration:
+                    registrationRow(.checking, saved: nil, now: .distantPast, locale: .current)
+                }
+            },
+            summary: Summary(status: .checking, title: "Checking…"),
+            isTestEnabled: false
+        )
+    }
 
     /// Builds the page from the phone's settings and the registration check.
     ///
