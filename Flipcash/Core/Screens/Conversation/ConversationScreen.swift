@@ -430,7 +430,9 @@ struct ConversationScreen: View {
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
-            onPaymentRequestTap: { paymentRequestDetails = PaymentRequestSelection(id: PaymentRequestID(data: $0)) },
+            onPaymentRequestTap: { data in
+                afterKeyboardLowered { paymentRequestDetails = PaymentRequestSelection(id: PaymentRequestID(data: data)) }
+            },
             onOpenURL: openLink,
             onMentionTap: openMention,
             onShareProfile: shareProfile,
@@ -723,7 +725,7 @@ struct ConversationScreen: View {
                     JoinRequestsAnchor(
                         requests: hostRequests,
                         avatarData: { sessionContainer.profileAvatars.data(for: $0) },
-                        onReview: { router.push(.joinRequests(conversationID)) }
+                        onReview: { afterKeyboardLowered { router.push(.joinRequests(conversationID)) } }
                     )
                     .padding(.horizontal, BarMetrics.edgeInset)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { anchorHeight = $0 }
@@ -920,7 +922,20 @@ struct ConversationScreen: View {
     }
 
     private func payRequest(_ id: PaymentRequestID) {
-        Task { await requestPayFlow.start(id, sessionContainer: sessionContainer) }
+        afterKeyboardLowered {
+            Task { await requestPayFlow.start(id, sessionContainer: sessionContainer) }
+        }
+    }
+
+    /// Runs `present` once the keyboard is out of sight, so a cover or push never starts over a raised
+    /// keyboard. The composer's field holds focus, so resigning it also stops it re-raising the keyboard
+    /// when the presentation closes.
+    private func afterKeyboardLowered(_ present: @escaping () -> Void) {
+        guard isKeyboardUp else { return present() }
+        Task {
+            await KeyboardHideWaiter().wait { KeyboardSuppressor.lower() }
+            present()
+        }
     }
 
     /// The fetches the transcript needs: gate token names, sender names, and avatars.
@@ -1510,7 +1525,7 @@ struct ConversationScreen: View {
         switch sendTarget {
         case .privateGroup:
             // Requesting needs no balance, so the give-cash gate waits for the Send choice.
-            isShowingMoneyActions = true
+            afterKeyboardLowered { isShowingMoneyActions = true }
         case .contact, .tip, .group:
             presentSendAmount(sendTarget)
         }
