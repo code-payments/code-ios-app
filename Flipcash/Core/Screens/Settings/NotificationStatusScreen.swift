@@ -12,7 +12,9 @@ import FlipcashCore
 struct NotificationStatusScreen: View {
 
     @Environment(PushController.self) private var pushController
+    @Environment(ToastController.self) private var toasts
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var model: NotificationStatusViewModel?
 
@@ -21,6 +23,8 @@ struct NotificationStatusScreen: View {
         // status changes, hidden rows and the fold all animate in place.
         let page = model?.page
         let shown = page ?? NotificationStatus.checkingPage()
+        // At accessibility sizes a pinned footer would cover most of the screen.
+        let scrollsFooter = dynamicTypeSize.isAccessibilitySize
 
         Background(color: .backgroundMain) {
             ScrollView {
@@ -30,6 +34,10 @@ struct NotificationStatusScreen: View {
                         .padding(.top, 20)
 
                     checks(page: shown)
+
+                    if scrollsFooter {
+                        footer(page: page)
+                    }
                 }
                 .padding(.bottom, 20)
                 .animation(.smooth, value: shown)
@@ -38,7 +46,10 @@ struct NotificationStatusScreen: View {
         }
         // A scroll edge bar, so the checks fade out under the buttons.
         .scrollEdgeBar(.bottom) {
-            footer(page: page)
+            if !scrollsFooter {
+                footer(page: page)
+                    .toastClearance(toasts)
+            }
         }
         .navigationTitle("Notifications")
         .toolbarTitleDisplayMode(.inline)
@@ -53,9 +64,10 @@ struct NotificationStatusScreen: View {
             await model.runChecks()
         }
         .onChange(of: scenePhase) { _, phase in
-            // Coming back from Settings after a fix re-runs every check.
+            // Coming back from Settings after a fix re-reads the phone's settings; registration
+            // keeps its last result.
             guard phase == .active, let model else { return }
-            Task { await model.runChecks() }
+            Task { await model.rereadSettings() }
         }
         .onDisappear {
             model?.stop()
@@ -70,7 +82,7 @@ struct NotificationStatusScreen: View {
             Image(systemName: "arrow.clockwise")
         }
         .disabled(model?.isRunning != false)
-        .accessibilityLabel("Check again")
+        .accessibilityLabel("Check Again")
         .accessibilityIdentifier("notification-status-check-again")
     }
 
@@ -88,7 +100,11 @@ struct NotificationStatusScreen: View {
                 ForEach(NotificationStatus.Group.allCases, id: \.self) { group in
                     let rows = page.rows(in: group)
                     if !rows.isEmpty {
-                        SettingsSectionHeader(group.title)
+                        // Title case, which `SettingsSectionHeader` would uppercase; padded to match it.
+                        ListHeader(group.title)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
+                            .padding(.bottom, 3)
                         CheckGroup(rows: rows) { fix in
                             guard let model else { return }
                             Task { await model.perform(fix) }
@@ -108,9 +124,17 @@ struct NotificationStatusScreen: View {
         let isTestEnabled = page?.isTestEnabled == true
 
         VStack(spacing: 12) {
-            Button(isTestSent ? "Send again" : "Send test notification") {
+            Button(isTestSent ? "Send Again" : "Send Test Notification") {
                 guard let model else { return }
-                Task { await model.sendTest() }
+                Task {
+                    guard await model.sendTest() else { return }
+                    toasts.show(.init(
+                        "Test notification sent",
+                        systemImage: "checkmark.circle.fill",
+                        messageIdentifier: "notification-status-test-sent",
+                        duration: .seconds(2)
+                    ))
+                }
             }
             .buttonStyle(isTestSent ? .filled20 : .filled)
             // Both fills are translucent; without this the checks show through them.
@@ -119,7 +143,7 @@ struct NotificationStatusScreen: View {
             .accessibilityIdentifier("notification-status-send-test")
 
             ShareLink(item: model?.report ?? "") {
-                Text("Share report")
+                Text("Share Report")
             }
             .buttonStyle(.subtle)
             .disabled(model == nil)
@@ -128,9 +152,6 @@ struct NotificationStatusScreen: View {
                 if page != nil, !isTestEnabled {
                     Text("Turn on notifications to send a test.")
                         .foregroundStyle(Color.textSecondary)
-                } else if isTestSent {
-                    Text("Sent. Lock your phone in the next 3 seconds to see it on the Lock Screen.")
-                        .foregroundStyle(Color.textSuccess)
                 } else {
                     Text("The test is posted by this phone. It shows that notifications can appear here, not that Flipcash's servers can reach you.")
                         .foregroundStyle(Color.textSecondary)
@@ -223,24 +244,36 @@ private struct CheckRow: View {
     let row: NotificationStatus.Row
     let onFix: (NotificationStatus.Fix) -> Void
 
-    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 36
-
     var body: some View {
         HStack(spacing: 12) {
             StatusMark(status: row.status, size: .small)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.title)
-                    .font(.appTextMessage)
-                    .foregroundStyle(Color.textMain)
-                if let detail = row.detail {
-                    Text(detail)
+            // Every row, Checking included, is as tall as a title over two lines of detail, so a
+            // result that wraps doesn't move the rows below it.
+            ZStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: " ")
+                        .font(.appTextMessage)
+                    Text(verbatim: " ")
                         .font(.appTextCaption)
-                        .foregroundStyle(Color.textSecondary)
+                        .lineLimit(2, reservesSpace: true)
                 }
+                .hidden()
+                .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.title)
+                        .font(.appTextMessage)
+                        .foregroundStyle(Color.textMain)
+                    if let detail = row.detail {
+                        Text(detail)
+                            .font(.appTextCaption)
+                            .foregroundStyle(Color.textSecondary)
+                    }
+                }
+                .contentTransition(.opacity)
+                .accessibilityElement(children: .combine)
             }
-            .contentTransition(.opacity)
-            .accessibilityElement(children: .combine)
 
             Spacer(minLength: 0)
 
@@ -257,9 +290,6 @@ private struct CheckRow: View {
                     .transition(.opacity)
             }
         }
-        // Tall enough for a title and a detail line, so a row keeps its height when its detail
-        // comes or goes.
-        .frame(minHeight: rowHeight)
     }
 }
 

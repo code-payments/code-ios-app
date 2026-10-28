@@ -66,6 +66,30 @@ struct NotificationStatusViewModelTests {
         registration.release()
     }
 
+    @Test("A return to the foreground re-reads the phone's settings without registering again")
+    func foregroundRereadsSettingsOnly() async {
+        var snapshot = NotificationStatus.Snapshot(authorization: .authorized)
+        let registration = Gate<NotificationStatus.Registration>(.finished(.ok))
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { snapshot },
+            registrationCheck: { _ in await registration.next() },
+            recheckPause: .zero
+        )
+
+        await model.runChecks()
+        await until { !model.isRunning }
+        #expect(model.page?.foldedTitle == "4 checks passed")
+
+        snapshot = .init(authorization: .authorized, alertStyle: .none)
+        await model.rereadSettings()
+
+        #expect(registration.calls == 1, "AddToken runs only on open and on Check Again")
+        #expect(!model.isRunning)
+        #expect(model.page?.rows.first { $0.check == .display }?.status == .warning)
+        #expect(model.page?.rows.first { $0.check == .registration }?.status == .pass)
+    }
+
     // MARK: - Support -
 
     /// Yields until `condition` holds, so the view model's unstructured registration task can run.

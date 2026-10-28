@@ -18,7 +18,7 @@ final class NotificationStatusViewModel {
     var isExpanded = false
     /// Whether a test notification was scheduled since the page opened.
     private(set) var isTestSent = false
-    /// The page as it stood when "Check again" was tapped, shown with every row Checking until
+    /// The page as it stood when "Check Again" was tapped, shown with every row Checking until
     /// that run ends.
     private var recheckingFrom: NotificationStatus.Page?
 
@@ -30,7 +30,7 @@ final class NotificationStatusViewModel {
 
     /// `readSettings` and `registrationCheck` default to the phone's settings and
     /// ``PushController/checkRegistration(deletingToken:)``. `recheckPause` is the least time
-    /// "Check again" shows the rows as Checking, so a fast re-check still reads as one.
+    /// "Check Again" shows the rows as Checking, so a fast re-check still reads as one.
     init(
         pushController: PushController,
         readSettings: (() async -> NotificationStatus.Snapshot)? = nil,
@@ -60,7 +60,7 @@ final class NotificationStatusViewModel {
         }
     }
 
-    /// Whether a run is in progress, during which "Check again" is disabled.
+    /// Whether a run is in progress, during which "Check Again" is disabled.
     var isRunning: Bool {
         recheckingFrom != nil || registration == .checking
     }
@@ -102,6 +102,12 @@ final class NotificationStatusViewModel {
         await registrationTask?.value
         _ = await pause
         recheckingFrom = nil
+    }
+
+    /// Re-reads only the phone's settings, for a return to the foreground. Registration keeps its
+    /// last result, so a folded page doesn't unfold and refold.
+    func rereadSettings() async {
+        await refreshSettings()
     }
 
     /// Marks an unfinished registration as interrupted when the page goes away.
@@ -149,16 +155,19 @@ final class NotificationStatusViewModel {
     }
 
     /// Re-reads the permission first: if it went away while the page was open, nothing is sent
-    /// and the page shows notifications as off.
-    func sendTest() async {
+    /// and the page shows notifications as off. Returns whether a test was scheduled.
+    @discardableResult
+    func sendTest() async -> Bool {
         await refreshSettings()
-        guard page?.isTestEnabled == true else { return }
+        guard page?.isTestEnabled == true else { return false }
 
         do {
             try await pushController.scheduleTestNotification()
             isTestSent = true
+            return true
         } catch {
             ErrorReporting.captureError(error, reason: "Failed to schedule test notification")
+            return false
         }
     }
 
