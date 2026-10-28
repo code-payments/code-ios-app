@@ -81,9 +81,9 @@ extension ChatItem {
         _ messages: [ConversationMessage],
         selfUserID: UserID,
         // How long a pause has to be before it heads the next message with its own separator and
-        // ends the run above it. Android's `SeparatorConfig.Continuous` gap, so a pause of minutes
-        // keeps one exchange together on both platforms instead of cutting it into single bubbles.
-        gap: TimeInterval = 3 * 60 * 60,
+        // ends the run above it. Android's `SeparatorConfig.Continuous` gap (one hour), so a pause of
+        // minutes keeps one exchange together on both platforms instead of cutting it into single bubbles.
+        gap: TimeInterval = 60 * 60,
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },

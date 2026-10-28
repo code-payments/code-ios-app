@@ -156,5 +156,5 @@ extension ChatItem {
 
     /// Matches the in-app chat: a separator opens the transcript and breaks any run whose gap from
     /// the previous message exceeds this.
-    private static let separatorGap: TimeInterval = 15 * 60
+    private static let separatorGap: TimeInterval = 60 * 60
 }
