@@ -139,6 +139,33 @@ struct AppRouterCrossStackTests {
                 "the wallet tab is preserved underneath")
     }
 
+    @Test("Tapping the test notification lands on the status page with Settings beneath it")
+    func navigate_underParents_setsTrail() {
+        let router = AppRouter()
+        router.activeTabStack = .balance
+        router.setPath([.currencyInfo(.usdc)], on: .balance)
+
+        router.navigate(to: .settingsNotificationStatus, under: [.settings])
+
+        #expect(router.requestedTabStack == .you)
+        #expect(router[.you] == AppRouter.navigationPath(.settings, .settingsNotificationStatus),
+                "Back from the status page returns to Settings")
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+    }
+
+    @Test("Navigate under parents is idempotent when the trail is already showing")
+    func navigate_underParents_isIdempotent() {
+        let router = AppRouter()
+        router.navigate(to: .settingsNotificationStatus, under: [.settings])
+        router.activeTabStack = .you
+        router.requestedTabStack = nil
+
+        router.navigate(to: .settingsNotificationStatus, under: [.settings])
+
+        #expect(router.requestedTabStack == nil)
+        #expect(router[.you] == AppRouter.navigationPath(.settings, .settingsNotificationStatus))
+    }
+
     @Test("Navigate is idempotent when target state already matches current state")
     func navigate_isIdempotent() {
         let router = AppRouter()
