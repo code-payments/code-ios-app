@@ -9,8 +9,8 @@ import SwiftUI
 
 // MARK: - Thumb surface
 
-/// The thumb's surface with `content` on it. While idle on iOS 26 it is a see-through clear-glass
-/// lens with `content` above it; otherwise the composer's glass (a tinted material before iOS 26).
+/// The thumb's surface with `content` on it. While idle on iOS 26 it is clear glass over the lens
+/// with `content` above it; otherwise the composer's glass (a tinted material before iOS 26).
 struct SwipeThumbSurface<Content: View>: View {
 
     let isIdle: Bool
@@ -41,25 +41,21 @@ struct SwipeThumbSurface<Content: View>: View {
     private var surface: some View {
         if showsLens {
             if #available(iOS 26, *) {
-                lensRim
+                lensGlass
             }
         } else {
             face.composerGlass(in: Capsule(), id: glassID, namespace: glassNamespace, isInteractive: false)
         }
     }
 
-    /// Clear glass masked to a ring, so the label reads through the middle; it shares an ID with
-    /// the composer glass so the thumb morphs between them at commit and reset.
+    /// Clear glass over the lens; it shares an ID with the composer glass so the thumb morphs
+    /// between them at commit and reset.
     @available(iOS 26, *)
-    private var lensRim: some View {
+    private var lensGlass: some View {
         Capsule()
             .fill(.clear)
             .glassEffect(.clear, in: .capsule)
             .glassEffectID(glassID, in: glassNamespace)
-            .mask {
-                Capsule()
-                    .strokeBorder(.black, lineWidth: SwipeMetrics.lensRimWidth)
-            }
     }
 
     private var glassID: String { "thumb" }

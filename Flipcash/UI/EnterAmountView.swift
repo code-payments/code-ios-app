@@ -120,8 +120,15 @@ public struct EnterAmountView: View {
     private var dimOpacity: Double {
         guard actionOverride != nil else { return 1 }
         let travel = min(max(Double(swipeProgress), 0), 1)
-        // Opacity 0 drops a view out of hit testing; the keypad must keep taking taps.
-        return max(1 - (1 - SwipeDim.maxDim) * travel, 0.02)
+        return 1 - (1 - SwipeDim.maxDim) * travel
+    }
+
+    /// An error subtitle stays bright while the rest dims.
+    private var subtitleOpacity: Double {
+        switch subtitle {
+        case .error: 1
+        case .singleTransactionLimit, .balanceWithLimit, .hidden: dimOpacity
+        }
     }
 
     // MARK: - Body -
@@ -181,7 +188,7 @@ public struct EnterAmountView: View {
                                 EmptyView()
                             }
                         }
-                        .opacity(dimOpacity)
+                        .opacity(subtitleOpacity)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -210,6 +217,8 @@ public struct EnterAmountView: View {
             )
             .padding([.leading, .trailing], -20)
             .opacity(dimOpacity)
+            // Locked whenever the thumb is off rest: dragging, sending and the success hold.
+            .allowsHitTesting(swipeProgress == 0)
 
             if let actionOverride {
                 actionOverride

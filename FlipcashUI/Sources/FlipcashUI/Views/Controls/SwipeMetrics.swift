@@ -29,12 +29,15 @@ enum SwipeMetrics {
 
     /// The capsule's height, which stands taller than the tray's capsule buttons.
     static let height: CGFloat = 64
+    /// The gap between the thumb and the track's edge.
     static let thumbInset: CGFloat = 4
     /// The thumb's width; wider than the track is tall, so the thumb is a capsule.
     static let thumbWidth: CGFloat = 84
+    /// The thumb's arrow and failure cross.
     static let arrowSize: CGFloat = 26
     /// The track's faint `action` wash.
-    static let trackFill: Color = .action.opacity(0.75).opacity(0.1)
+    static let trackFill: Color = .action.opacity(0.075)
+    /// The whole control's opacity while disabled.
     static let disabledOpacity: Double = 0.4
 
     // MARK: - Label
@@ -64,8 +67,6 @@ enum SwipeMetrics {
 
     // MARK: - Lens
 
-    /// The width of the clear-glass ring the idle lens is masked to.
-    static let lensRimWidth: CGFloat = 0
     /// How far the lens pulls the label at the rim.
     static let lensBend: CGFloat = 10
     /// How deep inside the rim the bend reaches, as a share of the lens's radius.
@@ -86,8 +87,11 @@ enum SwipeMetrics {
 
     // MARK: - Shimmer
 
+    /// The bright band's width before its blur.
     static let shimmerBandWidth: CGFloat = 30
+    /// The band's tilt, in degrees.
     static let shimmerAngle: Double = 15
+    /// The band's blur radius, which softens its edges.
     static let shimmerBlur: CGFloat = 5
     /// The label's opacity outside the band, which leaves the band room to read brighter.
     static let shimmerLabelOpacity: Double = 0.6
@@ -98,11 +102,15 @@ enum SwipeMetrics {
 
     // MARK: - Failure
 
+    /// How far the failure shake swings either side.
     static let shakeDistance: CGFloat = 8
+    /// How many swings the failure shake plays.
     static let shakeCount = 3
+    /// How long the whole failure shake takes.
     static let shakeDuration: TimeInterval = 0.4
     /// The `bannerError` wash the track takes while it shows the failure.
     static let failureTint: Double = 0.35
+    /// The failure tint fading in and out.
     static let failureTintFade: TimeInterval = 0.15
     /// How long the failure shows before the control resets.
     static let failureHold: TimeInterval = 0.6

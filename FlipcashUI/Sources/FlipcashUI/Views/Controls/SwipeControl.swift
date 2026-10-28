@@ -43,6 +43,8 @@ public struct SwipeControl: View {
     private let action: ThrowingAction
     private let completion: ThrowingAction?
 
+    /// Creates the control with `text` on its track, which callers pass already localized; `action`
+    /// runs on commit and `completion` after the success check shows.
     public init(text: String, action: @escaping ThrowingAction, completion: ThrowingAction? = nil) {
         self.text = text
         self.action = action
