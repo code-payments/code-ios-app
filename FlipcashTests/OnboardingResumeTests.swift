@@ -59,6 +59,17 @@ struct OnboardingResumeTests {
         #expect(OnboardingProgress.launchRoute(for: stranger) == .home)
     }
 
+    /// The keychain keeps the signed-in account across an uninstall while UserDefaults does
+    /// not, so the reinstall looks like an upgrade (no marker) unless the first launch says otherwise.
+    @Test("A first launch that finds a signed-in account is a reinstall and resumes onboarding")
+    func freshInstall_withAccount_resumesOnboarding() {
+        let owner = MnemonicPhrase.generate(.words12).solanaKeyPair().publicKey
+        defer { OnboardingProgress.setCompleted(true, owner: owner) }
+
+        #expect(OnboardingProgress.launchRoute(for: owner, isFreshInstall: true) == .resumeOnboarding)
+        #expect(OnboardingProgress.launchRoute(for: owner) == .resumeOnboarding)
+    }
+
     @Test("Resuming with no display name starts at the name step and does not log in")
     func resume_withoutName_startsAtName() async {
         let finished = Finished()

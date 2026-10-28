@@ -32,8 +32,15 @@ enum OnboardingProgress {
         markers = updated
     }
 
-    /// Where a relaunch with `owner` as the current account should land.
-    static func launchRoute(for owner: PublicKey) -> LaunchRoute {
-        isCompleted(owner: owner) ? .home : .resumeOnboarding
+    /// Where a launch with `owner` as the current account should land.
+    ///
+    /// The keychain outlives an uninstall but UserDefaults does not, so a first launch that
+    /// already finds a signed-in account is a reinstall: the permission decisions are gone and
+    /// the marker with them. That case reopens the marker so the push step is offered again.
+    static func launchRoute(for owner: PublicKey, isFreshInstall: Bool = false) -> LaunchRoute {
+        if isFreshInstall {
+            setCompleted(false, owner: owner)
+        }
+        return isCompleted(owner: owner) ? .home : .resumeOnboarding
     }
 }

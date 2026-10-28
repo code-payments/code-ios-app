@@ -89,7 +89,8 @@ final class SessionAuthenticator {
 
         // Update launch state.
         // This is a fresh install.
-        if UserDefaults.launchCount == nil {
+        let isFreshInstall = UserDefaults.launchCount == nil
+        if isFreshInstall {
             logger.debug("First launch...")
         }
 
@@ -113,7 +114,7 @@ final class SessionAuthenticator {
         SharedKeychainMigration.migrateOwnerKeyIfNeeded()
 
         initializeState { userAccount in
-            self.resolveLaunch(of: userAccount)
+            self.resolveLaunch(of: userAccount, isFreshInstall: isFreshInstall)
         } didFindRecentAccount: { [weak self] description in
             guard let self else { return }
 
@@ -154,13 +155,13 @@ final class SessionAuthenticator {
     
     /// Launch with a current account: goes home, or holds the account in ``pendingOnboarding``
     /// when the app was killed before its onboarding finished.
-    private func resolveLaunch(of userAccount: UserAccount) {
+    private func resolveLaunch(of userAccount: UserAccount, isFreshInstall: Bool) {
         let account = InitializedAccount(
             keyAccount: userAccount.keyAccount,
             userID: userAccount.userID
         )
 
-        switch OnboardingProgress.launchRoute(for: userAccount.keyAccount.ownerPublicKey) {
+        switch OnboardingProgress.launchRoute(for: userAccount.keyAccount.ownerPublicKey, isFreshInstall: isFreshInstall) {
         case .home:
             completeLogin(with: account)
         case .resumeOnboarding:
