@@ -271,7 +271,13 @@ private struct CurrencySelectRecipientScreen: View {
     private func giveAsCash() {
         let give = GiveViewModel(container: container, sessionContainer: sessionContainer, mint: viewModel.mint)
         give.enteredAmount = viewModel.enteredAmount
-        give.onBillPresented = { leaveFlow() }
+        // Un-animated, like the Give screen's pushed entry: the list and amount must not visibly
+        // slide away under the bill.
+        give.onBillPresented = {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { leaveFlow() }
+        }
         give.giveAction()
     }
 }
