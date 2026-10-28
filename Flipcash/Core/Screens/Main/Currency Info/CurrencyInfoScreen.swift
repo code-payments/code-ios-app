@@ -336,7 +336,8 @@ private struct CurrencyInfoScreenContent: View {
             if !isUSDF {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: URL(string: "https://app.flipcash.com/token/\(mint.base58)")!) {
-                        Image(systemName: "square.and.arrow.up")
+                        Image.icon(.shareOs)
+                            .iconSize(22)
                     }
                     .simultaneousGesture(TapGesture().onEnded {
                         Analytics.buttonTapped(name: .shareTokenInfo)
@@ -398,8 +399,8 @@ private struct CurrencyInfoScreenContent: View {
             Button {
                 overlayClose?()
             } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 17, weight: .semibold))
+                Image.icon(.crossMedium)
+                    .iconSize(22)
                     .foregroundStyle(Color.textMain)
                     .frame(width: Self.overlayBarHeight, height: Self.overlayBarHeight)
                     // Hit-test the whole target, not just the glyph.
@@ -417,8 +418,8 @@ private struct CurrencyInfoScreenContent: View {
 
             if !isUSDF {
                 ShareLink(item: URL(string: "https://app.flipcash.com/token/\(mint.base58)")!) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 17, weight: .semibold))
+                    Image.icon(.shareOs)
+                        .iconSize(22)
                         .foregroundStyle(Color.textMain)
                         .frame(width: Self.overlayBarHeight, height: Self.overlayBarHeight)
                         .contentShape(Circle())

@@ -289,16 +289,10 @@ struct CurrencyInfoContentV2: View {
 
     // MARK: - Actions
 
-    /// An action-tile glyph: either an SF Symbol or a bundled template asset.
-    private enum TileIcon {
-        case system(String)
-        case asset(String)
-    }
-
     @ViewBuilder private var actionTiles: some View {
         HStack(spacing: 12) {
             if isOwned {
-                actionTile("Cash", icon: .asset("IconBanknote"), action: onGive)
+                actionTile("Cash", icon: .banknote1, action: onGive)
                 if isUSDF {
                     // Dollars is what the other currencies are bought with, so
                     // there is nothing to buy more of — it withdraws instead.
@@ -306,31 +300,31 @@ struct CurrencyInfoContentV2: View {
                     // another holding to buy into.
                     actionTile(
                         "Convert",
-                        icon: .asset("IconArrowBottomTop"),
+                        icon: .arrowBottomTop,
                         isEnabled: viewModel.canConvert,
                         action: onConvert
                     )
-                    actionTile("Withdraw", icon: .asset("IconArrowUp"), action: onWithdraw)
+                    actionTile("Withdraw", icon: .arrowUp, action: onWithdraw)
                 } else {
-                    actionTile("Buy More", icon: .asset("IconArrowDown"), action: onBuy)
-                    actionTile("Convert", icon: .asset("IconArrowBottomTop"), action: onConvert)
+                    actionTile("Buy More", icon: .arrowDown, action: onBuy)
+                    actionTile("Convert", icon: .arrowBottomTop, action: onConvert)
                 }
             } else {
-                actionTile("Buy In", icon: .asset("IconArrowDown"), action: onBuy)
+                actionTile("Buy In", icon: .arrowDown, action: onBuy)
             }
         }
     }
 
     private func actionTile(
         _ title: String,
-        icon: TileIcon,
+        icon: Icon,
         isEnabled: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             VStack(spacing: 12) {
-                tileIcon(icon)
-                    .frame(height: 28)
+                Image.icon(icon)
+                    .iconSize(28)
                 Text(title)
                     .font(.appTextSmall)
             }
@@ -343,21 +337,6 @@ struct CurrencyInfoContentV2: View {
         .buttonStyle(.plain)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
-    }
-
-    @ViewBuilder private func tileIcon(_ icon: TileIcon) -> some View {
-        switch icon {
-        case .system(let name):
-            Image(systemName: name)
-                .font(.system(size: 22, weight: .regular))
-        case .asset(let name):
-            // Figma exports these glyphs at 28×28 (template-rendered, so they
-            // tint with the tile's foreground).
-            Image(name)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 28, height: 28)
-        }
     }
 
     // MARK: - Recent

@@ -25,28 +25,39 @@ struct SettingsRow: View {
         self.action = action
     }
 
-    init(asset: Asset, title: String, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
-        self.init(image: Image.asset(asset), title: title, badge: badge, insets: insets, action: action)
-    }
-
-    init(systemImage: String, title: String, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
-        self.init(image: Image(systemName: systemImage), title: title, badge: badge, insets: insets, action: action)
+    init(icon: Icon, title: String, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
+        self.init(image: Image.icon(icon), title: title, badge: badge, insets: insets, action: action)
     }
 
     var body: some View {
-        Row(insets: insets) {
-            image.frame(minWidth: 45)
-            Text(title)
-                .multilineTextAlignment(.leading)
-                .truncationMode(.tail)
-            Spacer()
-            if let badge {
-                badge
+        ListRow(title, tone: tone, showsDivider: showsDivider, action: action) {
+            ListRowIcon(image)
+        } trailing: {
+            HStack(spacing: 8) {
+                if let badge {
+                    badge
+                }
+                if showsChevron {
+                    ListRowChevron()
+                }
             }
-        } action: {
-            action()
         }
     }
+
+    // Rows v2 exploration: set per call site without widening every initializer.
+    private var tone: ListRowTone { isDestructive ? .destructive : .standard }
+    var showsDivider = true
+    var showsChevron = true
+    var isDestructive = false
+
+    /// Hides the divider, for the last row of a section.
+    func lastInSection() -> Self { var copy = self; copy.showsDivider = false; return copy }
+
+    /// Drops the chevron, for a row that acts in place instead of pushing.
+    func actsInPlace() -> Self { var copy = self; copy.showsChevron = false; return copy }
+
+    /// Draws the title and icon in the error colour, for a destructive action.
+    func destructive() -> Self { var copy = self; copy.isDestructive = true; return copy }
 }
 
 extension Badge {

@@ -336,8 +336,8 @@ private struct WalletScreenContent: View {
     private func openCardChrome(mint: PublicKey) -> some View {
         HStack {
             Button { closeCard() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
+                Image.icon(.arrowLeft)
+                    .iconSize(22)
                     .foregroundStyle(Color.textMain)
                     .frame(width: 44, height: 44)
                     // Without this the button only takes taps on the glyph
@@ -352,8 +352,8 @@ private struct WalletScreenContent: View {
 
             if mint != .usdf {
                 ShareLink(item: URL(string: "https://app.flipcash.com/token/\(mint.base58)")!) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 17, weight: .semibold))
+                    Image.icon(.shareOs)
+                        .iconSize(22)
                         .foregroundStyle(Color.textMain)
                         .frame(width: 44, height: 44)
                         .contentShape(Circle())
@@ -589,33 +589,23 @@ private struct WalletScreenContent: View {
     private var walletTiles: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                // `.deposit`/`.withdraw` are the app's canonical design-system
-                // glyphs for these actions — a matched arrow-to-baseline pair,
-                // not SF Symbols.
-                walletTile(icon: .asset(.deposit), title: "Add Money", identifier: "wallet-tile-add-money") {
+                walletTile(icon: .arrowWallDown, title: "Add Money", identifier: "wallet-tile-add-money") {
                     router.presentAddMoney(.general, source: .balance)
                 }
                 // A nil mint opens the currency picker (all balances).
-                walletTile(icon: .asset(.withdraw), title: "Withdraw Money", identifier: "wallet-tile-withdraw-money") {
+                walletTile(icon: .arrowUpWall, title: "Withdraw Money", identifier: "wallet-tile-withdraw-money") {
                     router.push(.withdrawCurrency(nil))
                 }
             }
             HStack(spacing: 12) {
-                walletTile(icon: .symbol("globe"), title: "Discover Currencies", identifier: "wallet-tile-discover-currencies") {
+                walletTile(icon: .globe, title: "Discover Currencies", identifier: "wallet-tile-discover-currencies") {
                     router.push(.discoverCurrencies)
                 }
-                walletTile(icon: .asset(.coinsAdd), title: "Create a Currency", identifier: "wallet-tile-create-currency") {
+                walletTile(icon: .coinsAdd, title: "Create a Currency", identifier: "wallet-tile-create-currency") {
                     router.push(.currencyCreationSummary)
                 }
             }
         }
-    }
-
-    /// A wallet tile's leading glyph: an SF Symbol, or a bundled design-system
-    /// asset for marks SF Symbols don't cover (the two-coin "create currency" one).
-    private enum TileGlyph {
-        case symbol(String)
-        case asset(Asset)
     }
 
     /// A tile-style entry point: icon top-leading, label pinned bottom-leading,
@@ -624,10 +614,11 @@ private struct WalletScreenContent: View {
     /// `identifier` is what tests target: several of these titles also appear on
     /// the new-user tutorial rows above, where a completed milestone renders
     /// disabled, so matching on the label alone can resolve to an untappable row.
-    private func walletTile(icon: TileGlyph, title: String, identifier: String, action: @escaping () -> Void) -> some View {
+    private func walletTile(icon: Icon, title: String, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
-                tileGlyph(icon)
+                Image.icon(icon)
+                    .iconSize(24)
                     .foregroundStyle(Color.textMain)
                 Spacer(minLength: 24)
                 Text(title)
@@ -644,22 +635,6 @@ private struct WalletScreenContent: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
-    }
-
-    /// Renders a `TileGlyph` at a consistent ~24pt: SF Symbols sized by font,
-    /// asset glyphs scaled to fit and tinted via the enclosing `foregroundStyle`.
-    @ViewBuilder
-    private func tileGlyph(_ glyph: TileGlyph) -> some View {
-        switch glyph {
-        case .symbol(let name):
-            Image(systemName: name)
-                .font(.system(size: 22, weight: .regular))
-        case .asset(let asset):
-            Image.asset(asset)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 24, height: 24)
-        }
     }
 
     private var recentActivitySection: some View {

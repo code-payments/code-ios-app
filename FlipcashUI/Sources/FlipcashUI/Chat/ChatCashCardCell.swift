@@ -7,11 +7,12 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 import FlipcashCore
 import Kingfisher
 
-/// A recycled cell for a cash payment row: a card (shared `BubbleBackgroundView` chrome) with the
-/// token name + optional coin icon in the top-left and a centered "You sent / You received" caption
+/// A recycled cell for a cash payment row: a neutral card (shared `BubbleBackgroundView` chrome)
+/// with the token's badge and name in a header and a centered "You sent / You received" caption
 /// above the currency flag + amount, hosted in a `ChatColumnCell`. The card's width is supplied by
 /// the owner, as `ChatMessageCell`/`ChatLinkMessageCell` take theirs, so it tracks the transcript
 /// width instead of a fixed footprint. `configure(with:maxWidth:)` is the only input; the strings,
@@ -20,18 +21,26 @@ public final class ChatCashCardCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
 
-    /// The card's fixed height; width now tracks `maxWidth`.
-    static let cardHeight: CGFloat = 170
-
     private let card = BubbleBackgroundView()
     private let reactionRow = ReactionPillRowView()
     private let coinIcon = UIImageView()
+    /// Stands in for the coin icon when the token has none: the dollar glyph on a green disc.
+    private let cashBadge = UIView()
+    private let dollarGlyph = UIImageView(image: UIImage.asset(.dollar).withRenderingMode(.alwaysTemplate))
     private let tokenLabel = UILabel()
     private let flag = UIImageView()
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
+    private let centerStack = UIStackView()
+    private let amountRow = UIStackView()
     private var cardWidthConstraint: NSLayoutConstraint!
     private var reactionRowWidthConstraint: NSLayoutConstraint!
+    private var badgeSize: [NSLayoutConstraint] = []
+    private var flagSize: [NSLayoutConstraint] = []
+    private var headerTop: NSLayoutConstraint!
+    private var headerLeading: NSLayoutConstraint!
+    private var bodyTop: NSLayoutConstraint!
+    private var bodyBottom: NSLayoutConstraint!
 
     /// Dim the card while pressed so the tap-to-open-currency-info affordance reads as a button.
     /// Driven by the collection view's selection machinery (`shouldHighlightItemAt`), not a gesture.
@@ -49,32 +58,43 @@ public final class ChatCashCardCell: ChatColumnCell {
 
         card.translatesAutoresizingMaskIntoConstraints = false
 
-        configureCircle(coinIcon, diameter: 13)
-        tokenLabel.font = .default(size: 12, weight: .bold)
-        tokenLabel.textColor = UIColor.white.withAlphaComponent(0.5)
+        badgeSize = configureCircle(coinIcon)
+        badgeSize += configureCircle(cashBadge)
+        dollarGlyph.contentMode = .scaleAspectFit
+        dollarGlyph.tintColor = .white
+        dollarGlyph.translatesAutoresizingMaskIntoConstraints = false
+        cashBadge.addSubview(dollarGlyph)
+        NSLayoutConstraint.activate([
+            dollarGlyph.centerXAnchor.constraint(equalTo: cashBadge.centerXAnchor),
+            dollarGlyph.centerYAnchor.constraint(equalTo: cashBadge.centerYAnchor),
+            // The glyph at 14 of the badge's 20, as drawn.
+            dollarGlyph.widthAnchor.constraint(equalTo: cashBadge.widthAnchor, multiplier: 0.7),
+            dollarGlyph.heightAnchor.constraint(equalTo: cashBadge.heightAnchor, multiplier: 0.7),
+        ])
+        tokenLabel.textColor = ChatStyle.secondaryText
 
-        let tokenRow = UIStackView(arrangedSubviews: [coinIcon, tokenLabel])
-        tokenRow.spacing = 4
+        let tokenRow = UIStackView(arrangedSubviews: [coinIcon, cashBadge, tokenLabel])
+        tokenRow.spacing = 6
         tokenRow.alignment = .center
         tokenRow.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(tokenRow)
 
-        captionLabel.font = .default(size: 12, weight: .bold)
-        captionLabel.textColor = UIColor.white.withAlphaComponent(0.5)
+        captionLabel.textColor = ChatStyle.secondaryText
 
-        configureCircle(flag, diameter: 30)
-        amountLabel.font = .default(size: 38, weight: .bold)
-        amountLabel.textColor = .white
+        flagSize = configureCircle(flag)
+        amountLabel.textColor = ChatStyle.receivedText
         amountLabel.numberOfLines = 1
         amountLabel.adjustsFontSizeToFitWidth = true
         amountLabel.minimumScaleFactor = 0.5
         amountLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        let amountRow = UIStackView(arrangedSubviews: [flag, amountLabel])
-        amountRow.spacing = 11
+        amountRow.addArrangedSubview(flag)
+        amountRow.addArrangedSubview(amountLabel)
+        amountRow.spacing = 8
         amountRow.alignment = .center
 
-        let centerStack = UIStackView(arrangedSubviews: [captionLabel, amountRow])
+        centerStack.addArrangedSubview(captionLabel)
+        centerStack.addArrangedSubview(amountRow)
         centerStack.axis = .vertical
         centerStack.spacing = 4
         centerStack.alignment = .center
@@ -86,26 +106,28 @@ public final class ChatCashCardCell: ChatColumnCell {
         reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
 
-        // Below required so the card height yields to the cell's self-sizing height instead of fighting it.
-        let cardHeight = card.heightAnchor.constraint(equalToConstant: Self.cardHeight)
-        cardHeight.priority = UILayoutPriority(999)
-
-        cardWidthConstraint = card.widthAnchor.constraint(equalToConstant: 232)
-        reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 232)
+        cardWidthConstraint = card.widthAnchor.constraint(equalToConstant: 240)
+        reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 240)
+        headerTop = tokenRow.topAnchor.constraint(equalTo: card.topAnchor)
+        headerLeading = tokenRow.leadingAnchor.constraint(equalTo: card.leadingAnchor)
+        bodyTop = centerStack.topAnchor.constraint(equalTo: tokenRow.bottomAnchor)
+        // Below required so the card's height yields to the cell's self-sizing pass instead of fighting it.
+        bodyBottom = centerStack.bottomAnchor.constraint(equalTo: card.bottomAnchor)
+        bodyBottom.priority = UILayoutPriority(999)
 
         NSLayoutConstraint.activate([
             cardWidthConstraint,
             reactionRowWidthConstraint,
-            cardHeight,
-
-            tokenRow.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 11),
-            tokenRow.topAnchor.constraint(equalTo: card.topAnchor, constant: 8),
-
+            headerTop,
+            headerLeading,
+            tokenRow.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor),
+            bodyTop,
+            bodyBottom,
             centerStack.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            centerStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             centerStack.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
             centerStack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
         ])
+        applyMetrics()
     }
 
     @available(*, unavailable)
@@ -126,15 +148,37 @@ public final class ChatCashCardCell: ChatColumnCell {
     /// Fired when the trailing "+" is tapped, to open the picker.
     var onReactionAdd: (() -> Void)?
 
-    private func configureCircle(_ imageView: UIImageView, diameter: CGFloat) {
-        imageView.contentMode = .scaleAspectFill
-        imageView.clipsToBounds = true
-        imageView.layer.cornerRadius = diameter / 2
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            imageView.widthAnchor.constraint(equalToConstant: diameter),
-            imageView.heightAnchor.constraint(equalToConstant: diameter),
-        ])
+    /// Clips `view` to a circle and returns its size constraints, which `applyMetrics` sets.
+    private func configureCircle(_ view: UIView) -> [NSLayoutConstraint] {
+        view.contentMode = .scaleAspectFill
+        view.clipsToBounds = true
+        view.translatesAutoresizingMaskIntoConstraints = false
+        let size = [
+            view.widthAnchor.constraint(equalToConstant: 0),
+            view.heightAnchor.constraint(equalToConstant: 0),
+        ]
+        NSLayoutConstraint.activate(size)
+        return size
+    }
+
+    /// Sets the card's type, paddings and circle sizes from `ChatStyle`.
+    private func applyMetrics() {
+        let labelSize = ChatStyle.cardLabelSize
+        tokenLabel.font = .default(size: labelSize, weight: .semibold)
+        captionLabel.font = .default(size: labelSize, weight: .regular)
+        amountLabel.font = .default(size: ChatStyle.cardAmountSize, weight: .semibold)
+        cashBadge.backgroundColor = ChatStyle.cashBadgeFill
+        let badge = ChatStyle.cardBadgeSize
+        badgeSize.forEach { $0.constant = badge }
+        coinIcon.layer.cornerRadius = badge / 2
+        cashBadge.layer.cornerRadius = badge / 2
+        let flagDiameter = ChatStyle.cardFlagSize
+        flagSize.forEach { $0.constant = flagDiameter }
+        flag.layer.cornerRadius = flagDiameter / 2
+        headerTop.constant = ChatStyle.cardPaddingTop
+        headerLeading.constant = ChatStyle.cardPaddingX
+        bodyTop.constant = ChatStyle.cardHeaderGap
+        bodyBottom.constant = -ChatStyle.cardPaddingBottom
     }
 
     public override func prepareForReuse() {
@@ -145,7 +189,7 @@ public final class ChatCashCardCell: ChatColumnCell {
     }
 
     /// - Parameter maxWidth: the card's width, in points. The owner derives it from the collection
-    ///   view's width: 0.64 of the row between the column insets, matching Android's cash card.
+    ///   view's width: the card's own width, narrowed only when the row can't hold it.
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         guard case .cash(let cash) = message.content else { return }
         cardWidthConstraint.constant = maxWidth
@@ -159,15 +203,15 @@ public final class ChatCashCardCell: ChatColumnCell {
         flag.isHidden = flagImage == nil
 
         coinIcon.isHidden = cash.iconURL == nil
+        cashBadge.isHidden = cash.iconURL != nil
         coinIcon.kf.setImage(with: cash.iconURL)
 
+        applyMetrics()
+        let radius = ChatStyle.cardRadius
+        // A money card keeps every corner round inside a run: it is its own object, not a bubble.
         card.apply(
-            fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
-            radii: BubbleBackgroundView.radii(
-                isFromSelf: message.sender == .me,
-                groupedAbove: message.joinsBubbleAbove,
-                groupedBelow: message.joinsBubbleBelow
-            ),
+            fill: ChatStyle.cardFill,
+            radii: RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius),
             identity: message.id
         )
         reactionRow.layoutWidth = maxWidth
@@ -227,7 +271,7 @@ private final class ChatCashCardCellPreviewController: UICollectionViewControlle
 
     override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ChatCashCardCell.reuseIdentifier, for: indexPath) as! ChatCashCardCell
-        cell.configure(with: messages[indexPath.item], maxWidth: (collectionView.bounds.width - 24) * 0.64)
+        cell.configure(with: messages[indexPath.item], maxWidth: 240)
         return cell
     }
 }

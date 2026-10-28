@@ -84,7 +84,6 @@ final class ChatQuotePanelView: UIView {
     private static let thumbnailSide: CGFloat = 34
 
     /// The preview grey a quoted sentence is drawn in.
-    private static let snippetColor = UIColor.white.withAlphaComponent(0.55)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -115,7 +114,6 @@ final class ChatQuotePanelView: UIView {
         addSubview(authorLabel)
 
         snippetLabel.font = .default(size: 12, weight: .medium)
-        snippetLabel.textColor = Self.snippetColor
         // Two, matching the composer's strip: one line truncated most quoted sentences mid-clause,
         // which left the reply pointing at something the reader still had to go and open.
         snippetLabel.numberOfLines = 2
@@ -222,8 +220,12 @@ final class ChatQuotePanelView: UIView {
     }
 
     /// - Parameter thumbnail: where a quoted photo's thumbnail loads from, or nil until it resolves.
-    func configure(with quote: ChatQuote, thumbnail: ChatMediaLocation? = nil) {
+    /// - Parameter onSent: whether the panel sits in a sent bubble, whose text colour it takes.
+    func configure(with quote: ChatQuote, thumbnail: ChatMediaLocation? = nil, onSent: Bool = false) {
         targetStableID = quote.stableID
+        let ink = ChatStyle.text(isFromSelf: onSent)
+        let snippetColor = ink.withAlphaComponent(0.55)
+        tokenLabel.textColor = ink.withAlphaComponent(0.35)
         // The author's own colour, derived from their user id — the same colour the composer's strip
         // draws them in, and the same one Android does. An original with no known author falls back
         // to the neutral secondary, which is what `ComplementaryPalette` returns for a nil id.
@@ -245,17 +247,17 @@ final class ChatQuotePanelView: UIView {
             tokenLabel.isHidden = false
             // A payment's amount is the whole of what was said, so it is read rather than glanced
             // at — a step brighter than the preview grey a quoted sentence gets.
-            snippetLabel.textColor = UIColor.white.withAlphaComponent(0.75)
+            snippetLabel.textColor = ink.withAlphaComponent(0.75)
             showThumbnail(blobID: nil, location: nil)
         case .media(let thumbnailBlobID, _):
             flagView.isHidden = true
             tokenLabel.isHidden = true
-            snippetLabel.textColor = Self.snippetColor
+            snippetLabel.textColor = snippetColor
             showThumbnail(blobID: thumbnailBlobID, location: thumbnail)
         case .text, .unavailable:
             flagView.isHidden = true
             tokenLabel.isHidden = true
-            snippetLabel.textColor = Self.snippetColor
+            snippetLabel.textColor = snippetColor
             showThumbnail(blobID: nil, location: nil)
         }
         let spoken = switch quote.kind {

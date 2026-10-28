@@ -26,7 +26,7 @@ import UIKit
 final class MessageBackdrop {
 
     /// How long the blur takes to fade in or out.
-    private static let fadeDuration: TimeInterval = 0.2
+    private static var fadeDuration: TimeInterval { Tuner.value("Chat v2 Lift/Fade duration", default: 0.2, in: 0...1, unit: .seconds) } // LOCAL-TUNER
 
     /// Called when the held blur is tapped — the way out of an edit, as tapping outside the message
     /// is in WhatsApp. Never fires while a lift owns the screen: the lift's window sits above the
@@ -67,6 +67,15 @@ final class MessageBackdrop {
         // available to animate.
         blurStrength = ChatBackdrop.frost(blur)
 
+        // LOCAL-TUNER: the dim from the first frame, under the menu too, so its slider reads at once.
+        let earlyDim = UIView(frame: blur.bounds) // LOCAL-TUNER
+        earlyDim.backgroundColor = .black // LOCAL-TUNER
+        earlyDim.alpha = ChatBackdrop.dimAlpha // LOCAL-TUNER
+        earlyDim.autoresizingMask = [.flexibleWidth, .flexibleHeight] // LOCAL-TUNER
+        earlyDim.isUserInteractionEnabled = false // LOCAL-TUNER
+        blur.contentView.addSubview(earlyDim) // LOCAL-TUNER
+        dim = earlyDim // LOCAL-TUNER
+
         UIView.animate(withDuration: Self.fadeDuration) { blur.alpha = 1 }
     }
 
@@ -91,9 +100,8 @@ final class MessageBackdrop {
 
         // Fade the stand-in dim in now, while the menu is still up: its own dimming fades out with
         // the dismissal, so the two cross and the screen never brightens between the states.
-        let dim = UIView(frame: blur.bounds)
+        let dim = self.dim ?? UIView(frame: blur.bounds) // LOCAL-TUNER
         dim.backgroundColor = .black
-        dim.alpha = 0
         dim.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         dim.isUserInteractionEnabled = false
         blur.contentView.addSubview(dim)

@@ -10,8 +10,8 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
-/// One reaction pill: emoji + count, capsule-shaped over the same wash a received bubble sits on.
-/// A self-reacted pill draws a grey outline, which never changes its width. Tap toggles the reaction; the row it
+/// One reaction pill: emoji + count on a capsule. A self-reacted pill takes the accent's tint, ring
+/// and count colour; the ring never changes its width. Tap toggles the reaction; the row it
 /// sits in owns the long press, so a press just off the pill still opens the reactors sheet.
 final class ReactionPillView: UIView {
 
@@ -30,37 +30,34 @@ final class ReactionPillView: UIView {
     /// The emoji this pill last drew, so the row can keep the pill across a reconfigure.
     var emoji: String { pill?.emoji ?? "" }
 
-    private static let height: CGFloat = 28
-    private static let horizontalPadding: CGFloat = 10
-    private static let selfReactedFill = UIColor.white.withAlphaComponent(0.12)
-    private static let restingFill = UIColor.white.withAlphaComponent(0.06)
-    private static let selfReactedBorder = UIColor.white.withAlphaComponent(0.24)
-    /// Android's `thickBorder`.
-    private static let selfReactedBorderWidth: CGFloat = 2
+    private static var selfReactedFill: UIColor { ChatStyle.accentTint }
+    private static var restingFill: UIColor { ChatStyle.pillFill }
+    private static var selfReactedBorder: UIColor { ChatStyle.accentRing }
+    private static var selfReactedBorderWidth: CGFloat { ChatStyle.pillRingWidth }
+
+    private lazy var heightConstraint = heightAnchor.constraint(equalToConstant: ChatStyle.pillHeight)
+    private lazy var stackLeading = stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatStyle.pillLeadingPadding)
+    private lazy var stackTrailing = stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ChatStyle.pillTrailingPadding)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        layer.cornerRadius = Self.height / 2
         clipsToBounds = true
 
         stack.axis = .horizontal
-        stack.spacing = 4
+        stack.spacing = ChatStyle.pillInnerGap
         stack.alignment = .center
         stack.isUserInteractionEnabled = false
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
 
-        emojiLabel.font = .systemFont(ofSize: 15)
-        countLabel.font = Self.countFont
-        countLabel.textColor = UIColor(Color.textMain)
-        countLabel.textAlignment = .center
+        countLabel.textAlignment = .left
         stack.addArrangedSubview(emojiLabel)
         stack.addArrangedSubview(countLabel)
 
         NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: Self.height),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.horizontalPadding),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.horizontalPadding),
+            heightConstraint,
+            stackLeading,
+            stackTrailing,
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
             countWidth,
         ])
@@ -82,12 +79,13 @@ final class ReactionPillView: UIView {
     func configure(with pill: ReactionPill, countDigits: Int = 2, canReact: Bool, animated: Bool = false) {
         let previous = self.pill
         self.pill = pill
+        applyMetrics()
         emojiLabel.text = pill.emoji
         if animated, let previous, previous.emoji == pill.emoji, previous.count != pill.count {
             rollCount(up: pill.count > previous.count)
         }
         countLabel.text = "\(pill.count)"
-        countWidth.constant = Self.countWidth(digits: max(countDigits, "\(pill.count)".count))
+        countWidth.constant = Self.countWidth(digits: max(min(countDigits, ChatStyle.pillCountRoom), "\(pill.count)".count)) // LOCAL-TUNER
 
         let fill = pill.selfReacted ? Self.selfReactedFill : Self.restingFill
         let borderWidth = pill.selfReacted ? Self.selfReactedBorderWidth : 0
@@ -104,6 +102,7 @@ final class ReactionPillView: UIView {
         }
         layer.borderColor = Self.selfReactedBorder.cgColor
         layer.borderWidth = borderWidth
+        countLabel.textColor = pill.selfReacted ? ChatStyle.accentColor : ChatStyle.secondaryText
 
         isUserInteractionEnabled = true
         isAccessibilityElement = true
@@ -116,10 +115,25 @@ final class ReactionPillView: UIView {
         ceil(widestDigit * CGFloat(digits))
     }
 
-    private static let countFont = UIFont.default(size: 13, weight: .medium)
-    private static let widestDigit: CGFloat = (0...9)
-        .map { ("\($0)" as NSString).size(withAttributes: [.font: countFont]).width }
-        .max() ?? 0
+    private static var countFont: UIFont { .default(size: ChatStyle.pillCountSize, weight: .semibold) }
+    private static var widestDigit: CGFloat {
+        let font = countFont
+        return (0...9)
+            .map { ("\($0)" as NSString).size(withAttributes: [.font: font]).width }
+            .max() ?? 0
+    }
+
+    /// Sets the pill's size, paddings and type from `ChatStyle`.
+    private func applyMetrics() {
+        let height = ChatStyle.pillHeight
+        stack.spacing = ChatStyle.pillInnerGap
+        heightConstraint.constant = height
+        layer.cornerRadius = height / 2
+        stackLeading.constant = ChatStyle.pillLeadingPadding
+        stackTrailing.constant = -ChatStyle.pillTrailingPadding
+        emojiLabel.font = .systemFont(ofSize: ChatStyle.pillEmojiSize)
+        countLabel.font = Self.countFont
+    }
 
     /// Rolls the count to its next value: up for a rise, down for a fall, the way a counter turns.
     /// Reduce Motion gets a crossfade instead.

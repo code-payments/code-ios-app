@@ -94,7 +94,7 @@ struct TutorialChecklistCard<Item: TutorialItemPresentable>: View {
 
     @ViewBuilder private func icon(_ item: Item) -> some View {
         if item.isCompleted {
-            Image(systemName: "checkmark.circle.fill")
+            Image.icon(.circleCheck)
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(Color.Sentiment.positive)

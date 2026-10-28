@@ -26,7 +26,7 @@ let sharedCore: Package.Dependency = {
 let package = Package(
     name: "FlipcashUI",
     platforms: [
-        .iOS(.v18),
+        .iOS(.v26), // LOCAL-TUNER
     ],
     products: [
         .library(
@@ -35,6 +35,7 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(path: "../Packages/TunerKit"), // LOCAL-TUNER
         .package(path: "../FlipcashCore"),
         .package(url: "https://github.com/ekazaev/ChatLayout", from: "2.4.2"),
         .package(url: "https://github.com/ra1028/DifferenceKit", from: "1.3.0"),
@@ -45,6 +46,7 @@ let package = Package(
         .target(
             name: "FlipcashUI",
             dependencies: [
+                .product(name: "TunerKit", package: "TunerKit"), // LOCAL-TUNER
                 .product(name: "FlipcashCore", package: "FlipcashCore"),
                 .product(name: "ChatLayout", package: "ChatLayout", condition: .when(platforms: [.iOS])),
                 .product(name: "DifferenceKit", package: "DifferenceKit"),

@@ -6,12 +6,10 @@
 //
 
 import SwiftUI
-import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// How long to silence a chat's notifications for. Drawn as the chats flow's action rows, the way
-/// ``ShareToChatsSheet`` draws its two.
+/// How long to silence a chat's notifications for, as a tray of option rows.
 ///
 /// The durations are the client's choice; the contract admits only two mute shapes — until a
 /// timestamp, or forever — so every timed option is the same shape with a different offset.
@@ -72,72 +70,65 @@ struct MuteChatSheet: View {
         offersUnmute ? [("Never", .never)] + Self.durations : Self.durations
     }
 
+    /// The row picked for the CTA to apply, in the select-then-confirm pattern.
+    @State private var selection: Option?
+
     var body: some View {
-        PartialSheet(background: .backgroundMain) {
-            VStack(spacing: 20) {
-                header
-
-                // What muting does and doesn't do, the way WhatsApp captions the same sheet. Worth
-                // saying here because the answer isn't obvious and is easy to get wrong: a muted
-                // chat still delivers, still stores, and still counts unread.
-                Text("You'll still receive messages and see unread counts. Only notifications are silenced")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                    // The only flexible row in this stack, so a height proposal short of what the
-                    // content needs lands here -- and a `Text` answers that by dropping lines and
-                    // ellipsizing. `PartialSheet` opens at the full screen height and corrects to
-                    // its measured height, and the row count changes with the unmute row, so short
-                    // proposals do happen. `fixedSize` makes the wrapped height a floor instead.
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
-
-                VStack(spacing: 12) {
-                    ForEach(options, id: \.title) { row in
-                        ChatActionRow(
-                            icon: .system(icon(for: row.option)),
-                            title: row.title,
-                            accessibilityIdentifier: "mute-chat-\(identifier(for: row.option))"
-                        ) {
-                            guard !isWorking else { return }
-                            Task { await apply(row.option) }
+        Tray(
+            title: "Mute Notifications",
+            // What muting does and doesn't do, the way WhatsApp captions the same sheet. Worth
+            // saying here because the answer isn't obvious and is easy to get wrong: a muted chat
+            // still delivers, still stores, and still counts unread.
+            message: "You'll still receive messages and see unread counts. Only notifications are silenced",
+            icon: .central(.bell2Off),
+            actions: actions
+        ) {
+            VStack(spacing: TrayOptionRow.gap) {
+                ForEach(options, id: \.title) { row in
+                    TrayOptionRow(
+                        row.title,
+                        icon: icon(for: row.option),
+                        isSelected: pattern == .selectThenConfirm && selection == row.option
+                    ) {
+                        guard !isWorking else { return }
+                        switch pattern {
+                        case .tapToApply: Task { await apply(row.option) }
+                        case .selectThenConfirm: selection = row.option
                         }
                     }
+                    .accessibilityIdentifier("mute-chat-\(identifier(for: row.option))")
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 20)
-            .padding(.bottom, bottomPadding)
         }
     }
 
-    /// The sheet's own title bar — ``PartialSheet`` sizes itself to its content, so there is no
-    /// navigation bar to hang a title on. Mirrors ``ShareToChatsSheet/header``.
-    private var header: some View {
-        ZStack {
-            Text("Mute Notifications")
-                .font(.appBarButton)
-                .foregroundStyle(Color.textMain)
+    /// Whether a row applies itself or waits for the CTA; the tuner's "Tray Mute/Pattern". // LOCAL-TUNER
+    private var pattern: MuteTrayPattern { Tuner.value("Tray Mute/Pattern", default: MuteTrayPattern.selectThenConfirm) } // LOCAL-TUNER
 
-            HStack {
-                Spacer()
-                CloseButton(style: .glass, binding: $isPresented)
-            }
+    /// The CTA that applies the selected row, worded for an unmute when that is the pick.
+    private var actions: [TrayAction] {
+        switch pattern {
+        case .tapToApply:
+            return []
+        case .selectThenConfirm:
+            return [
+                TrayAction(
+                    selection == .never ? "Unmute" : "Mute",
+                    state: isWorking ? .loading : .normal,
+                    isEnabled: selection != nil
+                ) {
+                    guard let selection else { return }
+                    Task { await apply(selection) }
+                },
+            ]
         }
     }
 
-    /// The design's 16 under the last row, less whatever the sheet already holds back for the home
-    /// indicator.
-    private var bottomPadding: CGFloat {
-        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
-        return max(0, 16 - reserved)
-    }
-
-    private func icon(for option: Option) -> SystemSymbol {
+    private func icon(for option: Option) -> Icon {
         switch option {
         case .until: .clock
-        case .forever: .bellSlash
-        case .never: .bell
+        case .forever: .bell2Off
+        case .never: .bell2
         }
     }
 
@@ -191,3 +182,11 @@ struct MuteChatSheet: View {
         }
     }
 }
+
+/// How the mute tray's rows act. // LOCAL-TUNER
+enum MuteTrayPattern: TunableEnum { // LOCAL-TUNER
+    /// A tap mutes at once, with no CTA. // LOCAL-TUNER
+    case tapToApply // LOCAL-TUNER
+    /// A tap selects; the CTA mutes. // LOCAL-TUNER
+    case selectThenConfirm // LOCAL-TUNER
+} // LOCAL-TUNER

@@ -15,7 +15,7 @@ import FlipcashUI
 enum TabBarBadgedIcon {
 
     /// The slot every tab glyph is drawn into.
-    private static let glyphSize: CGFloat = 32
+    private static var glyphSize: CGFloat { TabBarItemStyle.glyphSize } // LOCAL-TUNER
 
     /// How far the bubble reaches past the glyph's top-right corner, matching
     /// the legacy pill's badge (node 8966:1846).
@@ -28,28 +28,30 @@ enum TabBarBadgedIcon {
     /// and each call would otherwise run two `ImageRenderer` passes.
     static func itemImages(for tab: HomeTab, count: Int) -> TabBarProfilePhoto.ItemImages? {
         guard count > 0 else { return nil }
-        if let memoized, memoized.tab == tab, memoized.count == count { return memoized.images }
+        if let memoized, memoized.tab == tab, memoized.count == count, memoized.size == glyphSize, memoized.opacity == TabBarItemStyle.unselectedOpacity, memoized.fills == TabBarItemStyle.fillsSelected { return memoized.images } // LOCAL-TUNER
 
         guard let normal = image(of: icon(for: tab, count: count, isSelected: false)),
               let selected = image(of: icon(for: tab, count: count, isSelected: true))
         else { return nil }
 
         let images = TabBarProfilePhoto.ItemImages(normal: normal, selected: selected)
-        memoized = (tab, count, images)
+        memoized = (tab, count, glyphSize, TabBarItemStyle.unselectedOpacity, TabBarItemStyle.fillsSelected, images) // LOCAL-TUNER
         return images
     }
 
-    private static var memoized: (tab: HomeTab, count: Int, images: TabBarProfilePhoto.ItemImages)?
+    private static var memoized: (tab: HomeTab, count: Int, size: CGFloat, opacity: Double, fills: Bool, images: TabBarProfilePhoto.ItemImages)? // LOCAL-TUNER
 
     /// The glyph colored as the bar would tint it for the state, since an
-    /// original-rendered image is not tinted, with the bubble at full strength.
+    /// original-rendered image is not tinted (dimmed when unselected), with the
+    /// bubble at full strength.
     private static func icon(for tab: HomeTab, count: Int, isSelected: Bool) -> some View {
-        Image(tab.iconName(isSelected: isSelected))
+        Image.icon(tab.icon(isSelected: isSelected))
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .foregroundStyle(Color.textMain)
             .frame(width: glyphSize, height: glyphSize)
+            .opacity(isSelected ? 1 : TabBarItemStyle.unselectedOpacity)
             .overlay(alignment: .topTrailing) {
                 Bubble(size: .regular, count: count, color: .unreadIndicator)
                     .fixedSize()

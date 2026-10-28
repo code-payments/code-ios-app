@@ -238,10 +238,10 @@ struct ChatProfileScreen: View {
                 router.push(.tipConversation(chatID))
             }
         }
-        .sheet(isPresented: $isPickingMuteDuration) {
+        .tray(isPresented: $isPickingMuteDuration) {
             MuteChatSheet(conversationID: conversationID, isPresented: $isPickingMuteDuration)
         }
-        .sheet(isPresented: $isShowingE2ee) {
+        .tray(isPresented: $isShowingE2ee) {
             E2eeLearnMoreSheet(kind: isPrivate ? .privateGroup : .group, isPresented: $isShowingE2ee)
         }
         .fullScreenCover(isPresented: $isReporting) {
@@ -532,7 +532,8 @@ struct ChatProfileScreen: View {
             Label {
                 Text(PrivateGroupCopy.summary(memberCount: conversation?.rosterSummary.memberCount ?? 0))
             } icon: {
-                Image(systemName: "lock.fill")
+                Image.icon(.lock)
+                    .iconSize(14)
             }
             .labelStyle(.titleAndIcon)
             Text("The host approves who joins")
@@ -626,7 +627,7 @@ struct ChatProfileScreen: View {
     // MARK: - Share -
 
     private var shareButton: some View {
-        ProfileActionCircle(image: Image.asset(.shareOS)) {
+        ProfileActionCircle(image: Image.icon(.shareOs)) {
             openInvite()
         }
         .accessibilityLabel("Share group")

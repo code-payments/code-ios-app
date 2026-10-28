@@ -89,8 +89,8 @@ public struct AmountField: View {
                 )
                 
                 if showChevron {
-                    Image.system(.chevronDown)
-                        .font(.default(size: 12, weight: .bold))
+                    Image.icon(.chevronDownMedium)
+                        .iconSize(16)
                 }
             }
             .animation(.springFastestDamped, value: content)

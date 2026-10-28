@@ -27,6 +27,10 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
     @State private var unlinkAlertTitle: String?
     @State private var unlinkAlertMessage: String?
     @State private var isShowingUnlinkAlert: Bool = false
+    #if DEBUG // LOCAL-TUNER
+    /// The tray the showcase has up over this screen. // LOCAL-TUNER
+    @State private var showcaseTray: TrayKind? // LOCAL-TUNER
+    #endif // LOCAL-TUNER
 
     private let publicOptions = BetaFlags.Option.allCases.filter { $0.availability == .publicBeta }
     private let developerOptions = BetaFlags.Option.allCases.filter { $0.availability == .developer }
@@ -47,6 +51,14 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
                 }
             } else {
                 LazyTable(spacing: 0) {
+                    #if DEBUG // LOCAL-TUNER
+                    SettingsSectionHeader("Tray Showcase") // LOCAL-TUNER
+                    ForEach(TrayKind.allCases) { kind in // LOCAL-TUNER
+                        unlinkRow(title: kind.name, isDisabled: false) { showcaseTray = kind } // LOCAL-TUNER
+                            .accessibilityIdentifier("tray-showcase-\(kind.rawValue)") // LOCAL-TUNER
+                    } // LOCAL-TUNER
+                    #endif // LOCAL-TUNER
+
                     ForEach(publicOptions) { option in
                         BetaFlagToggleRow(option: option, isOn: betaFlags.bindingFor(option: option))
                     }
@@ -80,6 +92,12 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
         }
         .navigationTitle("Beta Features")
         .toolbarTitleDisplayMode(.inline)
+        #if DEBUG // LOCAL-TUNER
+        // Each showcase tray comes up over this screen, as it would over any other. // LOCAL-TUNER
+        .tray(item: $showcaseTray, isDismissable: showcaseTray?.isDismissable ?? true) { kind in // LOCAL-TUNER
+            kind.tray // LOCAL-TUNER
+        } // LOCAL-TUNER
+        #endif // LOCAL-TUNER
         .alert(
             "Unlink Email?",
             isPresented: $isConfirmingUnlinkEmail
@@ -116,6 +134,7 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
     /// True only when there's nothing at all to show — no public flags, no developer
     /// access to reveal the rest, and so no Contracts section either.
     private var isEmpty: Bool {
+        false && // LOCAL-TUNER: the Design section always shows
         !betaFlags.hasVisibleOptions && !betaFlags.accessGranted
     }
 

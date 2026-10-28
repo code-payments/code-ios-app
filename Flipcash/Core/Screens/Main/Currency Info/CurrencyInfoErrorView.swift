@@ -16,9 +16,9 @@ struct CurrencyInfoErrorView: View {
         VStack(spacing: 20) {
             Spacer()
 
-            Image("IconExclamationCircle")
-                .resizable()
-                .frame(width: 100, height: 100)
+            Image.icon(.exclamationCircle)
+                .iconSize(100)
+                .foregroundStyle(Color.white)
                 .padding(24)
 
             // Status Text

@@ -36,8 +36,8 @@ nonisolated enum TutorialItem: TutorialItemPresentable {
 
     var icon: Image {
         switch self {
-        case .addMoney:    return Image(systemName: "plus.circle")
-        case .scanTipCard: return Image("NavTipCard")
+        case .addMoney:    return Image.icon(.circlePlus)
+        case .scanTipCard: return Image.icon(HomeTab.scan.icon(isSelected: false))
         }
     }
 }

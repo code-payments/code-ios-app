@@ -63,8 +63,8 @@ public struct SwipeControl: View {
                 case .loading:
                     LoadingView(color: .gray, style: .medium)
                 case .success:
-                    Image.asset(.checkmark)
-                        .renderingMode(.template)
+                    Image.icon(.checkmark1)
+                        .iconSize(24)
                         .foregroundStyle(.textMain)
                 }
             }
@@ -141,10 +141,8 @@ private struct SwipingTrack: View {
                 .fill(.action)
                 .frame(width: Layout.knobSize.width, height: Layout.knobSize.height)
                 .overlay {
-                    Image.system(.arrowRight)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: Layout.arrowSize, height: Layout.arrowSize)
+                    Image.icon(.arrowRight)
+                        .iconSize(Layout.arrowSize)
                         .foregroundStyle(.textAction)
                 }
                 .offset(x: position + nudgeX)

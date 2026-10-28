@@ -60,16 +60,24 @@ final class ChatSwipeToReply: NSObject {
         recognizer.maximumNumberOfTouches = 1
 
         affordance.bounds = CGRect(x: 0, y: 0, width: Self.affordanceDiameter, height: Self.affordanceDiameter)
-        affordance.backgroundColor = UIColor.white.withAlphaComponent(0.12)
+        affordance.backgroundColor = .clear
         affordance.layer.cornerRadius = Self.affordanceDiameter / 2
         affordance.alpha = 0
 
-        affordanceIcon.image = UIImage(systemName: SystemSymbol.replyArrow.rawValue)
+        affordanceIcon.image = UIImage.icon(.arrowShareLeftFilled)
         affordanceIcon.tintColor = UIColor.white.withAlphaComponent(0.75)
         affordanceIcon.contentMode = .scaleAspectFit
         affordanceIcon.frame = affordance.bounds.insetBy(dx: 8, dy: 8)
         affordance.addSubview(affordanceIcon)
     }
+
+    // LOCAL-TUNER: the reply glyph's size and colour from the tuner.
+    private func applyTuning() { // LOCAL-TUNER
+        let size = ChatStyle.replyIconSize // LOCAL-TUNER
+        let box = Self.affordanceDiameter // LOCAL-TUNER
+        affordanceIcon.frame = CGRect(x: (box - size) / 2, y: (box - size) / 2, width: size, height: size) // LOCAL-TUNER
+        affordanceIcon.tintColor = UIColor(ChatStyle.replyIconColor) // LOCAL-TUNER
+    } // LOCAL-TUNER
 
     /// Whether a drag with this velocity is a reply swipe rather than a scroll.
     ///
@@ -154,6 +162,7 @@ final class ChatSwipeToReply: NSObject {
         haptics.prepare()
 
         affordance.alpha = 0
+        applyTuning() // LOCAL-TUNER
         affordance.transform = CGAffineTransform(scaleX: Self.arrowStartScale, y: Self.arrowStartScale)
         affordance.center = Self.affordanceCenter(inRowOfHeight: row.cell.bounds.height)
         row.cell.contentView.addSubview(affordance)

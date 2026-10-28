@@ -38,27 +38,11 @@ struct HomeTabView: View {
         _selection = State(initialValue: initialTab)
         _hasOpenedChat = State(initialValue: initialTab == .chat)
 
-        // Color the tab glyphs white in both states, as iOS 27 already does; the
-        // outline-vs-filled glyph carries the selection. The iOS 26 tab bar
-        // ignores UITabBar.unselectedItemTintColor, so drive it through a full
-        // item appearance instead. A transparent background
-        // keeps the system's Liquid Glass. No-op on the legacy pill path, which
-        // draws its own buttons rather than a `UITabBar`.
+        // The iOS 26 tab bar ignores UITabBar.unselectedItemTintColor, so the
+        // colours go through a full item appearance instead. No-op on the legacy
+        // pill path, which draws its own buttons rather than a `UITabBar`.
         if #available(iOS 26, *) {
-            let items = UITabBarItemAppearance()
-            items.normal.iconColor = UIColor(Color.textMain)
-            items.selected.iconColor = UIColor(Color.textMain)
-            // Labels per node 10642:1325: 10pt Avenir Demi, colored like the glyph above.
-            let titleFont = UIFont.default(size: 10, weight: .semibold)
-            items.normal.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textMain)]
-            items.selected.titleTextAttributes = [.font: titleFont, .foregroundColor: UIColor(Color.textMain)]
-
-            let appearance = UITabBarAppearance()
-            appearance.configureWithTransparentBackground()
-            appearance.stackedLayoutAppearance = items
-            appearance.inlineLayoutAppearance = items
-            appearance.compactInlineLayoutAppearance = items
-
+            let appearance = Self.tabBarAppearance()
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }
@@ -103,6 +87,28 @@ struct HomeTabView: View {
     /// Reactive: reads the `@Observable` conversation store, so the badge updates as chats are read.
     private var chatBadgeCount: Int {
         sessionContainer.conversationController.unreadChatListCount
+    }
+
+    /// The bar's item colours: selected tabs in full, the rest dimmed to
+    /// ``TabBarItemStyle/unselectedOpacity``, over a transparent background that keeps
+    /// the system's Liquid Glass.
+    static func tabBarAppearance() -> UITabBarAppearance {
+        let selectedColor = UIColor(Color.textMain)
+        let normalColor = selectedColor.withAlphaComponent(TabBarItemStyle.unselectedOpacity)
+        let items = UITabBarItemAppearance()
+        items.normal.iconColor = normalColor
+        items.selected.iconColor = selectedColor
+        // Labels per node 10642:1325, colored like the glyph above.
+        let titleFont = UIFont.default(size: 10, weight: .semibold)
+        items.normal.titleTextAttributes = [.font: titleFont, .foregroundColor: normalColor]
+        items.selected.titleTextAttributes = [.font: titleFont, .foregroundColor: selectedColor]
+
+        let appearance = UITabBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.stackedLayoutAppearance = items
+        appearance.inlineLayoutAppearance = items
+        appearance.compactInlineLayoutAppearance = items
+        return appearance
     }
 
     var body: some View {
@@ -254,7 +260,7 @@ struct HomeTabView: View {
         // Selected-tab highlight over a lightly tinted glass bar — echoes the old
         // pill's white indicator on a translucent capsule.
         .tint(Color.textMain)
-        .toolbarBackground(Color.backgroundMain.opacity(0.5), for: .tabBar)
+        .toolbarBackground(Color.backgroundMain.opacity(TabBarItemStyle.backgroundOpacity), for: .tabBar)
         // Gives each item both of its glyphs. The tab bar knows which item the
         // Liquid Glass pill is over mid-drag and renders that one selected, so
         // handing it the pair is what makes the icons fill under the finger
@@ -275,22 +281,25 @@ struct HomeTabView: View {
     /// This has to agree with what the probe writes. SwiftUI rewrites the item's
     /// image from this label whenever it rebuilds the bar, so a label that
     /// disagreed would take turns with the probe and flicker between the two.
-    private func tabLabel(for tab: HomeTab) -> some View {
-        Label {
-            Text(tab.title)
-        } icon: {
+    @ViewBuilder private func tabLabel(for tab: HomeTab) -> some View {
+        if TabBarItemStyle.showsNativeTitles {
+            Label {
+                Text(tab.title)
+            } icon: {
+                tabIcon(for: tab)
+            }
+        } else {
             tabIcon(for: tab)
         }
     }
 
-    @ViewBuilder private func tabIcon(for tab: HomeTab) -> some View {
-        if tab == .tipCard, let photo = profileItemImages?.normal {
-            Image(uiImage: photo).renderingMode(.original)
-        } else if tab == .chat, let badged = chatItemImages?.normal {
-            Image(uiImage: badged).renderingMode(.original)
-        } else {
-            Image(tab.iconName(isSelected: false))
-        }
+    private func tabIcon(for tab: HomeTab) -> some View {
+        let images = TabBarItemStyle.itemImages(
+            for: tab,
+            profile: tab == .tipCard ? profileItemImages : nil,
+            badged: tab == .chat ? chatItemImages : nil
+        )
+        return Image(uiImage: images.normal).renderingMode(.original)
     }
 
     private static let pillBottomMargin: CGFloat = 8
@@ -542,28 +551,22 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
             installLongPress(on: bar)
 
             for (item, tab) in zip(items, tabs) {
-                if tab == .tipCard, let profileImages {
-                    // Already rendered at the dimmed and full opacities the bar
-                    // would otherwise get by tinting a template glyph.
-                    item.image = profileImages.normal
-                    item.selectedImage = profileImages.selected
-                    continue
-                }
+                // The drawn-in count is invisible to VoiceOver, so the item
+                // carries it the way the system badge did.
                 if tab == .chat {
-                    // The drawn-in count is invisible to VoiceOver, so the item
-                    // carries it the way the system badge did.
                     item.accessibilityValue = chatBadgeCount > 0 ? "\(chatBadgeCount) unread" : nil
-                    if let badged = TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount) {
-                        item.image = badged.normal
-                        item.selectedImage = badged.selected
-                        continue
-                    }
                 }
-
-                item.image = UIImage(named: tab.iconName(isSelected: false))?
-                    .withRenderingMode(.alwaysTemplate)
-                item.selectedImage = UIImage(named: tab.iconName(isSelected: true))?
-                    .withRenderingMode(.alwaysTemplate)
+                let images = TabBarItemStyle.itemImages(
+                    for: tab,
+                    profile: tab == .tipCard ? profileImages : nil,
+                    badged: tab == .chat ? TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount) : nil
+                )
+                item.image = images.normal
+                item.selectedImage = images.selected
+                // A title drawn into the image leaves the item none of its own,
+                // so VoiceOver still needs the name.
+                item.title = TabBarItemStyle.showsNativeTitles ? tab.title : nil
+                item.accessibilityLabel = tab.title
             }
         }
 

@@ -20,11 +20,12 @@ import FlipcashCore
 final class ChatAuthorAvatarView: UIView {
 
     /// Figma sizes the gutter circle at 24pt (nodes 10125:19169-19184).
-    static let size: CGFloat = 24
+    static var size: CGFloat { ChatStyle.authorAvatarSize } // LOCAL-TUNER
 
     private let imageView = UIImageView()
     private let monogram = UILabel()
     private let gradient = CAGradientLayer()
+    private lazy var sizeConstraints = [widthAnchor.constraint(equalToConstant: Self.size), heightAnchor.constraint(equalToConstant: Self.size)] // LOCAL-TUNER
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -55,8 +56,8 @@ final class ChatAuthorAvatarView: UIView {
         addSubview(imageView)
 
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: Self.size),
-            heightAnchor.constraint(equalToConstant: Self.size),
+            sizeConstraints[0], // LOCAL-TUNER
+            sizeConstraints[1], // LOCAL-TUNER
             monogram.centerXAnchor.constraint(equalTo: centerXAnchor),
             monogram.centerYAnchor.constraint(equalTo: centerYAnchor),
             imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -77,11 +78,13 @@ final class ChatAuthorAvatarView: UIView {
         CATransaction.setDisableActions(true)
         gradient.frame = bounds
         CATransaction.commit()
+        applyTuning() // LOCAL-TUNER
     }
 
     /// Draws `author`, using `imageData` when the bytes have arrived. Safe to call on every
     /// reconfigure — a repeat with the same inputs reads the decoded image straight out of the cache.
     func configure(with author: ChatAuthor, imageData: Data?) {
+        applyTuning() // LOCAL-TUNER
         let key = author.id.uuidString
         if let imageData, let image = ContactAvatarCache.shared.image(forKey: key, data: imageData) {
             imageView.image = image
@@ -100,6 +103,16 @@ final class ChatAuthorAvatarView: UIView {
         accessibilityTraits = .image
         accessibilityLabel = author.name.isEmpty ? "Contact" : author.name
     }
+
+    // LOCAL-TUNER: size, rounding, monogram and ring from the tuner, so a reload restyles a reused view.
+    func applyTuning() { // LOCAL-TUNER
+        let size = Self.size // LOCAL-TUNER
+        sizeConstraints.forEach { $0.constant = size } // LOCAL-TUNER
+        layer.cornerRadius = size / 2 // LOCAL-TUNER
+        monogram.font = .default(size: size * 16 / 44, weight: .bold) // LOCAL-TUNER
+        layer.borderWidth = ChatStyle.avatarStrokeWidth // LOCAL-TUNER
+        layer.borderColor = UIColor.white.withAlphaComponent(ChatStyle.avatarStrokeOpacity).cgColor // LOCAL-TUNER
+    } // LOCAL-TUNER
 
     /// Clears the image so a recycled row never shows the previous author's face.
     func reset() {

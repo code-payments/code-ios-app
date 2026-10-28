@@ -29,34 +29,47 @@ struct CurrencySelectionScreen: View {
                     Group {
                         if viewModel.isSearching {
                             if !viewModel.searchingCurrencies.isEmpty {
-                                Section(header: ListHeader("Results")) {
-                                    ForEach(viewModel.searchingCurrencies) { description in
-                                        CurrencyRow(description: description, viewModel: viewModel, allowDelete: false)
-                                    }
+                                ListSectionTitle("Results")
+                                ForEach(viewModel.searchingCurrencies) { description in
+                                    CurrencyRow(
+                                        description: description,
+                                        viewModel: viewModel,
+                                        allowDelete: false,
+                                        isLast: description.id == viewModel.searchingCurrencies.last?.id
+                                    )
                                 }
                             }
                         } else {
                             if !viewModel.availableRecentCurrencies.isEmpty {
-                                Section(header: ListHeader("Recent Regions")) {
-                                    ForEach(viewModel.availableRecentCurrencies) { description in
-                                        CurrencyRow(
-                                            description: description,
-                                            viewModel: viewModel,
-                                            allowDelete: !viewModel.isCurrencyActive(description.currency)
-                                        )
-                                    }
+                                ListSectionTitle("Recent Regions")
+                                ForEach(viewModel.availableRecentCurrencies) { description in
+                                    CurrencyRow(
+                                        description: description,
+                                        viewModel: viewModel,
+                                        allowDelete: !viewModel.isCurrencyActive(description.currency),
+                                        isLast: description.id == viewModel.availableRecentCurrencies.last?.id
+                                    )
                                 }
                             }
-                            Section(header: ListHeader("Other Regions")) {
-                                ForEach(viewModel.availableCurrencies) { description in
-                                    CurrencyRow(description: description, viewModel: viewModel, allowDelete: false)
-                                }
+                            ListSectionTitle("Other Regions")
+                            ForEach(viewModel.availableCurrencies) { description in
+                                CurrencyRow(
+                                    description: description,
+                                    viewModel: viewModel,
+                                    allowDelete: false,
+                                    isLast: description.id == viewModel.availableCurrencies.last?.id
+                                )
                             }
                         }
                     }
-                    .listRowSeparatorTint(Color.rowSeparator)
+                    // Rows v2: each row draws its own divider and section titles are rows, so the
+                    // list adds no insets, separators or header chrome of its own.
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.backgroundMain)
                 }
-                .listStyle(.grouped)
+                .listStyle(.plain)
+                .environment(\.defaultMinListRowHeight, 0)
                 .scrollContentBackground(.hidden)
                 .overlay {
                     if viewModel.isSearching && viewModel.searchingCurrencies.isEmpty {
@@ -84,20 +97,21 @@ private struct CurrencyRow: View {
     let description: CurrencyDescription
     let viewModel: CurrencySelectionViewModel
     let allowDelete: Bool
+    let isLast: Bool
 
     var body: some View {
         if allowDelete {
-            CurrencyRowContent(description: description, viewModel: viewModel)
+            CurrencyRowContent(description: description, viewModel: viewModel, isLast: isLast)
                 .swipeActions {
                     Button {
                         withAnimation { viewModel.removeRecent(description.currency) }
                     } label: {
-                        Image.asset(.delete)
+                        Image.icon(.trashCan)
                     }
                     .tint(.bannerError)
                 }
         } else {
-            CurrencyRowContent(description: description, viewModel: viewModel)
+            CurrencyRowContent(description: description, viewModel: viewModel, isLast: isLast)
         }
     }
 }
@@ -106,30 +120,25 @@ private struct CurrencyRowContent: View {
     @Environment(\.dismiss) private var dismiss
     let description: CurrencyDescription
     let viewModel: CurrencySelectionViewModel
+    let isLast: Bool
 
     var body: some View {
-        Button {
+        ListRow(description.localizedName, showsDivider: !isLast) {
             viewModel.select(currency: description.currency)
             dismiss()
-        } label: {
-            HStack(spacing: 15) {
-                Flag(style: description.currency.flagStyle)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(description.localizedName)
-                        .foregroundStyle(.textMain)
-                        .font(.appTextMedium)
-                        .multilineTextAlignment(.leading)
-                        .layoutPriority(10)
-                }
-                Spacer()
-                RadioButton(isSelected: viewModel.isCurrencyActive(description.currency))
+        } leading: {
+            Flag(style: description.currency.flagStyle, size: .none)
+                .frame(width: ListRowMetrics.flagSize, height: ListRowMetrics.flagSize)
+                .clipShape(Circle())
+                .overlay { Circle().strokeBorder(Color.rowSeparator, lineWidth: 1) }
+        } trailing: {
+            if viewModel.isCurrencyActive(description.currency) {
+                Image.icon(.checkmark1)
+                    .iconSize(22)
+                    .foregroundStyle(Color.textMain)
             }
-            .padding(.vertical, 12)
-            .background(Color.backgroundMain)
         }
-        .opacity(viewModel.opacity(for: description.currency))
+        .font(.appTextMedium)
         .disabled(viewModel.isSelectionDisabled(for: description.currency))
-        .listRowBackground(Color.backgroundMain)
-        .buttonStyle(.plain)
     }
 }

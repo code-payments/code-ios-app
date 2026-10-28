@@ -19,7 +19,7 @@ struct CurrencyInfoSocialLinksSection: View {
                     switch socialLink {
                     case .website(let url):
                         Link("Website", destination: url)
-                            .buttonStyle(.icon(.globus))
+                            .buttonStyle(.icon(Icon.globe))
                     case .x(let handle):
                         if let url = URL.socialProfile(host: "x.com", handle: handle) {
                             Link(handle, destination: url)

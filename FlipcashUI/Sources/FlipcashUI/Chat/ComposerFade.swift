@@ -48,6 +48,11 @@ final class ComposerFadeView: UIView {
         super.init(frame: .zero)
         isUserInteractionEnabled = false
         addSubview(colorRamp)
+        applyColors()
+    }
+
+    /// Paints the ramp in the conversation background's current colour.
+    func applyColors() {
         let base = UIColor(Color.backgroundMain)
         colorRamp.set(
             colors: ChatFade.stops.map { base.withAlphaComponent($0.opacity) },

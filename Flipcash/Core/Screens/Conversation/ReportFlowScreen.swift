@@ -79,7 +79,8 @@ struct ReportFlowScreen: View {
             case .details:
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: goBackToReasons) {
-                        Image(systemName: "chevron.backward")
+                        Image.icon(.arrowLeft)
+                            .iconSize(22)
                             .foregroundStyle(Color.textMain)
                     }
                     .accessibilityIdentifier("report-nav-back")

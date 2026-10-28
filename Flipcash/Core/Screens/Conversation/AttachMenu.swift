@@ -59,11 +59,12 @@ struct AttachMenu: View {
             }
             panel.animate { $0.toggle() }
         } label: {
-            Image(systemName: SystemSymbol.plus.rawValue)
-                .font(.default(size: 17, weight: .semibold))
-                .foregroundStyle(Color.textMain)
+            Image.icon(.plusLarge)
+                .iconSize(ComposerTuning.plusIconSize) // LOCAL-TUNER
+                .foregroundStyle(ComposerTuning.plusIconColor) // LOCAL-TUNER
                 .frame(width: BarMetrics.accessorySize, height: BarMetrics.accessorySize)
-                .background(AttachSurfaceLayout.plusFill, in: Circle())
+                .background(ComposerTuning.plusStyle == .filled ? ComposerTuning.plusFill : .clear, in: Circle()) // LOCAL-TUNER
+                .overlay(Circle().strokeBorder(ComposerTuning.plusStyle == .outlined ? ComposerTuning.plusFill : .clear, lineWidth: 1.5)) // LOCAL-TUNER
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -149,7 +150,12 @@ struct AttachMenuRows: View {
                 Button {
                     onSelect(item)
                 } label: {
-                    Label(item.title, systemImage: item.systemImage)
+                    Label {
+                        Text(item.title)
+                    } icon: {
+                        Image.icon(item.icon)
+                            .iconSize(22)
+                    }
                         .labelStyle(AttachMenuRowLabelStyle())
                 }
                 .buttonStyle(.plain)
@@ -173,7 +179,6 @@ private struct AttachMenuRowLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 14) {
             configuration.icon
-                .font(.default(size: 19, weight: .medium))
                 .frame(width: Self.iconDiameter, height: Self.iconDiameter)
                 .background(Color.white.opacity(0.08), in: Circle())
             configuration.title
@@ -198,12 +203,12 @@ extension AttachMenuItem {
         }
     }
 
-    /// The row's SF Symbol.
-    var systemImage: String {
+    /// The row's glyph.
+    var icon: Icon {
         switch self {
-        case .cash:     "banknote"
-        case .camera:   "camera"
-        case .photos:   "photo.on.rectangle"
+        case .cash:     .banknote1
+        case .camera:   .camera1
+        case .photos:   .images3
         }
     }
 }

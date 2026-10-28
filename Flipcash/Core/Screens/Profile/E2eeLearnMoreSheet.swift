@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import UIKit
 import FlipcashUI
 
 /// Which chat an encryption notice speaks for: a DM or a private group, which are end-to-end
@@ -26,92 +25,68 @@ struct E2eeLearnMoreSheet: View {
     @Binding var isPresented: Bool
 
     var body: some View {
-        PartialSheet(background: .backgroundMain) {
-            VStack(spacing: 0) {
-                HStack {
-                    Spacer()
-                    CloseButton(style: .glass, binding: $isPresented)
-                }
-
-                Image(systemName: lockSymbol)
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .frame(width: 70, height: 70)
-                    .background(Color.white.opacity(0.08), in: Circle())
-                    .padding(.top, 8)
-
-                Text(title)
-                    .font(.appTextXL)
-                    .foregroundStyle(Color.textMain)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 20)
-
-                // `fixedSize` for the reason ``MuteChatSheet`` gives: `PartialSheet` proposes the
-                // full screen height first, and a short proposal would otherwise truncate the text.
-                Text(message)
-                    .font(.default(size: 15, weight: .medium))
-                    .lineSpacing(3)
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 16)
-
-                VStack(spacing: 16) {
-                    section("ENCRYPTED", items: encrypted, isEncrypted: true)
-                    section("NOT ENCRYPTED", items: notEncrypted, isEncrypted: false)
-                }
-                .padding(.top, 32)
+        Tray(title: title, message: message, icon: icon, actions: actions) {
+            VStack(spacing: E2eeTrayLook.sectionGap) {
+                section("ENCRYPTED", items: encrypted, isEncrypted: true)
+                section("NOT ENCRYPTED", items: notEncrypted, isEncrypted: false)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, bottomPadding)
         }
         .accessibilityIdentifier("e2ee-learn-more-\(kind)")
     }
 
+    /// The lock: Central's for an encrypted chat, the SF open lock for a public group, which
+    /// Central lacks.
+    private var icon: TrayIcon {
+        switch kind {
+        case .dm, .privateGroup: .central(.lock)
+        case .group: .image(Image(systemName: "lock.open"))
+        }
+    }
+
+    private var actions: [TrayAction] {
+        E2eeTrayLook.showsCTA ? [TrayAction("Got It") { isPresented = false }] : []
+    }
+
+    @ViewBuilder
     private func section(_ heading: String, items: [String], isEncrypted: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let list = VStack(alignment: .leading, spacing: 12) {
             Text(heading)
-                .font(.default(size: 11, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .tracking(0.44)
                 .foregroundStyle(Color.white.opacity(0.45))
 
             ForEach(items, id: \.self) { item in
-                HStack(spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
                     bullet(isEncrypted: isEncrypted)
                     Text(item)
-                        .font(.default(size: 15, weight: .medium))
+                        .font(.system(size: 15))
                         .foregroundStyle(Color.white.opacity(0.9))
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
-        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 6))
+
+        switch E2eeTrayLook.sectionStyle {
+        case .card:
+            list
+                .padding(16)
+                .background(
+                    Color.white.opacity(E2eeTrayLook.sectionFillOpacity),
+                    in: .rect(cornerRadius: E2eeTrayLook.sectionRadius, style: .continuous)
+                )
+        case .plain:
+            list
+        }
     }
 
     private func bullet(isEncrypted: Bool) -> some View {
-        Group {
-            if isEncrypted {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.backgroundMain, Color.success)
-            } else {
-                Image(systemName: "minus.circle.fill")
-                    .foregroundStyle(Color.white.opacity(0.7), Color.white.opacity(0.12))
-            }
-        }
-        .symbolRenderingMode(.palette)
-        .font(.system(size: 18, weight: .semibold))
-        .frame(width: 18, height: 18)
-    }
-
-    private var lockSymbol: String {
-        switch kind {
-        case .dm, .privateGroup: "lock.fill"
-        case .group:             "lock.open.fill"
-        }
+        Image.icon(isEncrypted ? .circleCheck : .circleMinus)
+            .iconSize(18)
+            .foregroundStyle(isEncrypted ? Color.success : Color.white.opacity(0.5))
+            // Sits the glyph on the text's first baseline.
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
     }
 
     private var title: String {
@@ -162,17 +137,25 @@ struct E2eeLearnMoreSheet: View {
             ]
         }
     }
-
-    /// The design's 16 under the last section, less what the sheet already holds back for the home
-    /// indicator.
-    private var bottomPadding: CGFloat {
-        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
-        return max(0, 16 - reserved)
-    }
 }
 
 /// The encryption notice pinned under a chat's profile (nodes 10557:1304 and 10557:1643): a lock
 /// and one line, with Learn More opening ``E2eeLearnMoreSheet``.
+/// Figma's Central lock for an encrypted chat; the SF open lock for a public group, which Central lacks.
+private struct E2eeLockGlyph: View {
+    let kind: E2eeNoticeKind
+    let size: CGFloat
+
+    var body: some View {
+        switch kind {
+        case .dm, .privateGroup:
+            Image.icon(.lock).iconSize(size * 1.2)
+        case .group:
+            Image(systemName: "lock.open.fill").font(.system(size: size, weight: .semibold))
+        }
+    }
+}
+
 struct E2eeFooter: View {
 
     let kind: E2eeNoticeKind
@@ -185,8 +168,7 @@ struct E2eeFooter: View {
         } label: {
             VStack(spacing: 4) {
                 HStack(spacing: 5) {
-                    Image(systemName: kind == .group ? "lock.open.fill" : "lock.fill")
-                        .font(.system(size: 12, weight: .semibold))
+                    E2eeLockGlyph(kind: kind, size: 14)
                         .foregroundStyle(Color.white.opacity(0.5))
                     Text(kind == .group ? "Public groups are not end-to-end encrypted" : "Messages are end-to-end encrypted")
                         .font(.default(size: 13, weight: .medium))
@@ -202,8 +184,21 @@ struct E2eeFooter: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("e2ee-footer-\(kind)")
-        .sheet(isPresented: $isShowingSheet) {
+        .tray(isPresented: $isShowingSheet) {
             E2eeLearnMoreSheet(kind: kind, isPresented: $isShowingSheet)
         }
     }
 }
+
+/// The E2EE tray's options while the look is tuned. // LOCAL-TUNER
+@MainActor // LOCAL-TUNER
+enum E2eeTrayLook { // LOCAL-TUNER
+    static var showsCTA: Bool { Tuner.value("Tray E2EE/Got It button", default: true) } // LOCAL-TUNER
+    static var sectionStyle: E2eeSectionStyle { Tuner.value("Tray E2EE/Section style", default: E2eeSectionStyle.card) } // LOCAL-TUNER
+    static var sectionRadius: CGFloat { Tuner.value("Tray E2EE/Section radius", default: 16, in: 0...32, unit: .points) } // LOCAL-TUNER
+    static var sectionFillOpacity: Double { Tuner.value("Tray E2EE/Section fill opacity", default: 0.05, in: 0...0.2) } // LOCAL-TUNER
+    static var sectionGap: CGFloat { Tuner.value("Tray E2EE/Section gap", default: 12, in: 0...32, unit: .points) } // LOCAL-TUNER
+} // LOCAL-TUNER
+
+/// Whether each E2EE list sits on a card. // LOCAL-TUNER
+enum E2eeSectionStyle: TunableEnum { case card, plain } // LOCAL-TUNER

@@ -397,7 +397,7 @@ final class ReactionPillRowView: UIView {
     }
 
     private static let maxLines = 2
-    private static let buttonSize = CGSize(width: 28, height: 28)
+    private static var buttonSize: CGSize { CGSize(width: ChatStyle.pillHeight, height: ChatStyle.pillHeight) }
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {
         guard !isEmpty else { return .zero }
@@ -421,7 +421,7 @@ final class ReactionPillRowView: UIView {
 
     /// The gap between the bubble and the first line of pills — the column's own spacing, which the
     /// column leaves out above this row so an empty row adds nothing.
-    private static let topGap: CGFloat = 4
+    private static var topGap: CGFloat { ChatStyle.pillGap }
 
     @objc private func addTapped() {
         resolveTap(.add)
@@ -496,7 +496,7 @@ struct ReactionRowLayout: Equatable {
     var hiddenCount: Int
     var height: CGFloat
 
-    static let spacing: CGFloat = 6
+    static var spacing: CGFloat { ChatStyle.pillGap }
 
     /// Lays the pills out within `maxLines` lines of `width`, or on as many lines as they need when
     /// `maxLines` is nil. When they don't all fit, as many pills as leave room for the "N more" pill (and
@@ -578,9 +578,9 @@ struct ReactionRowLayout: Equatable {
 /// The "N more" pill standing in for the reactions past the second line; tapping it shows them all.
 private final class ReactionOverflowButton: UIControl {
 
-    private static let height: CGFloat = 28
-    private static let horizontalPadding: CGFloat = 10
-    private static let font = UIFont.default(size: 13, weight: .medium)
+    private static var height: CGFloat { ChatStyle.pillHeight }
+    private static var horizontalPadding: CGFloat { ChatStyle.pillTrailingPadding }
+    private static var font: UIFont { .default(size: ChatStyle.pillCountSize, weight: .semibold) }
 
     private let label = UILabel()
 
@@ -601,11 +601,11 @@ private final class ReactionOverflowButton: UIControl {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = UIColor.white.withAlphaComponent(0.06)
+        backgroundColor = ChatStyle.pillFill
         layer.cornerRadius = Self.height / 2
         clipsToBounds = true
         label.font = Self.font
-        label.textColor = UIColor(Color.textMain)
+        label.textColor = ChatStyle.secondaryText
         label.textAlignment = .center
         addSubview(label)
         isAccessibilityElement = true
@@ -625,15 +625,15 @@ private final class ReactionOverflowButton: UIControl {
     }
 }
 
-/// The trailing "+" that opens the picker: the reaction strip's icon on a glass circle, at pill
-/// height. Built from a glass effect view rather than `UIButton.Configuration.glass()`, whose platter
-/// lays itself out larger than a 28pt frame.
+/// The trailing "+" that opens the picker: the reaction strip's icon at pill height, bare unless
+/// `ChatStyle.addReactionGlass` puts it on a glass circle. Built from a glass effect view rather
+/// than `UIButton.Configuration.glass()`, whose platter lays itself out larger than a 28pt frame.
 private final class ReactionAddButton: UIControl {
 
-    private static let iconSize: CGFloat = 20
+    private static var iconSize: CGFloat { ChatStyle.addReactionIconSize }
 
     private let surface: UIView
-    private let icon = UIImageView(image: .asset(.addReaction))
+    private let icon = UIImageView(image: .icon(.emojiAddReaction))
 
     override init(frame: CGRect) {
         if #available(iOS 26, *) {
@@ -649,6 +649,7 @@ private final class ReactionAddButton: UIControl {
         surface.isUserInteractionEnabled = false
         addSubview(surface)
         icon.contentMode = .scaleAspectFit
+        icon.tintColor = ChatStyle.secondaryText
         addSubview(icon)
         isAccessibilityElement = true
         accessibilityTraits = .button
@@ -664,6 +665,7 @@ private final class ReactionAddButton: UIControl {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        surface.isHidden = !ChatStyle.addReactionGlass
         surface.frame = bounds
         surface.layer.cornerRadius = bounds.height / 2
         icon.frame = CGRect(

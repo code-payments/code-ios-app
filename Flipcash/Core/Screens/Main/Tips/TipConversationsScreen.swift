@@ -10,6 +10,13 @@ import FlipcashUI
 /// The Chats tab: the list of tip conversations — tips sent and received.
 struct TipConversationsScreen: View {
 
+    @Tunable("Chat list/Title style") var titleStyle = ChatListTitleStyle.music // LOCAL-TUNER
+    @Tunable("Chat list/Collapse after", in: 0...120, unit: .points) var collapseDistance: CGFloat = 24 // LOCAL-TUNER
+    @Tunable("Chat list/Large title size", in: 24...44, unit: .points) var largeTitleSize: CGFloat = 34 // LOCAL-TUNER
+    @Tunable("Chat list/Large title offset", in: -80...20, unit: .points) var largeTitleOffset: CGFloat = -53 // LOCAL-TUNER
+    @Tunable("Chat list/Large title leading", in: 0...32, unit: .points) var largeTitleLeading: CGFloat = 16 // LOCAL-TUNER
+    @State private var titleCollapsed = false // LOCAL-TUNER
+
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
@@ -101,6 +108,11 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .onScrollGeometryChange(for: Bool.self) { geometry in // LOCAL-TUNER
+                        geometry.contentOffset.y + geometry.contentInsets.top > (showsChips ? 0 : chipsHeight) + collapseDistance // LOCAL-TUNER
+                    } action: { _, collapsed in // LOCAL-TUNER
+                        withAnimation(.smooth(duration: 0.25)) { titleCollapsed = collapsed } // LOCAL-TUNER
+                    } // LOCAL-TUNER
                     .overlay {
                         // Over the List rather than a row in it, so it centres in the whole
                         // screen and the List keeps the pull that reveals the chips.
@@ -113,12 +125,36 @@ struct TipConversationsScreen: View {
                     }
             }
         }
-        .sheet(item: $muteTarget) { target in
+        // LOCAL-TUNER: the large title is content, not a toolbar item, so a push slides it away with
+        // the page instead of morphing it through the bar's glass.
+        .overlay(alignment: .topLeading) { // LOCAL-TUNER
+            if titleStyle == .music { // LOCAL-TUNER
+                Text("Chat") // LOCAL-TUNER
+                    .font(.system(size: largeTitleSize, weight: .bold)) // LOCAL-TUNER
+                    .foregroundStyle(Color.textMain) // LOCAL-TUNER
+                    .fixedSize() // LOCAL-TUNER
+                    .padding(.leading, largeTitleLeading) // LOCAL-TUNER
+                    .offset(y: largeTitleOffset) // LOCAL-TUNER
+                    .opacity(titleCollapsed ? 0 : 1) // LOCAL-TUNER
+                    .allowsHitTesting(false) // LOCAL-TUNER
+                    .accessibilityAddTraits(.isHeader) // LOCAL-TUNER
+            } // LOCAL-TUNER
+        } // LOCAL-TUNER
+        .tray(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
         }
         .navigationTitle("Chat")
-        .toolbarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(titleStyle.mode) // LOCAL-TUNER
         .toolbar {
+            if titleStyle == .music { // LOCAL-TUNER
+                ToolbarItem(placement: .principal) { // LOCAL-TUNER
+                    Text("Chat") // LOCAL-TUNER
+                        .font(.headline) // LOCAL-TUNER
+                        .foregroundStyle(Color.textMain) // LOCAL-TUNER
+                        .opacity(titleCollapsed ? 1 : 0) // LOCAL-TUNER
+                        .accessibilityHidden(!titleCollapsed) // LOCAL-TUNER
+                } // LOCAL-TUNER
+            } // LOCAL-TUNER
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
             }
@@ -186,13 +222,13 @@ struct TipConversationsScreen: View {
     /// settings screen rather than toggling the mute itself.
     private func muteAction(for conversation: Conversation) -> some View {
         let isMuted = conversation.isMuted(at: .now)
-        let symbol: SystemSymbol = isMuted ? .bell : .bellSlash
+        let icon: Icon = isMuted ? .bell2 : .bell2Off
         return Button {
             muteTarget = MuteTarget(id: conversation.id)
         } label: {
             // A swipe action draws its label white whatever the style says, so the amber has to be
             // baked into the image.
-            Image(uiImage: UIImage(systemName: symbol.rawValue)!
+            Image(uiImage: UIImage.icon(icon)
                 .withTintColor(UIColor(Color.warning), renderingMode: .alwaysOriginal))
         }
         // The mute chip's amber-on-amber, not the delete red: nothing is lost by it.
@@ -207,9 +243,7 @@ struct TipConversationsScreen: View {
             conversationController.archive(conversation.id)
             toasts.show(.archivedChat { conversationController.unarchive(conversation.id) })
         } label: {
-            // Swipe actions fill symbols by default; the shared design uses the outline.
-            Image(systemName: "archivebox")
-                .environment(\.symbolVariants, .none)
+            Image.icon(.archive)
         }
         .tint(.backgroundRow)
         // A swipe action is also a VoiceOver custom action, next to the mute one.
@@ -252,8 +286,8 @@ private struct NewChatButton: View {
         } label: {
             // Bar items get their glass from the system on iOS 26, so this
             // carries no button style of its own.
-            Image.system(.plus)
-                .font(.appTextLarge)
+            Image.icon(.plusLarge)
+                .iconSize(24)
                 .foregroundStyle(Color.textMain)
         }
         .accessibilityLabel("New chat")
@@ -584,3 +618,8 @@ private struct FadingChips<Content: View>: View {
         content.opacity(isShown ? 1 : fade.progress)
     }
 }
+
+enum ChatListTitleStyle: String, TunableEnum { // LOCAL-TUNER
+    case music, large, inlineLarge, inline // LOCAL-TUNER
+    var mode: ToolbarTitleDisplayMode { switch self { case .music, .inline: .inline; case .large: .large; case .inlineLarge: .inlineLarge } } // LOCAL-TUNER
+} // LOCAL-TUNER

@@ -121,8 +121,8 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         singleTap.require(toFail: doubleTap)
         scrollView.addGestureRecognizer(singleTap)
 
-        configure(closeButton, symbol: "xmark", label: "Close", action: #selector(closeTapped))
-        configure(shareButton, symbol: "square.and.arrow.up", label: "Share", action: #selector(shareTapped))
+        configure(closeButton, icon: .crossMedium, label: "Close", action: #selector(closeTapped))
+        configure(shareButton, icon: .shareOs, label: "Share", action: #selector(shareTapped))
 
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -147,8 +147,12 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         loadImage()
     }
 
-    private func configure(_ button: UIButton, symbol: String, label: String, action: Selector) {
-        button.configuration?.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold))
+    private func configure(_ button: UIButton, icon: Icon, label: String, action: Selector) {
+        // Redrawn at the glyph size, since a button configuration draws an asset at its own size.
+        let size = CGSize(width: 22, height: 22)
+        button.configuration?.image = UIGraphicsImageRenderer(size: size)
+            .image { _ in UIImage.icon(icon).draw(in: CGRect(origin: .zero, size: size)) }
+            .withRenderingMode(.alwaysTemplate)
         button.configuration?.baseForegroundColor = .white
         button.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
         button.accessibilityLabel = label

@@ -114,7 +114,7 @@ struct HomeTabBar: View {
                 .scaleEffect(Self.iconSize / ProfileTabIcon.slotSize)
                 .frame(width: Self.iconSize, height: Self.iconSize)
         } else {
-            Image(tab.iconName(isSelected: tab == selection))
+            Image.icon(tab.icon(isSelected: tab == selection))
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()

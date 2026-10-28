@@ -311,6 +311,14 @@ public enum ButtonContent: RawRepresentable {
 extension ButtonContent {
     public enum Symbol: String {
         case chveronLeft = "chevron.left"
+
+        /// The Central icon this key draws.
+        public var icon: Icon {
+            switch self {
+            case .chveronLeft:
+                return .chevronLeftMedium
+            }
+        }
     }
 }
 
@@ -372,7 +380,8 @@ private extension KeyPadView {
                 }
             } label: {
                 if let symbol = content.symbol {
-                    Image(systemName: symbol.rawValue)
+                    Image.icon(symbol.icon)
+                        .iconSize(36)
                 } else {
                     Text(content.rawValue)
                 }
@@ -411,6 +420,8 @@ public enum ButtonAction {
 private struct KeyPadBorderlessStyle: ButtonStyle {
     
     private let size: CGSize
+
+    @Environment(\.keyPadRestFill) private var restFill
     
     init(size: CGSize) {
         self.size = size
@@ -419,12 +430,18 @@ private struct KeyPadBorderlessStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration
             .label
-            .scaleEffect(configuration.isPressed ? 1.5 : 1.0, anchor: .center)
+            .scaleEffect(configuration.isPressed ? Tuner.shared.value("Amount entry/Key pressed scale", default: CGFloat(1.35), in: 1...2) : 1.0, anchor: .center) // LOCAL-TUNER
             .frame(width: size.width, height: size.height) // FIXME: Invalid size here sometimes
-            .background(configuration.isPressed ? Color.white.opacity(0.1) : Color.backgroundMain.opacity(0.1))
-            .foregroundStyle(configuration.isPressed ? Color.white.opacity(0.9) : .white)
+            .background(configuration.isPressed ? Color.white.opacity(0.1) : restFill)
+            .foregroundStyle(Color.white.opacity(configuration.isPressed ? Tuner.shared.value("Amount entry/Key pressed opacity", default: 1.0, in: 0...1) : Tuner.shared.value("Amount entry/Key rest opacity", default: 0.8, in: 0...1))) // LOCAL-TUNER
             .clipShape(.rect(cornerRadius: 5))
     }
+}
+
+extension EnvironmentValues {
+    /// A key's fill at rest: a tint that disappears on the screen's background, or clear on a
+    /// lighter surface such as a tray, where the tint would show.
+    @Entry var keyPadRestFill: Color = Color.backgroundMain.opacity(0.1)
 }
 
 // MARK: - Previews -

@@ -16,15 +16,6 @@ struct SettingsSectionHeader: View {
     }
 
     var body: some View {
-        HStack {
-            Text(title)
-                .textCase(.uppercase)
-                .font(.appTextHeading)
-                .foregroundStyle(.textSecondary)
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 8)
+        ListSectionTitle(title)
     }
 }

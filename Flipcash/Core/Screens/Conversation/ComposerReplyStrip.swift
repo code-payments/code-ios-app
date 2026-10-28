@@ -73,18 +73,10 @@ struct ComposerReplyStrip: View {
 
             thumbnail
 
-            // A disc rather than a bare ✕, because the ground behind it is glass sampling the
-            // transcript: a hairline glyph's contrast changed with whatever message scrolled past.
-            // The fill gives it its own ground and takes that variable out.
             Button(action: onDismiss) {
-                Image(systemName: SystemSymbol.closeCircle.rawValue)
-                    // `.system`, not the app face: an SF Symbol only takes its optical axes from a
-                    // system font.
-                    .font(.system(size: 22))
-                    // Palette, not monochrome. A monochrome fill knocks the ✕ out as a hole, which
-                    // over glass fills with the transcript — the thing the disc is here to stop.
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(Color.textMain, Color.textSecondary.opacity(0.35))
+                Image.icon(.circleXFilled)
+                    .iconSize(28)
+                    .foregroundStyle(Color.textMain)
                     // Wider than the disc: the glyph is small enough to miss on its own.
                     .frame(width: 34, height: 34)
                     .contentShape(.rect)

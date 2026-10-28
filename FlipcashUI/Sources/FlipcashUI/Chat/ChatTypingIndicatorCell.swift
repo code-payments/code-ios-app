@@ -37,7 +37,7 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
 
     // Android's `TypingIndicator`: the transcript's 24pt sender avatar, overlapping by 8, with a 4pt
     // gap to the bubble and a 2pt ring cut out of each avatar beneath another.
-    private static let avatarSize = ChatAuthorAvatarView.size
+    private static var avatarSize: CGFloat { ChatAuthorAvatarView.size } // LOCAL-TUNER
     private static let avatarOverlap: CGFloat = 8
     private static let avatarGap: CGFloat = 4
     private static let avatarRing: CGFloat = 2

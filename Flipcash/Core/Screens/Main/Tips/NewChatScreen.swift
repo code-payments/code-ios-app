@@ -33,7 +33,7 @@ struct NewChatScreen: View {
                 }
 
                 ChatActionRow(
-                    icon: .asset(.lock),
+                    icon: .icon(.lock),
                     title: "Create a Private Group",
                     accessibilityIdentifier: "new-chat-private-group"
                 ) {

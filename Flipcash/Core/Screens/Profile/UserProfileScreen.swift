@@ -216,7 +216,7 @@ private struct UserProfileContent: View {
             }
         }
         .dialog(item: $dialogItem)
-        .sheet(isPresented: $isPickingMuteDuration) {
+        .tray(isPresented: $isPickingMuteDuration) {
             if let dmID {
                 MuteChatSheet(conversationID: dmID, isPresented: $isPickingMuteDuration)
             }
@@ -304,7 +304,7 @@ private struct UserProfileContent: View {
     }
 
     private var shareButton: some View {
-        ProfileActionCircle(image: Image.asset(.shareOS)) {
+        ProfileActionCircle(image: Image.icon(.shareOs)) {
             isShowingShare = true
         }
         .accessibilityLabel("Share profile")

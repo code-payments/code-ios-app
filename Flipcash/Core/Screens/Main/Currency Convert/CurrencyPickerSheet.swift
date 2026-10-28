@@ -76,8 +76,8 @@ struct CurrencyPickerSheet: View {
             Spacer()
 
             if balance.stored.mint == selectedMint {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 14, weight: .semibold))
+                Image.icon(.checkmark1)
+                    .iconSize(18)
                     .foregroundStyle(Color.textMain)
             }
 

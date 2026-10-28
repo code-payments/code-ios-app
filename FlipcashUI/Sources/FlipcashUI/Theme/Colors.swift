@@ -35,7 +35,7 @@ extension ShapeStyle where Self == Color {
     public static var bannerInfo: Color                  { Color("backgroundSecondary") }
     public static var bannerSuccess: Color               { Color("backgroundSecondary") }
 
-    public static var backgroundMain: Color              { Color("background") }
+    public static var backgroundMain: Color              { Tuner.value("App/Background", default: Color(r: 0, g: 0, b: 0)) } // LOCAL-TUNER
     public static var backgroundSecondary: Color         { Color("backgroundSecondary") }
     public static var backgroundRow: Color               { Color.white.opacity(0.05) }
     public static var rowSeparator: Color                { Color.white.opacity(0.1) }

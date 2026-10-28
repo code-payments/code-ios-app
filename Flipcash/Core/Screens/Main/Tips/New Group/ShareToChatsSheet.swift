@@ -301,7 +301,7 @@ struct ShareToChatsSheet: View {
             if card != nil {
                 ShareTile(title: "Show Profile Card") {
                     // The Scan tab's outline glyph: the card is what the scanner reads.
-                    Image(HomeTab.scan.iconName(isSelected: false))
+                    Image.icon(HomeTab.scan.icon(isSelected: false))
                         .renderingMode(.template)
                         .resizable()
                         .scaledToFit()

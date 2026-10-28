@@ -324,12 +324,14 @@ private extension AppDelegate {
 
     func setupAppearance() {
         let largeAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.appDisplayLarge,
+            // Apple's own large title: Large Title, 34 pt bold, following Dynamic Type.
+            .font: UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .largeTitle).pointSize, weight: .bold),
             .foregroundColor: UIColor(.textMain),
         ]
 
         let titleAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.appTitle,
+            // Apple's own inline title: Headline, 17 pt semibold, following Dynamic Type.
+            .font: UIFont.preferredFont(forTextStyle: .headline),
             .foregroundColor: UIColor(.textMain),
         ]
 
@@ -342,6 +344,7 @@ private extension AppDelegate {
         buttonAppearance.normal.titleTextAttributes = buttonAttributes
 
         let bar = UINavigationBar.appearance()
+        let backArrow = Self.backIndicator()
 
         bar.largeTitleTextAttributes = largeAttributes
         bar.titleTextAttributes = titleAttributes
@@ -358,6 +361,7 @@ private extension AppDelegate {
             barAppearance.configureWithDefaultBackground()
             barAppearance.titleTextAttributes = titleAttributes
             barAppearance.largeTitleTextAttributes = largeAttributes
+            barAppearance.setBackIndicatorImage(backArrow, transitionMaskImage: backArrow)
 
             bar.standardAppearance = barAppearance
             bar.scrollEdgeAppearance = barAppearance
@@ -371,6 +375,7 @@ private extension AppDelegate {
             barAppearance.titleTextAttributes = titleAttributes
             barAppearance.largeTitleTextAttributes = largeAttributes
             barAppearance.backButtonAppearance = buttonAppearance
+            barAppearance.setBackIndicatorImage(backArrow, transitionMaskImage: backArrow)
 
             bar.standardAppearance = barAppearance
             bar.scrollEdgeAppearance = barAppearance
@@ -380,6 +385,16 @@ private extension AppDelegate {
             bar.shadowImage = background
         }
 
+    }
+
+    /// The navigation back glyph: Central's left arrow at the 22 pt the app's own back buttons use.
+    static func backIndicator() -> UIImage {
+        let size = CGSize(width: 22, height: 22)
+        let arrow = UIImage.icon(.arrowLeft)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            arrow.draw(in: CGRect(origin: .zero, size: size))
+        }
+        .withRenderingMode(.alwaysTemplate)
     }
 }
 
