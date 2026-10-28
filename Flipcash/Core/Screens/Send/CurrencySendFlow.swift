@@ -187,8 +187,9 @@ private struct CurrencySelectRecipientScreen: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 searchField
             }
-            // Always on screen, empty list or not.
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Always on screen, empty list or not. A scroll edge bar, so the rows fade out under
+            // the button as they do under the Invite People list's composer.
+            .scrollEdgeBar(.bottom) {
                 CodeButton(style: .filledSecondary, title: "Or Give As Cash") {
                     giveAsCash()
                 }
