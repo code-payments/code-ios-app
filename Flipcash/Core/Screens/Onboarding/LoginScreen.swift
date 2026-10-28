@@ -137,7 +137,7 @@ struct LoginScreen: View {
             buttonState = .success
             
             try await Task.delay(milliseconds: 500)
-            sessionAuthenticator.completeLogin(with: initializedAccount)
+            sessionAuthenticator.beginOnboarding(with: initializedAccount)
         } catch {
             try await Task.delay(milliseconds: 500)
             buttonState = .normal

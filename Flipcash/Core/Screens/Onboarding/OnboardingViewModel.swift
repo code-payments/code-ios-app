@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import UserNotifications
 
 @Observable
 class OnboardingViewModel {
@@ -24,15 +25,46 @@ class OnboardingViewModel {
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
     @ObservationIgnored private var initializedAccount: InitializedAccount?
 
+    /// True once ``resumeOnboarding(with:)`` has taken over: the flow was entered from a launch
+    /// or an interactive login rather than from "Create a New Account".
+    private(set) var isResumedFlow = false
+
+    /// True from ``resumeOnboarding(with:)`` until its first step replaces the path, so that
+    /// step becomes the stack's first screen instead of stacking over the intro or login.
+    @ObservationIgnored private var awaitingResumedRoot = false
+    @ObservationIgnored private var resumedOwner: PublicKey?
+    @ObservationIgnored private let pushStatus: () async -> UNAuthorizationStatus
+    @ObservationIgnored private let hasDisplayName: (InitializedAccount) async -> Bool
+    @ObservationIgnored private let finishLogin: (InitializedAccount) -> Void
+
     /// Built on first call to ``navigateToDisplayName``; the display-name step
     /// runs pre-login, so it owns its submission against the in-flight owner.
     var nameViewModel: OnboardingNameViewModel?
 
     // MARK: - Init -
 
-    init(container: Container) {
+    /// The closures are seams for tests; the defaults read the real notification status and
+    /// profile, and open the session.
+    ///
+    /// - Parameters:
+    ///   - pushStatus: the current notification authorization.
+    ///   - hasDisplayName: whether the account's profile already has a display name.
+    ///   - finishLogin: opens the session once onboarding is done.
+    init(
+        container: Container,
+        pushStatus: @escaping () async -> UNAuthorizationStatus = { await PushController.fetchStatus() },
+        hasDisplayName: ((InitializedAccount) async -> Bool)? = nil,
+        finishLogin: ((InitializedAccount) -> Void)? = nil
+    ) {
         self.container            = container
         self.sessionAuthenticator = container.sessionAuthenticator
+        self.pushStatus           = pushStatus
+        self.hasDisplayName       = hasDisplayName ?? { [flipClient = container.flipClient, accountManager = container.accountManager] account in
+            await Self.lookUpDisplayName(for: account, flipClient: flipClient, accountManager: accountManager)
+        }
+        self.finishLogin          = finishLogin ?? { [authenticator = container.sessionAuthenticator] account in
+            authenticator.completeLogin(with: account)
+        }
     }
 
     // MARK: - Action -
@@ -133,7 +165,7 @@ class OnboardingViewModel {
     /// undetermined, otherwise finishes login. Contacts access is requested
     /// later, in-app.
     private func advanceFromNameStep() async {
-        let pushStatus = await PushController.fetchStatus()
+        let pushStatus = await pushStatus()
         switch pushStatus {
         case .notDetermined:
             navigateToPushNotifications()
@@ -160,7 +192,7 @@ class OnboardingViewModel {
                 )
 
                 try await Task.delay(milliseconds: 500)
-                sessionAuthenticator.completeLogin(with: initializedAccount)
+                sessionAuthenticator.beginOnboarding(with: initializedAccount)
             } catch {
                 // Login failed silently
             }
@@ -238,9 +270,58 @@ class OnboardingViewModel {
             return
         }
 
-        sessionAuthenticator.completeLogin(with: initializedAccount)
+        OnboardingProgress.setCompleted(true, owner: initializedAccount.keyAccount.ownerPublicKey)
+        finishLogin(initializedAccount)
 
         Analytics.onboardingCompleted()
+    }
+
+    // MARK: - Resume -
+
+    /// Runs the onboarding steps still owed by an account that is already signed in: a launch
+    /// after a kill mid-onboarding, or an interactive login (seed entry, account picker, deep
+    /// link). Asks for a display name only when the profile has none, then applies the same
+    /// push rule as a new account, so already-decided permissions finish straight away.
+    func resumeOnboarding(with account: InitializedAccount) async {
+        // The task that calls this restarts when the intro swaps for the stack; one run is enough.
+        guard resumedOwner != account.keyAccount.ownerPublicKey else { return }
+        resumedOwner = account.keyAccount.ownerPublicKey
+        initializedAccount = account
+        nameViewModel = nil
+        isResumedFlow = true
+        awaitingResumedRoot = true
+
+        guard !(await hasDisplayName(account)) else {
+            await advanceFromNameStep()
+            return
+        }
+
+        navigateToDisplayName(owner: account.keyAccount.owner)
+    }
+
+    /// Longest the resume screen waits on the profile before treating it as unreadable.
+    private static let profileLookupTimeout: Double = 5
+
+    private static func lookUpDisplayName(
+        for account: InitializedAccount,
+        flipClient: FlipClient,
+        accountManager: AccountManager
+    ) async -> Bool {
+        do {
+            let profile = try await withTimeout(seconds: profileLookupTimeout) {
+                try await flipClient.fetchProfile(userID: account.userID, owner: account.keyAccount.owner)
+            }
+            accountManager.cacheProfile(profile, ownerPublicKey: account.keyAccount.ownerPublicKey)
+            return profile.displayName?.isEmpty == false
+        } catch {
+            // Unreadable profile: trust a name cached on the account's keychain entry, and
+            // otherwise treat the name as missing. Matches Android (a null profile counts as
+            // no display name), and every account needs a name for tips and chat.
+            let cached = accountManager.fetchHistorical()
+                .first { $0.account.ownerPublicKey == account.keyAccount.ownerPublicKey }?
+                .displayName
+            return cached?.isEmpty == false
+        }
     }
 
     // MARK: - Navigation -
@@ -261,18 +342,39 @@ class OnboardingViewModel {
         path = [.accessKey]
     }
 
+    /// Whether `step` hides its back button, which also turns off swipe-back.
+    ///
+    /// A new account hides it on the access key and name steps only. A resumed flow also hides
+    /// it on its first screen so it can't back out to the intro or login; a later push step may
+    /// return to the name step only when the name step is in this flow's path.
+    func hidesBackButton(for step: OnboardingPath) -> Bool {
+        guard isResumedFlow else {
+            return step == .accessKey || step == .displayName
+        }
+        return step == .displayName || path.first == step
+    }
+
+    private func place(_ step: OnboardingPath) {
+        if awaitingResumedRoot {
+            awaitingResumedRoot = false
+            path = [step]
+        } else {
+            path.append(step)
+        }
+    }
+
     func navigateToPushNotifications() {
-        path.append(.pushNotifications)
+        place(.pushNotifications)
     }
 
     func navigateToPushNotificationsDenied() {
         path.append(.pushNotificationsDenied)
     }
 
-    func navigateToDisplayName() {
+    func navigateToDisplayName(owner: KeyPair? = nil) {
         if nameViewModel == nil {
             let vm = OnboardingNameViewModel(
-                owner: inflightMnemonic.solanaKeyPair(),
+                owner: owner ?? inflightMnemonic.solanaKeyPair(),
                 flipClient: container.flipClient,
             )
             vm.onComplete = { [weak self] in
@@ -280,7 +382,7 @@ class OnboardingViewModel {
             }
             nameViewModel = vm
         }
-        path.append(.displayName)
+        place(.displayName)
     }
 
 }
@@ -295,4 +397,42 @@ nonisolated enum OnboardingPath {
     case displayName
     case pushNotifications
     case pushNotificationsDenied
+}
+
+private struct LookupTimedOut: Error {}
+
+/// Runs `operation`, throwing ``LookupTimedOut`` if it hasn't finished within `seconds`.
+///
+/// Races two unstructured tasks rather than a task group: a group waits for every child, and a
+/// gRPC call that ignores cancellation would hold the caller past the deadline.
+private func withTimeout<T: Sendable>(seconds: Double, _ operation: @escaping @Sendable () async throws -> T) async throws -> T {
+    let gate = OnceGate()
+    return try await withCheckedThrowingContinuation { continuation in
+        Task {
+            do {
+                let value = try await operation()
+                if gate.claim() { continuation.resume(returning: value) }
+            } catch {
+                if gate.claim() { continuation.resume(throwing: error) }
+            }
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            if gate.claim() { continuation.resume(throwing: LookupTimedOut()) }
+        }
+    }
+}
+
+private final class OnceGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed = false
+
+    /// True for the first caller only.
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if claimed { return false }
+        claimed = true
+        return true
+    }
 }

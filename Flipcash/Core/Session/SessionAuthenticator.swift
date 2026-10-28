@@ -30,6 +30,10 @@ final class SessionAuthenticator {
     /// Whether the user has been unlocked (biometrics/passcode verified).
     private(set) var isUnlocked: Bool = false
 
+    /// An account that is signed in but has not finished onboarding. The logged-out
+    /// screen picks it up and runs the remaining steps before calling ``completeLogin``.
+    private(set) var pendingOnboarding: InitializedAccount?
+
     /// The top-level authentication state driving the view hierarchy.
     private(set) var state: AuthenticationState = .migrating
 
@@ -85,7 +89,8 @@ final class SessionAuthenticator {
 
         // Update launch state.
         // This is a fresh install.
-        if UserDefaults.launchCount == nil {
+        let isFreshInstall = UserDefaults.launchCount == nil
+        if isFreshInstall {
             logger.debug("First launch...")
         }
 
@@ -109,12 +114,7 @@ final class SessionAuthenticator {
         SharedKeychainMigration.migrateOwnerKeyIfNeeded()
 
         initializeState { userAccount in
-            let initializedAccount = InitializedAccount(
-                keyAccount: userAccount.keyAccount,
-                userID: userAccount.userID
-            )
-
-            self.completeLogin(with: initializedAccount)
+            self.resolveLaunch(of: userAccount, isFreshInstall: isFreshInstall)
         } didFindRecentAccount: { [weak self] description in
             guard let self else { return }
 
@@ -143,7 +143,7 @@ final class SessionAuthenticator {
             // launch backfills the ID and this branch stops being reached.
             Task {
                 do {
-                    let account = try await self.initialize(using: description.account.mnemonic, isRegistration: false)
+                    let account = try await self.initialize(using: description.account.mnemonic, isRegistration: false, interactive: false)
                     self.completeLogin(with: account)
                     Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
                 } catch {
@@ -153,6 +153,31 @@ final class SessionAuthenticator {
         }
     }
     
+    /// Launch with a current account: goes home, or holds the account in ``pendingOnboarding``
+    /// when the app was killed before its onboarding finished.
+    private func resolveLaunch(of userAccount: UserAccount, isFreshInstall: Bool) {
+        let account = InitializedAccount(
+            keyAccount: userAccount.keyAccount,
+            userID: userAccount.userID
+        )
+
+        switch OnboardingProgress.launchRoute(for: userAccount.keyAccount.ownerPublicKey, isFreshInstall: isFreshInstall) {
+        case .home:
+            completeLogin(with: account)
+        case .resumeOnboarding:
+            logger.info("Resuming onboarding", metadata: ["owner": "\(account.keyAccount.ownerPublicKey)"])
+            pendingOnboarding = account
+            state = .loggedOut
+        }
+    }
+
+    /// Hands a freshly authenticated account to the onboarding flow instead of opening the
+    /// session, so permissions and the display name are checked before home.
+    func beginOnboarding(with initializedAccount: InitializedAccount) {
+        pendingOnboarding = initializedAccount
+        state = .loggedOut
+    }
+
     private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (AccountDescription) -> Void) {
         logger.info("initializeState called", metadata: ["count": "\(count)"])
         
@@ -368,14 +393,21 @@ final class SessionAuthenticator {
     
     // MARK: - Login -
     
-    func initialize(using mnemonic: MnemonicPhrase, isRegistration: Bool) async throws -> InitializedAccount {
+    /// Registers or logs in. `interactive` is true when the user just asked for this login
+    /// (seed entry, account picker, deep link) and false for a silent relaunch; interactive
+    /// logins and registrations reopen the account's onboarding marker.
+    func initialize(using mnemonic: MnemonicPhrase, isRegistration: Bool, interactive: Bool = true) async throws -> InitializedAccount {
         loginButtonState = .loading
         defer {
             loginButtonState = .normal
         }
 
         do {
-            return try await authenticate(using: mnemonic, isRegistration: isRegistration)
+            return try await authenticate(
+                using: mnemonic,
+                isRegistration: isRegistration,
+                marksOnboardingIncomplete: isRegistration || interactive
+            )
         } catch {
             ErrorReporting.captureError(
                 error,
@@ -388,7 +420,11 @@ final class SessionAuthenticator {
     /// Registers or logs the owner in and makes sure its accounts exist, without touching
     /// ``loginButtonState`` or reporting the failure. ``initialize`` adds both for a login
     /// the user is watching; ``refreshRecentAccount`` wants neither.
-    private func authenticate(using mnemonic: MnemonicPhrase, isRegistration: Bool) async throws -> InitializedAccount {
+    ///
+    /// - Parameter marksOnboardingIncomplete: writes the account's onboarding marker as `false`
+    ///   before the account becomes current, so a kill between the two relaunches into onboarding
+    ///   instead of home. Written after instead, that window skips onboarding for good.
+    private func authenticate(using mnemonic: MnemonicPhrase, isRegistration: Bool, marksOnboardingIncomplete: Bool) async throws -> InitializedAccount {
         let derivedKey: DerivedKey = .derive(
             using: .primary(),
             mnemonic: mnemonic
@@ -424,6 +460,10 @@ final class SessionAuthenticator {
             derivationIndex: 0
         )
 
+        if marksOnboardingIncomplete {
+            OnboardingProgress.setCompleted(false, owner: keyAccount.ownerPublicKey)
+        }
+
         accountManager.set(
             keyAccount: keyAccount,
             userID: userID
@@ -446,7 +486,7 @@ final class SessionAuthenticator {
     /// request; here that case is a warning and the next launch tries again.
     private func refreshRecentAccount(_ keyAccount: KeyAccount) async {
         do {
-            _ = try await authenticate(using: keyAccount.mnemonic, isRegistration: false)
+            _ = try await authenticate(using: keyAccount.mnemonic, isRegistration: false, marksOnboardingIncomplete: false)
         } catch ErrorLoginAccount.denied {
             logger.error(
                 "Login denied for a stored account, logging out",
@@ -470,6 +510,7 @@ final class SessionAuthenticator {
             initializedAccount: initializedAccount
         )
         
+        pendingOnboarding = nil
         state = .loggedIn(session)
         session.quickActionsController.configure()
         UserDefaults.wasLoggedIn = true
@@ -497,7 +538,7 @@ final class SessionAuthenticator {
             logout()
             try await Task.delay(seconds: 1)
         
-            completeLogin(
+            beginOnboarding(
                 with: try await initialize(
                     using: mnemonic,
                     isRegistration: false
@@ -539,6 +580,7 @@ final class SessionAuthenticator {
         // another account's Coinbase orders.
         CoinbaseOrderEmail.unverifiedEmail = nil
 
+        pendingOnboarding = nil
         state = .loggedOut
         requiresForceLogout = false
         UserDefaults.wasLoggedIn = false
@@ -1048,7 +1090,7 @@ struct InitializedAccount {
     let owner: AccountCluster
     let userID: UserID
     
-    fileprivate init(keyAccount: KeyAccount, userID: UserID) {
+    init(keyAccount: KeyAccount, userID: UserID) {
         self.keyAccount = keyAccount
         self.owner = .init(
             authority: .derive(using: .primary(), mnemonic: keyAccount.mnemonic),
