@@ -30,17 +30,7 @@ final class PaymentRequestPayment {
         case nothingToPay
         /// The request stopped accepting payments; "Request Closed" was shown.
         case closed
-        /// The picked token can't cover the share; the insufficient-funds dialog was shown.
-        case insufficientFunds
         case failed
-    }
-
-    /// Whether the picked token covers the viewer's share.
-    enum Affordability: Equatable {
-        case sufficient
-        case insufficient
-        /// No share, rate or balance to measure against; the swipe's own check decides.
-        case unknown
     }
 
     let requestID: PaymentRequestID
@@ -105,24 +95,7 @@ final class PaymentRequestPayment {
             showRequestClosed()
             return .closed
         }
-        guard intentID != nil && share != nil else { return .nothingToPay }
-        // Checked before the swipe sheet opens, so a short balance never gets as far as a swipe.
-        if await affordability() == .insufficient { return .insufficientFunds }
-        return .ready
-    }
-
-    /// Whether the picked token covers the share. Shows the insufficient-funds dialog when it doesn't.
-    func affordability() async -> Affordability {
-        guard let request, let share, let selectedBalance,
-              let fiat = shareFiat(share, of: request),
-              let priced = await price(fiat, mint: selectedBalance.stored.mint) else { return .unknown }
-        switch session.hasSufficientFunds(for: priced.amount) {
-        case .sufficient:
-            return .sufficient
-        case .insufficient(let shortfall):
-            showInsufficientFunds(shortfall: shortfall)
-            return .insufficient
-        }
+        return intentID != nil && share != nil ? .ready : .nothingToPay
     }
 
     /// The share in the request's currency, nil when the request's currency or amount can't be read.
@@ -144,7 +117,7 @@ final class PaymentRequestPayment {
         if needsRefetch {
             switch await prepare() {
             case .ready: break
-            case .nothingToPay, .closed, .insufficientFunds, .failed: return .failed
+            case .nothingToPay, .closed, .failed: return .failed
             }
         }
         guard let request, let share, let creator = request.creator,
