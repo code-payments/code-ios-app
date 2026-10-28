@@ -42,7 +42,8 @@ struct Regression_6ace7ba {
             selfUserID: selfUserID,
             resolveKey: { _ in throw ErrorGetKeyEnvelope.notFound },
             setEnvelope: { _, _ in },
-            getEnvelope: { _ in (envelope, nil) }
+            getEnvelope: { _ in .own(envelope: envelope, wrappedBy: nil) },
+            opensInviteBundles: false
         )
 
         let seal = try #require(try await keyring.sealForSending(in: privateGroup()))
