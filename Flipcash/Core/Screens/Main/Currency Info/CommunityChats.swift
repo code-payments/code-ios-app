@@ -59,26 +59,28 @@ struct CommunityChatRow: View {
                     displayName: chat.title ?? "",
                     imageData: sessionContainer.profileAvatars.data(for: .chat(chat.id)),
                     blurhash: chat.picture?.thumbnailBlurhash,
-                    size: 40
+                    size: 42
                 )
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(chat.title ?? "")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                     Text(subtitle)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
+                        .font(.default(size: 12, weight: .regular))
+                        .foregroundStyle(Color.white.opacity(0.55))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.white.opacity(0.55))
+                    .frame(width: 16, height: 16)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            .frame(height: 67)
             .background(RoundedRectangle(cornerRadius: 12).fill(Color.backgroundRow))
             .contentShape(RoundedRectangle(cornerRadius: 12))
         }
@@ -102,23 +104,24 @@ struct CommunityChatsSection: View {
 
     var body: some View {
         if !chats.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 6) {
                     Text("Top Community Chats")
-                        .font(.appTextLarge)
+                        .font(.default(size: 19, weight: .bold))
                         .foregroundStyle(Color.textMain)
                     Button(action: onInfo) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 14))
-                            .foregroundStyle(Color.textSecondary)
+                            .foregroundStyle(Color.white.opacity(0.55))
                     }
                     .accessibilityLabel("How chats are ranked")
                     Spacer(minLength: 0)
                     Button("View All", action: onViewAll)
-                        .font(.appTextSmall)
+                        .font(.default(size: 13, weight: .medium))
                         .foregroundStyle(Color.textMain)
                 }
-                VStack(spacing: 8) {
+                .frame(minHeight: 28)
+                VStack(spacing: 10) {
                     ForEach(CommunityChats.preview(chats), id: \.id) { chat in
                         CommunityChatRow(chat: chat, subtitle: subtitle(chat)) { onSelect(chat) }
                     }
@@ -138,7 +141,7 @@ struct TopCommunityChatsScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             ScrollView {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 10) {
                     ForEach(chats, id: \.id) { chat in
                         CommunityChatRow(chat: chat, subtitle: subtitle(chat)) { onSelect(chat) }
                     }

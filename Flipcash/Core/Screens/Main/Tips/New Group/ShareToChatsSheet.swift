@@ -362,7 +362,7 @@ struct ShareToChatsSheet: View {
 
     private var sectionHeader: some View {
         Text("Recent Chats")
-            .font(.appTextSmall)
+            .font(.default(size: 14, weight: .bold))
             .foregroundStyle(Color.textMain.opacity(0.5))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 16)
@@ -490,13 +490,12 @@ private struct ShareTile<Icon: View>: View {
                 icon()
                     .frame(width: 28, height: 28)
                 Text(title)
-                    .font(.appTextSmall)
+                    .font(.default(size: 14, weight: .bold))
                     .opacity(0.5)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .foregroundStyle(Color.textMain)
-            .padding(.vertical, 16)
             .padding(.horizontal, 8)
             // Fills the row's height, so a tile whose title wraps doesn't stand taller than the rest.
             .frame(maxWidth: .infinity, minHeight: 95, maxHeight: .infinity)
@@ -559,9 +558,17 @@ private struct InviteChatRow: View {
 
                     Spacer(minLength: 12)
 
-                    RadioButton(isSelected: isSelected)
+                    if isSelected {
+                        RadioButton(isSelected: true)
+                    } else {
+                        // The design's unselected ring: 2pt at 20% white, where RadioButton draws 1pt white.
+                        Circle()
+                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 2)
+                            .frame(width: 24, height: 24)
+                            .accessibilityHidden(true)
+                    }
                 }
-                .padding(.vertical, 16)
+                .frame(height: 52)
                 .overlay(alignment: .bottom) {
                     Rectangle()
                         .fill(Color.rowSeparator)

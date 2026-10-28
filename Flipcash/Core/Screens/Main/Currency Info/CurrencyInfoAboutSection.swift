@@ -15,14 +15,14 @@ struct CurrencyInfoAboutSection: View {
     let socialLinks: [SocialLink]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             Text("About")
                 .font(.appTextLarge)
                 .foregroundStyle(Color.textMain)
 
             ExpandableText(description)
-                .foregroundStyle(Color.textSecondary)
-                .font(.appTextSmall)
+                .foregroundStyle(Color.white.opacity(0.55))
+                .font(.default(size: 14, weight: .regular))
 
             if !socialLinks.isEmpty {
                 CurrencyInfoSocialLinksSection(socialLinks: socialLinks)

@@ -181,9 +181,9 @@ struct CurrencyInfoContentV2: View {
                 }
 
                 if !isUSDF, let createdAt = metadata.createdAt {
-                    Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))".uppercased())
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
+                    Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.default(size: 12, weight: .regular))
+                        .foregroundStyle(Color.white.opacity(0.55))
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 8)
                         .padding(.horizontal, 20)
@@ -295,7 +295,7 @@ struct CurrencyInfoContentV2: View {
     }
 
     @ViewBuilder private var actionTiles: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             ForEach(CurrencyInfoActions.tiles(isOwned: isOwned, isUSDF: isUSDF), id: \.self) { tile in
                 switch tile {
                 case .send:
@@ -320,9 +320,9 @@ struct CurrencyInfoContentV2: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 tileIcon(icon)
-                    .frame(height: 28)
+                    .frame(height: 24)
                 // 12pt medium, as drawn: "Transactions" fits its tile with room either side.
                 Text(title)
                     .font(.default(size: 12, weight: .medium))
@@ -331,8 +331,8 @@ struct CurrencyInfoContentV2: View {
             .foregroundStyle(Color.textMain)
             .frame(maxWidth: .infinity)
             .frame(height: 88)
-            .background(Color.white.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -343,7 +343,7 @@ struct CurrencyInfoContentV2: View {
         switch icon {
         case .system(let name):
             Image(systemName: name)
-                .font(.system(size: 22, weight: .regular))
+                .font(.system(size: 24, weight: .regular))
         case .asset(let name):
             // Figma exports these glyphs at 24×24 (template-rendered, so they
             // tint with the tile's foreground).

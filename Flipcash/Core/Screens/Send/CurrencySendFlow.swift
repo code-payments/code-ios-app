@@ -176,12 +176,17 @@ private struct CurrencySelectRecipientScreen: View {
                     row(chat)
                         .listRowBackground(Color.clear)
                         .listRowSeparatorTint(.rowSeparator)
+                        // The divider sits under each row; the first row has none above it.
+                        .listRowSeparator(.hidden, edges: .top)
                         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                searchField
+            }
             // Always on screen, empty list or not.
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 CodeButton(style: .filledSecondary, title: "Or Give As Cash") {
@@ -192,7 +197,6 @@ private struct CurrencySelectRecipientScreen: View {
         }
         .navigationTitle("Select Recipient")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
         .sheet(item: $confirming, onDismiss: {
             // After the dismiss animation: nothing on the stack moves while the sheet is up.
             if handoff.sheetDidDismiss() { leaveFlow() }
@@ -204,13 +208,40 @@ private struct CurrencySelectRecipientScreen: View {
         }
     }
 
+    /// 46pt tall, as drawn; the system search field sits at 44 and can't be sized.
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.white.opacity(0.5))
+            TextField(
+                "",
+                text: $query,
+                prompt: Text("Search")
+                    .font(.default(size: 17, weight: .regular))
+                    .foregroundStyle(Color.white.opacity(0.5))
+            )
+            .font(.default(size: 17, weight: .regular))
+            .foregroundStyle(Color.textMain)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .submitLabel(.search)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 46)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08)))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
+        .accessibilityIdentifier("currency-send-search")
+    }
+
     @ViewBuilder
     private func row(_ chat: Conversation) -> some View {
         let counterpart = chat.counterpart(excluding: conversationController.selfUserID)
         let name = conversationController.displayName(for: chat)
         let subject: ProfileAvatarStore.AvatarSubject = counterpart?.userID.map { .user($0) } ?? .chat(chat.id)
 
-        // Compact, per the design: a 24pt avatar and a 17pt demi-bold name, 48pt tall. The chat list's
+        // Compact, per the design: a 24pt avatar and a 17pt demi-bold name, 52pt tall. The chat list's
         // row is 44pt of avatar and a bold 16pt title, which reads as twice the size here.
         Button {
             select(chat, name: name, counterpart: counterpart)
@@ -229,7 +260,7 @@ private struct CurrencySelectRecipientScreen: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .padding(.vertical, 12)
+            .frame(height: 52)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -299,8 +330,8 @@ private struct CurrencySendConfirmSheet: View {
 
     var body: some View {
         PartialSheet(background: .clear, canDismiss: !isSending && !didSucceed) {
-            VStack(spacing: 25) {
-                VStack(spacing: 8) {
+            VStack(spacing: 40) {
+                VStack(spacing: 0) {
                     ContactAvatarView(
                         id: userID?.uuidString ?? name,
                         displayName: name,
@@ -308,32 +339,39 @@ private struct CurrencySendConfirmSheet: View {
                         blurhash: picture?.thumbnailBlurhash,
                         size: 56
                     )
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 14)
                     Text(name)
-                        .font(.appTextLarge)
+                        .font(.default(size: 19, weight: .bold))
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                     if let username {
                         Text("@\(username.value)")
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
+                            .font(.default(size: 13, weight: .regular))
+                            .foregroundStyle(Color.white.opacity(0.55))
+                            .padding(.top, 3)
                     }
                 }
                 VStack(spacing: 8) {
                     Text(amount?.formatted() ?? "")
-                        .font(.appDisplayLarge)
+                        .font(.default(size: 44, weight: .bold))
+                        .tracking(-1)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
-                    // The same label the picker would draw, without the picker.
-                    CurrencyLabel(
-                        imageURL: target.selectedBalance?.stored.imageURL,
-                        name: target.selectedBalance?.stored.name ?? "",
-                        amount: nil
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                    // The currency is locked here, so the chip has no chevron.
+                    HStack(spacing: 8) {
+                        if let imageURL = target.selectedBalance?.stored.imageURL {
+                            RemoteImage(url: imageURL)
+                                .frame(width: 20, height: 20)
+                                .clipShape(Circle())
+                        }
+                        Text(target.selectedBalance?.stored.name ?? "")
+                            .font(.default(size: 17, weight: .bold))
+                            .foregroundStyle(Color.textMain)
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(height: 36)
+                    .background(Capsule().fill(Color.white.opacity(0.05)))
                     .padding(.top, 4)
                 }
                 SwipeControl(text: target.swipeLabel) {
