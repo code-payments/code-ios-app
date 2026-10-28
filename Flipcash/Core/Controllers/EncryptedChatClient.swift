@@ -172,7 +172,7 @@ extension EncryptedChatClient: ConversationMessaging {
     func openingSeal(owner: KeyPair, conversationID: ConversationID) async -> ChatSeal? {
         switch await opener(conversationID, owner: owner) {
         case .seal(let seal):            seal
-        case .awaitingKey, .unsupported: nil
+        case .awaitingKey, .unsupported, .unusableKey: nil
         }
     }
 

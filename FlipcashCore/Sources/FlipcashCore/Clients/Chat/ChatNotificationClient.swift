@@ -96,10 +96,11 @@ public final class ChatNotificationClient: Sendable {
                         continuation.resume(with: $0)
                     }
                 }
-                // An invite-joined member has only the invite's copy until they store their own.
-                guard let own = result.ownEnvelope else { throw ErrorGetKeyEnvelope.noEnvelope }
-                return own
-            }
+                return result.material
+            },
+            // The extension only reads: an invite-joined member's push stays undecrypted until the
+            // app opens the invite's copy and stores the member's own envelope.
+            opensInviteBundles: false
         )
     }
 

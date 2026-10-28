@@ -20,9 +20,20 @@ struct GroupKeyEnvelopesTests {
             private let lock = NSLock()
             private var _generated: [Data] = []
             private var _unwrappedBy: [PublicKey] = []
+            private var _bundleOpens: [(creatorPublicKey: PublicKey, wrappedByCreator: Bool)] = []
+            private var _bundleError: GroupKeyUnusable?
             var generated: [Data] { lock.withLock { _generated } }
             var unwrappedBy: [PublicKey] { lock.withLock { _unwrappedBy } }
+            var bundleOpens: [(creatorPublicKey: PublicKey, wrappedByCreator: Bool)] { lock.withLock { _bundleOpens } }
+            /// When set, every bundle fails this check.
+            var bundleError: GroupKeyUnusable? {
+                get { lock.withLock { _bundleError } }
+                set { lock.withLock { _bundleError = newValue } }
+            }
             func recordUnwrap(by wrapper: PublicKey) { lock.withLock { _unwrappedBy.append(wrapper) } }
+            func recordBundleOpen(_ creatorPublicKey: PublicKey, _ wrappedByCreator: Bool) {
+                lock.withLock { _bundleOpens.append((creatorPublicKey, wrappedByCreator)) }
+            }
             func next() -> Data {
                 lock.withLock {
                     let key = Data(repeating: UInt8(_generated.count + 1), count: 32)
@@ -42,6 +53,15 @@ struct GroupKeyEnvelopesTests {
             keys.recordUnwrap(by: wrapper)
             return envelope.ciphertext
         }
+
+        /// Opens to the key envelope's ciphertext, failing as shared-core does when the wrapper
+        /// isn't the creator.
+        func open(_ bundle: InviteKeyBundle, owner: KeyPair, creatorPublicKey: PublicKey, wrappedByCreator: Bool, conversationID: ConversationID) throws -> Data {
+            keys.recordBundleOpen(creatorPublicKey, wrappedByCreator)
+            if let error = keys.bundleError { throw error }
+            guard wrappedByCreator else { throw GroupKeyUnusable(failsAt: .wrappedBy) }
+            return bundle.keyEnvelope.ciphertext
+        }
     }
 
     private final class Server: @unchecked Sendable {
@@ -51,6 +71,9 @@ struct GroupKeyEnvelopesTests {
         private var _gets = 0
         var wrappedBy: UserID?
         var setError: Error?
+        var getError: Error?
+        /// What the server returns for an invite-joined member until they store their own envelope.
+        var inviteCopy: GroupKeyMaterial?
         /// Lets a set replace a stored envelope, as the server does for a member's self-wrap.
         var replaces = false
 
@@ -73,11 +96,15 @@ struct GroupKeyEnvelopesTests {
             }
         }
 
-        func get() throws -> (envelope: ConversationKeyEnvelope, wrappedBy: UserID?) {
+        func get() throws -> GroupKeyMaterial {
             try lock.withLock {
                 _gets += 1
-                guard let _stored else { throw ErrorGetKeyEnvelope.noEnvelope }
-                return (_stored, wrappedBy)
+                if let getError { throw getError }
+                guard let _stored else {
+                    if let inviteCopy { return inviteCopy }
+                    throw ErrorGetKeyEnvelope.noEnvelope
+                }
+                return .own(envelope: _stored, wrappedBy: wrappedBy)
             }
         }
     }
@@ -89,7 +116,7 @@ struct GroupKeyEnvelopesTests {
     private let creatorID = UUID()
     private let creatorKey = KeyPair.generate()!.publicKey
 
-    private func envelopes(_ server: Server) -> GroupKeyEnvelopes {
+    private func envelopes(_ server: Server, opensInviteBundles: Bool = true) -> GroupKeyEnvelopes {
         GroupKeyEnvelopes(
             sealer: FakeSealer(keys: keys),
             owner: owner,
@@ -99,7 +126,20 @@ struct GroupKeyEnvelopesTests {
             resolveKey: { [creatorID, creatorKey] userID in
                 guard userID == creatorID else { throw ErrorGetKeyEnvelope.notFound }
                 return creatorKey
-            }
+            },
+            opensInviteBundles: opensInviteBundles
+        )
+    }
+
+    private func inviteCopy(key: Data, wrappedBy: UserID?, wrappedByPublicKey: PublicKey? = nil) -> GroupKeyMaterial {
+        .invite(
+            InviteKeyBundle(
+                inviteID: InviteID(data: Data(repeating: 7, count: 32)),
+                keyEnvelope: InviteKeyEnvelope(scheme: 1, nonce: Data(), ciphertext: key, signature: Data()),
+                secretEnvelope: InviteSecretEnvelope(scheme: 1, nonce: Data(), ciphertext: Data())
+            ),
+            wrappedBy: wrappedBy,
+            wrappedByPublicKey: wrappedByPublicKey
         )
     }
 
@@ -211,5 +251,123 @@ struct GroupKeyEnvelopesTests {
         }
         #expect(server.sets == 0)
         #expect(keys.generated.isEmpty)
+    }
+
+    // MARK: - Invite copy -
+
+    @Test("An invite-joined member opens the invite's copy with the creator's key, then stores their own")
+    func inviteCopyOpensAndSelfWraps() async throws {
+        let key = Data(repeating: 4, count: 32)
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: key, wrappedBy: creatorID)
+        let sut = envelopes(server)
+
+        #expect(try await sut.groupKey(for: chat, creator: creatorID) == key)
+        #expect(keys.bundleOpens.map(\.creatorPublicKey) == [creatorKey])
+        #expect(keys.bundleOpens.map(\.wrappedByCreator) == [true])
+        #expect(server.sets == 1)
+        #expect(server.stored?.nonce == owner.publicKey.data)
+        #expect(server.stored?.ciphertext == key)
+
+        // Cached: no second fetch, and a fresh instance opens the stored self-wrap, not the bundle.
+        #expect(try await sut.groupKey(for: chat, creator: creatorID) == key)
+        #expect(server.gets == 1)
+        #expect(try await envelopes(server).groupKey(for: chat, creator: creatorID) == key)
+        #expect(keys.bundleOpens.count == 1)
+    }
+
+    @Test("A bundle that fails a check is the wrong-key state, and nothing is stored")
+    func inviteCopyRejected() async throws {
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: Data(repeating: 4, count: 32), wrappedBy: creatorID)
+        keys.bundleError = GroupKeyUnusable(failsAt: .signature)
+        let sut = envelopes(server)
+
+        await #expect(throws: GroupKeyUnusable(failsAt: .signature)) {
+            try await sut.groupKey(for: chat, creator: creatorID)
+        }
+        #expect(server.sets == 0)
+    }
+
+    @Test("A bundle someone other than the creator wrapped is rejected, never re-keyed")
+    func inviteCopyWrongWrapper() async throws {
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: Data(repeating: 4, count: 32), wrappedBy: UUID(), wrappedByPublicKey: KeyPair.generate()!.publicKey)
+        let sut = envelopes(server)
+
+        await #expect(throws: GroupKeyUnusable(failsAt: .wrappedBy)) {
+            try await sut.groupKey(for: chat, creator: creatorID)
+        }
+        #expect(keys.bundleOpens.map(\.wrappedByCreator) == [false])
+        #expect(keys.generated.isEmpty)
+        #expect(server.sets == 0)
+    }
+
+    @Test("A failed self-wrap still returns the key, and the next launch opens the invite's copy again")
+    func inviteCopySelfWrapFailsThenRetries() async throws {
+        let key = Data(repeating: 4, count: 32)
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: key, wrappedBy: creatorID)
+        server.setError = ErrorSetKeyEnvelope.unknown
+
+        #expect(try await envelopes(server).groupKey(for: chat, creator: creatorID) == key)
+        #expect(server.stored == nil)
+
+        server.setError = nil
+        #expect(try await envelopes(server).groupKey(for: chat, creator: creatorID) == key)
+        #expect(keys.bundleOpens.count == 2)
+        #expect(server.stored?.ciphertext == key)
+    }
+
+    @Test("A failed fetch caches nothing, so the next call fetches and opens the invite's copy")
+    func inviteCopyFetchFailsThenRetries() async throws {
+        let key = Data(repeating: 4, count: 32)
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: key, wrappedBy: creatorID)
+        server.getError = ErrorGetKeyEnvelope.transportFailure
+        let sut = envelopes(server)
+
+        await #expect(throws: ErrorGetKeyEnvelope.self) {
+            try await sut.groupKey(for: chat, creator: creatorID)
+        }
+
+        server.getError = nil
+        #expect(try await sut.groupKey(for: chat, creator: creatorID) == key)
+    }
+
+    @Test("The creator's key falls back to the one sent with the bundle when it can't be resolved")
+    func inviteCopyFallsBackToSentKey() async throws {
+        let key = Data(repeating: 4, count: 32)
+        let unresolved = UUID()
+        let sentKey = KeyPair.generate()!.publicKey
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: key, wrappedBy: unresolved, wrappedByPublicKey: sentKey)
+
+        #expect(try await envelopes(server).groupKey(for: chat, creator: unresolved) == key)
+        #expect(keys.bundleOpens.map(\.creatorPublicKey) == [sentKey])
+    }
+
+    @Test("An instance that doesn't open invite copies leaves them unopened and writes nothing")
+    func inviteCopyNotOpenedByExtension() async throws {
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: Data(repeating: 4, count: 32), wrappedBy: creatorID)
+        let sut = envelopes(server, opensInviteBundles: false)
+
+        await #expect(throws: InviteBundleNotOpened.self) {
+            try await sut.groupKey(for: chat, creator: creatorID)
+        }
+        #expect(keys.bundleOpens.isEmpty)
+        #expect(server.sets == 0)
+    }
+
+    @Test("An invite copy whose creator isn't known yet is retried later, not marked wrong-key")
+    func inviteCopyCreatorUnknown() async throws {
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: Data(repeating: 4, count: 32), wrappedBy: creatorID)
+
+        await #expect(throws: InviteBundleNotOpened.self) {
+            try await envelopes(server).groupKey(for: chat, creator: nil)
+        }
+        #expect(keys.bundleOpens.isEmpty)
     }
 }

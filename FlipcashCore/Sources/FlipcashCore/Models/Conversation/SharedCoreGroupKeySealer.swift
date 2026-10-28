@@ -15,6 +15,10 @@ public struct SharedCoreGroupKeySealer: GroupKeySealing, @unchecked Sendable {
     /// The wire `KeyEnvelope.Scheme` this client reads and writes.
     public static let scheme = Flipcash_Chat_V1_KeyEnvelope.Scheme.x25519Xchacha20Poly1305
 
+    /// The wire schemes of the two envelopes in an invite's copy of the chat key.
+    static let inviteKeyScheme = Flipcash_Chat_V1_InviteKeyEnvelope.Scheme.xchacha20Poly1305
+    static let inviteSecretScheme = Flipcash_Chat_V1_InviteSecretEnvelope.Scheme.x25519Xchacha20Poly1305
+
     private let cipher: any ChatCipher
 
     public init(cipher: any ChatCipher = DefaultChatCipher.shared) {
@@ -54,6 +58,36 @@ public struct SharedCoreGroupKeySealer: GroupKeySealing, @unchecked Sendable {
         return bytes.data(bytes: key)
     }
 
+    public func open(_ bundle: InviteKeyBundle, owner: KeyPair, creatorPublicKey: PublicKey, wrappedByCreator: Bool, conversationID: ConversationID) throws -> Data {
+        // An envelope in a scheme this client doesn't know can't be opened: the same wrong key.
+        guard bundle.keyEnvelope.scheme == Self.inviteKeyScheme.rawValue else {
+            throw GroupKeyUnusable(failsAt: .keyOpen)
+        }
+        guard bundle.secretEnvelope.scheme == Self.inviteSecretScheme.rawValue else {
+            throw GroupKeyUnusable(failsAt: .secretOpen)
+        }
+        do {
+            return try SharedInviteCipher.openKeyBundle(
+                member: SharedEd25519.KeyPair(publicKey: owner.publicKey.data, privateKey: owner.privateKey.data),
+                creatorPublicKey: creatorPublicKey.data,
+                wrappedByCreator: wrappedByCreator,
+                chatId: conversationID.data,
+                inviteId: bundle.inviteID.data,
+                keyEnvelope: SharedInviteCipher.KeyEnvelope(
+                    nonce: bundle.keyEnvelope.nonce,
+                    ciphertext: bundle.keyEnvelope.ciphertext,
+                    signature: bundle.keyEnvelope.signature
+                ),
+                secretEnvelope: SharedInviteCipher.SecretEnvelope(
+                    nonce: bundle.secretEnvelope.nonce,
+                    ciphertext: bundle.secretEnvelope.ciphertext
+                )
+            )
+        } catch let error as SharedInviteCipher.BundleError {
+            throw GroupKeyUnusable(failsAt: .init(error))
+        }
+    }
+
     private static func keyPair(_ owner: KeyPair) -> SharedCore.KeyPair {
         let bytes = SharedBytes.shared
         return SharedCore.KeyPair(
@@ -65,3 +99,14 @@ public struct SharedCoreGroupKeySealer: GroupKeySealing, @unchecked Sendable {
 
 /// Thrown for a key envelope in a scheme this client cannot open.
 public struct UnsupportedKeyEnvelopeScheme: Error {}
+
+private extension GroupKeyUnusable.Step {
+    init(_ error: SharedInviteCipher.BundleError) {
+        switch error {
+        case .wrappedBy:  self = .wrappedBy
+        case .signature:  self = .signature
+        case .secretOpen: self = .secretOpen
+        case .keyOpen:    self = .keyOpen
+        }
+    }
+}
