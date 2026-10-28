@@ -32,6 +32,9 @@ public struct EnterAmountView: View {
     /// sits at the top rather than centered in the upper area.
     private let header: AnyView?
 
+    /// The hosted swipe's travel, which dims the rest of the screen.
+    @State private var swipeProgress: CGFloat = 0
+
     // MARK: - Calculator -
     
     private var calculator: EnterAmountCalculator {
@@ -113,6 +116,20 @@ public struct EnterAmountView: View {
         isExceedingLimit ? .textError : .textSecondary
     }
 
+    /// The opacity everything but the swipe takes at the hosted swipe's current travel.
+    private var dimOpacity: Double {
+        guard actionOverride != nil, SwipeDim.isOn else { return 1 }
+        let start = SwipeDim.start
+        let t = min(max((Double(swipeProgress) - start) / (1 - start), 0), 1)
+        let curved = SwipeDim.easesIn ? t * t : t
+        // Opacity 0 drops a view out of hit testing; the keypad must keep taking taps.
+        return max(1 - (1 - SwipeDim.maxDim) * curved, 0.02)
+    }
+
+    private var amountOpacity: Double {
+        SwipeDim.keepsAmount ? 1 : dimOpacity
+    }
+
     // MARK: - Body -
 
     public var body: some View {
@@ -125,6 +142,8 @@ public struct EnterAmountView: View {
                 Spacer().frame(maxHeight: 24)
                 header
                     .padding(.leading, Tuner.shared.value("Amount entry/Amount left inset", default: CGFloat(20), in: 0...48, unit: .points) - 20) // LOCAL-TUNER
+                    // The header carries the amount and its hint together, so both follow Keep amount.
+                    .opacity(amountOpacity)
             } else {
                 Spacer()
 
@@ -143,31 +162,35 @@ public struct EnterAmountView: View {
                             )
                             .foregroundStyle(.textMain)
                         }
+                        .opacity(amountOpacity)
 
-                        switch subtitle {
-                        case .singleTransactionLimit:
-                            if let limit = calculator.maxTransactionAmount {
-                                Text("Enter up to \(limit.formatted())")
+                        Group {
+                            switch subtitle {
+                            case .singleTransactionLimit:
+                                if let limit = calculator.maxTransactionAmount {
+                                    Text("Enter up to \(limit.formatted())")
+                                        .fixedSize()
+                                        .foregroundStyle(subtitleColor)
+                                        .font(.appTextMedium)
+                                }
+
+                            case .balanceWithLimit(let maxBalance):
+                                Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
                                     .fixedSize()
                                     .foregroundStyle(subtitleColor)
                                     .font(.appTextMedium)
+
+                            case .error(let text):
+                                Text(text)
+                                    .fixedSize()
+                                    .foregroundStyle(.textError)
+                                    .font(.appTextMedium)
+
+                            case .hidden:
+                                EmptyView()
                             }
-
-                        case .balanceWithLimit(let maxBalance):
-                            Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
-                                .fixedSize()
-                                .foregroundStyle(subtitleColor)
-                                .font(.appTextMedium)
-
-                        case .error(let text):
-                            Text(text)
-                                .fixedSize()
-                                .foregroundStyle(.textError)
-                                .font(.appTextMedium)
-
-                        case .hidden:
-                            EmptyView()
                         }
+                        .opacity(dimOpacity)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -179,6 +202,7 @@ public struct EnterAmountView: View {
 
             if let accessory {
                 accessory
+                    .opacity(dimOpacity)
                 // Capped but shrinkable so the keypad/button aren't pushed off
                 // on small (SE-class) screens.
                 Spacer()
@@ -194,7 +218,8 @@ public struct EnterAmountView: View {
                 )
             )
             .padding([.leading, .trailing], -20)
-            
+            .opacity(dimOpacity)
+
             if let actionOverride {
                 actionOverride
                     .disabled(!actionEnabled(enteredAmount))
@@ -215,7 +240,27 @@ public struct EnterAmountView: View {
                 .padding(.bottom, Tuner.shared.value("Amount entry/Button bottom inset", default: CGFloat(32), in: 0...80, unit: .points) - 54) // LOCAL-TUNER
             }
         }
+        // The control animates the value on its own snap-back and sends every frame, so it lands unanimated.
+        .onPreferenceChange(SwipeControlProgressKey.self) { progress in
+            withTransaction(Transaction(animation: nil)) { swipeProgress = progress }
+        }
     }
+}
+
+// MARK: - Swipe dim -
+
+/// How the amount screen dims around a hosted swipe as its thumb travels.
+@MainActor
+private enum SwipeDim {
+    static var isOn: Bool { Tuner.shared.value("Swipe Dim/On", default: true) } // LOCAL-TUNER
+    /// The opacity everything falls to at full travel.
+    static var maxDim: Double { Tuner.shared.value("Swipe Dim/Max dim", default: 0.25, in: 0...1) } // LOCAL-TUNER
+    /// The travel where dimming begins.
+    static var start: Double { Tuner.shared.value("Swipe Dim/Start", default: 0, in: 0...0.9) } // LOCAL-TUNER
+    /// Whether the dim eases in (squared) rather than tracking travel linearly.
+    static var easesIn: Bool { Tuner.shared.value("Swipe Dim/Ease in", default: false) } // LOCAL-TUNER
+    /// Whether the entered amount stays at full opacity while the rest dims.
+    static var keepsAmount: Bool { Tuner.shared.value("Swipe Dim/Keep amount", default: true) } // LOCAL-TUNER
 }
 
 // MARK: - Mode -

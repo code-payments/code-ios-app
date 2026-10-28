@@ -37,11 +37,17 @@ enum SwipeMetrics {
     /// The capsule's height, which stands taller than the tray's capsule buttons.
     static var height: CGFloat { layout("Height", 64, 36...80) } // LOCAL-TUNER
     static var thumbInset: CGFloat { layout("Thumb inset", 6, 0...12) } // LOCAL-TUNER
+    /// The thumb's width; 0 matches its height for a round thumb, and anything wider makes it a capsule.
+    static var thumbWidth: CGFloat { layout("Thumb width", 0, 0...160) } // LOCAL-TUNER
     static var arrowSize: CGFloat { layout("Arrow size", 24, 12...32) } // LOCAL-TUNER
+    /// The track's wash colour, before `fillOpacity` applies.
+    static var trackColor: Color { Tuner.shared.value("Swipe Layout/Track color", default: Color.action, source: ".action") } // LOCAL-TUNER
     /// The track's `action` wash, as today's control draws it.
     static var fillOpacity: Double { Tuner.shared.value("Swipe Layout/Fill opacity", default: 0.1, in: 0...0.3) } // LOCAL-TUNER
     /// The track's hairline, the input field's resting stroke.
     static var strokeColor: Color { Tuner.shared.value("Swipe Layout/Stroke", default: Metrics.inputFieldStrokeColor(highlighted: false), source: "Metrics.inputFieldStrokeColor(highlighted: false)") } // LOCAL-TUNER
+    /// Whether the track draws its hairline.
+    static var showsTrackStroke: Bool { Tuner.shared.value("Swipe Layout/Track stroke", default: true) } // LOCAL-TUNER
     static var disabledOpacity: Double { Tuner.shared.value("Swipe Layout/Disabled opacity", default: 0.4, in: 0...1) } // LOCAL-TUNER
 
     // MARK: - Label

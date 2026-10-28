@@ -54,12 +54,15 @@ public struct SwipeControl: View {
     public var body: some View {
         GeometryReader { geometry in
             let diameter = geometry.size.height
-            let maxX = geometry.size.width - diameter
+            // Never narrower than tall, so the resting thumb always covers the track's leading end.
+            let thumbWidth = min(max(SwipeMetrics.thumbWidth, diameter), geometry.size.width) // LOCAL-TUNER
+            let maxX = geometry.size.width - thumbWidth
 
             SwipingTrack(
                 text: text,
                 look: lookOverride ?? SwipeMetrics.look,
                 diameter: diameter,
+                thumbWidth: thumbWidth,
                 maxX: maxX,
                 knobX: knobX,
                 state: state
@@ -77,8 +80,10 @@ public struct SwipeControl: View {
                 .animation(.easeOut(duration: SwipeMetrics.failureTintFade), value: state == .failure)
         }
         .overlay {
-            Capsule()
-                .strokeBorder(SwipeMetrics.strokeColor, lineWidth: 1 / displayScale)
+            if SwipeMetrics.showsTrackStroke { // LOCAL-TUNER
+                Capsule()
+                    .strokeBorder(SwipeMetrics.strokeColor, lineWidth: 1 / displayScale)
+            } // LOCAL-TUNER
         }
         .modifier(SwipeShake(phase: shakePhase, distance: SwipeMetrics.shakeDistance, count: SwipeMetrics.shakeCount))
         .opacity(isEnabled ? 1 : SwipeMetrics.disabledOpacity)
@@ -108,7 +113,7 @@ public struct SwipeControl: View {
         case .failure:
             .bannerError.opacity(SwipeMetrics.failureTint)
         case .normal, .loading, .success:
-            .action.opacity(SwipeMetrics.fillOpacity)
+            SwipeMetrics.trackColor.opacity(SwipeMetrics.fillOpacity) // LOCAL-TUNER
         }
     }
 
@@ -153,6 +158,7 @@ private struct SwipingTrack: View {
     let text: String
     let look: SwipeControlLook
     let diameter: CGFloat
+    let thumbWidth: CGFloat
     let maxX: CGFloat
     let knobX: CGFloat
     let state: KnobState
@@ -179,7 +185,7 @@ private struct SwipingTrack: View {
 
         let labelOpacity = (SwipeMetrics.labelFades && maxX > 0) ? 1 - min(max(position / maxX, 0), 1) : 1
         let wipeEdge = look == .lens ? SwipeMetrics.lensWipeEdge : SwipeMetrics.labelWipeEdge
-        let wipeX = SwipeMetrics.labelWipes ? position + diameter * wipeEdge : 0
+        let wipeX = SwipeMetrics.labelWipes ? position + thumbWidth * wipeEdge : 0
         let liftScale = isLifted && !reduceMotion ? pressScale : 1
 
         ZStack(alignment: .leading) {
@@ -193,11 +199,12 @@ private struct SwipingTrack: View {
                     isOn: SwipeMetrics.shimmers && !reduceMotion,
                     isRunning: isNormal && isEnabled && !isTouching
                 ))
-                .padding(.horizontal, diameter)
+                .padding(.horizontal, thumbWidth)
                 .frame(maxWidth: .infinity, maxHeight: .infinity) // span the track so the mask and lens are in track coordinates
                 .modifier(SwipeLensEffect(
-                    centerX: position + nudgeX + diameter / 2,
+                    centerX: position + nudgeX + thumbWidth / 2,
                     radius: diameter / 2 * liftScale,
+                    halfLength: (thumbWidth - diameter) / 2 * liftScale,
                     bend: SwipeMetrics.lensBend,
                     band: SwipeMetrics.lensBand,
                     isEnabled: look == .lens && SwipeMetrics.usesGlass
@@ -218,7 +225,7 @@ private struct SwipingTrack: View {
             }
             .animation(press) { $0.scaleEffect(liftScale) }
             .opacity(isLifted && reduceMotion ? SwipeMetrics.pressDim : 1)
-            .frame(width: fills ? maxX + diameter : diameter, height: diameter)
+            .frame(width: fills ? maxX + thumbWidth : thumbWidth, height: diameter)
             .contentShape(.capsule) // the lens's see-through middle takes the touch too
             .offset(x: fills ? 0 : position)
             .animation(snap, value: position)
@@ -247,6 +254,14 @@ private struct SwipingTrack: View {
         }
         .animation(reduceMotion ? .easeInOut(duration: SwipeMetrics.reduceMotionFade) : nil, value: isNormal)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // A probe of its own, so the progress's animation never reaches the label or thumb.
+        .background {
+            Color.clear
+                .modifier(SwipeProgressReporter(progress: maxX > 0 ? min(max(position / maxX, 0), 1) : 0))
+                .animation(reduceMotion ? .easeOut(duration: SwipeMetrics.reduceMotionFade) : snap, value: position)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .onChange(of: isTouching) { _, touching in
             isLifted = touching
         }
@@ -295,6 +310,33 @@ private struct SwipingTrack: View {
             }
         }
         .animation(nil, value: state)
+    }
+}
+
+/// How far a ``SwipeControl``'s thumb has travelled along its track, from 0 at rest to 1 at the end,
+/// which it holds through loading, success and failure. Read it with `onPreferenceChange` to drive
+/// visuals around the control; it follows the finger while dragging and the thumb's own motion after.
+public struct SwipeControlProgressKey: PreferenceKey {
+    public static let defaultValue: CGFloat = 0
+
+    public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// Publishes `progress` as ``SwipeControlProgressKey`` on every frame it animates through, so a
+/// reader moves on the thumb's spring rather than jumping to the end value.
+private struct SwipeProgressReporter: ViewModifier, Animatable {
+
+    var progress: CGFloat
+
+    nonisolated var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content.preference(key: SwipeControlProgressKey.self, value: progress)
     }
 }
 

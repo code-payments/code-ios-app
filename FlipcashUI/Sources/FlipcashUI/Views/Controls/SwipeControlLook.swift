@@ -78,15 +78,16 @@ struct SwipeThumbSurface<Content: View>: View {
         }
     }
 
-    /// Clear glass masked to a soft ring, so the label reads through the middle.
+    /// Clear glass masked to a soft ring, so the label reads through the middle; a capsule
+    /// when the thumb is wider than tall.
     @available(iOS 26, *)
     private var lensRim: some View {
-        Circle()
+        Capsule()
             .fill(.clear)
-            .glassEffect(.clear.tint(.white.opacity(SwipeMetrics.lensRimTint)), in: .circle)
+            .glassEffect(.clear.tint(.white.opacity(SwipeMetrics.lensRimTint)), in: .capsule)
             .glassEffectID(glassID, in: glassNamespace)
             .mask {
-                Circle()
+                Capsule()
                     .strokeBorder(.black, lineWidth: SwipeMetrics.lensRimWidth)
                     .blur(radius: SwipeMetrics.lensRimSoftness)
             }
@@ -97,20 +98,23 @@ struct SwipeThumbSurface<Content: View>: View {
 
 // MARK: - Effects
 
-/// Bends the content under a circle at `centerX` with `radius`, through the `swipeLens` shader.
+/// Bends the content under a capsule at `centerX` with end-cap `radius` and a straight run of
+/// `halfLength` either side (a circle at 0), through the `swipeLens` shader.
 struct SwipeLensEffect: ViewModifier, Animatable {
 
     var centerX: CGFloat
     var radius: CGFloat
+    var halfLength: CGFloat
     let bend: CGFloat
     let band: CGFloat
     let isEnabled: Bool
 
-    nonisolated var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { AnimatablePair(centerX, radius) }
+    nonisolated var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
+        get { AnimatablePair(centerX, AnimatablePair(radius, halfLength)) }
         set {
             centerX = newValue.first
-            radius = newValue.second
+            radius = newValue.second.first
+            halfLength = newValue.second.second
         }
     }
 
@@ -120,6 +124,7 @@ struct SwipeLensEffect: ViewModifier, Animatable {
                 .boundingRect,
                 .float(centerX),
                 .float(radius),
+                .float(max(halfLength, 0)),
                 .float(bend),
                 .float(radius * band)
             ),
