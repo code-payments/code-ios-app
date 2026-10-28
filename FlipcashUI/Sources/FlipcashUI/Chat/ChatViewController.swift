@@ -12,6 +12,8 @@ import ChatLayout
 import DifferenceKit
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.chat-transcript")
+
 /// A standalone chat transcript: a `ChatLayout`-backed collection view that opens at the
 /// newest message and renders whatever `[ChatMessage]` it is handed. Dumb and push-driven —
 /// it pulls nothing. The owner calls `update(messages:)`; there is no network, no database,
@@ -286,6 +288,10 @@ public final class ChatViewController: UICollectionViewController {
     private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
+
+    /// True only while UIKit re-runs `cellForItemAt` for reconfigured rows, the one call where the
+    /// cell already on screen must be of the row's class.
+    private var isReconfiguring = false
     /// The first row of the new block appended at the bottom by the batch in flight, or nil when the
     /// batch appends nothing there. Those rows start below their slots (see `insertionRise(for:frame:)`).
     private var appendedFrom: Int?
@@ -563,6 +569,7 @@ public final class ChatViewController: UICollectionViewController {
                     // no scroll event would report it.
                     scheduleReadReport()
                 },
+                reconfiguring: { [weak self] in self?.isReconfiguring = $0 },
                 setData: { [weak self] data in
                     self?.items = data
                 }
@@ -675,6 +682,7 @@ public final class ChatViewController: UICollectionViewController {
 
     public override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let item = items[indexPath.item]
+        logLiveCellMismatch(at: indexPath, expected: item.cellReuseIdentifier)
         // Dequeue by the item's `cellReuseIdentifier` — the same value folded into the diff
         // identity — so the class dequeued at a position always matches the one the diff promised
         // there, and a reconfigure can never land on a cell of a different class (UIKit forbids that).
@@ -695,6 +703,28 @@ public final class ChatViewController: UICollectionViewController {
             configure(cell, with: message)
         }
         return cell
+    }
+
+    /// Logs when a reconfigure is about to hand back a cell of another class than the one on screen,
+    /// which UIKit aborts on (Bugsnag 6ae1d31); the line rides along in that crash's `app_logs`.
+    /// Outside a reconfigure `cellForItem(at:)` can still answer with the pre-batch cell, so a
+    /// differing class there is ordinary.
+    private func logLiveCellMismatch(at indexPath: IndexPath, expected: String) {
+        guard isReconfiguring,
+              let live = collectionView.cellForItem(at: indexPath)?.reuseIdentifier,
+              live != expected else { return }
+        logger.error("Live cell class differs from its row", metadata: [
+            "row": "\(indexPath.item)",
+            "itemCount": "\(items.count)",
+            "expected": "\(expected)",
+            "live": "\(live)",
+            "isUpdating": "\(isUpdating)",
+            "isDragging": "\(collectionView.isDragging)",
+            "isDecelerating": "\(collectionView.isDecelerating)",
+            "offsetFromBottom": "\(Int(collectionView.contentSize.height - collectionView.bounds.maxY))",
+            "hasPendingScroll": "\(pendingScrollTargetID != nil)",
+            "needsInitialScroll": "\(needsInitialScroll)",
+        ])
     }
 
     /// The widest an attributed member's bubble gets: the same fraction of the row less the avatar

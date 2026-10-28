@@ -19,13 +19,23 @@ extension UICollectionView {
     /// Apply a `StagedChangeset` as batch updates. Falls back to a full reload (via
     /// `onInterruptedReload`) when off-screen or when `interrupt` trips on a change too large to
     /// animate. This is what lets `keepContentOffsetAtBottomOnBatchUpdates` keep new content pinned.
+    /// `reconfiguring` is told `true` just before UIKit reconfigures rows and `false` just after.
     func reload<C>(
         using stagedChangeset: StagedChangeset<C>,
         interrupt: ((Changeset<C>) -> Bool)? = nil,
         onInterruptedReload: (() -> Void)? = nil,
         completion: ((Bool) -> Void)? = nil,
+        reconfiguring: ((Bool) -> Void)? = nil,
         setData: (C) -> Void
     ) {
+        // UIKit re-runs `cellForItemAt` for these rows synchronously, before this returns.
+        func reconfigure(_ indexPaths: [IndexPath]) {
+            reconfiguring?(true)
+            reconfigureItems(at: indexPaths)
+            reconfiguring?(false)
+            (collectionViewLayout as? CollectionViewChatLayout)?.reconfigureItems(at: indexPaths)
+        }
+
         func reloadInstead(with data: C) {
             setData(data)
             if let onInterruptedReload {
@@ -49,9 +59,7 @@ extension UICollectionView {
             performBatchUpdates({
                 if let reconfigureData = batch.reconfigureData {
                     setData(reconfigureData)
-                    let indexPaths = batch.changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) }
-                    reconfigureItems(at: indexPaths)
-                    (collectionViewLayout as? CollectionViewChatLayout)?.reconfigureItems(at: indexPaths)
+                    reconfigure(batch.changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) })
                 }
                 setData(batch.changeset.data)
                 if !batch.changeset.elementDeleted.isEmpty {
@@ -88,9 +96,7 @@ extension UICollectionView {
                     insertItems(at: changeset.elementInserted.map { IndexPath(item: $0.element, section: $0.section) })
                 }
                 if !changeset.elementUpdated.isEmpty {
-                    let indexPaths = changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) }
-                    reconfigureItems(at: indexPaths)
-                    (collectionViewLayout as? CollectionViewChatLayout)?.reconfigureItems(at: indexPaths)
+                    reconfigure(changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) })
                 }
                 for (source, target) in changeset.elementMoved {
                     moveItem(at: IndexPath(item: source.element, section: source.section), to: IndexPath(item: target.element, section: target.section))
