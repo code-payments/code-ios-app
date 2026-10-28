@@ -239,6 +239,38 @@ Deviations noted by the builder:
 
 No critique was run on round 2 (Aiden asked for one agent). Run `/critique` on the chosen direction before code.
 
+## 9c. Direction D · Mix (Aiden's steer, 2026-10-28)
+
+Aiden wants the layout to vary by type:
+- **Users** get a full-screen poster made from the profile photo, melting into grouped fields, with no cover.
+- **Public groups** keep a cover.
+- **Private groups** drop the cover.
+
+All three share left-aligned identity and C's grouped cards.
+
+Section `852:3443` (x 0, y 10500, 1526×2340):
+
+| Row | Frames |
+|---|---|
+| 1 | User · Poster 852:3447 · Private · Member 852:3603 · Public · Non-member 852:3774 |
+| 2 | User · No photo 855:3817 · User · Own profile 855:4001 · User · Scrolled 855:4202 |
+
+How it's built:
+- **Melt:** an alpha-only `bg/primary` mask over the lower 45% of the poster (y 308–560), 11 smootherstep stops, plus a
+  black legibility scrim peaking at 55%. No band.
+- **No photo:** the card colour (`tipCardCustomization.colorHex`) with a 120pt monogram.
+- **Scrolled:** the poster leaves with a +60 parallax, and the inline nav title takes over.
+
+Questions for the dev:
+1. Is the uploaded `profile_picture` resolution enough for full-screen?
+2. Should the card colour be the fallback when there's no photo?
+3. Today's content only scrolls about 180pt, so the collapsed title would never show. That needs content or an inset decision.
+4. Private groups still have `cover_picture` in the data; it's just not shown here.
+
+Rest states:
+- The User poster's Favorite Groups card sits under the CTA fade. It's meant to scroll.
+- On the private page, Leave Chat brushes the fade.
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
