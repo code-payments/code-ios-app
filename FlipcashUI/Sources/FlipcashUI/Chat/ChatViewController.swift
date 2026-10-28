@@ -106,8 +106,8 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the "Encrypted" marker is tapped; nil leaves it inert.
     public var onEncryptionMarkerTap: (() -> Void)?
 
-    /// Called when the user taps an author's face in the gutter; the argument is that author's user
-    /// id. Never fires in a DM, where no row draws one.
+    /// Called when the user taps an author's face in the gutter, or the inviter's name in an invite
+    /// join notice; the argument is that user's id. Never fires in a DM, where no row draws one.
     public var onAuthorTap: ((UserID) -> Void)?
 
     /// Fired when a context-menu action other than Copy is chosen, with the row's id. Copy is handled
@@ -697,8 +697,9 @@ public final class ChatViewController: UICollectionViewController {
         case .encryptionMarker:
             let tap: (() -> Void)? = onEncryptionMarkerTap == nil ? nil : { [weak self] in self?.onEncryptionMarkerTap?() }
             (cell as! ChatEncryptionMarkerCell).configure(onTap: tap)
-        case .systemMessage(_, let text, _):
-            (cell as! ChatSystemMessageCell).configure(text: text)
+        case .systemMessage(_, let text, _, let userLink):
+            let tap: ((UserID) -> Void)? = onAuthorTap == nil ? nil : { [weak self] in self?.onAuthorTap?($0) }
+            (cell as! ChatSystemMessageCell).configure(text: text, userLink: userLink, onUserTap: tap)
         case .message(let message):
             configure(cell, with: message)
         }
@@ -1451,7 +1452,7 @@ public final class ChatViewController: UICollectionViewController {
             case .other: false
             }
             return ReadProgress.VisibleMessage(id: serverID, isFromSelf: isFromSelf)
-        case .systemMessage(_, _, let serverID):
+        case .systemMessage(_, _, let serverID, _):
             return serverID.map { ReadProgress.VisibleMessage(id: $0, isFromSelf: false) }
         case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker:
             return nil
