@@ -27,7 +27,6 @@ struct InviteLinksScreen: View {
     @State private var sharing: SharedLink?
     @State private var isMakingLink = false
     @State private var dialogItem: DialogItem?
-    @State private var newLinkHeight: CGFloat = 0
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -78,15 +77,9 @@ struct InviteLinksScreen: View {
         }
         .sheet(isPresented: $isMakingLink) {
             if let links {
-                NewInviteLinkSheet(isCreating: links.isCreating) { expiry, limit in
+                NewInviteLinkSheet(isPresented: $isMakingLink, isCreating: links.isCreating) { expiry, limit in
                     await create(expiry: expiry, limit: limit)
                 }
-                .fixedSize(horizontal: false, vertical: true)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { newLinkHeight = $0 }
-                .frame(maxHeight: .infinity, alignment: .top)
-                .presentationDetents([newLinkHeight > 0 ? .height(newLinkHeight) : .medium])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(Color.backgroundSecondary)
             }
         }
         .dialog(item: $dialogItem)
@@ -304,21 +297,29 @@ private struct InviteLinkRow: View {
 /// Frame 2d (node 12844:334): expiry and use-limit presets, then Create Link.
 struct NewInviteLinkSheet: View {
 
+    @Binding var isPresented: Bool
     let isCreating: Bool
     /// Makes the link; returns whether the sheet may close.
     let onCreate: (GroupInviteLinks.Expiry, GroupInviteLinks.UseLimit) async -> Bool
 
-    @Environment(\.dismiss) private var dismiss
     @State private var expiry: GroupInviteLinks.Expiry = .sevenDays
     @State private var limit: GroupInviteLinks.UseLimit = .unlimited
     @State private var isSubmitting = false
 
+    /// Presented like ``InviteLinkActionSheet`` (2b): the shared partial sheet and its title bar.
     var body: some View {
+        PartialSheet(background: .backgroundMain) {
+            form
+                .padding(.horizontal, 16)
+                .padding(.top, 20)
+                .padding(.bottom, bottomPadding)
+        }
+    }
+
+    private var form: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("New Invite Link")
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
-                .padding(.bottom, 28)
+            header
+                .padding(.bottom, 24)
 
             chips("Expires", options: GroupInviteLinks.Expiry.allCases, selection: $expiry, title: \.title)
                 .padding(.bottom, 24)
@@ -329,7 +330,7 @@ struct NewInviteLinkSheet: View {
                 Task {
                     isSubmitting = true
                     defer { isSubmitting = false }
-                    if await onCreate(expiry, limit) { dismiss() }
+                    if await onCreate(expiry, limit) { isPresented = false }
                 }
             } label: {
                 ButtonStateLabel("Create Link", state: isSubmitting || isCreating ? .loading : .normal)
@@ -338,9 +339,24 @@ struct NewInviteLinkSheet: View {
             .disabled(isSubmitting || isCreating)
             .accessibilityIdentifier("new-invite-link-create")
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 32)
-        .padding(.bottom, 8)
+    }
+
+    private var header: some View {
+        ZStack {
+            Text("New Invite Link")
+                .font(.appBarButton)
+                .foregroundStyle(Color.textMain)
+            HStack {
+                Spacer()
+                CloseButton(style: .glass, binding: $isPresented)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var bottomPadding: CGFloat {
+        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
+        return max(0, 16 - reserved)
     }
 
     private func chips<Option: Hashable>(_ heading: String, options: [Option], selection: Binding<Option>, title: KeyPath<Option, String>) -> some View {
@@ -419,6 +435,6 @@ private func previewEntry(
 
 #Preview("2d · New link") {
     Background(color: .backgroundMain) {
-        NewInviteLinkSheet(isCreating: false) { _, _ in true }
+        NewInviteLinkSheet(isPresented: .constant(true), isCreating: false) { _, _ in true }
     }
 }
