@@ -17,7 +17,7 @@ public enum ChatMediaStrings {
 
     /// A quote's snippet for a photo: its caption, or "Photo" when it has none.
     public static func quoteSnippet(caption: String?) -> String {
-        nonEmpty(caption) ?? "Photo"
+        nonEmpty(caption).map { InviteLinkText.redacting($0) } ?? "Photo"
     }
 
     /// A one-line preview of a photo: the camera glyph ahead of its caption, or ahead of "Photo".

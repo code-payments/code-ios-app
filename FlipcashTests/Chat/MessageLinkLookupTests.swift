@@ -188,6 +188,13 @@ import FlipcashCore
         #expect(value.excerpt == text)
     }
 
+    @Test func anInviteLinkInTheQuotedMessageReadsInviteLink() async throws {
+        let text = "come in https://app.flipcash.com/chat/invite#s=kQ3vR8mZp2LxT7yW9bN4cD6fH1jK5sA0eG3iU8oQ2rY"
+        let state = try await Self.state(held: Self.conversation(type: .group), member: true, message: .success(Self.message(.text(text))))
+        guard case .resolved(let value) = state else { Issue.record("got \(state)"); return }
+        #expect(value.excerpt == "come in Invite link")
+    }
+
     @Test func cashIsNeverRedactedForANonMember() async throws {
         let amount = ExchangedFiat(
             onChainAmount: TokenAmount(quarks: 15_000_000, mint: .usdf),

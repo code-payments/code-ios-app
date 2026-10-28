@@ -79,7 +79,7 @@ extension ChatItem {
             let content: ChatMessage.Content
             switch message.content {
             case .text(let text):
-                content = .text(text)
+                content = .text(InviteLinkText.redacting(text))
             case .cash(let fiat):
                 // The token name + coin icon come from `mintBranding`; an unresolved mint shows no
                 // token label or icon rather than a misleading fallback.

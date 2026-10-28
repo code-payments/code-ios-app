@@ -3,6 +3,7 @@
 //  Flipcash
 //
 
+import CryptoKit
 import Foundation
 import FlipcashCore
 
@@ -31,6 +32,7 @@ actor LinkCardResolver {
     private let cashLookup: @Sendable (String) async throws -> LinkCard.Cash.Resolved
     private let mintLookup: @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved
     private let groupLookup: @Sendable (ConversationID) async throws -> GroupLinkFacts
+    private let inviteLookup: @Sendable (InviteLinkSecret) async throws -> GroupLinkFacts
     private let userLookup: @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts
     private let messageLookup: @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State
 
@@ -48,6 +50,9 @@ actor LinkCardResolver {
     private var cashQueries: [String: Task<LinkCard.Cash.State, Never>] = [:]
     private var tokenQueries: [PublicKey: Task<LinkCard.Token.State, Never>] = [:]
     private var groupQueries: [ConversationID: Task<GroupLinkFacts?, Never>] = [:]
+    /// Keyed by ``LinkCard/resolutionKey``, a digest of the link, so the secret is held by the
+    /// query alone.
+    private var inviteQueries: [String: Task<GroupLinkFacts?, Never>] = [:]
     private var userQueries: [LinkCard.User.Identity: Task<Result<UserLinkFacts, any Error>, Never>] = [:]
     /// A message card's answer depends on the viewer's standing in the chat, which moves under it
     /// (a join turns Join into the message), so only the query in flight is held and a finished
@@ -58,12 +63,14 @@ actor LinkCardResolver {
         cashLookup: @escaping @Sendable (String) async throws -> LinkCard.Cash.Resolved,
         mintLookup: @escaping @Sendable (PublicKey) async throws -> LinkCard.Token.Resolved,
         groupLookup: @escaping @Sendable (ConversationID) async throws -> GroupLinkFacts,
+        inviteLookup: @escaping @Sendable (InviteLinkSecret) async throws -> GroupLinkFacts = { _ in throw InviteLinkUnreadable() },
         userLookup: @escaping @Sendable (LinkCard.User.Identity) async throws -> UserLinkFacts,
         messageLookup: @escaping @Sendable (LinkCard.Message) async throws -> LinkCard.Message.State = { _ in .unavailable }
     ) {
         self.cashLookup = cashLookup
         self.mintLookup = mintLookup
         self.groupLookup = groupLookup
+        self.inviteLookup = inviteLookup
         self.userLookup = userLookup
         self.messageLookup = messageLookup
     }
@@ -89,6 +96,25 @@ actor LinkCardResolver {
             assertionFailure("A message card resolves through message(_:), not resolve(_:)")
             return .message(.unavailable)
         }
+    }
+
+    /// The group a card names: by its id for a join link, through `GetInvite` for an invite link.
+    func group(_ card: LinkCard.Group) async -> GroupLinkFacts? {
+        if let chatID = card.chatID { return await group(chatID) }
+        guard let fragment = card.url.fragment(percentEncoded: true),
+              let secret = InviteLinkSecret(fragment: fragment) else { return nil }
+        let key = LinkCard.group(card).resolutionKey
+        if let query = inviteQueries[key] { return await query.value }
+
+        let lookup = inviteLookup
+        let query = Task<GroupLinkFacts?, Never> {
+            try? await lookup(secret)
+        }
+        inviteQueries[key] = query
+
+        let facts = await query.value
+        if facts == nil, inviteQueries[key] == query { inviteQueries[key] = nil }
+        return facts
     }
 
     /// The group's public record, or nil if the lookup failed or the chat is gone.
@@ -206,7 +232,13 @@ nonisolated extension LinkCard {
         switch self {
         case .cash(let cash): Self.cashKey(entropy: cash.entropy)
         case .token(let token): "token:\(token.mint.base58)"
-        case .group(let group): "group:\(group.chatID.description)"
+        case .group(let group):
+            if let chatID = group.chatID {
+                "group:\(chatID.description)"
+            } else {
+                // A digest, never the link: the fragment is the group's key.
+                "invite:\(SHA256.hash(data: Data(group.url.absoluteString.utf8)).map { String(format: "%02x", $0) }.joined())"
+            }
         case .message(let message): "message:\(message.chatID.description):\(message.sequence)"
         case .user(let user):
             switch user.identity {
@@ -246,6 +278,16 @@ extension Client: MintMetadataReading {}
 nonisolated protocol GroupChatReading: Sendable {
     func getChat(owner: KeyPair, conversationID: ConversationID, viewMode: ConversationViewMode) async throws -> Conversation
 }
+
+/// The one call an invite link's card needs: the group and the link's status, by its token.
+nonisolated protocol GroupInviteReading: Sendable {
+    func getInvite(owner: KeyPair?, token: InviteToken) async throws -> (conversation: Conversation, status: Invite.Status)
+}
+
+extension FlipClient: GroupInviteReading {}
+
+/// An invite card asked of a resolver built without an invite lookup.
+nonisolated struct InviteLinkUnreadable: Error {}
 
 extension FlipClient: GroupChatReading {}
 
@@ -343,6 +385,25 @@ extension LinkCardResolver {
                 mintName = try await mints.fetchMint(mint: mint).name
             }
             return GroupLinkFacts(conversation: conversation, headlineMintName: mintName)
+        }
+    }
+
+    /// The invite query: `GetInvite` by the link's token, which answers with the group's public
+    /// record and the link's status. The viewer is passed so a host's ban is reported.
+    static func inviteLookup(
+        invites: any GroupInviteReading,
+        mints: any MintMetadataReading,
+        viewer: KeyPair
+    ) -> @Sendable (InviteLinkSecret) async throws -> GroupLinkFacts {
+        { secret in
+            let (conversation, status) = try await invites.getInvite(owner: viewer, token: try secret.token())
+            guard conversation.type == .group else { throw NotAGroup() }
+
+            var mintName: String?
+            if let mint = headline(for: conversation.rules?.listener ?? [])?.mint, mint != .usdf {
+                mintName = try await mints.fetchMint(mint: mint).name
+            }
+            return GroupLinkFacts(conversation: conversation, headlineMintName: mintName, inviteStatus: status)
         }
     }
 

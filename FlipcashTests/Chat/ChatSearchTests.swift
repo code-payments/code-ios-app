@@ -62,6 +62,26 @@ struct ChatSearchTests {
         #expect(!ChatSearchQuery.matches(nil, "jeff"))
     }
 
+    // MARK: - Invite links
+
+    private static let inviteSecret = "kQ3vR8mZp2LxT7yW9bN4cD6fH1jK5sA0eG3iU8oQ2rY"
+
+    @Test("An invite link's secret can't be searched for, and a hit shows \"Invite link\"")
+    func inviteSecretNotSearchable() {
+        let messages = [text(1, "join us https://app.flipcash.com/chat/invite#s=\(Self.inviteSecret) tonight")]
+        #expect(ChatSearchMessages.hits(in: messages, query: "kQ3vR8").isEmpty)
+        #expect(ChatSearchMessages.hits(in: messages, query: "chat/invite").isEmpty)
+        #expect(ChatSearchMessages.hits(in: messages, query: "flipcash.com").isEmpty)
+        let hits = ChatSearchMessages.hits(in: messages, query: "tonight")
+        #expect(hits.map(\.text) == ["join us Invite link tonight"])
+    }
+
+    @Test("A photo caption's invite link is hidden from search too")
+    func inviteCaptionNotSearchable() {
+        let messages = [message(1, content: .media([], caption: "https://app.flipcash.com/chat/invite#s=\(Self.inviteSecret)"))]
+        #expect(ChatSearchMessages.hits(in: messages, query: "kQ3vR8").isEmpty)
+    }
+
     // MARK: - Links
 
     @Test(

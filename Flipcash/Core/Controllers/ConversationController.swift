@@ -1680,6 +1680,7 @@ final class ConversationController {
         case .text(let text):
             // A bare prefix says less than no line at all, so an empty body previews as nothing.
             guard !text.isEmpty else { return nil }
+            let text = InviteLinkText.redacting(text)
             if isFromSelf { return "You: \(text)" }
             guard let senderName else { return text }
             return "\(senderName): \(text)"

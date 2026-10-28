@@ -60,13 +60,14 @@ nonisolated struct ChatSearchMessageHit: Identifiable, Hashable {
 nonisolated enum ChatSearchMessages {
 
     /// The user-authored text a message can be found by: its body, a media caption, or a shared
-    /// profile's handle. Nil for content with no such text.
+    /// profile's handle. Nil for content with no such text. Invite links read as "Invite link", so
+    /// the group key in their fragment can't be searched for or shown in a hit.
     static func searchableText(of message: ConversationMessage) -> String? {
         switch message.content {
         case .text(let text):
-            text.isEmpty ? nil : text
+            text.isEmpty ? nil : InviteLinkText.redacting(text)
         case .media(_, let caption):
-            caption.flatMap { $0.isEmpty ? nil : $0 }
+            caption.flatMap { $0.isEmpty ? nil : InviteLinkText.redacting($0) }
         case .widget(.shareProfile(let widget)):
             widget.username.value
         case .widget(.unrecognized), .widget(.paymentRequest), .cash, .deleted, .encrypted, .system:

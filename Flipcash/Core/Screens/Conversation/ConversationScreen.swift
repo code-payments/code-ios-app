@@ -1818,17 +1818,22 @@ struct ConversationScreen: View {
             // or the request. The card never joins, buys or requests from here.
             openLink(card.url)
         case .group(let group):
+            // An invite link opens its own preview, which sends a member on to the chat.
+            guard let chatID = group.chatID else {
+                openLink(card.url)
+                return
+            }
             // A link to the chat already on screen has nowhere to go.
-            guard group.chatID != conversationID else { return }
+            guard chatID != conversationID else { return }
             Analytics.groupInviteFollowed(source: .chatCard)
             // The group's profile, seeded from the card's own lookup as a featured group seeds it;
             // its Open Chat leads on to the chat. Before the lookup answers there is nothing to
             // seed it with, so the tap opens the chat, which fetches the group by its id.
             if let conversation = sessionContainer.linkCardFeed.groupConversation(for: card) {
                 conversationController.hold(conversation)
-                router.push(.chatProfile(group.chatID, origin: .link))
+                router.push(.chatProfile(chatID, origin: .link))
             } else {
-                router.push(.tipConversation(group.chatID))
+                router.push(.tipConversation(chatID))
             }
         case .token(let token):
             Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)

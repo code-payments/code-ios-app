@@ -80,6 +80,30 @@ import FlipcashCore
         #expect(LinkCardClassifier().cardOrWebLink(in: [link]) == nil)
     }
 
+    /// Spec surface 6: an invite link is a group card resolved by its secret, and never a web card.
+    @Test func anInviteLinkBecomesAnInviteGroupCard() throws {
+        let text = "https://app.flipcash.com/chat/invite#s=\(String(repeating: "A", count: 43))"
+        let url = try #require(URL(string: text))
+        let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
+
+        guard case .group(let group)? = LinkCardClassifier().cardOrWebLink(in: [link]) else {
+            Issue.record("expected a group card")
+            return
+        }
+        #expect(group.isInvite)
+        #expect(group.chatID == nil)
+        // The resolver's key is a digest: the secret is not in it.
+        #expect(!LinkCard.group(group).resolutionKey.contains(String(repeating: "A", count: 43)))
+    }
+
+    @Test func anInviteLinkWithoutASecretGetsNoCardOfAnyKind() throws {
+        let text = "https://app.flipcash.com/chat/invite"
+        let url = try #require(URL(string: text))
+        let link = DetectedLink(range: NSRange(location: 0, length: (text as NSString).length), url: url)
+
+        #expect(LinkCardClassifier().cardOrWebLink(in: [link]) == nil)
+    }
+
     /// Not in the canonical fixture yet: Android refuses `/chat/` links until it ships the group
     /// card, and a shared vector would fail its copy until then.
     @Test func aGroupInviteLinkBecomesAGroupCard() throws {
