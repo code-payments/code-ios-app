@@ -546,7 +546,6 @@ private struct PaymentRequestNameScreen: View {
 private struct PaymentRequestDeadlineSheet: View {
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Binding var deadline: PaymentRequestDeadline
 
@@ -643,47 +642,11 @@ private struct PaymentRequestDeadlineSheet: View {
     }
 
     private var chips: some View {
-        HStack(spacing: 6) {
-            ForEach(PaymentRequestDeadline.presets, id: \.rowTitle) { preset in
-                let isSelected = picker.selectedPreset == preset
-                Button {
-                    picker.select(preset)
-                } label: {
-                    Text(preset.rowTitle)
-                        .font(.appTextSmall)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(isSelected ? Color.black : Color.textMain)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                        .anchorPreference(key: SelectionAnchors<String>.self, value: .bounds) { [preset.rowTitle: $0] }
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .backgroundPreferenceValue(SelectionAnchors<String>.self) { anchors in
-            GeometryReader { proxy in
-                ForEach(Array(anchors.keys), id: \.self) { title in
-                    if let anchor = anchors[title] {
-                        let rect = proxy[anchor]
-                        Capsule().fill(Color.backgroundSecondary)
-                            .frame(width: rect.width, height: rect.height)
-                            .position(x: rect.midX, y: rect.midY)
-                    }
-                }
-                // One capsule for the selection, so it slides between chips instead of fading.
-                if let title = picker.selectedPreset?.rowTitle, let anchor = anchors[title] {
-                    let rect = proxy[anchor]
-                    Capsule().fill(Color.white)
-                        .frame(width: rect.width, height: rect.height)
-                        .position(x: rect.midX, y: rect.midY)
-                }
-            }
-        }
-        .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: picker.selectedPreset)
+        SlidingChipPicker(
+            PaymentRequestDeadline.presets,
+            selection: Binding(get: { picker.selectedPreset }, set: { if let preset = $0 { picker.select(preset) } }),
+            label: \.rowTitle
+        )
     }
 }
 
