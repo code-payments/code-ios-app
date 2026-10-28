@@ -14,27 +14,34 @@ final class NotificationStatusViewModel {
 
     private(set) var snapshot: NotificationStatus.Snapshot?
     private(set) var registration: NotificationStatus.Registration = .checking
-    /// Whether the folded "N checks passed" row has been opened. Lasts until the page closes.
+    /// Whether the folded "N checks passed" row is open. Lasts until the page closes or the user
+    /// folds it again.
     var isExpanded = false
     /// Whether a test notification was scheduled since the page opened.
     private(set) var isTestSent = false
     /// The page as it stood when "Check Again" was tapped, shown with every row Checking until
     /// that run ends.
     private var recheckingFrom: NotificationStatus.Page?
+    /// The saved `AddToken` record as it stood when the current registration started, before
+    /// that attempt overwrote it.
+    private var savedBeforeRegistration: NotificationStatus.RegistrationRecord?
 
     @ObservationIgnored private let pushController: PushController
     @ObservationIgnored private let readSettings: () async -> NotificationStatus.Snapshot
     @ObservationIgnored private let registrationCheck: (_ deletingToken: Bool) async -> NotificationStatus.Registration
+    @ObservationIgnored private let savedRegistration: () -> NotificationStatus.RegistrationRecord?
     @ObservationIgnored private let recheckPause: Duration
     @ObservationIgnored private var registrationTask: Task<Void, Never>?
 
-    /// `readSettings` and `registrationCheck` default to the phone's settings and
-    /// ``PushController/checkRegistration(deletingToken:)``. `recheckPause` is the least time
-    /// "Check Again" shows the rows as Checking, so a fast re-check still reads as one.
+    /// `readSettings`, `registrationCheck` and `savedRegistration` default to the phone's settings,
+    /// ``PushController/checkRegistration(deletingToken:)`` and ``PushController/savedRegistration``.
+    /// `recheckPause` is the least time "Check Again" shows the rows as Checking, so a fast
+    /// re-check still reads as one.
     init(
         pushController: PushController,
         readSettings: (() async -> NotificationStatus.Snapshot)? = nil,
         registrationCheck: ((_ deletingToken: Bool) async -> NotificationStatus.Registration)? = nil,
+        savedRegistration: (() -> NotificationStatus.RegistrationRecord?)? = nil,
         recheckPause: Duration = .milliseconds(500)
     ) {
         self.pushController = pushController
@@ -42,6 +49,7 @@ final class NotificationStatusViewModel {
         self.registrationCheck = registrationCheck ?? { [pushController] in
             await pushController.checkRegistration(deletingToken: $0)
         }
+        self.savedRegistration = savedRegistration ?? { [pushController] in pushController.savedRegistration }
         self.recheckPause = recheckPause
     }
 
@@ -54,7 +62,7 @@ final class NotificationStatusViewModel {
             NotificationStatus.evaluate(
                 snapshot: $0,
                 registration: registration,
-                saved: pushController.savedRegistration,
+                saved: savedBeforeRegistration,
                 now: .now
             )
         }
@@ -69,7 +77,7 @@ final class NotificationStatusViewModel {
         NotificationStatus.report(
             snapshot: snapshot ?? .init(authorization: .notDetermined),
             registration: registration,
-            saved: pushController.savedRegistration,
+            saved: savedRegistration(),
             context: .init(
                 appVersion: Self.appVersion,
                 osVersion: UIDevice.current.systemVersion,
@@ -92,11 +100,12 @@ final class NotificationStatusViewModel {
     }
 
     /// Re-runs every check, including a fresh `AddToken`, keeping the rows the page shows now.
+    /// After a rejected push token it deletes the local token first, as "Try Again" does.
     /// Returns once the run has finished; does nothing while a run is already in progress.
     func checkAgain() async {
         guard !isRunning, let page else { return }
         recheckingFrom = page
-        register()
+        register(deletingToken: registration == .finished(.invalidPushToken))
         async let pause: Void? = try? Task.sleep(for: recheckPause)
         await refreshSettings()
         await registrationTask?.value
@@ -110,12 +119,11 @@ final class NotificationStatusViewModel {
         await refreshSettings()
     }
 
-    /// Marks an unfinished registration as interrupted when the page goes away.
+    /// Drops an unfinished registration when the page goes away; the cancelled attempt saves
+    /// nothing.
     func stop() {
-        guard let registrationTask else { return }
-        registrationTask.cancel()
-        self.registrationTask = nil
-        registration = .interrupted
+        registrationTask?.cancel()
+        registrationTask = nil
     }
 
     private func refreshSettings() async {
@@ -124,6 +132,7 @@ final class NotificationStatusViewModel {
 
     private func register(deletingToken: Bool = false) {
         registrationTask?.cancel()
+        savedBeforeRegistration = savedRegistration()
         registration = .checking
         registrationTask = Task { [registrationCheck] in
             let result = await registrationCheck(deletingToken)

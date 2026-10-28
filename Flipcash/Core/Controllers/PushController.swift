@@ -59,6 +59,8 @@ class PushController {
 
     @ObservationIgnored private var apnsToken: Data?
     @ObservationIgnored private var uploadedFirebaseToken: String?
+    /// The token sent in the latest `AddToken` attempt, or `nil` when that attempt fetched none.
+    @ObservationIgnored private var attemptedFirebaseToken: String?
     @ObservationIgnored private var activeObserver: Any?
     @ObservationIgnored private let registrationStore: NotificationRegistrationStore
 
@@ -176,19 +178,23 @@ class PushController {
         registrationStore.record
     }
 
-    /// The last six characters of the current FCM token, for the report.
+    /// The last six characters of the token sent in the latest attempt, for the report.
     var tokenSuffix: String? {
-        uploadedFirebaseToken.map { String($0.suffix(6)) }
+        attemptedFirebaseToken.map { String($0.suffix(6)) }
     }
 
     /// Fetches the current FCM token and calls `AddToken` with it, whether or not this token was
-    /// already uploaded, so the status page sees a fresh answer. Gives up after
-    /// ``NotificationStatus/registrationTimeout``.
+    /// already uploaded, so the status page sees a fresh answer. One
+    /// ``NotificationStatus/registrationTimeout`` covers the token delete, the fetch and `AddToken`.
+    ///
+    /// Saves the outcome only when a token was fetched, since otherwise `AddToken` never ran, and
+    /// saves nothing when the caller is cancelled.
     func checkRegistration(deletingToken: Bool = false) async -> NotificationStatus.Registration {
+        let deadline = ContinuousClock.now + NotificationStatus.registrationTimeout
         let messaging = Messaging.messaging()
         if deletingToken {
             do {
-                try await messaging.deleteToken()
+                try await Self.withDeadline(deadline) { try await Messaging.messaging().deleteToken() }
             } catch {
                 ErrorReporting.captureError(error, reason: "Failed to delete local FCM token")
             }
@@ -196,19 +202,22 @@ class PushController {
 
         let token: String
         do {
-            token = try await Self.withTimeout { try await Messaging.messaging().token() }
+            token = try await Self.withDeadline(deadline) { try await Messaging.messaging().token() }
         } catch {
+            guard !Task.isCancelled else { return .checking }
+            attemptedFirebaseToken = nil
             if messaging.apnsToken == nil {
                 logger.warning("No APNs token for registration check", metadata: ["error": "\(error)"])
                 return .noAPNsToken
             }
-            let result: NotificationStatus.RegistrationResult = error is CancellationError ? .transport : .unknown
             ErrorReporting.captureError(error, reason: "Failed to fetch FCM token for registration check")
-            registrationStore.record = .init(at: .now, result: result, source: .statusPage)
-            return .finished(result)
+            return .finished(error is CancellationError ? .transport : .unknown)
         }
 
-        return .finished(await upload(token: token, source: .statusPage))
+        guard let result = await upload(token: token, source: .statusPage, deadline: deadline) else {
+            return .checking
+        }
+        return .finished(result)
     }
 
     /// Posts the local test notification ``NotificationStatus/testDelay`` seconds from now. It has no
@@ -241,18 +250,23 @@ class PushController {
         if uploadedFirebaseToken != token {
             // A first upload this launch follows login or launch; any later one is a rotation.
             let source: NotificationStatus.RegistrationSource = uploadedFirebaseToken == nil ? .login : .refresh
-            await upload(token: token, source: source)
+            await upload(token: token, source: source, deadline: .now + NotificationStatus.registrationTimeout)
         }
     }
 
     /// Calls `AddToken`, caches the token on success and records the outcome for this account.
+    /// Returns `nil`, saving nothing, when the caller was cancelled before it finished.
     @discardableResult
-    private func upload(token: String, source: NotificationStatus.RegistrationSource) async -> NotificationStatus.RegistrationResult {
+    private func upload(
+        token: String,
+        source: NotificationStatus.RegistrationSource,
+        deadline: ContinuousClock.Instant
+    ) async -> NotificationStatus.RegistrationResult? {
         let result: NotificationStatus.RegistrationResult
         do {
             let client = client
             let owner = owner
-            try await Self.withTimeout {
+            try await Self.withDeadline(deadline) {
                 try await client.addToken(
                     token: token,
                     installationID: try await Self.installationID(),
@@ -271,17 +285,24 @@ class PushController {
             ErrorReporting.captureError(error, reason: "Failed to add push token", metadata: ["source": source.rawValue])
         }
 
-        registrationStore.record = .init(at: .now, result: result, source: source)
+        // The page closed mid-run, which drops the run; a timeout cancels only the call.
+        guard !Task.isCancelled else { return nil }
+
+        attemptedFirebaseToken = token
+        registrationStore.save(result, source: source)
         logger.info("Recorded push registration", metadata: ["source": "\(source.rawValue)", "result": "\(result.rawValue)"])
         return result
     }
 
-    /// Runs `operation`, throwing `CancellationError` if it outlasts ``NotificationStatus/registrationTimeout``.
-    private static func withTimeout<T: Sendable>(_ operation: @escaping @Sendable () async throws -> T) async throws -> T {
+    /// Runs `operation`, throwing `CancellationError` if it is still running at `deadline`.
+    private static func withDeadline<T: Sendable>(
+        _ deadline: ContinuousClock.Instant,
+        _ operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
         try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask { try await operation() }
             group.addTask {
-                try await Task.sleep(for: NotificationStatus.registrationTimeout)
+                try await Task.sleep(until: deadline, clock: .continuous)
                 throw CancellationError()
             }
             defer { group.cancelAll() }

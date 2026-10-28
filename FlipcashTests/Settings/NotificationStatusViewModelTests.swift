@@ -90,6 +90,82 @@ struct NotificationStatusViewModelTests {
         #expect(model.page?.rows.first { $0.check == .registration }?.status == .pass)
     }
 
+    @Test("A transport failure after a saved ok is a warning, though the attempt saved its own failure first")
+    func transportAfterSavedOKWarns() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "NotificationStatusViewModelTests.\(UUID())"))
+        let store = NotificationRegistrationStore(defaults: defaults, owner: KeyPair.mock.publicKey)
+        let okAt = Date.now.addingTimeInterval(-300)
+        store.save(.ok, source: .login, at: okAt)
+
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { .init(authorization: .authorized) },
+            registrationCheck: { _ in
+                // What PushController does: the failed attempt saves before the page reads anything.
+                store.save(.transport, source: .statusPage)
+                return .finished(.transport)
+            },
+            savedRegistration: { store.record },
+            recheckPause: .zero
+        )
+
+        await model.runChecks()
+        await until { !model.isRunning }
+
+        let row = try #require(model.page?.rows.first { $0.check == .registration })
+        #expect(store.record?.result == .transport)
+        #expect(row.status == .warning)
+        #expect(row.detail == "Last confirmed 5 minutes ago")
+        #expect(model.page?.summary.status == .warning)
+    }
+
+    @Test("Check again after a rejected push token deletes the local token first")
+    func checkAgainAfterInvalidTokenDeletesToken() async {
+        var deletions: [Bool] = []
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { .init(authorization: .authorized) },
+            registrationCheck: { deletingToken in
+                deletions.append(deletingToken)
+                return deletions.count == 1 ? .finished(.invalidPushToken) : .finished(.ok)
+            },
+            recheckPause: .zero
+        )
+
+        await model.runChecks()
+        await until { !model.isRunning }
+        await model.checkAgain()
+        await model.checkAgain()
+
+        #expect(deletions == [false, true, false])
+    }
+
+    @Test("Closing the page mid-run cancels the attempt and shows no result for it")
+    func stopDropsTheRun() async {
+        let registration = Gate<NotificationStatus.Registration>(.finished(.transport))
+        registration.holdsNext = true
+        var wasCancelled = false
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { .init(authorization: .authorized) },
+            registrationCheck: { _ in
+                let result = await registration.next()
+                wasCancelled = Task.isCancelled
+                return result
+            },
+            recheckPause: .zero
+        )
+
+        await model.runChecks()
+        await until { registration.isHolding }
+        model.stop()
+        registration.release()
+        await until { wasCancelled }
+
+        #expect(model.registration == .checking)
+        #expect(model.page?.rows.allSatisfy { $0.status != .fail && $0.status != .warning } == true)
+    }
+
     // MARK: - Support -
 
     /// Yields until `condition` holds, so the view model's unstructured registration task can run.

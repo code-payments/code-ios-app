@@ -128,9 +128,9 @@ struct NotificationStatusTests {
         #expect(row?.fix == .retryRegistration)
     }
 
-    @Test("11b: a timeout after a saved ok is only a warning")
+    @Test("11b: a timeout after a past ok is only a warning")
     func transportWithSavedOK() {
-        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(-300), result: .ok, source: .refresh)
+        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(-300), result: .ok, source: .refresh, lastRegistrationOkAt: Self.now.addingTimeInterval(-300))
         let page = Self.page(registration: .finished(.transport), saved: saved)
         let row = Self.row(.registration, in: page)
 
@@ -140,9 +140,18 @@ struct NotificationStatusTests {
         #expect(page.summary.title == "1 thing to check")
     }
 
+    @Test("A timeout after a failure that followed an ok is still a warning, dated by the ok")
+    func transportAfterFailureFollowingOK() {
+        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(-60), result: .transport, source: .statusPage, lastRegistrationOkAt: Self.now.addingTimeInterval(-7200))
+        let row = Self.row(.registration, in: Self.page(registration: .finished(.transport), saved: saved))
+
+        #expect(row?.status == .warning)
+        #expect(row?.detail == "Last confirmed 2 hours ago")
+    }
+
     @Test("A save under a minute old reads just now, not 0 minutes ago", arguments: [0.0, -1, -59])
     func transportWithFreshSavedOK(offset: TimeInterval) {
-        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(offset), result: .ok, source: .refresh)
+        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(offset), result: .ok, source: .refresh, lastRegistrationOkAt: Self.now.addingTimeInterval(offset))
         let page = Self.page(registration: .finished(.transport), saved: saved)
 
         #expect(Self.row(.registration, in: page)?.detail == "Last confirmed just now")
@@ -150,7 +159,7 @@ struct NotificationStatusTests {
 
     @Test("A save a minute old reads in minutes")
     func transportWithMinuteOldSavedOK() {
-        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(-60), result: .ok, source: .refresh)
+        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(-60), result: .ok, source: .refresh, lastRegistrationOkAt: Self.now.addingTimeInterval(-60))
         let page = Self.page(registration: .finished(.transport), saved: saved)
 
         #expect(Self.row(.registration, in: page)?.detail == "Last confirmed 1 minute ago")
@@ -196,7 +205,28 @@ struct NotificationStatusTests {
         #expect(rechecking.rows.map(\.title) == page.rows.map(\.title))
         #expect(rechecking.rows.allSatisfy { $0.status == .checking })
         #expect(rechecking.summary.status == .checking)
+        #expect(rechecking.summary.detail == "Checked just now")
         #expect(rechecking.isTestEnabled == page.isTestEnabled)
+    }
+
+    @Test("The folded row passes, and shows Checking while the checks run again")
+    func foldedRowRechecking() {
+        let page = Self.page()
+        #expect(page.foldedStatus == .pass)
+
+        let rechecking = page.rechecking
+        #expect(rechecking.foldedTitle == "4 checks passed")
+        #expect(rechecking.foldedStatus == .checking)
+    }
+
+    @Test("A finished problem outranks a row still checking in the summary", arguments: [
+        (NotificationStatus.Snapshot(authorization: .authorized, alertStyle: .none), NotificationStatus.Status.warning),
+        (.init(authorization: .denied), .fail),
+    ])
+    func problemOutranksChecking(snapshot: NotificationStatus.Snapshot, expected: NotificationStatus.Status) {
+        let page = Self.page(snapshot, registration: .checking)
+        #expect(page.summary.status == expected)
+        #expect(page.summary.detail == nil, "The second line waits for the first run to finish")
     }
 
     @Test("13: a fail outranks a warning in the summary")
@@ -227,17 +257,6 @@ struct NotificationStatusTests {
 
         #expect(page.summary.status == .pass)
         #expect(page.foldedTitle == "4 checks passed")
-    }
-
-    @Test("An interrupted registration offers Try Again")
-    func interrupted() {
-        let page = Self.page(registration: .interrupted)
-        let row = Self.row(.registration, in: page)
-
-        #expect(row?.status == .unknown)
-        #expect(row?.detail == "Check was interrupted")
-        #expect(row?.fix == .retryRegistration)
-        #expect(page.summary.status == .unknown)
     }
 
     @Test("Rows keep check order within a group, failures included")
@@ -283,6 +302,31 @@ struct NotificationStatusTests {
             """)
     }
 
+    @Test("The report names a failed result, and a token-less run as such", arguments: [
+        (NotificationStatus.Registration.finished(.transport), NotificationStatus.RegistrationRecord(at: NotificationStatusTests.now, result: .transport, source: .statusPage), String?("a1b2c3"), "Registered for push: fail (transport, statusPage, 2026-10-28 11:06)", "Token: …a1b2c3 (last 6)"),
+        (.noAPNsToken, .init(at: NotificationStatusTests.now, result: .ok, source: .login), nil, "Registered for push: fail (noAPNsToken; last ok, login, 2026-10-28 11:06)", "Token: none"),
+    ])
+    func reportRegistration(
+        registration: NotificationStatus.Registration,
+        saved: NotificationStatus.RegistrationRecord,
+        tokenSuffix: String?,
+        line: String,
+        token: String
+    ) throws {
+        let report = NotificationStatus.report(
+            snapshot: Self.allowed,
+            registration: registration,
+            saved: saved,
+            context: .init(appVersion: "1", osVersion: "26.1", deviceModel: "iPhone17,1", tokenSuffix: tokenSuffix, lastAPNsError: nil),
+            now: Self.now,
+            timeZone: try #require(TimeZone(secondsFromGMT: -4 * 3600))
+        )
+        let lines = report.split(separator: "\n").map(String.init)
+
+        #expect(lines.contains(line))
+        #expect(lines.contains(token))
+    }
+
     @Test("UTC offsets keep half hours")
     func utcOffset() throws {
         let india = try #require(TimeZone(secondsFromGMT: 5 * 3600 + 1800))
@@ -313,5 +357,37 @@ struct NotificationStatusTests {
 
         store.clear()
         #expect(store.record == nil)
+    }
+
+    @Test("Saving keeps the last ok time until a newer ok, and logout clears it")
+    func registrationStoreKeepsLastOK() throws {
+        let defaults = try #require(UserDefaults(suiteName: "NotificationStatusTests.\(UUID())"))
+        let store = NotificationRegistrationStore(defaults: defaults, owner: KeyPair.mock.publicKey)
+        let first = Self.now.addingTimeInterval(-3600)
+        let second = Self.now.addingTimeInterval(-600)
+
+        store.save(.transport, source: .login, at: first.addingTimeInterval(-60))
+        #expect(store.record?.lastRegistrationOkAt == nil)
+
+        store.save(.ok, source: .login, at: first)
+        store.save(.transport, source: .statusPage, at: first.addingTimeInterval(60))
+        store.save(.invalidPushToken, source: .refresh, at: first.addingTimeInterval(120))
+        #expect(store.record?.result == .invalidPushToken)
+        #expect(store.record?.lastRegistrationOkAt == first)
+
+        store.save(.ok, source: .statusPage, at: second)
+        #expect(store.record?.lastRegistrationOkAt == second)
+
+        store.clear()
+        #expect(store.record == nil)
+    }
+
+    @Test("A record saved before the last ok time existed still loads")
+    func registrationRecordWithoutLastOK() throws {
+        let json = Data(#"{"at":0,"result":"ok","source":"login"}"#.utf8)
+        let record = try JSONDecoder().decode(NotificationStatus.RegistrationRecord.self, from: json)
+
+        #expect(record.result == .ok)
+        #expect(record.lastRegistrationOkAt == nil)
     }
 }

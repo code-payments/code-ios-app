@@ -122,11 +122,29 @@ extension NotificationStatus {
         public var at: Date
         public var result: RegistrationResult
         public var source: RegistrationSource
+        /// When an `AddToken` call from any call site last returned `ok`. Only a newer `ok`
+        /// replaces it, so a later failure keeps it.
+        public var lastRegistrationOkAt: Date?
 
-        public init(at: Date, result: RegistrationResult, source: RegistrationSource) {
+        public init(at: Date, result: RegistrationResult, source: RegistrationSource, lastRegistrationOkAt: Date? = nil) {
             self.at = at
             self.result = result
             self.source = source
+            self.lastRegistrationOkAt = lastRegistrationOkAt
+        }
+
+        /// The record for a new outcome at `at`, carrying forward the last `ok` time from `previous`.
+        public static func recording(
+            _ result: RegistrationResult,
+            source: RegistrationSource,
+            at: Date,
+            after previous: RegistrationRecord?
+        ) -> RegistrationRecord {
+            let okAt: Date? = switch result {
+            case .ok:                                     at
+            case .invalidPushToken, .transport, .unknown: previous?.lastRegistrationOkAt
+            }
+            return RegistrationRecord(at: at, result: result, source: source, lastRegistrationOkAt: okAt)
         }
     }
 
@@ -134,8 +152,6 @@ extension NotificationStatus {
     public enum Registration: Equatable, Sendable {
         /// The check is running.
         case checking
-        /// The check stopped before it had an answer.
-        case interrupted
         /// Firebase had no token to give, because the phone has no APNs token.
         case noAPNsToken
         /// `AddToken` answered, or timed out.
@@ -152,7 +168,6 @@ extension NotificationStatus {
         case warning
         case fail
         case checking
-        case unknown
     }
 
     public enum Check: String, CaseIterable, Sendable {
@@ -244,21 +259,29 @@ extension NotificationStatus {
         public var summary: Summary
         /// Whether "Send Test Notification" can be tapped.
         public var isTestEnabled: Bool
-        /// The title of the single row that replaces both groups when every check passes.
+        /// The title of the row that folds both groups when every check passes.
         public var foldedTitle: String?
+        /// The mark on the folded row: Pass, or Checking while the checks run again.
+        public var foldedStatus: Status {
+            switch summary.status {
+            case .checking:              .checking
+            case .pass, .warning, .fail: .pass
+            }
+        }
 
         public func rows(in group: Group) -> [Row] {
             rows.filter { $0.check.group == group }
         }
 
         /// This page while its checks run again: the same rows with the same text, each marked
-        /// Checking, so nothing on the page moves until the new results land.
+        /// Checking, so nothing on the page moves until the new results land. The summary keeps
+        /// its second line from the last finished run.
         public var rechecking: Page {
             var page = self
             for index in page.rows.indices {
                 page.rows[index].status = .checking
             }
-            page.summary = Summary(status: .checking, title: "Checking…")
+            page.summary = Summary(status: .checking, title: "Checking…", detail: summary.detail)
             return page
         }
     }
@@ -286,8 +309,9 @@ extension NotificationStatus {
 
     /// Builds the page from the phone's settings and the registration check.
     ///
-    /// `saved` is the last recorded `AddToken` outcome; it softens a transport failure into a
-    /// warning when the server most likely still holds a good registration.
+    /// `saved` is the `AddToken` record as it stood before this registration attempt started;
+    /// a past `ok` in it softens a transport failure into a warning, since the server most likely
+    /// still holds a good registration.
     public static func evaluate(
         snapshot: Snapshot,
         registration: Registration,
@@ -309,7 +333,7 @@ extension NotificationStatus {
 
         return Page(
             rows: rows,
-            summary: summary(rows, registration: registration),
+            summary: summary(rows),
             isTestEnabled: !permissionFails,
             foldedTitle: allPass ? plural(rows.count, "check passed", "checks passed") : nil
         )
@@ -370,8 +394,6 @@ extension NotificationStatus {
         switch registration {
         case .checking:
             return Row(check: .registration, status: .checking, title: "Checking registration…", detail: "Contacting Flipcash", raw: "checking")
-        case .interrupted:
-            return Row(check: .registration, status: .unknown, title: name, detail: "Check was interrupted", fix: .retryRegistration, raw: "interrupted")
         case .noAPNsToken:
             return Row(check: .registration, status: .fail, title: "This phone isn't registered with Apple", fix: .retryRegistration, raw: "noAPNsToken")
         case .finished(.ok):
@@ -380,8 +402,8 @@ extension NotificationStatus {
             return Row(check: .registration, status: .fail, title: "Flipcash rejected this phone's push token", fix: .retryRegistrationDeletingToken, raw: RegistrationResult.invalidPushToken.rawValue)
         case .finished(.transport):
             let raw = RegistrationResult.transport.rawValue
-            if let saved, saved.result == .ok {
-                return Row(check: .registration, status: .warning, title: "Couldn't reach Flipcash", detail: "Last confirmed \(relative(saved.at, to: now, locale: locale))", fix: .retryRegistration, raw: raw)
+            if let okAt = saved?.lastRegistrationOkAt {
+                return Row(check: .registration, status: .warning, title: "Couldn't reach Flipcash", detail: "Last confirmed \(relative(okAt, to: now, locale: locale))", fix: .retryRegistration, raw: raw)
             }
             return Row(check: .registration, status: .fail, title: "Couldn't reach Flipcash", detail: "Check your connection", fix: .retryRegistration, raw: raw)
         case .finished(.unknown):
@@ -389,10 +411,11 @@ extension NotificationStatus {
         }
     }
 
-    static func summary(_ rows: [Row], registration: Registration) -> Summary {
+    static func summary(_ rows: [Row]) -> Summary {
         let fails = rows.filter { $0.status == .fail }
         let warnings = rows.filter { $0.status == .warning }
-        let checked = "Checked just now"
+        // The second line waits for every check to finish.
+        let checked = rows.contains { $0.status == .checking } ? nil : "Checked just now"
 
         if !fails.isEmpty {
             let title = fails.contains { $0.check == .permission }
@@ -405,9 +428,6 @@ extension NotificationStatus {
         }
         if rows.contains(where: { $0.status == .checking }) {
             return Summary(status: .checking, title: "Checking…", detail: nil)
-        }
-        if rows.contains(where: { $0.status == .unknown }) {
-            return Summary(status: .unknown, title: "Almost done checking", detail: "Push registration not confirmed yet")
         }
         return Summary(status: .pass, title: "Notifications are working", detail: checked)
     }
@@ -435,7 +455,8 @@ extension NotificationStatus {
         public var appVersion: String
         public var osVersion: String
         public var deviceModel: String
-        /// The last six characters of the FCM token, or `nil` when there is none.
+        /// The last six characters of the token sent in the latest attempt, or `nil` when that
+        /// attempt fetched none.
         public var tokenSuffix: String?
         /// The last `didFailToRegisterForRemoteNotifications` error, if any.
         public var lastAPNsError: String?
@@ -477,9 +498,14 @@ extension NotificationStatus {
             var raw = row.raw
             if row.check == .registration, let saved {
                 let at = timestamp(saved.at, timeZone: timeZone)
-                raw = row.status == .pass
-                    ? "\(saved.source.rawValue), \(at)"
-                    : [raw, "last \(saved.result.rawValue) via \(saved.source.rawValue), \(at)"].compactMap { $0 }.joined(separator: "; ")
+                if row.raw == saved.result.rawValue {
+                    // `<result>, <source>, <time>`, with an `ok` result left out.
+                    let result = saved.result == .ok ? nil : saved.result.rawValue
+                    raw = [result, saved.source.rawValue, at].compactMap { $0 }.joined(separator: ", ")
+                } else {
+                    // This run saved nothing (no token, or still checking), so the record is older.
+                    raw = [raw, "last \(saved.result.rawValue), \(saved.source.rawValue), \(at)"].compactMap { $0 }.joined(separator: "; ")
+                }
             }
             let value = raw.map { " (\($0))" } ?? ""
             lines.append("\(row.check.name): \(row.status.rawValue)\(value)")

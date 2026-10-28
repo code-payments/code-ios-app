@@ -88,14 +88,19 @@ struct NotificationStatusScreen: View {
 
     @ViewBuilder
     private func checks(page: NotificationStatus.Page) -> some View {
-        if let foldedTitle = page.foldedTitle, model?.isExpanded != true {
-            FoldedRow(title: foldedTitle) {
-                model?.isExpanded = true
+        let isExpanded = model?.isExpanded == true
+
+        // When every check passes, the folded row stays as the toggle above the groups it opens.
+        if let foldedTitle = page.foldedTitle {
+            FoldedRow(title: foldedTitle, status: page.foldedStatus, isExpanded: isExpanded) {
+                model?.isExpanded.toggle()
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
             .transition(.opacity)
-        } else {
+        }
+
+        if page.foldedTitle == nil || isExpanded {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(NotificationStatus.Group.allCases, id: \.self) { group in
                     let rows = page.rows(in: group)
@@ -201,24 +206,28 @@ private struct SummaryCard: View {
 private struct FoldedRow: View {
 
     let title: String
+    let status: NotificationStatus.Status
+    let isExpanded: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                StatusMark(status: .pass, size: .small)
+                StatusMark(status: status, size: .small)
                 Text(title)
                     .font(.appTextMessage)
                     .foregroundStyle(Color.textMain)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.down")
                     .foregroundStyle(Color.textSecondary)
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
             }
             .padding(16)
             .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
         .accessibilityIdentifier("notification-status-folded")
     }
 }
@@ -353,18 +362,18 @@ private struct StatusMark: View {
 
     private var color: Color {
         switch status {
-        case .pass:              .textSuccess
-        case .warning:           .textWarning
-        case .fail:              .textError
-        case .checking, .unknown: .textSecondary
+        case .pass:     .textSuccess
+        case .warning:  .textWarning
+        case .fail:     .textError
+        case .checking: .textSecondary
         }
     }
 
     private var glyph: String {
         switch status {
-        case .pass:              "checkmark"
-        case .warning, .fail:    "exclamationmark"
-        case .checking, .unknown: "questionmark"
+        case .pass:           "checkmark"
+        case .warning, .fail: "exclamationmark"
+        case .checking:       "questionmark"
         }
     }
 }

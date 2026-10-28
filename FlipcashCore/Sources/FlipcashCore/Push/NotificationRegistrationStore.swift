@@ -34,6 +34,11 @@ public final class NotificationRegistrationStore {
         }
     }
 
+    /// Saves a new outcome, keeping the time of the last `ok` from the record it replaces.
+    public func save(_ result: NotificationStatus.RegistrationResult, source: NotificationStatus.RegistrationSource, at: Date = .now) {
+        record = .recording(result, source: source, at: at, after: record)
+    }
+
     /// Removes the saved outcome. Called on logout.
     public func clear() {
         defaults.removeObject(forKey: key)
