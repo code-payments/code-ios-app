@@ -30,6 +30,8 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
     #if DEBUG // LOCAL-TUNER
     /// The tray the showcase has up over this screen. // LOCAL-TUNER
     @State private var showcaseTray: TrayKind? // LOCAL-TUNER
+    /// Whether the swipe showcase is up over this screen. // LOCAL-TUNER
+    @State private var isShowingSwipeShowcase = false // LOCAL-TUNER
     #endif // LOCAL-TUNER
 
     private let publicOptions = BetaFlags.Option.allCases.filter { $0.availability == .publicBeta }
@@ -57,6 +59,9 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
                         unlinkRow(title: kind.name, isDisabled: false) { showcaseTray = kind } // LOCAL-TUNER
                             .accessibilityIdentifier("tray-showcase-\(kind.rawValue)") // LOCAL-TUNER
                     } // LOCAL-TUNER
+                    SettingsSectionHeader("Swipe Showcase") // LOCAL-TUNER
+                    unlinkRow(title: "Swipe to Send", isDisabled: false) { isShowingSwipeShowcase = true } // LOCAL-TUNER
+                        .accessibilityIdentifier("swipe-showcase") // LOCAL-TUNER
                     #endif // LOCAL-TUNER
 
                     ForEach(publicOptions) { option in
@@ -96,6 +101,11 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
         // Each showcase tray comes up over this screen, as it would over any other. // LOCAL-TUNER
         .tray(item: $showcaseTray, isDismissable: showcaseTray?.isDismissable ?? true) { kind in // LOCAL-TUNER
             kind.tray // LOCAL-TUNER
+        } // LOCAL-TUNER
+        // The swipe looks come up in a sheet, as the send screen does. // LOCAL-TUNER
+        .sheet(isPresented: $isShowingSwipeShowcase) { // LOCAL-TUNER
+            SwipeShowcaseScreen() // LOCAL-TUNER
+                .presentationDragIndicator(.visible) // LOCAL-TUNER
         } // LOCAL-TUNER
         #endif // LOCAL-TUNER
         .alert(
