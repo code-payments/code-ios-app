@@ -209,6 +209,9 @@ private struct SwipingTrack: View {
                     halfLength: (thumbWidth - diameter) / 2 * liftScale,
                     bend: SwipeMetrics.lensBend,
                     band: SwipeMetrics.lensBand,
+                    zoom: SwipeMetrics.lensZoom,
+                    falloff: SwipeMetrics.lensFalloff,
+                    aberration: SwipeMetrics.lensAberration,
                     isEnabled: look == .lens && SwipeMetrics.usesGlass
                 ))
                 .animation(snap, value: position)
@@ -269,8 +272,12 @@ private struct SwipingTrack: View {
         .onChange(of: wantsLift) { _, lift in
             withAnimation(press) { isLifted = lift }
         }
-        .sensoryFeedback(.impact(flexibility: .soft, intensity: SwipeMetrics.touchHaptic), trigger: wantsLift) { wasLifted, lift in
-            !wasLifted && lift
+        .sensoryFeedback(SwipeMetrics.hapticStyle.feedback(intensity: SwipeMetrics.hapticIntensity), trigger: wantsLift) { wasLifted, lift in
+            SwipeMetrics.hapticOn && !wasLifted && lift
+        }
+        // A lift that ends with the control still idle is a release without a commit.
+        .sensoryFeedback(SwipeMetrics.releaseHapticStyle.feedback(intensity: SwipeMetrics.releaseHapticIntensity), trigger: wantsLift) { wasLifted, lift in
+            SwipeMetrics.releaseHapticOn && wasLifted && !lift && state == .normal
         }
         .task {
             do {

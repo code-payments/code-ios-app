@@ -23,7 +23,10 @@ using namespace metal;
     float radius,
     float halfLength,
     float bend,
-    float band
+    float band,
+    float zoom,
+    float falloff,
+    float aberration
 ) {
     float centerY = bounds.y + bounds.w * 0.5;
     // The nearest point on the capsule's spine, so the rim keeps one distance all the way round.
@@ -38,5 +41,17 @@ using namespace metal;
     float insideRim = radius - distance;
     float pull = 1.0 - smoothstep(0.0, max(band, 0.001), insideRim);
     float2 outward = fromCenter / distance;
-    return layer.sample(position - outward * bend * pull * pull);
+    // Magnify about the lens's own centre, then bend; at zoom 1 and falloff 2 this is the original pull * pull.
+    float2 lensCenter = float2(centerX, centerY);
+    float2 zoomed = lensCenter + (position - lensCenter) / zoom;
+    float shaped = pow(pull, falloff);
+    float2 source = zoomed - outward * bend * shaped;
+    if (aberration <= 0.0) {
+        return layer.sample(source);
+    }
+    float2 split = outward * aberration * shaped;
+    half4 middle = layer.sample(source);
+    half4 red = layer.sample(source + split);
+    half4 blue = layer.sample(source - split);
+    return half4(red.r, middle.g, blue.b, max(max(red.a, blue.a), middle.a));
 }

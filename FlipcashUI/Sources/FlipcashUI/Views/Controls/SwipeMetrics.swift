@@ -74,8 +74,6 @@ enum SwipeMetrics {
     static var pressScale: CGFloat { Tuner.shared.value("Swipe Motion/Press scale", default: 1.06, in: 1...1.3, unit: .multiplier) } // LOCAL-TUNER
     /// The thumb's opacity under the finger with Reduce Motion on, standing in for the scale.
     static var pressDim: Double { Tuner.shared.value("Swipe Motion/Press dim", default: 0.8, in: 0.3...1) } // LOCAL-TUNER
-    /// The soft tap's strength at touch-down.
-    static var touchHaptic: Double { Tuner.shared.value("Swipe Motion/Touch haptic", default: 0.5, in: 0...1) } // LOCAL-TUNER
 
     // MARK: - Motion
 
@@ -101,8 +99,28 @@ enum SwipeMetrics {
     static var lensBend: CGFloat { Tuner.shared.value("Swipe Lens/Bend", default: 6.1, in: 0...30, unit: .points) } // LOCAL-TUNER
     /// How deep inside the rim the bend reaches, as a share of the lens's radius.
     static var lensBand: CGFloat { Tuner.shared.value("Swipe Lens/Band", default: 0.73, in: 0.05...1) } // LOCAL-TUNER
+    /// The glass the lens rim is made of.
+    static var lensGlass: SwipeLensGlass { Tuner.shared.value("Swipe Lens/Glass", default: SwipeLensGlass.clear) } // LOCAL-TUNER
+    /// How much the label is magnified inside the lens; 1 leaves it at size.
+    static var lensZoom: CGFloat { Tuner.shared.value("Swipe Lens/Zoom", default: 1, in: 1...1.6, unit: .multiplier) } // LOCAL-TUNER
+    /// How sharply the bend falls off from the rim; higher keeps the distortion tighter to the edge.
+    static var lensFalloff: CGFloat { Tuner.shared.value("Swipe Lens/Falloff", default: 2, in: 0.5...8) } // LOCAL-TUNER
+    /// How far apart red and blue split where the lens bends, in points; 0 is none.
+    static var lensAberration: CGFloat { Tuner.shared.value("Swipe Lens/Aberration", default: 0, in: 0...4, unit: .points) } // LOCAL-TUNER
     /// The wipe's edge for the lens look, which shows the label through the thumb.
     static var lensWipeEdge: CGFloat { Tuner.shared.value("Swipe Lens/Wipe edge", default: 0.42, in: 0...1) } // LOCAL-TUNER
+
+    // MARK: - Haptic
+
+    /// Whether the thumb taps at touch-down.
+    static var hapticOn: Bool { Tuner.shared.value("Swipe Haptic/On", default: true) } // LOCAL-TUNER
+    static var hapticStyle: SwipeHapticStyle { Tuner.shared.value("Swipe Haptic/Style", default: SwipeHapticStyle.impactSoft) } // LOCAL-TUNER
+    /// The touch-down tap's strength, for the styles that take one.
+    static var hapticIntensity: Double { Tuner.shared.value("Swipe Haptic/Intensity", default: 0.5, in: 0...1) } // LOCAL-TUNER
+    /// Whether a second tap plays when the finger lifts without committing.
+    static var releaseHapticOn: Bool { Tuner.shared.value("Swipe Haptic/On release", default: false) } // LOCAL-TUNER
+    static var releaseHapticStyle: SwipeHapticStyle { Tuner.shared.value("Swipe Haptic/Release style", default: SwipeHapticStyle.impactSoft) } // LOCAL-TUNER
+    static var releaseHapticIntensity: Double { Tuner.shared.value("Swipe Haptic/Release intensity", default: 0.5, in: 0...1) } // LOCAL-TUNER
 
     // MARK: - Shimmer
 
@@ -153,4 +171,30 @@ extension ChatSpring {
     func animation(reduceMotion: Bool) -> Animation {
         reduceMotion ? .spring(duration: duration, bounce: 0) : animation
     }
+}
+
+/// The haptic styles the swipe control can tap with.
+enum SwipeHapticStyle: String, CaseIterable, TunableEnum { // LOCAL-TUNER
+    case impactSoft, impactSolid, impactRigid, impactLight, impactMedium, impactHeavy, selection, alignment, levelChange, start
+
+    /// This style as feedback at `intensity`, which `selection`, `alignment`, `levelChange` and `start` ignore.
+    func feedback(intensity: Double) -> SensoryFeedback {
+        switch self {
+        case .impactSoft: .impact(flexibility: .soft, intensity: intensity)
+        case .impactSolid: .impact(flexibility: .solid, intensity: intensity)
+        case .impactRigid: .impact(flexibility: .rigid, intensity: intensity)
+        case .impactLight: .impact(weight: .light, intensity: intensity)
+        case .impactMedium: .impact(weight: .medium, intensity: intensity)
+        case .impactHeavy: .impact(weight: .heavy, intensity: intensity)
+        case .selection: .selection
+        case .alignment: .alignment
+        case .levelChange: .levelChange
+        case .start: .start
+        }
+    }
+}
+
+/// The glass the lens rim is drawn in.
+enum SwipeLensGlass: String, CaseIterable, TunableEnum { // LOCAL-TUNER
+    case clear, regular
 }

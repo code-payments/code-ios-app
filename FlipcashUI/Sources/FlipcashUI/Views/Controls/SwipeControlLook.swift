@@ -84,13 +84,21 @@ struct SwipeThumbSurface<Content: View>: View {
     private var lensRim: some View {
         Capsule()
             .fill(.clear)
-            .glassEffect(.clear.tint(.white.opacity(SwipeMetrics.lensRimTint)), in: .capsule)
+            .glassEffect(lensGlass.tint(.white.opacity(SwipeMetrics.lensRimTint)), in: .capsule)
             .glassEffectID(glassID, in: glassNamespace)
             .mask {
                 Capsule()
                     .strokeBorder(.black, lineWidth: SwipeMetrics.lensRimWidth)
                     .blur(radius: SwipeMetrics.lensRimSoftness)
             }
+    }
+
+    @available(iOS 26, *)
+    private var lensGlass: Glass {
+        switch SwipeMetrics.lensGlass {
+        case .clear: .clear
+        case .regular: .regular
+        }
     }
 
     private var glassID: String { "thumb" }
@@ -107,6 +115,9 @@ struct SwipeLensEffect: ViewModifier, Animatable {
     var halfLength: CGFloat
     let bend: CGFloat
     let band: CGFloat
+    var zoom: CGFloat = 1
+    var falloff: CGFloat = 2
+    var aberration: CGFloat = 0
     let isEnabled: Bool
 
     nonisolated var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
@@ -126,9 +137,12 @@ struct SwipeLensEffect: ViewModifier, Animatable {
                 .float(radius),
                 .float(max(halfLength, 0)),
                 .float(bend),
-                .float(radius * band)
+                .float(radius * band),
+                .float(max(zoom, 0.01)),
+                .float(falloff),
+                .float(aberration)
             ),
-            maxSampleOffset: CGSize(width: bend, height: bend),
+            maxSampleOffset: CGSize(width: bend + aberration + (radius + halfLength) * (1 - 1 / max(zoom, 1)), height: bend + aberration + radius),
             isEnabled: isEnabled
         )
     }
