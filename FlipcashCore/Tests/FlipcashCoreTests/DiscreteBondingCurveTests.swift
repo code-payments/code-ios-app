@@ -680,6 +680,24 @@ struct DiscreteHighLevelAPITests {
         }
     }
 
+    /// Android's `Estimator.currentMarketCap` multiplies the exact fractional supply by the price of
+    /// the whole-token step it falls in. Worked by hand against the price table:
+    /// 1.5 tokens in step 0 (0.01): 1.5 × 0.01 = 0.015.
+    @Test
+    func marketCapKeepsFractionalSupplyInFirstStep() throws {
+        let marketCap = try #require(curve.marketCap(for: 15_000_000_000))
+        #expect(isApproximatelyEqual(BigDecimal(marketCap.description), BigDecimal("0.015")))
+    }
+
+    /// 100.75 tokens in step 1 (0.010000877213746469):
+    /// 100 × price = 1.0000877213746469, 0.75 × price = 0.00750065791030985175,
+    /// total 1.00758837928495675175. Dropping the fraction would give 1.0000877213746469.
+    @Test
+    func marketCapKeepsFractionalSupplyAcrossStepBoundary() throws {
+        let marketCap = try #require(curve.marketCap(for: 1_007_500_000_000))
+        #expect(isApproximatelyEqual(BigDecimal(marketCap.description), BigDecimal("1.00758837928495675175")))
+    }
+
     @Test
     func buyWithZeroFeeBps() {
         let estimate = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, supplyQuarks: 1_000_000)  // 1 USDC
