@@ -402,14 +402,37 @@ nonisolated enum OnboardingPath {
 private struct LookupTimedOut: Error {}
 
 /// Runs `operation`, throwing ``LookupTimedOut`` if it hasn't finished within `seconds`.
+///
+/// Races two unstructured tasks rather than a task group: a group waits for every child, and a
+/// gRPC call that ignores cancellation would hold the caller past the deadline.
 private func withTimeout<T: Sendable>(seconds: Double, _ operation: @escaping @Sendable () async throws -> T) async throws -> T {
-    try await withThrowingTaskGroup(of: T.self) { group in
-        group.addTask { try await operation() }
-        group.addTask {
-            try await Task.sleep(for: .seconds(seconds))
-            throw LookupTimedOut()
+    let gate = OnceGate()
+    return try await withCheckedThrowingContinuation { continuation in
+        Task {
+            do {
+                let value = try await operation()
+                if gate.claim() { continuation.resume(returning: value) }
+            } catch {
+                if gate.claim() { continuation.resume(throwing: error) }
+            }
         }
-        defer { group.cancelAll() }
-        return try await group.next()!
+        Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            if gate.claim() { continuation.resume(throwing: LookupTimedOut()) }
+        }
+    }
+}
+
+private final class OnceGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed = false
+
+    /// True for the first caller only.
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if claimed { return false }
+        claimed = true
+        return true
     }
 }
