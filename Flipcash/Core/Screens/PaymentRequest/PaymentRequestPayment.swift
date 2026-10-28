@@ -30,12 +30,24 @@ final class PaymentRequestPayment {
         case nothingToPay
         /// The request stopped accepting payments; "Request Closed" was shown.
         case closed
+        /// The picked token can't cover the share; the insufficient-funds dialog was shown.
+        case insufficientFunds
         case failed
+    }
+
+    /// Whether the picked token covers the viewer's share.
+    enum Affordability: Equatable {
+        case sufficient
+        case insufficient
+        /// No share, rate or balance to measure against; the swipe's own check decides.
+        case unknown
     }
 
     let requestID: PaymentRequestID
 
     private(set) var selectedBalance: ExchangedBalance?
+    /// Set when the insufficient-funds dialog's Add Money is tapped; the presenter routes to the deposit and clears it.
+    var depositMint: PublicKey?
 
     @ObservationIgnored private let requests: PaymentRequests
     @ObservationIgnored private let session: Session
@@ -93,7 +105,38 @@ final class PaymentRequestPayment {
             showRequestClosed()
             return .closed
         }
-        return intentID != nil && share != nil ? .ready : .nothingToPay
+        guard intentID != nil && share != nil else { return .nothingToPay }
+        // Checked before the swipe sheet opens, so a short balance never gets as far as a swipe.
+        if await affordability() == .insufficient { return .insufficientFunds }
+        return .ready
+    }
+
+    /// Whether the picked token covers the share. Shows the insufficient-funds dialog when it doesn't.
+    func affordability() async -> Affordability {
+        guard let request, let share, let selectedBalance,
+              let fiat = shareFiat(share, of: request),
+              let priced = await price(fiat, mint: selectedBalance.stored.mint) else { return .unknown }
+        switch session.hasSufficientFunds(for: priced.amount) {
+        case .sufficient:
+            return .sufficient
+        case .insufficient(let shortfall):
+            showInsufficientFunds(shortfall: shortfall)
+            return .insufficient
+        }
+    }
+
+    /// The share in the request's currency, nil when the request's currency or amount can't be read.
+    private func shareFiat(_ share: GroupPaymentRequest.Share, of request: GroupPaymentRequest) -> FiatAmount? {
+        guard let currency = request.split.flatMap({ try? CurrencyCode(currencyCode: $0.currency) }),
+              let value = Decimal(string: "\(share.nativeAmount)") else { return nil }
+        return FiatAmount(value: value, currency: currency)
+    }
+
+    /// `fiat` priced into `mint` at a fresh rate.
+    private func price(_ fiat: FiatAmount, mint: PublicKey) async -> (amount: ExchangedFiat, pin: VerifiedState)? {
+        guard let pin = await ratesController.currentPinnedState(for: fiat.currency, mint: mint),
+              let amount = session.price(fiat, mint: mint, at: pin) else { return nil }
+        return (amount, pin)
     }
 
     /// Pays exactly the share: its amount in the request's currency, priced into the picked token.
@@ -101,14 +144,13 @@ final class PaymentRequestPayment {
         if needsRefetch {
             switch await prepare() {
             case .ready: break
-            case .nothingToPay, .closed, .failed: return .failed
+            case .nothingToPay, .closed, .insufficientFunds, .failed: return .failed
             }
         }
         guard let request, let share, let creator = request.creator,
               let intentID, let intentKey = try? PublicKey(intentID),
               let chatID = request.chatID,
-              let currency = request.split.flatMap({ try? CurrencyCode(currencyCode: $0.currency) }),
-              let value = Decimal(string: "\(share.nativeAmount)") else {
+              let fiat = shareFiat(share, of: request) else {
             showSendError()
             return .failed
         }
@@ -124,8 +166,7 @@ final class PaymentRequestPayment {
         }
 
         let mint = selectedBalance.stored.mint
-        guard let pin = await ratesController.currentPinnedState(for: currency, mint: mint),
-              let amount = session.price(FiatAmount(value: value, currency: currency), mint: mint, at: pin) else {
+        guard let (amount, pin) = await price(fiat, mint: mint) else {
             ErrorReporting.captureError(
                 RatesController.Error.exchangeRateUnavailable,
                 reason: "No fresh rate at request payment",
@@ -138,19 +179,10 @@ final class PaymentRequestPayment {
             return .failed
         }
 
+        // Backstop: the balance can drop between the pre-check and the swipe.
         switch session.hasSufficientFunds(for: amount) {
         case .insufficient(let shortfall):
-            if let shortfall {
-                session.dialogItem = .error(
-                    title: "You're \(shortfall.nativeAmount.formatted()) Short",
-                    subtitle: "Add more cash, or try again with a lower amount"
-                )
-            } else {
-                session.dialogItem = .error(
-                    title: "You Need More Cash",
-                    subtitle: "Please add more cash, or try again with a lower amount"
-                )
-            }
+            showInsufficientFunds(shortfall: shortfall)
             return .failed
         case .sufficient:
             break
@@ -207,6 +239,19 @@ final class PaymentRequestPayment {
         switch request.effectiveStatus(at: clock()) {
         case .open:                                    return true
         case .completed, .closed, .expired, .unknown:  return false
+        }
+    }
+
+    private func showInsufficientFunds(shortfall: ExchangedFiat?) {
+        let title = shortfall.map { "You're \($0.nativeAmount.formatted()) Short" } ?? "You Need More Cash"
+        let subtitle = shortfall == nil
+            ? "Please add more cash, or try again with a lower amount"
+            : "Add more cash, or try again with a lower amount"
+        session.dialogItem = .error(title: title, subtitle: subtitle) {
+            .destructive("Add More Cash") { [weak self] in
+                self?.depositMint = self?.selectedBalance?.stored.mint
+            };
+            .dismiss(kind: .subtle)
         }
     }
 

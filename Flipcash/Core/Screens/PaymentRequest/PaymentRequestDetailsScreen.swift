@@ -232,7 +232,7 @@ struct PaymentRequestDetailsScreen: View {
     private func pay() {
         Task {
             switch await payFlow.start(requestID, sessionContainer: sessionContainer) {
-            case .ready:
+            case .ready, .insufficientFunds:
                 break
             case .nothingToPay, .closed, .failed:
                 hasPaymentIntent = false
@@ -375,9 +375,29 @@ private struct PaymentRequestPaySheetPresenter: ViewModifier {
 
     @Environment(Session.self) private var session
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(AppRouter.self) private var router
+
+    /// Add More Cash tapped while the swipe sheet was up; routed once the sheet has dismissed.
+    @State private var pendingDeposit: PublicKey?
 
     func body(content: Content) -> some View {
-        content.sheet(isPresented: $flow.isPaying) {
+        content
+            .onChange(of: flow.payment?.depositMint) { _, mint in
+                guard let mint else { return }
+                flow.payment?.depositMint = nil
+                if flow.isPaying {
+                    // The router can't dismiss this local sheet, so close it and navigate after.
+                    pendingDeposit = mint
+                    flow.isPaying = false
+                } else {
+                    router.navigate(to: .currencyInfoForDeposit(mint))
+                }
+            }
+            .sheet(isPresented: $flow.isPaying, onDismiss: {
+                guard let mint = pendingDeposit else { return }
+                pendingDeposit = nil
+                router.navigate(to: .currencyInfoForDeposit(mint))
+            }) {
             // The share reads paid once the payment lands; the sheet stays up through its success state.
             if let payment = flow.payment, let request = payment.request, let creator = request.creator {
                 PaymentRequestPaySheet(

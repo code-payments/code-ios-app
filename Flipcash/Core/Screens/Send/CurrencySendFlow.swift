@@ -149,6 +149,10 @@ private struct CurrencySelectRecipientScreen: View {
     @State private var query = ""
     @State private var confirming: ConfirmTarget?
     @State private var handoff = CurrencySendHandoff()
+    /// Add More Cash tapped while the confirm sheet was up; routed once the sheet has dismissed.
+    @State private var pendingDeposit: PublicKey?
+    /// The last confirmed send's model; kept after the sheet goes so its Add More Cash can still route.
+    @State private var lastModel: SendAmountViewModel?
 
     /// What the confirm sheet is open for: the recipient, and the send view model built for them.
     private struct ConfirmTarget: Identifiable {
@@ -198,9 +202,24 @@ private struct CurrencySelectRecipientScreen: View {
         }
         .navigationTitle("Select Recipient")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: lastModel?.depositMint) { _, mint in
+            guard let mint else { return }
+            lastModel?.depositMint = nil
+            if confirming != nil {
+                // The router can't dismiss this local sheet, so close it and navigate after.
+                pendingDeposit = mint
+                confirming = nil
+            } else {
+                router.navigate(to: .currencyInfoForDeposit(mint))
+            }
+        }
         .sheet(item: $confirming, onDismiss: {
             // After the dismiss animation: nothing on the stack moves while the sheet is up.
             if handoff.sheetDidDismiss() { leaveFlow() }
+            if let mint = pendingDeposit {
+                pendingDeposit = nil
+                router.navigate(to: .currencyInfoForDeposit(mint))
+            }
         }) { target in
             CurrencySendConfirmSheet(target: target.model, amount: viewModel.enteredTotal, name: target.name, username: target.username, userID: target.userID, picture: target.picture) {
                 handoff.sendSucceeded()
@@ -289,6 +308,7 @@ private struct CurrencySelectRecipientScreen: View {
         ) else { return }
         let model = SendAmountViewModel(sessionContainer: sessionContainer, target: target, mint: viewModel.mint)
         model.enteredAmount = viewModel.enteredAmount
+        lastModel = model
         confirming = ConfirmTarget(
             id: chat.id,
             model: model,

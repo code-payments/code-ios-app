@@ -59,7 +59,8 @@ private struct GroupSendFlowContent: View {
         // Like the share-to-chats screen, the flow closes only from its X.
         .interactiveDismissDisabled()
         .onChange(of: viewModel.depositMint) { _, mint in
-            guard let mint else { return }
+            // Once people are being picked, Select People owns this: its confirm sheet may be up.
+            guard path.isEmpty, let mint else { return }
             viewModel.depositMint = nil
             router.navigate(to: .currencyInfoForDeposit(mint))
         }
@@ -132,9 +133,13 @@ private struct GroupSendAmountScreen: View {
 
 private struct GroupSendSelectPeopleScreen: View {
 
+    @Environment(AppRouter.self) private var router
+
     let viewModel: GroupSendViewModel
 
     @State private var isConfirming = false
+    /// Add Money tapped while the confirm sheet was up; routed once the sheet has dismissed.
+    @State private var pendingDeposit: PublicKey?
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -163,7 +168,22 @@ private struct GroupSendSelectPeopleScreen: View {
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()
         }
-        .sheet(isPresented: $isConfirming) {
+        .onChange(of: viewModel.depositMint) { _, mint in
+            guard let mint else { return }
+            viewModel.depositMint = nil
+            if isConfirming {
+                // The router can't dismiss this local sheet, so close it and navigate after.
+                pendingDeposit = mint
+                isConfirming = false
+            } else {
+                router.navigate(to: .currencyInfoForDeposit(mint))
+            }
+        }
+        .sheet(isPresented: $isConfirming, onDismiss: {
+            guard let mint = pendingDeposit else { return }
+            pendingDeposit = nil
+            router.navigate(to: .currencyInfoForDeposit(mint))
+        }) {
             GroupSendConfirmSheet(viewModel: viewModel)
         }
     }
