@@ -1,0 +1,161 @@
+# Profile pages redesign (User, Private Group, Public Group)
+
+Branch `feat/ui-profile` (local only), worktree `~/Developer/code-ios-app-profile`, cut from
+`feat/ui-swipe-to-send` @ c228fb4a. Round 1 is **Figma only**, on the page **Profiles** (814:2) in
+"Components – Flipcash" (`R2TbSk4RbeLZz29rJr61uE`). Aiden makes every taste call.
+
+Note for shipping: this plan lives under `.claude/`, which a design PR must not touch. Leave it out
+of any PR, or ask the dev first.
+
+## 1. What exists today
+
+Two screens and one shared header:
+
+| Profile | Screen | Shared pieces |
+|---|---|---|
+| User | `Screens/Profile/UserProfileScreen.swift` (`UserProfileContent` :46, `UserProfileViewModel` :462) | `ProfileHeaderView`, `ProfileCoverBanner`, `ProfilePinnedBackdrop` |
+| Private group + public group | `Screens/Profile/ChatProfileScreen.swift`, one screen that branches on `isPrivate` (:70) and `isMember` (:59) | same, plus `GroupChattingGrid` |
+
+The shared skeleton:
+- A cover 214pt tall, made of literals. With no image it shows a flat grey `coverPlaceholder`, and that grey is what most groups show.
+- An 84pt avatar overlapping the cover by 42pt, with a 5pt ring.
+- A 38pt share circle.
+- A title in `.appDisplaySmall`.
+- The side inset is 24 (`ProfileHeaderMetrics.inset`). The house standard says 20.
+- The CTA is `CodeButton(.filled)`: a square-ish white slab, not the 54pt capsule.
+
+The bottom slot:
+- On group pages, "Leave Chat" (`.subtle`) often takes the CTA position.
+- No profile has a `#Preview`, a loading skeleton or an error state.
+
+**The CTA slot carries every state.** Its logic is load-bearing and must not change:
+
+| Profile and state | CTA | Source |
+|---|---|---|
+| User, new | "Send £X to Start Chatting" → gate → `StartChattingSheet` (Lens swipe) | `ProfilePinnedAction`, `UserProfileScreen.swift:351` |
+| User, fee unknown | "Start Chatting" → send amount | same |
+| User, existing DM | "Open Chat" | same |
+| User, blocked | "Unblock" | same |
+| Public group | "Open Chat"; the join happens in the chat's gate, not on the profile | `ChatProfileScreen.swift:512` |
+| Private, requester | "Request to Join", then "Requested Xm ago" (disabled) and "Cancel Request" | `:550-585` |
+| Private, invite preview (Brandon, in development) | "Join Group" | Figma 12846:59 |
+| Member, any group | "Leave Chat" (subtle) | `:682` |
+
+## 2. What the data really has
+
+Sources: flipcash2-client-protocol 0.20.0 (f0bc47ee), `FlipcashCore/Models/Profile.swift` and
+`Conversation.swift`.
+
+### User (`profile.v1.UserProfile` → `Profile`)
+
+| Field | Status |
+|---|---|
+| Display name, username, avatar, cover, bio (≤160), joined date (`join_ts`) | exists and is shown |
+| Minimum to chat | exists. It is shown via `TipFloor.toOpenDM(...).displayed`, not the raw field. |
+| Favourite public groups | exists (`GetFeaturedGroups`) |
+| Card colour (`tipCardCustomization.colorHex`) | exists, fetched, **not displayed** |
+| X profile (`social_profiles`: handle, verified type, follower count) | **in the proto, not mapped in Swift**. Dev question. |
+| Currencies they hold | **absent**. Holdings exist only on groups. Backend question. |
+| Chat state with this user | derived locally (DM exists, blocked, muted) |
+
+### Groups (`chat.v1.Metadata` → `Conversation`)
+
+| Field | Private | Public |
+|---|---|---|
+| Title, picture, cover, description (≤160, not persisted, so nil after a cold start) | exists | exists |
+| Member count (`roster_summary.member_count`) | shown | **exists, not shown** |
+| Faces | roster (`GetRoster`, members only, paged by 50) | `SampleChatters` (≤100, creator first, then recent senders; not the full roster) |
+| Host | `creator` (wave badge) | same |
+| Roles beyond host | absent | absent |
+| Join requirement | host approval through the lobby; no `rules` | `rules.listener` minimum balance (`amount`, `mints[≤1]`) |
+| Minimum to chat | absent | `rules.speaker` (falls back to the join rule) |
+| Holdings (`holdings_summary`: mint, quarks, holder_count, as_of) | absent | **exists, never displayed**. Only set above a server holder minimum. |
+| Last activity, last message | exists, not shown | exists, not shown |
+| Created date, category or tags, "full" | absent | absent |
+| Muted | `viewer_state.mute` | same |
+
+## 3. Load-bearing walls (do not touch)
+
+- **Every CTA's action and its resolve order.** That covers `ProfilePinnedAction`, `tapPinned`, the give-cash gate, the `StartChattingSheet` hand-off and `PostPaymentChat`.
+- **Fee and amount text.** It is rendered by `TipFloor` and `FiatAmount.formatted*`; we show it, we don't re-derive it.
+- **Group logic:** the gate (`ConversationGate`), membership (`isMember` comes from the roster), `canEdit` as the sole gate on Edit, and the lobby request and cancel flow.
+- **Navigation:** the `ChatProfileOrigin` and `UserProfileOrigin` semantics, `popToRoot` on leave, block popping, and the profile being a **pushed page** (not a tray).
+- **Accessibility ids:** `profile-*`, `group-profile-*` and `chat-profile-*` stay.
+
+## 4. In-flight work the redesign must leave room for
+
+- **Group Invites** (Brandon, 12844:56):
+  - an invite-preview state ("You've been invited to join", Join Group, a 10-face grid with "+39 more");
+  - a dead-link subtitle;
+  - an "Invite to …" sheet from Share;
+  - "Invite Links" in the ⋯ menu.
+- **Moderation** (12419:77643): "Moderation ›" in the host's ⋯ menu, and an "In {group}" section (Silence, Remove) on a member's profile menu.
+- **Join Requests on chats**: lives on the chat-list row, and the profile's Join Requests card stays.
+
+## 5. Prior art (short)
+
+The prior-art agent's full report has Mobbin links. Patterns worth keeping:
+1. One skeleton with a swapped subtitle (Telegram).
+2. The price in a single pinned capsule (Orb, Telegram, Revolut).
+3. Metadata as one muted line (Threads, Luma, Partiful).
+4. A colour wash taken from the cover or avatar instead of glass over content (Luma, Discord, Arc).
+5. A facepile plus a count for groups (Instagram, Base).
+6. Private vs public described by how you get in, not by a lock (Telegram, Discord).
+7. Own vs other differs only in the action row (Cash App, Partiful).
+
+Avoid three-stat columns, upsell cards and glass on content.
+
+## 6. Directions (round 1: Figma, all three types side by side)
+
+All three share:
+- The CTA is a 54pt capsule, `.filled`, the only filled button on the screen.
+- Glass only on the back and ⋯ circles and the CTA bar on iOS 26+, with a material fallback on iOS 18.
+- 20pt margins (`screen/margin`).
+- 2pt Central icons and rows v2.
+- Presses are a small scale; state changes snap.
+
+### A · Editorial
+- **Type-led and calm.** The cover becomes a soft wash: the cover image, or a tint taken from the avatar, fading to black about a third of the way down. No grey block.
+- **Identity block:** a large left-aligned name with the avatar on the right (about 72pt), then one muted line ("@ted · Joined Feb 2026", "Private · 5 members · Host approves", "Public · 22 people · $100 to join"), then the bio or description.
+- **Sections** are quiet rows v2 lists: Favourite groups, Members (facepile row → list), Requirements.
+
+References: Threads, Luma, Cash App.
+
+### B · Cover stage
+- **An evolution of today's skeleton, made photographic.** A taller full-bleed cover that fades into black, with no hard edge.
+- **Empty covers** get a gradient taken from the avatar instead of grey.
+- **Identity is centred:** about a 96pt avatar overlapping the fade, then the name and handle.
+- **One grouped info card per question:**
+  - User: "Minimum to chat · Joined".
+  - Group: "Access" (Private · host approves, or Public · Join $100 · Chat $100), then "Members" as a facepile and count.
+
+References: Orb, Venmo org, Revolut group, Discord.
+
+### C · The card
+- **Identity lives on an object.** A rounded card at the top holds the cover, avatar and name, like the Flipcash tip card or a Family wallet card. The card colour can come from `tipCardCustomization.colorHex`, which is fetched but unused today.
+- **Group cards** carry the facepile and access line on the card itself.
+- **Below the card**, grouped rows v2 (style B) hold the rest.
+- **The most ownable direction:** it ties the profile to "Share Profile → View Card".
+
+References: Family, Base token card, the Flipcash tip card.
+
+## 7. Taste calls for Aiden (A/B)
+
+1. Minimum to chat appears twice, on the stat card and in the CTA label. **A:** CTA only. **B:** keep both.
+2. Leave Chat. **A:** at the end of the scroll as a quiet destructive row. **B:** in the ⋯ menu. B moves a control between view code and `ProfileMenuItems`, so ask the dev first.
+3. Empty cover. **A:** a tint taken from the avatar. **B:** no cover area at all when there's no image.
+4. Avatar. **A:** left-aligned. **B:** centred.
+
+## 8. Open questions for the dev or backend
+
+1. Currencies a user holds: not in `UserProfile`. Is a field planned, and is it public?
+2. The X `social_profiles` in the proto: OK to map into `Profile` and show a verified handle?
+3. Public groups: OK to show `member_count` (it exists) and `holdings_summary` ("Held by N people")? What are the semantics of the server holder minimum?
+4. Show met or unmet requirement state on the public profile? That needs the `ConversationGate` comparison, so the dev owns it.
+5. Should the public profile's CTA ever say "Join" rather than "Open Chat"? Today the join is in the chat by design (Oct 3 note: "The profile always opens the chat").
+6. Group created date: absent. Is it wanted?
+7. Loading and error: there's no skeleton, and a failed fetch is silent. Is a design-only skeleton OK?
+8. Own profile: your own handle routes to the tip card, not this screen. The Oct 3 design had "the You tab becomes your profile". Out of scope here?
+
+## 9. Log
+- 2026-10-28: worktree set up; four surveys and the prior-art report done; Profiles page created; directions proposed.
