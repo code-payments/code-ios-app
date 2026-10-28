@@ -65,7 +65,7 @@ final class PaymentRequestService: Sendable {
         }
     }
 
-    func getPaymentRequest(owner: KeyPair, id: PaymentRequestID, completion: @Sendable @escaping (Result<Fetched, ErrorGetPaymentRequest>) -> Void) {
+    func getPaymentRequest(owner: KeyPair, id: PaymentRequestID, timeout: Duration = .seconds(15), completion: @Sendable @escaping (Result<Fetched, ErrorGetPaymentRequest>) -> Void) {
         let request = Flipcash_Paymentrequest_V1_GetPaymentRequestRequest.with {
             $0.paymentRequestID = id.proto
             $0.auth = owner.authFor(message: $0)
@@ -73,7 +73,7 @@ final class PaymentRequestService: Sendable {
 
         Task {
             do {
-                let response = try await service.getPaymentRequest(request, options: .unaryDefault)
+                let response = try await service.getPaymentRequest(request, options: .unaryDefault(timeout: timeout))
                 let error = ErrorGetPaymentRequest(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to fetch payment request", metadata: ["error": "\(error)"])

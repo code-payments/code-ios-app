@@ -39,6 +39,8 @@ extension ChatItem {
     ///   - authorName: The name to label another member's row with in a group, or nil (or empty)
     ///     to leave the row unattributed. Never asked about the viewer's own rows.
     ///   - display: The currency cash rows are shown in, or nil to show each as it moved.
+    ///   - paymentRequestCards: The worded card of each payment request the extension managed to
+    ///     fetch; a request missing here keeps the card-less row.
     public static func preview(
         from messages: [ConversationMessage],
         selfUserID: UserID,
@@ -46,7 +48,8 @@ extension ChatItem {
         mintBranding: [PublicKey: MintBrandingInfo] = [:],
         counterpartName: String = "",
         authorName: (UserID) -> String? = { _ in nil },
-        display: DisplayCurrency? = nil
+        display: DisplayCurrency? = nil,
+        paymentRequestCards: [PaymentRequestID: ChatPaymentRequestContent.Card] = [:]
     ) -> [ChatItem] {
         // Drop tombstones before slicing so the preview keeps the newest `limit` *visible* messages —
         // filtering after `.suffix` would let a recent delete crowd out a real message (or blank the
@@ -97,7 +100,7 @@ extension ChatItem {
             case .widget(.shareProfile(let share)):
                 content = .shareProfile(LinkCard.User(profileOf: share.username))
             case .widget(.paymentRequest(let id)):
-                content = .paymentRequest(ChatPaymentRequestContent(requestID: id.data, card: nil))
+                content = .paymentRequest(ChatPaymentRequestContent(requestID: id.data, card: paymentRequestCards[id]))
             case .widget(.unrecognized):
                 content = .unavailable(.updateApp)
             case .media(let attachments, let caption):

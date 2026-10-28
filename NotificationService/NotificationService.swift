@@ -458,6 +458,23 @@ final class NotificationService: UNNotificationServiceExtension {
             ) {
                 replaceBody(body)
             }
+            let display = ExtensionStore.displayCurrency(owner: account.keyAccount.ownerPublicKey)
+            // A pushed payment request names only its id: the lookup words the banner and fills the
+            // card. Any failure leaves the server's body and the card-less row.
+            var requestCards: [PaymentRequestID: ChatPaymentRequestContent.Card] = [:]
+            if let pushed = embedded ?? messages.first(where: { $0.id == messageID }),
+               case .widget(.paymentRequest(let requestID)) = pushed.content,
+               let preview = await client.paymentRequestPreview(
+                   id: requestID,
+                   in: conversationID,
+                   owner: owner,
+                   selfUserID: account.userID,
+                   senderName: pushed.senderID.flatMap(senderName),
+                   copy: display.map(PaymentRequestCopy.init) ?? PaymentRequestCopy(displayCurrency: .usd, rates: [:])
+               ) {
+                replaceBody(preview.body)
+                requestCards[requestID] = preview.card
+            }
             if classifyForArchive {
                 let pushed = embedded ?? messages.first { $0.id == messageID }
                 let signals = Self.archiveSignals(
@@ -479,7 +496,6 @@ final class NotificationService: UNNotificationServiceExtension {
                 await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
                 return deliver()
             }
-            let display = ExtensionStore.displayCurrency(owner: account.keyAccount.ownerPublicKey)
             func items(_ branding: [PublicKey: MintBrandingInfo]) -> [ChatItem] {
                 ChatItem.preview(
                     from: messages,
@@ -487,7 +503,8 @@ final class NotificationService: UNNotificationServiceExtension {
                     limit: NotificationPreviewCache.previewLimit,
                     mintBranding: branding,
                     authorName: memberName,
-                    display: display
+                    display: display,
+                    paymentRequestCards: requestCards
                 )
             }
             // Cache the messages (currency-code fallback) and release the banner before the branding

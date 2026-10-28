@@ -23,6 +23,7 @@ public final class ChatNotificationClient: Sendable {
     private let chatService: ChatService
     private let resolverService: ResolverService
     private let profileService: ProfileService
+    private let paymentRequestService: PaymentRequestService
     private let coreClient: GRPCClient<AppTransport>
     /// The core client's connection loop; retained for its lifetime — dropping it makes the client
     /// inert and every RPC hangs.
@@ -49,6 +50,7 @@ public final class ChatNotificationClient: Sendable {
         self.chatService = ChatService(client: coreClient)
         self.resolverService = ResolverService(client: coreClient)
         self.profileService = ProfileService(client: coreClient)
+        self.paymentRequestService = PaymentRequestService(client: coreClient)
     }
 
     deinit {
@@ -108,6 +110,52 @@ public final class ChatNotificationClient: Sendable {
         try await withCheckedThrowingContinuation { continuation in
             profileService.fetchProfile(.userID(userID), owner: owner) { continuation.resume(with: $0) }
         }
+    }
+
+    // MARK: - Payment requests -
+
+    /// The words a pushed payment request is shown with, or nil when it can't be read in `timeout`
+    /// (a failed lookup, a request the viewer can't see, or no time left). The banner keeps the
+    /// server's body then. The title is opened with the chat's seal when it is encrypted, so a title
+    /// that won't open still yields the banner line, without a card.
+    public func paymentRequestPreview(
+        id: PaymentRequestID,
+        in conversationID: ConversationID,
+        owner: KeyPair,
+        selfUserID: UserID,
+        senderName: String?,
+        copy: PaymentRequestCopy,
+        timeout: Duration = .seconds(4),
+        now: Date = .now
+    ) async -> PaymentRequestPreview? {
+        let fetched: PaymentRequestService.Fetched
+        do {
+            fetched = try await withCheckedThrowingContinuation { continuation in
+                paymentRequestService.getPaymentRequest(owner: owner, id: id, timeout: timeout) {
+                    continuation.resume(with: $0)
+                }
+            }
+        } catch {
+            logger.warning("Payment request lookup failed", metadata: ["error": "\(error)"])
+            return nil
+        }
+        // A request that isn't this chat's is not worded into its banner.
+        guard fetched.request.chatID == conversationID else { return nil }
+
+        var seal: ChatSeal?
+        if case .encrypted = fetched.request.split?.text, let conversation = try? await getChat(owner: owner, conversationID: conversationID) {
+            if case .seal(let opened) = await keyring(owner: owner, selfUserID: selfUserID).opener(for: conversation) {
+                seal = opened
+            }
+        }
+        return PaymentRequestPreview(
+            request: fetched.request,
+            seal: seal,
+            viewer: selfUserID,
+            senderName: senderName,
+            copy: copy,
+            now: now
+        )
     }
 
     // MARK: - Encryption -
