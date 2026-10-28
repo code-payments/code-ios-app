@@ -181,7 +181,7 @@ struct ChatMessageMappingTests {
     }
 
     private func systemTexts(_ items: [ChatItem]) -> [String] {
-        items.compactMap { if case .systemMessage(_, let text, _) = $0 { text } else { nil } }
+        items.compactMap { if case .systemMessage(_, let text, _, _) = $0 { text } else { nil } }
     }
 
     @Test("a join notice renders the names it is about")
@@ -197,7 +197,7 @@ struct ChatMessageMappingTests {
     @Test("a system notice carries its message id for the READ pointer")
     func systemNoticeCarriesServerID() {
         let items = ChatItem.from([joinNotice(nil)], selfUserID: me, counterpartName: "Ada")
-        let ids = items.compactMap { if case .systemMessage(_, _, let serverID) = $0 { serverID } else { nil } }
+        let ids = items.compactMap { if case .systemMessage(_, _, let serverID, _) = $0 { serverID } else { nil } }
         #expect(ids == [MessageID(value: 1)])
     }
 

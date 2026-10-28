@@ -65,10 +65,30 @@ struct SystemNoticeStringsTests {
         #expect(text(.userJoined(userID: bob, admittedBy: me)) == "fallback")
     }
 
-    @Test("An invite join reads as a plain join")
+    @Test("An invite join names whose invite link it was")
     func invitedJoin() {
-        #expect(text(.userJoinedViaInvite(userID: ada, invitedBy: bob), known: [ada: "Ada", bob: "Bob"]) == "Ada joined the group")
-        #expect(text(.userJoinedViaInvite(userID: me, invitedBy: bob)) == "You joined the group")
+        let known = [ada: "Ada", bob: "Bob"]
+        #expect(text(.userJoinedViaInvite(userID: ada, invitedBy: bob), known: known) == "Ada joined with Bob’s invite link")
+        #expect(text(.userJoinedViaInvite(userID: me, invitedBy: bob), known: known) == "You joined with Bob’s invite link")
+        #expect(text(.userJoinedViaInvite(userID: ada, invitedBy: me), known: known) == "Ada joined with your invite link")
+        #expect(text(.userJoinedViaInvite(userID: ada, invitedBy: bob), known: [ada: "Ada"]) == "fallback")
+        #expect(text(.userJoinedViaInvite(userID: ada, invitedBy: me)) == "fallback")
+    }
+
+    @Test("Only the inviter's name in an invite join opens a profile")
+    func inviterLink() {
+        func link(_ event: ConversationMessage.SystemEvent, known: [UUID: String]) -> SystemNoticeUserLink? {
+            let nameOf: (UUID) -> String? = { known[$0] }
+            let text = SystemNoticeStrings.text(for: event, fallbackText: "fallback", selfID: me, nameOf: nameOf)
+            return SystemNoticeStrings.userLink(for: event, text: text, selfID: me, nameOf: nameOf)
+        }
+        // The joiner's name contains the inviter's; the link is still the inviter's.
+        let other = link(.userJoinedViaInvite(userID: ada, invitedBy: bob), known: [ada: "Bob Jr", bob: "Bob"])
+        #expect(other == SystemNoticeUserLink(range: NSRange(location: 19, length: 3), userID: bob))
+        let mine = link(.userJoinedViaInvite(userID: me, invitedBy: bob), known: [bob: "Bob"])
+        #expect(mine == SystemNoticeUserLink(range: NSRange(location: 16, length: 3), userID: bob))
+        #expect(link(.userJoinedViaInvite(userID: ada, invitedBy: me), known: [ada: "Ada"]) == nil)
+        #expect(link(.userJoined(userID: ada, admittedBy: bob), known: [ada: "Ada", bob: "Bob"]) == nil)
     }
 
     @Test("A notice with no event shows its fallback text")

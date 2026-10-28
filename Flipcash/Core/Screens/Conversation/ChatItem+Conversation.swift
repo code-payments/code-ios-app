@@ -284,7 +284,8 @@ extension ChatItem {
                     selfID: selfUserID,
                     nameOf: nameOf
                 )
-                items.append(.systemMessage(id: "sys-\(message.stableID)", text: text, serverID: message.id))
+                let userLink = SystemNoticeStrings.userLink(for: event, text: text, selfID: selfUserID, nameOf: nameOf)
+                items.append(.systemMessage(id: "sys-\(message.stableID)", text: text, serverID: message.id, userLink: userLink))
                 continue
             case .text(let text):
                 content = .text(text)
