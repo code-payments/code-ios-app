@@ -133,6 +133,105 @@ struct ChatProfileScreen: View {
     // MARK: - Body -
 
     var body: some View {
+        screen
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                overflowMenu
+            }
+        }
+        .dialog(item: $dialogItem)
+        .fullScreenCover(isPresented: $isInviting) {
+            ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
+                router.push(.tipConversation(chatID))
+            }
+        }
+        .tray(isPresented: $isPickingMuteDuration) {
+            MuteChatSheet(conversationID: conversationID, isPresented: $isPickingMuteDuration)
+        }
+        .tray(isPresented: $isShowingE2ee) {
+            E2eeLearnMoreSheet(kind: isPrivate ? .privateGroup : .group, isPresented: $isShowingE2ee)
+        }
+        .fullScreenCover(isPresented: $isReporting) {
+            NavigationStack {
+                ReportFlowScreen(target: .chat(conversationID))
+            }
+        }
+        .task {
+            // A favorite group can be one the user isn't in, which the feed doesn't hold.
+            let conversation = await conversationController.hydratedConversation(withID: conversationID)
+            await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
+            await conversationController.fillCoverPicture(for: conversationID)
+        }
+        // No push says a request was decided, so every visit asks. Keyed on membership so an
+        // admission that lands while the profile is open stops the asking.
+        .task(id: isRequester) {
+            guard isRequester else { return }
+            if let fresh = await conversationController.refreshRequestedGroup(conversationID) {
+                sessionContainer.lobbyRequests.reconcile(with: fresh)
+            }
+        }
+        .task(id: requestedAt != nil ? conversation?.creator : nil) {
+            guard requestedAt != nil, let creator = conversation?.creator else { return }
+            hostName = try? await sessionContainer.flipClient.fetchProfile(
+                userID: creator,
+                owner: session.ownerKeyPair
+            ).displayName
+        }
+        // Waits for the conversation to land before asking: a private group's sample is denied.
+        .task(id: conversation.map { $0.isPrivate && $0.creator == conversationController.selfUserID }) {
+            guard let conversation, conversation.isPrivate, conversation.creator == conversationController.selfUserID else { return }
+            await sessionContainer.hostedLobbies.refresh(conversationID)
+        }
+        // A private group's members read its roster in place of the denied sample.
+        .task(id: isPrivate && isMember) {
+            guard isPrivate, isMember else { return }
+            await sessionContainer.groupRosters.refresh(conversationID)
+        }
+        // GetRoster is off server-side and SampleChatters refuses private groups, so the grid falls
+        // back to the people this device has seen post.
+        .task(id: isPrivate && isMember) {
+            guard isPrivate, isMember else { return }
+            senders = conversationController.senderIDs(in: conversationID)
+            let creator = conversation?.creator.map { [$0] } ?? []
+            await sessionContainer.knownAuthors.resolve(creator + [conversationController.selfUserID] + senders)
+        }
+        .task(id: conversation.map { $0.isPrivate } ) {
+            guard let conversation, !conversation.isPrivate else { return }
+            await loadChatters()
+        }
+        // Name the requirements in the token they ask for. The mint may be one the user holds
+        // nothing of, so the local store can miss and the fetch is what fills it.
+        .task(id: namedMints) {
+            var metadata: [PublicKey: StoredMintMetadata] = [:]
+            for mint in namedMints {
+                if let stored = session.storedMintMetadata(for: mint) {
+                    metadata[mint] = stored
+                } else if let fetched = try? await session.fetchMintMetadata(mint: mint) {
+                    metadata[mint] = fetched
+                }
+            }
+            mintMetadata = metadata
+        }
+        .task(id: namedMints) {
+            mintNamesTimedOut = false
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            mintNamesTimedOut = true
+        }
+    }
+
+    /// A public group gets its cover-colored page; a private group keeps the shared profile layout.
+    @ViewBuilder
+    private var screen: some View {
+        if isPrivate {
+            privateScreen
+        } else {
+            publicScreen
+        }
+    }
+
+    /// The shared profile layout, drawn for a private group.
+    private var privateScreen: some View {
         Background(color: .backgroundMain) {
             ScrollView {
                 VStack(spacing: 0) {
@@ -227,89 +326,101 @@ struct ChatProfileScreen: View {
             pinnedActions
                 .toastClearance(toasts)
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                overflowMenu
-            }
-        }
-        .dialog(item: $dialogItem)
-        .fullScreenCover(isPresented: $isInviting) {
-            ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
-                router.push(.tipConversation(chatID))
-            }
-        }
-        .tray(isPresented: $isPickingMuteDuration) {
-            MuteChatSheet(conversationID: conversationID, isPresented: $isPickingMuteDuration)
-        }
-        .tray(isPresented: $isShowingE2ee) {
-            E2eeLearnMoreSheet(kind: isPrivate ? .privateGroup : .group, isPresented: $isShowingE2ee)
-        }
-        .fullScreenCover(isPresented: $isReporting) {
-            NavigationStack {
-                ReportFlowScreen(target: .chat(conversationID))
-            }
-        }
-        .task {
-            // A favorite group can be one the user isn't in, which the feed doesn't hold.
-            let conversation = await conversationController.hydratedConversation(withID: conversationID)
-            await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
-            await conversationController.fillCoverPicture(for: conversationID)
-        }
-        // No push says a request was decided, so every visit asks. Keyed on membership so an
-        // admission that lands while the profile is open stops the asking.
-        .task(id: isRequester) {
-            guard isRequester else { return }
-            if let fresh = await conversationController.refreshRequestedGroup(conversationID) {
-                sessionContainer.lobbyRequests.reconcile(with: fresh)
-            }
-        }
-        .task(id: requestedAt != nil ? conversation?.creator : nil) {
-            guard requestedAt != nil, let creator = conversation?.creator else { return }
-            hostName = try? await sessionContainer.flipClient.fetchProfile(
-                userID: creator,
-                owner: session.ownerKeyPair
-            ).displayName
-        }
-        // Waits for the conversation to land before asking: a private group's sample is denied.
-        .task(id: conversation.map { $0.isPrivate && $0.creator == conversationController.selfUserID }) {
-            guard let conversation, conversation.isPrivate, conversation.creator == conversationController.selfUserID else { return }
-            await sessionContainer.hostedLobbies.refresh(conversationID)
-        }
-        // A private group's members read its roster in place of the denied sample.
-        .task(id: isPrivate && isMember) {
-            guard isPrivate, isMember else { return }
-            await sessionContainer.groupRosters.refresh(conversationID)
-        }
-        // GetRoster is off server-side and SampleChatters refuses private groups, so the grid falls
-        // back to the people this device has seen post.
-        .task(id: isPrivate && isMember) {
-            guard isPrivate, isMember else { return }
-            senders = conversationController.senderIDs(in: conversationID)
-            let creator = conversation?.creator.map { [$0] } ?? []
-            await sessionContainer.knownAuthors.resolve(creator + [conversationController.selfUserID] + senders)
-        }
-        .task(id: conversation.map { $0.isPrivate } ) {
-            guard let conversation, !conversation.isPrivate else { return }
-            await loadChatters()
-        }
-        // Name the requirements in the token they ask for. The mint may be one the user holds
-        // nothing of, so the local store can miss and the fetch is what fills it.
-        .task(id: namedMints) {
-            var metadata: [PublicKey: StoredMintMetadata] = [:]
-            for mint in namedMints {
-                if let stored = session.storedMintMetadata(for: mint) {
-                    metadata[mint] = stored
-                } else if let fetched = try? await session.fetchMintMetadata(mint: mint) {
-                    metadata[mint] = fetched
+    }
+
+    // MARK: - Public -
+
+    /// A public group's profile: the cover melting into a page of its own color. The colors come
+    /// from the best image there is (see ``PublicGroupBleedSource``).
+    private var publicScreen: some View {
+        let source = PublicGroupBleedSource(
+            conversation: conversation,
+            coverData: sessionContainer.profileAvatars.data(for: .groupCover(conversationID)),
+            avatarData: sessionContainer.profileAvatars.data(for: .chat(conversationID))
+        )
+        return PublicGroupProfileView(
+            content: publicContent(cover: source?.kind == .cover ? source?.image : nil),
+            hasPinned: showsPublicCTA,
+            portraitData: { sessionContainer.profileAvatars.data(for: $0) },
+            loadPortrait: { portrait in
+                await sessionContainer.profileAvatars.load(userID: portrait.userID, picture: portrait.picture)
+            },
+            onSelectPerson: { userID in
+                router.push(.userProfile(userID, origin: .groupMember))
+            },
+            onToken: { token in
+                Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
+                router.push(.currencyInfo(token.mint))
+            },
+            accessory: {
+                if isMember {
+                    ChatMuteStatusLabel(conversationID: conversationID, reservesSpace: false)
                 }
+            },
+            actions: {
+                if canEdit {
+                    Button("Edit Group") {
+                        router.push(.editGroup(conversationID))
+                    }
+                    .buttonStyle(PublicGroupOutlineButtonStyle())
+                    .accessibilityIdentifier("chat-profile-edit")
+                }
+                Button("Share") {
+                    openInvite()
+                }
+                .buttonStyle(PublicGroupOutlineButtonStyle())
+                .accessibilityLabel("Share group")
+                .accessibilityIdentifier("chat-profile-share")
+            },
+            footer: {
+                if isMember {
+                    leaveButton
+                        .padding(.horizontal, PublicGroupProfileView<EmptyView, EmptyView, EmptyView, EmptyView>.inset)
+                }
+            },
+            pinned: {
+                publicPinnedActions
+                    .toastClearance(toasts)
             }
-            mintMetadata = metadata
+        )
+        .bleedPalette(key: source?.key, image: source?.image, settings: PublicGroupLook.settings)
+        .task(id: conversation?.coverPicture?.blobID) {
+            await sessionContainer.profileAvatars.load(.groupCover(conversationID), picture: conversation?.coverPicture)
         }
-        .task(id: namedMints) {
-            mintNamesTimedOut = false
-            try? await Task.sleep(for: .seconds(1.5))
-            guard !Task.isCancelled else { return }
-            mintNamesTimedOut = true
+    }
+
+    private func publicContent(cover: UIImage?) -> PublicGroupProfileContent {
+        let named = requirements.flatMap { requirementsNamed ? $0 : nil }
+        return PublicGroupProfileContent(
+            id: conversationID.description,
+            title: title,
+            memberCount: conversation?.rosterSummary.memberCount,
+            description: conversation?.description,
+            avatarImageData: sessionContainer.profileAvatars.data(for: .chat(conversationID)),
+            avatarBlurhash: conversation?.picture?.thumbnailBlurhash,
+            cover: cover,
+            requirements: named.map { PublicGroupRequirementTile.tiles(for: $0, metadata: mintMetadata) } ?? [],
+            yourBalance: named.flatMap { yourBalance(in: $0) },
+            pulse: chatters.isEmpty ? nil : PublicGroupPulse(chatters: chatters, now: .now),
+            host: chatters.first(where: \.isCreator).map(GroupPortrait.init)
+        )
+    }
+
+    /// Whether the pinned Open Chat button shows: not from the chat itself, where the chat is one
+    /// back away.
+    private var showsPublicCTA: Bool {
+        origin != .chat && conversation != nil
+    }
+
+    @ViewBuilder
+    private var publicPinnedActions: some View {
+        if showsPublicCTA {
+            Button("Open Chat") { showChat() }
+                .buttonStyle(PublicGroupCapsuleButtonStyle())
+                .accessibilityIdentifier("group-profile-cta")
+                .padding(.horizontal, PublicGroupCapsuleButtonStyle.sideInset)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
         }
     }
 
