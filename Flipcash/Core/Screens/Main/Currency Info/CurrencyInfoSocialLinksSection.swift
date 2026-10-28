@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// A link chip drawn to the design: a 17pt glyph and the app text-medium label in a 6pt-radius tile.
+/// A link chip drawn to the design: a 17pt glyph and the app small text label in a 6pt-radius tile.
 /// Local to this section because the shared `IconButtonStyle` sets a bold 16pt label and an 18pt glyph.
 private struct LinkChipStyle: ButtonStyle {
     let icon: Asset
@@ -24,7 +24,7 @@ private struct LinkChipStyle: ButtonStyle {
                 .frame(width: 17, height: 17)
             configuration.label
                 .lineLimit(1)
-                .font(.appTextMedium)
+                .font(.appTextSmall)
                 .foregroundStyle(Color.textMain)
         }
         .opacity(configuration.isPressed ? 0.6 : 1.0)
