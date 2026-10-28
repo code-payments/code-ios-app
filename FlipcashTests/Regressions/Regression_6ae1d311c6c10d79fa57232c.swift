@@ -251,8 +251,10 @@ struct Regression_6ae1d311c6c10d79fa57232c {
         var rng = SplitMix(seed: seed)
         let source = Source()
         let cards = (10..<22).map { Self.groupCard(UInt8($0)) }
-        var rows: [(id: String, text: String, card: LinkCard?)] = (0..<60).map { i in
-            (id: "r\(i)", text: "row \(i)", card: i % 5 == 0 ? cards[(i / 5) % cards.count] : nil)
+        var rows: [(id: String, text: String, card: LinkCard?)] = []
+        for i in 0..<60 {
+            let card: LinkCard? = i % 5 == 0 ? cards[(i / 5) % cards.count] : nil
+            rows.append((id: "r\(i)", text: "row \(i)", card: card))
         }
         func items() -> [ChatItem] { rows.map { carded($0.id, $0.text, card: $0.card) } }
 
