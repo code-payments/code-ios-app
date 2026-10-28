@@ -69,7 +69,6 @@ struct SystemNoticeStringsTests {
     func invitedJoin() {
         #expect(text(.userJoinedViaInvite(userID: ada, invitedBy: bob), known: [ada: "Ada", bob: "Bob"]) == "Ada joined the group")
         #expect(text(.userJoinedViaInvite(userID: me, invitedBy: bob)) == "You joined the group")
-        #expect(text(.userJoinedViaInvite(userID: ada, invitedBy: nil)) == "fallback")
     }
 
     @Test("A notice with no event shows its fallback text")

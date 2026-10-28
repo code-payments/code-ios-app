@@ -575,8 +575,7 @@ struct DatabaseConversationsTests {
             [system(1, .userJoined(userID: joiner, admittedBy: nil)),
              system(2, .userJoined(userID: joiner, admittedBy: admitter)),
              system(3, nil),
-             system(4, .userJoinedViaInvite(userID: joiner, invitedBy: admitter)),
-             system(5, .userJoinedViaInvite(userID: joiner, invitedBy: nil))],
+             system(4, .userJoinedViaInvite(userID: joiner, invitedBy: admitter))],
             conversationID: id
         )
         let loaded = try database.getConversationMessages(conversationID: id)
@@ -585,7 +584,6 @@ struct DatabaseConversationsTests {
             .system(fallbackText: "notice 2", event: .userJoined(userID: joiner, admittedBy: admitter)),
             .system(fallbackText: "notice 3", event: nil),
             .system(fallbackText: "notice 4", event: .userJoinedViaInvite(userID: joiner, invitedBy: admitter)),
-            .system(fallbackText: "notice 5", event: .userJoinedViaInvite(userID: joiner, invitedBy: nil)),
         ])
     }
 
@@ -789,6 +787,19 @@ struct DatabaseConversationsTests {
         // And the expiry, not a muted flag: the mute lapses on its own after a cold start.
         #expect(loaded.isMuted(at: expiry.addingTimeInterval(-1)))
         #expect(loaded.isMuted(at: expiry) == false)
+    }
+
+    @Test("canInvite round-trips, so a host's invite entry points survive a cold start")
+    func viewerStateCanInviteRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        var stored = conversation(byte: 1)
+        stored.viewerState = ConversationViewerState(canInvite: true)
+
+        try database.upsertConversation(stored)
+
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.viewerState?.canInvite == true)
     }
 
     @Test("A conversation with no viewer state round-trips as none")
