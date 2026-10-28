@@ -298,7 +298,8 @@ struct GroupKeyEnvelopesTests {
         await #expect(throws: GroupKeyUnusable(failsAt: .wrappedBy)) {
             try await sut.groupKey(for: chat, creator: creatorID)
         }
-        #expect(keys.bundleOpens.map(\.wrappedByCreator) == [false])
+        // Rejected before the bundle is opened or any key is used.
+        #expect(keys.bundleOpens.isEmpty)
         #expect(keys.generated.isEmpty)
         #expect(server.sets == 0)
     }
@@ -333,6 +334,27 @@ struct GroupKeyEnvelopesTests {
 
         server.getError = nil
         #expect(try await sut.groupKey(for: chat, creator: creatorID) == key)
+    }
+
+    @Test("The creator's resolved key is preferred over the one sent with the bundle")
+    func inviteCopyPrefersResolvedKey() async throws {
+        let key = Data(repeating: 4, count: 32)
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: key, wrappedBy: creatorID, wrappedByPublicKey: KeyPair.generate()!.publicKey)
+
+        #expect(try await envelopes(server).groupKey(for: chat, creator: creatorID) == key)
+        #expect(keys.bundleOpens.map(\.creatorPublicKey) == [creatorKey])
+    }
+
+    @Test("A bundle with no wrapped_by is rejected even when a key was sent")
+    func inviteCopyNoWrapper() async throws {
+        let server = Server()
+        server.inviteCopy = inviteCopy(key: Data(repeating: 4, count: 32), wrappedBy: nil, wrappedByPublicKey: creatorKey)
+
+        await #expect(throws: GroupKeyUnusable(failsAt: .wrappedBy)) {
+            try await envelopes(server).groupKey(for: chat, creator: creatorID)
+        }
+        #expect(keys.bundleOpens.isEmpty)
     }
 
     @Test("The creator's key falls back to the one sent with the bundle when it can't be resolved")

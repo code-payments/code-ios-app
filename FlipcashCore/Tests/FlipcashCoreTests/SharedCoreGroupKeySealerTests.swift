@@ -45,4 +45,17 @@ struct SharedCoreGroupKeySealerTests {
             try sealer.unwrap(envelope, owner: member, wrapper: host.publicKey, conversationID: other)
         }
     }
+
+    @Test("A bundle in a scheme this build doesn't know is unsupported, not the wrong key")
+    func inviteBundleUnknownScheme() {
+        let bundle = InviteKeyBundle(
+            inviteID: InviteID(data: Data(repeating: 1, count: 32)),
+            keyEnvelope: InviteKeyEnvelope(scheme: 99, nonce: Data(count: 24), ciphertext: Data(count: 48), signature: Data(count: 64)),
+            secretEnvelope: InviteSecretEnvelope(scheme: 1, nonce: Data(count: 24), ciphertext: Data(count: 48))
+        )
+
+        #expect(throws: UnsupportedKeyEnvelopeScheme.self) {
+            try sealer.open(bundle, owner: member, creatorPublicKey: host.publicKey, wrappedByCreator: true, conversationID: chat)
+        }
+    }
 }

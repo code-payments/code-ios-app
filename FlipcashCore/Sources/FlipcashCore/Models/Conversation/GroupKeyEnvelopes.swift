@@ -170,13 +170,17 @@ public actor GroupKeyEnvelopes {
         return key
     }
 
-    /// The chat key in the invite's copy. The creator's key is the one resolved for them when it can
-    /// be, otherwise the one the server sent with the bundle.
+    /// The chat key in the invite's copy, checked in the contract's order: the inviter must be the
+    /// group's creator before any key is looked at. The creator's key is the one resolved for them
+    /// when it can be, otherwise the one the server sent with the bundle; the contract accepts that
+    /// the server could report a false key there, the same trust every envelope rests on.
     private func open(_ bundle: InviteKeyBundle, wrappedBy: UserID?, wrappedByPublicKey: PublicKey?, creator: UserID?, in conversationID: ConversationID) async throws -> Data {
         guard opensInviteBundles, let creator else {
             throw InviteBundleNotOpened()
         }
-        let wrappedByCreator = wrappedBy == creator
+        guard wrappedBy == creator else {
+            throw GroupKeyUnusable(failsAt: .wrappedBy)
+        }
         let creatorKey: PublicKey
         do {
             creatorKey = try await resolveKey(creator)
@@ -184,7 +188,7 @@ public actor GroupKeyEnvelopes {
             guard let wrappedByPublicKey else { throw error }
             creatorKey = wrappedByPublicKey
         }
-        return try sealer.open(bundle, owner: owner, creatorPublicKey: creatorKey, wrappedByCreator: wrappedByCreator, conversationID: conversationID)
+        return try sealer.open(bundle, owner: owner, creatorPublicKey: creatorKey, wrappedByCreator: true, conversationID: conversationID)
     }
 
     /// Replaces the creator-wrapped envelope with the viewer's own. A failure leaves the creator's
