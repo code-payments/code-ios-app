@@ -288,6 +288,26 @@ Rest states:
   - The Details card holds only "Minimum to chat".
   - Instagram and TikTok are drawn as if linked. They need backend fields and link flows (the proto has X only).
 
+### D: requirement status (met / unmet), 2026-10-28
+
+The question: can a viewer see at a glance whether they meet a public group's requirements? Section D grows to 2008×4666.
+Every frame keeps "Open Chat"; the status replaces the "Your balance" footer.
+
+| Option | Met | Short | Split (join $50 / chat $100, hold $70) | Checking |
+|---|---|---|---|---|
+| A · status line | 868:4259 | 868:4424 | 868:4586 | 868:4779 |
+| B · holding meter | 868:4945 | 868:5112 | 868:5274 | 868:5467 |
+
+Colour and treatment:
+- **Met:** `money/positive` with Central CircleCheck.
+- **Short:** "$N more" in `text/warning`, the rest `text/primary`. No error red.
+- **B's short bar:** `text/primary` on a `control/fill` track; a met bar caps at 100%.
+- **Checking:** `text/tertiary`, no tick. The gate fails open with no rate (`isProvisional`).
+
+**For the dev:** the verdict and shortfall must come from the existing chat gate (`ConversationGate` `unmetBalance` /
+`balanceShortfall`, `GroupProfileState.swift:95`). The view never compares amounts. Option C, a "Buy $X to Join" CTA,
+is parked because it changes what the button does.
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
