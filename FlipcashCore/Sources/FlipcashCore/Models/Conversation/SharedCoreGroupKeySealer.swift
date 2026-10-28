@@ -59,12 +59,11 @@ public struct SharedCoreGroupKeySealer: GroupKeySealing, @unchecked Sendable {
     }
 
     public func open(_ bundle: InviteKeyBundle, owner: KeyPair, creatorPublicKey: PublicKey, wrappedByCreator: Bool, conversationID: ConversationID) throws -> Data {
-        // An envelope in a scheme this client doesn't know can't be opened: the same wrong key.
-        guard bundle.keyEnvelope.scheme == Self.inviteKeyScheme.rawValue else {
-            throw GroupKeyUnusable(failsAt: .keyOpen)
-        }
-        guard bundle.secretEnvelope.scheme == Self.inviteSecretScheme.rawValue else {
-            throw GroupKeyUnusable(failsAt: .secretOpen)
+        // A scheme this build doesn't know fails as ``unwrap(_:owner:wrapper:conversationID:)`` does,
+        // not as the wrong key: a newer build may open it.
+        guard bundle.keyEnvelope.scheme == Self.inviteKeyScheme.rawValue,
+              bundle.secretEnvelope.scheme == Self.inviteSecretScheme.rawValue else {
+            throw UnsupportedKeyEnvelopeScheme()
         }
         do {
             return try SharedInviteCipher.openKeyBundle(
