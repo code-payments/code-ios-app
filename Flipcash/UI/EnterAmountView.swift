@@ -198,7 +198,10 @@ public struct EnterAmountView: View {
             if let actionOverride {
                 actionOverride
                     .disabled(!actionEnabled(enteredAmount))
-                    .padding(.top, 10)
+                    // Sits in the Next button's slot: same side and bottom insets as the button below.
+                    .padding(.top, Tuner.shared.value("Amount entry/Keypad to swipe", default: CGFloat(20), in: 0...48, unit: .points)) // LOCAL-TUNER
+                    .padding(.horizontal, Tuner.shared.value("Amount entry/Button side inset", default: CGFloat(32), in: 16...56, unit: .points) - 20) // LOCAL-TUNER
+                    .padding(.bottom, Tuner.shared.value("Amount entry/Button bottom inset", default: CGFloat(32), in: 0...80, unit: .points) - 54) // LOCAL-TUNER
             } else {
                 Button(action: action) {
                     ButtonStateLabel(actionTitle ?? mode.actionName, state: actionState)
