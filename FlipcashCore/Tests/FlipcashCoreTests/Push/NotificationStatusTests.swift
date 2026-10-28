@@ -54,7 +54,7 @@ struct NotificationStatusTests {
         #expect(page.summary.title == "Notifications are off")
         #expect(page.rows.map(\.check) == [.permission, .registration])
         #expect(Self.row(.permission, in: page)?.fix == .openNotificationSettings)
-        #expect(Self.row(.permission, in: page)?.fixTitle == "Turn on")
+        #expect(Self.row(.permission, in: page)?.fixTitle == "Turn On")
         #expect(page.isTestEnabled == false)
         #expect(page.foldedTitle == nil)
     }
@@ -67,7 +67,7 @@ struct NotificationStatusTests {
         #expect(row?.title == "Notifications aren't turned on yet")
         #expect(row?.detail == "Flipcash hasn't asked yet")
         #expect(row?.fix == .requestAuthorization)
-        #expect(row?.fixTitle == "Turn on")
+        #expect(row?.fixTitle == "Turn On")
     }
 
     @Test("4: banners off alone is one warning and the test stays enabled")
@@ -113,7 +113,7 @@ struct NotificationStatusTests {
         #expect(row?.status == .fail)
         #expect(row?.title == "Flipcash rejected this phone's push token")
         #expect(row?.fix == .retryRegistrationDeletingToken)
-        #expect(row?.fixTitle == "Try again")
+        #expect(row?.fixTitle == "Try Again")
         #expect(page.summary.title == "1 thing to fix")
     }
 
@@ -138,6 +138,28 @@ struct NotificationStatusTests {
         #expect(row?.title == "Couldn't reach Flipcash")
         #expect(row?.detail == "Last confirmed 5 minutes ago")
         #expect(page.summary.title == "1 thing to check")
+    }
+
+    @Test("A save under a minute old reads just now, not 0 minutes ago", arguments: [0.0, -1, -59])
+    func transportWithFreshSavedOK(offset: TimeInterval) {
+        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(offset), result: .ok, source: .refresh)
+        let page = Self.page(registration: .finished(.transport), saved: saved)
+
+        #expect(Self.row(.registration, in: page)?.detail == "Last confirmed just now")
+    }
+
+    @Test("A save a minute old reads in minutes")
+    func transportWithMinuteOldSavedOK() {
+        let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(-60), result: .ok, source: .refresh)
+        let page = Self.page(registration: .finished(.transport), saved: saved)
+
+        #expect(Self.row(.registration, in: page)?.detail == "Last confirmed 1 minute ago")
+    }
+
+    @Test("Group headers are title case")
+    func groupTitles() {
+        #expect(NotificationStatus.Group.phone.title == "On This Phone")
+        #expect(NotificationStatus.Group.flipcash.title == "With Flipcash")
     }
 
     @Test("12: a registration in flight shows Checking on the row and the summary")
@@ -207,7 +229,7 @@ struct NotificationStatusTests {
         #expect(page.foldedTitle == "4 checks passed")
     }
 
-    @Test("An interrupted registration offers Try again")
+    @Test("An interrupted registration offers Try Again")
     func interrupted() {
         let page = Self.page(registration: .interrupted)
         let row = Self.row(.registration, in: page)

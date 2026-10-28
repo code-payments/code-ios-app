@@ -189,8 +189,8 @@ extension NotificationStatus {
 
         public var title: String {
             switch self {
-            case .phone:    "ON THIS PHONE"
-            case .flipcash: "WITH FLIPCASH"
+            case .phone:    "On This Phone"
+            case .flipcash: "With Flipcash"
             }
         }
     }
@@ -218,16 +218,16 @@ extension NotificationStatus {
 
         public var id: Check { check }
 
-        /// The label on the fix button. The permission row says "Turn on" whether it opens
+        /// The label on the fix button. The permission row says "Turn On" whether it opens
         /// Settings or asks in the app.
         public var fixTitle: String? {
             guard let fix else { return nil }
-            if check == .permission { return "Turn on" }
+            if check == .permission { return "Turn On" }
             switch fix {
             case .openNotificationSettings, .requestAuthorization:
                 return "Fix"
             case .retryRegistration, .retryRegistrationDeletingToken:
-                return "Try again"
+                return "Try Again"
             }
         }
     }
@@ -242,7 +242,7 @@ extension NotificationStatus {
         /// Visible rows in check order. Rows that don't apply are already left out.
         public var rows: [Row]
         public var summary: Summary
-        /// Whether "Send test notification" can be tapped.
+        /// Whether "Send Test Notification" can be tapped.
         public var isTestEnabled: Bool
         /// The title of the single row that replaces both groups when every check passes.
         public var foldedTitle: String?
@@ -416,7 +416,9 @@ extension NotificationStatus {
         "\(count) \(count == 1 ? one : many)"
     }
 
+    /// Under a minute reads "just now"; the formatter would say "0 minutes ago".
     static func relative(_ date: Date, to now: Date, locale: Locale) -> String {
+        guard abs(now.timeIntervalSince(date)) >= 60 else { return "just now" }
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = locale
         formatter.unitsStyle = .full
