@@ -329,6 +329,24 @@ With no cover, derive it from the avatar.
 
 **Known nit:** on the warm frame, the amber-to-umber melt is a little abrupt and shows a faint band.
 
+### D: "Chatting recently", tailored, with the host highlighted (2026-10-28)
+
+Row 6 of section D (now 2008×7218), on the blue immersive page. All three options use the hand badge plus a "Host"
+pill. "22 members" is never tappable.
+
+| Option | id | Host distinction |
+|---|---|---|
+| 1 · Portrait carousel | 874:5553 | a taller featured first card (128×148) with the avatar ringed in the tint; others 88×112 with "2m ago"; the 4th card clips as the scroll hint |
+| 2 · Activity list | 875:5674 | a pinned top row on a lighter surface (#2A3E6C), avatar 42; three recent rows; "+2 more this week · 22 members" |
+| 3 · Pulse headline | 876:5789 | a "Hosted by **Ted Livingston**" line, then a facepile, "6 people chatted this week" and the recent names with times |
+
+Data: `SampleChatters` (host first; `user_profile`, `last_sent_at`, `is_creator`). The counts and recency are derived
+client-side from `last_sent_at` (7-day window per the Oct 3 note), so the dev confirms them. Nothing invented: no
+mutuals, presence or message previews.
+
+To fit, padding above the identity block was cut to 4 and the section-title padding to 12, which makes this row's
+cover slightly shorter than row 5's.
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
