@@ -37,8 +37,6 @@ enum SwipeMetrics {
     /// The capsule's height, which stands taller than the tray's capsule buttons.
     static var height: CGFloat { layout("Height", 64, 36...80) } // LOCAL-TUNER
     static var thumbInset: CGFloat { layout("Thumb inset", 6, 0...12) } // LOCAL-TUNER
-    /// Space kept clear after the label; the label centres in what's left beside the resting thumb.
-    static var labelTrailingInset: CGFloat { layout("Label trailing inset", 0, 0...40) } // LOCAL-TUNER
     /// The thumb's width; 0 matches its height for a round thumb, and anything wider makes it a capsule.
     static var thumbWidth: CGFloat { layout("Thumb width", 0, 0...160) } // LOCAL-TUNER
     static var arrowSize: CGFloat { layout("Arrow size", 24, 12...32) } // LOCAL-TUNER
