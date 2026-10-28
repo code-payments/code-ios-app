@@ -55,7 +55,7 @@ struct ChatKeyringTests {
     }
 
     private func keyring(_ resolver: Resolver, store: PeerKeyStore = MemoryKeyStore(), owner: KeyPair? = nil, selfID: UUID? = nil) -> ChatKeyring {
-        ChatKeyring(cipher: DefaultChatCipher.shared, owner: owner ?? alice, selfUserID: selfID ?? aliceID, store: store) { try resolver.resolve($0) }
+        ChatKeyring(cipher: DefaultChatCipher.shared, owner: owner ?? alice, selfUserID: selfID ?? aliceID, store: store, resolveKey: { try resolver.resolve($0) }, groupKey: { _, _ in throw Offline() })
     }
 
     /// An encrypted message from Bob to Alice in `dm()`.

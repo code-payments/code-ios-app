@@ -77,10 +77,10 @@ public final class ChatNotificationClient: Sendable {
                 resolverService.resolveUserID(userID, owner: owner) { continuation.resume(with: $0) }
             }
         }
-        let groupKeys = GroupKeyEnvelopes(
-            sealer: SharedCoreGroupKeySealer(),
+        return ChatKeyring(
             owner: owner,
             selfUserID: selfUserID,
+            resolveKey: resolveKey,
             setEnvelope: { [chatService] conversationID, envelope in
                 try await withCheckedThrowingContinuation { continuation in
                     chatService.setKeyEnvelope(owner: owner, conversationID: conversationID, keyEnvelope: envelope) {
@@ -97,15 +97,6 @@ public final class ChatNotificationClient: Sendable {
                 // An invite-joined member has only the invite's copy until they store their own.
                 guard let own = result.ownEnvelope else { throw ErrorGetKeyEnvelope.noEnvelope }
                 return own
-            },
-            resolveKey: resolveKey
-        )
-        return ChatKeyring(
-            owner: owner,
-            selfUserID: selfUserID,
-            resolveKey: resolveKey,
-            groupKey: { conversationID, creator in
-                try await groupKeys.groupKey(for: conversationID, creator: creator)
             }
         )
     }
