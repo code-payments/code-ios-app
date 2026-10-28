@@ -174,6 +174,32 @@ struct GroupInviteLinksTests {
 
         await #expect(throws: ErrorCreateInvite.denied) { try await links.currentLink() }
         #expect(links.current == nil)
+        #expect(server.createdSecrets.count == 1, "DENIED is not retried")
+    }
+
+    @Test("After DENIED the next attempt seals a new secret")
+    func deniedDropsSecret() async throws {
+        let server = Server()
+        server.createResults = [.failure(.denied), .success(.active)]
+        let links = makeLinks(server)
+
+        await #expect(throws: ErrorCreateInvite.denied) { try await links.currentLink() }
+        _ = try await links.currentLink()
+
+        #expect(server.createdSecrets.count == 2)
+        #expect(server.createdSecrets[0] != server.createdSecrets[1])
+    }
+
+    @Test("DENIED maps to 1e, which offers the group link")
+    @MainActor
+    func deniedShows1e() {
+        var sharedGroupLink = false
+        let item = InviteLinkDialogs.createFailed(ErrorCreateInvite.denied, onManage: {}, onShareGroupLink: { sharedGroupLink = true })
+
+        #expect(item.title == "Invite Links Aren’t Available Yet")
+        #expect(item.actions.map(\.title) == ["Share Group Link", "Cancel"])
+        item.actions.first?.action()
+        #expect(sharedGroupLink)
     }
 
     @Test("An OK that isn't active is not used as a link")
