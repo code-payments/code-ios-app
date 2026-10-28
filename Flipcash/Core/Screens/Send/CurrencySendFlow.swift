@@ -219,10 +219,10 @@ private struct CurrencySelectRecipientScreen: View {
                 "",
                 text: $query,
                 prompt: Text("Search")
-                    .font(.default(size: 17, weight: .regular))
+                    .font(.appTextBody)
                     .foregroundStyle(Color.white.opacity(0.5))
             )
-            .font(.default(size: 17, weight: .regular))
+            .font(.appTextBody)
             .foregroundStyle(Color.textMain)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
@@ -347,7 +347,7 @@ private struct CurrencySendConfirmSheet: View {
                         .lineLimit(1)
                     if let username {
                         Text("@\(username.value)")
-                            .font(.default(size: 13, weight: .regular))
+                            .font(.appTextSmall)
                             .foregroundStyle(Color.white.opacity(0.55))
                             .padding(.top, 3)
                     }

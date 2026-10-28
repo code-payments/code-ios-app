@@ -182,7 +182,7 @@ struct CurrencyInfoContentV2: View {
 
                 if !isUSDF, let createdAt = metadata.createdAt {
                     Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.default(size: 12, weight: .regular))
+                        .font(.appTextSmall)
                         .foregroundStyle(Color.white.opacity(0.55))
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 8)

@@ -67,7 +67,7 @@ struct CommunityChatRow: View {
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                     Text(subtitle)
-                        .font(.default(size: 12, weight: .regular))
+                        .font(.appTextSmall)
                         .foregroundStyle(Color.white.opacity(0.55))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)

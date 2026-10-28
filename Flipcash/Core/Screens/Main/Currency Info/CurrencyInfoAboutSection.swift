@@ -22,7 +22,7 @@ struct CurrencyInfoAboutSection: View {
 
             ExpandableText(description)
                 .foregroundStyle(Color.white.opacity(0.55))
-                .font(.default(size: 14, weight: .regular))
+                .font(.appTextSmall)
 
             if !socialLinks.isEmpty {
                 CurrencyInfoSocialLinksSection(socialLinks: socialLinks)
