@@ -254,13 +254,13 @@ public struct EnterAmountView: View {
 private enum SwipeDim {
     static var isOn: Bool { Tuner.shared.value("Swipe Dim/On", default: true) } // LOCAL-TUNER
     /// The opacity everything falls to at full travel.
-    static var maxDim: Double { Tuner.shared.value("Swipe Dim/Max dim", default: 0.25, in: 0...1) } // LOCAL-TUNER
+    static var maxDim: Double { Tuner.shared.value("Swipe Dim/Max dim", default: 0.17, in: 0...1) } // LOCAL-TUNER
     /// The travel where dimming begins.
     static var start: Double { Tuner.shared.value("Swipe Dim/Start", default: 0, in: 0...0.9) } // LOCAL-TUNER
     /// Whether the dim eases in (squared) rather than tracking travel linearly.
     static var easesIn: Bool { Tuner.shared.value("Swipe Dim/Ease in", default: false) } // LOCAL-TUNER
     /// Whether the entered amount stays at full opacity while the rest dims.
-    static var keepsAmount: Bool { Tuner.shared.value("Swipe Dim/Keep amount", default: true) } // LOCAL-TUNER
+    static var keepsAmount: Bool { Tuner.shared.value("Swipe Dim/Keep amount", default: false) } // LOCAL-TUNER
 }
 
 // MARK: - Mode -
