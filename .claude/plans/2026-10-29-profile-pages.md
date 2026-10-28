@@ -384,6 +384,69 @@ The bio isn't persisted locally, so it can arrive late after a cold start. Avoid
 rest (it scrolls). Either accept the scroll, or move Share into the nav bar as a glass circle next to ⋯ (saves about
 60pt and is control-layer glass). That's Aiden's call.
 
+## 12. Code build 1: public group profile, D row 8 (2026-10-28)
+
+Aiden chose to let the "Hosted by" row scroll under the CTA. Tuning mode is on, with `Packages/TunerKit` and
+`LocalTuner.swift` copied from the swipe worktree, all git-ignored.
+
+### Scope
+- **Changes:** the public branch of `ChatProfileScreen` (`!isPrivate`) only. The private group, the user profile and
+  every view model are untouched.
+- **Unchanged behaviour:**
+  - every action and destination: share/invite, Edit Group (only when `canEdit`), the currency row → `.currencyInfo`,
+    portrait → `.userProfile(…, .groupMember)`, Open Chat, Leave Chat;
+  - the origins and the pinned-bar logic;
+  - the `requirementsNamed` hold-back;
+  - accessibility ids;
+  - the analytics.
+
+### Colour: "Bleed", ported from `~/Developer/Recipes/Recipes/DesignSystem/Bleed/`
+- **Location:** FlipcashUI. It's a package, so there are no pbxproj edits.
+- **Files:** BleedRGB, OKLab, BleedColorExtractor (a `CGImage` entry point), BleedPalette, BleedTextStyle, EasedStops,
+  BleedFade, ObservableBox, BleedColorStore (keyed by a String id), and a modifier taking an id plus image.
+- **Defaults** are the values baked in Recipes commit 6e2c13d: kmeans, sample 0.26, saturation 1.2, L dark 0.10,
+  pull 0.6, warmth 1.0, vibrant text 0.6, fade 183. The Recipes PLAN.md is stale, so don't use its values.
+- **Source order:**
+  1. the cover bitmap (`profileAvatars.data(for: .groupCover(id))`);
+  2. the cover blurhash image (`BlurHashCache`);
+  3. the avatar data or blurhash;
+  4. otherwise the placeholder (today's black).
+- Dark-mode palette only (the app is dark).
+- **Tunables:** `// LOCAL-TUNER` lines under `Profile/Public/*` for saturation, L dark, pull, fade height and cover height.
+
+### Layout (top to bottom)
+1. **Cover:** full-bleed, under the status bar, with the Bleed fade into `palette.background`. The page, scroll and
+   navigation container backgrounds all use `palette.background`, with `toolbarColorScheme` from the palette.
+2. **Identity:**
+   - a left-aligned avatar overlapping the melt, with its ring in `palette.background`;
+   - the name, large and bold;
+   - "Public group · N members" (`rosterSummary.memberCount`) in the secondary style;
+   - the bio (`description`) in white.
+3. **Actions:** an outline "Share" pill, 44 tall with a 1.5pt stroke in the secondary colour, doing today's
+   `isInviting` action. Edit Group (when `canEdit`) uses the same outline pill. The old 38pt circle goes.
+4. **Section titles:** "Requirements" and "Chatting recently", 14 semibold, in the secondary style.
+5. **Requirement pass tile:** `controlTint` surface, padding 16, with the amount as the hero.
+   - It reads "of ◉ <mint>" (the token icon + name, tappable → `.currencyInfo` exactly as today), then "to join and
+     chat". If chat ≠ join, there are two tiles side by side.
+   - **Footer:** today's "Your Balance $X" string, unchanged. The met/unmet status line is **parked**, because it
+     needs the gate verdict (affordability).
+6. **Pulse card:** `controlTint` surface.
+   - Up to 5 faces at 36 with −10 overlap, each tappable to its profile as today, and a "+N" bubble.
+   - "N chatting this week" (sample chatters with `lastSentAt` inside 7 days), then "Last message <relative> ·
+     N members".
+   - A hairline, then "Hosted by <creator> ›" (→ the creator's profile).
+   - With nobody chatting: "Quiet this week".
+7. **Leave Chat** (members) at the end, unchanged in behaviour.
+8. **Pinned CTA:** "Open Chat" in the branch's capsule primary style. On iOS 18 the backdrop fade uses
+   `palette.background`; on iOS 26 it's the system edge effect.
+
+### For the dev (in the report and the plan)
+- The met/unmet status needs the gate verdict on the profile.
+- "N chatting this week" counts a server sample of at most 100.
+- Collapsing join == chat compares the two rule values.
+- The member count is shown on public groups.
+- The description arrives late after a cold start.
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
