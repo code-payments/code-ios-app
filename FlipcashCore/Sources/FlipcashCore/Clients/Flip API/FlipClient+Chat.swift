@@ -480,7 +480,7 @@ extension FlipClient {
 
     /// Creates an invite to a private group the caller may invite to (``ConversationViewerState/canInvite``).
     /// Idempotent on `token`; `maxUses` of `0` means unlimited. The caller supplies the envelopes —
-    /// deriving and sealing them is not implemented in this client yet.
+    /// ``InviteSealing/mint(secret:owner:conversationID:groupKey:)`` derives and seals them.
     public func createInvite(owner: KeyPair, conversationID: ConversationID, token: InviteToken, keyEnvelope: InviteKeyEnvelope, secretEnvelope: InviteSecretEnvelope, maxUses: UInt32 = 0, expiresAt: Date? = nil) async throws -> Invite {
         try await withCheckedThrowingContinuation { c in
             chatService.createInvite(owner: owner, conversationID: conversationID, token: token, keyEnvelope: keyEnvelope, secretEnvelope: secretEnvelope, maxUses: maxUses, expiresAt: expiresAt) { c.resume(with: $0) }

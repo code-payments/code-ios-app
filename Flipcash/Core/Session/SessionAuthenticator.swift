@@ -692,6 +692,9 @@ final class SessionContainer {
     /// The members of the private groups the signed-in user has opened, kept live from the stream.
     let groupRosters: GroupRosters
 
+    /// Reads, makes and revokes a hosted private group's invite links, for ``GroupInviteLinks``.
+    let inviteLinks: GroupInviteLinks.Service
+
     /// The group payment requests the signed-in user's private chats carry, refetched by the chat screen.
     let paymentRequests: PaymentRequests
 
@@ -942,6 +945,40 @@ final class SessionContainer {
         )
         conversationController.groupRosters = groupRosters
         self.groupRosters = groupRosters
+
+        let inviteSealer = SharedCoreInviteSealer()
+        self.inviteLinks = GroupInviteLinks.Service(
+            selfUserID: session.userID,
+            list: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getChatInvites(owner: owner, conversationID: conversationID)
+            },
+            create: { [flipClient, groupKeys, conversationController, owner = session.ownerKeyPair] conversationID, secret, maxUses, expiresAt in
+                let creator = conversationController.conversation(withID: conversationID)?.creator
+                let groupKey = try await groupKeys.groupKey(for: conversationID, creator: creator)
+                let mint = try inviteSealer.mint(secret: secret, owner: owner, conversationID: conversationID, groupKey: groupKey)
+                return try await flipClient.createInvite(
+                    owner: owner,
+                    conversationID: conversationID,
+                    token: mint.token,
+                    keyEnvelope: mint.keyEnvelope,
+                    secretEnvelope: mint.secretEnvelope,
+                    maxUses: maxUses,
+                    expiresAt: expiresAt
+                )
+            },
+            revoke: { [flipClient, owner = session.ownerKeyPair] conversationID, inviteID in
+                try await flipClient.revokeInvite(owner: owner, conversationID: conversationID, inviteID: inviteID)
+            },
+            secret: { [owner = session.ownerKeyPair] invite in
+                inviteSealer.secret(of: invite, owner: owner)
+            },
+            link: { secret in
+                try? inviteSealer.link(secret: secret)
+            },
+            newSecret: {
+                inviteSealer.newSecret()
+            }
+        )
         self.paymentRequests = PaymentRequests(
             getChatPage: { [flipClient, owner = session.ownerKeyPair] conversationID, section, pageSize in
                 try await flipClient.getChatPaymentRequestsPage(

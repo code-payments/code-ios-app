@@ -43,6 +43,10 @@ struct ShareToChatsSheet: View {
     /// Called after a direct send with the chat picked first, which the presenter opens.
     let onInvited: (ConversationID) -> Void
 
+    /// Called from Manage Invites and from Too Many Active Links: the presenter closes the sheet
+    /// and pushes Manage Invites.
+    let onManageInvites: () -> Void
+
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
 
@@ -58,15 +62,20 @@ struct ShareToChatsSheet: View {
     @State private var headerHeight: CGFloat = 0
     @State private var isShowingCard = false
     @State private var isShowingGroupCard = false
+    /// A host's invite links, made once the sheet knows the viewer may invite.
+    @State private var inviteLinks: GroupInviteLinks?
+    @State private var dialogItem: DialogItem?
     @FocusState private var isMessageFocused: Bool
 
     init(
         subject: ShareToChatsSubject,
         isPresented: Binding<Bool>,
+        onManageInvites: @escaping () -> Void = {},
         onInvited: @escaping (ConversationID) -> Void
     ) {
         self.subject = subject
         self._isPresented = isPresented
+        self.onManageInvites = onManageInvites
         self.onInvited = onInvited
         let url: URL = switch subject {
         case .group(let id): .groupChatInvite(for: id)
@@ -128,8 +137,17 @@ struct ShareToChatsSheet: View {
         )
     }
 
+    /// Whether the sheet shares an invite link: a group whose viewer the server lets make them.
+    /// Everyone else gets the plain link, as before invite links.
+    private var isInviteMode: Bool {
+        conversation?.canInvite ?? false
+    }
+
     private var sheetTitle: String {
-        switch subject {
+        if isInviteMode {
+            return InviteLinkCopy.sheetTitle(groupName: title ?? "")
+        }
+        return switch subject {
         case .group: "Invite People"
         case .user: "Share Profile"
         case .message: "Share Message"
@@ -167,8 +185,13 @@ struct ShareToChatsSheet: View {
 
     /// The chats the Chats tab lists, newest activity first: 1:1 chats and joined groups, less
     /// ``excludedChatID``. Search and people outside recent chats are out of scope.
+    ///
+    /// An invite link goes only to chats the server can't read (Decision 6): the link and the
+    /// server's records together open the group key.
     private var recentChats: [Conversation] {
-        conversationController.chatListConversations.filter { $0.id != excludedChatID }
+        let chats = conversationController.chatListConversations.filter { $0.id != excludedChatID }
+        guard isInviteMode else { return chats }
+        return chats.filter(E2eePolicy.shouldEncrypt)
     }
 
     /// The group's picture for the share sheet's own preview card.
@@ -202,10 +225,16 @@ struct ShareToChatsSheet: View {
                 // A List (not a ScrollView of Buttons) so a drag over a row scrolls and never
                 // toggles it on release.
                 List {
-                    shareTiles
-                        .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    Group {
+                        if isInviteMode {
+                            inviteLinkPanel
+                        } else {
+                            shareTiles
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
 
                     // A row rather than a section header, which a plain List pins to the top.
                     sectionHeader
@@ -272,6 +301,14 @@ struct ShareToChatsSheet: View {
         }
         .presentationBackground(Color.backgroundMain)
         .interactiveDismissDisabled(model.isSending)
+        .dialog(item: $dialogItem)
+        .task(id: isInviteMode) {
+            // Opening the sheet makes nothing (Decision 9): it only reads which link is current.
+            guard isInviteMode, inviteLinks == nil, let groupID else { return }
+            let links = GroupInviteLinks(conversationID: groupID, service: sessionContainer.inviteLinks)
+            inviteLinks = links
+            try? await links.load()
+        }
         .task {
             // Idempotent: the store returns without a round trip once the bytes are in memory or
             // on disk. Loading here rather than relying on the presenting screen keeps the preview
@@ -450,9 +487,81 @@ struct ShareToChatsSheet: View {
         .accessibilityHidden(true)
     }
 
+    // MARK: - Invite link -
+
+    /// A host's link block in place of the share tiles (frames 1a, 1b).
+    private var inviteLinkPanel: some View {
+        InviteLinkPanel(
+            pill: invitePill,
+            meta: inviteLinks?.current.map { InviteLinkCopy.sheetMeta($0.invite) } ?? InviteLinkCopy.defaultExpiry,
+            didCopy: didCopy,
+            onShare: shareInviteLink,
+            onCopy: copyInviteLink,
+            onShareRequestLink: shareGroupLink,
+            onManage: manageInvites,
+            onShowGroupCard: {
+                isMessageFocused = false
+                isShowingGroupCard = true
+            }
+        )
+    }
+
+    private var invitePill: InviteLinkPanel.Pill {
+        guard let inviteLinks else { return .loading }
+        if inviteLinks.isCreating { return .creating }
+        if let url = inviteLinks.current?.url { return .link(url) }
+        return inviteLinks.loadState == .loading ? .loading : .none
+    }
+
+    private func shareInviteLink() {
+        Task {
+            guard let url = await inviteLink() else { return }
+            Analytics.groupInviteShared(method: .share)
+            ShareSheet.present(activityItems: [GroupInviteShareItem(url: url, title: title, icon: icon(), kind: .inviteLink)]) { _ in }
+        }
+    }
+
+    private func copyInviteLink() {
+        Task {
+            guard let url = await inviteLink() else { return }
+            Analytics.groupInviteShared(method: .theCopy)
+            UIPasteboard.general.string = url.absoluteString
+            withAnimation(.easeInOut(duration: 0.15)) { didCopy = true }
+            try? await Task.sleep(for: Self.confirmationDuration)
+            withAnimation(.easeInOut(duration: 0.15)) { didCopy = false }
+        }
+    }
+
+    /// Shares the plain `/chat/{uuid}` link, which lets people ask to join (Decision 9).
+    private func shareGroupLink() {
+        guard let groupID else { return }
+        ShareSheet.present(activityItems: [GroupInviteShareItem(url: .groupChatInvite(for: groupID), title: title, icon: icon())]) { _ in }
+    }
+
+    private func manageInvites() {
+        isPresented = false
+        onManageInvites()
+    }
+
+    /// The current invite link, made on the first tap when there is none. Nil after a failure,
+    /// which this shows.
+    private func inviteLink() async -> URL? {
+        guard let inviteLinks, !inviteLinks.isCreating else { return nil }
+        do {
+            return try await inviteLinks.currentLink()
+        } catch {
+            dialogItem = InviteLinkDialogs.createFailed(error, onManage: manageInvites, onShareGroupLink: shareGroupLink)
+            return nil
+        }
+    }
+
     private func invite() {
         isMessageFocused = false
         Task {
+            if isInviteMode {
+                guard let url = await inviteLink() else { return }
+                model.url = url
+            }
             guard let first = await model.sendInvites(via: { text, chatID in
                 await conversationController.send(text, to: chatID)
             }) else { return }

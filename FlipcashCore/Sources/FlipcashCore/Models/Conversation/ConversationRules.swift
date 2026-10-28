@@ -128,6 +128,12 @@ extension Conversation {
     public var canEdit: Bool {
         viewerState?.canEdit ?? false
     }
+
+    /// Whether the signed-in viewer may make invite links for this group, from
+    /// ``ConversationViewerState/canInvite`` alone, as ``canEdit`` is.
+    public var canInvite: Bool {
+        viewerState?.canInvite ?? false
+    }
 }
 
 /// Whether, and until when, the signed-in user has muted a chat. See `chat.v1.MuteState`.
