@@ -28,7 +28,8 @@ enum PhotoLibrary {
     /// Adds the photo's original bytes to the library untouched, so a PNG, HEIC or GIF keeps its format.
     /// Needs only the add-only permission.
     static func save(originalData data: Data) async throws {
-        try await PHPhotoLibrary.shared().performChanges {
+        // Photos runs the block on its own queue, so it must not inherit main-actor isolation.
+        try await PHPhotoLibrary.shared().performChanges { @Sendable in
             PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
         }
     }
