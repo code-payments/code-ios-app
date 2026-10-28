@@ -26,7 +26,7 @@ import FlipcashCore
 /// **Route.** Whatever survives the host gate goes to the real parser. No second path parser is
 /// written.
 ///
-/// Five paths become cards: `.cash`, `.token`, `.chat` (a group invite), and `.tip` / `.username` (a
+/// These paths become cards: `.cash`, `.token`, `.chat` and `.groupInvite` (a group), and `.tip` / `.username` (a
 /// person's tip card link). The rest are refused by name rather than by a
 /// `default`, so a new route has to be ruled on here instead of inheriting a card. `.login` and
 /// `.verifyEmail` in particular carry the account seed and a verification secret, and a card with a
@@ -126,6 +126,15 @@ nonisolated struct LinkCardClassifier {
             // handle, so without that gate `discord.gg/<invite>` would be a person card.
             guard !Self.reservedPaths.contains(username.value) else { return nil }
             return .user(LinkCard.User(url: target, identity: .username(username), range: link.range))
+
+        case .groupInvite:
+            // Resolved with `GetInvite` by the secret in the fragment, never fetched as a web page:
+            // the link is the group's key (Decision 6).
+            return .group(LinkCard.Group(inviteURL: target, range: link.range))
+
+        case .invalidGroupInvite:
+            // No secret to look up. It stays a link, and a tap still opens it in the app.
+            return nil
 
         case .login, .verifyEmail, .chatSendCash,
              .give, .balance, .discover, .unknown:

@@ -69,7 +69,7 @@ public struct ChatQuote: Hashable, Sendable, Codable {
 
     /// One line of preview text: newlines collapsed to spaces, truncated at ``snippetLimit``.
     public static func snippet(forText text: String) -> String {
-        let flattened = text
+        let flattened = InviteLinkText.redacting(text)
             .split(whereSeparator: \.isNewline)
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespaces)

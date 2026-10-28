@@ -99,7 +99,7 @@ public enum NotificationPayload {
         let preview: String
         switch message.content {
         case .text(let text):
-            preview = text
+            preview = InviteLinkText.redacting(text)
         case .media(_, let caption):
             preview = ChatMediaStrings.listPreview(caption: caption)
         case .cash, .deleted, .encrypted, .widget, .system:

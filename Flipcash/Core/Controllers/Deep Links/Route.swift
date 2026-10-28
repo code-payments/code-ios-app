@@ -97,14 +97,7 @@ nonisolated extension Route {
     /// A jump link carries its target percent-encoded in `#source=`. A jump pointing at another
     /// jump is malformed and is not followed. Mirrors Android `DeepLink.unwrapJumpTarget`.
     static func unwrappingJump(_ url: URL) -> URL? {
-        let prefix = "https://jump.flipcash.com/#source="
-        guard url.absoluteString.hasPrefix(prefix) else { return nil }
-        let encoded = String(url.absoluteString.dropFirst(prefix.count))
-        guard let decoded = encoded.removingPercentEncoding,
-              let target = URL(string: decoded),
-              !decoded.hasPrefix(prefix)
-        else { return nil }
-        return target
+        InviteLinkText.unwrappingJump(url)
     }
 }
 
@@ -116,13 +109,8 @@ nonisolated extension Route {
     /// Android's manifest intent filters. `www.flipcash.com` is Android-only for routing and is
     /// here anyway: whether a link *is* a Flipcash link is not a question about which app opens
     /// it, and the cross-platform fixture has to agree on one answer.
-    static let flipcashHosts: Set<String> = [
-        "app.flipcash.com",
-        "send.flipcash.com",
-        "flipcash.com",
-        "www.flipcash.com",
-        "jump.flipcash.com",
-    ]
+    /// Kept in FlipcashCore so the preview text that hides invite links matches on the same hosts.
+    static let flipcashHosts: Set<String> = InviteLinkText.flipcashHosts
 
     /// Whether `url` is one of ours: the custom scheme, or an exact match on ``flipcashHosts``.
     ///

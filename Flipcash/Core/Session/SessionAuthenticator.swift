@@ -694,6 +694,7 @@ final class SessionContainer {
 
     /// Reads, makes and revokes a hosted private group's invite links, for ``GroupInviteLinks``.
     let inviteLinks: GroupInviteLinks.Service
+    let inviteLanding: GroupInviteLanding
 
     /// The group payment requests the signed-in user's private chats carry, refetched by the chat screen.
     let paymentRequests: PaymentRequests
@@ -891,6 +892,7 @@ final class SessionContainer {
             cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner, viewerAmount: viewerAmount),
             mintLookup: LinkCardResolver.mintLookup(reader: client),
             groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
+            inviteLookup: LinkCardResolver.inviteLookup(invites: flipClient, mints: client, viewer: owner),
             userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID),
             messageLookup: LinkCardResolver.messageLookup(
                 chats: flipClient,
@@ -945,6 +947,22 @@ final class SessionContainer {
         )
         conversationController.groupRosters = groupRosters
         self.groupRosters = groupRosters
+
+        self.inviteLanding = GroupInviteLanding(service: .init(
+            owner: session.ownerKeyPair,
+            getInvite: { [flipClient, owner = session.ownerKeyPair] token in
+                try await flipClient.getInvite(owner: owner, token: token)
+            },
+            getRoster: { [flipClient, owner = session.ownerKeyPair] conversationID, token in
+                try await flipClient.getRoster(owner: owner, conversationID: conversationID, inviteToken: token)
+            },
+            join: { [conversationController] conversationID, invite in
+                try await conversationController.join(conversationID: conversationID, invite: invite)
+            },
+            isMember: { [conversationController] conversationID in
+                conversationController.conversation(withID: conversationID).map { conversationController.isMember(of: $0) } ?? false
+            }
+        ))
 
         let inviteSealer = SharedCoreInviteSealer()
         self.inviteLinks = GroupInviteLinks.Service(

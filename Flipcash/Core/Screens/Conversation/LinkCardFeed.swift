@@ -186,7 +186,7 @@ final class LinkCardFeed: LinkCardSource {
             }
         case .group(let group):
             Task { [resolver] in
-                let facts = await resolver.group(group.chatID)
+                let facts = await resolver.group(group)
                 deliverFetched(facts.map(Fetched.group), missing: .group(.unavailable), for: key)
             }
         case .user(let user):

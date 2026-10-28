@@ -201,24 +201,37 @@ public enum LinkCard: Hashable, Sendable, Codable {
 
 extension LinkCard {
 
-    /// A group chat's invite link, `app.flipcash.com/chat/{uuid}`.
+    /// A group chat's link: its join link, `app.flipcash.com/chat/{uuid}`, or a private group's
+    /// invite link, `app.flipcash.com/chat/invite#s=…`.
     public struct Group: Hashable, Sendable, Codable {
 
         public let url: URL
-        /// The chat id's bytes. Stored raw because `ConversationID` is not `Codable`.
-        public let chatIDData: Data
+        /// The chat id's bytes, or nil for an invite link, which names its group only through
+        /// `GetInvite`. Stored raw because `ConversationID` is not `Codable`.
+        public let chatIDData: Data?
         /// UTF-16 offsets into the message text — the same frame `DetectedLink` indexes in.
         public let location: Int
         public let length: Int
 
         public var range: NSRange { NSRange(location: location, length: length) }
 
-        /// The chat the link invites to.
-        public var chatID: ConversationID { ConversationID(data: chatIDData) }
+        /// The chat a join link names; nil for an invite link.
+        public var chatID: ConversationID? { chatIDData.map(ConversationID.init(data:)) }
+
+        /// Whether this is an invite link, resolved by its secret rather than a chat id.
+        public var isInvite: Bool { chatIDData == nil }
 
         public init(url: URL, chatID: ConversationID, range: NSRange) {
             self.url = url
             self.chatIDData = chatID.data
+            self.location = range.location
+            self.length = range.length
+        }
+
+        /// An invite link. Its secret stays in `url`'s fragment and is read where it is looked up.
+        public init(inviteURL url: URL, range: NSRange) {
+            self.url = url
+            self.chatIDData = nil
             self.location = range.location
             self.length = range.length
         }
@@ -603,7 +616,12 @@ nonisolated extension LinkCard {
         switch self {
         case .cash(let cash):   .cash(Cash(url: cash.url, entropy: cash.entropy, range: range))
         case .token(let token): .token(Token(url: token.url, mint: token.mint, range: range))
-        case .group(let group): .group(Group(url: group.url, chatID: group.chatID, range: range))
+        case .group(let group):
+            if let chatID = group.chatID {
+                .group(Group(url: group.url, chatID: chatID, range: range))
+            } else {
+                .group(Group(inviteURL: group.url, range: range))
+            }
         case .message(let message): .message(Message(url: message.url, chatID: message.chatID, messageID: message.messageID, range: range))
         case .user(let user):   .user(User(url: user.url, identity: user.identity, range: range))
         case .web(let web):     .web(Web(url: web.url, range: range, page: web.page))

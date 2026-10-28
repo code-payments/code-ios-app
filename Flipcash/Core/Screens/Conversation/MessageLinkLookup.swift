@@ -256,10 +256,10 @@ extension LinkCardResolver {
             if let entropy = soleCashLink(in: text), let link = try? await cashLinks(entropy) {
                 return .cash(.init(chatTitle: title, kind: kind(of: conversation), authorName: author, time: time(of: message), amount: link.amount, verb: .cashLink, claim: link.claim))
             }
-            return wrapping(resolved(message, kind: kind(of: conversation), title: title, author: author, excerpt: text))
+            return wrapping(resolved(message, kind: kind(of: conversation), title: title, author: author, excerpt: InviteLinkText.redacting(text)))
 
         case .media(let attachments, let caption):
-            let excerpt = caption ?? ""
+            let excerpt = InviteLinkText.redacting(caption ?? "")
             let photo = attachments.first.map {
                 LinkCard.Message.Photo(blobID: message.redacted ? nil : $0.blobID, sealed: $0.sealed, blurHash: $0.blurhash)
             }

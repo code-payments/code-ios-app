@@ -17,6 +17,8 @@ nonisolated struct GroupLinkFacts: Sendable, Equatable {
     /// The name of the token ``headline(for:)`` names, or nil when the rule names none or names the
     /// dollar token, which the card states by amount alone.
     let headlineMintName: String?
+    /// The link's status, for an invite link's card; nil for a join link.
+    var inviteStatus: Invite.Status? = nil
 }
 
 /// Turns what a group link's lookup fetched into what its card shows. Main-actor because the
@@ -63,11 +65,22 @@ func groupLinkCard(_ facts: GroupLinkFacts, imageData: Data?) -> LinkCard.Group.
         avatarID: conversation.id.description,
         imageData: imageData,
         blurHash: conversation.picture?.thumbnailBlurhash,
-        requirement: groupRequirementLine(
+        requirement: facts.inviteStatus.map(inviteStatusLine) ?? groupRequirementLine(
             headline(for: conversation.rules?.listener ?? []),
             mintName: facts.headlineMintName
         )
     )
+}
+
+/// An invite card's status line, in place of the entry rule: the link admits on its own.
+/// Provisional copy: no frame draws this card.
+func inviteStatusLine(_ status: Invite.Status) -> String {
+    switch status {
+    case .active, .unknown: "Private group · Invite link"
+    case .expired:          "This invite link has expired"
+    case .revoked:          "This invite link was turned off"
+    case .exhausted:        "This invite link has reached its limit"
+    }
 }
 
 extension Conversation {
