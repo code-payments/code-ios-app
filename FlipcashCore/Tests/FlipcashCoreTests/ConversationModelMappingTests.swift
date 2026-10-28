@@ -88,7 +88,7 @@ struct ConversationModelMappingTests {
         #expect(message.content == .system(fallbackText: "fallback", event: .userJoinedViaInvite(userID: joiner, invitedBy: inviter)))
     }
 
-    @Test("An invited join without invited_by still reads as an invite join")
+    @Test("An invited join without a parseable invited_by reads as a plain join")
     func invitedWithoutInviter() throws {
         let joiner = UUID()
         let message = try systemMessage {
@@ -97,7 +97,7 @@ struct ConversationModelMappingTests {
                 $0.invited = .init()
             }
         }
-        #expect(message.content == .system(fallbackText: "fallback", event: .userJoinedViaInvite(userID: joiner, invitedBy: nil)))
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoined(userID: joiner, admittedBy: nil)))
     }
 
     @Test("A join with no method is a direct join")

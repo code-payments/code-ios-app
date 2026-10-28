@@ -404,11 +404,9 @@ nonisolated public struct ConversationMessageTable: Sendable {
     // `systemUserId` is set.
     public let systemUserId   = Expression <UUID?>         ("systemUserId")
     public let systemAdmittedBy = Expression <UUID?>       ("systemAdmittedBy")
-    // A `kind` 6 row's `SystemEvent.userJoinedViaInvite`: the user who created the invite, when the
-    // server names them. Set only together with `systemUserId` and never with `systemAdmittedBy`;
-    // `systemViaInvite` is what marks the row as an invite join, since `systemInvitedBy` may be nil.
+    // A `kind` 6 row's `SystemEvent.userJoinedViaInvite`: the user who created the invite. Set only
+    // together with `systemUserId` and never with `systemAdmittedBy`; set means an invite join.
     public let systemInvitedBy = Expression <UUID?>        ("systemInvitedBy")
-    public let systemViaInvite = Expression <Bool?>        ("systemViaInvite")
     // JSON-encoded `[CashPayment]` of a multi-receiver cash row; nil for every other row.
     public let cashPaymentsJson = Expression <Data?>       ("cashPaymentsJson")
     // The member a single-receiver group cash row paid; nil for DM cash and every other row.
@@ -711,7 +709,6 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.systemUserId)
                     t.column(conversationMessageTable.systemAdmittedBy)
                     t.column(conversationMessageTable.systemInvitedBy)
-                    t.column(conversationMessageTable.systemViaInvite)
                     t.column(conversationMessageTable.cashPaymentsJson)
                     t.column(conversationMessageTable.cashReceiverId)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)

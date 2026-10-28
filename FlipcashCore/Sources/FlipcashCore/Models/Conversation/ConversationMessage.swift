@@ -84,8 +84,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public enum SystemEvent: Hashable, Sendable {
         /// `userID` joined the group, directly or, when `admittedBy` is set, admitted by that user.
         case userJoined(userID: UserID, admittedBy: UserID?)
-        /// `userID` joined through an invite link created by `invitedBy`, when the server names them.
-        case userJoinedViaInvite(userID: UserID, invitedBy: UserID?)
+        /// `userID` joined through an invite link created by `invitedBy`.
+        case userJoinedViaInvite(userID: UserID, invitedBy: UserID)
 
         /// The users this event names, in reading order, without duplicates and without `selfID`.
         public func namedUserIDs(excluding selfID: UserID?) -> [UserID] {
@@ -98,7 +98,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
                 return ids
             case .userJoinedViaInvite(let userID, let invitedBy):
                 var ids: [UserID] = []
-                for id in [invitedBy, userID].compactMap({ $0 }) where id != selfID && !ids.contains(id) {
+                for id in [invitedBy, userID] where id != selfID && !ids.contains(id) {
                     ids.append(id)
                 }
                 return ids
@@ -582,7 +582,10 @@ extension ConversationMessage.Content {
                 let admitter = admitted.hasAdmittedBy ? try? UUID(data: admitted.admittedBy.value) : nil
                 return .userJoined(userID: userID, admittedBy: admitter)
             case .invited(let invited):
-                let inviter = invited.hasInvitedBy ? try? UUID(data: invited.invitedBy.value) : nil
+                // `invited_by` is required on the wire; one that doesn't parse reads as a plain join.
+                guard invited.hasInvitedBy, let inviter = try? UUID(data: invited.invitedBy.value) else {
+                    return .userJoined(userID: userID, admittedBy: nil)
+                }
                 return .userJoinedViaInvite(userID: userID, invitedBy: inviter)
             case .direct, .none:
                 return .userJoined(userID: userID, admittedBy: nil)

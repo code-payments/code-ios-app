@@ -615,7 +615,6 @@ nonisolated extension Database {
             var systemUserId: UUID?
             var systemAdmittedBy: UUID?
             var systemInvitedBy: UUID?
-            var systemViaInvite: Bool?
             if let sealed = message.sealed {
                 encryptedScheme = sealed.scheme
                 encryptedNonce = sealed.nonce
@@ -666,7 +665,6 @@ nonisolated extension Database {
                 case .userJoinedViaInvite(let userID, let invitedBy):
                     systemUserId = userID
                     systemInvitedBy = invitedBy
-                    systemViaInvite = true
                 case nil:
                     break
                 }
@@ -714,7 +712,6 @@ nonisolated extension Database {
                     m.systemUserId        <- systemUserId,
                     m.systemAdmittedBy    <- systemAdmittedBy,
                     m.systemInvitedBy     <- systemInvitedBy,
-                    m.systemViaInvite     <- systemViaInvite,
                     m.cashPaymentsJson    <- Self.encodeCashPayments(message.cashPayments),
                     m.cashReceiverId      <- message.cashReceiverID
                 )
@@ -948,9 +945,11 @@ nonisolated extension Database {
         case 6:
             guard let text = row[m.text] else { return nil }
             let event = row[m.systemUserId].map { userID in
-                row[m.systemViaInvite] == true
-                    ? ConversationMessage.SystemEvent.userJoinedViaInvite(userID: userID, invitedBy: row[m.systemInvitedBy])
-                    : ConversationMessage.SystemEvent.userJoined(userID: userID, admittedBy: row[m.systemAdmittedBy])
+                if let invitedBy = row[m.systemInvitedBy] {
+                    ConversationMessage.SystemEvent.userJoinedViaInvite(userID: userID, invitedBy: invitedBy)
+                } else {
+                    ConversationMessage.SystemEvent.userJoined(userID: userID, admittedBy: row[m.systemAdmittedBy])
+                }
             }
             content = .system(fallbackText: text, event: event)
         default:
