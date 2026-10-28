@@ -8,9 +8,9 @@
 import Foundation
 import FlipcashAPI
 
-// The invite wire shapes only. Deriving the token and id, wrapping and unwrapping the envelopes, and
-// signing or verifying them is a cross-platform shared-logic hotspot that is not implemented yet, so
-// the envelopes stay opaque bytes, as ``ConversationKeyEnvelope`` does.
+// The invite wire shapes only. Deriving the token and id, and sealing and opening the envelopes, is
+// shared core's, through ``InviteSealing``; the envelopes stay opaque bytes here, as
+// ``ConversationKeyEnvelope`` does.
 
 /// A group invite's 16-byte identifier, derived from its ``InviteToken``.
 public struct InviteID: Hashable, Sendable {

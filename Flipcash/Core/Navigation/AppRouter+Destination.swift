@@ -153,6 +153,8 @@ extension AppRouter {
         /// The pending requests to join a private group the user hosts, pushed from its profile card,
         /// the Requests screen, or the chat's request anchor.
         case joinRequests(ConversationID)
+        /// A hosted private group's invite links, pushed from the Invite People sheet and the create-failed dialog.
+        case inviteLinks(ConversationID)
         /// Every member of a private group, pushed from the count on its profile's Members grid.
         case groupMembers(ConversationID)
 
@@ -180,7 +182,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .chatMessage, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats, .chatSearch, .requests, .joinRequests, .groupMembers:
+                 .editGroupDescription, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers:
                 return .tips
             }
         }
@@ -250,6 +252,7 @@ extension AppRouter {
             case .chatSearch:                   "chatSearch"
             case .requests:                     "requests"
             case .joinRequests:                 "joinRequests"
+            case .inviteLinks:                  "inviteLinks"
             case .groupMembers:                 "groupMembers"
             }
         }
@@ -285,6 +288,7 @@ extension AppRouter {
                  .editGroupCover(let conversationID),
                  .editGroupDescription(let conversationID),
                  .joinRequests(let conversationID),
+                 .inviteLinks(let conversationID),
                  .groupMembers(let conversationID):
                 return conversationID.description
             case .userProfile(let userID, _):

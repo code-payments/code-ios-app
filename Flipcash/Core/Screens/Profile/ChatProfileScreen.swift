@@ -235,7 +235,11 @@ struct ChatProfileScreen: View {
         }
         .dialog(item: $dialogItem)
         .fullScreenCover(isPresented: $isInviting) {
-            ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
+            ShareToChatsSheet(
+                subject: .group(conversationID),
+                isPresented: $isInviting,
+                onManageInvites: { router.push(.inviteLinks(conversationID)) }
+            ) { chatID in
                 router.openSharedChat(chatID)
             }
         }

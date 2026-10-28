@@ -247,6 +247,10 @@ struct DestinationView: View {
             JoinRequestsScreen(conversationID: conversationID)
                 .id(conversationID)
 
+        case .inviteLinks(let conversationID):
+            InviteLinksScreen(conversationID: conversationID)
+                .id(conversationID)
+
         case .groupMembers(let conversationID):
             GroupMembersScreen(conversationID: conversationID)
                 .id(conversationID)

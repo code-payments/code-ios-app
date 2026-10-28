@@ -27,6 +27,10 @@ struct JoinRequestsScreen: View {
         lobbies.requests(for: conversationID)
     }
 
+    private var canInvite: Bool {
+        conversationController.conversation(withID: conversationID)?.canInvite ?? false
+    }
+
     private var groupName: String {
         conversationController.conversation(withID: conversationID)
             .map { conversationController.displayName(for: $0) } ?? ""
@@ -46,7 +50,11 @@ struct JoinRequestsScreen: View {
             await lobbies.refresh(conversationID)
         }
         .fullScreenCover(isPresented: $isInviting) {
-            ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
+            ShareToChatsSheet(
+                subject: .group(conversationID),
+                isPresented: $isInviting,
+                onManageInvites: { router.push(.inviteLinks(conversationID)) }
+            ) { chatID in
                 router.openSharedChat(chatID)
             }
         }
@@ -103,7 +111,8 @@ struct JoinRequestsScreen: View {
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
-            Button("Share Group") {
+            // Frame 1d: a host who may make invite links shares one.
+            Button(canInvite ? "Share Invite Link" : "Share Group") {
                 Analytics.groupInviteSheetOpened(
                     source: .profile,
                     memberCount: conversationController.conversation(withID: conversationID)?.rosterSummary.memberCount ?? 0

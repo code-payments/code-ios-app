@@ -17,7 +17,8 @@ final class InvitePeopleViewModel {
     typealias Send = @MainActor (_ text: String, _ chatID: ConversationID) async -> Bool
 
     /// The group's invite link: what Share and Copy hand out, and the first message of every send.
-    let url: URL
+    /// A host's sheet swaps in the invite link once it exists.
+    var url: URL
 
     /// The chats picked, in tap order: the first one is where the sheet lands after sending.
     private(set) var selectedChatIDs: [ConversationID] = []
