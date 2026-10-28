@@ -234,14 +234,13 @@ struct ChatProfileScreen: View {
             }
         }
         .dialog(item: $dialogItem)
-        .fullScreenCover(isPresented: $isInviting) {
-            ShareToChatsSheet(
-                subject: .group(conversationID),
-                isPresented: $isInviting,
-                onManageInvites: { router.push(.inviteLinks(conversationID)) }
-            ) { chatID in
-                router.openSharedChat(chatID)
-            }
+        .invitePeople(
+            conversationID,
+            canInvite: conversation?.canInvite ?? false,
+            isPresented: $isInviting,
+            onManageInvites: { router.push(.inviteLinks(conversationID)) }
+        ) { chatID in
+            router.openSharedChat(chatID)
         }
         .sheet(isPresented: $isPickingMuteDuration) {
             MuteChatSheet(conversationID: conversationID, isPresented: $isPickingMuteDuration)

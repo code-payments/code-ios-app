@@ -23,6 +23,8 @@ struct InviteLinksScreen: View {
 
     @State private var links: GroupInviteLinks?
     @State private var selected: GroupInviteLinks.Entry?
+    @State private var pendingAction: RowAction?
+    @State private var sharing: SharedLink?
     @State private var isMakingLink = false
     @State private var dialogItem: DialogItem?
     @State private var newLinkHeight: CGFloat = 0
@@ -54,16 +56,25 @@ struct InviteLinksScreen: View {
                 handle(error)
             }
         }
-        // The native action sheet of frame 2b.
-        .confirmationDialog("", isPresented: isSelecting, titleVisibility: .hidden, presenting: selected) { entry in
-            if let url = entry.url {
-                Button("Share Link") { share(url) }
-                Button("Copy Invite Link") { UIPasteboard.general.string = url.absoluteString }
+        // Frame 2b. Its choice runs once the sheet is gone, so the share sheet or the revoke
+        // confirmation doesn't present over a sheet on its way out.
+        .sheet(item: $selected, onDismiss: runPendingAction) { entry in
+            InviteLinkActionSheet(
+                entry: entry,
+                isPresented: isSelecting,
+                onShare: { pendingAction = .share(entry.id) },
+                onRevoke: { pendingAction = .revoke(entry) }
+            )
+        }
+        // Share Link opens the invite share sheet (1f) on that row's link.
+        .fullScreenCover(item: $sharing) { shared in
+            if let links {
+                ShareToChatsSheet(
+                    subject: .inviteLink(conversationID, links, entry: shared.id),
+                    isPresented: Binding { sharing != nil } set: { if !$0 { sharing = nil } },
+                    onInvited: { _ in }
+                )
             }
-            Button("Revoke Link", role: .destructive) {
-                dialogItem = InviteLinkDialogs.revoke { Task { await revoke(entry) } }
-            }
-            Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $isMakingLink) {
             if let links {
@@ -89,9 +100,24 @@ struct InviteLinksScreen: View {
         conversationController.conversation(withID: conversationID)?.title
     }
 
-    private func share(_ url: URL) {
-        Analytics.groupInviteShared(method: .share)
-        ShareSheet.present(activityItems: [GroupInviteShareItem(url: url, title: groupName, kind: .inviteLink)]) { _ in }
+    private enum RowAction {
+        case share(InviteID)
+        case revoke(GroupInviteLinks.Entry)
+    }
+
+    private struct SharedLink: Identifiable {
+        let id: InviteID
+    }
+
+    private func runPendingAction() {
+        guard let action = pendingAction else { return }
+        pendingAction = nil
+        switch action {
+        case .share(let id):
+            sharing = SharedLink(id: id)
+        case .revoke(let entry):
+            dialogItem = InviteLinkDialogs.revoke { Task { await revoke(entry) } }
+        }
     }
 
     private func revoke(_ entry: GroupInviteLinks.Entry) async {

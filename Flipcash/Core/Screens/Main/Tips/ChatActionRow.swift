@@ -17,6 +17,8 @@ struct ChatActionRow: View {
     let title: String
     /// The card's fill: ``Color/backgroundRow`` over the main background, lighter on a lifted sheet.
     var background: Color = .backgroundRow
+    /// The icon and title colour: ``Color/textError`` for a destructive row.
+    var tint: Color = .textMain
     let accessibilityIdentifier: String
     let action: () -> Void
 
@@ -27,11 +29,11 @@ struct ChatActionRow: View {
                     .renderingMode(.template)
                     .resizable()
                     .frame(width: 24, height: 24)
-                    .foregroundStyle(Color.textMain)
+                    .foregroundStyle(tint)
 
                 Text(title)
                     .font(.default(size: 17, weight: .bold))
-                    .foregroundStyle(Color.textMain)
+                    .foregroundStyle(tint)
                     .multilineTextAlignment(.leading)
 
                 Spacer(minLength: 0)
