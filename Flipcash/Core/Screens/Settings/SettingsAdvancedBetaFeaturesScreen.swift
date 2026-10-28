@@ -102,9 +102,9 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
         .tray(item: $showcaseTray, isDismissable: showcaseTray?.isDismissable ?? true) { kind in // LOCAL-TUNER
             kind.tray // LOCAL-TUNER
         } // LOCAL-TUNER
-        // The swipe looks come up in a sheet, as the send screen does. // LOCAL-TUNER
+        // The swipe showcase comes up in a sheet, as the send screen does. // LOCAL-TUNER
         .sheet(isPresented: $isShowingSwipeShowcase) { // LOCAL-TUNER
-            SwipeShowcaseScreen() // LOCAL-TUNER
+            SwipeShowcaseHost() // LOCAL-TUNER
                 .presentationDragIndicator(.visible) // LOCAL-TUNER
         } // LOCAL-TUNER
         #endif // LOCAL-TUNER

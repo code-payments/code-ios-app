@@ -28,11 +28,11 @@ struct FlipcashApp: App {
             } else if TraySandbox.isRequested { // LOCAL-TUNER
                 TraySandbox().tunerFloating() // LOCAL-TUNER
             } else if SwipeSandbox.isRequested { // LOCAL-TUNER
-                SwipeShowcaseScreen().tunerFloating() // LOCAL-TUNER
+                SwipeShowcaseHost().tunerFloating() // LOCAL-TUNER
             } else if let benchmark = ScrollBenchmark.requested {
                 benchmark
             } else {
-                mainScene.tunerFloating(groups: ["Chat list", "Chat list Row", "Chat list Title", "Chat list Preview", "Chat list Date", "Chat list Unread", "Chat v2 Date", "Tray Layout", "Tray Type", "Tray Destructive", "Tray Rows", "Tray Amount", "Tray Mute", "Tray E2EE", "Tray Fill", "Tray Motion", "Tray Label", "Tray Behavior", "Swipe", "Swipe Layout", "Swipe Motion", "Swipe Lens", "Swipe Failure"]) // LOCAL-TUNER
+                mainScene.tunerFloating(groups: ["Chat list", "Chat list Row", "Chat list Title", "Chat list Preview", "Chat list Date", "Chat list Unread", "Chat v2 Date", "Tray Layout", "Tray Type", "Tray Destructive", "Tray Rows", "Tray Amount", "Tray Mute", "Tray E2EE", "Tray Fill", "Tray Motion", "Tray Label", "Tray Behavior", "Swipe", "Swipe Layout", "Swipe Motion", "Swipe Lens", "Swipe Failure", "Swipe Shimmer"]) // LOCAL-TUNER
             }
             #else
             mainScene
