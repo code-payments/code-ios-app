@@ -31,6 +31,8 @@ struct GroupInviteScreen: View {
     @State private var isJoining = false
     @State private var isRequesting = false
     @State private var dialogItem: DialogItem?
+    @State private var isShowingE2ee = false
+    @State private var isReporting = false
 
     enum Phase {
         case loading
@@ -144,9 +146,46 @@ struct GroupInviteScreen: View {
             .padding(.top, 12)
             .padding(.bottom, 8)
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                overflowMenu
+            }
+        }
+        .sheet(isPresented: $isShowingE2ee) {
+            E2eeLearnMoreSheet(kind: .privateGroup, isPresented: $isShowingE2ee)
+        }
+        .fullScreenCover(isPresented: $isReporting) {
+            NavigationStack {
+                ReportFlowScreen(target: .chat(id))
+            }
+        }
         .task(id: id) {
             await sessionContainer.profileAvatars.load(.chat(id), picture: conversation.picture)
         }
+    }
+
+    /// The profile's menu as a non-member sees it: no Mute, since there's no viewer state to mute.
+    private var overflowMenu: some View {
+        Menu {
+            Button {
+                isShowingE2ee = true
+            } label: {
+                Label("Encryption", systemImage: "lock.fill")
+            }
+            Divider()
+            Button(role: .destructive) {
+                isReporting = true
+            } label: {
+                Label("Report", systemImage: "exclamationmark.bubble")
+            }
+            // Menu icons follow the app's white tint while the title follows the role.
+            .tint(.red)
+        } label: {
+            Image.system(.ellipsis)
+                .renderingMode(.template)
+        }
+        .accessibilityLabel("More")
+        .accessibilityIdentifier("group-invite-overflow")
     }
 
     /// A dead link can still lead in: the host approves a request, as on the group's profile.
