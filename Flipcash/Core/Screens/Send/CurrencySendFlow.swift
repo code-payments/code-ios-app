@@ -25,7 +25,7 @@ nonisolated struct CurrencySendHandoff {
 }
 
 /// Send one currency from its Currency Info page: the amount, then who gets it, then the swipe in a
-/// sheet over that list. "Or Give As Cash" skips the person and goes straight to the bill. The
+/// sheet over that list. "Or Give As Cash" skips the person and shows the bill over the list. The
 /// amount and the recipient list are pushed onto Currency Info's stack; only the swipe is a sheet.
 struct CurrencySendAmountDestination: View {
 
@@ -267,17 +267,11 @@ private struct CurrencySelectRecipientScreen: View {
         )
     }
 
-    /// The bill for the entered amount and this currency, skipping the Give screen's own entry.
+    /// The bill for the entered amount and this currency, skipping the Give screen's own entry. It shows
+    /// over this list and leaves the list in place, so dismissing or giving it returns here.
     private func giveAsCash() {
         let give = GiveViewModel(container: container, sessionContainer: sessionContainer, mint: viewModel.mint)
         give.enteredAmount = viewModel.enteredAmount
-        // Un-animated, like the Give screen's pushed entry: the list and amount must not visibly
-        // slide away under the bill.
-        give.onBillPresented = {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) { leaveFlow() }
-        }
         give.giveAction()
     }
 }
