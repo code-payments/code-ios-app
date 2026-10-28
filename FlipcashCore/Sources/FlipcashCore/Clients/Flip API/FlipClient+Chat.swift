@@ -467,14 +467,13 @@ extension FlipClient {
         }
     }
 
-    /// Fetches the chat key `conversationID` wrapped for the signed-in user and who wrapped it.
-    public func getKeyEnvelope(owner: KeyPair, conversationID: ConversationID) async throws -> (envelope: ConversationKeyEnvelope, wrappedBy: UserID?) {
+    /// Fetches the chat key `conversationID` wrapped for the signed-in user and who wrapped it, or
+    /// the invite's copy for a member who joined by invite and hasn't stored their own yet.
+    public func getKeyEnvelope(owner: KeyPair, conversationID: ConversationID) async throws -> GroupKeyMaterial {
         let result = try await withCheckedThrowingContinuation { c in
             chatService.getKeyEnvelope(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
         }
-        // An invite-joined member has only the invite's copy until they store their own envelope.
-        guard let own = result.ownEnvelope else { throw ErrorGetKeyEnvelope.noEnvelope }
-        return own
+        return result.material
     }
 
     // MARK: - Invites -

@@ -900,11 +900,13 @@ final class ChatService: Sendable {
         /// returns the invite's copy of the chat key instead. It is not a usable own envelope.
         case invite(InviteKeyBundle, wrappedBy: UserID?, wrappedByPublicKey: PublicKey?)
 
-        /// The user's own envelope and who wrapped it, or `nil` while only the invite copy exists.
-        var ownEnvelope: (envelope: ConversationKeyEnvelope, wrappedBy: UserID?)? {
+        /// What ``GroupKeyEnvelopes`` opens the chat key from.
+        var material: GroupKeyMaterial {
             switch self {
-            case .own(let envelope, let wrappedBy, _): (envelope, wrappedBy)
-            case .invite: nil
+            case .own(let envelope, let wrappedBy, _):
+                .own(envelope: envelope, wrappedBy: wrappedBy)
+            case .invite(let bundle, let wrappedBy, let wrappedByPublicKey):
+                .invite(bundle, wrappedBy: wrappedBy, wrappedByPublicKey: wrappedByPublicKey)
             }
         }
     }

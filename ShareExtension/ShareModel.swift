@@ -310,7 +310,10 @@ final class ShareModel {
             },
             getEnvelope: { conversationID in
                 try await flipClient.getKeyEnvelope(owner: owner, conversationID: conversationID)
-            }
+            },
+            // Like the notification extension, this only opens an invite-joined member's own
+            // envelope; the app opens the invite's copy and stores it.
+            opensInviteBundles: false
         )
         let conversation = try await flipClient.getChat(owner: owner, conversationID: chat.id)
         let seal = try await keyring.sealForSending(in: conversation)

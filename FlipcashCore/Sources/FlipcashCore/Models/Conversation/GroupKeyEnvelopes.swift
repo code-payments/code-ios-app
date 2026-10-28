@@ -20,11 +20,43 @@ public protocol GroupKeySealing: Sendable {
 
     /// Opens an envelope `wrapper` made for `owner` in `conversationID`.
     func unwrap(_ envelope: ConversationKeyEnvelope, owner: KeyPair, wrapper: PublicKey, conversationID: ConversationID) throws -> Data
+
+    /// Opens the invite's copy of `conversationID`'s chat key for `owner`. `wrappedByCreator` is
+    /// whether the bundle's wrapper is the group's creator. Throws ``GroupKeyUnusable`` when the
+    /// bundle fails any check.
+    func open(_ bundle: InviteKeyBundle, owner: KeyPair, creatorPublicKey: PublicKey, wrappedByCreator: Bool, conversationID: ConversationID) throws -> Data
+}
+
+/// What the server holds for the viewer in a private group: their own envelope, or, after joining
+/// by invite and before storing one, the invite's copy of the chat key.
+public enum GroupKeyMaterial: Sendable {
+    case own(envelope: ConversationKeyEnvelope, wrappedBy: UserID?)
+    case invite(InviteKeyBundle, wrappedBy: UserID?, wrappedByPublicKey: PublicKey?)
 }
 
 /// Thrown when the stored envelope was wrapped by someone other than the viewer or the group's
 /// creator, the only wrappers a member trusts.
 public struct GroupKeyNotSelfWrapped: Error {}
+
+/// Thrown when the invite's copy of the chat key failed a check: a wrapper other than the creator,
+/// a bad signature, or an envelope that won't open. The viewer is a member with no usable key, and
+/// fetching again won't change that.
+public struct GroupKeyUnusable: Error, Equatable {
+    public enum Step: Sendable, Equatable {
+        case wrappedBy, signature, secretOpen, keyOpen
+    }
+
+    /// The check the bundle failed.
+    public let failsAt: Step
+
+    public init(failsAt: Step) {
+        self.failsAt = failsAt
+    }
+}
+
+/// Thrown when an invite bundle can't be opened yet: this instance doesn't open bundles, or the
+/// group's creator isn't known. A later fetch may succeed.
+public struct InviteBundleNotOpened: Error {}
 
 /// The signed-in user's private-group chat keys, held in memory only.
 ///
@@ -32,10 +64,14 @@ public struct GroupKeyNotSelfWrapped: Error {}
 /// opens with the owner key, so after a relaunch the key is fetched and opened again on first use.
 /// A creator whose key was lost before its envelope landed sees `noEnvelope` and generates a new
 /// one; nothing was encrypted under the lost key.
+///
+/// A member who joined by invite holds only the invite's copy of the key until they store their
+/// own envelope. It is opened and re-wrapped for the viewer on first use; until that write lands,
+/// each launch opens the invite's copy again.
 public actor GroupKeyEnvelopes {
 
     public typealias SetEnvelope = @Sendable (ConversationID, ConversationKeyEnvelope) async throws -> Void
-    public typealias GetEnvelope = @Sendable (ConversationID) async throws -> (envelope: ConversationKeyEnvelope, wrappedBy: UserID?)
+    public typealias GetEnvelope = @Sendable (ConversationID) async throws -> GroupKeyMaterial
     /// Fetches a user's Ed25519 public key, used to open the envelope a creator wrapped.
     public typealias ResolveKey = @Sendable (UserID) async throws -> PublicKey
 
@@ -45,6 +81,7 @@ public actor GroupKeyEnvelopes {
     private let setEnvelope: SetEnvelope
     private let getEnvelope: GetEnvelope
     private let resolveKey: ResolveKey
+    private let opensInviteBundles: Bool
 
     private var keys: [ConversationID: Data] = [:]
 
@@ -54,7 +91,8 @@ public actor GroupKeyEnvelopes {
         selfUserID: UserID,
         setEnvelope: @escaping SetEnvelope,
         getEnvelope: @escaping GetEnvelope,
-        resolveKey: @escaping ResolveKey
+        resolveKey: @escaping ResolveKey,
+        opensInviteBundles: Bool = true
     ) {
         self.sealer = sealer
         self.owner = owner
@@ -62,6 +100,7 @@ public actor GroupKeyEnvelopes {
         self.setEnvelope = setEnvelope
         self.getEnvelope = getEnvelope
         self.resolveKey = resolveKey
+        self.opensInviteBundles = opensInviteBundles
     }
 
     /// Generates `conversationID`'s chat key and stores the creator's own envelope: the second
@@ -93,11 +132,14 @@ public actor GroupKeyEnvelopes {
     /// with the creator's public key and is then re-wrapped for the viewer, best effort, so later
     /// fetches need only the owner key. Any other wrapper throws ``GroupKeyNotSelfWrapped``. When
     /// the viewer is `creator` and no envelope exists yet, a new key is generated and stored.
+    ///
+    /// The invite's copy is opened the same way, then re-wrapped for the viewer, best effort. One
+    /// that fails a check throws ``GroupKeyUnusable``.
     public func groupKey(for conversationID: ConversationID, creator: UserID?) async throws -> Data {
         if let key = keys[conversationID] {
             return key
         }
-        let stored: (envelope: ConversationKeyEnvelope, wrappedBy: UserID?)
+        let stored: GroupKeyMaterial
         do {
             stored = try await getEnvelope(conversationID)
         } catch ErrorGetKeyEnvelope.noEnvelope where creator == selfUserID {
@@ -109,17 +151,40 @@ public actor GroupKeyEnvelopes {
         }
 
         let key: Data
-        if stored.wrappedBy == nil || stored.wrappedBy == selfUserID {
-            key = try sealer.unwrap(stored.envelope, owner: owner, wrapper: owner.publicKey, conversationID: conversationID)
-        } else if let wrappedBy = stored.wrappedBy, wrappedBy == creator {
-            let creatorKey = try await resolveKey(wrappedBy)
-            key = try sealer.unwrap(stored.envelope, owner: owner, wrapper: creatorKey, conversationID: conversationID)
+        switch stored {
+        case .own(let envelope, let wrappedBy):
+            if wrappedBy == nil || wrappedBy == selfUserID {
+                key = try sealer.unwrap(envelope, owner: owner, wrapper: owner.publicKey, conversationID: conversationID)
+            } else if let wrappedBy, wrappedBy == creator {
+                let creatorKey = try await resolveKey(wrappedBy)
+                key = try sealer.unwrap(envelope, owner: owner, wrapper: creatorKey, conversationID: conversationID)
+                await storeSelfWrapped(key, in: conversationID)
+            } else {
+                throw GroupKeyNotSelfWrapped()
+            }
+        case .invite(let bundle, let wrappedBy, let wrappedByPublicKey):
+            key = try await open(bundle, wrappedBy: wrappedBy, wrappedByPublicKey: wrappedByPublicKey, creator: creator, in: conversationID)
             await storeSelfWrapped(key, in: conversationID)
-        } else {
-            throw GroupKeyNotSelfWrapped()
         }
         keys[conversationID] = key
         return key
+    }
+
+    /// The chat key in the invite's copy. The creator's key is the one resolved for them when it can
+    /// be, otherwise the one the server sent with the bundle.
+    private func open(_ bundle: InviteKeyBundle, wrappedBy: UserID?, wrappedByPublicKey: PublicKey?, creator: UserID?, in conversationID: ConversationID) async throws -> Data {
+        guard opensInviteBundles, let creator else {
+            throw InviteBundleNotOpened()
+        }
+        let wrappedByCreator = wrappedBy == creator
+        let creatorKey: PublicKey
+        do {
+            creatorKey = try await resolveKey(creator)
+        } catch {
+            guard let wrappedByPublicKey else { throw error }
+            creatorKey = wrappedByPublicKey
+        }
+        return try sealer.open(bundle, owner: owner, creatorPublicKey: creatorKey, wrappedByCreator: wrappedByCreator, conversationID: conversationID)
     }
 
     /// Replaces the creator-wrapped envelope with the viewer's own. A failure leaves the creator's
