@@ -51,3 +51,22 @@ enum InviteLinkDialogs {
         }
     }
 }
+
+// MARK: - Previews -
+
+#Preview("1e · Invite links not available") {
+    let item = InviteLinkDialogs.createFailed(ErrorCreateInvite.denied, onManage: {}, onShareGroupLink: {})
+    Background(color: .backgroundMain) {
+        VStack {
+            Spacer()
+            Dialog(
+                style: item.style,
+                title: item.title,
+                subtitle: item.subtitle,
+                dismiss: {},
+                actions: item.actions
+            )
+            .background(item.style.backgroundColor)
+        }
+    }
+}
