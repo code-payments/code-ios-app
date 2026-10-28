@@ -499,19 +499,29 @@ extension NotificationStatus {
 
         for row in rows {
             var raw = row.raw
-            if row.check == .registration, let saved {
-                let at = timestamp(saved.at, timeZone: timeZone)
-                if row.raw == saved.result.rawValue {
+            if row.check == .registration {
+                switch registration {
+                case .checking:
+                    raw = nil
+                case .noAPNsToken:
+                    // This run saved nothing, so the record is from an older attempt.
+                    break
+                case .finished(let result):
                     // `<result>, <source>, <time>`, with an `ok` result left out.
-                    let result = saved.result == .ok ? nil : saved.result.rawValue
-                    raw = [result, saved.source.rawValue, at].compactMap { $0 }.joined(separator: ", ")
-                } else {
-                    // This run saved nothing (no token, or still checking), so the record is older.
-                    raw = [raw, "last \(saved.result.rawValue), \(saved.source.rawValue), \(at)"].compactMap { $0 }.joined(separator: "; ")
+                    if let saved, saved.result == result {
+                        raw = [
+                            result == .ok ? nil : result.rawValue,
+                            saved.source.rawValue,
+                            timestamp(saved.at, timeZone: timeZone),
+                        ].compactMap { $0 }.joined(separator: ", ")
+                    }
                 }
             }
             let value = raw.map { " (\($0))" } ?? ""
             lines.append("\(row.check.name): \(row.status.rawValue)\(value)")
+            if row.check == .registration {
+                lines.append("Last ok: \(saved?.lastRegistrationOkAt.map { timestamp($0, timeZone: timeZone) } ?? "never")")
+            }
         }
 
         lines.append("")
@@ -534,7 +544,6 @@ extension NotificationStatus {
         let sign = seconds < 0 ? "-" : "+"
         let hours = abs(seconds) / 3600
         let minutes = abs(seconds) % 3600 / 60
-        guard seconds != 0 else { return "UTC" }
         return minutes == 0 ? "UTC\(sign)\(hours)" : "UTC\(sign)\(hours):\(String(format: "%02d", minutes))"
     }
 }

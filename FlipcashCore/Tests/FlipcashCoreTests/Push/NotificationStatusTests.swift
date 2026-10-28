@@ -288,7 +288,7 @@ struct NotificationStatusTests {
 
     @Test("The report lists every check with its raw value and no full token")
     func report() throws {
-        let saved = NotificationStatus.RegistrationRecord(at: Self.now, result: .ok, source: .statusPage)
+        let saved = NotificationStatus.RegistrationRecord(at: Self.now, result: .ok, source: .statusPage, lastRegistrationOkAt: Self.now)
         let timeZone = try #require(TimeZone(secondsFromGMT: -4 * 3600))
         let report = NotificationStatus.report(
             snapshot: .init(authorization: .denied, alertStyle: .none),
@@ -308,21 +308,24 @@ struct NotificationStatusTests {
             Banners and Lock Screen: warning (alertStyle none)
             Sounds and badges: pass
             Registered for push: pass (statusPage, 2026-10-28 11:06)
+            Last ok: 2026-10-28 11:06
 
             Token: …a1b2c3 (last 6)
             Last APNs error: none
             """)
     }
 
-    @Test("The report names a failed result, and a token-less run as such", arguments: [
-        (NotificationStatus.Registration.finished(.transport), NotificationStatus.RegistrationRecord(at: NotificationStatusTests.now, result: .transport, source: .statusPage), String?("a1b2c3"), "Registered for push: fail (transport, statusPage, 2026-10-28 11:06)", "Token: …a1b2c3 (last 6)"),
-        (.noAPNsToken, .init(at: NotificationStatusTests.now, result: .ok, source: .login), nil, "Registered for push: fail (noAPNsToken; last ok, login, 2026-10-28 11:06)", "Token: none"),
+    @Test("The report describes this page's run, then the last ok on its own line", arguments: [
+        (NotificationStatus.Registration.finished(.transport), NotificationStatus.RegistrationRecord(at: NotificationStatusTests.now, result: .transport, source: .statusPage), String?("a1b2c3"), "Registered for push: fail (transport, statusPage, 2026-10-28 11:06)", "Last ok: never", "Token: …a1b2c3 (last 6)"),
+        (.noAPNsToken, .init(at: NotificationStatusTests.now, result: .ok, source: .login, lastRegistrationOkAt: NotificationStatusTests.now), nil, "Registered for push: fail (noAPNsToken)", "Last ok: 2026-10-28 11:06", "Token: none"),
+        (.checking, .init(at: NotificationStatusTests.now, result: .ok, source: .login, lastRegistrationOkAt: NotificationStatusTests.now), nil, "Registered for push: checking", "Last ok: 2026-10-28 11:06", "Token: none"),
     ])
     func reportRegistration(
         registration: NotificationStatus.Registration,
         saved: NotificationStatus.RegistrationRecord,
         tokenSuffix: String?,
         line: String,
+        lastOK: String,
         token: String
     ) throws {
         let report = NotificationStatus.report(
@@ -335,15 +338,16 @@ struct NotificationStatusTests {
         )
         let lines = report.split(separator: "\n").map(String.init)
 
-        #expect(lines.contains(line))
+        let index = try #require(lines.firstIndex(of: line))
+        #expect(lines[index + 1] == lastOK)
         #expect(lines.contains(token))
     }
 
-    @Test("UTC offsets keep half hours")
+    @Test("UTC offsets keep half hours and write zero as UTC+0")
     func utcOffset() throws {
         let india = try #require(TimeZone(secondsFromGMT: 5 * 3600 + 1800))
         #expect(NotificationStatus.utcOffset(india, at: Self.now) == "UTC+5:30")
-        #expect(NotificationStatus.utcOffset(try #require(TimeZone(secondsFromGMT: 0)), at: Self.now) == "UTC")
+        #expect(NotificationStatus.utcOffset(try #require(TimeZone(secondsFromGMT: 0)), at: Self.now) == "UTC+0")
     }
 
     @Test("AddToken errors classify as the spec's results", arguments: [
