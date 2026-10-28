@@ -188,6 +188,11 @@ private struct SwipingTrack: View {
                 .minimumScaleFactor(SwipeMetrics.labelMinimumScale)
                 .font(.appTextMedium)
                 .foregroundStyle(.textMain)
+                // Before the lens, so the band bends with the label.
+                .modifier(SwipeShimmer(
+                    isOn: SwipeMetrics.shimmers && !reduceMotion,
+                    isRunning: isNormal && isEnabled && !isTouching
+                ))
                 .padding(.horizontal, diameter)
                 .frame(maxWidth: .infinity, maxHeight: .infinity) // span the track so the mask and lens are in track coordinates
                 .modifier(SwipeLensEffect(

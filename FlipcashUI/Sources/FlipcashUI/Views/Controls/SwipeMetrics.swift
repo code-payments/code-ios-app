@@ -18,7 +18,7 @@ enum SwipeMetrics {
     // MARK: - Look
 
     /// The look every ``SwipeControl`` takes unless a view sets one with `swipeControlLook(_:)`.
-    static var look: SwipeControlLook { Tuner.shared.value("Swipe/Look", default: SwipeControlLook.morphFill) } // LOCAL-TUNER
+    static var look: SwipeControlLook { Tuner.shared.value("Swipe/Look", default: SwipeControlLook.lens) } // LOCAL-TUNER
 
     /// Draws the iOS 18 material thumb on iOS 26 too, so the fallback can be judged on a new phone.
     static var forcesFallback: Bool { Tuner.shared.value("Swipe/iOS 18 fallback", default: false) } // LOCAL-TUNER
@@ -34,10 +34,10 @@ enum SwipeMetrics {
 
     // MARK: - Track
 
-    /// The capsule's height, shared with the tray's capsule buttons.
-    static var height: CGFloat { TrayMetrics.actionHeight }
-    static var thumbInset: CGFloat { layout("Thumb inset", 4, 0...12) } // LOCAL-TUNER
-    static var arrowSize: CGFloat { layout("Arrow size", 20, 12...32) } // LOCAL-TUNER
+    /// The capsule's height, which stands taller than the tray's capsule buttons.
+    static var height: CGFloat { layout("Height", 64, 36...80) } // LOCAL-TUNER
+    static var thumbInset: CGFloat { layout("Thumb inset", 6, 0...12) } // LOCAL-TUNER
+    static var arrowSize: CGFloat { layout("Arrow size", 24, 12...32) } // LOCAL-TUNER
     /// The track's `action` wash, as today's control draws it.
     static var fillOpacity: Double { Tuner.shared.value("Swipe Layout/Fill opacity", default: 0.1, in: 0...0.3) } // LOCAL-TUNER
     /// The track's hairline, the input field's resting stroke.
@@ -49,9 +49,9 @@ enum SwipeMetrics {
     /// How far the label may shrink to fit one line at large Dynamic Type sizes.
     static var labelMinimumScale: CGFloat { Tuner.shared.value("Swipe Layout/Label min scale", default: 0.7, in: 0.5...1) } // LOCAL-TUNER
     /// Whether the label is wiped away from the left as the thumb passes.
-    static var labelWipes: Bool { Tuner.shared.value("Swipe Layout/Label wipes", default: true) } // LOCAL-TUNER
+    static var labelWipes: Bool { Tuner.shared.value("Swipe Layout/Label wipes", default: false) } // LOCAL-TUNER
     /// Where across the thumb the wipe's edge sits, from its leading edge (0) to its trailing edge (1).
-    static var labelWipeEdge: CGFloat { Tuner.shared.value("Swipe Layout/Wipe edge", default: 1, in: 0...1) } // LOCAL-TUNER
+    static var labelWipeEdge: CGFloat { Tuner.shared.value("Swipe Layout/Wipe edge", default: 0.29, in: 0...1) } // LOCAL-TUNER
     /// Whether what's left of the label fades as the thumb travels.
     static var labelFades: Bool { Tuner.shared.value("Swipe Layout/Label fades", default: true) } // LOCAL-TUNER
 
@@ -60,7 +60,7 @@ enum SwipeMetrics {
     /// Whether the thumb's glass also swells under the finger, on top of the press scale.
     static var glassInteractive: Bool { Tuner.shared.value("Swipe Layout/Glass interactive", default: false) } // LOCAL-TUNER
     /// How far the idle nudge pushes the thumb right.
-    static var nudgeDistance: CGFloat { layout("Nudge distance", 20, 0...40) } // LOCAL-TUNER
+    static var nudgeDistance: CGFloat { layout("Nudge distance", 16, 0...40) } // LOCAL-TUNER
 
     // MARK: - Press
 
@@ -86,17 +86,37 @@ enum SwipeMetrics {
 
     // MARK: - Lens
 
-    /// The lens thumb's scale under the finger; GSConfirm's 1.15 stays inside a 54 pt track here.
-    static var lensPressScale: CGFloat { Tuner.shared.value("Swipe Lens/Press scale", default: 1.12, in: 1...1.4, unit: .multiplier) } // LOCAL-TUNER
-    static var lensRimWidth: CGFloat { Tuner.shared.value("Swipe Lens/Rim width", default: 2, in: 0.5...8, unit: .points) } // LOCAL-TUNER
-    static var lensRimSoftness: CGFloat { Tuner.shared.value("Swipe Lens/Rim softness", default: 1.5, in: 0...6, unit: .points) } // LOCAL-TUNER
-    static var lensRimTint: Double { Tuner.shared.value("Swipe Lens/Rim tint", default: 0.1, in: 0...0.5) } // LOCAL-TUNER
+    /// The lens thumb's scale under the finger, which lets it swell past the track's edge.
+    static var lensPressScale: CGFloat { Tuner.shared.value("Swipe Lens/Press scale", default: 1.4, in: 1...1.6, unit: .multiplier) } // LOCAL-TUNER
+    static var lensRimWidth: CGFloat { Tuner.shared.value("Swipe Lens/Rim width", default: 0.5, in: 0...8, unit: .points) } // LOCAL-TUNER
+    static var lensRimSoftness: CGFloat { Tuner.shared.value("Swipe Lens/Rim softness", default: 0, in: 0...6, unit: .points) } // LOCAL-TUNER
+    static var lensRimTint: Double { Tuner.shared.value("Swipe Lens/Rim tint", default: 0, in: 0...0.5) } // LOCAL-TUNER
     /// How far the lens pulls the label at the rim.
-    static var lensBend: CGFloat { Tuner.shared.value("Swipe Lens/Bend", default: 12, in: 0...30, unit: .points) } // LOCAL-TUNER
+    static var lensBend: CGFloat { Tuner.shared.value("Swipe Lens/Bend", default: 6.1, in: 0...30, unit: .points) } // LOCAL-TUNER
     /// How deep inside the rim the bend reaches, as a share of the lens's radius.
-    static var lensBand: CGFloat { Tuner.shared.value("Swipe Lens/Band", default: 0.5, in: 0.05...1) } // LOCAL-TUNER
+    static var lensBand: CGFloat { Tuner.shared.value("Swipe Lens/Band", default: 0.73, in: 0.05...1) } // LOCAL-TUNER
     /// The wipe's edge for the lens look, which shows the label through the thumb.
-    static var lensWipeEdge: CGFloat { Tuner.shared.value("Swipe Lens/Wipe edge", default: 0.5, in: 0...1) } // LOCAL-TUNER
+    static var lensWipeEdge: CGFloat { Tuner.shared.value("Swipe Lens/Wipe edge", default: 0.42, in: 0...1) } // LOCAL-TUNER
+
+    // MARK: - Shimmer
+
+    /// Whether a bright band sweeps the label while the control waits for a swipe.
+    static var shimmers: Bool { Tuner.shared.value("Swipe Shimmer/On", default: true) } // LOCAL-TUNER
+    static var shimmerBandWidth: CGFloat { Tuner.shared.value("Swipe Shimmer/Band width", default: 30, in: 4...120, unit: .points) } // LOCAL-TUNER
+    static var shimmerAngle: Double { Tuner.shared.value("Swipe Shimmer/Angle", default: 15, in: -60...60, unit: .degrees) } // LOCAL-TUNER
+    static var shimmerBlur: CGFloat { Tuner.shared.value("Swipe Shimmer/Blur", default: 5, in: 0...20, unit: .points) } // LOCAL-TUNER
+    /// The band's opacity: how bright the label reads where the band passes.
+    static var shimmerBandOpacity: Double { Tuner.shared.value("Swipe Shimmer/Band opacity", default: 1, in: 0...1) } // LOCAL-TUNER
+    /// The label's opacity outside the band, which leaves the band room to read brighter.
+    static var shimmerLabelOpacity: Double { Tuner.shared.value("Swipe Shimmer/Label opacity", default: 0.6, in: 0...1) } // LOCAL-TUNER
+    /// Whether every label takes one period to sweep, so longer labels sweep faster, as GSConfirm does.
+    static var shimmerScalesWithLabel: Bool { Tuner.shared.value("Swipe Shimmer/Scales with label", default: true) } // LOCAL-TUNER
+    /// The time one sweep takes when it scales with the label.
+    static var shimmerPeriod: TimeInterval { Tuner.shared.value("Swipe Shimmer/Period", default: 3, in: 0.5...8, unit: .seconds) } // LOCAL-TUNER
+    /// The band's speed in points a second when it doesn't scale with the label.
+    static var shimmerSpeed: Double { Tuner.shared.value("Swipe Shimmer/Speed", default: 71, in: 10...300) } // LOCAL-TUNER
+    /// The band fading away when the sweep pauses, and back when it resumes.
+    static var shimmerFade: TimeInterval { Tuner.shared.value("Swipe Shimmer/Fade", default: 0.2, in: 0...0.6, unit: .seconds) } // LOCAL-TUNER
 
     // MARK: - Failure
 

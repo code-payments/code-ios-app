@@ -129,6 +129,49 @@ struct SwipeLensEffect: ViewModifier, Animatable {
     }
 }
 
+/// Dims the content and sweeps a bright, tilted band across it on a loop. The band runs while
+/// `isRunning`, and pauses and fades away otherwise; with `isOn` off the content is left as is.
+struct SwipeShimmer: ViewModifier {
+
+    let isOn: Bool
+    let isRunning: Bool
+
+    func body(content: Content) -> some View {
+        if isOn {
+            content
+                .opacity(SwipeMetrics.shimmerLabelOpacity)
+                .overlay {
+                    content
+                        .mask(alignment: .leading) { band }
+                        .opacity(isRunning ? SwipeMetrics.shimmerBandOpacity : 0)
+                        .animation(.easeOut(duration: SwipeMetrics.shimmerFade), value: isRunning)
+                }
+        } else {
+            content
+        }
+    }
+
+    private var band: some View {
+        GeometryReader { proxy in
+            let width = SwipeMetrics.shimmerBandWidth
+            let travel = proxy.size.width + width * 2
+            let period = SwipeMetrics.shimmerScalesWithLabel ? SwipeMetrics.shimmerPeriod : travel / SwipeMetrics.shimmerSpeed
+
+            // Driven by the clock, so a body pass never restarts the sweep.
+            TimelineView(.animation(paused: !isRunning)) { context in
+                let elapsed = context.date.timeIntervalSinceReferenceDate
+                let progress = period > 0 ? elapsed.truncatingRemainder(dividingBy: period) / period : 0
+
+                Rectangle()
+                    .frame(width: width)
+                    .blur(radius: SwipeMetrics.shimmerBlur)
+                    .rotationEffect(.degrees(SwipeMetrics.shimmerAngle))
+                    .offset(x: travel * progress - width)
+            }
+        }
+    }
+}
+
 /// A decaying side-to-side shake: each whole step of `phase` plays `count` swings of `distance`.
 struct SwipeShake: GeometryEffect {
 
