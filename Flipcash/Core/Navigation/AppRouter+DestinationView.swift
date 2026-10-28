@@ -255,6 +255,9 @@ struct DestinationView: View {
             GroupMembersScreen(conversationID: conversationID)
                 .id(conversationID)
 
+        case .groupInvite(let secret):
+            GroupInviteScreen(secret: secret)
+
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.
             ConversationScreen(context: .existing(conversationID))
