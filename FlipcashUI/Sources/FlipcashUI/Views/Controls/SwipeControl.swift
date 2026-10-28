@@ -32,10 +32,8 @@ public struct SwipeControlFailure: Error {
 /// ```
 public struct SwipeControl: View {
 
-    @Environment(\.displayScale) private var displayScale
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.swipeControlLook) private var lookOverride
 
     @State private var knobX: CGFloat = 0
     @State private var state: KnobState = .normal
@@ -55,12 +53,11 @@ public struct SwipeControl: View {
         GeometryReader { geometry in
             let diameter = geometry.size.height
             // Never narrower than tall, so the resting thumb always covers the track's leading end.
-            let thumbWidth = min(max(SwipeMetrics.thumbWidth, diameter), geometry.size.width) // LOCAL-TUNER
+            let thumbWidth = min(max(SwipeMetrics.thumbWidth, diameter), geometry.size.width)
             let maxX = geometry.size.width - thumbWidth
 
             SwipingTrack(
                 text: text,
-                look: lookOverride ?? SwipeMetrics.look,
                 diameter: diameter,
                 thumbWidth: thumbWidth,
                 maxX: maxX,
@@ -78,12 +75,6 @@ public struct SwipeControl: View {
             Capsule()
                 .fill(trackFill)
                 .animation(.easeOut(duration: SwipeMetrics.failureTintFade), value: state == .failure)
-        }
-        .overlay {
-            if SwipeMetrics.showsTrackStroke { // LOCAL-TUNER
-                Capsule()
-                    .strokeBorder(SwipeMetrics.strokeColor, lineWidth: 1 / displayScale)
-            } // LOCAL-TUNER
         }
         .modifier(SwipeShake(phase: shakePhase, distance: SwipeMetrics.shakeDistance, count: SwipeMetrics.shakeCount))
         .opacity(isEnabled ? 1 : SwipeMetrics.disabledOpacity)
@@ -113,7 +104,7 @@ public struct SwipeControl: View {
         case .failure:
             .bannerError.opacity(SwipeMetrics.failureTint)
         case .normal, .loading, .success:
-            SwipeMetrics.trackColor.opacity(SwipeMetrics.fillOpacity) // LOCAL-TUNER
+            SwipeMetrics.trackFill
         }
     }
 
@@ -150,13 +141,11 @@ public struct SwipeControl: View {
 
 /// Owns the high-frequency drag and idle-nudge state, and renders the label and
 /// thumb together so a drag (or nudge) re-renders only the track, not the
-/// control's background, border, or failure tint. As the thumb advances it
-/// masks the label away from the left and fades the still-visible remainder
-/// toward transparent.
+/// control's background or failure tint. As the thumb advances the label
+/// fades toward transparent, bent by the lens wherever the thumb sits.
 private struct SwipingTrack: View {
 
     let text: String
-    let look: SwipeControlLook
     let diameter: CGFloat
     let thumbWidth: CGFloat
     let maxX: CGFloat
@@ -172,6 +161,9 @@ private struct SwipingTrack: View {
     @State private var isPressed = false
     // Set on the press spring, outside the drag's animation-disabled transaction.
     @State private var isLifted = false
+    // Bumped by a release that doesn't commit; the drag's end alone decides, whatever order the
+    // press detector's end arrives in.
+    @State private var releaseCount = 0
     @Namespace private var glassNamespace
 
     var body: some View {
@@ -180,15 +172,12 @@ private struct SwipingTrack: View {
         let wantsLift = (isPressed || isTouching) && isNormal && isEnabled
         let position = knobX + (dragOffset ?? 0)
         let nudgeX: CGFloat = (isNormal && isEnabled && dragOffset == nil && isNudging && !reduceMotion) ? SwipeMetrics.nudgeDistance : 0
-        let fills = look == .morphFill && !isNormal
         let snap = SwipeMetrics.snapBack.animation(reduceMotion: reduceMotion)
         let nudge = SwipeMetrics.nudge.animation(reduceMotion: reduceMotion)
         let press = SwipeMetrics.press.animation(reduceMotion: reduceMotion)
 
-        let labelOpacity = (SwipeMetrics.labelFades && maxX > 0) ? 1 - min(max(position / maxX, 0), 1) : 1
-        let wipeEdge = look == .lens ? SwipeMetrics.lensWipeEdge : SwipeMetrics.labelWipeEdge
-        let wipeX = SwipeMetrics.labelWipes ? position + thumbWidth * wipeEdge : 0
-        let liftScale = isLifted && !reduceMotion ? pressScale : 1
+        let labelOpacity = maxX > 0 ? 1 - min(max(position / maxX, 0), 1) : 1
+        let liftScale = isLifted && !reduceMotion ? SwipeMetrics.pressScale : 1
 
         ZStack(alignment: .leading) {
             Text(text)
@@ -198,7 +187,7 @@ private struct SwipingTrack: View {
                 .foregroundStyle(.textMain)
                 // Before the lens, so the band bends with the label.
                 .modifier(SwipeShimmer(
-                    isOn: SwipeMetrics.shimmers && !reduceMotion,
+                    isOn: !reduceMotion,
                     isRunning: isNormal && isEnabled && !isTouching
                 ))
                 .padding(.horizontal, thumbWidth)
@@ -212,29 +201,23 @@ private struct SwipingTrack: View {
                     zoom: SwipeMetrics.lensZoom,
                     falloff: SwipeMetrics.lensFalloff,
                     aberration: SwipeMetrics.lensAberration,
-                    isEnabled: look == .lens && SwipeMetrics.usesGlass
+                    isEnabled: SwipeMetrics.usesGlass
                 ))
                 .animation(snap, value: position)
                 .animation(nudge, value: nudgeX)
                 .animation(press, value: isLifted)
-                .mask(alignment: .leading) {
-                    Color.black
-                        .opacity(labelOpacity)
-                        .offset(x: wipeX)
-                        .animation(snap, value: wipeX)
-                }
+                .opacity(labelOpacity)
                 .opacity(isNormal ? 1 : 0)
 
-            SwipeThumbSurface(look: look, isIdle: isNormal, glassNamespace: glassNamespace) {
+            SwipeThumbSurface(isIdle: isNormal, glassNamespace: glassNamespace) {
                 thumbIcon
             }
             .animation(press) { $0.scaleEffect(liftScale) }
             .opacity(isLifted && reduceMotion ? SwipeMetrics.pressDim : 1)
-            .frame(width: fills ? maxX + thumbWidth : thumbWidth, height: diameter)
+            .frame(width: thumbWidth, height: diameter)
             .contentShape(.capsule) // the lens's see-through middle takes the touch too
-            .offset(x: fills ? 0 : position)
+            .offset(x: position)
             .animation(snap, value: position)
-            .animation(SwipeMetrics.morph.animation(reduceMotion: reduceMotion), value: fills)
             .offset(x: nudgeX)
             .animation(nudge, value: nudgeX)
             // Sees touch-down even where a sheet holds the drag back until the finger moves.
@@ -249,12 +232,15 @@ private struct SwipingTrack: View {
                         let offset = min(max(value.translation.width, 0), maxX)
                         let velocity = value.predictedEndLocation.x - value.location.x
                         let percent = maxX > 0 ? offset / maxX : 0
-                        guard SwipeControl.shouldCommit(percent: percent, velocity: velocity) else { return }
+                        guard SwipeControl.shouldCommit(percent: percent, velocity: velocity) else {
+                            releaseCount += 1
+                            return
+                        }
                         onCommit()
                     }
             )
             .disabled(!isNormal)
-            // Reduce Motion swaps the thumb by identity at commit and reset, so the morph and
+            // Reduce Motion swaps the thumb by identity at commit and reset, so the park and
             // the return after a send crossfade rather than travel.
             .id(reduceMotion ? isNormal : true)
             .transition(.opacity)
@@ -272,13 +258,10 @@ private struct SwipingTrack: View {
         .onChange(of: wantsLift) { _, lift in
             withAnimation(press) { isLifted = lift }
         }
-        .sensoryFeedback(SwipeMetrics.hapticStyle.feedback(intensity: SwipeMetrics.hapticIntensity), trigger: wantsLift) { wasLifted, lift in
-            SwipeMetrics.hapticOn && !wasLifted && lift
+        .sensoryFeedback(SwipeMetrics.pressHaptic, trigger: wantsLift) { wasLifted, lift in
+            !wasLifted && lift
         }
-        // A lift that ends with the control still idle is a release without a commit.
-        .sensoryFeedback(SwipeMetrics.releaseHapticStyle.feedback(intensity: SwipeMetrics.releaseHapticIntensity), trigger: wantsLift) { wasLifted, lift in
-            SwipeMetrics.releaseHapticOn && wasLifted && !lift && state == .normal
-        }
+        .sensoryFeedback(SwipeMetrics.releaseHaptic, trigger: releaseCount)
         .task {
             do {
                 try await Task.delay(seconds: 3)
@@ -291,13 +274,6 @@ private struct SwipingTrack: View {
             } catch {
                 isNudging = false
             }
-        }
-    }
-
-    private var pressScale: CGFloat {
-        switch look {
-        case .glassThumb, .morphFill: SwipeMetrics.pressScale
-        case .lens: SwipeMetrics.lensPressScale
         }
     }
 
@@ -367,11 +343,8 @@ private enum KnobState {
 #Preview {
     Background(color: .backgroundMain) {
         VStack(spacing: 32) {
-            ForEach(SwipeControlLook.allCases, id: \.self) { look in
-                SwipeControl(text: "Swipe to Send") {
-                    try await Task.delay(seconds: 2)
-                }
-                .swipeControlLook(look)
+            SwipeControl(text: "Swipe to Send") {
+                try await Task.delay(seconds: 2)
             }
 
             SwipeControl(text: "Swipe to Fail") {

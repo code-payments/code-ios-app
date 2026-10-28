@@ -7,38 +7,12 @@
 
 import SwiftUI
 
-/// The ways ``SwipeControl`` can look; they share the track, the drag and every behaviour, and differ
-/// in the thumb and in how a commit plays.
-public enum SwipeControlLook: String, CaseIterable {
-    /// A glass thumb that parks at the end on commit and shows the progress in place.
-    case glassThumb
-    /// The glass thumb, which grows to fill the track on commit and shows the progress centred.
-    case morphFill
-    /// A see-through glass rim that bends the label as it passes; commits as `glassThumb` does.
-    case lens
-}
+// MARK: - Thumb surface
 
-extension SwipeControlLook: TunableEnum {} // LOCAL-TUNER: conformance
-
-extension EnvironmentValues {
-    /// The look ``SwipeControl`` takes, or `nil` for the tuner's pick.
-    @Entry var swipeControlLook: SwipeControlLook? = nil
-}
-
-public extension View {
-    /// Sets the look of every ``SwipeControl`` in this view; `nil` leaves the default.
-    func swipeControlLook(_ look: SwipeControlLook?) -> some View {
-        environment(\.swipeControlLook, look)
-    }
-}
-
-// MARK: - Thumb surfaces
-
-/// The thumb's surface with `content` on it: the composer's glass (a tinted material before
-/// iOS 26). The lens look draws a see-through glass rim while idle, with `content` above it.
+/// The thumb's surface with `content` on it. While idle on iOS 26 it is a see-through clear-glass
+/// lens with `content` above it; otherwise the composer's glass (a tinted material before iOS 26).
 struct SwipeThumbSurface<Content: View>: View {
 
-    let look: SwipeControlLook
     let isIdle: Bool
     let glassNamespace: Namespace.ID
     @ViewBuilder let content: Content
@@ -49,14 +23,14 @@ struct SwipeThumbSurface<Content: View>: View {
         }
         // Outside the container, which composites its glass above sibling content.
         .overlay {
-            if showsRim {
+            if showsLens {
                 face
             }
         }
     }
 
-    private var showsRim: Bool {
-        look == .lens && isIdle && SwipeMetrics.usesGlass
+    private var showsLens: Bool {
+        isIdle && SwipeMetrics.usesGlass
     }
 
     private var face: some View {
@@ -65,40 +39,27 @@ struct SwipeThumbSurface<Content: View>: View {
 
     @ViewBuilder
     private var surface: some View {
-        if SwipeMetrics.forcesFallback { // LOCAL-TUNER: draws `composerGlass`'s iOS 18 branch on iOS 26
-            face
-                .background(Color.white.opacity(0.03), in: .capsule) // LOCAL-TUNER
-                .background(.ultraThinMaterial, in: .capsule) // LOCAL-TUNER
-        } else if showsRim {
+        if showsLens {
             if #available(iOS 26, *) {
                 lensRim
             }
         } else {
-            face.composerGlass(in: Capsule(), id: glassID, namespace: glassNamespace, isInteractive: SwipeMetrics.glassInteractive)
+            face.composerGlass(in: Capsule(), id: glassID, namespace: glassNamespace, isInteractive: false)
         }
     }
 
-    /// Clear glass masked to a soft ring, so the label reads through the middle; a capsule
-    /// when the thumb is wider than tall.
+    /// Clear glass masked to a ring, so the label reads through the middle; it shares an ID with
+    /// the composer glass so the thumb morphs between them at commit and reset.
     @available(iOS 26, *)
     private var lensRim: some View {
         Capsule()
             .fill(.clear)
-            .glassEffect(lensGlass.tint(.white.opacity(SwipeMetrics.lensRimTint)), in: .capsule)
+            .glassEffect(.clear, in: .capsule)
             .glassEffectID(glassID, in: glassNamespace)
             .mask {
                 Capsule()
                     .strokeBorder(.black, lineWidth: SwipeMetrics.lensRimWidth)
-                    .blur(radius: SwipeMetrics.lensRimSoftness)
             }
-    }
-
-    @available(iOS 26, *)
-    private var lensGlass: Glass {
-        switch SwipeMetrics.lensGlass {
-        case .clear: .clear
-        case .regular: .regular
-        }
     }
 
     private var glassID: String { "thumb" }
@@ -115,9 +76,9 @@ struct SwipeLensEffect: ViewModifier, Animatable {
     var halfLength: CGFloat
     let bend: CGFloat
     let band: CGFloat
-    var zoom: CGFloat = 1
-    var falloff: CGFloat = 2
-    var aberration: CGFloat = 0
+    let zoom: CGFloat
+    let falloff: CGFloat
+    let aberration: CGFloat
     let isEnabled: Bool
 
     nonisolated var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
@@ -162,7 +123,7 @@ struct SwipeShimmer: ViewModifier {
                 .overlay {
                     content
                         .mask(alignment: .leading) { band }
-                        .opacity(isRunning ? SwipeMetrics.shimmerBandOpacity : 0)
+                        .opacity(isRunning ? 1 : 0)
                         .animation(.easeOut(duration: SwipeMetrics.shimmerFade), value: isRunning)
                 }
         } else {
@@ -174,12 +135,12 @@ struct SwipeShimmer: ViewModifier {
         GeometryReader { proxy in
             let width = SwipeMetrics.shimmerBandWidth
             let travel = proxy.size.width + width * 2
-            let period = SwipeMetrics.shimmerScalesWithLabel ? SwipeMetrics.shimmerPeriod : travel / SwipeMetrics.shimmerSpeed
+            let period = SwipeMetrics.shimmerPeriod
 
             // Driven by the clock, so a body pass never restarts the sweep.
             TimelineView(.animation(paused: !isRunning)) { context in
                 let elapsed = context.date.timeIntervalSinceReferenceDate
-                let progress = period > 0 ? elapsed.truncatingRemainder(dividingBy: period) / period : 0
+                let progress = elapsed.truncatingRemainder(dividingBy: period) / period
 
                 Rectangle()
                     .frame(width: width)

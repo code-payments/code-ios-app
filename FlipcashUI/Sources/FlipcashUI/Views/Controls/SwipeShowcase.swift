@@ -20,8 +20,8 @@ public enum SwipeSandbox {
     }
 }
 
-/// Every look of the swipe control side by side at the send screen's width, each driven by a
-/// local closure that succeeds, fails or is disabled, so the looks can be felt without sending.
+/// The swipe control at the send screen's width, driven by a local closure that succeeds, fails
+/// or is disabled, so it can be felt without sending.
 public struct SwipeShowcaseScreen: View {
 
     @State private var outcome: SwipeShowcaseOutcome = .succeeds
@@ -35,7 +35,8 @@ public struct SwipeShowcaseScreen: View {
             VStack(spacing: 0) {
                 controls
                 Spacer(minLength: 24)
-                looks
+                SwipeControl(text: label, action: outcome.action)
+                    .disabled(outcome == .disabled)
             }
             .padding(20)
         }
@@ -56,28 +57,6 @@ public struct SwipeShowcaseScreen: View {
             Toggle("Long label", isOn: $isLongLabel)
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
-
-            Text("Hold three fingers to open the tuner → Swipe") // LOCAL-TUNER
-                .font(.appTextCaption) // LOCAL-TUNER
-                .foregroundStyle(Color.textSecondary) // LOCAL-TUNER
-        }
-    }
-
-    // MARK: - Looks -
-
-    private var looks: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            ForEach(SwipeControlLook.allCases, id: \.self) { look in // LOCAL-TUNER
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(look.showcaseCaption) // LOCAL-TUNER
-                        .font(.appTextCaption)
-                        .foregroundStyle(Color.textSecondary)
-
-                    SwipeControl(text: label, action: outcome.action)
-                        .swipeControlLook(look) // LOCAL-TUNER
-                        .disabled(outcome == .disabled)
-                }
-            }
         }
     }
 
@@ -120,25 +99,6 @@ public enum SwipeShowcaseOutcome: String, CaseIterable, Identifiable {
         }
     }
 }
-
-// MARK: - Look captions -
-
-extension SwipeControlLook { // LOCAL-TUNER
-
-    /// The look's letter and name, e.g. "C · Lens". // LOCAL-TUNER
-    public var showcaseCaption: String { // LOCAL-TUNER
-        switch self { // LOCAL-TUNER
-        case .glassThumb: "A · Glass thumb" // LOCAL-TUNER
-        case .morphFill: "B · Thumb becomes the button" // LOCAL-TUNER
-        case .lens: "C · Lens" // LOCAL-TUNER
-        } // LOCAL-TUNER
-    } // LOCAL-TUNER
-
-    /// The look's letter alone, for a compact picker. // LOCAL-TUNER
-    public var showcaseLetter: String { // LOCAL-TUNER
-        String(showcaseCaption.prefix(1)) // LOCAL-TUNER
-    } // LOCAL-TUNER
-} // LOCAL-TUNER
 
 #Preview("Swipe showcase") {
     SwipeShowcaseScreen()

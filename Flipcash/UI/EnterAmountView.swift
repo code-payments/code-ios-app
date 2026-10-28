@@ -118,16 +118,10 @@ public struct EnterAmountView: View {
 
     /// The opacity everything but the swipe takes at the hosted swipe's current travel.
     private var dimOpacity: Double {
-        guard actionOverride != nil, SwipeDim.isOn else { return 1 }
-        let start = SwipeDim.start
-        let t = min(max((Double(swipeProgress) - start) / (1 - start), 0), 1)
-        let curved = SwipeDim.easesIn ? t * t : t
+        guard actionOverride != nil else { return 1 }
+        let travel = min(max(Double(swipeProgress), 0), 1)
         // Opacity 0 drops a view out of hit testing; the keypad must keep taking taps.
-        return max(1 - (1 - SwipeDim.maxDim) * curved, 0.02)
-    }
-
-    private var amountOpacity: Double {
-        SwipeDim.keepsAmount ? 1 : dimOpacity
+        return max(1 - (1 - SwipeDim.maxDim) * travel, 0.02)
     }
 
     // MARK: - Body -
@@ -142,8 +136,6 @@ public struct EnterAmountView: View {
                 Spacer().frame(maxHeight: 24)
                 header
                     .padding(.leading, Tuner.shared.value("Amount entry/Amount left inset", default: CGFloat(20), in: 0...48, unit: .points) - 20) // LOCAL-TUNER
-                    // The header carries the amount and its hint together, so both follow Keep amount.
-                    .opacity(amountOpacity)
             } else {
                 Spacer()
 
@@ -162,7 +154,6 @@ public struct EnterAmountView: View {
                             )
                             .foregroundStyle(.textMain)
                         }
-                        .opacity(amountOpacity)
 
                         Group {
                             switch subtitle {
@@ -224,9 +215,8 @@ public struct EnterAmountView: View {
                 actionOverride
                     .disabled(!actionEnabled(enteredAmount))
                     // Sits in the Next button's slot: same side and bottom insets as the button below.
-                    .padding(.top, Tuner.shared.value("Amount entry/Keypad to swipe", default: CGFloat(20), in: 0...48, unit: .points)) // LOCAL-TUNER
-                    .padding(.horizontal, Tuner.shared.value("Amount entry/Button side inset", default: CGFloat(32), in: 16...56, unit: .points) - 20) // LOCAL-TUNER
-                    .padding(.bottom, Tuner.shared.value("Amount entry/Button bottom inset", default: CGFloat(32), in: 0...80, unit: .points) - 54) // LOCAL-TUNER
+                    .padding(.top, SwipeDim.keypadToSwipe)
+                    .modifier(ActionSlotInsets())
             } else {
                 Button(action: action) {
                     ButtonStateLabel(actionTitle ?? mode.actionName, state: actionState)
@@ -236,8 +226,7 @@ public struct EnterAmountView: View {
                 // Amount entry v2: 32 from the screen's sides and bottom (the screens already pad 20),
                 // 22 below the keypad.
                 .padding(.top, Tuner.shared.value("Amount entry/Keypad to button", default: CGFloat(20), in: 0...48, unit: .points)) // LOCAL-TUNER
-                .padding(.horizontal, Tuner.shared.value("Amount entry/Button side inset", default: CGFloat(32), in: 16...56, unit: .points) - 20) // LOCAL-TUNER
-                .padding(.bottom, Tuner.shared.value("Amount entry/Button bottom inset", default: CGFloat(32), in: 0...80, unit: .points) - 54) // LOCAL-TUNER
+                .modifier(ActionSlotInsets())
             }
         }
         // The control animates the value on its own snap-back and sends every frame, so it lands unanimated.
@@ -249,18 +238,22 @@ public struct EnterAmountView: View {
 
 // MARK: - Swipe dim -
 
-/// How the amount screen dims around a hosted swipe as its thumb travels.
-@MainActor
+/// How the amount screen lays out and dims around a hosted swipe; the entered amount never dims.
 private enum SwipeDim {
-    static var isOn: Bool { Tuner.shared.value("Swipe Dim/On", default: true) } // LOCAL-TUNER
-    /// The opacity everything falls to at full travel.
-    static var maxDim: Double { Tuner.shared.value("Swipe Dim/Max dim", default: 0.1, in: 0...1) } // LOCAL-TUNER
-    /// The travel where dimming begins.
-    static var start: Double { Tuner.shared.value("Swipe Dim/Start", default: 0, in: 0...0.9) } // LOCAL-TUNER
-    /// Whether the dim eases in (squared) rather than tracking travel linearly.
-    static var easesIn: Bool { Tuner.shared.value("Swipe Dim/Ease in", default: false) } // LOCAL-TUNER
-    /// Whether the entered amount stays at full opacity while the rest dims.
-    static var keepsAmount: Bool { Tuner.shared.value("Swipe Dim/Keep amount", default: true) } // LOCAL-TUNER
+    /// The opacity everything but the amount and the swipe falls to at full travel.
+    static let maxDim: Double = 0.1
+    /// The gap between the keypad and the hosted swipe.
+    static let keypadToSwipe: CGFloat = 20
+}
+
+/// The side and bottom insets of the action slot, shared by the Next button and a hosted swipe so
+/// the two can't drift.
+private struct ActionSlotInsets: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, Tuner.shared.value("Amount entry/Button side inset", default: CGFloat(32), in: 16...56, unit: .points) - 20) // LOCAL-TUNER
+            .padding(.bottom, Tuner.shared.value("Amount entry/Button bottom inset", default: CGFloat(32), in: 0...80, unit: .points) - 54) // LOCAL-TUNER
+    }
 }
 
 // MARK: - Mode -

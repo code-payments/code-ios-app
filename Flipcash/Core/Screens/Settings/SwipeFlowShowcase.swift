@@ -5,16 +5,16 @@
 //  Copyright © 2026 Code Inc. All rights reserved.
 //
 
-#if DEBUG
+#if DEBUG // LOCAL-TUNER: the swipe showcase, a local feel tool
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// The swipe showcase's root: the looks side by side, and, when signed in, the swipe inside the
+/// The swipe showcase's root: the control on its own, and, when signed in, the swipe inside the
 /// real amount screen. Opened from Beta Features and by `--swipe-sandbox`.
 ///
 /// The amount flow needs the signed-in `Session` and `RatesController` that `EnterAmountView`
-/// reads, so without them (the sandbox) only the looks show.
+/// reads, so without them (the sandbox) only the control shows.
 struct SwipeShowcaseHost: View {
 
     @Environment(Session.self) private var session: Session?
@@ -80,7 +80,6 @@ struct SwipeFlowShowcase: View {
 
     @State private var enteredAmount = ""
     @State private var outcome: SwipeShowcaseOutcome = .succeeds
-    @State private var look: SwipeControlLook = .lens // LOCAL-TUNER
 
     /// Enabled once there's an amount, standing in for the send screen's `canSend`.
     private func isActionEnabled(_ entered: String) -> Bool {
@@ -108,7 +107,6 @@ struct SwipeFlowShowcase: View {
                 ))
             ) {
                 SwipeControl(text: "Swipe to Send", action: outcome.action)
-                    .swipeControlLook(look) // LOCAL-TUNER
             }
             .foregroundStyle(.textMain)
             .padding(20)
@@ -119,28 +117,12 @@ struct SwipeFlowShowcase: View {
     // MARK: - Controls -
 
     private var controls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Picker("Outcome", selection: $outcome) {
-                    ForEach(SwipeShowcaseOutcome.allCases) { outcome in
-                        Text(outcome.title).tag(outcome)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                Picker("Look", selection: $look) { // LOCAL-TUNER
-                    ForEach(SwipeControlLook.allCases, id: \.self) { look in // LOCAL-TUNER
-                        Text(look.showcaseLetter).tag(look) // LOCAL-TUNER
-                    } // LOCAL-TUNER
-                } // LOCAL-TUNER
-                .pickerStyle(.segmented) // LOCAL-TUNER
-                .frame(width: 120) // LOCAL-TUNER
+        Picker("Outcome", selection: $outcome) {
+            ForEach(SwipeShowcaseOutcome.allCases) { outcome in
+                Text(outcome.title).tag(outcome)
             }
-
-            Text("\(look.showcaseCaption) · Hold three fingers to open the tuner → Swipe") // LOCAL-TUNER
-                .font(.appTextCaption) // LOCAL-TUNER
-                .foregroundStyle(Color.textSecondary) // LOCAL-TUNER
         }
+        .pickerStyle(.segmented)
     }
 }
 #endif
