@@ -24,6 +24,15 @@ class OnboardingViewModel {
     @ObservationIgnored private let container: Container
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
     @ObservationIgnored private var initializedAccount: InitializedAccount?
+
+    /// True once ``resumeOnboarding(with:)`` has taken over: the flow was entered from a launch
+    /// or an interactive login rather than from "Create a New Account".
+    private(set) var isResumedFlow = false
+
+    /// True from ``resumeOnboarding(with:)`` until its first step replaces the path, so that
+    /// step becomes the stack's first screen instead of stacking over the intro or login.
+    @ObservationIgnored private var awaitingResumedRoot = false
+    @ObservationIgnored private var resumedOwner: PublicKey?
     @ObservationIgnored private let pushStatus: () async -> UNAuthorizationStatus
     @ObservationIgnored private let hasDisplayName: (InitializedAccount) async -> Bool
     @ObservationIgnored private let finishLogin: (InitializedAccount) -> Void
@@ -274,8 +283,13 @@ class OnboardingViewModel {
     /// link). Asks for a display name only when the profile has none, then applies the same
     /// push rule as a new account, so already-decided permissions finish straight away.
     func resumeOnboarding(with account: InitializedAccount) async {
+        // The task that calls this restarts when the intro swaps for the stack; one run is enough.
+        guard resumedOwner != account.keyAccount.ownerPublicKey else { return }
+        resumedOwner = account.keyAccount.ownerPublicKey
         initializedAccount = account
         nameViewModel = nil
+        isResumedFlow = true
+        awaitingResumedRoot = true
 
         guard !(await hasDisplayName(account)) else {
             await advanceFromNameStep()
@@ -285,13 +299,18 @@ class OnboardingViewModel {
         navigateToDisplayName(owner: account.keyAccount.owner)
     }
 
+    /// Longest the resume screen waits on the profile before treating it as unreadable.
+    private static let profileLookupTimeout: Double = 5
+
     private static func lookUpDisplayName(
         for account: InitializedAccount,
         flipClient: FlipClient,
         accountManager: AccountManager
     ) async -> Bool {
         do {
-            let profile = try await flipClient.fetchProfile(userID: account.userID, owner: account.keyAccount.owner)
+            let profile = try await withTimeout(seconds: profileLookupTimeout) {
+                try await flipClient.fetchProfile(userID: account.userID, owner: account.keyAccount.owner)
+            }
             accountManager.cacheProfile(profile, ownerPublicKey: account.keyAccount.ownerPublicKey)
             return profile.displayName?.isEmpty == false
         } catch {
@@ -323,8 +342,29 @@ class OnboardingViewModel {
         path = [.accessKey]
     }
 
+    /// Whether `step` hides its back button, which also turns off swipe-back.
+    ///
+    /// A new account hides it on the access key and name steps only. A resumed flow also hides
+    /// it on its first screen so it can't back out to the intro or login; a later push step may
+    /// return to the name step only when the name step is in this flow's path.
+    func hidesBackButton(for step: OnboardingPath) -> Bool {
+        guard isResumedFlow else {
+            return step == .accessKey || step == .displayName
+        }
+        return step == .displayName || path.first == step
+    }
+
+    private func place(_ step: OnboardingPath) {
+        if awaitingResumedRoot {
+            awaitingResumedRoot = false
+            path = [step]
+        } else {
+            path.append(step)
+        }
+    }
+
     func navigateToPushNotifications() {
-        path.append(.pushNotifications)
+        place(.pushNotifications)
     }
 
     func navigateToPushNotificationsDenied() {
@@ -342,7 +382,7 @@ class OnboardingViewModel {
             }
             nameViewModel = vm
         }
-        path.append(.displayName)
+        place(.displayName)
     }
 
 }
@@ -357,4 +397,19 @@ nonisolated enum OnboardingPath {
     case displayName
     case pushNotifications
     case pushNotificationsDenied
+}
+
+private struct LookupTimedOut: Error {}
+
+/// Runs `operation`, throwing ``LookupTimedOut`` if it hasn't finished within `seconds`.
+private func withTimeout<T: Sendable>(seconds: Double, _ operation: @escaping @Sendable () async throws -> T) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask { try await operation() }
+        group.addTask {
+            try await Task.sleep(for: .seconds(seconds))
+            throw LookupTimedOut()
+        }
+        defer { group.cancelAll() }
+        return try await group.next()!
+    }
 }

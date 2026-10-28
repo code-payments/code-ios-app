@@ -144,4 +144,51 @@ struct OnboardingResumeTests {
         #expect(authenticator.pendingOnboarding?.keyAccount.ownerPublicKey == Self.owner)
         #expect(!authenticator.isLoggedIn)
     }
+
+    // MARK: - Back navigation -
+
+    @Test("A resumed flow's first screen hides its back button, so it can't back out to the intro")
+    func resumed_rootHidesBack() async {
+        let viewModel = makeViewModel(push: .notDetermined, named: true, finished: Finished())
+
+        await viewModel.resumeOnboarding(with: account())
+
+        #expect(viewModel.path == [.pushNotifications])
+        #expect(viewModel.hidesBackButton(for: .pushNotifications))
+    }
+
+    @Test("In a resumed flow the push step can go back to the name step, and denied back to push")
+    func resumed_pushAfterName_canGoBack() async {
+        let viewModel = makeViewModel(push: .notDetermined, named: false, finished: Finished())
+
+        await viewModel.resumeOnboarding(with: account())
+        #expect(viewModel.hidesBackButton(for: .displayName))
+
+        viewModel.navigateToPushNotifications()
+        viewModel.navigateToPushNotificationsDenied()
+
+        #expect(viewModel.path == [.displayName, .pushNotifications, .pushNotificationsDenied])
+        #expect(!viewModel.hidesBackButton(for: .pushNotifications))
+        #expect(!viewModel.hidesBackButton(for: .pushNotificationsDenied))
+    }
+
+    @Test("A new account keeps today's back behavior: only the access key and name steps hide it")
+    func freshFlow_backUnchanged() {
+        let viewModel = makeViewModel(push: .notDetermined, named: true, finished: Finished())
+
+        #expect(viewModel.hidesBackButton(for: .accessKey))
+        #expect(viewModel.hidesBackButton(for: .displayName))
+        #expect(!viewModel.hidesBackButton(for: .pushNotifications))
+        #expect(!viewModel.hidesBackButton(for: .pushNotificationsDenied))
+    }
+
+    @Test("A resume that starts from a login screen replaces it, so back can't return to the login")
+    func resume_replacesLoginPath() async {
+        let viewModel = makeViewModel(push: .notDetermined, named: true, finished: Finished())
+        viewModel.path = [.login]
+
+        await viewModel.resumeOnboarding(with: account())
+
+        #expect(viewModel.path == [.pushNotifications])
+    }
 }

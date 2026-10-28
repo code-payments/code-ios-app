@@ -39,7 +39,30 @@ private struct IntroScreenContent: View {
     
     // MARK: - Body -
     
+    /// An account is waiting on its resumed step, so the intro would only flash before it.
+    /// Rendering this instead keeps the stack uncreated until the path is seeded, which lets
+    /// the first resumed screen appear without a push animation.
+    private var isAwaitingResume: Bool {
+        sessionAuthenticator.pendingOnboarding != nil && viewModel.path.isEmpty
+    }
+
     var body: some View {
+        if isAwaitingResume {
+            Background(color: .backgroundMain) {
+                LoadingView(color: .white)
+            }
+            .task(id: sessionAuthenticator.pendingOnboarding?.keyAccount.ownerPublicKey.base58, resumeIfPending)
+        } else {
+            introStack
+        }
+    }
+
+    private func resumeIfPending() async {
+        guard let account = sessionAuthenticator.pendingOnboarding else { return }
+        await viewModel.resumeOnboarding(with: account)
+    }
+
+    private var introStack: some View {
         NavigationStack(path: $viewModel.path) {
             Background(color: .backgroundMain) {
                 VStack {
@@ -123,25 +146,24 @@ private struct IntroScreenContent: View {
                     LoginScreen()
                 case .accessKey:
                     AccessKeyScreen(viewModel: viewModel)
-                        .navigationBarBackButtonHidden(true)
+                        .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .accessKey))
                 case .accessKeyHelp:
                     AccessKeyHelpScreen()
                 case .pushNotifications:
                     NotificationPermissionScreen(viewModel: viewModel)
+                        .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .pushNotifications))
                 case .pushNotificationsDenied:
                     NotificationPermissionDeniedScreen(viewModel: viewModel)
+                        .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .pushNotificationsDenied))
                 case .displayName:
                     if let nameVM = viewModel.nameViewModel {
                         OnboardingNameScreen(viewModel: nameVM)
-                            .navigationBarBackButtonHidden(true)
+                            .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .displayName))
                     }
                 }
             }
         }
-        .task(id: sessionAuthenticator.pendingOnboarding?.keyAccount.ownerPublicKey.base58) {
-            guard let account = sessionAuthenticator.pendingOnboarding else { return }
-            await viewModel.resumeOnboarding(with: account)
-        }
+        .task(id: sessionAuthenticator.pendingOnboarding?.keyAccount.ownerPublicKey.base58, resumeIfPending)
     }
 }
 
