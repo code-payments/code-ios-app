@@ -295,7 +295,7 @@ struct CurrencyInfoContentV2: View {
     }
 
     @ViewBuilder private var actionTiles: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             ForEach(CurrencyInfoActions.tiles(isOwned: isOwned, isUSDF: isUSDF), id: \.self) { tile in
                 switch tile {
                 case .send:
@@ -323,8 +323,10 @@ struct CurrencyInfoContentV2: View {
             VStack(spacing: 12) {
                 tileIcon(icon)
                     .frame(height: 28)
+                // 12pt medium, as drawn: "Transactions" fits its tile with room either side.
                 Text(title)
-                    .font(.appTextSmall)
+                    .font(.default(size: 12, weight: .medium))
+                    .lineLimit(1)
             }
             .foregroundStyle(Color.textMain)
             .frame(maxWidth: .infinity)
