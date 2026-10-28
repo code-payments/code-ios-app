@@ -24,7 +24,7 @@ struct OnboardingResumeTests {
 
     private func makeViewModel(
         push: UNAuthorizationStatus,
-        named: Bool?,
+        named: Bool,
         finished: Finished
     ) -> OnboardingViewModel {
         OnboardingViewModel(
@@ -92,14 +92,17 @@ struct OnboardingResumeTests {
         #expect(finished.accounts.isEmpty)
     }
 
-    @Test("An unreadable profile skips the name step rather than blocking the way home")
-    func resume_unknownName_skipsName() async {
+    /// An unreadable profile is reported as "no name", the same as Android's null-profile check.
+    /// Resume and interactive login share this gate, so one case covers both.
+    @Test("An unreadable profile holds the user on the name step")
+    func resume_unreadableProfile_holdsOnName() async {
         let finished = Finished()
-        let viewModel = makeViewModel(push: .notDetermined, named: nil, finished: finished)
+        let viewModel = makeViewModel(push: .authorized, named: false, finished: finished)
 
         await viewModel.resumeOnboarding(with: account())
 
-        #expect(viewModel.path == [.pushNotifications])
+        #expect(viewModel.path == [.displayName])
+        #expect(finished.accounts.isEmpty)
     }
 
     // MARK: - Interactive login -

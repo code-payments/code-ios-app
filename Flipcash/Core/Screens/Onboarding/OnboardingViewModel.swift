@@ -25,7 +25,7 @@ class OnboardingViewModel {
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
     @ObservationIgnored private var initializedAccount: InitializedAccount?
     @ObservationIgnored private let pushStatus: () async -> UNAuthorizationStatus
-    @ObservationIgnored private let hasDisplayName: (InitializedAccount) async -> Bool?
+    @ObservationIgnored private let hasDisplayName: (InitializedAccount) async -> Bool
     @ObservationIgnored private let finishLogin: (InitializedAccount) -> Void
 
     /// Built on first call to ``navigateToDisplayName``; the display-name step
@@ -39,13 +39,12 @@ class OnboardingViewModel {
     ///
     /// - Parameters:
     ///   - pushStatus: the current notification authorization.
-    ///   - hasDisplayName: whether the account's profile already has a display name, or `nil`
-    ///     when that can't be determined.
+    ///   - hasDisplayName: whether the account's profile already has a display name.
     ///   - finishLogin: opens the session once onboarding is done.
     init(
         container: Container,
         pushStatus: @escaping () async -> UNAuthorizationStatus = { await PushController.fetchStatus() },
-        hasDisplayName: ((InitializedAccount) async -> Bool?)? = nil,
+        hasDisplayName: ((InitializedAccount) async -> Bool)? = nil,
         finishLogin: ((InitializedAccount) -> Void)? = nil
     ) {
         self.container            = container
@@ -278,8 +277,7 @@ class OnboardingViewModel {
         initializedAccount = account
         nameViewModel = nil
 
-        let named = await hasDisplayName(account)
-        guard named == false else {
+        guard !(await hasDisplayName(account)) else {
             await advanceFromNameStep()
             return
         }
@@ -291,18 +289,19 @@ class OnboardingViewModel {
         for account: InitializedAccount,
         flipClient: FlipClient,
         accountManager: AccountManager
-    ) async -> Bool? {
+    ) async -> Bool {
         do {
             let profile = try await flipClient.fetchProfile(userID: account.userID, owner: account.keyAccount.owner)
             accountManager.cacheProfile(profile, ownerPublicKey: account.keyAccount.ownerPublicKey)
             return profile.displayName?.isEmpty == false
         } catch {
-            // Offline: trust the name cached on the account's keychain entry, and when that
-            // is blank too, skip the step rather than block the way home.
+            // Unreadable profile: trust a name cached on the account's keychain entry, and
+            // otherwise treat the name as missing. Matches Android (a null profile counts as
+            // no display name), and every account needs a name for tips and chat.
             let cached = accountManager.fetchHistorical()
                 .first { $0.account.ownerPublicKey == account.keyAccount.ownerPublicKey }?
                 .displayName
-            return cached?.isEmpty == false ? true : nil
+            return cached?.isEmpty == false
         }
     }
 
