@@ -199,6 +199,11 @@ struct GroupInviteLinksTests {
         #expect(links.current != nil)
     }
 
+    @Test("2d offers the spec's use limits in order")
+    func useLimitPresets() {
+        #expect(GroupInviteLinks.UseLimit.allCases.map(\.maxUses) == [1, 5, 10, 25, 0])
+    }
+
     @Test("A new link from 2d becomes current; Never sends no expiry")
     func newLinkBecomesCurrent() async throws {
         let server = Server()

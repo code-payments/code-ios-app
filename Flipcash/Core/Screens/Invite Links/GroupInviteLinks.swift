@@ -82,27 +82,31 @@ final class GroupInviteLinks {
     }
 
     /// How many people a new link admits (frame 2d).
+    /// The 2d use limits, in the spec's order (Uses: 1, 5, 10, 25, No limit).
     enum UseLimit: CaseIterable, Hashable {
-        case unlimited
         case one
+        case five
         case ten
-        case fifty
+        case twentyFive
+        case unlimited
 
         var title: String {
             switch self {
-            case .unlimited: "No limit"
-            case .one:       "1 person"
-            case .ten:       "10"
-            case .fifty:     "50"
+            case .one:        "1"
+            case .five:       "5"
+            case .ten:        "10"
+            case .twentyFive: "25"
+            case .unlimited:  "No limit"
             }
         }
 
         var maxUses: UInt32 {
             switch self {
-            case .unlimited: 0
-            case .one:       1
-            case .ten:       10
-            case .fifty:     50
+            case .one:        1
+            case .five:       5
+            case .ten:        10
+            case .twentyFive: 25
+            case .unlimited:  0
             }
         }
     }
