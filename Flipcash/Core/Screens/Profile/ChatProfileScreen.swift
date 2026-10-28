@@ -236,7 +236,7 @@ struct ChatProfileScreen: View {
         .dialog(item: $dialogItem)
         .fullScreenCover(isPresented: $isInviting) {
             ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
-                router.push(.tipConversation(chatID))
+                router.openSharedChat(chatID)
             }
         }
         .sheet(isPresented: $isPickingMuteDuration) {

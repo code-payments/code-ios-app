@@ -39,6 +39,21 @@ struct MoneyActionsSheet: View {
     }
 
     private func row(icon: Asset, title: String, subtitle: String, identifier: String, action: @escaping () -> Void) -> some View {
+        ActionCardRow(icon: Image.asset(icon), title: title, subtitle: subtitle, identifier: identifier, action: action)
+    }
+}
+
+/// One card of a money-actions sheet: title and subtitle on the left, a 32pt template glyph on the
+/// right. Shared by the group Send/Request sheet and Currency Info's More sheet.
+struct ActionCardRow: View {
+
+    let icon: Image
+    let title: String
+    let subtitle: String
+    let identifier: String
+    let action: () -> Void
+
+    var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -53,7 +68,7 @@ struct MoneyActionsSheet: View {
 
                 Spacer(minLength: 12)
 
-                Image.asset(icon)
+                icon
                     .renderingMode(.template)
                     .resizable()
                     .scaledToFit()

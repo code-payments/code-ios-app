@@ -51,7 +51,7 @@ extension AppRouter {
             case .buy:          .buy
             case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
-            case .sendAmount:   .sendAmount
+            case .sendAmount: .sendAmount
             case .tips:         .tips
             case .switchAccount: .switchAccount
             }

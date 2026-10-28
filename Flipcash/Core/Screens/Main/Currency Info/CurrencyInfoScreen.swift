@@ -73,6 +73,7 @@ private struct CurrencyInfoScreenContent: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AppRouter.self) private var router
+    @Environment(ConversationController.self) private var conversationController
     /// Set by the wallet so this screen zooms out of the tapped token card.
     @Environment(\.walletCardNamespace) private var cardNamespace
 
@@ -86,6 +87,9 @@ private struct CurrencyInfoScreenContent: View {
     /// feed `titleOffset`, which walks a centred principal item back to the
     /// leading edge; portrait-only, so the screen's width is the bar's width.
     @State private var barWidth: CGFloat = 0
+    @State private var isShowingMore = false
+    @State private var pendingMoreRow: CurrencyInfoActions.MoreRow?
+    @State private var isShowingShare = false
     @State private var titleWidth: CGFloat = 0
 
     let session: Session
@@ -249,16 +253,21 @@ private struct CurrencyInfoScreenContent: View {
                     ratesController: ratesController,
                     marketCapController: marketCapController,
                     session: session,
-                    onGive: {
+                    onSend: {
                         Analytics.buttonTapped(name: .give)
-                        router.push(.give(mint))
+                        router.push(.currencySendAmount(mint))
                     },
-                    // Convert and buy push onto the current stack rather than
-                    // presenting as sheets, so they keep this screen behind them.
-                    onConvert: { router.push(.convertCurrency(mint)) },
+                    // Buy pushes onto the current stack rather than presenting as a
+                    // sheet, so it keeps this screen behind it.
                     onBuy: { router.push(.buyCurrency(mint)) },
-                    onWithdraw: { router.push(.withdrawCurrency(mint)) },
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
+                    onMore: { isShowingMore = true },
+                    onSelectCommunityChat: { chat in
+                        conversationController.hold(chat)
+                        router.push(.chatProfile(chat.id, origin: .featuredGroup))
+                    },
+                    onShowCommunityRankingInfo: { session.dialogItem = .info(title: CommunityChats.rankingTitle, subtitle: CommunityChats.rankingMessage(currencyName: metadata.name)) },
+                    onShowAllCommunityChats: { router.push(.topCommunityChats(metadata.mint)) },
                     onShowMarketCapExplainer: { router.push(.marketCapExplainer(metadata.mint)) },
                     onScrolledPastTitle: { scrolledPast in
                         guard showsToolbarTitle != scrolledPast else { return }
@@ -335,15 +344,32 @@ private struct CurrencyInfoScreenContent: View {
             }
             if !isUSDF {
                 ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: URL(string: "https://app.flipcash.com/token/\(mint.base58)")!) {
+                    Button {
+                        Analytics.buttonTapped(name: .shareTokenInfo)
+                        isShowingShare = true
+                    } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
-                    .simultaneousGesture(TapGesture().onEnded {
-                        Analytics.buttonTapped(name: .shareTokenInfo)
-                    })
                 }
             }
         }
+        .sheet(isPresented: $isShowingMore, onDismiss: runPendingMoreRow) {
+            CurrencyMoreSheet(
+                name: mintMetadata?.name ?? "",
+                rows: CurrencyInfoActions.moreRows(isUSDF: isUSDF),
+                canConvert: !isUSDF || viewModel.canConvert,
+                isUSDF: isUSDF,
+                onSelect: { pendingMoreRow = $0 }
+            )
+        }
+        .fullScreenCover(isPresented: $isShowingShare) {
+            ShareToChatsSheet(
+                subject: .currency(url: Self.shareURL(for: mint), name: mintMetadata?.name ?? ""),
+                isPresented: $isShowingShare,
+                onInvited: { router.openSharedChat($0) }
+            )
+        }
+        .task { await viewModel.loadCommunityChats() }
         .task {
             ratesController.ensureMintSubscribed(mint)
             await viewModel.loadMintMetadata()
@@ -357,6 +383,27 @@ private struct CurrencyInfoScreenContent: View {
         // fighting the sheet stack here. Binding `.dialog(item:)` on this
         // screen would mount a sheet that competes with the `.buy` sheet's
         // presentation queue.
+    }
+
+    /// Runs the More sheet's choice once that sheet has gone, so a push doesn't race its dismissal.
+    private func runPendingMoreRow() {
+        guard let row = pendingMoreRow else { return }
+        pendingMoreRow = nil
+        switch row {
+        case .convert:  router.push(.convertCurrency(mint))
+        case .withdraw: router.push(.withdrawCurrency(mint))
+        case .deposit:
+            // Dollars have no address of their own: the Add Dollars choice is how they come in.
+            if mint == .usdf {
+                router.presentAddMoney(.general, source: .balance)
+            } else {
+                router.push(.depositCurrency(mint))
+            }
+        }
+    }
+
+    private static func shareURL(for mint: PublicKey) -> URL {
+        URL(string: "https://app.flipcash.com/token/\(mint.base58)")!
     }
 
     /// Height of the chrome an overlay draws in place of the navigation bar.
@@ -416,7 +463,10 @@ private struct CurrencyInfoScreenContent: View {
             Spacer(minLength: 0)
 
             if !isUSDF {
-                ShareLink(item: URL(string: "https://app.flipcash.com/token/\(mint.base58)")!) {
+                Button {
+                    Analytics.buttonTapped(name: .shareTokenInfo)
+                    isShowingShare = true
+                } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color.textMain)
@@ -424,9 +474,8 @@ private struct CurrencyInfoScreenContent: View {
                         .contentShape(Circle())
                         .modifier(CircleGlass())
                 }
-                .simultaneousGesture(TapGesture().onEnded {
-                    Analytics.buttonTapped(name: .shareTokenInfo)
-                })
+                .buttonStyle(.plain)
+                .accessibilityLabel("Share")
             }
         }
         .padding(.horizontal, 16)

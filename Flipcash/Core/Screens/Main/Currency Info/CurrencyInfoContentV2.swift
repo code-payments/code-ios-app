@@ -2,9 +2,9 @@
 //  CurrencyInfoContentV2.swift
 //  Flipcash
 //
-//  The currency info layout: a hero bill card, inline Give / Buy More /
-//  Convert tiles (Give / Convert / Withdraw for Dollars, a lone Buy In for a
-//  currency that isn't held), a per-token Recent preview, the reused market-cap
+//  The currency info layout: a hero bill card, inline Send / Buy /
+//  Transactions / More tiles (no Buy for Dollars, a lone Buy In for a
+//  currency that isn't held), the reused market-cap
 //  chart, the About block, and a created-at footer.
 //
 
@@ -36,16 +36,17 @@ struct CurrencyInfoContentV2: View {
     let marketCapController: MarketCapController
     let session: Session
 
-    /// Give — owned community tokens only.
-    let onGive: () -> Void
-    /// Convert — sells this currency into a chosen destination.
-    let onConvert: () -> Void
+    /// Send — pays a person this currency; owned currencies only.
+    let onSend: () -> Void
     /// Buy — routes to the buy flow, whether or not the currency is held.
     let onBuy: () -> Void
-    /// Withdraw — the existing flow, pre-selected to this currency. Only the
-    /// Dollars row carries the tile; anything else withdraws from Settings.
-    let onWithdraw: () -> Void
     let onShowTransactionHistory: () -> Void
+    /// More — opens the sheet carrying Convert, Withdraw and Deposit.
+    let onMore: () -> Void
+    /// Opens a community chat's group profile.
+    let onSelectCommunityChat: (Conversation) -> Void
+    let onShowCommunityRankingInfo: () -> Void
+    let onShowAllCommunityChats: () -> Void
     /// Opens "How Market Cap Works".
     let onShowMarketCapExplainer: () -> Void
     /// Fires when the hero card's title scrolls out from under the toolbar, so
@@ -75,7 +76,6 @@ struct CurrencyInfoContentV2: View {
     /// recognises on touch-down, which cancels the stack's interactive pop.
     var supportsPullToClose: Bool = false
 
-    private static let recentPreviewCount = 3
     /// Scroll distance that puts the hero card's title row behind the toolbar.
     private static let titleHandoffOffset: CGFloat = 52
 
@@ -137,6 +137,23 @@ struct CurrencyInfoContentV2: View {
                     actionTiles
                     .padding(.horizontal, 20)
 
+                    CommunityChatsSection(
+                        chats: viewModel.communityChats,
+                        currencyName: metadata.name,
+                        subtitle: viewModel.communitySubtitle(for:),
+                        onSelect: onSelectCommunityChat,
+                        onInfo: onShowCommunityRankingInfo,
+                        onViewAll: onShowAllCommunityChats
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+
+                CurrencyInfoAboutSection(
+                    description: currencyDescription,
+                    socialLinks: isUSDF ? [] : decodedMetadata.socialLinks
+                )
+                .padding(.horizontal, 20)
+
                 // Everything below is laid out and shown from the first frame,
                 // so the page arrives complete rather than in stages. Nothing
                 // here is gated on loading: the activity read is quick and runs
@@ -144,11 +161,6 @@ struct CurrencyInfoContentV2: View {
                 // full height around a placeholder plot. Revealing these later —
                 // even all at once — reads as the tiles landing and the rest of
                 // the screen following a beat behind.
-                if isOwned && !viewModel.recentActivities.isEmpty {
-                    recentSection
-                        .padding(.horizontal, 20)
-                }
-
                 // The market-cap value, monthly delta, chart, and range picker
                 // all live inside this reused, self-contained section, which
                 // manages its own insets.
@@ -168,16 +180,10 @@ struct CurrencyInfoContentV2: View {
                     }
                 }
 
-                CurrencyInfoAboutSection(
-                    description: currencyDescription,
-                    socialLinks: isUSDF ? [] : decodedMetadata.socialLinks
-                )
-                .padding(.horizontal, 20)
-
                 if !isUSDF, let createdAt = metadata.createdAt {
-                    Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))".uppercased())
+                    Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))")
                         .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
+                        .foregroundStyle(Color.white.opacity(0.55))
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 8)
                         .padding(.horizontal, 20)
@@ -254,13 +260,6 @@ struct CurrencyInfoContentV2: View {
             didScrub = false
             pullDistance = 0
         }
-        // Started immediately rather than after the transition: the read itself
-        // runs off the main thread, so it costs the animation nothing, and it
-        // lands well before the page finishes fading in — which is what keeps
-        // Recent from arriving as a second stage.
-        .task {
-            await viewModel.loadRecentActivities(limit: Self.recentPreviewCount)
-        }
     }
 
     // MARK: - Hero
@@ -296,27 +295,20 @@ struct CurrencyInfoContentV2: View {
     }
 
     @ViewBuilder private var actionTiles: some View {
-        HStack(spacing: 12) {
-            if isOwned {
-                actionTile("Cash", icon: .asset("IconBanknote"), action: onGive)
-                if isUSDF {
-                    // Dollars is what the other currencies are bought with, so
-                    // there is nothing to buy more of — it withdraws instead.
-                    // Its Convert goes out via a reserves buy, so it needs
-                    // another holding to buy into.
-                    actionTile(
-                        "Convert",
-                        icon: .asset("IconArrowBottomTop"),
-                        isEnabled: viewModel.canConvert,
-                        action: onConvert
-                    )
-                    actionTile("Withdraw", icon: .asset("IconArrowUp"), action: onWithdraw)
-                } else {
-                    actionTile("Buy More", icon: .asset("IconArrowDown"), action: onBuy)
-                    actionTile("Convert", icon: .asset("IconArrowBottomTop"), action: onConvert)
+        HStack(spacing: 8) {
+            ForEach(CurrencyInfoActions.tiles(isOwned: isOwned, isUSDF: isUSDF), id: \.self) { tile in
+                switch tile {
+                case .send:
+                    actionTile("Send", icon: .asset("IconTileSend"), action: onSend)
+                case .buy:
+                    actionTile("Buy", icon: .asset("IconTileBuy"), action: onBuy)
+                case .buyIn:
+                    actionTile("Buy In", icon: .asset("IconTileBuy"), action: onBuy)
+                case .transactions:
+                    actionTile("Transactions", icon: .system("clock.arrow.circlepath"), action: onShowTransactionHistory)
+                case .more:
+                    actionTile("More", icon: .system("ellipsis"), action: onMore)
                 }
-            } else {
-                actionTile("Buy In", icon: .asset("IconArrowDown"), action: onBuy)
             }
         }
     }
@@ -328,17 +320,19 @@ struct CurrencyInfoContentV2: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 tileIcon(icon)
-                    .frame(height: 28)
+                    .frame(height: 24)
+                // 12pt medium, as drawn: "Transactions" fits its tile with room either side.
                 Text(title)
-                    .font(.appTextSmall)
+                    .font(.default(size: 12, weight: .medium))
+                    .lineLimit(1)
             }
             .foregroundStyle(Color.textMain)
             .frame(maxWidth: .infinity)
             .frame(height: 88)
-            .background(Color.white.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -349,24 +343,15 @@ struct CurrencyInfoContentV2: View {
         switch icon {
         case .system(let name):
             Image(systemName: name)
-                .font(.system(size: 22, weight: .regular))
+                .font(.system(size: 24, weight: .regular))
         case .asset(let name):
-            // Figma exports these glyphs at 28×28 (template-rendered, so they
+            // Figma exports these glyphs at 24×24 (template-rendered, so they
             // tint with the tile's foreground).
             Image(name)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 24)
         }
-    }
-
-    // MARK: - Recent
-
-    private var recentSection: some View {
-        RecentActivitySection(
-            activities: viewModel.recentActivities,
-            onShowAll: onShowTransactionHistory
-        )
     }
 
     // MARK: - Copy

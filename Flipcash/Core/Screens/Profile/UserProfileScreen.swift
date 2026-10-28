@@ -212,7 +212,7 @@ private struct UserProfileContent: View {
                 ),
                 isPresented: $isShowingShare
             ) { chatID in
-                router.push(.tipConversation(chatID))
+                router.openSharedChat(chatID)
             }
         }
         .dialog(item: $dialogItem)

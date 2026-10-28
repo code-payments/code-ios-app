@@ -117,9 +117,7 @@ private struct SendAmountScreenContent: View {
         // the dismiss instead of firing it on a screen that's already gone.
         .task(id: didSucceed) {
             guard didSucceed else { return }
-            try? await Task.delay(seconds: 1)
-            guard !Task.isCancelled else { return }
-            router.dismissSheet()
+            await PaymentSuccess.release { router.dismissSheet() }
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in

@@ -53,6 +53,16 @@ struct DestinationView: View {
         case .transactionHistory(let mint):
             TransactionHistoryScreen(mint: mint)
 
+        case .topCommunityChats(let mint):
+            TopCommunityChatsDestination(mint: mint)
+                .id(mint)
+
+        case .currencySendAmount(let mint):
+            CurrencySendAmountDestination(mint: mint)
+
+        case .currencySendRecipient(let mint, let amount):
+            CurrencySendRecipientDestination(mint: mint, amount: amount)
+
         case .marketCapExplainer(let mint):
             MarketCapExplainerScreen(
                 mint: mint,
@@ -187,6 +197,11 @@ struct DestinationView: View {
                 // user isn't stranded on the finished withdraw screen when it ran over a chat.
                 onComplete: { sessionContainer.appRouter.popToRoot() }
             )
+
+        case .depositCurrency(let mint):
+            if let screen = DepositScreen.currencyDeposit(mint: mint, session: sessionContainer.session) {
+                screen
+            }
 
         case .usdcDepositEducation:
             USDCDepositEducationScreen(

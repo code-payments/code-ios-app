@@ -27,6 +27,12 @@ extension AppRouter {
         case transactionHistory(PublicKey)
         /// The "How Market Cap Works" explainer for one currency.
         case marketCapExplainer(PublicKey)
+        /// Every ranked community chat for one currency ("View All" on Currency Info).
+        case topCommunityChats(PublicKey)
+        /// Send from Currency Info, step one: the amount, pushed onto the current stack.
+        case currencySendAmount(PublicKey)
+        /// Send from Currency Info, step two: Select Recipient, carrying the typed amount.
+        case currencySendRecipient(PublicKey, amount: String)
         /// The unified, cross-token activity history — the "dive in" from the
         /// Wallet's Recent section. `transactionHistory` is the per-token slice.
         case activity
@@ -49,6 +55,8 @@ extension AppRouter {
         /// any other currency on the amount screen. Pushed from the Wallet
         /// "Withdraw Dollars" tile (`nil`) and Currency Info (a mint).
         case withdrawCurrency(PublicKey?)
+        /// The deposit address for one currency, from Currency Info's More sheet.
+        case depositCurrency(PublicKey)
         /// USDC → USDF deposit education screen.
         case usdcDepositEducation
         /// USDC → USDF deposit address screen. Shows the user's authority
@@ -159,9 +167,9 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .marketCapExplainer, .activity, .transactionDetails, .give,
+                 .transactionHistory, .marketCapExplainer, .topCommunityChats, .currencySendAmount, .currencySendRecipient, .activity, .transactionDetails, .give,
                  .buyCurrency, .convertCurrency,
-                 .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
+                 .withdrawCurrency, .depositCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture, .username,
@@ -190,6 +198,9 @@ extension AppRouter {
             case .currencyCreationSummary:      "currencyCreationSummary"
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
+            case .topCommunityChats:            "topCommunityChats"
+            case .currencySendAmount:           "currencySendAmount"
+            case .currencySendRecipient:        "currencySendRecipient"
             case .marketCapExplainer:           "marketCapExplainer"
             case .activity:                     "activity"
             case .transactionDetails:           "transactionDetails"
@@ -197,6 +208,7 @@ extension AppRouter {
             case .buyCurrency:                  "buyCurrency"
             case .convertCurrency:              "convertCurrency"
             case .withdrawCurrency:             "withdrawCurrency"
+            case .depositCurrency:              "depositCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
             case .settings:                     "settings"
@@ -251,8 +263,12 @@ extension AppRouter {
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
                  .marketCapExplainer(let mint),
+                 .topCommunityChats(let mint),
+                 .currencySendAmount(let mint),
+                 .currencySendRecipient(let mint, _),
                  .give(let mint),
                  .buyCurrency(let mint),
+                 .depositCurrency(let mint),
                  .convertCurrency(let mint):
                 return mint.base58
             case .withdrawCurrency(let mint):

@@ -295,9 +295,7 @@ private struct GroupSendConfirmSheet: View {
         // Hold the success checkmark briefly, then dismiss the whole flow back to the chat.
         .task(id: didSucceed) {
             guard didSucceed else { return }
-            try? await Task.delay(seconds: 1)
-            guard !Task.isCancelled else { return }
-            router.dismissSheet()
+            await PaymentSuccess.release { router.dismissSheet() }
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             let options = viewModel.paymentOptions
