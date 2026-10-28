@@ -210,7 +210,7 @@ private struct CurrencySelectRecipientScreen: View {
         let name = conversationController.displayName(for: chat)
         let subject: ProfileAvatarStore.AvatarSubject = counterpart?.userID.map { .user($0) } ?? .chat(chat.id)
 
-        // Compact, per the design: a 24pt avatar and a 17pt semibold name, 48pt tall. The chat list's
+        // Compact, per the design: a 24pt avatar and a 17pt demi-bold name, 48pt tall. The chat list's
         // row is 44pt of avatar and a bold 16pt title, which reads as twice the size here.
         Button {
             select(chat, name: name, counterpart: counterpart)
@@ -224,7 +224,7 @@ private struct CurrencySelectRecipientScreen: View {
                     size: 24
                 )
                 Text(name)
-                    .font(.default(size: 17, weight: .semibold))
+                    .font(.default(size: 17, weight: .bold))
                     .foregroundStyle(Color.textMain)
                     .lineLimit(1)
                 Spacer(minLength: 0)
