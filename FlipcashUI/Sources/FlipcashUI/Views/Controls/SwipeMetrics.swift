@@ -39,7 +39,7 @@ enum SwipeMetrics {
     static var thumbInset: CGFloat { layout("Thumb inset", 4, 0...12) } // LOCAL-TUNER
     /// The thumb's width; 0 matches its height for a round thumb, and anything wider makes it a capsule.
     static var thumbWidth: CGFloat { layout("Thumb width", 84, 0...160) } // LOCAL-TUNER
-    static var arrowSize: CGFloat { layout("Arrow size", 24, 12...32) } // LOCAL-TUNER
+    static var arrowSize: CGFloat { layout("Arrow size", 26, 12...32) } // LOCAL-TUNER
     /// The track's wash colour, before `fillOpacity` applies.
     static var trackColor: Color { Tuner.shared.value("Swipe Layout/Track color", default: Color.action.opacity(0.75), source: ".action.opacity(0.75)") } // LOCAL-TUNER
     /// The track's `action` wash, as today's control draws it.
@@ -93,7 +93,7 @@ enum SwipeMetrics {
     // MARK: - Lens
 
     /// The lens thumb's scale under the finger, which lets it swell past the track's edge.
-    static var lensPressScale: CGFloat { Tuner.shared.value("Swipe Lens/Press scale", default: 1.4, in: 1...1.6, unit: .multiplier) } // LOCAL-TUNER
+    static var lensPressScale: CGFloat { Tuner.shared.value("Swipe Lens/Press scale", default: 1.3, in: 1...1.6, unit: .multiplier) } // LOCAL-TUNER
     static var lensRimWidth: CGFloat { Tuner.shared.value("Swipe Lens/Rim width", default: 0.5, in: 0...8, unit: .points) } // LOCAL-TUNER
     static var lensRimSoftness: CGFloat { Tuner.shared.value("Swipe Lens/Rim softness", default: 0, in: 0...6, unit: .points) } // LOCAL-TUNER
     static var lensRimTint: Double { Tuner.shared.value("Swipe Lens/Rim tint", default: 0, in: 0...0.5) } // LOCAL-TUNER
