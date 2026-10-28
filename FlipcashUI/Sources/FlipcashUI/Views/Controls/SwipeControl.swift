@@ -199,7 +199,9 @@ private struct SwipingTrack: View {
                     isOn: SwipeMetrics.shimmers && !reduceMotion,
                     isRunning: isNormal && isEnabled && !isTouching
                 ))
-                .padding(.horizontal, thumbWidth)
+                // Centred in the space beside the resting thumb, not on the track.
+                .padding(.leading, thumbWidth)
+                .padding(.trailing, SwipeMetrics.labelTrailingInset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity) // span the track so the mask and lens are in track coordinates
                 .modifier(SwipeLensEffect(
                     centerX: position + nudgeX + thumbWidth / 2,
