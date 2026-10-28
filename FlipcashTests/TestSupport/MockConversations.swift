@@ -357,6 +357,10 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         return conversation
     }
 
+    func joinChat(owner: KeyPair, conversationID: ConversationID, invite: InviteJoinParameters) async throws -> Conversation {
+        try await joinChat(owner: owner, conversationID: conversationID)
+    }
+
     // MARK: - ConversationMembership
 
     /// Answers with the chat as the group feed or the DM feed holds it; a join for a chat neither

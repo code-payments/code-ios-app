@@ -1207,7 +1207,16 @@ final class ConversationController {
     /// Joins a group and seats the metadata the join returns. Throws so the caller can surface the
     /// failure; nothing local moves unless the server accepted the join.
     func join(conversationID: ConversationID) async throws {
-        let conversation = try await membership.joinChat(owner: owner, conversationID: conversationID)
+        seatJoined(try await membership.joinChat(owner: owner, conversationID: conversationID), in: conversationID)
+    }
+
+    /// Joins a private group through an invite link. Throws ``ErrorJoinChat`` as the server
+    /// answered; the group is seated only once the join is accepted.
+    func join(conversationID: ConversationID, invite: InviteJoinParameters) async throws {
+        seatJoined(try await membership.joinChat(owner: owner, conversationID: conversationID, invite: invite), in: conversationID)
+    }
+
+    private func seatJoined(_ conversation: Conversation, in conversationID: ConversationID) {
         store.apply(.metadataRefresh(conversation))
         store.setMembership(true, in: conversationID)
         persistConversation(conversation)

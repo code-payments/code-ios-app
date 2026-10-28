@@ -79,6 +79,8 @@ protocol MentionSuggestionFetching: AnyObject, Sendable {
 protocol ConversationMembership: AnyObject, Sendable {
     /// Joins a chat, returning its metadata as it stands after the join.
     func joinChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
+    /// Joins a private group through an invite link.
+    func joinChat(owner: KeyPair, conversationID: ConversationID, invite: InviteJoinParameters) async throws -> Conversation
     func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws
 }
 

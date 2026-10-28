@@ -157,6 +157,9 @@ extension AppRouter {
         case inviteLinks(ConversationID)
         /// Every member of a private group, pushed from the count on its profile's Members grid.
         case groupMembers(ConversationID)
+        /// The group an invite link admits to, previewed before joining; nil for a link that holds
+        /// no usable secret. The secret prints redacted, and ``payload`` never carries it.
+        case groupInvite(InviteLinkSecret?)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -182,7 +185,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .chatMessage, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers:
+                 .editGroupDescription, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers, .groupInvite:
                 return .tips
             }
         }
@@ -254,6 +257,7 @@ extension AppRouter {
             case .joinRequests:                 "joinRequests"
             case .inviteLinks:                  "inviteLinks"
             case .groupMembers:                 "groupMembers"
+            case .groupInvite:                  "groupInvite"
             }
         }
 
@@ -305,7 +309,7 @@ extension AppRouter {
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
-                 .archivedChats, .chatSearch, .requests:
+                 .archivedChats, .chatSearch, .requests, .groupInvite:
                 return nil
             }
         }

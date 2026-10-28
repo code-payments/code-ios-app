@@ -167,6 +167,46 @@ struct RouteTests {
         #expect(Route(url: URL(string: "https://app.flipcash.com/chat")!) == nil)
     }
 
+    @Test("An invite link routes to the invite, ahead of the chat id, from both URL formats")
+    func inviteLinkRoutesAheadOfChat() throws {
+        let secret = String(repeating: "A", count: 43)
+        for text in ["https://app.flipcash.com/chat/invite#s=\(secret)", "flipcash://chat/invite#s=\(secret)"] {
+            let url = try #require(URL(string: text))
+            let route = try #require(Route(url: url))
+            guard case .groupInvite(let parsed) = route.path else {
+                Issue.record("\(text) parsed as \(route.path)")
+                continue
+            }
+            #expect(parsed.data == Data(count: 32))
+            // The secret is the fragment; nothing of it is kept as a route fragment.
+            #expect(route.fragments.isEmpty)
+        }
+    }
+
+    @Test("An invite link with no usable secret is a broken invite, not a chat or a web link")
+    func inviteLinkWithoutSecretIsInvalid() throws {
+        for text in [
+            "https://app.flipcash.com/chat/invite",
+            "https://app.flipcash.com/chat/invite#s=",
+            "https://app.flipcash.com/chat/invite#s=short",
+            "https://app.flipcash.com/chat/invite#e=\(String(repeating: "A", count: 43))",
+        ] {
+            let url = try #require(URL(string: text))
+            let route = try #require(Route(url: url), "\(text)")
+            guard case .invalidGroupInvite = route.path else {
+                Issue.record("\(text) parsed as \(route.path)")
+                continue
+            }
+        }
+    }
+
+    @Test("An invite secret never prints")
+    func inviteSecretIsRedacted() {
+        let secret = InviteLinkSecret(data: Data(repeating: 7, count: 32))
+        #expect("\(secret)" == "InviteLinkSecret(redacted)")
+        #expect(String(reflecting: secret) == "InviteLinkSecret(redacted)")
+    }
+
     @Test("A group invite link round-trips: the built URL parses back to the same chat")
     func groupInviteLinkRoundTrip() {
         // A group's ChatId is a 16-byte UUID, so its link carries the dashed form rather than the
