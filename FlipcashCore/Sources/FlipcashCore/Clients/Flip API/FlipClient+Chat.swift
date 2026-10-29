@@ -96,6 +96,29 @@ extension FlipClient {
         return all
     }
 
+    /// Pins `messageID` in `conversationID` and returns the pin summary after the change.
+    public func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
+        try await withCheckedThrowingContinuation { c in
+            chatService.pinMessage(owner: owner, conversationID: conversationID, messageID: messageID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Unpins `messageID` in `conversationID` and returns the pin summary after the change. Succeeds
+    /// as a no-op when the message isn't pinned.
+    public func unpinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
+        try await withCheckedThrowingContinuation { c in
+            chatService.unpinMessage(owner: owner, conversationID: conversationID, messageID: messageID) { c.resume(with: $0) }
+        }
+    }
+
+    /// One page of the pins in `conversationID`, most recently pinned first. Pass the previous page's
+    /// `pagingToken` to continue while `hasMore` is set.
+    public func getPinnedMessages(owner: KeyPair, conversationID: ConversationID, pagingToken: Data? = nil, viewMode: ConversationViewMode = .full) async throws -> ConversationPinsPage {
+        try await withCheckedThrowingContinuation { c in
+            chatService.getPinnedMessages(owner: owner, conversationID: conversationID, pagingToken: pagingToken, viewMode: viewMode) { c.resume(with: $0) }
+        }
+    }
+
     /// Page the group chat feed to exhaustion against a single pinned snapshot. Unlike a DM feed, the
     /// caller's own membership can change mid-read (a join or a leave lands as a `rosterChanged`
     /// stream event, not a feed mutation) — the same live-stream caveat as `getDmChatFeed` applies.

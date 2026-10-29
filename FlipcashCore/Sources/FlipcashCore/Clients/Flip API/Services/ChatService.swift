@@ -411,6 +411,98 @@ final class ChatService: Sendable {
         }
     }
 
+    /// Pins `messageID` in `conversationID`. Returns the pin summary after the change. The server
+    /// enforces the pin cap and answers `.tooManyPins` past it.
+    func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, completion: @Sendable @escaping (Result<ConversationPinSummary, ErrorPinMessage>) -> Void) {
+        let request = Flipcash_Chat_V1_PinMessageRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.pinMessage(request, options: .unaryDefault)
+                let error = ErrorPinMessage(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasPinSummary else {
+                    logger.error("Failed to pin message", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(ConversationPinSummary(response.pinSummary))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Unpins `messageID` in `conversationID`. Unpinning a message that isn't pinned succeeds as a
+    /// no-op. Returns the pin summary after the change.
+    func unpinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, completion: @Sendable @escaping (Result<ConversationPinSummary, ErrorUnpinMessage>) -> Void) {
+        let request = Flipcash_Chat_V1_UnpinMessageRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.unpinMessage(request, options: .unaryDefault)
+                let error = ErrorUnpinMessage(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasPinSummary else {
+                    logger.error("Failed to unpin message", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(ConversationPinSummary(response.pinSummary))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// One page of the pins in `conversationID`, most recently pinned first.
+    func getPinnedMessages(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, viewMode: ConversationViewMode = .full, completion: @Sendable @escaping (Result<ConversationPinsPage, ErrorGetPinnedMessages>) -> Void) {
+        let request = Flipcash_Chat_V1_GetPinnedMessagesRequest.with {
+            $0.chatID = conversationID.proto
+            $0.queryOptions = .with {
+                $0.pageSize = Int32(pageSize)
+                if let pagingToken {
+                    $0.pagingToken = .with { $0.value = pagingToken }
+                }
+            }
+            $0.viewMode = viewMode.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getPinnedMessages(request, options: .unaryDefault)
+                let error = ErrorGetPinnedMessages(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch pinned messages", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                let page = ConversationPinsPage(
+                    pins: response.pins.map(ConversationPin.init),
+                    summary: response.hasPinSummary ? ConversationPinSummary(response.pinSummary) : nil,
+                    pagingToken: response.pagingToken.value,
+                    hasMore: response.hasMore_p
+                )
+                await MainActor.run { completion(.success(page)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
     func muteChat(owner: KeyPair, conversationID: ConversationID, mute: ConversationMuteState, completion: @Sendable @escaping (Result<ConversationViewerState, ErrorMuteChat>) -> Void) {
         let request = Flipcash_Chat_V1_MuteChatRequest.with {
             $0.chatID = conversationID.proto
@@ -1894,6 +1986,72 @@ extension ErrorUnbanUser: ServerError, TransportClassifiableError {
 }
 
 extension ErrorGetRestrictedUsers: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+public enum ErrorPinMessage: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case messageNotFound
+    case tooManyPins
+    case messageNotAllowed
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorUnpinMessage: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetPinnedMessages: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorPinMessage: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .messageNotFound, .tooManyPins, .messageNotAllowed: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorUnpinMessage: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetPinnedMessages: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
