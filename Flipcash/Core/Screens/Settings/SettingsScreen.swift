@@ -121,6 +121,11 @@ struct SettingsScreen: View {
                 router.push(.settingsApplicationLogs)
             }
 
+            SettingsRow(systemImage: "bell", title: "Notifications", insets: insets) {
+                router.push(.settingsNotificationStatus)
+            }
+            .accessibilityIdentifier("settings-notifications-row")
+
             if betaFlags.canSwitchAccounts {
                 SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: .beta, insets: insets) {
                     router.push(.settingsAccountSelection)

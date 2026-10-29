@@ -173,6 +173,9 @@ struct DestinationView: View {
         case .settingsApplicationLogs:
             ApplicationLogsScreen()
 
+        case .settingsNotificationStatus:
+            NotificationStatusScreen()
+
         case .blockedUsers:
             BlockedUsersScreen()
 

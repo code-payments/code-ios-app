@@ -52,7 +52,7 @@ class OnboardingViewModel {
     ///   - finishLogin: opens the session once onboarding is done.
     init(
         container: Container,
-        pushStatus: @escaping () async -> UNAuthorizationStatus = { await PushController.fetchStatus() },
+        pushStatus: @escaping () async -> UNAuthorizationStatus = { await PushController.fetchStatus().authorizationStatus },
         hasDisplayName: ((InitializedAccount) async -> Bool)? = nil,
         finishLogin: ((InitializedAccount) -> Void)? = nil
     ) {

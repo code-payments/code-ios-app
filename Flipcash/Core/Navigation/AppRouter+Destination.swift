@@ -96,6 +96,8 @@ extension AppRouter {
         case settingsAppSettings
         case settingsAccountSelection
         case settingsApplicationLogs
+        /// The notification status page, opened from Settings › Advanced.
+        case settingsNotificationStatus
         case blockedUsers
         case trustedWebsites
         case accessKey
@@ -183,7 +185,7 @@ extension AppRouter {
                  .changeDisplayName, .changeProfilePicture, .username,
                  .setMinimumTip,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
-                 .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw:
+                 .settingsApplicationLogs, .settingsNotificationStatus, .blockedUsers, .trustedWebsites, .accessKey, .withdraw:
                 return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .chatMessage, .userProfile, .chatProfile,
@@ -233,6 +235,7 @@ extension AppRouter {
             case .settingsAppSettings:          "settingsAppSettings"
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
+            case .settingsNotificationStatus:   "settingsNotificationStatus"
             case .blockedUsers:                 "blockedUsers"
             case .trustedWebsites:              "trustedWebsites"
             case .accessKey:                    "accessKey"
@@ -313,7 +316,7 @@ extension AppRouter {
                  .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
-                 .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
+                 .settingsApplicationLogs, .settingsNotificationStatus, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .archivedChats, .chatSearch, .requests, .groupInvite:
                 return nil
