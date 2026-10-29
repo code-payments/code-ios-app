@@ -10,8 +10,8 @@ import FlipcashCore
 /// this is a programming error rather than something the screen puts in front of the user.
 struct NewPublicGroupIncomplete: Error {}
 
-/// Everything the "New Public Group" form holds while it is being filled in, and the one call that
-/// submits it (node 10127:118014). With ``GroupPrivacy/private`` it backs the "New Private Group"
+/// Everything the "New Community Chat" form holds while it is being filled in, and the one call that
+/// submits it (node 10127:118014). With ``GroupPrivacy/private`` it backs the "New Group"
 /// form instead (node 11203:65): the same name and picture, no balance requirement, and a second
 /// step that stores the host's chat key.
 ///
