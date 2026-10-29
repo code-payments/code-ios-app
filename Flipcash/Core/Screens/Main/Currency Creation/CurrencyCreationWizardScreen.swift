@@ -199,9 +199,11 @@ struct CurrencyCreationWizardScreen: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(action: goBack) {
-                    Image(systemName: "chevron.backward")
+                    Image.icon(.arrowLeft)
+                        .iconSize(22)
                         .foregroundStyle(Color.textMain)
                 }
+                .accessibilityLabel("Back")
             }
             if state.step.showsProgressBar {
                 ToolbarItem(placement: .principal) {

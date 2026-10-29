@@ -10,7 +10,7 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
-/// The 24pt circle in the leading gutter of an attributed transcript row, drawn in UIKit.
+/// The small circle in the leading gutter of an attributed transcript row, drawn in UIKit.
 ///
 /// Deliberately not a `UIHostingController` around ``ContactAvatarView``: the transcript recycles
 /// its cells, and hosting a SwiftUI view per recycled row costs a view-controller adoption on every
@@ -19,8 +19,8 @@ import FlipcashCore
 /// process-wide caches, so an avatar decoded for a contact list is a hit here.
 final class ChatAuthorAvatarView: UIView {
 
-    /// Figma sizes the gutter circle at 24pt (nodes 10125:19169-19184).
-    static let size: CGFloat = 24
+    /// The gutter circle's diameter, a step up from Figma's 24pt (nodes 10125:19169-19184).
+    static let size = ChatStyle.authorAvatarSize
 
     private let imageView = UIImageView()
     private let monogram = UILabel()
@@ -31,6 +31,8 @@ final class ChatAuthorAvatarView: UIView {
 
         layer.cornerRadius = Self.size / 2
         layer.masksToBounds = true
+        layer.borderWidth = ChatStyle.avatarStrokeWidth
+        layer.borderColor = UIColor.white.withAlphaComponent(ChatStyle.avatarStrokeOpacity).cgColor
 
         // The same two stops as `LinearGradient.avatarPlaceholder`, so a monogram in the transcript
         // matches one in a contact list.
@@ -93,7 +95,7 @@ final class ChatAuthorAvatarView: UIView {
             monogram.text = text
         case .placeholder:
             // No letters to work with — the gradient alone stands in, rather than the people glyph
-            // the full-size avatar draws, which is illegible at 24pt.
+            // the full-size avatar draws, which is illegible at this size.
             monogram.text = nil
         }
         isAccessibilityElement = true

@@ -38,11 +38,11 @@ final class MessageBackdrop {
 
     private var effectView: UIVisualEffectView?
     /// Holds the blur at ``ChatBackdrop/blurFraction``, and is stopped by hand in `dismiss` and
-    /// `release` — see ``ChatBackdrop/frost(_:)``.
+    /// `release` — see ``ChatBackdrop/frost(_:fraction:)``.
     private var blurStrength: UIViewPropertyAnimator?
     private var spotlight: UIView?
-    /// Replaces the menu's dimming once the menu is gone. Lives inside the blur, so it is clipped
-    /// and framed with it and sits under the floated copy.
+    /// Darkens the blur from its first frame, under the menu's own dimming and on through an edit.
+    /// Lives inside the blur, so it is clipped and framed with it and sits under the floated copy.
     private var dim: UIView?
     /// Holds the floated copy and clips it to the composer bar, so a copy of a row that has scrolled
     /// past either edge can't draw over the composer or the navigation bar.
@@ -67,6 +67,15 @@ final class MessageBackdrop {
         // available to animate.
         blurStrength = ChatBackdrop.frost(blur)
 
+        // The dim is up from the first frame, under the menu too.
+        let earlyDim = UIView(frame: blur.bounds)
+        earlyDim.backgroundColor = .black
+        earlyDim.alpha = ChatBackdrop.dimAlpha
+        earlyDim.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        earlyDim.isUserInteractionEnabled = false
+        blur.contentView.addSubview(earlyDim)
+        dim = earlyDim
+
         UIView.animate(withDuration: Self.fadeDuration) { blur.alpha = 1 }
     }
 
@@ -89,11 +98,10 @@ final class MessageBackdrop {
         // The frame is driven by the layout pass from here on, so the host can no longer resize it.
         blur.autoresizingMask = []
 
-        // Fade the stand-in dim in now, while the menu is still up: its own dimming fades out with
-        // the dismissal, so the two cross and the screen never brightens between the states.
-        let dim = UIView(frame: blur.bounds)
+        // The dim has been at full strength since `present`; it moves with the blur and stays as the
+        // menu's own dimming fades out with the dismissal.
+        let dim = self.dim ?? UIView(frame: blur.bounds)
         dim.backgroundColor = .black
-        dim.alpha = 0
         dim.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         dim.isUserInteractionEnabled = false
         blur.contentView.addSubview(dim)

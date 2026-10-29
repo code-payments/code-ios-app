@@ -165,7 +165,7 @@ struct YouScreen: View {
     }
 
     private var shareButton: some View {
-        ProfileActionCircle(image: Image.asset(.shareOS)) {
+        ProfileActionCircle(image: Image.icon(.shareOs)) {
             isSharingToChats = true
         }
         .accessibilityLabel("Share")
@@ -187,7 +187,8 @@ struct YouScreen: View {
         Button {
             router.push(.settings)
         } label: {
-            Image(systemName: "gearshape")
+            Image.icon(.settingsGear2)
+                .iconSize(24)
                 .notificationDot(showsUpdateDot)
         }
         .accessibilityLabel("Settings")

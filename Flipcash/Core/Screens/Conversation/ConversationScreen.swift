@@ -781,7 +781,8 @@ struct ConversationScreen: View {
                     Button {
                         composer.endEditing()
                     } label: {
-                        Image(systemName: "chevron.backward")
+                        Image.icon(.arrowLeft)
+                            .iconSize(22)
                             .foregroundStyle(Color.textMain)
                     }
                     .accessibilityLabel("Stop editing")
@@ -1049,7 +1050,7 @@ struct ConversationScreen: View {
             ContactCardView(card: card)
                 .ignoresSafeArea()
         }
-        .sheet(isPresented: $isShowingEncryptionInfo) {
+        .tray(isPresented: $isShowingEncryptionInfo) {
             E2eeLearnMoreSheet(kind: .dm, isPresented: $isShowingEncryptionInfo)
         }
         .fullScreenCover(item: $messageShare) { share in
@@ -1961,15 +1962,15 @@ private struct ConversationTitleLabel: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
                     Text(title)
-                        .font(.appBarButton)
+                        .font(.default(size: 17, weight: .semibold))
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                     MuteBell(mute)
                 }
                 if let subtitle {
                     Text(subtitle)
-                        .font(.default(size: 13, weight: .medium))
-                        .foregroundStyle(Color.textMain.opacity(0.5))
+                        .font(.default(size: 13, weight: .regular))
+                        .foregroundStyle(Color.textMain.opacity(0.6))
                         .lineLimit(1)
                 }
             }

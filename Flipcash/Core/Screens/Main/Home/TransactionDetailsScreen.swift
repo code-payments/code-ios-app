@@ -246,11 +246,11 @@ struct TransactionDetailsScreen: View {
 
                     Group {
                         if didCopyID {
-                            Image.system(.circleCheck)
-                                .renderingMode(.template)
+                            Image.icon(.circleCheck)
+                                .iconSize(16)
                         } else {
-                            Image.asset(.squareBehindSquare)
-                                .renderingMode(.template)
+                            Image.icon(.squareBehindSquare1)
+                                .iconSize(16)
                         }
                     }
                     .frame(width: 16, height: 16)

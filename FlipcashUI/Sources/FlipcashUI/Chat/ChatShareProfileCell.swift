@@ -252,7 +252,8 @@ struct ShareProfileWidgetView: View {
 
             Button(action: onShare) {
                 HStack(spacing: Layout.iconGap) {
-                    Image(systemName: "square.and.arrow.up")
+                    Image.icon(.shareOs)
+                        .iconSize(20)
                     Text(Copy.share)
                 }
             }

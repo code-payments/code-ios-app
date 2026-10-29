@@ -24,7 +24,7 @@ enum EditedMarker {
 
     /// Inset from the bubble's trailing edge — the body's own inset, so the marker lines up with
     /// the text above it.
-    static let trailingInset: CGFloat = 12
+    static var trailingInset: CGFloat { ChatStyle.bubblePaddingX }
 
     /// The run appended to the body to hold the marker's place: the marker's own string in its own
     /// font, drawn in clear. Reserving with the real glyphs makes the gap exactly the width the

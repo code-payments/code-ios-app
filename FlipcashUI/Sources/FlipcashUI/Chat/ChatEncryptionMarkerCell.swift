@@ -50,16 +50,18 @@ public final class ChatEncryptionMarkerCell: UICollectionViewCell {
     private static func title() -> NSAttributedString {
         let font = UIFont.default(size: 12, weight: .bold)
         let color = UIColor(Color.textSecondary)
-        let symbol = UIImage.SymbolConfiguration(pointSize: 10, weight: .semibold)
-        func glyph(_ name: String) -> NSAttributedString {
+        let glyphSize: CGFloat = 12
+        func glyph(_ icon: Icon) -> NSAttributedString {
             let attachment = NSTextAttachment()
-            attachment.image = UIImage(systemName: name, withConfiguration: symbol)?
+            attachment.image = UIImage.icon(icon)
                 .withTintColor(color, renderingMode: .alwaysOriginal)
+            // Centred on the cap height, since an asset image has no baseline of its own.
+            attachment.bounds = CGRect(x: 0, y: (font.capHeight - glyphSize) / 2, width: glyphSize, height: glyphSize)
             return NSAttributedString(attachment: attachment)
         }
-        let result = NSMutableAttributedString(attributedString: glyph("lock.fill"))
+        let result = NSMutableAttributedString(attributedString: glyph(.lock))
         result.append(NSAttributedString(string: " Encrypted ", attributes: [.font: font, .foregroundColor: color]))
-        result.append(glyph("chevron.right"))
+        result.append(glyph(.chevronRightMedium))
         return result
     }
 }

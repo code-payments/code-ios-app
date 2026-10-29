@@ -298,7 +298,8 @@ struct ChatRowSpacingTests {
     @Test("A run from one sender stays tight")
     func groupedRun_isTight() {
         let items = [message("1", .me, continuedByNext: true), message("2", .me)]
-        #expect(gap(after: 0, in: items) == 5)
+        #expect(gap(after: 0, in: items) == ChatStyle.runGap)
+        #expect(ChatStyle.runGap < ChatStyle.momentGap)
     }
 
     @Test("Two messages from one sender outside the grouping window take the normal gap")
@@ -310,7 +311,8 @@ struct ChatRowSpacingTests {
     @Test("A change of speaker takes the widest gap")
     func senderFlip_isWide() {
         let items = [message("1", .me, continuedByNext: true), message("2", .other)]
-        #expect(gap(after: 0, in: items) == 15)
+        #expect(gap(after: 0, in: items) == ChatStyle.speakerGap)
+        #expect(ChatStyle.speakerGap > ChatStyle.momentGap)
     }
 
     @Test("A date separator takes the normal gap on both sides")

@@ -152,8 +152,8 @@ private struct ComposerChipView: View {
             Button(action: onRetry) {
                 ZStack {
                     Color.black.opacity(0.45)
-                    Image(systemName: "arrow.clockwise")
-                        .font(.default(size: 18, weight: .semibold))
+                    Image.icon(.arrowRotateClockwise)
+                        .iconSize(22)
                         .foregroundStyle(Color.white)
                 }
             }
@@ -163,8 +163,8 @@ private struct ComposerChipView: View {
         case .error:
             ZStack {
                 Color.black.opacity(0.45)
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.default(size: 18, weight: .semibold))
+                Image.icon(.exclamationTriangle)
+                    .iconSize(22)
                     .foregroundStyle(Color.textError)
             }
             .accessibilityLabel("Photo can't be sent")
@@ -238,8 +238,8 @@ struct ComposerLinkChip: View {
                         }
                     }
             } else {
-                Image(systemName: "link")
-                    .font(.default(size: 20, weight: .semibold))
+                Image.icon(.chainLink4)
+                    .iconSize(24)
                     .foregroundStyle(Color.white.opacity(0.6))
             }
         }
@@ -293,10 +293,12 @@ private struct ComposerChipRemoveButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: SystemSymbol.closeCircle.rawValue)
-                .font(.default(size: 18, weight: .semibold))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(Color.white, Color.black.opacity(0.55))
+            Image.icon(.circleXFilled)
+                .iconSize(22)
+                .foregroundStyle(Color.white)
+                // The glyph's ✕ is a hole in its disc, which vanishes over a light photo. A disc of
+                // the chat's ground under the glyph's middle half draws the ✕ instead.
+                .background { Circle().fill(Color.backgroundMain).scaleEffect(0.5) }
                 .padding(3)
                 .contentShape(Rectangle())
         }

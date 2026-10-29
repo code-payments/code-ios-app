@@ -45,7 +45,7 @@ struct ReactionPillStylingTests {
         let view = ReactionPillView()
         view.configure(with: Self.pill(cents: 100, selfReacted: true), canReact: true)
         #expect(Self.same(view.backgroundColor, Self.gold.withAlphaComponent(0.1)))
-        #expect(view.layer.borderWidth == 2)
+        #expect(view.layer.borderWidth == ChatStyle.pillRingWidth)
         #expect(view.layer.borderColor == Self.gold.cgColor)
         #expect(Self.same(try #require(Self.amountLabel(in: view)).textColor, Self.gold))
         #expect(Self.same(try #require(Self.countLabel(in: view)).textColor, Self.gold.withAlphaComponent(0.5)))
@@ -55,19 +55,20 @@ struct ReactionPillStylingTests {
     func paidByOthers_isNotGold() throws {
         let view = ReactionPillView()
         view.configure(with: Self.pill(cents: 100, selfReacted: false), canReact: true)
-        #expect(Self.same(view.backgroundColor, UIColor.white.withAlphaComponent(0.06)))
+        #expect(Self.same(view.backgroundColor, ChatStyle.pillFill))
         #expect(view.layer.borderWidth == 0)
         #expect(Self.same(try #require(Self.amountLabel(in: view)).textColor, UIColor.white.withAlphaComponent(0.5)))
-        #expect(Self.same(try #require(Self.countLabel(in: view)).textColor, UIColor(Color.textMain)))
+        #expect(Self.same(try #require(Self.countLabel(in: view)).textColor, ChatStyle.secondaryText))
     }
 
-    @Test("An unpaid pill the viewer reacted to keeps its white outline")
-    func unpaidSelfReacted_isWhite() {
+    @Test("An unpaid pill the viewer reacted to takes the accent's tint, ring and count")
+    func unpaidSelfReacted_isAccent() throws {
         let view = ReactionPillView()
         view.configure(with: Self.pill(cents: nil, selfReacted: true), canReact: true)
-        #expect(Self.same(view.backgroundColor, UIColor.white.withAlphaComponent(0.12)))
-        #expect(view.layer.borderWidth == 2)
-        #expect(view.layer.borderColor == UIColor.white.withAlphaComponent(0.24).cgColor)
+        #expect(Self.same(view.backgroundColor, ChatStyle.accentTint))
+        #expect(view.layer.borderWidth == ChatStyle.pillRingWidth)
+        #expect(view.layer.borderColor == ChatStyle.accentRing.cgColor)
+        #expect(Self.same(try #require(Self.countLabel(in: view)).textColor, ChatStyle.accentColor))
     }
 
     @Test("Reacting to someone else's boosted pill turns it gold")
@@ -75,7 +76,7 @@ struct ReactionPillStylingTests {
         let view = ReactionPillView()
         view.configure(with: Self.pill(cents: 100, selfReacted: false), canReact: true)
         view.configure(with: Self.pill(cents: 100, selfReacted: true), canReact: true, animated: true)
-        #expect(view.layer.borderWidth == 2)
+        #expect(view.layer.borderWidth == ChatStyle.pillRingWidth)
         #expect(view.layer.borderColor == Self.gold.cgColor)
         #expect(Self.same(try #require(Self.amountLabel(in: view)).textColor, Self.gold))
     }

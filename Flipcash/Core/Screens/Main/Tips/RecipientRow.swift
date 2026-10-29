@@ -24,7 +24,7 @@ struct RecipientRowScaffold<Trailing: View>: View {
     let avatarID: String
     let title: String
     /// The preview line. Attributed so a caller can style part of it — the
-    /// empty-chat placeholder is italic while a real preview is not.
+    /// empty-chat placeholder is italic, and a chat's preview sets its author in bold.
     let subtitle: AttributedString?
     let imageData: Data?
     var blurhash: String? = nil
@@ -68,15 +68,15 @@ struct RecipientRowBody<Trailing: View>: View {
     @ViewBuilder let trailing: Trailing
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: RecipientRowMetrics.avatarGap) {
             ContactAvatarView(
                 id: avatarID,
                 displayName: title,
                 imageData: imageData,
                 blurhash: blurhash,
-                size: 44
+                size: RecipientRowMetrics.avatarSize
             )
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .top, spacing: 6) {
                     // Beside the title, as in the transcript's title bar: the mute belongs to the
                     // chat, and the title names it. A long title truncates; the bell never does.
@@ -95,9 +95,10 @@ struct RecipientRowBody<Trailing: View>: View {
                 }
                 if let subtitle {
                     Text(subtitle)
-                        .font(.appTextSmall)
+                        .font(.default(size: 14, weight: .regular))
                         .foregroundStyle(Color.textSecondary)
-                        .lineLimit(1)
+                        .tracking(0.16)
+                        .lineLimit(2)
                         .contentTransition(.opacity)
                         .transition(.opacity)
                 }
@@ -114,6 +115,14 @@ struct RecipientRowBody<Trailing: View>: View {
     }
 }
 
+/// The avatar column every conversation row shares; a row above the chats lines up with it.
+nonisolated enum RecipientRowMetrics {
+    /// The avatar's diameter.
+    static let avatarSize: CGFloat = 52
+    /// The space between the avatar and the text.
+    static let avatarGap: CGFloat = 12
+}
+
 private extension View {
     /// Row chrome shared by every conversation row: list insets, clear
     /// background, separator tint, and single-element button accessibility.
@@ -121,6 +130,10 @@ private extension View {
         self
             .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
+            // Starts where the title does, past the avatar and its gap.
+            .alignmentGuide(.listRowSeparatorLeading) { _ in
+                RecipientRowMetrics.avatarSize + RecipientRowMetrics.avatarGap
+            }
             .listRowBackground(Color.clear)
             .listRowSeparatorTint(.rowSeparator)
             .accessibilityElement(children: .ignore)
@@ -129,62 +142,30 @@ private extension View {
     }
 }
 
-/// A row's trailing accessory: a relative timestamp (or "Unknown Contact"
-/// pill), the unread count, or a disclosure chevron.
+/// A row's trailing accessory: the last activity's time (or an "Unknown Contact" pill), followed
+/// by a dot while the chat has unread messages.
 struct RecipientRowAccessory: View {
 
     let timestamp: Date
     let isUnknown: Bool
     let hasUnread: Bool
-    /// The count the unread pill carries. Nil while unread draws a bare dot: the count can't
-    /// always be known, and a guessed number would be wrong.
-    var unreadCount: Int? = nil
 
     var body: some View {
-        let count = hasUnread ? unreadCount.flatMap { $0 > 0 ? $0 : nil } : nil
-        // The design sets the count pill 4pt off the timestamp; the dot and chevron keep 6.
-        HStack(spacing: count == nil ? 6 : 4) {
+        HStack(spacing: 6) {
             if isUnknown {
                 Text("Unknown Contact")
                     .fixedSize(horizontal: true, vertical: false)
                     .pill()
             } else {
-                Text(timestamp.formattedRelatively(useTimeForToday: true))
-                    .font(.appTextSmall)
+                Text(timestamp.formattedChatListTime())
+                    .font(.default(size: 14, weight: .regular))
                     .foregroundStyle(hasUnread ? Color.unreadIndicator : Color.textSecondary)
             }
-            if let count {
-                UnreadCountPill(count: count)
-            } else if hasUnread {
+            if hasUnread {
                 Circle()
                     .fill(Color.unreadIndicator)
                     .frame(width: 9, height: 9)
-            } else {
-                Image(systemName: "chevron.right")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 9, height: 12)
-                    .foregroundStyle(Color.textSecondary)
             }
         }
-    }
-}
-
-/// A chat's unread count beside its timestamp (node 10329:8245): dark digits on the unread
-/// blue, 18pt tall, a circle for one digit that widens into a capsule for more.
-private struct UnreadCountPill: View {
-
-    let count: Int
-
-    var body: some View {
-        Text(UnreadCountLabel.text(for: count))
-            .font(.appTextHeading)
-            .tracking(-0.72)
-            .foregroundStyle(Color.backgroundMain)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, 4)
-            .frame(minWidth: 18, minHeight: 18)
-            .background(Color.unreadIndicator, in: .capsule)
     }
 }

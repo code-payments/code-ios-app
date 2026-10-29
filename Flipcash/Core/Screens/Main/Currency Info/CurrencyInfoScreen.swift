@@ -348,8 +348,10 @@ private struct CurrencyInfoScreenContent: View {
                         Analytics.buttonTapped(name: .shareTokenInfo)
                         isShowingShare = true
                     } label: {
-                        Image(systemName: "square.and.arrow.up")
+                        Image.icon(.shareOs)
+                            .iconSize(22)
                     }
+                    .accessibilityLabel("Share")
                 }
             }
         }
@@ -445,8 +447,8 @@ private struct CurrencyInfoScreenContent: View {
             Button {
                 overlayClose?()
             } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 17, weight: .semibold))
+                Image.icon(.crossMedium)
+                    .iconSize(22)
                     .foregroundStyle(Color.textMain)
                     .frame(width: Self.overlayBarHeight, height: Self.overlayBarHeight)
                     // Hit-test the whole target, not just the glyph.
@@ -467,8 +469,8 @@ private struct CurrencyInfoScreenContent: View {
                     Analytics.buttonTapped(name: .shareTokenInfo)
                     isShowingShare = true
                 } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 17, weight: .semibold))
+                    Image.icon(.shareOs)
+                        .iconSize(22)
                         .foregroundStyle(Color.textMain)
                         .frame(width: Self.overlayBarHeight, height: Self.overlayBarHeight)
                         .contentShape(Circle())

@@ -15,7 +15,7 @@ import FlipcashUI
 enum TabBarBadgedIcon {
 
     /// The slot every tab glyph is drawn into.
-    private static let glyphSize: CGFloat = 32
+    private static let glyphSize: CGFloat = TabBarItemStyle.glyphSize
 
     /// How far the bubble reaches past the glyph's top-right corner, matching
     /// the legacy pill's badge (node 8966:1846).
@@ -42,14 +42,16 @@ enum TabBarBadgedIcon {
     private static var memoized: (tab: HomeTab, count: Int, images: TabBarProfilePhoto.ItemImages)?
 
     /// The glyph colored as the bar would tint it for the state, since an
-    /// original-rendered image is not tinted, with the bubble at full strength.
+    /// original-rendered image is not tinted (dimmed when unselected), with the
+    /// bubble at full strength.
     private static func icon(for tab: HomeTab, count: Int, isSelected: Bool) -> some View {
-        Image(tab.iconName(isSelected: isSelected))
+        Image.icon(tab.icon(isSelected: isSelected))
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .foregroundStyle(Color.textMain)
             .frame(width: glyphSize, height: glyphSize)
+            .opacity(isSelected ? 1 : TabBarItemStyle.unselectedOpacity)
             .overlay(alignment: .topTrailing) {
                 Bubble(size: .regular, count: count, color: .unreadIndicator)
                     .fixedSize()

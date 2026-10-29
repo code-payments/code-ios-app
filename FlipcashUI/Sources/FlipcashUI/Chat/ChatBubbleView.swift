@@ -71,8 +71,8 @@ public final class ChatBubbleView: UIView {
     /// a bubble that is not drawn.
     private var isBare = false
 
-    private static let bodyInset: CGFloat = 12
-    private static let bodyPadding: CGFloat = 9
+    private static var bodyInset: CGFloat { ChatStyle.bubblePaddingX }
+    private static var bodyPadding: CGFloat { ChatStyle.bubblePaddingY }
     private static let hintTopSpacing: CGFloat = 8
     private static let hintLeadingInset: CGFloat = 4
     /// The update bubble's insets and spacing, from Figma component 11420:13397. It stacks a title,
@@ -220,6 +220,7 @@ public final class ChatBubbleView: UIView {
         label.attributedText = Self.displayText(for: message)
         // Read after the body, so VoiceOver gets the send time without the reveal drag.
         label.accessibilityValue = message.sentAt?.formattedChatMessageTime()
+        editedLabel.textColor = ChatStyle.mutedText(isFromSelf: message.sender == .me)
         editedLabel.isHidden = !Self.showsEditedMarker(for: message) || message.rendersAsLargeEmoji
         isBare = message.rendersAsLargeEmoji
 
@@ -271,7 +272,7 @@ public final class ChatBubbleView: UIView {
         // unsatisfiable, and UIKit resolves that by breaking one at random.
         if let quote = message.quote {
             quotePanel.isHidden = false
-            quotePanel.configure(with: quote, thumbnail: quoteThumbnail)
+            quotePanel.configure(with: quote, thumbnail: quoteThumbnail, onSent: message.sender == .me)
             NSLayoutConstraint.deactivate(quoteCollapse)
             quoteTrailing.isActive = true
             labelTopToBubble.isActive = false
@@ -323,9 +324,8 @@ public final class ChatBubbleView: UIView {
     private static func unavailableText() -> NSAttributedString {
         let color = UIColor.white.withAlphaComponent(0.55)
         let font = UIFont.default(size: 15, weight: .medium)
-        let symbol = UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)
         let attachment = NSTextAttachment()
-        attachment.image = UIImage(systemName: "exclamationmark.circle", withConfiguration: symbol)?
+        attachment.image = UIImage.icon(.exclamationCircle)
             .withTintColor(color, renderingMode: .alwaysOriginal)
         attachment.bounds = CGRect(x: 0, y: -2, width: 16, height: 16)
 
@@ -375,19 +375,21 @@ public final class ChatBubbleView: UIView {
             return nil
         }
 
+        let isFromSelf = message.sender == .me
         let bodyFont: UIFont = if isPlaceholder {
-            .italicSystemFont(ofSize: 16)
+            .italicSystemFont(ofSize: ChatStyle.bodySize)
         } else if message.rendersAsLargeEmoji {
             .default(size: 48, weight: .medium)
         } else {
-            .default(size: 16, weight: .medium)
+            ChatStyle.bodyFont
         }
-        let bodyColor: UIColor = isPlaceholder ? UIColor.white.withAlphaComponent(0.55) : .white
+        let bodyColor = isPlaceholder ? ChatStyle.mutedText(isFromSelf: isFromSelf) : ChatStyle.text(isFromSelf: isFromSelf)
 
-        let result = NSMutableAttributedString(
-            string: body,
-            attributes: [.font: bodyFont, .foregroundColor: bodyColor]
-        )
+        var attributes: [NSAttributedString.Key: Any] = [.font: bodyFont, .foregroundColor: bodyColor]
+        if !message.rendersAsLargeEmoji {
+            attributes.merge(ChatStyle.bodyLineAttributes(for: bodyFont)) { _, new in new }
+        }
+        let result = NSMutableAttributedString(string: body, attributes: attributes)
 
         if Self.showsEditedMarker(for: message), !message.rendersAsLargeEmoji {
             result.append(EditedMarker.reservation)

@@ -263,7 +263,8 @@ private struct AccessoryView: View {
     var body: some View {
         switch accessory {
         case .chevron:
-            Image.system(.chevronRight)
+            Image.icon(.chevronRightMedium)
+                .iconSize(20)
                 .foregroundStyle(Color.textSecondary)
         case .check(let isSelected):
             RadioButton(isSelected: isSelected)

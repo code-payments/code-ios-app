@@ -66,31 +66,27 @@ extension UIFont {
     }
     
     public static func `default`(size: CGFloat, weight: Weight = .regular) -> UIFont {
-        UIFont(name: avenir(weight: weight), size: size)!
+        .systemFont(ofSize: size, weight: appWeight(weight))
     }
 
-    /// The app face at `weight`, slanted to stand in for an italic, which the bundled Avenir lacks.
+    /// The app face at `weight`, slanted to stand in for an italic.
     public static func defaultOblique(size: CGFloat, weight: Weight = .regular) -> UIFont {
-        oblique(named: avenir(weight: weight), size: size)
+        oblique(.default(size: size, weight: weight), size: size)
     }
 
-    fileprivate static func oblique(named name: String, size: CGFloat) -> UIFont {
+    fileprivate static func oblique(_ font: UIFont, size: CGFloat) -> UIFont {
         // Skia's fake-italic skew, so the slant matches what Compose synthesizes on Android.
         let skew = CGAffineTransform(a: 1, b: 0, c: 0.25, d: 1, tx: 0, ty: 0)
-        let descriptor = UIFont(name: name, size: size)!.fontDescriptor.withMatrix(skew)
+        let descriptor = font.fontDescriptor.withMatrix(skew)
         return UIFont(descriptor: descriptor, size: size)
     }
 
-    private static func avenir(weight: Weight) -> String {
+    /// The app's three steps on SF: the bold weights land on Semibold, where Avenir's Demi sat.
+    private static func appWeight(_ weight: Weight) -> Weight {
         switch weight {
-        case .ultraLight, .thin, .light, .regular:
-            return "AvenirNextLTPro-Regular"
-        case .medium:
-            return "AvenirNextLTPro-Medium"
-        case .semibold, .bold, .heavy, .black:
-            return "AvenirNextLTPro-Demi"
-        default:
-            fatalError("[FontBook] Failed to initialize UIKit app font. Unsupported font weight requested: \(weight)")
+        case .ultraLight, .thin, .light, .regular: .regular
+        case .medium: .medium
+        default: .semibold
         }
     }
 }
@@ -106,19 +102,20 @@ extension Font {
     }
 
     public static func `default`(size: CGFloat, weight: Weight = .regular) -> Font {
-        .custom(avenir(weight: weight), size: size)
+        // `.custom(_:size:)` scaled with the body style; this keeps SF on Dynamic Type the same way.
+        #if canImport(UIKit)
+        .system(size: UIFontMetrics(forTextStyle: .body).scaledValue(for: size), weight: appWeight(weight))
+        #else
+        .system(size: size, weight: appWeight(weight))
+        #endif
     }
-    
-    private static func avenir(weight: Weight) -> String {
+
+    /// The app's three steps on SF: the bold weights land on Semibold, where Avenir's Demi sat.
+    private static func appWeight(_ weight: Weight) -> Weight {
         switch weight {
-        case .ultraLight, .thin, .light, .regular:
-            return "AvenirNextLTPro-Regular"
-        case .medium, .semibold:
-            return "AvenirNextLTPro-Medium"
-        case .bold, .heavy, .black:
-            return "AvenirNextLTPro-Demi"
-        default:
-            fatalError("[FontBook] Failed to initialize SwiftUI app font. Unsupported font weight requested: \(weight)")
+        case .ultraLight, .thin, .light, .regular: .regular
+        case .medium: .medium
+        default: .semibold
         }
     }
 }
@@ -133,7 +130,12 @@ extension Font {
         // A `Font` built from a `UIFont` doesn't track Dynamic Type, so the size is scaled here.
         let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
         let scaledSize = UIFontMetrics(forTextStyle: .body).scaledValue(for: size, compatibleWith: traits)
-        return Font(UIFont.oblique(named: avenir(weight: weight), size: scaledSize))
+        let uiWeight: UIFont.Weight = switch weight {
+        case .medium: .medium
+        case .semibold, .bold, .heavy, .black: .semibold
+        default: .regular
+        }
+        return Font(UIFont.defaultOblique(size: scaledSize, weight: uiWeight))
     }
 }
 

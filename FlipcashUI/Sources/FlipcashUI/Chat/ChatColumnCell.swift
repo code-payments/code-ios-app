@@ -80,10 +80,8 @@ public class ChatColumnCell: UICollectionViewCell {
         self.content = content
         column.axis = .vertical
         column.spacing = 4
-        // Figma puts the name 12pt Medium at 50% white, 4pt above the bubble — the column's own
-        // spacing (nodes 10125:19169-19184).
-        authorName.font = .default(size: 12, weight: .medium)
-        authorName.textColor = UIColor(Color.textMain.opacity(Self.authorNameOpacity))
+        // The name sits 4pt above the bubble — the column's own spacing — and is set in
+        // `configure` from `ChatStyle`, indented to line up with the bubble's text.
         authorName.isHidden = true
         column.addArrangedSubview(authorName)
         column.addArrangedSubview(content)
@@ -194,7 +192,7 @@ public class ChatColumnCell: UICollectionViewCell {
     }
 
     /// The transcript's side margin, and the avatar gutter's own leading inset.
-    static let rowInset: CGFloat = 12
+    static var rowInset: CGFloat { ChatStyle.rowInset }
 
     /// Between "Edited" and the receipt — the same gap the receipt sets between its own two halves.
     private static let metadataSpacing: CGFloat = 4
@@ -204,6 +202,19 @@ public class ChatColumnCell: UICollectionViewCell {
     /// as one transcript instead of a palette.
     private static let authorNameOpacity: Double = 0.5
     private static let revealedTimeOpacity: CGFloat = 0.6
+
+    /// A group author's name, indented by the bubble's text inset so it lines up with the text
+    /// below it rather than with the bubble's edge.
+    private static func authorNameText(_ name: String) -> NSAttributedString {
+        let style = NSMutableParagraphStyle()
+        style.firstLineHeadIndent = ChatStyle.bubblePaddingX
+        style.headIndent = ChatStyle.bubblePaddingX
+        return NSAttributedString(string: name, attributes: [
+            .font: UIFont.default(size: ChatStyle.authorNameSize, weight: ChatStyle.authorNameWeight),
+            .foregroundColor: UIColor(Color.textMain.opacity(Self.authorNameOpacity)),
+            .paragraphStyle: style,
+        ])
+    }
 
     /// What an attributed incoming row gives up to the gutter: the circle plus the 8pt Figma puts
     /// between it and the bubble. Read by the layout to keep the bubble's max width proportional to
@@ -364,7 +375,7 @@ public class ChatColumnCell: UICollectionViewCell {
 
         // The name opens a run. A roster that doesn't name this sender draws no label rather than an
         // empty line, which would read as stray padding above the bubble.
-        authorName.text = author.name
+        authorName.attributedText = Self.authorNameText(author.name)
         authorName.isHidden = message.isContinuationFromPrevious || author.name.isEmpty
 
         // The face opens the run with the name, so a run reads as one speaker with one avatar rather

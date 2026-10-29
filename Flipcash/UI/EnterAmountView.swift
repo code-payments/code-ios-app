@@ -31,6 +31,9 @@ public struct EnterAmountView: View {
     /// sits at the top rather than centered in the upper area.
     private let header: AnyView?
 
+    /// The hosted swipe's travel, which dims the rest of the screen.
+    @State private var swipeProgress: CGFloat = 0
+
     // MARK: - Calculator -
     
     private var calculator: EnterAmountCalculator {
@@ -98,8 +101,29 @@ public struct EnterAmountView: View {
         return !actionEnabled(enteredAmount)
     }
 
+    /// The action takes taps only while it isn't already running or showing its result.
+    private var isActionIdle: Bool {
+        if case .normal = actionState { return true }
+        return false
+    }
+
     private var subtitleColor: Color {
         isExceedingLimit ? .textError : .textSecondary
+    }
+
+    /// The opacity everything but the swipe takes at the hosted swipe's current travel.
+    private var dimOpacity: Double {
+        guard actionOverride != nil else { return 1 }
+        let travel = min(max(Double(swipeProgress), 0), 1)
+        return 1 - (1 - SwipeDim.maxDim) * travel
+    }
+
+    /// An error subtitle stays bright while the rest dims.
+    private var subtitleOpacity: Double {
+        switch subtitle {
+        case .error: 1
+        case .singleTransactionLimit, .balanceWithLimit, .hidden: dimOpacity
+        }
     }
 
     // MARK: - Body -
@@ -128,30 +152,33 @@ public struct EnterAmountView: View {
                         .foregroundStyle(.textMain)
                     }
 
-                    switch subtitle {
-                    case .singleTransactionLimit:
-                        if let limit = calculator.maxTransactionAmount {
-                            Text("Enter up to \(limit.formatted())")
+                    Group {
+                        switch subtitle {
+                        case .singleTransactionLimit:
+                            if let limit = calculator.maxTransactionAmount {
+                                Text("Enter up to \(limit.formatted())")
+                                    .fixedSize()
+                                    .foregroundStyle(subtitleColor)
+                                    .font(.appTextMedium)
+                            }
+
+                        case .balanceWithLimit(let maxBalance):
+                            Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
                                 .fixedSize()
                                 .foregroundStyle(subtitleColor)
                                 .font(.appTextMedium)
+
+                        case .error(let text):
+                            Text(text)
+                                .fixedSize()
+                                .foregroundStyle(.textError)
+                                .font(.appTextMedium)
+
+                        case .hidden:
+                            EmptyView()
                         }
-
-                    case .balanceWithLimit(let maxBalance):
-                        Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
-                            .fixedSize()
-                            .foregroundStyle(subtitleColor)
-                            .font(.appTextMedium)
-
-                    case .error(let text):
-                        Text(text)
-                            .fixedSize()
-                            .foregroundStyle(.textError)
-                            .font(.appTextMedium)
-
-                    case .hidden:
-                        EmptyView()
                     }
+                    .opacity(subtitleOpacity)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -160,6 +187,7 @@ public struct EnterAmountView: View {
 
             if let accessory {
                 accessory
+                    .opacity(dimOpacity)
                 // Capped but shrinkable so the keypad/button aren't pushed off
                 // on small (SE-class) screens.
                 Spacer()
@@ -175,22 +203,55 @@ public struct EnterAmountView: View {
                 )
             )
             .padding([.leading, .trailing], -20)
-            
+            .opacity(dimOpacity)
+            // The amount can't change mid-send, so the keypad locks whenever the thumb is off rest.
+            .allowsHitTesting(swipeProgress == 0)
+
             if let actionOverride {
                 actionOverride
                     .disabled(!actionEnabled(enteredAmount))
-                    .padding(.top, 10)
+                    // Sits in the Next button's slot: same side and bottom insets as the button below.
+                    .padding(.top, SwipeDim.keypadToSwipe)
+                    .modifier(ActionSlotInsets())
             } else {
-                CodeButton(
-                    state: actionState,
-                    style: mode.buttonStyle,
-                    title: actionTitle ?? mode.actionName,
-                    disabled: !actionEnabled(enteredAmount),
-                    action: action
-                )
-                .padding(.top, 10)
+                Button(action: action) {
+                    ButtonStateLabel(actionTitle ?? mode.actionName, state: actionState)
+                }
+                .buttonStyle(AmountActionButtonStyle())
+                .disabled(!actionEnabled(enteredAmount) || !isActionIdle)
+                // Amount entry v2: 32 from the screen's sides and bottom (the screens already pad 20),
+                // 20 below the keypad.
+                .padding(.top, 20)
+                .modifier(ActionSlotInsets())
             }
         }
+        // The control animates the value on its own snap-back and sends every frame, so it lands unanimated.
+        .onPreferenceChange(SwipeControlProgressKey.self) { progress in
+            withTransaction(Transaction(animation: nil)) { swipeProgress = progress }
+        }
+    }
+}
+
+// MARK: - Swipe dim -
+
+/// How the amount screen lays out and dims around a hosted swipe; the entered amount never dims.
+private enum SwipeDim {
+    /// The opacity everything but the amount and the swipe falls to at full travel.
+    static let maxDim: Double = 0.1
+    /// The gap between the keypad and the hosted swipe.
+    static let keypadToSwipe: CGFloat = 20
+}
+
+/// The side and bottom insets of the action slot, shared by the Next button and a hosted swipe so
+/// the two can't drift.
+private struct ActionSlotInsets: ViewModifier {
+    func body(content: Content) -> some View {
+        // 32 from the screen's bottom edge on any device: the screens pad 20 inside the safe area,
+        // so the slot reads the inset from the window, never touching it in its own geometry.
+        let bottomInset = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
+        content
+            .padding(.horizontal, 32 - 20)
+            .padding(.bottom, 32 - 20 - bottomInset)
     }
 }
 
@@ -271,4 +332,27 @@ extension EnterAmountView {
         actionState: .constant(.normal),
         actionEnabled: { _ in return true }
     ) {}
+}
+
+
+// MARK: - Action button -
+
+/// The amount screen's primary action: a full-width capsule in the action colour, faded when disabled.
+private struct AmountActionButtonStyle: ButtonStyle {
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.appTextMedium)
+            .foregroundStyle(isEnabled ? Color.textAction : Color.textMain.opacity(0.2))
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background {
+                RoundedRectangle(cornerRadius: 27, style: .continuous)
+                    .fill(isEnabled ? Color.action : Color.action.opacity(0.1))
+            }
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
 }

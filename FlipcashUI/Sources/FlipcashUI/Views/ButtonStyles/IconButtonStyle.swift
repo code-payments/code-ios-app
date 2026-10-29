@@ -17,15 +17,20 @@ import SwiftUI
 /// .buttonStyle(.icon(.web))
 /// ```
 public struct IconButtonStyle: ButtonStyle {
-    public let icon: Asset
+    public let icon: Image
     
     public init(icon: Asset) {
-        self.icon = icon
+        self.icon = Image.asset(icon)
+    }
+
+    /// Creates the style with a Central icon.
+    public init(icon: Icon) {
+        self.icon = Image.icon(icon)
     }
     
     public func makeBody(configuration: Configuration) -> some View {
         HStack(alignment: .center, spacing: 10) {
-            Image.asset(icon)
+            icon
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: 18, maxHeight: 18)
@@ -47,6 +52,12 @@ extension ButtonStyle where Self == IconButtonStyle {
     /// A button style that displays a leading icon alongside the label
     /// inside a translucent rounded container.
     public static func icon(_ icon: Asset) -> IconButtonStyle {
+        IconButtonStyle(icon: icon)
+    }
+
+    /// A button style that displays a leading Central icon alongside the label
+    /// inside a translucent rounded container.
+    public static func icon(_ icon: Icon) -> IconButtonStyle {
         IconButtonStyle(icon: icon)
     }
 }

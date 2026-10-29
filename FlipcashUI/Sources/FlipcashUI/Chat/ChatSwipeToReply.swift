@@ -60,14 +60,15 @@ final class ChatSwipeToReply: NSObject {
         recognizer.maximumNumberOfTouches = 1
 
         affordance.bounds = CGRect(x: 0, y: 0, width: Self.affordanceDiameter, height: Self.affordanceDiameter)
-        affordance.backgroundColor = UIColor.white.withAlphaComponent(0.12)
+        affordance.backgroundColor = .clear
         affordance.layer.cornerRadius = Self.affordanceDiameter / 2
         affordance.alpha = 0
 
-        affordanceIcon.image = UIImage(systemName: SystemSymbol.replyArrow.rawValue)
-        affordanceIcon.tintColor = UIColor.white.withAlphaComponent(0.75)
+        affordanceIcon.image = UIImage.icon(.arrowShareLeftFilled)
+        affordanceIcon.tintColor = UIColor(ChatStyle.replyIconColor)
         affordanceIcon.contentMode = .scaleAspectFit
-        affordanceIcon.frame = affordance.bounds.insetBy(dx: 8, dy: 8)
+        let iconInset = (Self.affordanceDiameter - ChatStyle.replyIconSize) / 2
+        affordanceIcon.frame = affordance.bounds.insetBy(dx: iconInset, dy: iconInset)
         affordance.addSubview(affordanceIcon)
     }
 

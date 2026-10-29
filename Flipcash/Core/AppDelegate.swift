@@ -323,13 +323,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 private extension AppDelegate {
 
     func setupAppearance() {
+        // No font: the bar's own large (34 pt bold) and inline (17 pt semibold) titles are the
+        // intended ones, and only the bar's defaults follow a text-size change live.
         let largeAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.appDisplayLarge,
             .foregroundColor: UIColor(.textMain),
         ]
 
         let titleAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.appTitle,
             .foregroundColor: UIColor(.textMain),
         ]
 
@@ -342,13 +342,14 @@ private extension AppDelegate {
         buttonAppearance.normal.titleTextAttributes = buttonAttributes
 
         let bar = UINavigationBar.appearance()
+        let backArrow = Self.backIndicator()
 
         bar.largeTitleTextAttributes = largeAttributes
         bar.titleTextAttributes = titleAttributes
 
         if #available(iOS 26, *) {
             // iOS 26: use the system's default (Liquid Glass) bar background and
-            // only override the title fonts. A *transparent* background removes
+            // only override the title colour. A *transparent* background removes
             // the bar's glass material, so the buttons have no stable bar-glass
             // to composite against and the system repaints their glass during
             // the push transition — that's the flicker as screens push/settle.
@@ -358,6 +359,7 @@ private extension AppDelegate {
             barAppearance.configureWithDefaultBackground()
             barAppearance.titleTextAttributes = titleAttributes
             barAppearance.largeTitleTextAttributes = largeAttributes
+            barAppearance.setBackIndicatorImage(backArrow, transitionMaskImage: backArrow)
 
             bar.standardAppearance = barAppearance
             bar.scrollEdgeAppearance = barAppearance
@@ -371,6 +373,7 @@ private extension AppDelegate {
             barAppearance.titleTextAttributes = titleAttributes
             barAppearance.largeTitleTextAttributes = largeAttributes
             barAppearance.backButtonAppearance = buttonAppearance
+            barAppearance.setBackIndicatorImage(backArrow, transitionMaskImage: backArrow)
 
             bar.standardAppearance = barAppearance
             bar.scrollEdgeAppearance = barAppearance
@@ -380,6 +383,16 @@ private extension AppDelegate {
             bar.shadowImage = background
         }
 
+    }
+
+    /// The navigation back glyph: Central's left arrow at the 22 pt the app's own back buttons use.
+    static func backIndicator() -> UIImage {
+        let size = CGSize(width: 22, height: 22)
+        let arrow = UIImage.icon(.arrowLeft)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            arrow.draw(in: CGRect(origin: .zero, size: size))
+        }
+        .withRenderingMode(.alwaysTemplate)
     }
 }
 

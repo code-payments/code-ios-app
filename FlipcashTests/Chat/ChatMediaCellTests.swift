@@ -391,15 +391,24 @@ struct ChatMediaCellTests {
 
     @Test("The quote's corners are concentric with the photo's, floored at the grouped radius")
     func quoteCorners_concentricWithPhoto() {
-        let rounded = ChatQuotePanelView.photoOverlayRadii(photoTopLeading: BubbleBackgroundView.baseRadius, inset: 4)
-        #expect(rounded.topLeading == 8)
-        #expect(rounded.topTrailing == 8)
-        #expect(rounded.bottomLeading == 8)
-        #expect(rounded.bottomTrailing == 8)
+        let base = BubbleBackgroundView.baseRadius
+        let grouped = BubbleBackgroundView.groupedRadius
+        // One inset inside the photo's round corner, unless that falls under the grouped radius.
+        let free = max(base - 4, grouped)
 
-        let flattened = ChatQuotePanelView.photoOverlayRadii(photoTopLeading: BubbleBackgroundView.groupedRadius, inset: 4)
-        #expect(flattened.topLeading == BubbleBackgroundView.groupedRadius)
-        #expect(flattened.topTrailing == 8)
+        let rounded = ChatQuotePanelView.photoOverlayRadii(photoTopLeading: base, inset: 4)
+        #expect(rounded.topLeading == free)
+        #expect(rounded.topTrailing == free)
+        #expect(rounded.bottomLeading == free)
+        #expect(rounded.bottomTrailing == free)
+
+        let flattened = ChatQuotePanelView.photoOverlayRadii(photoTopLeading: grouped, inset: 4)
+        #expect(flattened.topLeading == grouped)
+        #expect(flattened.topTrailing == free)
+
+        // A photo corner that clears the floor gives a quote corner exactly one inset tighter.
+        let wide = ChatQuotePanelView.photoOverlayRadii(photoTopLeading: grouped + 10, inset: 4)
+        #expect(wide.topLeading == grouped + 6)
     }
 
     @Test("The quote reports the row it jumps to")

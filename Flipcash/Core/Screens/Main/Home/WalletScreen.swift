@@ -327,8 +327,8 @@ private struct WalletScreenContent: View {
     private func openCardChrome(mint: PublicKey) -> some View {
         HStack {
             Button { closeCard() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
+                Image.icon(.arrowLeft)
+                    .iconSize(22)
                     .foregroundStyle(Color.textMain)
                     .frame(width: 44, height: 44)
                     // Without this the button only takes taps on the glyph
@@ -337,19 +337,21 @@ private struct WalletScreenContent: View {
                     .modifier(WalletCircleGlass())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Back")
             .accessibilityIdentifier("wallet-open-card-back")
 
             Spacer(minLength: 0)
 
             if mint != .usdf {
                 ShareLink(item: URL(string: "https://app.flipcash.com/token/\(mint.base58)")!) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 17, weight: .semibold))
+                    Image.icon(.shareOs)
+                        .iconSize(22)
                         .foregroundStyle(Color.textMain)
                         .frame(width: 44, height: 44)
                         .contentShape(Circle())
                         .modifier(WalletCircleGlass())
                 }
+                .accessibilityLabel("Share")
                 .simultaneousGesture(TapGesture().onEnded {
                     Analytics.buttonTapped(name: .shareTokenInfo)
                 })
@@ -576,43 +578,34 @@ private struct WalletScreenContent: View {
     private var walletTiles: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                walletTile(icon: .asset(.coinsAdd), title: "Create Your Own Currency", identifier: "wallet-tile-create-currency") {
+                walletTile(icon: .coinsAdd, title: "Create Your Own Currency", identifier: "wallet-tile-create-currency") {
                     router.push(.currencyCreationSummary)
                 }
-                walletTile(icon: .symbol("globe"), title: "Currency Leaderboard", identifier: "wallet-tile-discover-currencies") {
+                walletTile(icon: .globe, title: "Currency Leaderboard", identifier: "wallet-tile-discover-currencies") {
                     router.push(.discoverCurrencies)
                 }
             }
             HStack(spacing: 12) {
-                // `.deposit`/`.withdraw` are the app's canonical design-system
-                // glyphs for these actions — a matched arrow-to-baseline pair,
-                // not SF Symbols.
-                walletTile(icon: .asset(.deposit), title: "Add Dollars", identifier: "wallet-tile-add-money") {
+                walletTile(icon: .arrowWallDown, title: "Add Dollars", identifier: "wallet-tile-add-money") {
                     router.presentAddMoney(.general, source: .balance)
                 }
                 // A nil mint opens the currency picker (all balances).
-                walletTile(icon: .asset(.withdraw), title: "Withdraw Dollars", identifier: "wallet-tile-withdraw-money") {
+                walletTile(icon: .arrowUpWall, title: "Withdraw Dollars", identifier: "wallet-tile-withdraw-money") {
                     router.push(.withdrawCurrency(nil))
                 }
             }
         }
     }
 
-    /// A wallet tile's leading glyph: an SF Symbol, or a bundled design-system
-    /// asset for marks SF Symbols don't cover (the two-coin "create currency" one).
-    private enum TileGlyph {
-        case symbol(String)
-        case asset(Asset)
-    }
-
     /// A tile-style entry point: icon top-leading, label pinned bottom-leading,
     /// inside a translucent rounded card. They tile two-up per row.
     ///
     /// `identifier` is what tests target, so they do not depend on the label.
-    private func walletTile(icon: TileGlyph, title: String, identifier: String, action: @escaping () -> Void) -> some View {
+    private func walletTile(icon: Icon, title: String, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
-                tileGlyph(icon)
+                Image.icon(icon)
+                    .iconSize(24)
                     .foregroundStyle(Color.textMain)
                 Spacer(minLength: 24)
                 Text(title)
@@ -631,22 +624,6 @@ private struct WalletScreenContent: View {
         .accessibilityIdentifier(identifier)
     }
 
-    /// Renders a `TileGlyph` at a consistent ~24pt: SF Symbols sized by font,
-    /// asset glyphs scaled to fit and tinted via the enclosing `foregroundStyle`.
-    @ViewBuilder
-    private func tileGlyph(_ glyph: TileGlyph) -> some View {
-        switch glyph {
-        case .symbol(let name):
-            Image(systemName: name)
-                .font(.system(size: 22, weight: .regular))
-        case .asset(let asset):
-            Image.asset(asset)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 24, height: 24)
-        }
-    }
-
     private var recentActivitySection: some View {
         // The header opens the full cross-token history here; currency info
         // passes its own per-token destination.
@@ -661,10 +638,8 @@ private struct WalletScreenContent: View {
             router.presentAddMoney(.general, source: .balance)
         } label: {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "plus.circle")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
+                Image.icon(.circlePlus)
+                    .iconSize(24)
                     .foregroundStyle(Color.textSecondary)
 
                 VStack(alignment: .leading, spacing: 4) {

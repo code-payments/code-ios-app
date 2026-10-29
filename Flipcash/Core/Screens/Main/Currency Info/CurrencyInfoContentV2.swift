@@ -288,26 +288,20 @@ struct CurrencyInfoContentV2: View {
 
     // MARK: - Actions
 
-    /// An action-tile glyph: either an SF Symbol or a bundled template asset.
-    private enum TileIcon {
-        case system(String)
-        case asset(String)
-    }
-
     @ViewBuilder private var actionTiles: some View {
         HStack(spacing: 8) {
             ForEach(CurrencyInfoActions.tiles(isOwned: isOwned, isUSDF: isUSDF), id: \.self) { tile in
                 switch tile {
                 case .send:
-                    actionTile("Send", icon: .asset("IconTileSend"), action: onSend)
+                    actionTile("Send", icon: .send, action: onSend)
                 case .buy:
-                    actionTile("Buy", icon: .asset("IconTileBuy"), action: onBuy)
+                    actionTile("Buy", icon: .arrowDown, action: onBuy)
                 case .buyIn:
-                    actionTile("Buy In", icon: .asset("IconTileBuy"), action: onBuy)
+                    actionTile("Buy In", icon: .arrowDown, action: onBuy)
                 case .transactions:
-                    actionTile("Transactions", icon: .system("clock.arrow.circlepath"), action: onShowTransactionHistory)
+                    actionTile("Transactions", icon: .history, action: onShowTransactionHistory)
                 case .more:
-                    actionTile("More", icon: .system("ellipsis"), action: onMore)
+                    actionTile("More", icon: .dotGrid1x3Horizontal, action: onMore)
                 }
             }
         }
@@ -315,14 +309,14 @@ struct CurrencyInfoContentV2: View {
 
     private func actionTile(
         _ title: String,
-        icon: TileIcon,
+        icon: Icon,
         isEnabled: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(spacing: 8) {
-                tileIcon(icon)
-                    .frame(height: 24)
+            VStack(spacing: 12) {
+                Image.icon(icon)
+                    .iconSize(28)
                 // 12pt medium, as drawn: "Transactions" fits its tile with room either side.
                 Text(title)
                     .font(.default(size: 12, weight: .medium))
@@ -337,21 +331,6 @@ struct CurrencyInfoContentV2: View {
         .buttonStyle(.plain)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
-    }
-
-    @ViewBuilder private func tileIcon(_ icon: TileIcon) -> some View {
-        switch icon {
-        case .system(let name):
-            Image(systemName: name)
-                .font(.system(size: 24, weight: .regular))
-        case .asset(let name):
-            // Figma exports these glyphs at 24×24 (template-rendered, so they
-            // tint with the tile's foreground).
-            Image(name)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 24, height: 24)
-        }
     }
 
     // MARK: - Copy

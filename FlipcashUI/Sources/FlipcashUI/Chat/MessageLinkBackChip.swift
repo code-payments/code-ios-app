@@ -23,8 +23,8 @@ public struct MessageLinkBackChip: View {
     public var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .medium))
+                Image.icon(.chevronLeftMedium)
+                    .iconSize(22)
                 Text(Self.label(title))
                     .font(.appTextSmall)
                     .lineLimit(1)

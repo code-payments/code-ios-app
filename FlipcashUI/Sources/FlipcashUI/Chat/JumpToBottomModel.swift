@@ -31,10 +31,14 @@ public final class JumpToBottomModel {
     public var isShown: Bool { isVisible && !isSuppressed }
 }
 
-/// The jump-to-bottom button: a 44pt circle in the composer's glass, with a chevron and an unread badge.
+/// The jump-to-bottom button: a 36pt circle in the composer's glass, with a chevron and an unread badge.
 public struct JumpToBottomButtonView: View {
 
-    public static let diameter: CGFloat = 44
+    public static let diameter: CGFloat = 36
+    /// The button's hit area, a 44pt circle around the smaller drawn one.
+    public static let hitDiameter: CGFloat = 44
+    /// How far the hit area reaches past the drawn circle on each side.
+    public static let hitOutset: CGFloat = (hitDiameter - diameter) / 2
     /// The area above the bar's top edge, from its trailing side, that the button and its badge
     /// occupy, with the gap the bar leaves under the button. Touches in it go to the button.
     public static let reach = CGSize(width: 88, height: 20 + diameter + 12)
@@ -54,18 +58,19 @@ public struct JumpToBottomButtonView: View {
     public var body: some View {
         let badgeText = UnreadBadgeText.text(for: unreadCount)
         Button(action: action) {
-            Image(systemName: "chevron.down")
-                .font(.system(size: 16, weight: .semibold))
+            Image.icon(.chevronDownMedium)
+                .iconSize(22)
                 .foregroundStyle(.white)
                 .frame(width: Self.diameter, height: Self.diameter)
                 .composerGlass(in: Circle(), id: "jump", namespace: glassNamespace)
                 .composerRim(in: Circle())
-                .contentShape(Circle())
                 .overlay(alignment: .topTrailing) {
                     if let badgeText {
                         badge(badgeText)
                     }
                 }
+                .frame(width: Self.hitDiameter, height: Self.hitDiameter)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Jump to latest message")

@@ -21,8 +21,8 @@ enum TipCardExport {
 
     /// Codes are drawn light-on-dark, so an export with no ground behind it is
     /// invisible the moment it lands on a light surface. Both formats paint the
-    /// app's own background (`background.colorset`) behind the marks.
-    private static let backgroundHex = "#19191A"
+    /// app's own background (`backgroundMain`) behind the marks.
+    private static var backgroundHex: String { Color.backgroundMain.hexString }
 
     /// Renders `codeData` as `format` into a file named for `name`, or returns
     /// `nil` if rendering or writing it out failed.

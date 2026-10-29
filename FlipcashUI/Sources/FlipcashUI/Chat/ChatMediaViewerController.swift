@@ -185,11 +185,11 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         singleTap.require(toFail: doubleTap)
         scrollView.addGestureRecognizer(singleTap)
 
-        configure(closeButton, symbol: "xmark", label: "Close", action: #selector(closeTapped))
-        configure(reactButton, symbol: "face.smiling", label: "React", action: #selector(reactTapped))
-        configure(replyButton, symbol: "arrowshape.turn.up.left", label: "Reply", action: #selector(replyTapped))
-        configure(saveButton, symbol: "square.and.arrow.down", label: "Save", action: #selector(saveTapped))
-        configure(forwardButton, symbol: "arrowshape.turn.up.right", label: "Forward", action: #selector(forwardTapped))
+        configure(closeButton, icon: .crossMedium, label: "Close", action: #selector(closeTapped))
+        configure(reactButton, icon: .emojiAddReaction, label: "React", action: #selector(reactTapped))
+        configure(replyButton, icon: .arrowShareLeft, label: "Reply", action: #selector(replyTapped))
+        configure(saveButton, icon: Self.saveIcon, label: "Save", action: #selector(saveTapped))
+        configure(forwardButton, icon: .arrowShareRight, label: "Forward", action: #selector(forwardTapped))
 
         if #available(iOS 26, *) {
             var glass = UIButton.Configuration.glass()
@@ -204,7 +204,6 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(closeButton)
 
-        // A system symbol, not the strip's "+" asset: that SVG carries a 0.5 group opacity and read dimmer than its neighbours.
         reactButton.isHidden = !request.canReact
         replyButton.isHidden = !request.canReply
         forwardButton.isHidden = !request.canForward
@@ -257,8 +256,18 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     private static let chromeFill = UIColor(white: 0.12, alpha: 0.72)
 
-    private func configure(_ button: UIButton, symbol: String, label: String, action: Selector) {
-        button.configuration?.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+    private static let saveIcon: Icon = .arrowWallDown
+
+    /// Draws `icon` as a 22pt template glyph, since a button configuration draws an asset at its own size.
+    private static func chromeIcon(_ icon: Icon) -> UIImage {
+        let size = CGSize(width: 22, height: 22)
+        return UIGraphicsImageRenderer(size: size)
+            .image { _ in UIImage.icon(icon).draw(in: CGRect(origin: .zero, size: size)) }
+            .withRenderingMode(.alwaysTemplate)
+    }
+
+    private func configure(_ button: UIButton, icon: Icon, label: String, action: Selector) {
+        button.configuration?.image = Self.chromeIcon(icon)
         button.configuration?.baseForegroundColor = .white
         button.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
         button.configurationUpdateHandler = { button in
@@ -531,7 +540,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         }.withRenderingMode(.alwaysOriginal)
     }
 
-    static let reactSymbol = UIImage(systemName: "face.smiling", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+    static let reactSymbol = chromeIcon(.emojiAddReaction)
 
     func dismissReactionStrip(animated: Bool) {
         guard let strip = reactionStrip else { return }
@@ -573,12 +582,11 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     /// Swaps the save glyph for a checkmark for a moment, the way the Access Key's save button shows success.
     private func showSaved() {
-        let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)
-        saveButton.configuration?.image = UIImage(systemName: "checkmark", withConfiguration: config)
+        saveButton.configuration?.image = Self.chromeIcon(.checkmark1)
         saveButton.accessibilityLabel = "Saved"
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
-            self?.saveButton.configuration?.image = UIImage(systemName: "square.and.arrow.down", withConfiguration: config)
+            self?.saveButton.configuration?.image = Self.chromeIcon(Self.saveIcon)
             self?.saveButton.accessibilityLabel = "Save"
         }
     }

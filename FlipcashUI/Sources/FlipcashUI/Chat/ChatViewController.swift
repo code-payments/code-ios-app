@@ -146,16 +146,12 @@ public final class ChatViewController: UICollectionViewController {
     public var pendingMediaProgress: ((String) -> ChatPhotoSendProgress?)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
-    private static let maxBubbleWidthFraction: CGFloat = 0.78
+    private static var maxBubbleWidthFraction: CGFloat { ChatStyle.maxWidthFraction }
 
-    /// A cash card's width as a fraction of the row between the column insets — narrower than a
-    /// bubble, and taken of the inset row rather than the full width. Matches Android's
-    /// `CASH_CARD_WIDTH_FRACTION` so the card reads the same size on both.
-    private static let cashCardWidthFraction: CGFloat = 0.64
-
-    /// The width of a cash card in a row `available` points wide.
+    /// The width of a cash card in a row `available` points wide: the card's own width, narrowed
+    /// only when the row between the column insets can't hold it.
     private func cashCardWidth(available: CGFloat) -> CGFloat {
-        (available - ChatColumnCell.rowInset * 2) * Self.cashCardWidthFraction
+        min(ChatStyle.cardWidth, available - ChatColumnCell.rowInset * 2)
     }
 
     /// The width a link message's card is held to, or nil when it takes the bubble's width. A message
@@ -202,14 +198,14 @@ public final class ChatViewController: UICollectionViewController {
     private enum RowGap {
         /// Two messages from one sender inside the grouping window. Their facing corners are
         /// already flattened, so the run needs only enough air to keep the bubbles apart.
-        static let tight: CGFloat = 5
+        static var tight: CGFloat { ChatStyle.runGap }
         /// Two messages from one sender that the grouping window has broken apart, and either side
         /// of a date separator. The corners are round again, and the gap says what they no longer
         /// do — that these are separate moments.
-        static let normal: CGFloat = 10
+        static var normal: CGFloat { ChatStyle.momentGap }
         /// A change of speaker, which reads as a break in the column rather than another row in
         /// the same run.
-        static let wide: CGFloat = 15
+        static var wide: CGFloat { ChatStyle.speakerGap }
     }
 
     private let chatLayout = CollectionViewChatLayout()
@@ -1784,7 +1780,7 @@ extension ChatViewController {
         let children = message.actions.map { action in
             UIAction(
                 title: action.title,
-                image: UIImage(systemName: action.menuSymbol.rawValue),
+                image: UIImage.icon(action.menuIcon),
                 attributes: action.isDestructive ? .destructive : []
             ) { _ in
                 switch action {
@@ -1983,16 +1979,16 @@ protocol BubbleCarrying {
 
 private extension MessageCapability {
 
-    /// The menu row's glyph. Lives here rather than on the action itself because `SystemSymbol` is
-    /// this module's symbol registry, and `MessageCapability` is a core model.
-    var menuSymbol: SystemSymbol {
+    /// The menu row's glyph. Lives here rather than on the action itself because `Icon` is this
+    /// module's icon registry, and `MessageCapability` is a core model.
+    var menuIcon: Icon {
         switch self {
-        case .copy:   .docFill
-        case .reply:  .replyArrow
-        case .edit:   .pencil
-        case .delete: .trash
-        case .report: .exclamationBubble
-        case .forward: .forwardArrow
+        case .copy:   .squareBehindSquare1
+        case .reply:  .arrowShareLeft
+        case .edit:   .pencil2
+        case .delete: .trashCan
+        case .report: .bubbleAlert
+        case .forward: .arrowShareRight
         }
     }
 }

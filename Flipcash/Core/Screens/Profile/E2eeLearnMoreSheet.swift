@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import UIKit
 import FlipcashUI
 
 /// Which chat an encryption notice speaks for: a DM or a private group, which are end-to-end
@@ -26,47 +25,26 @@ struct E2eeLearnMoreSheet: View {
     @Binding var isPresented: Bool
 
     var body: some View {
-        PartialSheet(background: .backgroundMain) {
-            VStack(spacing: 0) {
-                HStack {
-                    Spacer()
-                    CloseButton(style: .glass, binding: $isPresented)
-                }
-
-                Image(systemName: lockSymbol)
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .frame(width: 70, height: 70)
-                    .background(Color.white.opacity(0.08), in: Circle())
-                    .padding(.top, 8)
-
-                Text(title)
-                    .font(.appTextXL)
-                    .foregroundStyle(Color.textMain)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 20)
-
-                // `fixedSize` for the reason ``MuteChatSheet`` gives: `PartialSheet` proposes the
-                // full screen height first, and a short proposal would otherwise truncate the text.
-                Text(message)
-                    .font(.default(size: 15, weight: .medium))
-                    .lineSpacing(3)
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 16)
-
-                VStack(spacing: 16) {
-                    section("ENCRYPTED", items: encrypted, isEncrypted: true)
-                    section("NOT ENCRYPTED", items: notEncrypted, isEncrypted: false)
-                }
-                .padding(.top, 32)
+        Tray(title: title, message: message, icon: icon, actions: actions) {
+            VStack(spacing: 12) {
+                section("ENCRYPTED", items: encrypted, isEncrypted: true)
+                section("NOT ENCRYPTED", items: notEncrypted, isEncrypted: false)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, bottomPadding)
         }
         .accessibilityIdentifier("e2ee-learn-more-\(kind)")
+    }
+
+    /// The lock: Central's for an encrypted chat, the SF open lock for a public group, which
+    /// Central lacks.
+    private var icon: TrayIcon {
+        switch kind {
+        case .dm, .privateGroup: .central(.lock)
+        case .group: .image(Image(systemName: "lock.open"))
+        }
+    }
+
+    private var actions: [TrayAction] {
+        [TrayAction("Got It") { isPresented = false }]
     }
 
     private func section(_ heading: String, items: [String], isEncrypted: Bool) -> some View {
@@ -77,51 +55,37 @@ struct E2eeLearnMoreSheet: View {
                 .foregroundStyle(Color.white.opacity(0.45))
 
             ForEach(items, id: \.self) { item in
-                HStack(spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
                     bullet(isEncrypted: isEncrypted)
                     Text(item)
-                        .font(.default(size: 15, weight: .medium))
+                        .font(.default(size: 15))
                         .foregroundStyle(Color.white.opacity(0.9))
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
-        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 6))
+        .padding(16)
+        .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 16, style: .continuous))
     }
 
     private func bullet(isEncrypted: Bool) -> some View {
-        Group {
-            if isEncrypted {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.backgroundMain, Color.success)
-            } else {
-                Image(systemName: "minus.circle.fill")
-                    .foregroundStyle(Color.white.opacity(0.7), Color.white.opacity(0.12))
-            }
-        }
-        .symbolRenderingMode(.palette)
-        .font(.system(size: 18, weight: .semibold))
-        .frame(width: 18, height: 18)
+        Image.icon(isEncrypted ? .circleCheck : .circleMinus)
+            .iconSize(18)
+            .foregroundStyle(isEncrypted ? Color.success : Color.white.opacity(0.5))
+            // Sits the glyph on the text's first baseline.
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
     }
 
-    private var lockSymbol: String {
-        switch kind {
-        case .dm, .privateGroup: "lock.fill"
-        case .group:             "lock.open.fill"
-        }
-    }
-
-    private var title: String {
+    private var title: LocalizedStringResource {
         switch kind {
         case .dm, .privateGroup: "Your Messages Are Private"
         case .group:             "Public Groups Are Not Encrypted"
         }
     }
 
-    private var message: String {
+    private var message: LocalizedStringResource {
         switch kind {
         case .dm:
             "Messages and media in this chat are end-to-end encrypted. Only you and the person you\u{2019}re chatting with can read them."
@@ -162,17 +126,25 @@ struct E2eeLearnMoreSheet: View {
             ]
         }
     }
-
-    /// The design's 16 under the last section, less what the sheet already holds back for the home
-    /// indicator.
-    private var bottomPadding: CGFloat {
-        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
-        return max(0, 16 - reserved)
-    }
 }
 
 /// The encryption notice pinned under a chat's profile (nodes 10557:1304 and 10557:1643): a lock
 /// and one line, with Learn More opening ``E2eeLearnMoreSheet``.
+/// Figma's Central lock for an encrypted chat; the SF open lock for a public group, which Central lacks.
+private struct E2eeLockGlyph: View {
+    let kind: E2eeNoticeKind
+    let size: CGFloat
+
+    var body: some View {
+        switch kind {
+        case .dm, .privateGroup:
+            Image.icon(.lock).iconSize(size * 1.2)
+        case .group:
+            Image(systemName: "lock.open.fill").font(.system(size: size, weight: .semibold))
+        }
+    }
+}
+
 struct E2eeFooter: View {
 
     let kind: E2eeNoticeKind
@@ -185,8 +157,7 @@ struct E2eeFooter: View {
         } label: {
             VStack(spacing: 4) {
                 HStack(spacing: 5) {
-                    Image(systemName: kind == .group ? "lock.open.fill" : "lock.fill")
-                        .font(.system(size: 12, weight: .semibold))
+                    E2eeLockGlyph(kind: kind, size: 14)
                         .foregroundStyle(Color.white.opacity(0.5))
                     Text(kind == .group ? "Public groups are not end-to-end encrypted" : "Messages are end-to-end encrypted")
                         .font(.default(size: 13, weight: .medium))
@@ -202,7 +173,7 @@ struct E2eeFooter: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("e2ee-footer-\(kind)")
-        .sheet(isPresented: $isShowingSheet) {
+        .tray(isPresented: $isShowingSheet) {
             E2eeLearnMoreSheet(kind: kind, isPresented: $isShowingSheet)
         }
     }

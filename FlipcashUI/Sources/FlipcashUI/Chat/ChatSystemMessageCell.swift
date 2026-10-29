@@ -33,9 +33,9 @@ public final class ChatSystemMessageCell: UICollectionViewCell {
     public override init(frame: CGRect) {
         super.init(frame: frame)
 
-        let glyph = UIImageView(image: UIImage(systemName: "info.circle", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14)))
+        let glyph = UIImageView(image: UIImage.icon(.circleInfo))
         glyph.tintColor = Self.textColor
-        glyph.contentMode = .center
+        glyph.contentMode = .scaleAspectFit
         glyph.isAccessibilityElement = false
         glyph.setContentHuggingPriority(.required, for: .horizontal)
         glyph.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -68,6 +68,7 @@ public final class ChatSystemMessageCell: UICollectionViewCell {
             glyph.leadingAnchor.constraint(equalTo: group.leadingAnchor),
             glyph.topAnchor.constraint(equalTo: group.topAnchor),
             glyph.heightAnchor.constraint(equalToConstant: Self.lineHeight),
+            glyph.widthAnchor.constraint(equalToConstant: 18),
 
             label.leadingAnchor.constraint(equalTo: glyph.trailingAnchor, constant: Self.glyphGap),
             label.trailingAnchor.constraint(equalTo: group.trailingAnchor),

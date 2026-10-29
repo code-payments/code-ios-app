@@ -23,8 +23,8 @@ struct TokenSelectorButton: View {
                     amount: nil
                 )
 
-                Image.system(.chevronDown)
-                    .font(.default(size: 12, weight: .bold))
+                Image.icon(.chevronDownMedium)
+                    .iconSize(16)
                     .foregroundStyle(.textMain)
             }
         }

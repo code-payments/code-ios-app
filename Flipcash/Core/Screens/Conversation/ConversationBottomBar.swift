@@ -168,8 +168,8 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
-/// The jump-to-bottom button, centred over the bar's trailing control at the foot of the box the
-/// screen stands on the bar's top edge.
+/// The jump-to-bottom button, at the trailing foot of the box the screen stands on the bar's top
+/// edge, so it rides the bar.
 ///
 /// It is hosted outside the bar, so the transcript's inset and the keyboard floor never see it and
 /// the bar's clip never cuts it.
@@ -179,23 +179,20 @@ struct JumpToBottomOverlay: View {
 
     var body: some View {
         let isShown = jump.isShown
-        let isCompact = !model.isComposing
         // The attach panel takes every touch outside itself, the button's included.
         let takesTouches = !model.attachPanel.isOpen
-        // Centred on the trailing control's column, which is narrower than the button.
-        let inset = BarMetrics.trailingControlCentreInset(isCompact: isCompact)
-            - JumpToBottomButtonView.diameter / 2
+        // The frame is the hit area, which reaches past the drawn circle; the insets place the circle.
+        let outset = JumpToBottomButtonView.hitOutset
         JumpToBottomButtonView(unreadCount: jump.unreadCount, action: jump.onTap)
-            .frame(width: JumpToBottomButtonView.diameter, height: JumpToBottomButtonView.diameter)
+            .frame(width: JumpToBottomButtonView.hitDiameter, height: JumpToBottomButtonView.hitDiameter)
             // Opacity only: a glass effect under a scale effect drew a shrunken copy of the screen.
             .opacity(isShown ? 1 : 0)
             // Hidden, the button also stops taking touches; opacity 0 alone would still be tappable.
             .allowsHitTesting(isShown && takesTouches)
             .accessibilityHidden(!isShown)
             .animation(ChatMotion.reflow.animation, value: isShown)
-            .padding(.trailing, inset)
-            .animation(ChatMotion.barInset.animation, value: isCompact)
-            .padding(.bottom, BarMetrics.jumpButtonGapAboveBar)
+            .padding(.trailing, BarMetrics.jumpButtonInset - outset)
+            .padding(.bottom, BarMetrics.jumpButtonGapAboveBar - outset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
     }
 }
@@ -236,13 +233,16 @@ enum BarMetrics {
     /// The margin between the compact bar's controls and the screen's sides.
     static let compactInset: CGFloat = 32
     /// The gap between the field and the `$` beside it, the same compact and composing.
-    nonisolated static let controlSpacing: CGFloat = 10
+    nonisolated static let controlSpacing: CGFloat = 12
     /// The gap between the jump-to-bottom button's bottom edge and the top edge of `$`: twice the
     /// field's gap to `$`.
     static let jumpButtonGap: CGFloat = controlSpacing * 2
     /// How far above the bar's top edge the button's bottom edge stands, which is `$`'s top edge
     /// less the bar's own margin above its controls.
     static let jumpButtonGapAboveBar: CGFloat = jumpButtonGap - contentPadding
+    /// The margin between the jump-to-bottom button's circle and the screen's trailing side, resting
+    /// and typing alike: the composing bar's edge, which keeps the widest unread badge on screen.
+    static let jumpButtonInset: CGFloat = edgeInset
 
     /// The margin between the bar's controls and the screen's sides: ``compactInset`` while the bar
     /// rests compact, ``edgeInset`` while composing.
@@ -250,8 +250,7 @@ enum BarMetrics {
         isCompact ? compactInset : edgeInset
     }
 
-    /// Distance from the screen's side to the centre of the bar's trailing control (Send Cash). The
-    /// jump-to-bottom button centres on this column.
+    /// Distance from the screen's side to the centre of the bar's trailing control (Send Cash).
     static func trailingControlCentreInset(isCompact: Bool) -> CGFloat {
         controlInset(isCompact: isCompact) + contentHeight / 2
     }
@@ -1157,6 +1156,8 @@ struct ConversationComposer: View {
     private static let cashJoinDelay: TimeInterval = 0.16
     /// The text's and chips' inset from the field's leading edge.
     private static let leadingInset: CGFloat = 14
+    /// The draft's type, shared by the field and the hidden measure of its one-line width.
+    private static let draftFont: Font = .default(size: 17, weight: .regular)
     /// The stacked text's insets from the field's leading and trailing edges.
     private static let stackedHorizontalInset: CGFloat = 14
     /// The stacked text's inset from the field's top edge.
@@ -1236,7 +1237,7 @@ struct ConversationComposer: View {
     var body: some View {
         let motion = AttachMotion(reduceMotion: reduceMotion)
         let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
-            .font(.appTextMessage)
+            .font(Self.draftFont)
             .foregroundStyle(Color.textMain)
             .tint(.white)
             .lineLimit(1...7)
@@ -1279,7 +1280,7 @@ struct ConversationComposer: View {
                 .background(alignment: .leading) {
                     // The draft's width on one line, to tell when the inline field would wrap.
                     Text(composer.draft.isEmpty ? " " : composer.draft)
-                        .font(.appTextMessage)
+                        .font(Self.draftFont)
                         .lineLimit(1)
                         .fixedSize()
                         .hidden()
@@ -1376,14 +1377,13 @@ struct ConversationComposer: View {
         ZStack {
             if submitIsShown {
                 Button(action: submit) {
-                    Image(systemName: submitSymbol)
-                        .font(.default(size: 16, weight: .bold))
+                    // Arrow and checkmark are the same button in two jobs, so the glyph swaps in
+                    // place rather than the button popping out and a new one popping back.
+                    Image.icon(submitIcon)
+                        .iconSize(20)
                         .foregroundStyle(Color.textAction)
                         .frame(width: BarMetrics.accessorySize, height: BarMetrics.accessorySize)
                         .background(Color.white, in: Circle())
-                        // Arrow and checkmark are the same button in two jobs, so the glyph swaps in
-                        // place rather than the button popping out and a new one popping back.
-                        .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(composer.isEditing ? "Save" : "Send")
@@ -1419,8 +1419,8 @@ struct ConversationComposer: View {
     /// there's text to send otherwise.
     private var showsSubmit: Bool { composer.isEditing || composer.canSubmit }
 
-    private var submitSymbol: String {
-        composer.isEditing ? SystemSymbol.checkmark.rawValue : SystemSymbol.arrowUp.rawValue
+    private var submitIcon: Icon {
+        composer.isEditing ? .checkmark1 : .arrowUp
     }
 
     private func submit() {
@@ -1520,8 +1520,8 @@ private struct CancelEditButton: View {
 
     var body: some View {
         Button(action: onCancel) {
-            Image(systemName: SystemSymbol.close.rawValue)
-                .font(.default(size: 17, weight: .semibold))
+            Image.icon(.crossMedium)
+                .iconSize(22)
                 .foregroundStyle(Color.textMain)
                 .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
                 // The glyph is the only drawn content, so without a shape the taps that land on the

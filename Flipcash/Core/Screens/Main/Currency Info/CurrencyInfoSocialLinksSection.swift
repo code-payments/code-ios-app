@@ -12,13 +12,15 @@ import FlipcashCore
 /// A link chip drawn to the design: a 17pt glyph and the app small text label in a 6pt-radius tile.
 /// Local to this section because the shared `IconButtonStyle` sets a bold 16pt label and an 18pt glyph.
 private struct LinkChipStyle: ButtonStyle {
-    let icon: Asset
+    let icon: Image
 
-    init(_ icon: Asset) { self.icon = icon }
+    init(_ icon: Asset) { self.icon = Image.asset(icon) }
+
+    init(_ icon: Icon) { self.icon = Image.icon(icon) }
 
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 10) {
-            Image.asset(icon)
+            icon
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 17, height: 17)
@@ -45,7 +47,7 @@ struct CurrencyInfoSocialLinksSection: View {
                     switch socialLink {
                     case .website(let url):
                         Link("Website", destination: url)
-                            .buttonStyle(LinkChipStyle(.globus))
+                            .buttonStyle(LinkChipStyle(Icon.globe))
                     case .x(let handle):
                         if let url = URL.socialProfile(host: "x.com", handle: handle) {
                             Link("@\(handle)", destination: url)
