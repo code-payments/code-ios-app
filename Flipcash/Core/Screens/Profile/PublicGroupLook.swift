@@ -20,15 +20,15 @@ enum PublicGroupLook {
     static var lightnessPull: Double { Tuner.shared.value("Profile/Public/Pull", default: 0.6, in: 0...1, step: 0.01) } // LOCAL-TUNER
 
     /// The length of the melt from the cover into the page.
-    static var fadeHeight: CGFloat { Tuner.shared.value("Profile/Public/Fade height", default: CGFloat(183), in: 0...320, step: 1, unit: .points) } // LOCAL-TUNER
+    static var fadeHeight: CGFloat { Tuner.shared.value("Profile/Public/Fade height", default: CGFloat(214), in: 0...320, step: 1, unit: .points) } // LOCAL-TUNER
 
     /// The cover's height from the top of the screen, under the status and navigation bars.
-    static var coverHeight: CGFloat { Tuner.shared.value("Profile/Public/Cover height", default: CGFloat(274), in: 160...420, step: 1, unit: .points) } // LOCAL-TUNER
+    static var coverHeight: CGFloat { Tuner.shared.value("Profile/Public/Cover height", default: CGFloat(320), in: 160...420, step: 1, unit: .points) } // LOCAL-TUNER
 
     // MARK: Boxes and spacing
 
     /// The corner radius of every box: the requirement tiles, the pulse card and Leave Chat.
-    static var cardRadius: CGFloat { Tuner.shared.value("Profile/Public/Card radius", default: Metrics.boxRadius, in: 6...32, step: 1, unit: .points) } // LOCAL-TUNER
+    static var cardRadius: CGFloat { Tuner.shared.value("Profile/Public/Card radius", default: CGFloat(24), in: 6...32, step: 1, unit: .points) } // LOCAL-TUNER
 
     /// The padding inside every box.
     static var cardPadding: CGFloat { Tuner.shared.value("Profile/Public/Card padding", default: CGFloat(16), in: 8...28, step: 1, unit: .points) } // LOCAL-TUNER
