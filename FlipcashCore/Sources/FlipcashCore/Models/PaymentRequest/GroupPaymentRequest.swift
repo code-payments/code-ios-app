@@ -253,3 +253,70 @@ extension GroupPaymentRequest {
         }
     }
 }
+
+/// One best-effort, real-time change to a payment request from the chat event stream. See
+/// `paymentrequest.v1.PaymentRequestUpdate`.
+///
+/// Apply rules: `.created` is treated like a fetched copy (keep the greater version). `.updates` at
+/// version V against local version L: V <= L is ignored, V == L + 1 applies its updates in order
+/// then sets the version, V > L + 1 refetches. A ``Change/Update/unknown`` update, or a share update
+/// without a share, also refetches.
+public struct DecodedPaymentRequestUpdate: Hashable, Sendable {
+
+    public enum Change: Hashable, Sendable {
+        case created(GroupPaymentRequest)
+        case updates(version: UInt64, [Update])
+
+        public enum Update: Hashable, Sendable {
+            /// A share was paid; the share carries the user it belongs to.
+            case sharePaid(GroupPaymentRequest.Share)
+            /// The request completed or closed. `closedAt` is `nil` when the server left it unset.
+            case statusChanged(GroupPaymentRequest.Status, closedAt: Date?)
+            /// An update kind this build doesn't know, or a share update without its share.
+            case unknown
+        }
+    }
+
+    public let id: PaymentRequestID
+    public let change: Change
+
+    public init(id: PaymentRequestID, change: Change) {
+        self.id = id
+        self.change = change
+    }
+}
+
+extension DecodedPaymentRequestUpdate {
+    /// Nil when the update has no request id, or its kind (or a `created` copy) isn't one this build can read.
+    init?(_ proto: Flipcash_Paymentrequest_V1_PaymentRequestUpdate) {
+        guard proto.hasPaymentRequestID else { return nil }
+        switch proto.kind {
+        case .created(let metadata):
+            guard let request = GroupPaymentRequest(metadata) else { return nil }
+            self.init(id: PaymentRequestID(proto.paymentRequestID), change: .created(request))
+        case .updates(let updates):
+            self.init(
+                id: PaymentRequestID(proto.paymentRequestID),
+                change: .updates(version: updates.version, updates.updates.map(Change.Update.init))
+            )
+        case nil:
+            return nil
+        }
+    }
+}
+
+extension DecodedPaymentRequestUpdate.Change.Update {
+    init(_ proto: Flipcash_Paymentrequest_V1_PaymentRequestUpdate.Update) {
+        switch proto.kind {
+        case .sharePaymentUpdate(let update):
+            self = update.hasShare ? .sharePaid(GroupPaymentRequest.Share(update.share)) : .unknown
+        case .statusUpdate(let update):
+            self = .statusChanged(
+                GroupPaymentRequest.Status(update.status),
+                closedAt: update.hasClosedAt ? update.closedAt.date : nil
+            )
+        case nil:
+            self = .unknown
+        }
+    }
+}

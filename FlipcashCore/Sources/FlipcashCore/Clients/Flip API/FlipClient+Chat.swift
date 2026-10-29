@@ -242,9 +242,12 @@ extension FlipClient {
     /// `MetadataUpdate.titleChanged`/`.descriptionChanged`/`.pictureChanged`/`.coverPictureChanged`
     /// for the chat's other members (and the caller's other devices); this call's return value is
     /// only this device's confirmation.
-    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil) async throws -> Conversation {
+    ///
+    /// `rules`, when set, fully replaces the chat's rules (public groups with a listener minimum balance
+    /// only); fails with `.invalidRules` or `.rulesNotSatisfied`. `nil` leaves the rules as they are.
+    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRules? = nil) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
-            chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID, coverPictureBlobID: coverPictureBlobID) { c.resume(with: $0) }
+            chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID, coverPictureBlobID: coverPictureBlobID, rules: rules) { c.resume(with: $0) }
         }
     }
 

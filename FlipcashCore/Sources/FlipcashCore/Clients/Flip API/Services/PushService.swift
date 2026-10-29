@@ -76,6 +76,31 @@ final class PushService: Sendable {
             }
         }
     }
+
+    func sendTestPush(owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorSendTestPush>) -> Void) {
+        logger.info("Sending test push")
+
+        let request = Flipcash_Push_V1_SendTestPushRequest.with {
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.sendTestPush(request, options: .unaryDefault)
+                let error = ErrorSendTestPush(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to send test push", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -95,6 +120,24 @@ public enum ErrorDeleteToken: Int, Error {
     case transportFailure = -2
     case cancelled = -3
     case rejected = -4
+}
+
+public enum ErrorSendTestPush: Int, Error {
+    case ok
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorSendTestPush: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .unknown, .rejected: .error
+        }
+    }
 }
 
 extension ErrorAddToken: ServerError, TransportClassifiableError {

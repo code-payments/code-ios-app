@@ -544,4 +544,51 @@ struct ConversationStreamEventDecodeTests {
         #expect(member.enteredAt == Date(timeIntervalSince1970: 70))
         #expect(left == leaver)
     }
+
+    @Test("A RulesChanged metadata update decodes to the full replacement rules")
+    func decodesRulesChanged() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.metadataUpdates = [.with {
+                    $0.rulesChanged = .with { $0.newRules = .with { $0.speaker = [.with { $0.never = .init() }] } }
+                }]
+            }
+        }
+        guard case .rulesChanged(let conversationID, let rules) = ConversationStreamEvent.decode(event).first else {
+            Issue.record("expected .rulesChanged"); return
+        }
+        #expect(conversationID == ConversationID(data: conversationBytes))
+        #expect(rules.listener.isEmpty)
+        #expect(rules.speaker == [.never])
+    }
+
+    @Test("Payment request updates decode with unknown update kinds kept as .unknown")
+    func decodesPaymentRequestUpdates() {
+        let requestID = Data(repeating: 0x09, count: 16)
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.paymentRequestUpdates = .with {
+                    $0.paymentRequestUpdates = [.with {
+                        $0.paymentRequestID = .with { $0.value = requestID }
+                        $0.updates = .with {
+                            $0.version = 4
+                            $0.updates = [
+                                .with { $0.statusUpdate = .with { $0.status = .completed } },
+                                .with { $0.sharePaymentUpdate = .init() },
+                                .init(),
+                            ]
+                        }
+                    }]
+                }
+            }
+        }
+        guard case .paymentRequestsChanged(_, let updates) = ConversationStreamEvent.decode(event).first else {
+            Issue.record("expected .paymentRequestsChanged"); return
+        }
+        #expect(updates.count == 1)
+        #expect(updates[0].id == PaymentRequestID(data: requestID))
+        #expect(updates[0].change == .updates(version: 4, [.statusChanged(.completed, closedAt: nil), .unknown, .unknown]))
+    }
 }

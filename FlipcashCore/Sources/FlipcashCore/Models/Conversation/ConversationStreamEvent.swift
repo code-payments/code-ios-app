@@ -69,6 +69,15 @@ public enum ConversationStreamEvent: Sendable {
     /// Members entered or left a private chat's lobby. Delivered to the chat's admitting members;
     /// surfaced as received, with no version to compare.
     case lobbyChanged(conversationID: ConversationID, updates: [LobbyUpdate])
+
+    /// A group chat's rules changed (via `Chat.EditChat`), including on the editor's other devices.
+    /// `rules` is the full replacement set. Best-effort and applied as received, like ``titleChanged``.
+    case rulesChanged(conversationID: ConversationID, rules: ConversationRules)
+
+    /// Payment requests in the chat changed. Best-effort and outside the gap-detected event log: a
+    /// missed update is reconciled by the next fetch of the request. Applying them to request state
+    /// follows `PaymentRequestUpdate`'s contract; see ``DecodedPaymentRequestUpdate``.
+    case paymentRequestsChanged(conversationID: ConversationID, updates: [DecodedPaymentRequestUpdate])
 }
 
 /// One reaction added or removed on one message.
@@ -244,6 +253,9 @@ extension ConversationStreamEvent {
             case .coverPictureChanged(let changed):
                 guard changed.hasNewCoverPicture, let coverPicture = ProfilePicture(changed.newCoverPicture) else { break }
                 events.append(.coverPictureChanged(conversationID: conversationID, coverPicture: coverPicture))
+            case .rulesChanged(let changed):
+                guard changed.hasNewRules else { break }
+                events.append(.rulesChanged(conversationID: conversationID, rules: ConversationRules(changed.newRules)))
             case nil:
                 break
             }
@@ -280,6 +292,11 @@ extension ConversationStreamEvent {
         let lobbyUpdates = update.lobbyUpdates.lobbyUpdates.compactMap(LobbyUpdate.init)
         if !lobbyUpdates.isEmpty {
             events.append(.lobbyChanged(conversationID: conversationID, updates: lobbyUpdates))
+        }
+
+        let paymentRequestUpdates = update.paymentRequestUpdates.paymentRequestUpdates.compactMap(DecodedPaymentRequestUpdate.init)
+        if !paymentRequestUpdates.isEmpty {
+            events.append(.paymentRequestsChanged(conversationID: conversationID, updates: paymentRequestUpdates))
         }
 
         return events

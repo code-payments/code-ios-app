@@ -565,14 +565,15 @@ final class ChatService: Sendable {
     ///
     /// `description` is ``ConversationDescriptionEdit/unchanged`` by default; use `.clear` to remove
     /// an existing description.
-    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
+    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRules? = nil, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
         let request = Self.editChatRequest(
             owner: owner,
             conversationID: conversationID,
             title: title,
             description: description,
             pictureBlobID: pictureBlobID,
-            coverPictureBlobID: coverPictureBlobID
+            coverPictureBlobID: coverPictureBlobID,
+            rules: rules
         )
 
         Task {
@@ -598,8 +599,9 @@ final class ChatService: Sendable {
     }
 
     /// The signed `EditChat` request; a nil title or blob and an `.unchanged` description leave that
-    /// field unset, so the server keeps its current value.
-    static func editChatRequest(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit, pictureBlobID: BlobID?, coverPictureBlobID: BlobID?) -> Flipcash_Chat_V1_EditChatRequest {
+    /// field unset, so the server keeps its current value. `rules`, when set, is the full replacement
+    /// rule set (public groups with a listener minimum balance only).
+    static func editChatRequest(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit, pictureBlobID: BlobID?, coverPictureBlobID: BlobID?, rules: ConversationRules? = nil) -> Flipcash_Chat_V1_EditChatRequest {
         Flipcash_Chat_V1_EditChatRequest.with {
             $0.chatID = conversationID.proto
             if let title {
@@ -613,6 +615,9 @@ final class ChatService: Sendable {
             }
             if let coverPictureBlobID {
                 $0.coverPicture = .with { $0.blobID = .with { $0.value = coverPictureBlobID.data } }
+            }
+            if let rules {
+                $0.rules = rules.proto
             }
             $0.auth = owner.authFor(message: $0)
         }
@@ -1220,6 +1225,8 @@ public enum ErrorEditChat: Error, Sendable, Equatable {
     case pictureBlobNotAccepted
     case coverPictureBlobNotAccepted
     case descriptionModerated(Flipcash_Moderation_V1_FlaggedCategory)
+    case invalidRules
+    case rulesNotSatisfied
     case unknown
     case transportFailure
     case cancelled
@@ -1678,7 +1685,7 @@ extension ErrorEditChat: ServerError, TransportClassifiableError {
         switch self {
         case .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted, .coverPictureBlobNotAccepted, .descriptionModerated: .info
+        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted, .coverPictureBlobNotAccepted, .descriptionModerated, .invalidRules, .rulesNotSatisfied: .info
         case .unknown, .rejected: .error
         }
     }
@@ -1705,6 +1712,10 @@ extension ErrorEditChat {
             self = .coverPictureBlobNotAccepted
         case .descriptionModerated:
             self = .descriptionModerated(flaggedCategory)
+        case .invalidRules:
+            self = .invalidRules
+        case .rulesNotSatisfied:
+            self = .rulesNotSatisfied
         case .UNRECOGNIZED:
             self = .unknown
         }

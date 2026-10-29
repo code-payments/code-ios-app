@@ -393,6 +393,14 @@ public struct ConversationStore: Sendable {
         case .lobbyChanged:
             // Lobby membership is not part of the feed; no consumer holds it yet.
             return .none
+        case .rulesChanged(let conversationID, let rules):
+            applyRulesChanged(rules, in: conversationID)
+            return .none
+        case .paymentRequestsChanged:
+            // TODO: apply to payment request state (created: keep greater version; updates at V vs
+            // local L: V<=L ignore, V==L+1 apply in order then set version, V>L+1 or an unknown
+            // update refetch). No consumer holds request state in the conversation store yet.
+            return .none
         }
     }
 
@@ -581,6 +589,14 @@ public struct ConversationStore: Sendable {
     public mutating func applyCoverPictureChanged(_ coverPicture: ProfilePicture, in conversationID: ConversationID) {
         guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
         conversations[index].coverPicture = coverPicture
+    }
+
+    /// Apply a rules change delivered via `MetadataUpdate.RulesChanged`. `rules` replaces the whole set.
+    /// Same best-effort, no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the
+    /// store doesn't hold.
+    public mutating func applyRulesChanged(_ rules: ConversationRules, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        conversations[index].rules = rules
     }
 
     /// Drops the cached viewer state for a chat the signed-in user just left.
