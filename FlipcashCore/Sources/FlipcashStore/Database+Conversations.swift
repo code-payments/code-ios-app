@@ -109,7 +109,8 @@ nonisolated extension Database {
                 creator: row[c.creator],
                 useE2Ee: row[c.useE2Ee],
                 isPrivate: row[c.isPrivate],
-                coverPicture: conversationCoverPicture(from: row)
+                coverPicture: conversationCoverPicture(from: row),
+                pinSummary: conversationPinSummary(from: row)
             )
         }
     }
@@ -482,6 +483,29 @@ nonisolated extension Database {
         }
     }
 
+    /// Store a pin summary delivered by `PinsChanged`: applied only when strictly newer than the stored
+    /// one, like ``ConversationStore/applyPinsChanged(_:in:)``. No-ops for a conversation not yet in
+    /// the feed.
+    public func applyPinSummary(_ summary: ConversationPinSummary, for conversationID: ConversationID) throws {
+        try write { _ in
+            try writePinSummary(summary, conversationID: conversationID, replacingEqualVersion: false)
+        }
+    }
+
+    private func writePinSummary(_ summary: ConversationPinSummary, conversationID: ConversationID, replacingEqualVersion: Bool) throws {
+        try write { writer in
+            let c = ConversationTable()
+            let versionGuard = replacingEqualVersion ? c.pinVersion <= summary.version : c.pinVersion < summary.version
+            try writer.run(
+                c.table.filter(c.id == conversationID.data && versionGuard).update(
+                    c.pinCount   <- UInt64(summary.count),
+                    c.pinVersion <- summary.version,
+                    c.pinLatest  <- summary.latest?.serializedBytes
+                )
+            )
+        }
+    }
+
     /// Must be called inside a `writer.transaction`.
     private func writeConversation(_ conversation: Conversation) throws {
         try write { writer in
@@ -526,6 +550,12 @@ nonisolated extension Database {
                         c.coverPictureThumbnailBlurhash <- cover.thumbnailBlurhash
                     )
                 )
+            }
+
+            // Same keep rule as ConversationStore: a copy with no summary or an older one leaves the
+            // stored pins alone; an equal or newer version replaces them.
+            if let pins = conversation.pinSummary {
+                try writePinSummary(pins, conversationID: conversation.id, replacingEqualVersion: true)
             }
 
             try writer.run(m.table.filter(m.conversationId == conversation.id.data).delete())
@@ -845,6 +875,17 @@ nonisolated extension Database {
         let c = ConversationTable()
         guard let data = row[c.rules] else { return nil }
         return try? JSONDecoder().decode(ConversationRules.self, from: data)
+    }
+
+    /// Nil for a row that has never held a summary (count 0, version 0, no pin), which is what every
+    /// row reads as before its first pin write. A blob that no longer decodes loads as no latest pin.
+    private func conversationPinSummary(from row: RowIterator.Element) -> ConversationPinSummary? {
+        let c = ConversationTable()
+        let latest = row[c.pinLatest].flatMap { ConversationPin(serializedBytes: $0) }
+        let count = row[c.pinCount]
+        let version = row[c.pinVersion]
+        guard latest != nil || count > 0 || version > 0 else { return nil }
+        return ConversationPinSummary(latest: latest, count: UInt32(clamping: count), version: version)
     }
 
     /// Returns nil when the chat carries no viewer state, and also when the

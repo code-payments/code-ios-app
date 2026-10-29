@@ -10,6 +10,7 @@ import Testing
 @testable import FlipcashCore
 import FlipcashStore
 @testable import Flipcash
+import FlipcashAPI
 
 @Suite("Conversation offline cache round-trip")
 struct DatabaseConversationsTests {
@@ -990,6 +991,114 @@ struct DatabaseConversationsTests {
         // A copy that carries one replaces it.
         try database.upsertConversation(group(cover: cover(0x20)))
         #expect(try database.getConversations().first?.coverPicture == cover(0x20))
+    }
+
+    // MARK: - Pin summary -
+
+    private func pin(_ id: UInt64) -> ConversationPin {
+        ConversationPin(.with {
+            $0.messageID = .with { $0.value = id }
+            $0.pinnedAt = .init(date: Date(timeIntervalSince1970: 700))
+            $0.message = .with {
+                $0.messageID = .with { $0.value = id }
+                $0.ts = .init(date: Date(timeIntervalSince1970: 600))
+                $0.content = [.with { $0.text = .with { $0.text = "pin-\(id)" } }]
+            }
+        })
+    }
+
+    private func pinned(_ summary: ConversationPinSummary?) -> Conversation {
+        Conversation(
+            id: ConversationID.test(9),
+            members: [],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 100),
+            type: .group,
+            pinSummary: summary
+        )
+    }
+
+    private func storedPins(_ database: Database) throws -> ConversationPinSummary? {
+        try database.getConversations().first?.pinSummary
+    }
+
+    @Test("A row that never held pins loads without a summary")
+    func pinSummaryAbsentByDefault() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(pinned(nil))
+        #expect(try storedPins(database) == nil)
+    }
+
+    @Test("The pin summary, with the latest pin's message, survives a cold load")
+    func pinSummaryRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let summary = ConversationPinSummary(latest: pin(5), count: 2, version: 4)
+        try database.upsertConversation(pinned(summary))
+
+        let loaded = try #require(try storedPins(database))
+        #expect(loaded == summary)
+        #expect(loaded.latest?.message?.content == .text("pin-5"))
+    }
+
+    @Test("A write with no summary, or an older one, keeps the stored pins; equal or newer replaces")
+    func pinSummaryWriteRules() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let v3 = ConversationPinSummary(latest: pin(3), count: 3, version: 3)
+        try database.upsertConversation(pinned(v3))
+
+        try database.upsertConversation(pinned(nil))
+        #expect(try storedPins(database) == v3)
+
+        try database.upsertConversation(pinned(ConversationPinSummary(latest: pin(2), count: 2, version: 2)))
+        #expect(try storedPins(database) == v3)
+
+        let equal = ConversationPinSummary(latest: pin(4), count: 4, version: 3)
+        try database.upsertConversation(pinned(equal))
+        #expect(try storedPins(database) == equal)
+
+        let newer = ConversationPinSummary(latest: nil, count: 0, version: 4)
+        try database.upsertConversation(pinned(newer))
+        #expect(try storedPins(database) == newer)
+    }
+
+    @Test("A feed replace without a summary keeps the stored pins")
+    func pinSummarySurvivesFeedReplace() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let v3 = ConversationPinSummary(latest: pin(3), count: 1, version: 3)
+        try database.upsertConversation(pinned(v3))
+        try database.replaceGroupFeed([pinned(nil)], departed: [])
+        #expect(try storedPins(database) == v3)
+    }
+
+    @Test("PinsChanged applies only when strictly newer than the stored version")
+    func applyPinSummaryStrictlyNewer() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(9)
+        let v3 = ConversationPinSummary(latest: pin(3), count: 1, version: 3)
+        try database.upsertConversation(pinned(v3))
+
+        try database.applyPinSummary(ConversationPinSummary(latest: pin(2), count: 5, version: 2), for: id)
+        #expect(try storedPins(database) == v3)
+
+        try database.applyPinSummary(ConversationPinSummary(latest: pin(8), count: 5, version: 3), for: id)
+        #expect(try storedPins(database) == v3)
+
+        let v4 = ConversationPinSummary(latest: pin(4), count: 2, version: 4)
+        try database.applyPinSummary(v4, for: id)
+        #expect(try storedPins(database) == v4)
+    }
+
+    @Test("PinsChanged for a conversation that is not stored writes nothing")
+    func applyPinSummaryUnknownConversation() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.applyPinSummary(ConversationPinSummary(latest: nil, count: 1, version: 1), for: ConversationID.test(9))
+        #expect(try database.getConversations().isEmpty)
     }
 
     @Test("A typed feed replace keeps the other type's conversations and members")

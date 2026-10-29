@@ -1577,9 +1577,10 @@ final class ConversationController {
             // Rules are cached with the conversation, so a cold restore gates join/speak on the
             // edited rules rather than the stale ones.
             persistConversation(conversationID)
-        case .pinsChanged:
-            // The pin summary isn't persisted (like `holdingsSummary`); the store holds it for the session.
-            break
+        case .pinsChanged(let conversationID, _, let summary):
+            // The database applies the same strictly-newer rule as the store, so a stale or re-delivered
+            // update never overwrites the stored pins.
+            persist(operation: "apply-pin-summary") { try database.applyPinSummary(summary, for: conversationID) }
         case .paymentRequestsChanged:
             // Request state is session-only and refetched; nothing to persist.
             break

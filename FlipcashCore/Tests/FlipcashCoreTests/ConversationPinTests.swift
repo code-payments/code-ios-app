@@ -23,6 +23,7 @@ struct ConversationPinTests {
             $0.pinnedAt = .init(date: Date(timeIntervalSince1970: 700))
             $0.message = .with {
                 $0.messageID = .with { $0.value = id }
+                $0.ts = .init(date: Date(timeIntervalSince1970: 600))
                 $0.content = [.with { $0.text = .with { $0.text = text } }]
             }
         }
@@ -42,6 +43,23 @@ struct ConversationPinTests {
 
     private func conversation(pinSummary: ConversationPinSummary?) -> Conversation {
         Conversation(id: conversationID(), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 0), pinSummary: pinSummary)
+    }
+
+    // MARK: - Cache bytes
+
+    @Test("A pin restored from its serialized bytes keeps the pinned message")
+    func serializedBytesRoundTrip() throws {
+        let pin = ConversationPin(pinProto(7, text: "pinned"))
+        let bytes = try #require(pin.serializedBytes)
+        let restored = try #require(ConversationPin(serializedBytes: bytes))
+        #expect(restored == pin)
+        #expect(restored.message?.content == .text("pinned"))
+        #expect(restored.serializedBytes == bytes)
+    }
+
+    @Test("Bytes that are not a pin do not restore")
+    func garbageBytesDoNotRestore() {
+        #expect(ConversationPin(serializedBytes: Data([0xFF, 0xFF, 0xFF])) == nil)
     }
 
     // MARK: - Mapping
