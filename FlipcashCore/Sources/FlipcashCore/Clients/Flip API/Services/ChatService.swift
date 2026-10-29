@@ -424,11 +424,12 @@ final class ChatService: Sendable {
             do {
                 let response = try await service.pinMessage(request, options: .unaryDefault)
                 let error = ErrorPinMessage(rawValue: response.result.rawValue) ?? .unknown
-                guard error == .ok, response.hasPinSummary else {
+                guard error == .ok else {
                     logger.error("Failed to pin message", metadata: ["error": "\(error)"])
-                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
+                // An OK without a summary reads as version 0, which never replaces a held summary.
                 await MainActor.run { completion(.success(ConversationPinSummary(response.pinSummary))) }
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
@@ -451,11 +452,12 @@ final class ChatService: Sendable {
             do {
                 let response = try await service.unpinMessage(request, options: .unaryDefault)
                 let error = ErrorUnpinMessage(rawValue: response.result.rawValue) ?? .unknown
-                guard error == .ok, response.hasPinSummary else {
+                guard error == .ok else {
                     logger.error("Failed to unpin message", metadata: ["error": "\(error)"])
-                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
+                // An OK without a summary reads as version 0, which never replaces a held summary.
                 await MainActor.run { completion(.success(ConversationPinSummary(response.pinSummary))) }
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
