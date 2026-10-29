@@ -179,6 +179,41 @@ struct TransactionDetailsTests {
         #expect(alone.chatAction == nil)
     }
 
+    @Test("D4: a requested payment opens the request ahead of the counterparty")
+    func requestedPaymentViewsRequest() {
+        let payment = Activity.RequestedPayment(
+            conversationID: ConversationID(data: Data(repeating: 1, count: 16)),
+            paymentRequestID: PaymentRequestID(data: Data([7]))
+        )
+        let details = TransactionDetails(
+            activity: Activity(
+                id: .jeffy, state: .completed, kind: .gave, title: "Sent",
+                exchangedFiat: Self.usd(1), date: .now, metadata: nil,
+                counterparty: counterparty, requestedPayment: payment
+            )
+        )
+
+        #expect(details.chatAction == .viewRequest(payment.paymentRequestID))
+    }
+
+    @Test("D5: a boost wins over a requested payment")
+    func boostBeatsRequest() {
+        let boost = boost()
+        let payment = Activity.RequestedPayment(
+            conversationID: ConversationID(data: Data(repeating: 1, count: 16)),
+            paymentRequestID: PaymentRequestID(data: Data([7]))
+        )
+        let details = TransactionDetails(
+            activity: Activity(
+                id: .jeffy, state: .completed, kind: .gave, title: "Sent",
+                exchangedFiat: Self.usd(1), date: .now, metadata: nil,
+                counterparty: counterparty, boostedReaction: boost, requestedPayment: payment
+            )
+        )
+
+        #expect(details.chatAction == .viewMessage(boost))
+    }
+
     // MARK: - Boost header
 
     private func boostDetails(

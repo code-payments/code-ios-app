@@ -143,6 +143,18 @@ struct PaymentRequestsLiveUpdateTests {
         #expect(store.request(id)?.closedAt == closedDate)
     }
 
+    @Test("a status update with no closedAt keeps the held closedAt")
+    func statusKeepsClosedAt() {
+        let held = GroupPaymentRequest(
+            id: id, creator: creator, createdAt: nil, status: .open, closedAt: closedDate,
+            version: 1, chatID: chat, split: request().split
+        )
+        let store = store(holding: held)
+        store.apply([updates(2, [.statusChanged(.closed, closedAt: nil)])])
+        #expect(store.request(id)?.status == .closed)
+        #expect(store.request(id)?.closedAt == closedDate)
+    }
+
     @Test("V > L + 1 refetches and leaves the copy as held")
     func gapRefetches() {
         let store = store(holding: request(version: 1))

@@ -36,6 +36,7 @@ struct TransactionDetailsScreen: View {
     @State private var resolution = ActivityResolution()
     @State private var dialogItem: DialogItem?
     @State private var didCopyID = false
+    @State private var requestDetails: PaymentRequestSelection?
 
     /// How long the copy control stays on the checkmark before reverting.
     private static let copyConfirmationDuration: Duration = .seconds(1.5)
@@ -88,6 +89,11 @@ struct TransactionDetailsScreen: View {
                                 viewMessage(boost)
                             }
                             .buttonStyle(.filled05)
+                        case .viewRequest(let requestID):
+                            Button("View Request") {
+                                requestDetails = PaymentRequestSelection(id: requestID)
+                            }
+                            .buttonStyle(.filled05)
                         case .viewCounterparty(let userID):
                             let dmID = sessionContainer.conversationController.tipDMID(withUserID: userID)
                             Button(dmID == nil ? "View Profile" : "View in Chat") {
@@ -122,6 +128,9 @@ struct TransactionDetailsScreen: View {
             }
         }
         .dialog(item: $dialogItem)
+        .fullScreenCover(item: $requestDetails) { selection in
+            PaymentRequestDetailsScreen(requestID: selection.id)
+        }
         .task(id: activity.id) {
             await resolution.resolve(activity: activity, in: sessionContainer, resolvingEntryToken: true)
         }

@@ -121,7 +121,8 @@ extension GroupPaymentRequest {
                 switch newStatus {
                 case .completed, .closed:
                     status = newStatus
-                    closedAt = newClosedAt
+                    // An update that leaves closedAt unset keeps the held copy's.
+                    closedAt = newClosedAt ?? closedAt
                 case .open, .expired, .unknown:
                     return .refetch
                 }

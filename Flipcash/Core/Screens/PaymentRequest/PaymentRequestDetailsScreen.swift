@@ -66,6 +66,14 @@ struct PaymentRequestDetailsScreen: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             if let content = content(at: context.date) {
                 loaded(content)
+            } else if sessionContainer.paymentRequests.unavailable.contains(requestID) {
+                // DENIED or NOT_FOUND, for example after the viewer left the group.
+                Text("This request isn't available")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

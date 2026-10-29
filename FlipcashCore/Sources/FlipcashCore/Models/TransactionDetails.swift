@@ -139,6 +139,8 @@ public struct TransactionDetails: Sendable, Equatable, Hashable {
     public enum ChatAction: Sendable, Equatable, Hashable {
         /// Opens the message a boost was for.
         case viewMessage(Activity.BoostedReaction)
+        /// Opens the request this payment paid a share of.
+        case viewRequest(PaymentRequestID)
         /// Opens the counterparty's DM, or their profile until the DM exists.
         case viewCounterparty(UserID)
     }
@@ -212,9 +214,12 @@ extension TransactionDetails {
         // identifies one — a phone-number counterparty has no chat or profile.
         // The display name is not required: the profile fetches its own.
         self.canViewInChat = activity.counterparty?.userID != nil
-        // A boost wins over the counterparty: the message it was for is the more specific place.
+        // A boost wins over a request, and both win over the counterparty: the message or request it was for is the more specific place.
         if let boost = activity.boostedReaction {
             self.chatAction = .viewMessage(boost)
+        } else if let payment = activity.requestedPayment {
+            // The request is the more specific place, ahead of the counterparty.
+            self.chatAction = .viewRequest(payment.paymentRequestID)
         } else if let userID = activity.counterparty?.userID {
             self.chatAction = .viewCounterparty(userID)
         } else {
