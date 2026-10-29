@@ -447,6 +447,40 @@ Aiden chose to let the "Hosted by" row scroll under the CTA. Tuning mode is on, 
 - The member count is shown on public groups.
 - The description arrives late after a cold start.
 
+### Code build 1: result (2026-10-29)
+
+Commits on `feat/ui-profile` (local only):
+- `3c2db72e` the Bleed port (FlipcashUI/Theme/Bleed);
+- `f0c8e540` the public group profile;
+- `f799306f` the design-review fold-in.
+
+The build passes and all 46 profile tests pass, including the new `PublicGroupCopyTests`. `privateScreen` is identical to
+before.
+
+**Fold-in:**
+- A still-loading group renders as private, so a private group never paints as "Public group".
+- Faces and the token link get 44pt hit areas.
+- Text on tiles is contrast-solved on the control tint (`controlSecondaryStyle`).
+- The pulse card is held back with the requirements.
+- The bio animation is page-wide and respects Reduce Motion.
+- Presses scale to 0.96 with `Haptics.soft()` on touch-down.
+- Hairlines are one device pixel.
+
+**Tunables:** `Profile/Public/{Saturation, L dark, Pull, Fade height, Cover height}`. They must be baked before any PR,
+because CI can't see `LocalTuner.swift`.
+
+**Taste calls still open** (from the code critique):
+1. "+N" isn't tappable; the old grid opened every sampled chatter.
+2. Leave Chat now follows the content.
+3. A 33pt title next to a 40pt amount (layout rule 2).
+4. First paint fades from #19191A to the cover colour over 0.25s; the colour could be seeded from the blurhash instead.
+
+**Parked for the dev / system work:**
+- The met/unmet status line.
+- One shared capsule CTA style (the screen button height is still open).
+- A Bleed row in the standard.
+- Device checks: iOS 18 opaque nav bar banding; iOS 26 opened-from-chat with no bottom fade; AX5; long token names.
+
 ## 10. Taste calls after round 1
 
 1. Avatar: right of the name (A), centred over the cover (B), or top-left on the card (C).
