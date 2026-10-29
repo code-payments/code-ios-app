@@ -803,6 +803,19 @@ struct DatabaseConversationsTests {
         #expect(loaded.viewerState?.canInvite == true)
     }
 
+    @Test("canPin round-trips, so a pinner's pin controls survive a cold start")
+    func viewerStateCanPinRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        var stored = conversation(byte: 1)
+        stored.viewerState = ConversationViewerState(canPin: true)
+
+        try database.upsertConversation(stored)
+
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.viewerState?.canPin == true)
+    }
+
     @Test("A conversation with no viewer state round-trips as none")
     func viewerStateAbsentRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

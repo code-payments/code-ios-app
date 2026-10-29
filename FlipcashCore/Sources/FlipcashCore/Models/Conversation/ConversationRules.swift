@@ -91,7 +91,7 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mute, canEdit, version, silence, canSilence, canBan
+        case mute, canEdit, version, silence, canSilence, canBan, canInvite, canPin
     }
 
     /// Reads a row stored before a field existed. The synthesized decoder throws on a missing key,
@@ -105,7 +105,9 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
             version: try container.decodeIfPresent(UInt64.self, forKey: .version) ?? 0,
             silence: try container.decodeIfPresent(ConversationSilenceState.self, forKey: .silence),
             canSilence: try container.decodeIfPresent(Bool.self, forKey: .canSilence) ?? false,
-            canBan: try container.decodeIfPresent(Bool.self, forKey: .canBan) ?? false
+            canBan: try container.decodeIfPresent(Bool.self, forKey: .canBan) ?? false,
+            canInvite: try container.decodeIfPresent(Bool.self, forKey: .canInvite) ?? false,
+            canPin: try container.decodeIfPresent(Bool.self, forKey: .canPin) ?? false
         )
     }
 }
