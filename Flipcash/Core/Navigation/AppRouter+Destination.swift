@@ -113,9 +113,9 @@ extension AppRouter {
         case usernameLookup
         /// The list of ways to start a chat, pushed from the Chats tab's `+`.
         case newChat
-        /// The "New Public Group" form, opened from the New Chat screen.
+        /// The "New Community Chat" form, opened from the New Chat screen.
         case newPublicGroup
-        /// The "New Private Group" form, opened from the New Chat screen.
+        /// The "New Group" form, opened from the New Chat screen.
         case newPrivateGroup
         /// A tip DM conversation, pushed onto the `.tips` stack — from the
         /// Tips list or a tip-DM push notification.

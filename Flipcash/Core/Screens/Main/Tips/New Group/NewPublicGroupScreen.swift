@@ -9,8 +9,8 @@ import FlipcashUI
 
 private let logger = Logger(label: "flipcash.new-public-group")
 
-/// The "New Public Group" form: a name, an optional picture, and the balance a member has to hold
-/// to get in (node 10127:118014). For ``GroupPrivacy/private`` it is "New Private Group" (node
+/// The "New Community Chat" form: a name, an optional picture, and the balance a member has to hold
+/// to get in (node 10127:118014). For ``GroupPrivacy/private`` it is "New Group" (node
 /// 11203:65): no balance requirement, and a note on what privacy means instead.
 struct NewPublicGroupScreen: View {
 
@@ -74,7 +74,7 @@ struct NewPublicGroupScreen: View {
         .onChange(of: communityCurrencies, initial: true) { _, currencies in
             model.applyDefaultCurrency(from: currencies)
         }
-        .navigationTitle(model.privacy == .private ? "New Private Group" : "New Public Group")
+        .navigationTitle(model.privacy == .private ? "New Group" : "New Community Chat")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
