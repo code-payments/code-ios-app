@@ -124,8 +124,9 @@ private struct DialogTray: View {
                     .font(.default(size: 14, weight: .medium))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .contentShape(Rectangle())
             .padding(.vertical, 8)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(Color.textMain)

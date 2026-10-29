@@ -9,8 +9,8 @@ import SwiftUI
 /// accessory, with a divider that starts at the text and stops at the trailing margin.
 public struct ListRow<Leading: View, Trailing: View>: View {
 
-    private let title: String
-    private let subtitle: String?
+    private let title: Text
+    private let subtitle: Text?
     private let tone: ListRowTone
     private let showsDivider: Bool
     private let leading: Leading
@@ -18,19 +18,41 @@ public struct ListRow<Leading: View, Trailing: View>: View {
     private let action: () -> Void
 
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.displayScale) private var displayScale
 
-    /// Creates a row; pass `EmptyView()` content for a slot the row doesn't use.
+    /// Creates a row with localized copy; pass `EmptyView()` content for a slot the row doesn't use.
     public init(
-        _ title: String,
-        subtitle: String? = nil,
+        _ title: LocalizedStringKey,
+        subtitle: LocalizedStringKey? = nil,
         tone: ListRowTone = .standard,
         showsDivider: Bool = true,
         action: @escaping () -> Void,
         @ViewBuilder leading: () -> Leading,
         @ViewBuilder trailing: () -> Trailing
     ) {
-        self.title = title
-        self.subtitle = subtitle
+        self.title = Text(title)
+        self.subtitle = subtitle.map { Text($0) }
+        self.tone = tone
+        self.showsDivider = showsDivider
+        self.leading = leading()
+        self.trailing = trailing()
+        self.action = action
+    }
+
+    /// Creates a row that shows `title` and `subtitle` verbatim, for copy that's already localized
+    /// or is data, like a region's name.
+    @_disfavoredOverload
+    public init<S: StringProtocol>(
+        _ title: S,
+        subtitle: S? = nil,
+        tone: ListRowTone = .standard,
+        showsDivider: Bool = true,
+        action: @escaping () -> Void,
+        @ViewBuilder leading: () -> Leading,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.title = Text(title)
+        self.subtitle = subtitle.map { Text($0) }
         self.tone = tone
         self.showsDivider = showsDivider
         self.leading = leading()
@@ -49,12 +71,11 @@ public struct ListRow<Leading: View, Trailing: View>: View {
                 }
                 HStack(spacing: ListRowMetrics.gap) {
                     VStack(alignment: .leading, spacing: ListRowMetrics.subtitleGap) {
-                        Text(title)
+                        title
                             .foregroundStyle(titleColor)
-                            .lineLimit(1)
                             .font(.default(size: 16, weight: .medium))
                         if let subtitle {
-                            Text(subtitle)
+                            subtitle
                                 .font(.appTextSmall)
                                 .foregroundStyle(Color.textSecondary)
                                 .lineLimit(1)
@@ -70,7 +91,7 @@ public struct ListRow<Leading: View, Trailing: View>: View {
                     if showsDivider {
                         Rectangle()
                             .fill(Color.rowSeparator)
-                            .frame(height: 1.0 / 3.0)
+                            .frame(height: 1 / displayScale)
                             .padding(.trailing, ListRowMetrics.dividerTrailingInset)
                     }
                 }
@@ -167,10 +188,10 @@ public struct ListRowChevron: View {
 
 /// The title above a group of rows.
 public struct ListSectionTitle: View {
-    private let title: String
+    private let title: LocalizedStringKey
 
-    /// Creates a section title.
-    public init(_ title: String) {
+    /// Creates a section title from localized copy.
+    public init(_ title: LocalizedStringKey) {
         self.title = title
     }
 
@@ -182,6 +203,7 @@ public struct ListSectionTitle: View {
             .padding(.horizontal, ListRowMetrics.margin)
             .padding(.top, ListRowMetrics.sectionTop)
             .padding(.bottom, ListRowMetrics.sectionBottom)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 

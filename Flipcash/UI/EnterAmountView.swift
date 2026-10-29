@@ -204,7 +204,7 @@ public struct EnterAmountView: View {
             )
             .padding([.leading, .trailing], -20)
             .opacity(dimOpacity)
-            // Locked whenever the thumb is off rest: dragging, sending and the success hold.
+            // The amount can't change mid-send, so the keypad locks whenever the thumb is off rest.
             .allowsHitTesting(swipeProgress == 0)
 
             if let actionOverride {
@@ -220,7 +220,7 @@ public struct EnterAmountView: View {
                 .buttonStyle(AmountActionButtonStyle())
                 .disabled(!actionEnabled(enteredAmount) || !isActionIdle)
                 // Amount entry v2: 32 from the screen's sides and bottom (the screens already pad 20),
-                // 22 below the keypad.
+                // 20 below the keypad.
                 .padding(.top, 20)
                 .modifier(ActionSlotInsets())
             }
@@ -246,9 +246,12 @@ private enum SwipeDim {
 /// the two can't drift.
 private struct ActionSlotInsets: ViewModifier {
     func body(content: Content) -> some View {
+        // 32 from the screen's bottom edge on any device: the screens pad 20 inside the safe area,
+        // so the slot reads the inset from the window, never touching it in its own geometry.
+        let bottomInset = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
         content
             .padding(.horizontal, 32 - 20)
-            .padding(.bottom, 32 - 54)
+            .padding(.bottom, 32 - 20 - bottomInset)
     }
 }
 

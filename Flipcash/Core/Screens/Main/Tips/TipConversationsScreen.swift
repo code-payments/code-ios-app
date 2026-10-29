@@ -49,6 +49,12 @@ struct TipConversationsScreen: View {
     /// A selected filter keeps the chips in view: they explain the list.
     private var showsChips: Bool { chipsRevealed || filter != .all }
 
+    /// Whether the large title is drawn as content. Only iOS 26's glass bar lets it show through;
+    /// iOS 18's opaque bar would cover it, so there the bar keeps its own inline title.
+    private var drawsContentTitle: Bool {
+        if #available(iOS 26, *) { true } else { false }
+    }
+
     var body: some View {
         let projection = self.projection
         let conversations = rows(projection)
@@ -139,15 +145,17 @@ struct TipConversationsScreen: View {
         // The large title is content, not a toolbar item, so a push slides it away with the page
         // instead of morphing it through the bar's glass.
         .overlay(alignment: .topLeading) {
-            Text("Chat")
-                .font(.system(size: 34, weight: .bold))
-                .foregroundStyle(Color.textMain)
-                .fixedSize()
-                .padding(.leading, 16)
-                .offset(y: -53)
-                .opacity(titleCollapsed ? 0 : 1)
-                .allowsHitTesting(false)
-                .accessibilityAddTraits(.isHeader)
+            if drawsContentTitle {
+                Text("Chat")
+                    .font(.system(size: 34, weight: .bold))
+                    .foregroundStyle(Color.textMain)
+                    .fixedSize()
+                    .padding(.leading, 16)
+                    .offset(y: -53)
+                    .opacity(titleCollapsed ? 0 : 1)
+                    .allowsHitTesting(false)
+                    .accessibilityAddTraits(.isHeader)
+            }
         }
         .tray(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
@@ -155,12 +163,14 @@ struct TipConversationsScreen: View {
         .navigationTitle("Chat")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Chat")
-                    .font(.headline)
-                    .foregroundStyle(Color.textMain)
-                    .opacity(titleCollapsed ? 1 : 0)
-                    .accessibilityHidden(!titleCollapsed)
+            if drawsContentTitle {
+                ToolbarItem(placement: .principal) {
+                    Text("Chat")
+                        .font(.headline)
+                        .foregroundStyle(Color.textMain)
+                        .opacity(titleCollapsed ? 1 : 0)
+                        .accessibilityHidden(!titleCollapsed)
+                }
             }
             if showsSearchButton {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -446,27 +456,65 @@ struct TipConversationRow: View {
         return id
     }
 
-    /// The preview line: the last message, or an italic "Nothing yet" for a chat with no message
-    /// at all. A group is created empty, and a blank line there reads as a row still loading.
-    /// Only a chat that never had a message gets the placeholder — a last message the preview
-    /// declines to quote (a tombstone, an empty body) is not nothing, so it leaves the line off.
+    /// The preview line: the last message, with its "Name:" set apart in bold, or an italic
+    /// "Nothing yet" for a chat with no message at all. A group is created empty, and a blank line
+    /// there reads as a row still loading. Only a chat that never had a message gets the
+    /// placeholder — a last message the preview declines to quote (a tombstone, an empty body) is
+    /// not nothing, so it leaves the line off.
     private var subtitle: AttributedString? {
+        let knownAuthors = sessionContainer.knownAuthors.snapshot
         if let preview = conversationController.lastMessagePreview(
             for: conversation,
-            knownAuthors: sessionContainer.knownAuthors.snapshot,
+            knownAuthors: knownAuthors,
             viewerAmount: session.displayCurrency.amount,
             requestTitle: { id in
                 sessionContainer.paymentRequests.request(id).flatMap(sessionContainer.paymentRequests.text)?.title
             },
             currencyName: { session.balance(for: $0)?.name }
         ) {
-            return AttributedString(preview)
+            var line = AttributedString(preview)
+            if let author = previewAuthor(in: preview, knownAuthors: knownAuthors),
+               let end = line.characters.index(line.startIndex, offsetBy: author.count, limitedBy: line.endIndex) {
+                line[line.startIndex..<end].font = Font.appTextSmall
+            }
+            return line
         }
         guard conversation.lastMessage == nil else { return nil }
         var placeholder = AttributedString("Nothing yet")
         // Not an emphasis intent: the bundled Avenir has no italic, so asking for one renders upright.
         placeholder.font = .defaultOblique(size: 14, weight: .bold, dynamicTypeSize: dynamicTypeSize)
         return placeholder
+    }
+
+    /// The "Name:" a preview opens with when it quotes a message, nil when it has none. Matched
+    /// against the names the preview can carry, the viewer's "You" or a group sender's, so a colon
+    /// in the message itself ("Meet at 10:30") is never taken for one.
+    private func previewAuthor(in preview: String, knownAuthors: KnownAuthorDirectory.Snapshot) -> String? {
+        guard !conversationController.isCounterpartTyping(in: conversation.id),
+              let message = conversation.lastMessage
+        else { return nil }
+        switch message.content {
+        case .text, .media:
+            break
+        case .cash, .deleted, .encrypted, .widget, .system:
+            return nil
+        }
+        let names: [String?]
+        if message.isFromSelf(conversationController.selfUserID) {
+            names = ["You"]
+        } else if conversation.type == .group, let senderID = message.senderID {
+            names = [
+                conversation.members.first { $0.userID == senderID }?.displayName,
+                knownAuthors.membersByUserID[senderID]?.displayName,
+            ]
+        } else {
+            return nil
+        }
+        return names
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .map { "\($0):" }
+            .first { preview.hasPrefix("\($0) ") }
     }
 
     /// Names the row's chat type, so UI tests can tell a tip DM from a group — the label is only a name.

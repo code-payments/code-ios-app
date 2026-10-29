@@ -48,6 +48,8 @@ private struct TrayHost<Content: View>: View {
     @ViewBuilder let content: Content
 
     @State private var cardHeight: CGFloat = 0
+    /// The tallest the card can be, once the sheet has said; a taller page scrolls inside the card.
+    @State private var maximumCardHeight: CGFloat?
 
     /// The floating sheet's bottom safe area covers nothing, so the card sits on its bottom edge;
     /// the iOS 18 sheet keeps the card's content above the home indicator.
@@ -62,19 +64,25 @@ private struct TrayHost<Content: View>: View {
         Color.clear
             .overlay(alignment: .bottom) {
                 content
-                    .fixedSize(horizontal: false, vertical: true)
+                    // Its full height until the sheet's limit is known, then offered that limit.
+                    .fixedSize(horizontal: false, vertical: maximumCardHeight == nil)
                     .onGeometryChange(for: CGFloat.self) { proxy in
                         proxy.size.height
                     } action: { height in
                         cardHeight = height
                     }
                     .environment(\.trayIsDismissable, isDismissable)
+                    .frame(height: maximumCardHeight, alignment: .bottom)
             }
             .ignoresSafeArea(.container, edges: Self.floatingEdges)
             .background {
-                TraySheetSeam(cardHeight: cardHeight, dimsBackground: TrayMetrics.dimsBackground)
-                    .frame(width: 0, height: 0)
-                    .accessibilityHidden(true)
+                TraySheetSeam(
+                    cardHeight: cardHeight,
+                    dimsBackground: TrayMetrics.dimsBackground,
+                    onMaximumCardHeight: { maximumCardHeight = $0 }
+                )
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
             }
             // The card draws its own surface; the sheet stays clear (see `TrayFill`).
             .presentationBackground(.clear)
@@ -91,7 +99,8 @@ private struct TrayHost<Content: View>: View {
 ///
 /// The sheet behind the card is clear. The seam clears the floating sheet's system glass through
 /// the detent's background effect (iOS 26.1+), so the flat fill keeps a glass layer of its own
-/// beneath it, as the system glass sat beneath it before.
+/// beneath it, as the system glass sat beneath it before; on iOS 18 a material stands in for the
+/// glass.
 struct TrayFill: View {
 
     let style: TrayStyle
@@ -115,8 +124,9 @@ struct TrayFill: View {
                 style: .continuous
             )
             shape
-                .fill(flat.map(AnyShapeStyle.init) ?? AnyShapeStyle(.thinMaterial))
+                .fill(flat ?? .clear)
                 .overlay { errorFade.clipShape(shape) }
+                .background(.thinMaterial, in: shape)
                 .ignoresSafeArea(.container, edges: .bottom)
         }
     }

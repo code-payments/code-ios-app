@@ -351,6 +351,7 @@ private struct CurrencyInfoScreenContent: View {
                         Image.icon(.shareOs)
                             .iconSize(22)
                     }
+                    .accessibilityLabel("Share")
                 }
             }
         }

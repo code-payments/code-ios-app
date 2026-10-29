@@ -9,9 +9,9 @@ import FlipcashUI
 /// The small grey heading that opens a group of rows on a settings screen.
 struct SettingsSectionHeader: View {
 
-    let title: String
+    let title: LocalizedStringKey
 
-    init(_ title: String) {
+    init(_ title: LocalizedStringKey) {
         self.title = title
     }
 

@@ -319,6 +319,14 @@ extension ButtonContent {
                 return .chevronLeftMedium
             }
         }
+
+        /// What VoiceOver calls this key.
+        var accessibilityLabel: LocalizedStringKey {
+            switch self {
+            case .chveronLeft:
+                return "Delete"
+            }
+        }
     }
 }
 
@@ -372,7 +380,7 @@ private extension KeyPadView {
         }
         
         @ViewBuilder private func button(for content: ButtonContent) -> some View {
-            Button {
+            let button = Button {
                 if let symbol = content.symbol {
                     action(for: symbol)
                 } else {
@@ -387,6 +395,13 @@ private extension KeyPadView {
                 }
             }
             .font(.appKeyboard)
+
+            // A symbol key's icon is decorative, so the key names itself.
+            if let symbol = content.symbol {
+                button.accessibilityLabel(symbol.accessibilityLabel)
+            } else {
+                button
+            }
         }
         
         // MARK: - Actions -

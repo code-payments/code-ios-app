@@ -16,10 +16,12 @@ struct ArchivedRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            HStack(spacing: RecipientRowMetrics.avatarGap) {
                 // Secondary throughout: a way into a folder, quieter than the chats below it.
-                Image(systemName: "archivebox")
-                    .frame(minWidth: 45)
+                // The glyph's slot is a chat avatar's width, so "Archived" starts where chat titles do.
+                Image.icon(.archive)
+                    .iconSize(24)
+                    .frame(width: RecipientRowMetrics.avatarSize)
                 Text("Archived")
                     .font(.appTextMedium)
                 Spacer()
@@ -27,16 +29,14 @@ struct ArchivedRow: View {
                     Text("\(count)")
                         .font(.appTextSmall)
                 }
-                Image(systemName: "chevron.right")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 9, height: 12)
+                ListRowChevron()
             }
             .foregroundStyle(Color.textSecondary)
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
         .accessibilityLabel(count > 0 ? "Archived, \(count) unread" : "Archived")
         .accessibilityIdentifier("chat-archived-row")
     }

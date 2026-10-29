@@ -9,8 +9,9 @@ import SwiftUI
 
 /// One of a tray's capsule buttons: its title, its weight, its progress, and what it does.
 ///
-/// A tray holds one or two, side by side with the secondary on the left. The right-hand action
-/// keeps its place across a flow's steps, and a change of title crossfades in place.
+/// A tray holds one or two, side by side with the secondary on the left, or stacked with the
+/// primary on top when a title wouldn't fit whole in its half. The right-hand action keeps its
+/// place across a flow's steps, and a change of title crossfades in place.
 public struct TrayAction {
 
     /// How an action is weighted against the other action in its tray.
@@ -65,7 +66,8 @@ public struct TrayAction {
     }
 }
 
-/// A tray's actions side by side at equal widths, the secondary on the left.
+/// A tray's actions side by side at equal widths, the secondary on the left, or stacked full
+/// width, the primary on top, when a title wouldn't fit whole beside the other.
 struct TrayActionBar: View {
 
     let actions: [TrayAction]
@@ -76,7 +78,7 @@ struct TrayActionBar: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: TrayMetrics.actionGap) {
+        TrayActionLayout(spacing: TrayMetrics.actionGap) {
             ForEach(TrayAction.ordered(actions), id: \.slot) { action in
                 Button(action: action.action) {
                     label(for: action)
@@ -100,7 +102,14 @@ struct TrayActionBar: View {
                     .transition(titleTransition)
             }
         case .loading, .success, .successText:
-            ButtonStateLabel(action.title, state: action.state)
+            ZStack {
+                // Keeps the title's width, so progress doesn't unstack a bar the title stacked.
+                Text(action.title)
+                    .lineLimit(1)
+                    .hidden()
+                    .accessibilityHidden(true)
+                ButtonStateLabel(action.title, state: action.state)
+            }
         }
     }
 
@@ -118,6 +127,63 @@ struct TrayActionBar: View {
             removal: TrayFade(opacity: 0, blur: blur, scale: scale, offset: -rise),
             removalAnimation: TrayMotion.labelOut.animation
         )
+    }
+}
+
+/// Lays the bar's buttons, given left to right, side by side at equal widths when every one fits
+/// whole in its share, and otherwise stacked full width with the last, the primary, on top.
+private struct TrayActionLayout: Layout {
+
+    let spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard !subviews.isEmpty else { return .zero }
+        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? sideBySideWidth(subviews)
+        if fitsSideBySide(subviews, in: width) {
+            let share = self.share(of: width, among: subviews)
+            let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: share, height: nil)).height }.max() ?? 0
+            return CGSize(width: width, height: height)
+        }
+        let heights = subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+        return CGSize(width: width, height: heights.reduce(0, +) + gaps(subviews))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard !subviews.isEmpty else { return }
+        if fitsSideBySide(subviews, in: bounds.width) {
+            let share = self.share(of: bounds.width, among: subviews)
+            var x = bounds.minX
+            for subview in subviews {
+                subview.place(at: CGPoint(x: x, y: bounds.midY), anchor: .leading, proposal: ProposedViewSize(width: share, height: bounds.height))
+                x += share + spacing
+            }
+        } else {
+            var y = bounds.minY
+            for subview in subviews.reversed() {
+                let height = subview.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil)).height
+                subview.place(at: CGPoint(x: bounds.minX, y: y), proposal: ProposedViewSize(width: bounds.width, height: height))
+                y += height + spacing
+            }
+        }
+    }
+
+    /// The width that keeps every title whole at equal shares: the widest button's ideal width
+    /// for each.
+    private func sideBySideWidth(_ subviews: Subviews) -> CGFloat {
+        let widest = subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        return widest * CGFloat(subviews.count) + gaps(subviews)
+    }
+
+    private func fitsSideBySide(_ subviews: Subviews, in width: CGFloat) -> Bool {
+        sideBySideWidth(subviews) <= width
+    }
+
+    private func share(of width: CGFloat, among subviews: Subviews) -> CGFloat {
+        (width - gaps(subviews)) / CGFloat(subviews.count)
+    }
+
+    private func gaps(_ subviews: Subviews) -> CGFloat {
+        spacing * CGFloat(max(subviews.count - 1, 0))
     }
 }
 

@@ -37,6 +37,10 @@ final class TraySheetDriver {
     private var shownHeight: CGFloat = 0
     private var pendingShrink: DispatchWorkItem?
 
+    /// Told the tallest the card can be whenever the sheet's limit changes.
+    var onMaximumCardHeight: ((CGFloat) -> Void)?
+    private var maximumCardHeight: CGFloat = 0
+
     /// Finds the sheet presenting `controller` and takes its detents over once the card has a
     /// height.
     func attach(from controller: UIViewController) {
@@ -142,9 +146,17 @@ final class TraySheetDriver {
     /// A detent leaves out the sheet's bottom safe area, which the card covers on iOS 26; on
     /// iOS 18 the card's content stays above the home indicator, so the detent is the card's height.
     private func detentHeight(in context: UISheetPresentationControllerDetentResolutionContext) -> CGFloat? {
+        reportMaximumCardHeight(context.maximumDetentValue + systemBottomInset)
         let height = shownHeight > 0 ? shownHeight : cardHeight
         guard height > 0 else { return nil }
         return min(height - systemBottomInset, context.maximumDetentValue)
+    }
+
+    /// Passes on the tallest card the detent can show, after the layout pass that resolved it.
+    private func reportMaximumCardHeight(_ height: CGFloat) {
+        guard height > 0, height != maximumCardHeight else { return }
+        maximumCardHeight = height
+        DispatchQueue.main.async { [weak self] in self?.onMaximumCardHeight?(height) }
     }
 
     /// Cancels the floating sheet's bottom safe area, which nothing covers, so the card's bottom
@@ -192,12 +204,15 @@ struct TraySheetSeam: UIViewControllerRepresentable {
 
     let cardHeight: CGFloat
     let dimsBackground: Bool
+    /// Told the tallest the card can be in this sheet.
+    let onMaximumCardHeight: (CGFloat) -> Void
 
     func makeUIViewController(context: Context) -> TraySheetSeamController {
         TraySheetSeamController()
     }
 
     func updateUIViewController(_ controller: TraySheetSeamController, context: Context) {
+        controller.driver.onMaximumCardHeight = onMaximumCardHeight
         controller.driver.attach(from: controller)
         controller.driver.update(cardHeight: cardHeight, dimsBackground: dimsBackground)
     }

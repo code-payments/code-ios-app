@@ -71,7 +71,7 @@ enum AttachSurfaceLayout {
     /// Matches the composer field's corner, so the menu reads as part of it.
     static let menuCornerRadius: CGFloat = BarMetrics.fieldCornerRadius
     /// `+`'s flat fill on the composer field, which the surface turns into as it reaches `+`.
-    static let plusFill = Color.white.opacity(0.10)
+    static let plusFill = Color.white.opacity(0.08)
     /// How far past `+`'s size the surface has fully turned from `+`'s fill into the panel's glass.
     static let plusBlendDistance: CGFloat = 40
     /// Concentric with the screen's corners, which the card stands ``AttachOverlayLayout/cardInset`` in from.

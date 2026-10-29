@@ -73,6 +73,9 @@ struct ComposerReplyStrip: View {
                 Image.icon(.circleXFilled)
                     .iconSize(28)
                     .foregroundStyle(Color.textMain)
+                    // The glyph's ✕ is a hole in its disc, which over glass shows the transcript. A
+                    // disc of the chat's ground under the glyph's middle half draws the ✕ instead.
+                    .background { Circle().fill(Color.backgroundMain).scaleEffect(0.5) }
                     // Wider than the disc: the glyph is small enough to miss on its own.
                     .frame(width: 34, height: 34)
                     .contentShape(.rect)

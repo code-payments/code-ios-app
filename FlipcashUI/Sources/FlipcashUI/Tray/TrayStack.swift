@@ -68,14 +68,13 @@ public struct TrayStack<Step: Hashable, Page: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             header
 
-            ZStack(alignment: .topLeading) {
-                page(flow.current)
-                    .id(flow.current)
-                    .transition(pageTransition)
+            // A page taller than the screen allows, as at accessibility sizes, scrolls between the
+            // header and the actions.
+            ViewThatFits(in: .vertical) {
+                pageRegion
+                ScrollView { pageRegion }
+                    .scrollBounceBehavior(.basedOnSize)
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            // Pages fading in and out move with the region as the tray resizes, not on their own.
-            .geometryGroup()
             .padding(.top, TrayMetrics.iconToTitle)
             // VoiceOver reads the title first, then the actions, then the X.
             .accessibilitySortPriority(3)
@@ -96,6 +95,17 @@ public struct TrayStack<Step: Hashable, Page: View>: View {
         // UI tests find a dialog by its title, and the tray stands in for dialogs.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(title ?? headerTitle(flow.current) ?? "Tray")
+    }
+
+    private var pageRegion: some View {
+        ZStack(alignment: .topLeading) {
+            page(flow.current)
+                .id(flow.current)
+                .transition(pageTransition)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        // Pages fading in and out move with the region as the tray resizes, not on their own.
+        .geometryGroup()
     }
 
     // MARK: - Header
@@ -179,7 +189,20 @@ public struct Tray<Content: View>: View {
 
     @State private var flow = TrayFlow(root: SingleStep.only)
 
-    /// Creates a tray with `content` under the title and message.
+    /// Creates a tray with `content` under the title and message, localizing literal copy.
+    public init(
+        title: LocalizedStringResource,
+        message: LocalizedStringResource? = nil,
+        icon: TrayIcon? = nil,
+        style: TrayStyle = .standard,
+        actions: [TrayAction],
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(title: String(localized: title), message: message.map { String(localized: $0) }, icon: icon, style: style, actions: actions, content: content())
+    }
+
+    /// Creates a tray with `content` under a title and message that are already localized.
+    @_disfavoredOverload
     public init(
         title: String,
         message: String? = nil,
@@ -214,7 +237,20 @@ public struct Tray<Content: View>: View {
 
 extension Tray where Content == EmptyView {
 
-    /// Creates a tray of a title, an optional message and its actions.
+    /// Creates a tray of a title, an optional message and its actions, localizing literal copy.
+    public init(
+        title: LocalizedStringResource,
+        message: LocalizedStringResource? = nil,
+        icon: TrayIcon? = nil,
+        style: TrayStyle = .standard,
+        actions: [TrayAction]
+    ) {
+        self.init(title: String(localized: title), message: message.map { String(localized: $0) }, icon: icon, style: style, actions: actions, content: nil)
+    }
+
+    /// Creates a tray of a title and an optional message that are already localized, and its
+    /// actions.
+    @_disfavoredOverload
     public init(
         title: String,
         message: String? = nil,

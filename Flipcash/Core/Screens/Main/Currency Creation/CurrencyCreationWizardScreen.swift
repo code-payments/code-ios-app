@@ -203,6 +203,7 @@ struct CurrencyCreationWizardScreen: View {
                         .iconSize(22)
                         .foregroundStyle(Color.textMain)
                 }
+                .accessibilityLabel("Back")
             }
             if state.step.showsProgressBar {
                 ToolbarItem(placement: .principal) {

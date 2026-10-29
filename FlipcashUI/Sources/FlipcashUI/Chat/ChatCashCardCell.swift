@@ -25,8 +25,6 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let card = BubbleBackgroundView()
     private let reactionRow = ReactionPillRowView()
     private let coinIcon = UIImageView()
-    /// Stands in for the coin icon when the token has none: the dollar glyph on a green disc.
-    private let cashBadge = ChatCashCardCell.makeCashBadge()
     private let tokenLabel = UILabel()
     private let tokenRow = UIStackView()
     private let captionLabel = UILabel()
@@ -35,7 +33,6 @@ public final class ChatCashCardCell: ChatColumnCell {
     // A card in a group carries its token under the amount and who was paid at its foot, instead
     // of the token in the header.
     private let centerCoinIcon = UIImageView()
-    private let centerCashBadge = ChatCashCardCell.makeCashBadge()
     private let centerTokenLabel = UILabel()
     private let centerTokenRow = UIStackView()
     private let recipientsLabel = UILabel()
@@ -72,12 +69,10 @@ public final class ChatCashCardCell: ChatColumnCell {
         card.translatesAutoresizingMaskIntoConstraints = false
 
         badgeSize = configureCircle(coinIcon)
-        badgeSize += configureCircle(cashBadge)
         badgeSize += configureCircle(centerCoinIcon)
-        badgeSize += configureCircle(centerCashBadge)
         tokenLabel.textColor = ChatStyle.secondaryText
 
-        [coinIcon, cashBadge, tokenLabel].forEach(tokenRow.addArrangedSubview)
+        [coinIcon, tokenLabel].forEach(tokenRow.addArrangedSubview)
         tokenRow.spacing = 6
         tokenRow.alignment = .center
         tokenRow.translatesAutoresizingMaskIntoConstraints = false
@@ -94,7 +89,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         eachLabel.textColor = ChatStyle.secondaryText
 
         centerTokenLabel.textColor = ChatStyle.secondaryText
-        [centerCoinIcon, centerCashBadge, centerTokenLabel].forEach(centerTokenRow.addArrangedSubview)
+        [centerCoinIcon, centerTokenLabel].forEach(centerTokenRow.addArrangedSubview)
         centerTokenRow.spacing = 6
         centerTokenRow.alignment = .center
 
@@ -171,24 +166,6 @@ public final class ChatCashCardCell: ChatColumnCell {
     /// Called when the viewer taps the leading "$" to pay for a reaction.
     var onReactionBoost: (() -> Void)?
 
-    /// The dollar glyph on a disc, standing in for a token with no coin icon; `applyMetrics` fills it.
-    private static func makeCashBadge() -> UIView {
-        let badge = UIView()
-        let glyph = UIImageView(image: UIImage.asset(.dollar).withRenderingMode(.alwaysTemplate))
-        glyph.contentMode = .scaleAspectFit
-        glyph.tintColor = .white
-        glyph.translatesAutoresizingMaskIntoConstraints = false
-        badge.addSubview(glyph)
-        NSLayoutConstraint.activate([
-            glyph.centerXAnchor.constraint(equalTo: badge.centerXAnchor),
-            glyph.centerYAnchor.constraint(equalTo: badge.centerYAnchor),
-            // The glyph at 14 of the badge's 20, as drawn.
-            glyph.widthAnchor.constraint(equalTo: badge.widthAnchor, multiplier: 0.7),
-            glyph.heightAnchor.constraint(equalTo: badge.heightAnchor, multiplier: 0.7),
-        ])
-        return badge
-    }
-
     /// Clips `view` to a circle and returns its size constraints, which `applyMetrics` sets.
     private func configureCircle(_ view: UIView) -> [NSLayoutConstraint] {
         view.contentMode = .scaleAspectFill
@@ -213,11 +190,9 @@ public final class ChatCashCardCell: ChatColumnCell {
         amountLabel.font = .default(size: ChatStyle.cardAmountSize, weight: .semibold)
         let badge = ChatStyle.cardBadgeSize
         badgeSize.forEach { $0.constant = badge }
-        for circle in [coinIcon, cashBadge, centerCoinIcon, centerCashBadge] {
+        for circle in [coinIcon, centerCoinIcon] {
             circle.layer.cornerRadius = badge / 2
         }
-        cashBadge.backgroundColor = ChatStyle.cashBadgeFill
-        centerCashBadge.backgroundColor = ChatStyle.cashBadgeFill
         headerTop.constant = ChatStyle.cardPaddingTop
         headerLeading.constant = ChatStyle.cardPaddingX
         bodyTop.constant = ChatStyle.cardHeaderGap
@@ -250,15 +225,14 @@ public final class ChatCashCardCell: ChatColumnCell {
         eachLabel.isHidden = cash.group?.each == nil
         amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
 
+        // A token whose branding never resolved shows no icon rather than a misleading one.
         coinIcon.isHidden = cash.iconURL == nil
-        cashBadge.isHidden = cash.iconURL != nil
         coinIcon.kf.setImage(with: cash.iconURL)
         let isGroup = cash.group != nil
         tokenRow.isHidden = isGroup
         centerTokenRow.isHidden = !isGroup
         centerTokenLabel.text = cash.token
         centerCoinIcon.isHidden = cash.iconURL == nil
-        centerCashBadge.isHidden = cash.iconURL != nil
         if isGroup { centerCoinIcon.kf.setImage(with: cash.iconURL) }
         recipientsLabel.text = cash.group?.recipients
         recipientsLabel.isHidden = !isGroup

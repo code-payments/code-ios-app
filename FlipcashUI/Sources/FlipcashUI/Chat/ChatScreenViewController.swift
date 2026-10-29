@@ -988,8 +988,8 @@ public final class ChatScreenViewController: UIViewController {
         didSet { jump.unreadCount = unreadBelowCount }
     }
 
-    /// Holds the button's box a fixed height over the keyboard's top (the screen's foot while it's
-    /// down), so the button stays put while the bar grows or settles between resting and typing.
+    /// Stands the button's box on the clip's top edge, so it rides the keyboard and every travel of
+    /// that edge in the same layout pass as the clip.
     private func addJumpButton() {
         guard let jumpButtonController else { return }
         let host = PassthroughView()
@@ -1005,7 +1005,7 @@ public final class ChatScreenViewController: UIViewController {
         NSLayoutConstraint.activate([
             host.leadingAnchor.constraint(equalTo: barClip.leadingAnchor),
             host.trailingAnchor.constraint(equalTo: barClip.trailingAnchor),
-            host.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor, constant: -56),
+            host.bottomAnchor.constraint(equalTo: barClip.topAnchor),
             host.heightAnchor.constraint(equalToConstant: JumpToBottomButtonView.reach.height),
             button.topAnchor.constraint(equalTo: host.topAnchor),
             button.leadingAnchor.constraint(equalTo: host.leadingAnchor),

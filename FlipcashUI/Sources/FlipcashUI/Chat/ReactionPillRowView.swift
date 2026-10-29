@@ -602,7 +602,7 @@ struct ReactionRowLayout: Equatable {
 private final class ReactionOverflowButton: UIControl {
 
     private static var height: CGFloat { ChatStyle.pillHeight }
-    private static var horizontalPadding: CGFloat { ChatStyle.pillTrailingPadding }
+    private static var horizontalPadding: CGFloat { ChatStyle.pillLeadingPadding }
     private static var font: UIFont { .default(size: ChatStyle.pillCountSize, weight: .semibold) }
 
     private let label = UILabel()

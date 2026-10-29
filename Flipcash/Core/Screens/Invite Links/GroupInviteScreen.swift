@@ -151,7 +151,7 @@ struct GroupInviteScreen: View {
                 overflowMenu
             }
         }
-        .sheet(isPresented: $isShowingE2ee) {
+        .tray(isPresented: $isShowingE2ee) {
             E2eeLearnMoreSheet(kind: .privateGroup, isPresented: $isShowingE2ee)
         }
         .fullScreenCover(isPresented: $isReporting) {

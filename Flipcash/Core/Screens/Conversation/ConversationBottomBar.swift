@@ -168,8 +168,8 @@ struct BarOverflowReporting: ViewModifier {
     }
 }
 
-/// The jump-to-bottom button, centred over the bar's trailing control at the foot of the box the
-/// screen stands on the bar's top edge.
+/// The jump-to-bottom button, at the trailing foot of the box the screen stands on the bar's top
+/// edge, so it rides the bar.
 ///
 /// It is hosted outside the bar, so the transcript's inset and the keyboard floor never see it and
 /// the bar's clip never cuts it.
@@ -179,24 +179,20 @@ struct JumpToBottomOverlay: View {
 
     var body: some View {
         let isShown = jump.isShown
-        let isCompact = !model.isComposing
         // The attach panel takes every touch outside itself, the button's included.
         let takesTouches = !model.attachPanel.isOpen
-        // Centred on the resting trailing control's column, resting and typing alike, then moved
-        // 32pt toward the screen's edge.
-        let inset = BarMetrics.trailingControlCentreInset(isCompact: true)
-            - JumpToBottomButtonView.diameter / 2 - 32
+        // The frame is the hit area, which reaches past the drawn circle; the insets place the circle.
+        let outset = JumpToBottomButtonView.hitOutset
         JumpToBottomButtonView(unreadCount: jump.unreadCount, action: jump.onTap)
-            .frame(width: JumpToBottomButtonView.diameter, height: JumpToBottomButtonView.diameter)
+            .frame(width: JumpToBottomButtonView.hitDiameter, height: JumpToBottomButtonView.hitDiameter)
             // Opacity only: a glass effect under a scale effect drew a shrunken copy of the screen.
             .opacity(isShown ? 1 : 0)
             // Hidden, the button also stops taking touches; opacity 0 alone would still be tappable.
             .allowsHitTesting(isShown && takesTouches)
             .accessibilityHidden(!isShown)
             .animation(ChatMotion.reflow.animation, value: isShown)
-            .padding(.trailing, inset)
-            .animation(ChatMotion.barInset.animation, value: isCompact)
-            .padding(.bottom, BarMetrics.jumpButtonGapAboveBar)
+            .padding(.trailing, BarMetrics.jumpButtonInset - outset)
+            .padding(.bottom, BarMetrics.jumpButtonGapAboveBar - outset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
     }
 }
@@ -238,11 +234,15 @@ enum BarMetrics {
     static let compactInset: CGFloat = 32
     /// The gap between the field and the `$` beside it, the same compact and composing.
     nonisolated static let controlSpacing: CGFloat = 12
-    /// The gap between the jump-to-bottom button's bottom edge and the top edge of `$`.
-    static let jumpButtonGap: CGFloat = 23.6
+    /// The gap between the jump-to-bottom button's bottom edge and the top edge of `$`: twice the
+    /// field's gap to `$`.
+    static let jumpButtonGap: CGFloat = controlSpacing * 2
     /// How far above the bar's top edge the button's bottom edge stands, which is `$`'s top edge
     /// less the bar's own margin above its controls.
     static let jumpButtonGapAboveBar: CGFloat = jumpButtonGap - contentPadding
+    /// The margin between the jump-to-bottom button's circle and the screen's trailing side, resting
+    /// and typing alike: the composing bar's edge, which keeps the widest unread badge on screen.
+    static let jumpButtonInset: CGFloat = edgeInset
 
     /// The margin between the bar's controls and the screen's sides: ``compactInset`` while the bar
     /// rests compact, ``edgeInset`` while composing.
@@ -250,8 +250,7 @@ enum BarMetrics {
         isCompact ? compactInset : edgeInset
     }
 
-    /// Distance from the screen's side to the centre of the bar's trailing control (Send Cash). The
-    /// jump-to-bottom button centres on this column.
+    /// Distance from the screen's side to the centre of the bar's trailing control (Send Cash).
     static func trailingControlCentreInset(isCompact: Bool) -> CGFloat {
         controlInset(isCompact: isCompact) + contentHeight / 2
     }

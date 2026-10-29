@@ -16,6 +16,9 @@ enum TabBarItemStyle {
 
     /// The point size every tab glyph is drawn at, badged or not.
     static let glyphSize: CGFloat = 28
+    /// The square every tab image is centred in above its title: the profile photo's slot, which
+    /// also leaves room for a badge's overhang, so every title sits on one line.
+    static let slotSize: CGFloat = ProfileTabIcon.slotSize
     /// Moves the glyph and its title down (positive) or up within the bar.
     static let verticalOffset: CGFloat = 0
     /// The opacity of the glyph and title of the tabs that aren't selected.
@@ -58,29 +61,32 @@ enum TabBarItemStyle {
         }
     }
 
-    /// Stacks the glyph over its drawn title and pads the canvas so the bar,
+    /// Centres the glyph in ``slotSize`` over its drawn title and pads the canvas so the bar,
     /// which centres the image, lands the pair ``verticalOffset`` from centre.
     private static func compose(_ glyph: UIImage, glyphAlpha: Double, title: String, isSelected: Bool) -> UIImage {
         let textColor = UIColor(Color.textMain).withAlphaComponent(isSelected ? 1 : unselectedOpacity)
         let text = NSAttributedString(string: title, attributes: [.font: titleFont, .foregroundColor: textColor])
 
-        // The glyph's alignment rect leaves out a badge's overhang, so the pair centres on the glyph.
+        // The glyph's alignment rect leaves out a badge's overhang, so the slot centres on the glyph.
         let insets = glyph.alignmentRectInsets
         let glyphWidth = glyph.size.width - insets.left - insets.right
         let glyphHeight = glyph.size.height - insets.top - insets.bottom
         let textSize = CGSize(width: ceil(text.size().width), height: ceil(text.size().height))
 
-        let width = max(glyph.size.width, textSize.width)
-        let contentHeight = glyph.size.height + titleGap + textSize.height
+        let width = max(slotSize, textSize.width)
+        let contentHeight = slotSize + titleGap + textSize.height
         let canvas = CGSize(width: width, height: contentHeight + 2 * abs(verticalOffset))
         let top = abs(verticalOffset) + verticalOffset
 
-        let glyphOrigin = CGPoint(x: (width - glyphWidth) / 2 - insets.left, y: top)
+        let glyphOrigin = CGPoint(
+            x: (width - glyphWidth) / 2 - insets.left,
+            y: top + (slotSize - glyphHeight) / 2 - insets.top
+        )
         return UIGraphicsImageRenderer(size: canvas).image { _ in
             glyph.draw(at: glyphOrigin, blendMode: .normal, alpha: glyphAlpha)
             text.draw(at: CGPoint(
                 x: (width - textSize.width) / 2,
-                y: top + insets.top + glyphHeight + titleGap
+                y: top + slotSize + titleGap
             ))
         }
         .withRenderingMode(.alwaysOriginal)

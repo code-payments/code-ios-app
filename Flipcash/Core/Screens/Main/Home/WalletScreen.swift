@@ -337,6 +337,7 @@ private struct WalletScreenContent: View {
                     .modifier(WalletCircleGlass())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Back")
             .accessibilityIdentifier("wallet-open-card-back")
 
             Spacer(minLength: 0)
@@ -350,6 +351,7 @@ private struct WalletScreenContent: View {
                         .contentShape(Circle())
                         .modifier(WalletCircleGlass())
                 }
+                .accessibilityLabel("Share")
                 .simultaneousGesture(TapGesture().onEnded {
                     Analytics.buttonTapped(name: .shareTokenInfo)
                 })

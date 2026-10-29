@@ -50,7 +50,7 @@ struct E2eeLearnMoreSheet: View {
     private func section(_ heading: String, items: [String], isEncrypted: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(heading)
-                .font(.system(size: 11, weight: .bold))
+                .font(.default(size: 11, weight: .bold))
                 .tracking(0.44)
                 .foregroundStyle(Color.white.opacity(0.45))
 
@@ -58,7 +58,7 @@ struct E2eeLearnMoreSheet: View {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     bullet(isEncrypted: isEncrypted)
                     Text(item)
-                        .font(.system(size: 15))
+                        .font(.default(size: 15))
                         .foregroundStyle(Color.white.opacity(0.9))
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,14 +78,14 @@ struct E2eeLearnMoreSheet: View {
             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
     }
 
-    private var title: String {
+    private var title: LocalizedStringResource {
         switch kind {
         case .dm, .privateGroup: "Your Messages Are Private"
         case .group:             "Public Groups Are Not Encrypted"
         }
     }
 
-    private var message: String {
+    private var message: LocalizedStringResource {
         switch kind {
         case .dm:
             "Messages and media in this chat are end-to-end encrypted. Only you and the person you\u{2019}re chatting with can read them."

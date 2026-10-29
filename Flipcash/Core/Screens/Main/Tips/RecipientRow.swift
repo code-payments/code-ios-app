@@ -24,7 +24,7 @@ struct RecipientRowScaffold<Trailing: View>: View {
     let avatarID: String
     let title: String
     /// The preview line. Attributed so a caller can style part of it — the
-    /// empty-chat placeholder is italic while a real preview is not.
+    /// empty-chat placeholder is italic, and a chat's preview sets its author in bold.
     let subtitle: AttributedString?
     let imageData: Data?
     var blurhash: String? = nil
@@ -68,13 +68,13 @@ struct RecipientRowBody<Trailing: View>: View {
     @ViewBuilder let trailing: Trailing
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: RecipientRowMetrics.avatarGap) {
             ContactAvatarView(
                 id: avatarID,
                 displayName: title,
                 imageData: imageData,
                 blurhash: blurhash,
-                size: 52
+                size: RecipientRowMetrics.avatarSize
             )
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .top, spacing: 6) {
@@ -94,7 +94,7 @@ struct RecipientRowBody<Trailing: View>: View {
                     }
                 }
                 if let subtitle {
-                    Text(Self.styledPreview(subtitle))
+                    Text(subtitle)
                         .font(.default(size: 14, weight: .regular))
                         .foregroundStyle(Color.textSecondary)
                         .tracking(0.16)
@@ -113,20 +113,14 @@ struct RecipientRowBody<Trailing: View>: View {
         }
         .contentShape(Rectangle())
     }
+}
 
-    /// The preview with a leading "Name:" set apart in bold. A subtitle that already carries its
-    /// own colour, like a join-request line, is left as its builder styled it.
-    private static func styledPreview(_ text: AttributedString) -> AttributedString {
-        guard !text.runs.contains(where: { $0[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] != nil }) else { return text }
-        let plain = String(text.characters)
-        guard let colon = plain.firstIndex(of: ":"), plain.distance(from: plain.startIndex, to: colon) <= 28,
-              let end = text.characters.index(text.startIndex, offsetBy: plain.distance(from: plain.startIndex, to: colon) + 1, limitedBy: text.endIndex)
-        else { return text }
-        var styled = text
-        styled[text.startIndex..<end].font = Font.appTextSmall
-        styled[text.startIndex..<end].foregroundColor = Color.textSecondary
-        return styled
-    }
+/// The avatar column every conversation row shares; a row above the chats lines up with it.
+nonisolated enum RecipientRowMetrics {
+    /// The avatar's diameter.
+    static let avatarSize: CGFloat = 52
+    /// The space between the avatar and the text.
+    static let avatarGap: CGFloat = 12
 }
 
 private extension View {
@@ -136,8 +130,10 @@ private extension View {
         self
             .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
-            .listRowSeparator(.automatic)
-            .alignmentGuide(.listRowSeparatorLeading) { _ in 56 }
+            // Starts where the title does, past the avatar and its gap.
+            .alignmentGuide(.listRowSeparatorLeading) { _ in
+                RecipientRowMetrics.avatarSize + RecipientRowMetrics.avatarGap
+            }
             .listRowBackground(Color.clear)
             .listRowSeparatorTint(.rowSeparator)
             .accessibilityElement(children: .ignore)
@@ -161,7 +157,7 @@ struct RecipientRowAccessory: View {
                     .fixedSize(horizontal: true, vertical: false)
                     .pill()
             } else {
-                Text(Self.label(for: timestamp))
+                Text(timestamp.formattedChatListTime())
                     .font(.default(size: 14, weight: .regular))
                     .foregroundStyle(hasUnread ? Color.unreadIndicator : Color.textSecondary)
             }
@@ -171,19 +167,5 @@ struct RecipientRowAccessory: View {
                     .frame(width: 9, height: 9)
             }
         }
-    }
-
-    /// The time today, "Yesterday", a short weekday within the past week, and a short month and
-    /// day before that.
-    private static func label(for date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return date.formatted(date: .omitted, time: .shortened)
-        }
-        if calendar.isDateInYesterday(date) { return "Yesterday" }
-        let weekAgo = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: .now))!
-        return date > weekAgo
-            ? date.formatted(.dateTime.weekday(.abbreviated))
-            : date.formatted(.dateTime.month(.abbreviated).day())
     }
 }

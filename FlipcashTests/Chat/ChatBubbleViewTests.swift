@@ -15,8 +15,8 @@ import FlipcashCore
 @Suite("Bubble corner grouping")
 struct ChatBubbleViewCornerTests {
 
-    private let base = BubbleBackgroundView.baseRadius      // 12
-    private let grouped = BubbleBackgroundView.groupedRadius // 4
+    private let base = BubbleBackgroundView.baseRadius
+    private let grouped = BubbleBackgroundView.groupedRadius
 
     @Test("A standalone bubble uses the base radius on all four corners")
     func standalone_allBase() {
@@ -49,7 +49,14 @@ struct ChatBubbleViewCornerTests {
         return bubble
     }
 
-    @Test("The author run alone does not flatten the corner; only the bubble run does")
+    /// The mask `bubble` would have if its background were cut to `radii`, in the same frame, so a
+    /// run's shape is asserted whatever the joined corner's radius is.
+    private func mask(of bubble: ChatBubbleView, radii: RectangleCornerRadii) -> CGPath? {
+        guard let background = bubble.subviews.lazy.compactMap({ $0 as? BubbleBackgroundView }).first else { return nil }
+        return UIBezierPath(cgPath: BubbleBackgroundView.path(radii: radii, in: background.bounds)).cgPath
+    }
+
+    @Test("The author run alone keeps the standalone top corner; only the bubble run takes the joined one")
     func authorRunAloneLeavesTheCornerUntouched() {
         let authorRunOnly = laidOutBubble(
             ChatMessage(id: "1", text: "hi", sender: .me, isContinuationFromPrevious: true, joinsBubbleAbove: false)
@@ -62,10 +69,11 @@ struct ChatBubbleViewCornerTests {
         let bubbleRun = laidOutBubble(
             ChatMessage(id: "3", text: "hi", sender: .me, joinsBubbleAbove: true)
         )
-        #expect(bubbleRun.maskingPath?.cgPath != neitherRun.maskingPath?.cgPath)
+        let joined = BubbleBackgroundView.radii(isFromSelf: true, groupedAbove: true, groupedBelow: false)
+        #expect(bubbleRun.maskingPath?.cgPath == mask(of: bubbleRun, radii: joined))
     }
 
-    @Test("The author run alone does not flatten the bottom corner; only the bubble run does")
+    @Test("The author run alone keeps the standalone bottom corner; only the bubble run takes the joined one")
     func authorRunAloneLeavesTheBottomCornerUntouched() {
         let authorRunOnly = laidOutBubble(
             ChatMessage(id: "1", text: "hi", sender: .me, isContinuedByNext: true, joinsBubbleBelow: false)
@@ -78,7 +86,8 @@ struct ChatBubbleViewCornerTests {
         let bubbleRun = laidOutBubble(
             ChatMessage(id: "3", text: "hi", sender: .me, joinsBubbleBelow: true)
         )
-        #expect(bubbleRun.maskingPath?.cgPath != neitherRun.maskingPath?.cgPath)
+        let joined = BubbleBackgroundView.radii(isFromSelf: true, groupedAbove: false, groupedBelow: true)
+        #expect(bubbleRun.maskingPath?.cgPath == mask(of: bubbleRun, radii: joined))
     }
 
     @Test("A middle bubble in a self run flattens both inner (trailing) corners")
@@ -109,15 +118,17 @@ struct ChatMessageCellAlignmentTests {
     @Test("A self message hugs the trailing edge")
     func selfMessage_hugsTrailing() {
         let (cell, bubble) = laidOutCell(sender: .me)
-        #expect(abs(bubble.maxX - (cell.contentView.bounds.width - 12)) < 0.5)
-        #expect(bubble.minX > 12) // does not span the full width
+        let inset = ChatColumnCell.rowInset
+        #expect(abs(bubble.maxX - (cell.contentView.bounds.width - inset)) < 0.5)
+        #expect(bubble.minX > inset) // does not span the full width
     }
 
     @Test("An other message hugs the leading edge")
     func otherMessage_hugsLeading() {
         let (cell, bubble) = laidOutCell(sender: .other)
-        #expect(abs(bubble.minX - 12) < 0.5)
-        #expect(bubble.maxX < cell.contentView.bounds.width - 12)
+        let inset = ChatColumnCell.rowInset
+        #expect(abs(bubble.minX - inset) < 0.5)
+        #expect(bubble.maxX < cell.contentView.bounds.width - inset)
     }
 }
 

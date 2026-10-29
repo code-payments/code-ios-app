@@ -39,6 +39,9 @@ struct ChatProfileScreen: View {
     @State private var isRequesting = false
     @State private var hostName: String?
     @State private var dialogItem: DialogItem?
+    @State private var isListingChatters = false
+    /// The chatter picked in the chatter list, whose profile opens once the list's tray has gone.
+    @State private var pickedChatter: UserID?
     @State private var chatters: [SampledChatter] = []
     @State private var senders: [UserID] = []
     @State private var mintMetadata: [PublicKey: StoredMintMetadata] = [:]
@@ -156,6 +159,12 @@ struct ChatProfileScreen: View {
         .tray(isPresented: $isShowingE2ee) {
             E2eeLearnMoreSheet(kind: isPrivate ? .privateGroup : .group, isPresented: $isShowingE2ee)
         }
+        .tray(isPresented: $isListingChatters, onDismiss: openPickedChatter) {
+            ChattersTray(chatters: chatters) { userID in
+                pickedChatter = userID
+                isListingChatters = false
+            }
+        }
         .fullScreenCover(isPresented: $isReporting) {
             NavigationStack {
                 ReportFlowScreen(target: .chat(conversationID))
@@ -225,14 +234,20 @@ struct ChatProfileScreen: View {
         }
     }
 
-    /// A public group gets its cover-colored page; a private group keeps the shared profile layout,
-    /// as does a group not yet loaded, so a private one never paints as public.
+    /// A public group gets its cover-colored page; a private group keeps the shared profile layout.
+    /// A group not yet loaded gets a plain page, so neither layout draws and then swaps.
     @ViewBuilder
     private var screen: some View {
-        if isPrivate || conversation == nil {
-            privateScreen
+        if let conversation {
+            if conversation.isPrivate {
+                privateScreen
+            } else {
+                publicScreen
+            }
         } else {
-            publicScreen
+            Background(color: .backgroundMain) {
+                Color.clear
+            }
         }
     }
 
@@ -354,6 +369,9 @@ struct ChatProfileScreen: View {
             onSelectPerson: { userID in
                 router.push(.userProfile(userID, origin: .groupMember))
             },
+            onSeeChatters: {
+                isListingChatters = true
+            },
             onToken: { token in
                 Analytics.tokenInfoOpened(from: .openedFromChat, mint: token.mint)
                 router.push(.currencyInfo(token.mint))
@@ -409,7 +427,11 @@ struct ChatProfileScreen: View {
     }
 
     private func publicContent(cover: UIImage?) -> PublicGroupProfileContent {
-        let named = requirements.flatMap { requirementsNamed ? $0 : nil }
+        // Drawn at once: the amounts never name a token, and each tile holds its token's place
+        // until the name lands.
+        let tiles = requirements.map {
+            PublicGroupRequirementTile.tiles(for: $0, metadata: mintMetadata, display: ratesController.displayCurrency)
+        } ?? []
         return PublicGroupProfileContent(
             id: conversationID.description,
             title: title,
@@ -418,14 +440,33 @@ struct ChatProfileScreen: View {
             avatarImageData: sessionContainer.profileAvatars.data(for: .chat(conversationID)),
             avatarBlurhash: conversation?.picture?.thumbnailBlurhash,
             cover: cover,
-            requirements: named.map {
-                PublicGroupRequirementTile.tiles(for: $0, metadata: mintMetadata, display: ratesController.displayCurrency)
-            } ?? [],
-            yourBalance: named.flatMap { yourBalance(in: $0) },
-            // Held back with the requirements above it, so a late reveal doesn't push the card down.
-            pulse: chatters.isEmpty || !requirementsNamed ? nil : PublicGroupPulse(chatters: chatters, now: .now),
+            requirements: tiles,
+            namingTokens: requirements.map { namingTokens(tiles, in: $0) } ?? [],
+            yourBalance: requirements.flatMap { yourBalance(in: $0) },
+            pulse: chatters.isEmpty ? nil : PublicGroupPulse(chatters: chatters, now: .now),
             host: chatters.first(where: \.isCreator).map(GroupPortrait.init)
         )
+    }
+
+    /// The tiles whose token is still being looked up: a mint other than the dollar token with no
+    /// name yet, until the lookup gives up.
+    private func namingTokens(
+        _ tiles: [PublicGroupRequirementTile],
+        in requirements: GroupBalanceRequirements
+    ) -> Set<PublicGroupRequirementTile.Purpose> {
+        guard !mintNamesTimedOut else { return [] }
+        var naming: Set<PublicGroupRequirementTile.Purpose> = []
+        for tile in tiles {
+            let rule: MinimumBalanceRequirement?
+            switch tile.purpose {
+            case .joinAndChat, .join: rule = requirements.join
+            case .chat:               rule = requirements.chat
+            }
+            if let mint = rule?.mints.first, mint != .usdf, mintMetadata[mint] == nil {
+                naming.insert(tile.purpose)
+            }
+        }
+        return naming
     }
 
     /// Whether the pinned Open Chat button shows: not from the chat itself, where the chat is one
@@ -447,6 +488,14 @@ struct ChatProfileScreen: View {
     }
 
     // MARK: - Chatting -
+
+    /// Opens the profile picked in the chatter list once its tray has gone, so the push lands on
+    /// this screen rather than under the tray.
+    private func openPickedChatter() {
+        guard let userID = pickedChatter else { return }
+        pickedChatter = nil
+        router.push(.userProfile(userID, origin: .groupMember))
+    }
 
     /// Best effort: a sample that fails to load leaves the section hidden, as an empty one does.
     private func loadChatters() async {
@@ -849,6 +898,40 @@ struct ChatProfileScreen: View {
             )
             ErrorReporting.captureError(error, reason: "Failed to leave group")
         }
+    }
+}
+
+/// Everyone in a public group's chatter sample, opened from the pulse card's facepile: the
+/// Chatting grid a public group's profile drew before the pulse card, in a tray that scrolls once
+/// the grid outgrows it.
+private struct ChattersTray: View {
+
+    let chatters: [SampledChatter]
+    let onSelect: (UserID) -> Void
+
+    @State private var flow = TrayFlow(root: Step.grid)
+
+    var body: some View {
+        TrayStack(flow: flow, actions: { _ in [] }) { _ in
+            TrayPage {
+                ScrollView {
+                    GroupChattingGrid(chatters: chatters, onSelect: onSelect)
+                        // The grid insets itself for a full-width page; the tray's card already does.
+                        .padding(.horizontal, -ProfileHeaderMetrics.inset)
+                }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .frame(maxHeight: Self.maxGridHeight)
+            }
+        }
+    }
+
+    /// The tallest the grid gets before it scrolls: its title and about four rows, which fits the
+    /// smallest phone.
+    private static let maxGridHeight: CGFloat = 440
+
+    private enum Step: Hashable {
+        case grid
     }
 }
 

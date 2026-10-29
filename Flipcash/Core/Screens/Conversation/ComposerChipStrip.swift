@@ -296,6 +296,9 @@ private struct ComposerChipRemoveButton: View {
             Image.icon(.circleXFilled)
                 .iconSize(22)
                 .foregroundStyle(Color.white)
+                // The glyph's ✕ is a hole in its disc, which vanishes over a light photo. A disc of
+                // the chat's ground under the glyph's middle half draws the ✕ instead.
+                .background { Circle().fill(Color.backgroundMain).scaleEffect(0.5) }
                 .padding(3)
                 .contentShape(Rectangle())
         }

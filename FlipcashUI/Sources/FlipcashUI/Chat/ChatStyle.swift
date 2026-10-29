@@ -155,8 +155,6 @@ enum ChatStyle {
     static let cardLabelSize: CGFloat = 13
     /// The card's amount point size.
     static let cardAmountSize: CGFloat = 34
-    /// The fill behind the cash badge's dollar glyph.
-    static let cashBadgeFill = UIColor(Color(r: 48, g: 209, b: 88))
 
     // MARK: - Reactions
 

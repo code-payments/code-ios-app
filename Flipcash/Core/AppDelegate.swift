@@ -323,15 +323,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 private extension AppDelegate {
 
     func setupAppearance() {
+        // No font: the bar's own large (34 pt bold) and inline (17 pt semibold) titles are the
+        // intended ones, and only the bar's defaults follow a text-size change live.
         let largeAttributes: [NSAttributedString.Key: Any] = [
-            // Apple's own large title: Large Title, 34 pt bold, following Dynamic Type.
-            .font: UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .largeTitle).pointSize, weight: .bold),
             .foregroundColor: UIColor(.textMain),
         ]
 
         let titleAttributes: [NSAttributedString.Key: Any] = [
-            // Apple's own inline title: Headline, 17 pt semibold, following Dynamic Type.
-            .font: UIFont.preferredFont(forTextStyle: .headline),
             .foregroundColor: UIColor(.textMain),
         ]
 
@@ -351,7 +349,7 @@ private extension AppDelegate {
 
         if #available(iOS 26, *) {
             // iOS 26: use the system's default (Liquid Glass) bar background and
-            // only override the title fonts. A *transparent* background removes
+            // only override the title colour. A *transparent* background removes
             // the bar's glass material, so the buttons have no stable bar-glass
             // to composite against and the system repaints their glass during
             // the push transition — that's the flicker as screens push/settle.

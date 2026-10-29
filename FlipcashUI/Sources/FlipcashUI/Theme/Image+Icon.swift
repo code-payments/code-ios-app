@@ -8,8 +8,9 @@ import UIKit
 
 extension Image {
     /// A Central icon from the FlipcashUI catalog, drawn as a template image tinted by the caller.
+    /// It's decorative, so an icon-only control names itself with `.accessibilityLabel`.
     public static func icon(_ icon: Icon) -> Image {
-        Image(icon.rawValue, bundle: Bundle.module)
+        Image(decorative: icon.rawValue, bundle: Bundle.module)
     }
 
     /// Sizes an icon to a square frame, since asset icons ignore `.font` the way SF Symbols don't.

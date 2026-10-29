@@ -27,6 +27,8 @@ struct PublicGroupProfileContent {
     let cover: UIImage?
     /// The requirements card's tiles; empty hides the section.
     let requirements: [PublicGroupRequirementTile]
+    /// The tiles whose token is still being looked up, which draw a greyed chip until it lands.
+    let namingTokens: Set<PublicGroupRequirementTile.Purpose>
     /// What the viewer holds toward the rule, stated for the card's footer.
     let yourBalance: String?
     /// The pulse card; `nil` hides the section.
@@ -52,6 +54,8 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
     let loadPortrait: (GroupPortrait) async -> Void
     /// Opens a person's profile.
     let onSelectPerson: (UserID) -> Void
+    /// Opens the full list of the group's sampled chatters.
+    let onSeeChatters: () -> Void
     /// Opens a token's info page.
     let onToken: (PublicGroupToken) -> Void
     /// Sits beside the avatar, such as the chat's mute status.
@@ -83,6 +87,7 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                                 if !content.requirements.isEmpty {
                                     PublicGroupRequirementsView(
                                         tiles: content.requirements,
+                                        namingTokens: content.namingTokens,
                                         yourBalance: content.yourBalance,
                                         onToken: onToken
                                     )
@@ -95,7 +100,8 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                                         memberCount: content.memberCount,
                                         portraitData: portraitData,
                                         loadPortrait: loadPortrait,
-                                        onSelect: onSelectPerson
+                                        onSelect: onSelectPerson,
+                                        onSeeAll: onSeeChatters
                                     )
                                 }
                             }
@@ -129,7 +135,9 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
         }
         .containerBackground(palette.background, for: .navigation)
         .toolbarColorScheme(palette.colorScheme, for: .navigationBar)
-        // After the scheme, which gives this screen its own bar appearance without the app's arrow.
+        .modifier(LegacyCoverBar(color: palette.background, coverScroll: max(coverBottom - topInset, 0)))
+        // After the scheme and the bar background, which give this screen its own bar appearance
+        // without the app's arrow.
         .background { AppBackIndicator().frame(width: 0, height: 0) }
     }
 
@@ -144,16 +152,40 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
 
     // MARK: - Cover -
 
+    /// How far below the bars the name starts: the identity's offset, the ringed avatar and the
+    /// gap under it.
+    private var barsToName: CGFloat {
+        PublicGroupLook.contentOffset + Self.avatarSize + 2 * avatarRing + PublicGroupLook.avatarToName
+    }
+
+    /// Where the cover ends, from the top of the screen: its tuned height, cut short where the name
+    /// starts, so the melt has reached the page's color by then and the name reads against the
+    /// page whatever the cover.
+    private var coverBottom: CGFloat {
+        min(PublicGroupLook.coverHeight, topInset + barsToName)
+    }
+
+    /// The melt's length: at most the run from the bars to the cover's bottom, so the cover shows
+    /// in full behind the bars.
+    private var meltHeight: CGFloat {
+        min(PublicGroupLook.fadeHeight, max(coverBottom - topInset, 0))
+    }
+
     private var cover: some View {
         Color.clear
             .frame(maxWidth: .infinity)
-            .frame(height: PublicGroupLook.coverHeight)
-            .overlay { coverImage }
+            .frame(height: coverBottom)
+            // At its tuned height, so the picture's crop and the glow's center stay put and only
+            // the part under the name is cut away.
+            .overlay(alignment: .top) {
+                coverImage
+                    .frame(height: PublicGroupLook.coverHeight)
+            }
             .clipped()
             // After the clip, so the color runs a little past the cover's edges and no hairline of
             // the cover shows at the seam.
             .overlay(alignment: .bottom) {
-                BleedFade(color: palette.background, height: min(PublicGroupLook.fadeHeight, PublicGroupLook.coverHeight))
+                BleedFade(color: palette.background, height: meltHeight)
             }
             // Grows upward from its bottom edge when the scroll view is pulled past its top, as
             // `ProfileCoverBanner` does, the fade riding along. The lift under the bars is in the
@@ -237,7 +269,9 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                     .foregroundStyle(palette.primaryText)
                     .multilineTextAlignment(.leading)
                     .padding(.top, PublicGroupLook.metaToBio)
-                    .transition(.opacity)
+                    // Its own animation, so the fade holds under Reduce Motion, which drops only
+                    // the column's movement.
+                    .transition(.opacity.animation(.easeOut(duration: 0.2)))
                     .accessibilityIdentifier("profile-bio")
             }
 
@@ -404,6 +438,7 @@ private extension PublicGroupProfileContent {
                     PublicGroupRequirementTile(purpose: .chat, amount: "$100", token: jeffy),
                 ]
                 : [PublicGroupRequirementTile(purpose: .joinAndChat, amount: "$100", token: jeffy)],
+            namingTokens: [],
             yourBalance: "$382.84 of Jeffy",
             pulse: PublicGroupPulse(chatters: chatters, now: now),
             host: chatters.first.map(GroupPortrait.init)
@@ -426,6 +461,7 @@ private struct PublicGroupProfilePreview: View {
                 portraitData: { _ in nil },
                 loadPortrait: { _ in },
                 onSelectPerson: { _ in },
+                onSeeChatters: {},
                 onToken: { _ in },
                 accessory: { EmptyView() },
                 actions: {
@@ -459,6 +495,45 @@ private struct PublicGroupProfilePreview: View {
     PublicGroupProfilePreview(hasCover: false, split: true, quiet: true)
 }
 #endif
+
+// MARK: - iOS 18 bar -
+
+/// Before iOS 26 the app's navigation bar is an opaque `backgroundMain` slab, which would sit over
+/// the top of the cover. Here the bar has no background of its own; once the cover's bottom edge
+/// has scrolled up to the bar's, a strip of the page's color fills in behind it. All the melt
+/// shows there is that color, so the swap can't be seen. iOS 26's glass bar needs neither.
+private struct LegacyCoverBar: ViewModifier {
+
+    let color: Color
+    /// How far the content scrolls before the cover's bottom edge reaches the bar's.
+    let coverScroll: CGFloat
+
+    @State private var isPastCover = false
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+        } else {
+            content
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top >= coverScroll
+                } action: { _, isPast in
+                    isPastCover = isPast
+                }
+                .overlay(alignment: .top) {
+                    if isPastCover {
+                        // Sits on the safe area's top edge and grows up under the bars.
+                        color
+                            .ignoresSafeArea(edges: .top)
+                            .frame(height: 0)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .toolbarBackground(.hidden, for: .navigationBar)
+        }
+    }
+}
 
 // MARK: - Back indicator -
 

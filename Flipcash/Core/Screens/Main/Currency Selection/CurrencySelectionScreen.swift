@@ -109,6 +109,7 @@ private struct CurrencyRow: View {
                         Image.icon(.trashCan)
                     }
                     .tint(.bannerError)
+                    .accessibilityLabel("Remove")
                 }
         } else {
             CurrencyRowContent(description: description, viewModel: viewModel, isLast: isLast)
@@ -139,6 +140,7 @@ private struct CurrencyRowContent: View {
             }
         }
         .font(.appTextMedium)
+        .accessibilityAddTraits(viewModel.isCurrencyActive(description.currency) ? .isSelected : [])
         .disabled(viewModel.isSelectionDisabled(for: description.currency))
     }
 }

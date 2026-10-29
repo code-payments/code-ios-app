@@ -12,12 +12,12 @@ import FlipcashUI
 struct SettingsRow: View {
 
     let image: Image
-    let title: String
+    let title: LocalizedStringKey
     let badge: Badge?
     let insets: EdgeInsets
     let action: VoidAction
 
-    init(image: Image, title: String, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
+    init(image: Image, title: LocalizedStringKey, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
         self.image = image
         self.title = title
         self.badge = badge
@@ -25,7 +25,7 @@ struct SettingsRow: View {
         self.action = action
     }
 
-    init(icon: Icon, title: String, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
+    init(icon: Icon, title: LocalizedStringKey, badge: Badge? = nil, insets: EdgeInsets, action: @escaping VoidAction) {
         self.init(image: Image.icon(icon), title: title, badge: badge, insets: insets, action: action)
     }
 

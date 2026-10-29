@@ -63,7 +63,7 @@ struct AttachMenu: View {
                 .iconSize(22)
                 .foregroundStyle(Color.textMain)
                 .frame(width: BarMetrics.accessorySize, height: BarMetrics.accessorySize)
-                .background(Color.white.opacity(0.08), in: Circle())
+                .background(AttachSurfaceLayout.plusFill, in: Circle())
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
