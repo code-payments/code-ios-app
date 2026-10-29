@@ -538,8 +538,8 @@ final class AppRouter {
     // MARK: - Cross-stack navigation
 
     /// Cross-stack navigation. Presents the destination's `owningStack` as the
-    /// root sheet (dismissing any nested sheets above) and sets `parents + [destination]`
-    /// as the path on that stack. Other stacks' paths are preserved
+    /// root sheet (dismissing any nested sheets above) and sets `[destination]`
+    /// as the only path entry on that stack. Other stacks' paths are preserved
     /// underneath.
     ///
     /// Call this from deeplinks, push notifications, and any programmatic
@@ -550,15 +550,11 @@ final class AppRouter {
     /// > so leaf swaps from `[currencyInfo(A)]` to `[currencyInfo(B)]` rebuild
     /// > the destination with fresh `@State` rather than reusing the previous
     /// > view's view model.
-    ///
-    /// `parents` are pushed beneath `destination` on its stack, so Back walks
-    /// through them; they must share its owning stack.
-    func navigate(to destination: Destination, under parents: [Destination] = []) {
+    func navigate(to destination: Destination) {
         let targetStack = destination.owningStack
-        let trail = parents + [destination]
 
         var expected = NavigationPath()
-        for step in trail { expected.append(step) }
+        expected.append(destination)
 
         // A stack a tab owns is reached by bringing that tab forward. Presenting
         // its sheet instead lays a second copy of the surface over the tab that
@@ -573,7 +569,7 @@ final class AppRouter {
 
             while !presentedSheets.isEmpty { dismissSheet() }
             requestedTabStack = targetStack
-            setPath(trail, on: targetStack)
+            setPath([destination], on: targetStack)
             logger.info("Routed to tab stack", metadata: [
                 "stack": "\(targetStack)",
                 "destination": "\(destination)",
@@ -597,7 +593,7 @@ final class AppRouter {
 
         // present(_:) handles dismiss-nested-then-swap-root semantics.
         present(targetSheet)
-        setPath(trail, on: targetStack)
+        setPath([destination], on: targetStack)
     }
 
     /// Like `navigate(to:)`, but when the destination's stack is already the visible surface the
