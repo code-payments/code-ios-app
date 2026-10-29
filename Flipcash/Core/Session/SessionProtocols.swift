@@ -37,6 +37,13 @@ protocol MintMetadataFetching: AnyObject {
     func fetchMintMetadata(mint: PublicKey) async throws -> StoredMintMetadata
 }
 
+// MARK: - Community
+
+/// The community around a launched currency: its leader and ranked top-holder chats.
+protocol CommunityFetching: AnyObject {
+    func fetchCommunity(mint: PublicKey) async throws -> Community
+}
+
 // MARK: - Buy paths
 
 /// Reserve-funded buys (existing currency or freshly launched).
@@ -137,6 +144,7 @@ extension Session: AccountProviding,
                     ProfileProviding,
                     ProfileManaging,
                     MintMetadataFetching,
+                    CommunityFetching,
                     ReservesBuying,
                     CurrencyLaunching,
                     RecipientResolving,

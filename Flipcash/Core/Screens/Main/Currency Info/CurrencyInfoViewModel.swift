@@ -62,6 +62,7 @@ class CurrencyInfoViewModel {
 
     @ObservationIgnored private let mint: PublicKey
     @ObservationIgnored private let session: Session
+    @ObservationIgnored private let communityFetcher: any CommunityFetching
     @ObservationIgnored private let database: Database
     @ObservationIgnored private let ratesController: RatesController
 
@@ -139,9 +140,11 @@ class CurrencyInfoViewModel {
 
     /// Initializes with a mint address. Attempts a fast database lookup;
     /// falls back to loading state until ``loadMintMetadata()`` completes.
-    init(mint: PublicKey, session: Session, database: Database, ratesController: RatesController) {
+    /// The community loads through `communityFetcher`, or `session` when nil.
+    init(mint: PublicKey, session: Session, database: Database, ratesController: RatesController, communityFetcher: (any CommunityFetching)? = nil) {
         self.mint = mint
         self.session = session
+        self.communityFetcher = communityFetcher ?? session
         self.database = database
         self.ratesController = ratesController
 
@@ -155,6 +158,10 @@ class CurrencyInfoViewModel {
     /// The community's chats ranked by members' holdings. Empty until loaded, and again if the call
     /// fails, which is how the section hides itself.
     private(set) var communityChats: [Conversation] = []
+
+    /// The Flipcash user who launched the currency, from the same call as the chats. Nil until
+    /// loaded, when the call fails, and when the server names no leader with a display name.
+    private(set) var communityLeader: Profile?
 
     /// "$10,840 of Jeffy held by 44 members", the holdings valued at the curve's current supply and
     /// shown in the user's display currency.
@@ -175,11 +182,16 @@ class CurrencyInfoViewModel {
         )
     }
 
+    /// Loads the community's chats and leader. USDF has no community, so it makes no call.
     func loadCommunityChats() async {
+        guard mint != .usdf else { return }
         do {
-            communityChats = try await session.fetchCommunity(mint: mint).topHolderChats
+            let community = try await communityFetcher.fetchCommunity(mint: mint)
+            communityChats = community.topHolderChats
+            communityLeader = CommunityLeader.shown(community.leader)
         } catch {
             communityChats = []
+            communityLeader = nil
         }
     }
 

@@ -268,6 +268,7 @@ private struct CurrencyInfoScreenContent: View {
                     },
                     onShowCommunityRankingInfo: { session.dialogItem = .info(title: CommunityChats.rankingTitle, subtitle: CommunityChats.rankingMessage(currencyName: metadata.name)) },
                     onShowAllCommunityChats: { router.push(.topCommunityChats(metadata.mint)) },
+                    onSelectCommunityLeader: { userID in router.push(.userProfile(userID, origin: .communityLeader)) },
                     onShowMarketCapExplainer: { router.push(.marketCapExplainer(metadata.mint)) },
                     onScrolledPastTitle: { scrolledPast in
                         guard showsToolbarTitle != scrolledPast else { return }

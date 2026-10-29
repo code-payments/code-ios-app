@@ -53,7 +53,7 @@ struct CommunityChatRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            CommunityRowCard(title: chat.title ?? "", subtitle: subtitle, showsChevron: true) {
                 ContactAvatarView(
                     id: chat.id.description,
                     displayName: chat.title ?? "",
@@ -61,33 +61,53 @@ struct CommunityChatRow: View {
                     blurhash: chat.picture?.thumbnailBlurhash,
                     size: 42
                 )
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(chat.title ?? "")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+        .task(id: chat.id) {
+            await sessionContainer.profileAvatars.load(.chat(chat.id), picture: chat.picture)
+        }
+    }
+}
+
+/// The card both community rows draw: a 42pt avatar, a title over an optional subtitle, and an
+/// optional chevron. Without a subtitle the title sits centred.
+struct CommunityRowCard<Avatar: View>: View {
+
+    let title: String
+    let subtitle: String?
+    let showsChevron: Bool
+    @ViewBuilder let avatar: () -> Avatar
+
+    var body: some View {
+        HStack(spacing: 12) {
+            avatar()
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                if let subtitle {
                     Text(subtitle)
                         .font(.appTextSmall)
                         .foregroundStyle(Color.white.opacity(0.55))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 }
-                Spacer(minLength: 0)
+            }
+            Spacer(minLength: 0)
+            if showsChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.55))
                     .frame(width: 16, height: 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(height: 67)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.backgroundRow))
-            .contentShape(RoundedRectangle(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
-        .task(id: chat.id) {
-            await sessionContainer.profileAvatars.load(.chat(chat.id), picture: chat.picture)
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(height: 67)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.backgroundRow))
+        .contentShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
