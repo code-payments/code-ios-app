@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 import FlipcashCore
 import FlipcashUI
 
@@ -128,6 +129,8 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
         }
         .containerBackground(palette.background, for: .navigation)
         .toolbarColorScheme(palette.colorScheme, for: .navigationBar)
+        // After the scheme, which gives this screen its own bar appearance without the app's arrow.
+        .background { AppBackIndicator().frame(width: 0, height: 0) }
     }
 
     private var hasBoxes: Bool {
@@ -456,3 +459,71 @@ private struct PublicGroupProfilePreview: View {
     PublicGroupProfilePreview(hasCover: false, split: true, quiet: true)
 }
 #endif
+
+// MARK: - Back indicator -
+
+/// Puts the app's back arrow on the screen's own bar appearance. `toolbarColorScheme` gives the
+/// screen a navigation item appearance of its own, which drops the arrow `AppDelegate` sets on the
+/// bar's shared one, so the system chevron would show; the back button and its swipe stay the
+/// system's.
+private struct AppBackIndicator: UIViewControllerRepresentable {
+
+    func makeUIViewController(context: Context) -> Proxy { Proxy() }
+
+    func updateUIViewController(_ proxy: Proxy, context: Context) {
+        proxy.apply()
+    }
+
+    final class Proxy: UIViewController {
+
+        /// The same glyph `AppDelegate.backIndicator()` draws for every other bar.
+        private static let arrow: UIImage = {
+            let size = CGSize(width: 22, height: 22)
+            let arrow = UIImage.icon(.arrowLeft)
+            return UIGraphicsImageRenderer(size: size).image { _ in
+                arrow.draw(in: CGRect(origin: .zero, size: size))
+            }
+            .withRenderingMode(.alwaysTemplate)
+        }()
+
+        override func didMove(toParent parent: UIViewController?) {
+            super.didMove(toParent: parent)
+            apply()
+        }
+
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            apply()
+        }
+
+        override func viewIsAppearing(_ animated: Bool) {
+            super.viewIsAppearing(animated)
+            apply()
+        }
+
+        func apply() {
+            guard let item = pushedController?.navigationItem else { return }
+            item.standardAppearance = Self.withArrow(item.standardAppearance)
+            item.scrollEdgeAppearance = Self.withArrow(item.scrollEdgeAppearance)
+            item.compactAppearance = Self.withArrow(item.compactAppearance)
+            item.compactScrollEdgeAppearance = Self.withArrow(item.compactScrollEdgeAppearance)
+        }
+
+        /// The controller the navigation stack pushed, whose item the bar draws.
+        private var pushedController: UIViewController? {
+            var candidate: UIViewController? = self
+            while let current = candidate {
+                if current.parent is UINavigationController { return current }
+                candidate = current.parent
+            }
+            return nil
+        }
+
+        private static func withArrow(_ appearance: UINavigationBarAppearance?) -> UINavigationBarAppearance? {
+            guard let appearance, appearance.backIndicatorImage !== arrow else { return appearance }
+            let copy = appearance.copy()
+            copy.setBackIndicatorImage(arrow, transitionMaskImage: arrow)
+            return copy
+        }
+    }
+}
