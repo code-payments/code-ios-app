@@ -263,18 +263,45 @@ public struct ConversationRules: Hashable, Codable, Sendable {
     /// Empty means any member can send.
     public var speaker: [ConversationSpeakerRule]
 
+    /// The rules exactly as the server last sent them, serialized, so ``ConversationRulesEdit`` can
+    /// send back the rules this client can't read. Nil for rules built locally. Left out of
+    /// equality: two rule sets that read the same are the same rules.
+    let wire: Data?
+
     public init(listener: [ConversationListenerRule] = [], speaker: [ConversationSpeakerRule] = []) {
         self.listener = listener
         self.speaker = speaker
+        self.wire = nil
+    }
+
+    public static func == (lhs: ConversationRules, rhs: ConversationRules) -> Bool {
+        lhs.listener == rhs.listener && lhs.speaker == rhs.speaker
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(listener)
+        hasher.combine(speaker)
     }
 }
 
 extension ConversationRules {
     public init(_ proto: Flipcash_Chat_V1_Rules) {
-        self.init(
-            listener: proto.listener.compactMap(ConversationListenerRule.init),
-            speaker: proto.speaker.map(ConversationSpeakerRule.init)
-        )
+        self.listener = proto.listener.compactMap(ConversationListenerRule.init)
+        self.speaker = proto.speaker.map(ConversationSpeakerRule.init)
+        self.wire = try? proto.serializedData()
+    }
+
+    /// Whether decoding dropped a listener rule this client can't read, such as a minimum balance
+    /// in a currency it doesn't recognize. Such a set reads as more open than the chat is.
+    public var dropsListenerRule: Bool {
+        guard let wire, let proto = try? Flipcash_Chat_V1_Rules(serializedBytes: wire) else { return false }
+        return proto.listener.count != listener.count
+    }
+
+    /// The server's form of these rules: what it last sent when there is one, else the rules as built.
+    var wireProto: Flipcash_Chat_V1_Rules {
+        guard let wire, let proto = try? Flipcash_Chat_V1_Rules(serializedBytes: wire) else { return self.proto }
+        return proto
     }
 }
 
@@ -429,5 +456,67 @@ extension MinimumBalanceRequirement {
             }
             $0.mints = mints.map { mint in .with { $0.value = mint.data } }
         }
+    }
+}
+
+/// A replacement rule set for `EditChatRequest.rules`, built from the rules the server last sent
+/// rather than from the decoded ``ConversationRules``, so rules this client can't read go back as the
+/// group carries them.
+///
+/// Only the edits the server accepts can be expressed: the listener minimum balance's amount, and
+/// adding, changing or removing a speaker minimum balance in the listener's currency and mints.
+public struct ConversationRulesEdit: Equatable, Sendable {
+
+    let proto: Flipcash_Chat_V1_Rules
+
+    /// Returns nil when `rules` has no listener minimum balance to edit, or when an amount isn't in
+    /// that requirement's currency.
+    ///
+    /// - Parameters:
+    ///   - rules: the chat's current rules.
+    ///   - listener: the new listener minimum, in the listener requirement's currency.
+    ///   - speaker: the new speaker minimum in that currency, or nil for no speaker minimum.
+    public init?(editing rules: ConversationRules, listener: FiatAmount, speaker: FiatAmount?) {
+        var proto = rules.wireProto
+        guard let index = proto.listener.firstIndex(where: {
+            guard case .minimumBalance = $0.kind else { return false }
+            return true
+        }), case .minimumBalance(let current)? = proto.listener[index].kind else { return nil }
+
+        let currency = current.amount.currency
+        guard currency.lowercased() == listener.currency.rawValue,
+              speaker.map({ $0.currency == listener.currency }) ?? true else { return nil }
+
+        proto.listener[index].minimumBalance.amount.nativeAmount = listener.doubleValue
+
+        // The listener's mints are copied as sent, not as decoded, which drops a malformed one.
+        let speakerRule = speaker.map { amount in
+            Flipcash_Chat_V1_SpeakerRules.with {
+                $0.minimumBalance = .with {
+                    $0.amount = .with {
+                        $0.currency = currency
+                        $0.nativeAmount = amount.doubleValue
+                    }
+                    $0.mints = current.mints
+                }
+            }
+        }
+        let speakerIndex = proto.speaker.firstIndex {
+            guard case .minimumBalance = $0.kind else { return false }
+            return true
+        }
+        switch (speakerIndex, speakerRule) {
+        case (let index?, let rule?): proto.speaker[index] = rule
+        case (let index?, nil):       proto.speaker.remove(at: index)
+        case (nil, let rule?):        proto.speaker.append(rule)
+        case (nil, nil):              break
+        }
+
+        self.proto = proto
+    }
+
+    /// The edited rules as this client reads them.
+    public var rules: ConversationRules {
+        ConversationRules(proto)
     }
 }

@@ -10,8 +10,8 @@ import FlipcashUI
 /// A group's editor, in Edit Profile's shape: the cover and photo at the top, then a card per field,
 /// each opening its own screen that saves on its own.
 ///
-/// Balance Requirements is read-only: `EditChatRequest` carries no rules, and nothing changes a
-/// group's rules after `StartChat`.
+/// Balance Requirements shows only on a public group with a join minimum, the one rule set the
+/// server lets a group change. It reads the stored rules, so an edit from anywhere shows here at once.
 struct EditGroupScreen: View {
 
     let conversationID: ConversationID
@@ -31,10 +31,13 @@ struct EditGroupScreen: View {
         conversationController.conversation(withID: conversationID)
     }
 
-    /// Nil for a private group, which has no rules and can't gain them.
+    /// Nil unless the group's rules can be edited: a public group with a join minimum. A join
+    /// minimum can't be added to a group without one, nor a private group given rules.
     private var requirements: GroupBalanceRequirements? {
-        guard conversation?.isPrivate != true else { return nil }
-        return GroupBalanceRequirements(conversation?.rules)
+        guard conversation?.isPrivate == false,
+              let requirements = GroupBalanceRequirements(conversation?.rules),
+              requirements.join != nil else { return nil }
+        return requirements
     }
 
     var body: some View {
@@ -168,10 +171,10 @@ struct EditGroupScreen: View {
                 .foregroundStyle(Color.textMain)
 
             VStack(spacing: 0) {
-                requirementRow("Join", requirements.join)
+                requirementRow("Join", requirements.join, role: .join)
                 Divider()
                     .overlay(Color.rowSeparator)
-                requirementRow("Chat", requirements.chat)
+                requirementRow("Chat", requirements.chat, role: .chat)
             }
             .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
 
@@ -182,19 +185,29 @@ struct EditGroupScreen: View {
         .accessibilityIdentifier("edit-group-balance-requirements")
     }
 
-    private func requirementRow(_ title: String, _ requirement: MinimumBalanceRequirement?) -> some View {
-        HStack {
-            Text(title)
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-            Spacer()
-            Text(requirement.map { GroupBalanceRequirements.formatted($0, mintName: $0.mints.first.flatMap { mintNames[$0] }, in: ratesController.displayCurrency) } ?? "None")
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
+    private func requirementRow(_ title: String, _ requirement: MinimumBalanceRequirement?, role: GroupBalanceRole) -> some View {
+        Button {
+            router.push(.editGroupBalanceRequirement(conversationID, role: role))
+        } label: {
+            HStack {
+                Text(title)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                Spacer()
+                Text(requirement.map { GroupBalanceRequirements.formatted($0, mintName: $0.mints.first.flatMap { mintNames[$0] }, in: ratesController.displayCurrency) } ?? "None")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                Image(systemName: "chevron.right")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(role == .join ? "edit-group-join-requirement" : "edit-group-chat-requirement")
     }
 
     private func nonEmpty(_ string: String?) -> String? {

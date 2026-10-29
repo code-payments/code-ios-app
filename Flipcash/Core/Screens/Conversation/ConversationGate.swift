@@ -285,11 +285,11 @@ enum ConversationGatePresentation: Equatable {
     /// rule, and the contract gives a non-member of such a group no read at all,
     /// so it stays blurred until the join. Android draws the same line.
     case join(ConversationGateRequirement?)
-    /// Listener rules unmet: blurred transcript, the requirement named, and a
-    /// CTA when the requirement has one (node 10125:19153).
+    /// Listener rules unmet by a non-member: blurred transcript, the requirement
+    /// named, and a CTA when the requirement has one (node 10125:19153).
     case blocked(ConversationGateRequirement)
-    /// A member who can read but not send: sharp transcript, the requirement in
-    /// place of the composer.
+    /// A member who can read but not send, including one short of the listener
+    /// rules: sharp transcript, the requirement in place of the composer.
     case readOnly(ConversationGateRequirement)
 
     /// Whether the transcript is blurred and its messages left unfetched.
@@ -363,7 +363,9 @@ enum CashCollectionBlock: Equatable {
 func conversationGatePresentation(_ gate: ConversationGate, isMember: Bool) -> ConversationGatePresentation {
     switch gate.listener {
     case .unsatisfied(_, let primary):
-        return .blocked(primary)
+        // Rules never remove anyone: a member who no longer meets them, whether their balance fell
+        // or the rules rose, keeps reading but can't speak until they meet them again.
+        return isMember ? .readOnly(primary) : .blocked(primary)
     case .satisfied:
         // Satisfying the rules earns the transcript; joining earns the composer. A verdict that
         // guessed at a missing rate stays undetermined, so the transcript is never shown and then

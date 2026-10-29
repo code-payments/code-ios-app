@@ -245,7 +245,7 @@ extension FlipClient {
     ///
     /// `rules`, when set, fully replaces the chat's rules (public groups with a listener minimum balance
     /// only); fails with `.invalidRules` or `.rulesNotSatisfied`. `nil` leaves the rules as they are.
-    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRules? = nil) async throws -> Conversation {
+    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRulesEdit? = nil) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
             chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID, coverPictureBlobID: coverPictureBlobID, rules: rules) { c.resume(with: $0) }
         }

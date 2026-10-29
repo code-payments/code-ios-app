@@ -16,6 +16,7 @@ struct DestinationView: View {
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(ConversationController.self) private var conversationController
+    @Environment(RatesController.self) private var ratesController
 
     let destination: AppRouter.Destination
 
@@ -322,6 +323,44 @@ struct DestinationView: View {
                 }
             ))
             .id(conversationID)
+
+        case .editGroupBalanceRequirement(let conversationID, let role):
+            // Seeded here, like `.editGroupDescription`, so the keypad opens on the amount it is
+            // about to replace.
+            let editor = SessionGroupChatEditor(session: sessionContainer.session, flipClient: container.flipClient)
+            let conversationController = conversationController
+            let conversation = conversationController.conversation(withID: conversationID)
+            let session = sessionContainer.session
+            let rates = ratesController.cachedRates
+            if let requirements = GroupBalanceRequirements(conversation?.rules), let join = requirements.join {
+                EditGroupBalanceRequirementScreen(model: EditGroupBalanceRequirementModel(
+                    role: role,
+                    join: join,
+                    speaker: requirements.speaker,
+                    currency: ratesController.balanceCurrency,
+                    rates: rates,
+                    satisfies: { rules in
+                        let gate = conversationGate(session: session, rules: rules, creator: conversation?.creator, rates: rates)
+                        guard !gate.isProvisional else { return nil }
+                        return gate.listener.isSatisfied && gate.speaker.isSatisfied
+                    },
+                    saving: { amount in
+                        // The rules as they stand at save time, so an edit that landed while the
+                        // keypad was open isn't sent back over.
+                        guard let rules = conversationController.conversation(withID: conversationID)?.rules else {
+                            throw ErrorEditChat.invalidRules
+                        }
+                        let conversation = try await editor.setMinimumBalance(
+                            conversationID: conversationID,
+                            role: role,
+                            amount: amount,
+                            in: rules
+                        )
+                        conversationController.applyEdit(conversation)
+                    }
+                ))
+                .id(conversationID)
+            }
         }
     }
 }

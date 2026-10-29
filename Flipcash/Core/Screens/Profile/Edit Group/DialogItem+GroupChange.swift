@@ -19,6 +19,8 @@ extension DialogItem {
         case picture
         case cover
         case description
+        case joinRequirement
+        case chatRequirement
 
         /// Group-qualified rather than borrowing the card's bare "Name" / "Description", which would
         /// read as the user's own once the dialog covers the screen that gave them context.
@@ -28,6 +30,8 @@ extension DialogItem {
             case .picture:     "Group Picture"
             case .cover:       "Group Cover"
             case .description: "Group Description"
+            case .joinRequirement: "Join Requirement"
+            case .chatRequirement: "Chat Requirement"
             }
         }
 
@@ -37,6 +41,8 @@ extension DialogItem {
             case .picture:     "This will change the group picture for everyone in it"
             case .cover:       "This will change the group cover for everyone in it"
             case .description: "This will change the group description for everyone in it"
+            case .joinRequirement: "This will change who can join the group"
+            case .chatRequirement: "This will change who can send messages in the group"
             }
         }
     }

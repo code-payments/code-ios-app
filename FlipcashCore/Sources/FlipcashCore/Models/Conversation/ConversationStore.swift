@@ -594,8 +594,12 @@ public struct ConversationStore: Sendable {
     /// Apply a rules change delivered via `MetadataUpdate.RulesChanged`. `rules` replaces the whole set.
     /// Same best-effort, no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the
     /// store doesn't hold.
+    ///
+    /// Rules that drop a listener rule this client can't read are refused, keeping the ones held: the
+    /// dropped rule would leave a gated group reading as open, and a refetch decodes the same way.
     public mutating func applyRulesChanged(_ rules: ConversationRules, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard !rules.dropsListenerRule,
+              let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
         conversations[index].rules = rules
     }
 

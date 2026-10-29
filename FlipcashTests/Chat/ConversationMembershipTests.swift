@@ -140,6 +140,28 @@ struct ConversationMembershipTests {
         #expect(try database.getGroupMemberships() == [.test(9)])
     }
 
+    @Test("Reopening a group held but not joined weighs it against the server's current rules")
+    func reopeningUnjoinedGroupRefreshesRules() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        let minimum = { (value: Decimal) in
+            ConversationRules(listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(value)))])
+        }
+        var held = group(9, lastActivity: 50)
+        held.rules = minimum(5)
+        mock.feed = [held]
+        let controller = makeController(mock, database: database)
+        _ = await controller.hydratedConversation(withID: .test(9))
+
+        // Raised while the viewer was outside the group, so no stream event carried it here.
+        held.rules = minimum(50)
+        mock.feed = [held]
+        let reopened = try #require(await controller.hydratedConversation(withID: .test(9)))
+
+        #expect(reopened.rules == minimum(50))
+    }
+
     // MARK: - Reading from outside
 
     @Test("A non-member the listener rules admit reads the transcript without marking it read")

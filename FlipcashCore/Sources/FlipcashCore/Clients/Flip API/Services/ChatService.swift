@@ -565,7 +565,7 @@ final class ChatService: Sendable {
     ///
     /// `description` is ``ConversationDescriptionEdit/unchanged`` by default; use `.clear` to remove
     /// an existing description.
-    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRules? = nil, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
+    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRulesEdit? = nil, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
         let request = Self.editChatRequest(
             owner: owner,
             conversationID: conversationID,
@@ -600,8 +600,8 @@ final class ChatService: Sendable {
 
     /// The signed `EditChat` request; a nil title or blob and an `.unchanged` description leave that
     /// field unset, so the server keeps its current value. `rules`, when set, is the full replacement
-    /// rule set (public groups with a listener minimum balance only).
-    static func editChatRequest(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit, pictureBlobID: BlobID?, coverPictureBlobID: BlobID?, rules: ConversationRules? = nil) -> Flipcash_Chat_V1_EditChatRequest {
+    /// rule set (public groups with a listener minimum balance only), sent as built from the server's.
+    static func editChatRequest(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit, pictureBlobID: BlobID?, coverPictureBlobID: BlobID?, rules: ConversationRulesEdit? = nil) -> Flipcash_Chat_V1_EditChatRequest {
         Flipcash_Chat_V1_EditChatRequest.with {
             $0.chatID = conversationID.proto
             if let title {

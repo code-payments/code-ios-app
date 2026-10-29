@@ -635,7 +635,9 @@ final class SessionContainer {
         resolver: linkCardResolver,
         memo: linkCardMemo,
         claims: session.cashLinkClaims,
-        groups: GroupLinkPresenter(avatars: profileAvatars),
+        groups: GroupLinkPresenter(avatars: profileAvatars, storedRules: { [conversationController] id in
+            conversationController.conversation(withID: id)?.rules
+        }),
         users: UserLinkPresenter(avatars: profileAvatars),
         messagePhotos: { [flipClient, owner = session.ownerKeyPair, conversationController] photo, chatID in
             guard let blobID = photo.blobID,
