@@ -55,6 +55,8 @@ struct NotificationStatusTests {
         #expect(page.summary.status == .fail)
         #expect(page.summary.title == "Notifications are off")
         #expect(page.rows.map(\.check) == [.permission, .registration])
+        #expect(Self.row(.permission, in: page)?.title == "Notifications Allowed")
+        #expect(Self.row(.permission, in: page)?.detail == "Notifications are turned off\nTurned off for Flipcash in iOS Settings")
         #expect(Self.row(.permission, in: page)?.fix == .openNotificationSettings)
         #expect(Self.row(.permission, in: page)?.fixTitle == "Turn On")
         #expect(page.isTestEnabled == false)
@@ -66,8 +68,8 @@ struct NotificationStatusTests {
         let row = Self.row(.permission, in: Self.page(.init(authorization: .notDetermined)))
 
         #expect(row?.status == .fail)
-        #expect(row?.title == "Notifications aren't turned on yet")
-        #expect(row?.detail == "Flipcash hasn't asked yet")
+        #expect(row?.title == "Notifications Allowed")
+        #expect(row?.detail == "Notifications aren't turned on yet\nFlipcash hasn't asked yet")
         #expect(row?.fix == .requestAuthorization)
         #expect(row?.fixTitle == "Turn On")
     }
@@ -78,7 +80,8 @@ struct NotificationStatusTests {
         let row = Self.row(.display, in: page)
 
         #expect(row?.status == .warning)
-        #expect(row?.title == "Banners are off")
+        #expect(row?.title == "Banners and Lock Screen")
+        #expect(row?.detail == "Banners are off\nNew notifications only go to Notification Center")
         #expect(row?.fix == .openNotificationSettings)
         #expect(row?.fixTitle == "Fix")
         #expect(page.summary.status == .warning)
@@ -92,7 +95,8 @@ struct NotificationStatusTests {
         let row = Self.row(.display, in: Self.page(.init(authorization: .authorized, lockScreen: .disabled)))
 
         #expect(row?.status == .warning)
-        #expect(row?.title == "Hidden on the Lock Screen")
+        #expect(row?.title == "Banners and Lock Screen")
+        #expect(row?.detail == "Hidden on the Lock Screen")
     }
 
     @Test("Sounds and badges name what is off", arguments: [
@@ -100,11 +104,12 @@ struct NotificationStatusTests {
         (.enabled, .disabled, "Badges are off"),
         (.disabled, .disabled, "Sounds and badges are off"),
     ])
-    func soundsAndBadgesOff(sound: NotificationStatus.Snapshot.Setting, badge: NotificationStatus.Snapshot.Setting, title: String) {
+    func soundsAndBadgesOff(sound: NotificationStatus.Snapshot.Setting, badge: NotificationStatus.Snapshot.Setting, problem: String) {
         let row = Self.row(.soundsAndBadges, in: Self.page(.init(authorization: .authorized, sound: sound, badge: badge)))
 
         #expect(row?.status == .warning)
-        #expect(row?.title == title)
+        #expect(row?.title == "Sounds and Badges")
+        #expect(row?.detail == problem)
     }
 
     @Test("10: an invalid push token fails and its retry deletes the local token first")
@@ -113,7 +118,8 @@ struct NotificationStatusTests {
         let row = Self.row(.registration, in: page)
 
         #expect(row?.status == .fail)
-        #expect(row?.title == "Flipcash rejected this phone's push token")
+        #expect(row?.title == "Registered for Push")
+        #expect(row?.detail == "Flipcash rejected this phone's push token")
         #expect(row?.fix == .retryRegistrationDeletingToken)
         #expect(row?.fixTitle == "Try Again")
         #expect(page.summary.title == "1 thing to fix")
@@ -125,8 +131,8 @@ struct NotificationStatusTests {
         let row = Self.row(.registration, in: Self.page(registration: .finished(.transport), saved: saved))
 
         #expect(row?.status == .fail)
-        #expect(row?.title == "Couldn't reach Flipcash")
-        #expect(row?.detail == "Check your connection")
+        #expect(row?.title == "Registered for Push")
+        #expect(row?.detail == "Couldn't reach Flipcash\nCheck your connection")
         #expect(row?.fix == .retryRegistration)
     }
 
@@ -137,8 +143,8 @@ struct NotificationStatusTests {
         let row = Self.row(.registration, in: page)
 
         #expect(row?.status == .warning)
-        #expect(row?.title == "Couldn't reach Flipcash")
-        #expect(row?.detail == "Last confirmed 5 minutes ago")
+        #expect(row?.title == "Registered for Push")
+        #expect(row?.detail == "Couldn't reach Flipcash\nLast confirmed 5 minutes ago")
         #expect(page.summary.title == "1 thing to check")
     }
 
@@ -148,7 +154,7 @@ struct NotificationStatusTests {
         let row = Self.row(.registration, in: Self.page(registration: .finished(.transport), saved: saved))
 
         #expect(row?.status == .warning)
-        #expect(row?.detail == "Last confirmed 2 hours ago")
+        #expect(row?.detail == "Couldn't reach Flipcash\nLast confirmed 2 hours ago")
     }
 
     @Test("A save under a minute old reads just now, not 0 minutes ago", arguments: [0.0, -1, -59])
@@ -156,7 +162,7 @@ struct NotificationStatusTests {
         let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(offset), result: .ok, source: .refresh, lastRegistrationOkAt: Self.now.addingTimeInterval(offset))
         let page = Self.page(registration: .finished(.transport), saved: saved)
 
-        #expect(Self.row(.registration, in: page)?.detail == "Last confirmed just now")
+        #expect(Self.row(.registration, in: page)?.detail == "Couldn't reach Flipcash\nLast confirmed just now")
     }
 
     @Test("A save a minute old reads in minutes")
@@ -164,7 +170,7 @@ struct NotificationStatusTests {
         let saved = NotificationStatus.RegistrationRecord(at: Self.now.addingTimeInterval(-60), result: .ok, source: .refresh, lastRegistrationOkAt: Self.now.addingTimeInterval(-60))
         let page = Self.page(registration: .finished(.transport), saved: saved)
 
-        #expect(Self.row(.registration, in: page)?.detail == "Last confirmed 1 minute ago")
+        #expect(Self.row(.registration, in: page)?.detail == "Couldn't reach Flipcash\nLast confirmed 1 minute ago")
     }
 
     @Test("Group headers are title case")
@@ -179,7 +185,7 @@ struct NotificationStatusTests {
         let row = Self.row(.registration, in: page)
 
         #expect(row?.status == .checking)
-        #expect(row?.title == "Checking registration…")
+        #expect(row?.title == "Registered for Push")
         #expect(row?.detail == "Contacting Flipcash")
         #expect(page.summary.status == .checking)
         #expect(page.summary.title == "Checking…")
@@ -192,7 +198,7 @@ struct NotificationStatusTests {
 
         #expect(page.rows.map(\.check) == NotificationStatus.Check.allCases)
         #expect(page.rows.allSatisfy { $0.status == .checking })
-        #expect(Self.row(.registration, in: page)?.title == "Checking registration…")
+        #expect(page.rows.map(\.title) == NotificationStatus.Check.allCases.map(\.name))
         #expect(page.summary.status == .checking)
         #expect(page.isTestEnabled == false)
         #expect(page.foldedTitle == nil)
@@ -252,7 +258,8 @@ struct NotificationStatusTests {
     func noAPNsToken() {
         let page = Self.page(registration: .noAPNsToken)
         #expect(page.summary.title == "1 thing to fix")
-        #expect(Self.row(.registration, in: page)?.title == "This phone isn't registered with Apple")
+        #expect(Self.row(.registration, in: page)?.title == "Registered for Push")
+        #expect(Self.row(.registration, in: page)?.detail == "This phone isn't registered with Apple")
     }
 
     @Test("14: notSupported settings are not counted as off")
