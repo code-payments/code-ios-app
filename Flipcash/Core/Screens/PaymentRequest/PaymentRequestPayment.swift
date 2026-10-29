@@ -219,8 +219,8 @@ final class PaymentRequestPayment {
     private func showInsufficientFunds(shortfall: ExchangedFiat?) {
         let title = shortfall.map { "You're \($0.nativeAmount.formatted()) Short" } ?? "You Need More Cash"
         let subtitle = shortfall == nil
-            ? "Please add more cash, or try again with a lower amount"
-            : "Add more cash, or try again with a lower amount"
+            ? "Please add more cash, or pay with a different currency"
+            : "Add more cash, or pay with a different currency"
         session.dialogItem = .error(title: title, subtitle: subtitle) {
             .destructive("Add More Cash") { [weak self] in
                 self?.depositMint = self?.selectedBalance?.stored.mint
