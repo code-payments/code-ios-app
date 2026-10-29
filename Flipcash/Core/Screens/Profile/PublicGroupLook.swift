@@ -37,7 +37,7 @@ enum PublicGroupLook {
 
     // MARK: Boxes and spacing
 
-    /// The corner radius of every box: the requirement tiles, the pulse card and Leave Chat.
+    /// The corner radius of every box: the requirement tiles and the pulse card.
     static var cardRadius: CGFloat { Tuner.shared.value("Profile/Public/Card radius", default: CGFloat(24), in: 6...32, step: 1, unit: .points) } // LOCAL-TUNER
 
     /// The padding inside every box.
@@ -54,6 +54,12 @@ enum PublicGroupLook {
 
     /// The gap between boxes, stacked and side by side.
     static var cardGap: CGFloat { Tuner.shared.value("Profile/Public/Card gap", default: CGFloat(12), in: 0...32, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap above the closing action under the boxes, such as Leave Chat.
+    static var leaveGap: CGFloat { Tuner.shared.value("Profile/Public/Leave gap", default: CGFloat(12), in: 0...48, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// Whether Leave Chat's label is the white control label rather than the quieter secondary tint.
+    static var leaveLabelIsWhite: Bool { Tuner.shared.value("Profile/Public/Leave label white", default: false) } // LOCAL-TUNER
 
     /// The gap from the last element of the identity to the first box.
     static var identityToCards: CGFloat { Tuner.shared.value("Profile/Public/Identity to cards", default: CGFloat(40), in: 0...56, step: 1, unit: .points) } // LOCAL-TUNER

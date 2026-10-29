@@ -59,7 +59,7 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
     @ViewBuilder let actions: () -> Actions
     /// Whether ``footer`` has anything in it, which is when its box and the gap above it belong.
     let hasFooter: Bool
-    /// The last box of the stack, such as Leave Chat.
+    /// The action under the boxes that closes the stack, such as Leave Chat.
     @ViewBuilder let footer: () -> Footer
     /// The bar pinned under the scroll.
     @ViewBuilder let pinned: () -> Pinned
@@ -76,28 +76,33 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                 identity
 
                 if hasBoxes {
-                    VStack(spacing: PublicGroupLook.cardGap) {
-                        if !content.requirements.isEmpty {
-                            PublicGroupRequirementsView(
-                                tiles: content.requirements,
-                                yourBalance: content.yourBalance,
-                                onToken: onToken
-                            )
-                        }
+                    VStack(spacing: 0) {
+                        if hasCards {
+                            VStack(spacing: PublicGroupLook.cardGap) {
+                                if !content.requirements.isEmpty {
+                                    PublicGroupRequirementsView(
+                                        tiles: content.requirements,
+                                        yourBalance: content.yourBalance,
+                                        onToken: onToken
+                                    )
+                                }
 
-                        if let pulse = content.pulse {
-                            PublicGroupPulseCard(
-                                pulse: pulse,
-                                host: content.host,
-                                memberCount: content.memberCount,
-                                portraitData: portraitData,
-                                loadPortrait: loadPortrait,
-                                onSelect: onSelectPerson
-                            )
+                                if let pulse = content.pulse {
+                                    PublicGroupPulseCard(
+                                        pulse: pulse,
+                                        host: content.host,
+                                        memberCount: content.memberCount,
+                                        portraitData: portraitData,
+                                        loadPortrait: loadPortrait,
+                                        onSelect: onSelectPerson
+                                    )
+                                }
+                            }
                         }
 
                         if hasFooter {
                             footer()
+                                .padding(.top, hasCards ? PublicGroupLook.leaveGap : 0)
                         }
                     }
                     .padding(.horizontal, PublicGroupLook.sideMargin)
@@ -126,7 +131,12 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
     }
 
     private var hasBoxes: Bool {
-        !content.requirements.isEmpty || content.pulse != nil || hasFooter
+        hasCards || hasFooter
+    }
+
+    /// Whether the requirements or the pulse card show, the boxes ``footer`` sits under.
+    private var hasCards: Bool {
+        !content.requirements.isEmpty || content.pulse != nil
     }
 
     // MARK: - Cover -
@@ -313,23 +323,26 @@ struct PublicGroupCapsuleButtonStyle: ButtonStyle {
     static var sideInset: CGFloat { 32 }
 }
 
-/// A box in the stack that is one destructive action, such as Leave Chat: a full-width row on the
-/// cards' surface, radius and padding, at least 44pt tall, with the whole box as the tap target.
-struct PublicGroupDestructiveBoxButtonStyle: ButtonStyle {
+/// The action that closes the stack, such as Leave Chat: a full-width capsule on the cards'
+/// surface, as tall as Open Chat, its label in the palette's own control color.
+struct PublicGroupClosingButtonStyle: ButtonStyle {
 
     @Environment(\.bleedPalette) private var palette
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.appTextMedium)
-            .foregroundStyle(Color.textError)
-            .tint(Color.textError)
+            .foregroundStyle(labelStyle)
+            .tint(labelStyle)
             .frame(maxWidth: .infinity)
-            .padding(PublicGroupLook.cardPadding)
-            .frame(minHeight: Metrics.buttonHeightThin)
-            .background(palette.controlTint, in: PublicGroupLook.cardShape)
-            .contentShape(PublicGroupLook.cardShape)
+            .frame(height: PublicGroupCapsuleButtonStyle.height)
+            .background(palette.controlTint, in: Capsule())
+            .contentShape(Capsule())
             .modifier(PublicGroupPress(isPressed: configuration.isPressed))
+    }
+
+    private var labelStyle: AnyShapeStyle {
+        PublicGroupLook.leaveLabelIsWhite ? AnyShapeStyle(palette.controlLabel) : palette.controlSecondaryStyle
     }
 }
 
@@ -419,7 +432,7 @@ private struct PublicGroupProfilePreview: View {
                 hasFooter: true,
                 footer: {
                     Button("Leave Chat") {}
-                        .buttonStyle(PublicGroupDestructiveBoxButtonStyle())
+                        .buttonStyle(PublicGroupClosingButtonStyle())
                 },
                 pinned: {
                     Button("Open Chat") {}

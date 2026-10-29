@@ -392,14 +392,14 @@ struct ChatProfileScreen: View {
         }
     }
 
-    /// Leave Chat as the last box of a public group's stack.
+    /// Leave Chat, closing a public group's stack.
     private var publicLeaveButton: some View {
         Button {
             dialogItem = leaveDialog()
         } label: {
             ButtonStateLabel("Leave Chat", state: isLeaving ? .loading : .normal)
         }
-        .buttonStyle(PublicGroupDestructiveBoxButtonStyle())
+        .buttonStyle(PublicGroupClosingButtonStyle())
         .disabled(isLeaving)
         .accessibilityIdentifier("chat-profile-leave")
     }
