@@ -83,8 +83,11 @@ nonisolated struct PublicGroupPulse: Equatable {
 
 /// A token a requirement names, for the tile's "of ◉ Jeffy".
 nonisolated struct PublicGroupToken: Equatable {
+    /// The token's mint, which opens its info page.
     let mint: PublicKey
+    /// The token's display name.
     let name: String
+    /// The token's logo, when it has one.
     let imageURL: URL?
 }
 

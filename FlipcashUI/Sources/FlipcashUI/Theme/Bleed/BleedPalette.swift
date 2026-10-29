@@ -23,6 +23,7 @@ public struct BleedPalette: Hashable {
     var bodyTextStyle: BleedTextStyle
     /// Hairlines and dividers on `background`.
     public var hairline: Color
+    var controlSecondaryTextStyle: BleedTextStyle
     /// A lifted tint of `background` for surfaces and controls over it.
     public var controlTint: Color
     /// The label color for controls filled with `controlTint`.
@@ -46,6 +47,7 @@ public struct BleedPalette: Hashable {
             secondaryTextStyle: BleedTextStyle(color: .textSecondary),
             tertiaryTextStyle: BleedTextStyle(color: .textTertiary),
             bodyTextStyle: BleedTextStyle(color: .textMain),
+            controlSecondaryTextStyle: BleedTextStyle(color: .textSecondary),
             hairline: .rowSeparator,
             controlTint: .backgroundRow,
             controlLabel: .textMain,
@@ -62,6 +64,7 @@ public struct BleedPalette: Hashable {
         secondaryTextStyle: BleedTextStyle,
         tertiaryTextStyle: BleedTextStyle,
         bodyTextStyle: BleedTextStyle,
+        controlSecondaryTextStyle: BleedTextStyle,
         hairline: Color,
         controlTint: Color,
         controlLabel: Color,
@@ -75,6 +78,7 @@ public struct BleedPalette: Hashable {
         self.secondaryTextStyle = secondaryTextStyle
         self.tertiaryTextStyle = tertiaryTextStyle
         self.bodyTextStyle = bodyTextStyle
+        self.controlSecondaryTextStyle = controlSecondaryTextStyle
         self.hairline = hairline
         self.controlTint = controlTint
         self.controlLabel = controlLabel
@@ -85,58 +89,77 @@ public struct BleedPalette: Hashable {
     /// Builds the palette from an extracted bleed color.
     init(base: BleedRGB, settings: BleedSettings = .default) {
         let background = Self.adjustedBackground(base, settings: settings)
-        let lab = OKLab(background)
         let text = BleedRGB.white
-
-        // Flat text: the lowest opacity (from a floor that reads well) that keeps the contrast.
-        let secondaryOpacity = Self.flatOpacity(text, on: background, from: Self.secondaryOpacityFloor, minimumContrast: 4.5)
-        let tertiaryOpacity = Self.flatOpacity(text, on: background, from: Self.tertiaryOpacityFloor, minimumContrast: 3)
-        let bodyOpacity = Self.flatOpacity(text, on: background, from: Self.bodyOpacityFloor, step: 0.05, minimumContrast: 4.5)
-        let flatSecondary = BleedTextStyle(color: text.color.opacity(secondaryOpacity))
-        let flatTertiary = BleedTextStyle(color: text.color.opacity(tertiaryOpacity))
-        let flatBody = BleedTextStyle(color: text.color.opacity(bodyOpacity))
-
-        // Vibrant text, kept only where it stays legible: 3:1 for secondary and tertiary metadata,
-        // 4.5:1 for body paragraphs; otherwise that role stays flat.
-        var vibrantSecondary: BleedTextStyle?
-        var vibrantTertiary: BleedTextStyle?
-        var vibrantBody: BleedTextStyle?
-        if settings.vibrantText {
-            let opacity = settings.vibrantOpacity
-            vibrantSecondary = Self.vibrantStyle(text, on: background, opacities: [opacity], minimumContrast: 3)
-            // Tertiary starts quieter than secondary and climbs back toward it until it reads.
-            vibrantTertiary = Self.vibrantStyle(
-                text,
-                on: background,
-                opacities: stride(from: opacity * Self.vibrantTertiaryScale, to: opacity, by: 0.02) + [opacity],
-                minimumContrast: 3
-            )
-            // Body copy starts a step above secondary and climbs until it reaches 4.5:1.
-            vibrantBody = Self.vibrantStyle(
-                text,
-                on: background,
-                opacities: stride(from: min(opacity + Self.vibrantBodyLift, 1), through: 1, by: 0.02),
-                minimumContrast: 4.5
-            )
-        }
+        let onBackground = Self.textStyles(text, on: background, settings: settings)
 
         // Controls: a lifted pill with a touch more chroma, unless that would drop the label
         // below 4.5:1, in which case the pill moves the other way.
-        let tint = Self.controlTint(for: lab, text: text)
+        let tint = Self.controlTint(for: OKLab(background), text: text)
+        // Text on a surface filled with that tint is solved against the tint, not the page.
+        let onTint = Self.textStyles(text, on: tint, settings: settings)
 
         self.init(
             background: background.color,
             primaryText: text.color,
-            secondaryText: flatSecondary.color,
-            bodyText: flatBody.color,
-            secondaryTextStyle: vibrantSecondary ?? flatSecondary,
-            tertiaryTextStyle: vibrantTertiary ?? flatTertiary,
-            bodyTextStyle: vibrantBody ?? flatBody,
+            secondaryText: onBackground.flatSecondary.color,
+            bodyText: onBackground.flatBody.color,
+            secondaryTextStyle: onBackground.secondary,
+            tertiaryTextStyle: onBackground.tertiary,
+            bodyTextStyle: onBackground.body,
+            controlSecondaryTextStyle: onTint.secondary,
             hairline: text.color.opacity(0.18),
             controlTint: tint.color,
             controlLabel: text.color,
             colorScheme: .dark,
             backgroundRGB: background
+        )
+    }
+
+    /// The text styles for `text` on `surface`: vibrant where it stays legible (3:1 for secondary
+    /// and tertiary metadata, 4.5:1 for body paragraphs), else flat at the lowest opacity that does.
+    private struct TextStyles {
+        let secondary: BleedTextStyle
+        let tertiary: BleedTextStyle
+        let body: BleedTextStyle
+        let flatSecondary: BleedTextStyle
+        let flatBody: BleedTextStyle
+    }
+
+    private static func textStyles(_ text: BleedRGB, on surface: BleedRGB, settings: BleedSettings) -> TextStyles {
+        let secondaryOpacity = flatOpacity(text, on: surface, from: secondaryOpacityFloor, minimumContrast: 4.5)
+        let tertiaryOpacity = flatOpacity(text, on: surface, from: tertiaryOpacityFloor, minimumContrast: 3)
+        let bodyOpacity = flatOpacity(text, on: surface, from: bodyOpacityFloor, step: 0.05, minimumContrast: 4.5)
+        let flatSecondary = BleedTextStyle(color: text.color.opacity(secondaryOpacity))
+        let flatTertiary = BleedTextStyle(color: text.color.opacity(tertiaryOpacity))
+        let flatBody = BleedTextStyle(color: text.color.opacity(bodyOpacity))
+
+        var vibrantSecondary: BleedTextStyle?
+        var vibrantTertiary: BleedTextStyle?
+        var vibrantBody: BleedTextStyle?
+        if settings.vibrantText {
+            let opacity = settings.vibrantOpacity
+            vibrantSecondary = vibrantStyle(text, on: surface, opacities: [opacity], minimumContrast: 3)
+            // Tertiary starts quieter than secondary and climbs back toward it until it reads.
+            vibrantTertiary = vibrantStyle(
+                text,
+                on: surface,
+                opacities: stride(from: opacity * vibrantTertiaryScale, to: opacity, by: 0.02) + [opacity],
+                minimumContrast: 3
+            )
+            // Body copy starts a step above secondary and climbs until it reaches 4.5:1.
+            vibrantBody = vibrantStyle(
+                text,
+                on: surface,
+                opacities: stride(from: min(opacity + vibrantBodyLift, 1), through: 1, by: 0.02),
+                minimumContrast: 4.5
+            )
+        }
+        return TextStyles(
+            secondary: vibrantSecondary ?? flatSecondary,
+            tertiary: vibrantTertiary ?? flatTertiary,
+            body: vibrantBody ?? flatBody,
+            flatSecondary: flatSecondary,
+            flatBody: flatBody
         )
     }
 
@@ -244,6 +267,9 @@ extension BleedPalette {
     public var tertiaryStyle: AnyShapeStyle { tertiaryTextStyle.shapeStyle }
     /// Paragraph text on the bleed; vibrant or flat, at least 4.5:1.
     public var bodyStyle: AnyShapeStyle { bodyTextStyle.shapeStyle }
+    /// Secondary text drawn on a surface filled with `controlTint`, solved against the tint rather
+    /// than the page; use it for any text on a tile or card.
+    public var controlSecondaryStyle: AnyShapeStyle { controlSecondaryTextStyle.shapeStyle }
 }
 
 extension EnvironmentValues {

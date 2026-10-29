@@ -12,11 +12,15 @@ struct PublicGroupProfileContent {
 
     /// Identifies the group for its monogram.
     let id: String
+    /// The group's name.
     let title: String
+    /// How many members the group has, when known.
     let memberCount: UInt64?
     /// The group's bio; it isn't persisted locally, so it can arrive after the rest.
     let description: String?
+    /// The avatar's bytes, once loaded.
     let avatarImageData: Data?
+    /// The avatar's placeholder while its bytes load.
     let avatarBlurhash: String?
     /// The cover drawn at the top; `nil` when the page is colored from the avatar instead.
     let cover: UIImage?
@@ -40,9 +44,13 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
     let content: PublicGroupProfileContent
     /// Whether the pinned bar has anything in it, which is when its fade belongs.
     let hasPinned: Bool
+    /// The loaded avatar bytes of a person, if any.
     let portraitData: (UserID) -> Data?
+    /// Loads a person's avatar.
     let loadPortrait: (GroupPortrait) async -> Void
+    /// Opens a person's profile.
     let onSelectPerson: (UserID) -> Void
+    /// Opens a token's info page.
     let onToken: (PublicGroupToken) -> Void
     /// Sits beside the avatar, such as the chat's mute status.
     @ViewBuilder let accessory: () -> Accessory
@@ -54,6 +62,7 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
     @ViewBuilder let pinned: () -> Pinned
 
     @Environment(\.bleedPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The status and navigation bars' height, which the cover runs under.
     @State private var topInset: CGFloat = 0
@@ -91,6 +100,8 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
             }
             .padding(.top, 4)
             .padding(.bottom, 24)
+            // On the whole column, so a bio that arrives late moves the sections with the pills.
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: content.description)
             .background(alignment: .top) { cover }
         }
         .scrollIndicators(.hidden)
@@ -201,7 +212,6 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
             }
             .padding(.top, 16)
         }
-        .animation(.easeOut(duration: 0.2), value: content.description)
         .padding(.horizontal, Self.inset)
     }
 
@@ -225,6 +235,31 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
 
 // MARK: - Buttons -
 
+/// The press every public-group control shares: a small scale, or a dim under Reduce Motion, with
+/// the haptic on touch-down.
+private struct PublicGroupPress: ViewModifier {
+
+    let isPressed: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            // Scoped to the press itself, so a state change that lands as the finger lifts snaps.
+            .animation(.spring(duration: 0.2, bounce: 0)) { content in
+                content
+                    .scaleEffect(!reduceMotion && isPressed ? Self.scale : 1)
+                    .opacity(reduceMotion && isPressed ? 0.7 : 1)
+            }
+            .onChange(of: isPressed) { _, isPressed in
+                if isPressed { Haptics.soft() }
+            }
+    }
+
+    /// How far a pressed control shrinks.
+    private static let scale: CGFloat = 0.96
+}
+
 /// The outline pill under the bio: a capsule stroked in the palette's secondary color.
 struct PublicGroupOutlineButtonStyle: ButtonStyle {
 
@@ -235,11 +270,10 @@ struct PublicGroupOutlineButtonStyle: ButtonStyle {
             .font(.appTextMedium)
             .foregroundStyle(palette.secondaryStyle)
             .padding(.horizontal, 24)
-            .frame(height: Metrics.buttonHeightThin)
+            .frame(minHeight: Metrics.buttonHeightThin)
             .overlay { Capsule().strokeBorder(palette.secondaryStyle, lineWidth: 1.5) }
             .contentShape(Capsule())
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .modifier(PublicGroupPress(isPressed: configuration.isPressed))
     }
 }
 
@@ -256,8 +290,7 @@ struct PublicGroupCapsuleButtonStyle: ButtonStyle {
             .frame(height: Self.height)
             .background(isEnabled ? Color.action : Color.action.opacity(0.1), in: Capsule())
             .contentShape(Capsule())
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .modifier(PublicGroupPress(isPressed: configuration.isPressed))
     }
 
     /// The capsule's height, matching the amount screen's action button.
@@ -267,13 +300,25 @@ struct PublicGroupCapsuleButtonStyle: ButtonStyle {
     static var sideInset: CGFloat { 32 }
 }
 
-/// A press that dims its label, for a tappable row or face with no chrome of its own.
+/// The press of a tappable row or face with no chrome of its own.
 struct PublicGroupDimButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .modifier(PublicGroupPress(isPressed: configuration.isPressed))
+    }
+}
+
+/// A hairline in the palette's divider color, one device pixel thick.
+struct PublicGroupHairline: View {
+
+    @Environment(\.bleedPalette) private var palette
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        Rectangle()
+            .fill(palette.hairline)
+            .frame(height: 1 / displayScale)
     }
 }
 

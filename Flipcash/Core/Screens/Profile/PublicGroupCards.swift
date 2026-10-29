@@ -23,11 +23,9 @@ struct PublicGroupRequirementsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 tileContent(tile, isWide: true)
                 if let yourBalance {
-                    Rectangle()
-                        .fill(palette.hairline)
-                        .frame(height: 1)
+                    PublicGroupHairline()
                         .padding(.vertical, 8)
-                    footer(yourBalance)
+                    footer(yourBalance, style: palette.controlSecondaryStyle)
                 }
             }
             .padding(Self.padding)
@@ -44,7 +42,7 @@ struct PublicGroupRequirementsView: View {
                     }
                 }
                 if let yourBalance {
-                    footer(yourBalance)
+                    footer(yourBalance, style: palette.secondaryStyle)
                         .padding(.horizontal, Self.padding)
                 }
             }
@@ -56,15 +54,17 @@ struct PublicGroupRequirementsView: View {
             if isWide {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     amount(tile)
-                    tokenButton(tile.token)
+                    tokenButton(tile.token, purpose: tile.purpose)
                 }
             } else {
                 amount(tile)
-                tokenButton(tile.token)
+                tokenButton(tile.token, purpose: tile.purpose)
             }
             Text(tile.purpose.caption)
                 .font(.appTextSmall)
-                .foregroundStyle(palette.secondaryStyle)
+                .foregroundStyle(palette.controlSecondaryStyle)
+                // The amount's label already reads it.
+                .accessibilityHidden(true)
         }
     }
 
@@ -72,12 +72,14 @@ struct PublicGroupRequirementsView: View {
         Text(tile.amount)
             .font(.appDisplayMedium)
             .foregroundStyle(palette.primaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
             .accessibilityLabel("\(tile.amount) \(tile.purpose.caption)")
             .accessibilityIdentifier(tile.purpose == .chat ? "group-profile-chat-minimum" : "group-profile-join-minimum")
     }
 
     @ViewBuilder
-    private func tokenButton(_ token: PublicGroupToken?) -> some View {
+    private func tokenButton(_ token: PublicGroupToken?, purpose: PublicGroupRequirementTile.Purpose) -> some View {
         if let token {
             Button {
                 onToken(token)
@@ -85,7 +87,7 @@ struct PublicGroupRequirementsView: View {
                 HStack(spacing: 6) {
                     Text("of")
                         .font(.appTextMedium)
-                        .foregroundStyle(palette.secondaryStyle)
+                        .foregroundStyle(palette.controlSecondaryStyle)
                     TokenIconWithName(
                         url: token.imageURL,
                         monogramID: token.mint.base58,
@@ -93,21 +95,33 @@ struct PublicGroupRequirementsView: View {
                         iconSize: 16
                     )
                 }
+                // Grown to a 44pt target without moving anything.
+                .padding(.vertical, 12)
                 .contentShape(Rectangle())
+                .padding(.vertical, -12)
             }
             .buttonStyle(PublicGroupDimButtonStyle())
-            .accessibilityIdentifier("group-profile-token")
+            .accessibilityIdentifier(Self.tokenIdentifier(for: purpose))
         }
     }
 
-    private func footer(_ yourBalance: String) -> some View {
+    /// A split pair's tiles each name the token, so their buttons need their own identifiers.
+    private static func tokenIdentifier(for purpose: PublicGroupRequirementTile.Purpose) -> String {
+        switch purpose {
+        case .joinAndChat:  "group-profile-token"
+        case .join:         "group-profile-token-join"
+        case .chat:         "group-profile-token-chat"
+        }
+    }
+
+    private func footer(_ yourBalance: String, style: AnyShapeStyle) -> some View {
         HStack {
             Text("Your Balance")
             Spacer()
             Text(yourBalance)
         }
         .font(.appTextSmall)
-        .foregroundStyle(palette.secondaryStyle)
+        .foregroundStyle(style)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("group-profile-your-balance")
     }
@@ -146,16 +160,13 @@ struct PublicGroupPulseCard: View {
             if let meta = PublicGroupCopy.pulseMeta(lastMessageAt: pulse.lastMessageAt, memberCount: memberCount, now: .now) {
                 Text(meta)
                     .font(.appTextCaption)
-                    .foregroundStyle(palette.secondaryStyle)
+                    .foregroundStyle(palette.controlSecondaryStyle)
                     .padding(.top, 2)
             }
 
             if let host {
-                Rectangle()
-                    .fill(palette.hairline)
-                    .frame(height: 1)
-                    .padding(.top, 12)
-                    .padding(.bottom, 12)
+                PublicGroupHairline()
+                    .padding(.vertical, 12)
                 hostRow(host)
             }
         }
@@ -172,7 +183,9 @@ struct PublicGroupPulseCard: View {
 
     private var facepile: some View {
         HStack(spacing: -Self.faceOverlap) {
-            ForEach(pulse.faces, id: \.userID) { portrait in
+            ForEach(Array(pulse.faces.enumerated()), id: \.element.userID) { index, portrait in
+                // The next face covers the last 10pt of this one, so only the rest is this face's.
+                let isCovered = index < pulse.faces.count - 1 || pulse.overflow > 0
                 Button {
                     onSelect(portrait.userID)
                 } label: {
@@ -184,6 +197,10 @@ struct PublicGroupPulseCard: View {
                         size: Self.faceSize
                     )
                     .overlay { Circle().strokeBorder(palette.controlTint, lineWidth: 2) }
+                    // Grown to a 44pt-tall target without moving anything, and cut to the visible part.
+                    .padding(.vertical, (Self.hitHeight - Self.faceSize) / 2)
+                    .contentShape(FaceHitShape(visibleWidth: isCovered ? Self.faceSize - Self.faceOverlap : Self.faceSize))
+                    .padding(.vertical, -(Self.hitHeight - Self.faceSize) / 2)
                 }
                 .buttonStyle(PublicGroupDimButtonStyle())
                 .accessibilityLabel(portrait.name)
@@ -219,7 +236,7 @@ struct PublicGroupPulseCard: View {
 
                 HStack(spacing: 4) {
                     Text("Hosted by")
-                        .foregroundStyle(palette.secondaryStyle)
+                        .foregroundStyle(palette.controlSecondaryStyle)
                     Text(host.name)
                         .foregroundStyle(palette.primaryText)
                         .lineLimit(1)
@@ -230,7 +247,7 @@ struct PublicGroupPulseCard: View {
 
                 Image.icon(.chevronRightMedium)
                     .iconSize(16)
-                    .foregroundStyle(palette.secondaryStyle)
+                    .foregroundStyle(palette.controlSecondaryStyle)
             }
             .frame(minHeight: 44)
             .contentShape(Rectangle())
@@ -254,5 +271,16 @@ struct PublicGroupPulseCard: View {
     private static var padding: CGFloat { 16 }
     private static var faceSize: CGFloat { 36 }
     private static var faceOverlap: CGFloat { 10 }
+    private static var hitHeight: CGFloat { 44 }
     private static var hostSize: CGFloat { 28 }
+}
+
+/// A face's tap area: the full height of the rect, but only the width the next face doesn't cover.
+nonisolated private struct FaceHitShape: Shape {
+
+    let visibleWidth: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        Path(CGRect(x: rect.minX, y: rect.minY, width: visibleWidth, height: rect.height))
+    }
 }

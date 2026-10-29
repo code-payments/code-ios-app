@@ -11,14 +11,15 @@ import FlipcashCore
 import FlipcashUI
 import FlipcashStore
 
-/// A group chat's own profile (node 10913:358): the shared profile header with the group's cover,
-/// picture and description, who is chatting, what it takes to join and to chat, and one pinned
-/// button that opens the chat.
+/// A group chat's own profile: a public group's cover-colored page with its requirements and
+/// pulse, or a private group's shared profile header with its members, and one pinned button that
+/// opens the chat.
 ///
 /// Reached by tapping the chat's head card or its navigation title, the way a DM's title opens the
 /// counterpart's profile. The actions a member has over the group sit in the ⋯ menu. Opened from
 /// the chat, there is no pinned button, since the chat is one back away, and Leave Chat ends the
-/// scroll; otherwise Leave Chat sits under the pinned button.
+/// scroll; otherwise a private group's Leave Chat sits under the pinned button and a public
+/// group's ends the scroll.
 struct ChatProfileScreen: View {
 
     let conversationID: ConversationID
@@ -220,10 +221,11 @@ struct ChatProfileScreen: View {
         }
     }
 
-    /// A public group gets its cover-colored page; a private group keeps the shared profile layout.
+    /// A public group gets its cover-colored page; a private group keeps the shared profile layout,
+    /// as does a group not yet loaded, so a private one never paints as public.
     @ViewBuilder
     private var screen: some View {
-        if isPrivate {
+        if isPrivate || conversation == nil {
             privateScreen
         } else {
             publicScreen
@@ -370,6 +372,7 @@ struct ChatProfileScreen: View {
                 }
                 .buttonStyle(PublicGroupOutlineButtonStyle())
                 .accessibilityLabel("Share group")
+                .accessibilityInputLabels(["Share"])
                 .accessibilityIdentifier("chat-profile-share")
             },
             footer: {
@@ -401,7 +404,8 @@ struct ChatProfileScreen: View {
             cover: cover,
             requirements: named.map { PublicGroupRequirementTile.tiles(for: $0, metadata: mintMetadata) } ?? [],
             yourBalance: named.flatMap { yourBalance(in: $0) },
-            pulse: chatters.isEmpty ? nil : PublicGroupPulse(chatters: chatters, now: .now),
+            // Held back with the requirements above it, so a late reveal doesn't push the card down.
+            pulse: chatters.isEmpty || !requirementsNamed ? nil : PublicGroupPulse(chatters: chatters, now: .now),
             host: chatters.first(where: \.isCreator).map(GroupPortrait.init)
         )
     }
