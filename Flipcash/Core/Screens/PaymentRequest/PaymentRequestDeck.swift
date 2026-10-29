@@ -411,6 +411,7 @@ struct PaymentRequestPill: View {
     var pay: ((PaymentRequestID) -> Void)? = nil
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The finger's downward travel, not the front card's: the card rubber-bands past one pill height.
     @State private var drag: CGFloat = 0
     @State private var frontHeight: CGFloat = 43
@@ -420,6 +421,8 @@ struct PaymentRequestPill: View {
     private static let depthScale: CGFloat = 0.08
     private static let depthDim: CGFloat = 0.25
     private static let settle = Animation.spring(duration: 0.35, bounce: 0.15)
+    /// How long the ended look takes to fade in, which a re-sort waits out.
+    private static let endedFadeDuration = 0.3
 
     var body: some View {
         // The front request at rest sets the pill's size and is what the deck measures; the cards
@@ -485,6 +488,13 @@ struct PaymentRequestPill: View {
             // Only the front card's Pay button takes a tap; the rest peek.
             .allowsHitTesting(index == 0)
             .zIndex(Double(items.count - index))
+            // A move that no gesture drives, such as a request ending and sorting down, settles after
+            // the ended look has faded. Cycling sets its own animation and keeps it.
+            .transaction(value: index) { transaction in
+                if transaction.animation == nil, !reduceMotion {
+                    transaction.animation = Self.settle.delay(Self.endedFadeDuration)
+                }
+            }
     }
 
     /// How far the front card has moved: with the finger at first, then rubber-banding so it never
@@ -565,10 +575,15 @@ struct PaymentRequestPillFace: View {
     @Environment(\.paymentRequestStripCollapse) private var stripCollapse
 
     var body: some View {
-        switch style {
-        case .pill: pill
-        case .strip: strip
+        Group {
+            switch style {
+            case .pill: pill
+            case .strip: strip
+            }
         }
+        // The switch to the ended look fades, and so does the paid badge arriving.
+        .requestMotion(value: item.card.isEnded)
+        .requestMotion(value: item.viewerStatus.showsPaidBadge)
     }
 
     private var ring: some View {
