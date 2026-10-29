@@ -13,9 +13,11 @@ nonisolated private let logger = Logger(label: "flipcash.payment-requests")
 
 /// The group payment requests read this session, merged by version.
 ///
-/// No event carries a request change, so every copy arrives from a fetch: a chat's sections, one
-/// request, or the response to the viewer's own create, close or mark-paid. Each goes through
-/// ``ingest(_:)``, which keeps the greater version and, at an equal version, EXPIRED over OPEN.
+/// A copy arrives from a fetch (a chat's sections, one request, or the response to the viewer's own
+/// create, close or mark-paid) or from a live chat-stream update. Fetched copies go through
+/// ``ingest(_:)``, which keeps the greater version and, at an equal version, EXPIRED over OPEN; live
+/// updates go through ``apply(_:)``, which follows the same version rule. Updates are best effort, so
+/// the polls stay as reconciliation.
 @MainActor
 @Observable
 final class PaymentRequests {
@@ -157,6 +159,45 @@ final class PaymentRequests {
                 requests[request.id] = request
             }
             unavailable.remove(request.id)
+        }
+    }
+
+    /// Applies live updates from the chat stream to the copies held, and returns the requests that need
+    /// a refetch (see ``refetch(_:)``).
+    ///
+    /// `.created` merges like a fetched copy. `.updates` apply by version against the held copy; with no
+    /// held copy they are dropped, since the request is fetched when shown.
+    @discardableResult
+    func apply(_ updates: [DecodedPaymentRequestUpdate]) -> [PaymentRequestID] {
+        var refetch: [PaymentRequestID] = []
+        for update in updates {
+            switch update.change {
+            case .created(let request):
+                ingest([request])
+            case .updates(let version, let changes):
+                guard let held = requests[update.id] else { continue }
+                switch held.applying(version: version, updates: changes) {
+                case .ignored:
+                    break
+                case .applied(let applied):
+                    requests[update.id] = applied
+                case .refetch:
+                    if !refetch.contains(update.id) { refetch.append(update.id) }
+                }
+            }
+        }
+        return refetch
+    }
+
+    /// Reads each of `ids` to reconcile a live update that couldn't be applied. A failed read keeps the
+    /// held copy; the next poll retries.
+    func refetch(_ ids: [PaymentRequestID]) async {
+        for id in ids {
+            do {
+                try await refresh(id)
+            } catch {
+                logger.warning("Failed to refetch a payment request after a live update", metadata: ["error": "\(error)"])
+            }
         }
     }
 
