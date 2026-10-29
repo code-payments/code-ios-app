@@ -89,6 +89,8 @@ public enum SystemSymbol: String {
     case checkmark = "checkmark"
     
     case speakerSlash = "speaker.slash.fill"
+    /// A person with a minus, for taking someone out of a group.
+    case personBadgeMinus = "person.badge.minus"
     
     case lockDashed = "lock.app.dashed"
 }

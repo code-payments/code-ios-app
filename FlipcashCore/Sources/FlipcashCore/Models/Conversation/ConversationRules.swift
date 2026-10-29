@@ -84,6 +84,25 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
         self.canBan = canBan
         self.canInvite = canInvite
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case mute, canEdit, version, silence, canSilence, canBan
+    }
+
+    /// Reads a row stored before a field existed. The synthesized decoder throws on a missing key,
+    /// and the store reads that as "no viewer state", which would drop the saved mute along with
+    /// the new permission. A missing permission is `false`, the same as an unset one on the wire.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            mute: try container.decodeIfPresent(ConversationMuteState.self, forKey: .mute),
+            canEdit: try container.decodeIfPresent(Bool.self, forKey: .canEdit) ?? false,
+            version: try container.decodeIfPresent(UInt64.self, forKey: .version) ?? 0,
+            silence: try container.decodeIfPresent(ConversationSilenceState.self, forKey: .silence),
+            canSilence: try container.decodeIfPresent(Bool.self, forKey: .canSilence) ?? false,
+            canBan: try container.decodeIfPresent(Bool.self, forKey: .canBan) ?? false
+        )
+    }
 }
 
 extension ConversationViewerState {
@@ -235,6 +254,15 @@ public struct ConversationRestrictedUser: Hashable, Sendable, Identifiable {
     public let bannedAt: Date?
 
     public var id: String { userID?.uuidString ?? displayName }
+
+    public init(userID: UserID?, displayName: String, username: Username? = nil, profilePicture: ProfilePicture? = nil, silence: ConversationSilenceState? = nil, bannedAt: Date? = nil) {
+        self.userID = userID
+        self.displayName = displayName
+        self.username = username
+        self.profilePicture = profilePicture
+        self.silence = silence
+        self.bannedAt = bannedAt
+    }
 }
 
 extension ConversationRestrictedUser {

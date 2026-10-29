@@ -9,6 +9,9 @@ nonisolated enum ProfileMenuItem: Equatable {
     case report
     case block
     case unblock
+    /// Host-only, in the group the profile was opened from.
+    case silence
+    case removeFromGroup
 
     /// The entry's label.
     var title: String {
@@ -17,6 +20,8 @@ nonisolated enum ProfileMenuItem: Equatable {
         case .report:  return "Report"
         case .block:   return "Block"
         case .unblock: return "Unblock"
+        case .silence: return "Restrict"
+        case .removeFromGroup: return "Remove from Group"
         }
     }
 
@@ -27,14 +32,16 @@ nonisolated enum ProfileMenuItem: Equatable {
         case .report:  return "exclamationmark.bubble"
         case .block:   return "nosign"
         case .unblock: return "checkmark.circle"
+        case .silence: return "speaker.slash"
+        case .removeFromGroup: return "person.badge.minus"
         }
     }
 
     /// Whether the entry is drawn as a destructive action. Unblock restores something, so it isn't.
     var isDestructive: Bool {
         switch self {
-        case .report, .block:                 return true
-        case .mute, .unblock:                 return false
+        case .report, .block, .removeFromGroup: return true
+        case .mute, .unblock, .silence:      return false
         }
     }
 }
@@ -48,6 +55,17 @@ nonisolated enum ProfileMenuItems {
         var items: [ProfileMenuItem] = []
         if hasDM { items.append(.mute) }
         items.append(contentsOf: [.report, .block])
+        return items
+    }
+
+    /// The host's section for a profile opened from a group: Silence when the viewer can silence,
+    /// Remove when they can ban. Empty for the group's creator, who can't be restricted, and for
+    /// the viewer's own profile. Block stays in the main section and stays global.
+    static func moderation(canSilence: Bool, canBan: Bool, isCreator: Bool, isSelf: Bool) -> [ProfileMenuItem] {
+        guard !isCreator, !isSelf else { return [] }
+        var items: [ProfileMenuItem] = []
+        if canSilence { items.append(.silence) }
+        if canBan { items.append(.removeFromGroup) }
         return items
     }
 }

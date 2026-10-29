@@ -64,6 +64,7 @@ struct LobbyRequestsTests {
     @Test("A full lobby throws the sheet's error and records nothing", arguments: [
         (ErrorEnterLobby.lobbyFull, LobbyRequests.RequestError.lobbyFull),
         (ErrorEnterLobby.tooManyLobbies, LobbyRequests.RequestError.tooManyLobbies),
+        (ErrorEnterLobby.banned, LobbyRequests.RequestError.banned),
     ])
     func fullLobbyThrows(server: ErrorEnterLobby, expected: LobbyRequests.RequestError) async {
         let id = ConversationID.test(3)

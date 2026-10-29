@@ -54,7 +54,7 @@ nonisolated private extension ConversationGateRequirement {
     var minimumBalance: (FiatAmount, PublicKey?)? {
         switch self {
         case .minimumBalance(let amount, let mint):         return (amount, mint)
-        case .staff, .never, .creator, .unsupported:        return nil
+        case .staff, .never, .creator, .unsupported, .silenced: return nil
         }
     }
 

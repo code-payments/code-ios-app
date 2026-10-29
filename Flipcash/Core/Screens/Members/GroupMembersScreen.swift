@@ -60,7 +60,7 @@ struct GroupMembersScreen: View {
 
     private func row(_ portrait: GroupPortrait, joinedAt: Date?) -> some View {
         Button {
-            router.push(.userProfile(portrait.userID, origin: .groupMember))
+            router.push(.userProfile(portrait.userID, origin: .groupMember(conversationID)))
         } label: {
             HStack(spacing: 12) {
                 ContactAvatarView(

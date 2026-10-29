@@ -168,6 +168,10 @@ extension AppRouter {
         /// The group an invite link admits to, previewed before joining; nil for a link that holds
         /// no usable secret. The secret prints redacted, and ``payload`` never carries it.
         case groupInvite(InviteLinkSecret?)
+        /// The members the host silenced in a group, with Unsilence on each row.
+        case silencedMembers(ConversationID)
+        /// The members the host removed from a group, with Unban on each row.
+        case removedMembers(ConversationID)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -193,7 +197,8 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .chatMessage, .chatRequest, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .editGroupBalanceRequirement, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers, .groupInvite:
+                 .editGroupDescription, .editGroupBalanceRequirement, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers, .groupInvite,
+                 .silencedMembers, .removedMembers:
                 return .tips
             }
         }
@@ -269,6 +274,8 @@ extension AppRouter {
             case .inviteLinks:                  "inviteLinks"
             case .groupMembers:                 "groupMembers"
             case .groupInvite:                  "groupInvite"
+            case .silencedMembers:              "silencedMembers"
+            case .removedMembers:               "removedMembers"
             }
         }
 
@@ -305,7 +312,9 @@ extension AppRouter {
                  .editGroupDescription(let conversationID),
                  .joinRequests(let conversationID),
                  .inviteLinks(let conversationID),
-                 .groupMembers(let conversationID):
+                 .groupMembers(let conversationID),
+                 .silencedMembers(let conversationID),
+                 .removedMembers(let conversationID):
                 return conversationID.description
             case .editGroupBalanceRequirement(let conversationID, let role):
                 return "\(conversationID.description) \(role)"

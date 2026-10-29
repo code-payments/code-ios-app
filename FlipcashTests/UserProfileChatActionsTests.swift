@@ -23,7 +23,7 @@ struct UserProfileChatActionsTests {
 
     @Test(
         "Blocking from a chat-opened profile resets the stack, which can hold the blocked DM",
-        arguments: [UserProfileOrigin.directMessage, .groupMember, .mention, .scan, .usernameLookup]
+        arguments: [UserProfileOrigin.directMessage, .groupMember(.test(1)), .mention, .scan, .usernameLookup]
     )
     func chatOrigins_blockResetsStack(_ origin: UserProfileOrigin) {
         #expect(!origin.blockReturnsToOpener)
@@ -35,7 +35,7 @@ struct UserProfileChatActionsTests {
         #expect(UserProfileOrigin.scan.arrivesFetched)
         #expect(UserProfileOrigin.usernameLookup.arrivesFetched)
         #expect(!UserProfileOrigin.directMessage.arrivesFetched)
-        #expect(!UserProfileOrigin.groupMember.arrivesFetched)
+        #expect(!UserProfileOrigin.groupMember(.test(1)).arrivesFetched)
         #expect(!UserProfileOrigin.mention.arrivesFetched)
         #expect(!UserProfileOrigin.transaction.arrivesFetched)
     }
@@ -43,7 +43,7 @@ struct UserProfileChatActionsTests {
     @Test("Open Chat returns to the DM only when the profile was opened from that DM")
     func openChat_returnsToDMOnlyFromDirectMessage() {
         #expect(UserProfileOrigin.directMessage.returnsToExistingDM)
-        #expect(!UserProfileOrigin.groupMember.returnsToExistingDM)
+        #expect(!UserProfileOrigin.groupMember(.test(1)).returnsToExistingDM)
         #expect(!UserProfileOrigin.mention.returnsToExistingDM)
         #expect(!UserProfileOrigin.deeplink.returnsToExistingDM)
         #expect(!UserProfileOrigin.scan.returnsToExistingDM)
@@ -57,7 +57,7 @@ struct UserProfileChatActionsTests {
     func userProfile_originDistinguishesButDoesNotLog() {
         let userID = UUID()
         let fromDM = AppRouter.Destination.userProfile(userID, origin: .directMessage)
-        let fromGroup = AppRouter.Destination.userProfile(userID, origin: .groupMember)
+        let fromGroup = AppRouter.Destination.userProfile(userID, origin: .groupMember(.test(1)))
         #expect(fromDM != fromGroup)
         #expect(fromDM.description == "userProfile")
         #expect(fromGroup.description == "userProfile")

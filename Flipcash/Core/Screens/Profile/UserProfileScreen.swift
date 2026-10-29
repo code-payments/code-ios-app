@@ -51,6 +51,7 @@ private struct UserProfileContent: View {
     @Environment(ConversationController.self) private var conversationController
     @Environment(BlocklistController.self) private var blocklistController
     @Environment(ToastController.self) private var toasts
+    @Environment(Container.self) private var container
 
     let origin: UserProfileOrigin
 
@@ -60,6 +61,7 @@ private struct UserProfileContent: View {
     @State private var dialogItem: DialogItem?
     @State private var isPickingMuteDuration = false
     @State private var isReporting = false
+    @State private var silenceTarget: ModerationTarget?
     @State private var startChattingRequest: StartChattingRequest?
     @State private var postPayment = PostPaymentChat()
     /// Where this screen sits in its stack, recorded when it first appears.
@@ -117,6 +119,32 @@ private struct UserProfileContent: View {
     private var menuItems: [ProfileMenuItem] {
         guard !isSelf else { return [] }
         return ProfileMenuItems.resolve(isBlocked: isBlocked, hasDM: dmID != nil)
+    }
+
+    /// The group this profile was opened from, when the viewer can moderate it.
+    private var moderationGroup: Conversation? {
+        guard case .groupMember(let id) = origin else { return nil }
+        return conversationController.conversation(withID: id)
+    }
+
+    private var moderationItems: [ProfileMenuItem] {
+        guard let group = moderationGroup, let state = group.viewerState else { return [] }
+        return ProfileMenuItems.moderation(
+            canSilence: state.canSilence,
+            canBan: state.canBan,
+            isCreator: group.creator == model.userID,
+            isSelf: isSelf
+        )
+    }
+
+    private var moderationTarget: ModerationTarget? {
+        guard let group = moderationGroup else { return nil }
+        return ModerationTarget(
+            conversationID: group.id,
+            userID: model.userID,
+            firstName: GroupModerationCopy.firstName(of: model.displayName),
+            groupName: group.title ?? "this group"
+        )
     }
 
     /// Whether this profile is the visible top of its stack, with its tab or sheet active.
@@ -196,7 +224,7 @@ private struct UserProfileContent: View {
         }
         // The system bar carries back and the overflow menu, and the soft edge the banner scrolls under.
         .toolbar {
-            if !menuItems.isEmpty {
+            if !menuItems.isEmpty || !moderationItems.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     overflowMenu
                 }
@@ -216,6 +244,7 @@ private struct UserProfileContent: View {
             }
         }
         .dialog(item: $dialogItem)
+        .silenceUserSheet($silenceTarget)
         .sheet(isPresented: $isPickingMuteDuration) {
             if let dmID {
                 MuteChatSheet(conversationID: dmID, isPresented: $isPickingMuteDuration)
@@ -293,7 +322,19 @@ private struct UserProfileContent: View {
                 }
                 // Menu icons follow the app's white tint while the title follows the role, so a
                 // destructive entry's icon is tinted red to match its title.
-                .tint(item.isDestructive ? .red : nil)
+                .tint(item.isDestructive ? Color.textError : nil)
+            }
+            if !moderationItems.isEmpty {
+                Section(moderationGroup?.title.map { "In \($0)" } ?? "In this group") {
+                    ForEach(moderationItems, id: \.title) { item in
+                        Button(role: item.isDestructive ? .destructive : nil) {
+                            perform(item)
+                        } label: {
+                            Label(item.title, systemImage: item.systemImage)
+                        }
+                        .tint(item.isDestructive ? Color.textError : nil)
+                    }
+                }
             }
         } label: {
             Image.system(.ellipsis)
@@ -321,6 +362,18 @@ private struct UserProfileContent: View {
             dialogItem = blockDialog()
         case .unblock:
             Task { await model.unblock() }
+        case .silence:
+            silenceTarget = moderationTarget
+        case .removeFromGroup:
+            guard let target = moderationTarget else { return }
+            let moderation = GroupModeration(moderation: container.flipClient, owner: sessionContainer.session.ownerKeyPair, conversationID: target.conversationID, didRemove: { [rosters = sessionContainer.groupRosters] in rosters.remove($0, from: target.conversationID) })
+            dialogItem = target.removeDialog(moderation: moderation) { error in
+                sessionContainer.session.dialogItem = .error(
+                    title: "Something Went Wrong",
+                    subtitle: "We were unable to remove \(target.firstName). Please try again"
+                )
+                ErrorReporting.captureError(error, reason: "Failed to remove user")
+            }
         }
     }
 
@@ -404,8 +457,9 @@ private struct UserProfileContent: View {
 nonisolated enum UserProfileOrigin: Hashable {
     /// The title or card of the DM with this person.
     case directMessage
-    /// Their face in a group transcript.
-    case groupMember
+    /// Their face in a group transcript or its member list. Carries the group, since the host's
+    /// Silence and Remove act on that group only.
+    case groupMember(ConversationID)
     /// Their `@handle` or person link card tapped in a message, in a chat that is not a DM with them.
     case mention
     /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.

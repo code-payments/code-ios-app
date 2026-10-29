@@ -98,4 +98,57 @@ struct GroupRostersTests {
 
         #expect(rosters.members(for: group, creator: nil).map(\.displayName) == ["Rejoined"])
     }
+
+    @Test("A removal the stream doesn't name drops the member on the re-read the count change triggers")
+    func undisclosedRemovalRereads() async {
+        let host = member("Host")
+        let banned = member("Banned")
+        var served = [host, banned]
+        let rosters = GroupRosters { _ in served }
+        await rosters.refresh(group)
+        #expect(rosters.members(for: group, creator: host.userID).count == 2)
+
+        served = [host]
+        rosters.apply(event([(.membershipChanged, 4)]))
+        // The re-read is a task the apply starts; yield until it lands.
+        for _ in 0..<50 where rosters.members(for: group, creator: nil).count != 1 {
+            await Task.yield()
+        }
+
+        #expect(rosters.members(for: group, creator: host.userID).map(\.displayName) == ["Host"])
+    }
+
+    @Test("Removing a member here drops them at once, and a trailing page can't bring them back")
+    func localRemoval() async {
+        let host = member("Host")
+        let banned = member("Banned", version: 3)
+        let rosters = GroupRosters { _ in [host, banned] }
+        await rosters.refresh(group)
+
+        rosters.remove(banned.userID!, from: group)
+        #expect(rosters.members(for: group, creator: host.userID).map(\.displayName) == ["Host"])
+
+        await rosters.refresh(group)
+        #expect(rosters.members(for: group, creator: host.userID).map(\.displayName) == ["Host"])
+    }
+
+    @Test("A member the stream delivered while a read was in flight survives that read")
+    func joinDuringReadSurvives() async {
+        let host = member("Host")
+        let newcomer = member("Newcomer", version: 2)
+        var rosters: GroupRosters!
+        var firstRead = true
+        rosters = GroupRosters { [group] _ in
+            if firstRead { firstRead = false; return [host] }
+            // The stream delivers the join after the read was pinned, so the page lacks them.
+            rosters.apply(.rosterChanged(conversationID: group, updates: [
+                DecodedRosterUpdate(rosterSummary: ConversationRosterSummary(memberCount: 2, version: 5), change: .joined(member: newcomer, chat: nil))
+            ]))
+            return [host]
+        }
+        await rosters.refresh(group)
+        await rosters.refresh(group)
+
+        #expect(Set(rosters.members(for: group, creator: nil).map(\.displayName)) == ["Host", "Newcomer"])
+    }
 }

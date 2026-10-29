@@ -371,6 +371,11 @@ public struct ChatAuthor: Hashable, Sendable, Codable {
     /// picture.
     public let blurhash: String?
 
+    /// The first word of ``name``, or `nil` when the roster does not name this sender.
+    public var firstName: String? {
+        name.split(separator: " ").first.map(String.init)
+    }
+
     public init(id: UserID, name: String, blurhash: String? = nil) {
         self.id = id
         self.name = name

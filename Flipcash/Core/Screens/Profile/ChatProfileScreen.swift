@@ -187,14 +187,14 @@ struct ChatProfileScreen: View {
                             count: conversation?.rosterSummary.memberCount,
                             onCount: rosterPortraits.isEmpty ? nil : { router.push(.groupMembers(conversationID)) }
                         ) { userID in
-                            router.push(.userProfile(userID, origin: .groupMember))
+                            router.push(.userProfile(userID, origin: .groupMember(conversationID)))
                         }
                         .padding(.top, 24)
                     }
 
                     if GroupChattingGrid.isVisible(isPrivate: isPrivate, chatters: chatters) {
                         GroupChattingGrid(chatters: chatters) { userID in
-                            router.push(.userProfile(userID, origin: .groupMember))
+                            router.push(.userProfile(userID, origin: .groupMember(conversationID)))
                         }
                         .padding(.top, 24)
                     }
@@ -258,6 +258,7 @@ struct ChatProfileScreen: View {
             let conversation = await conversationController.hydratedConversation(withID: conversationID)
             await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
             await conversationController.fillCoverPicture(for: conversationID)
+            await conversationController.refreshViewerPermissions(for: conversationID)
         }
         // No push says a request was decided, so every visit asks. Keyed on membership so an
         // admission that lands while the profile is open stops the asking.
@@ -591,8 +592,8 @@ struct ChatProfileScreen: View {
             }
         } catch let error as LobbyRequests.RequestError {
             dialogItem = .info(
-                title: PrivateGroupCopy.unavailableTitle(groupName: title),
-                subtitle: error.explanation
+                title: error == .banned ? GroupModerationCopy.bannedTitle : PrivateGroupCopy.unavailableTitle(groupName: title),
+                subtitle: error == .banned ? GroupModerationCopy.bannedSubtitle(groupName: title) : error.explanation
             ) {
                 DialogAction.okay(kind: .standard)
             }
@@ -639,6 +640,12 @@ struct ChatProfileScreen: View {
 
     // MARK: - Overflow -
 
+    /// Whether the viewer may silence or ban in this group, which is what opens the Moderation row.
+    private var canModerate: Bool {
+        guard let state = conversation?.viewerState else { return false }
+        return state.canSilence || state.canBan
+    }
+
     private var overflowMenu: some View {
         Menu {
             Button {
@@ -652,6 +659,24 @@ struct ChatProfileScreen: View {
                     isPickingMuteDuration = true
                 } label: {
                     Label("Mute Notifications", systemImage: "bell.slash")
+                }
+            }
+            // The host's two lists, behind one row so the overflow stays short. Gated on the
+            // viewer's server-computed flags, never on being the creator.
+            if canModerate {
+                Menu {
+                    Button {
+                        router.push(.silencedMembers(conversationID))
+                    } label: {
+                        Label("Restricted", systemImage: "speaker.slash")
+                    }
+                    Button {
+                        router.push(.removedMembers(conversationID))
+                    } label: {
+                        Label("Removed", systemImage: "person.badge.minus")
+                    }
+                } label: {
+                    Label("Moderation", systemImage: "shield")
                 }
             }
             Divider()

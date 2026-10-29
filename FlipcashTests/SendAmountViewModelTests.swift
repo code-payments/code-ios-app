@@ -648,7 +648,7 @@ struct SendAmountViewModelTests {
     @Test("Only a profile reached by scanning a Flipcard sends a tip", arguments: [
         (UserProfileOrigin.scan, TipOrigin.tipcard),
         (.directMessage, .chat),
-        (.groupMember, .chat),
+        (.groupMember(.test(1)), .chat),
         (.mention, .chat),
         (.deeplink, .chat),
         (.usernameLookup, .chat),

@@ -18,16 +18,10 @@ struct TrustedWebsitesScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             if trustedWebsites.entries.isEmpty {
-                VStack(spacing: 8) {
-                    Text("No Trusted Websites")
-                        .font(.appTextLarge)
-                        .foregroundStyle(.textMain)
-                    Text("Skip the “You're Leaving Flipcash” warning for a website by checking “Don't ask again” when you open its link")
-                        .font(.appTextSmall)
-                        .foregroundStyle(.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, 40)
+                EmptyStateMessage(
+                    "No Trusted Websites",
+                    message: "Skip the “You're Leaving Flipcash” warning for a website by checking “Don't ask again” when you open its link"
+                )
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {

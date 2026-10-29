@@ -112,7 +112,7 @@ nonisolated extension ConversationGateRequirement {
     var mint: PublicKey? {
         switch self {
         case .minimumBalance(_, let mint):  mint
-        case .staff, .never, .creator, .unsupported:  nil
+        case .staff, .never, .creator, .unsupported, .silenced:  nil
         }
     }
 }

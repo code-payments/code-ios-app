@@ -556,6 +556,29 @@ public struct ConversationStore: Sendable {
         conversations[index].viewerState = viewerState
     }
 
+    /// Takes the viewer's permissions from a freshly fetched chat, leaving mute, silence and version as
+    /// they are. Permissions are computed by the server and do not advance the viewer-state version, so
+    /// ``applyViewerStateChanged(_:in:)`` drops a fetch whose version has not moved. That left a chat
+    /// stored before the moderation permissions existed with `canSilence` and `canBan` false for good.
+    /// Returns whether anything changed, so the caller knows to persist.
+    @discardableResult
+    public mutating func refreshViewerPermissions(from fetched: ConversationViewerState, in conversationID: ConversationID) -> Bool {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return false }
+        let current = conversations[index].viewerState ?? ConversationViewerState()
+        guard current.canEdit != fetched.canEdit || current.canSilence != fetched.canSilence || current.canBan != fetched.canBan else {
+            return false
+        }
+        conversations[index].viewerState = ConversationViewerState(
+            mute: current.mute,
+            canEdit: fetched.canEdit,
+            version: current.version,
+            silence: current.silence,
+            canSilence: fetched.canSilence,
+            canBan: fetched.canBan
+        )
+        return true
+    }
+
     /// Apply a title change delivered via `MetadataUpdate.TitleChanged`. Best-effort and applied as
     /// received — the update carries no version to compare, unlike ``applyRosterUpdates(_:in:)`` and
     /// ``applyViewerStateChanged(_:in:)`` — so a delayed or reordered delivery can in principle
@@ -613,7 +636,7 @@ public struct ConversationStore: Sendable {
     }
 
     private mutating func upsert(_ conversation: Conversation) {
-        var conversation = keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated(conversation))))
+        var conversation = keepingViewerState(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated(conversation)))))
         if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
             if conversation.type == .group {
                 conversation.members = mergedMembers(conversation.members, over: conversations[index].members)
@@ -674,6 +697,37 @@ public struct ConversationStore: Sendable {
         if let held = stored.lastMessage, let incoming = conversation.lastMessage,
            (held.id, held.eventSequence) > (incoming.id, incoming.eventSequence) {
             conversation.lastMessage = held
+        }
+        return conversation
+    }
+
+    /// `conversation` with the stored viewer state kept where the incoming copy is not newer. A feed or
+    /// metadata response is applied as a whole, so an older one would roll back a mute or silence a
+    /// stream event just set, and a feed row that omits the permissions would reset `canSilence` and
+    /// `canBan` to false. At an equal version the incoming mute and silence stand, but a permission the
+    /// store already holds is not dropped: it is server-computed and does not advance the version, so
+    /// only ``refreshViewerPermissions(from:in:)`` lowers one.
+    private func keepingViewerState(_ conversation: Conversation) -> Conversation {
+        guard let held = conversations.first(where: { $0.id == conversation.id })?.viewerState else {
+            return conversation
+        }
+        guard let incoming = conversation.viewerState else {
+            var conversation = conversation
+            conversation.viewerState = held
+            return conversation
+        }
+        var conversation = conversation
+        if incoming.version < held.version {
+            conversation.viewerState = held
+        } else if incoming.version == held.version {
+            conversation.viewerState = ConversationViewerState(
+                mute: incoming.mute,
+                canEdit: incoming.canEdit || held.canEdit,
+                version: incoming.version,
+                silence: incoming.silence,
+                canSilence: incoming.canSilence || held.canSilence,
+                canBan: incoming.canBan || held.canBan
+            )
         }
         return conversation
     }

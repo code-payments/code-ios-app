@@ -1781,9 +1781,10 @@ extension ChatViewController {
         let rowID = message.messageID
         let handler = onMessageAction
 
-        let children = message.actions.map { action in
+        let senderName = message.author?.firstName
+        func menuAction(_ action: MessageCapability) -> UIAction {
             UIAction(
-                title: action.title,
+                title: action.menuTitle(naming: senderName),
                 image: UIImage(systemName: action.menuSymbol.rawValue),
                 attributes: action.isDestructive ? .destructive : []
             ) { _ in
@@ -1791,12 +1792,35 @@ extension ChatViewController {
                 case .copy:
                     if let body { UIPasteboard.general.string = body }
                 // The link rows need the chat's id, which this module never holds.
-                case .reply, .edit, .delete, .report, .forward:
+                case .reply, .edit, .delete, .report, .forward, .silence, .remove:
                     handler?(rowID, action)
                 }
             }
         }
+
+        // Moderation sits apart from what anyone can do to a message, under its own divider.
+        let (moderation, everyday) = message.actions.reduce(into: ([MessageCapability](), [MessageCapability]())) {
+            if $1.isModeration { $0.0.append($1) } else { $0.1.append($1) }
+        }
+        var children: [UIMenuElement] = everyday.map(menuAction)
+        if !moderation.isEmpty {
+            children.append(UIMenu(title: "", options: .displayInline, children: moderation.map(menuAction)))
+        }
         return UIMenu(title: "", children: children)
+    }
+
+    /// The rows the long-press lift menu draws for `message`. The lift draws a flat list, so the
+    /// inline section that holds the moderation rows is flattened into it; reading only the top
+    /// level would drop Silence and Remove.
+    func liftMenuActions(for message: ChatMessage) -> [UIAction] {
+        func flatten(_ elements: [UIMenuElement]) -> [UIAction] {
+            elements.flatMap { element -> [UIAction] in
+                if let action = element as? UIAction { return [action] }
+                if let menu = element as? UIMenu { return flatten(menu.children) }
+                return []
+            }
+        }
+        return flatten(contextMenu(for: message)?.children ?? [])
     }
 
     private func isInReactionRow(_ point: CGPoint) -> Bool {
@@ -1981,7 +2005,7 @@ protocol BubbleCarrying {
 }
 #endif
 
-private extension MessageCapability {
+extension MessageCapability {
 
     /// The menu row's glyph. Lives here rather than on the action itself because `SystemSymbol` is
     /// this module's symbol registry, and `MessageCapability` is a core model.
@@ -1993,6 +2017,27 @@ private extension MessageCapability {
         case .delete: .trash
         case .report: .exclamationBubble
         case .forward: .forwardArrow
+        case .silence: .speakerSlash
+        case .remove: .personBadgeMinus
+        }
+    }
+
+    var isModeration: Bool {
+        switch self {
+        case .silence, .remove: true
+        case .copy, .reply, .edit, .delete, .report, .forward: false
+        }
+    }
+
+    /// The row's label, naming the sender on the host's two rows: "Silence Grampa…". The ellipsis
+    /// says a choice follows, the way Silence's duration sheet and Remove's confirm do.
+    func menuTitle(naming senderName: String?) -> String {
+        switch self {
+        case .silence, .remove:
+            guard let senderName else { return title }
+            return "\(title) \(senderName)"
+        case .copy, .reply, .edit, .delete, .report, .forward:
+            return title
         }
     }
 }
