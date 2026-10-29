@@ -104,7 +104,9 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                     .padding(.top, PublicGroupLook.identityToCards)
                 }
             }
-            .padding(.top, 4)
+            // Negative pulls the identity up under the bar; the cover hangs from the scroll's top,
+            // so it stays put either way.
+            .padding(.top, PublicGroupLook.contentOffset)
             .padding(.bottom, 24)
             // On the whole column, so a bio that arrives late moves the sections with the pills.
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: content.description)
@@ -196,7 +198,7 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                     blurhash: content.avatarBlurhash,
                     size: Self.avatarSize
                 )
-                .padding(Self.avatarRing)
+                .padding(avatarRing)
                 .background(palette.background, in: Circle())
 
                 accessory()
@@ -235,7 +237,10 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
     }
 
     private static var avatarSize: CGFloat { 72 }
-    private static var avatarRing: CGFloat { 3 }
+    /// The ring of page color around the avatar, which keeps it apart from the cover behind it.
+    private var avatarRing: CGFloat {
+        PublicGroupLook.avatarStroke ? PublicGroupLook.avatarStrokeWidth : 0
+    }
 }
 
 // MARK: - Buttons -

@@ -25,6 +25,16 @@ enum PublicGroupLook {
     /// The cover's height from the top of the screen, under the status and navigation bars.
     static var coverHeight: CGFloat { Tuner.shared.value("Profile/Public/Cover height", default: CGFloat(320), in: 160...420, step: 1, unit: .points) } // LOCAL-TUNER
 
+    /// How far below the navigation bar's bottom edge the identity (the avatar onward) starts; the
+    /// cover stays put, so a larger value moves the avatar down into the melt.
+    static var contentOffset: CGFloat { Tuner.shared.value("Profile/Public/Content offset", default: CGFloat(4), in: -40...160, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// Whether the identity's avatar is drawn inside a ring of the page's color.
+    static var avatarStroke: Bool { Tuner.shared.value("Profile/Public/Avatar stroke", default: true) } // LOCAL-TUNER
+
+    /// The width of that ring.
+    static var avatarStrokeWidth: CGFloat { Tuner.shared.value("Profile/Public/Avatar stroke width", default: CGFloat(3), in: 0...8, step: 0.5, unit: .points) } // LOCAL-TUNER
+
     // MARK: Boxes and spacing
 
     /// The corner radius of every box: the requirement tiles, the pulse card and Leave Chat.
