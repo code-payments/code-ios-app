@@ -62,6 +62,7 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
                     SettingsSectionHeader("Swipe Showcase") // LOCAL-TUNER
                     unlinkRow(title: "Swipe to Send", isDisabled: false) { isShowingSwipeShowcase = true } // LOCAL-TUNER
                         .accessibilityIdentifier("swipe-showcase") // LOCAL-TUNER
+                    PublicGroupProfilePlaygroundEntry() // LOCAL-TUNER
                     #endif // LOCAL-TUNER
 
                     ForEach(publicOptions) { option in
