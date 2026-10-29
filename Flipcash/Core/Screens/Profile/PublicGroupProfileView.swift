@@ -140,7 +140,16 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
             .overlay(alignment: .bottom) {
                 BleedFade(color: palette.background, height: min(PublicGroupLook.fadeHeight, PublicGroupLook.coverHeight))
             }
-            .offset(y: -topInset)
+            // Grows upward from its bottom edge when the scroll view is pulled past its top, as
+            // `ProfileCoverBanner` does, the fade riding along. The lift under the bars is in the
+            // same effect: an `.offset` after it stops the effect following the scroll.
+            .visualEffect { [topInset] content, proxy in
+                let overscroll = max(0, proxy.frame(in: .scrollView).minY)
+                let height = max(proxy.size.height, 1)
+                return content
+                    .scaleEffect((height + overscroll) / height, anchor: .bottom)
+                    .offset(y: -topInset)
+            }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("profile-cover")
     }

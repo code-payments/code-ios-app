@@ -31,7 +31,7 @@ struct PublicGroupRequirementsView: View {
                 tileContent(tile, isWide: true)
                 if let yourBalance {
                     PublicGroupHairline()
-                        .padding(.vertical, 8)
+                        .padding(.vertical, PublicGroupLook.dividerGap)
                     footer(yourBalance, style: palette.controlSecondaryStyle)
                 }
             }
@@ -152,7 +152,7 @@ struct PublicGroupPulseCard: View {
         VStack(alignment: .leading, spacing: 0) {
             if !pulse.faces.isEmpty {
                 facepile
-                    .padding(.bottom, 12)
+                    .padding(.bottom, PublicGroupLook.facepileToHeadline)
             }
 
             Text(PublicGroupCopy.chatting(count: pulse.chattingCount))
@@ -163,18 +163,16 @@ struct PublicGroupPulseCard: View {
                 Text(meta)
                     .font(.appTextCaption)
                     .foregroundStyle(palette.controlSecondaryStyle)
-                    .padding(.top, 2)
+                    .padding(.top, PublicGroupLook.headlineToMeta)
             }
 
             if let host {
                 PublicGroupHairline()
-                    .padding(.vertical, 12)
+                    .padding(.vertical, PublicGroupLook.dividerGap)
                 hostRow(host)
             }
         }
-        .padding(.top, PublicGroupLook.cardPadding)
-        .padding(.horizontal, PublicGroupLook.cardPadding)
-        .padding(.bottom, host == nil ? PublicGroupLook.cardPadding : 0)
+        .padding(PublicGroupLook.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(palette.controlTint, in: PublicGroupLook.cardShape)
         .accessibilityElement(children: .contain)
@@ -227,7 +225,7 @@ struct PublicGroupPulseCard: View {
         Button {
             onSelect(host.userID)
         } label: {
-            HStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 ContactAvatarView(
                     id: host.userID.uuidString,
                     displayName: host.name,
@@ -252,8 +250,10 @@ struct PublicGroupPulseCard: View {
                     .iconSize(16)
                     .foregroundStyle(palette.controlSecondaryStyle)
             }
-            .frame(minHeight: 44)
+            // Grown to a 44pt target without moving anything, so the row's visible space is the box's.
+            .padding(.vertical, (Self.hitHeight - Self.hostSize) / 2)
             .contentShape(Rectangle())
+            .padding(.vertical, -(Self.hitHeight - Self.hostSize) / 2)
         }
         .buttonStyle(PublicGroupDimButtonStyle())
         .accessibilityLabel("Hosted by \(host.name)")

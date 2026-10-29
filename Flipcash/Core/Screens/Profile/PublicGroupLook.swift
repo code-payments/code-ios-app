@@ -33,6 +33,15 @@ enum PublicGroupLook {
     /// The padding inside every box.
     static var cardPadding: CGFloat { Tuner.shared.value("Profile/Public/Card padding", default: CGFloat(16), in: 8...28, step: 1, unit: .points) } // LOCAL-TUNER
 
+    /// The space above and below the hairline in a box, between its summary and the row under it.
+    static var dividerGap: CGFloat { Tuner.shared.value("Profile/Public/Divider gap", default: CGFloat(12), in: 4...24, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap from the pulse card's facepile to its headline.
+    static var facepileToHeadline: CGFloat { Tuner.shared.value("Profile/Public/Facepile to headline", default: CGFloat(12), in: 4...24, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap from the pulse card's headline to its meta line.
+    static var headlineToMeta: CGFloat { Tuner.shared.value("Profile/Public/Headline to meta", default: CGFloat(2), in: 0...12, step: 1, unit: .points) } // LOCAL-TUNER
+
     /// The gap between boxes, stacked and side by side.
     static var cardGap: CGFloat { Tuner.shared.value("Profile/Public/Card gap", default: CGFloat(12), in: 0...32, step: 1, unit: .points) } // LOCAL-TUNER
 

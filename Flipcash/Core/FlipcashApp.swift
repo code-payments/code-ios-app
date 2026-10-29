@@ -32,7 +32,7 @@ struct FlipcashApp: App {
             } else if let benchmark = ScrollBenchmark.requested {
                 benchmark
             } else {
-                mainScene.tunerFloating(groups: ["Chat list", "Chat list Row", "Chat list Title", "Chat list Preview", "Chat list Date", "Chat list Unread", "Chat v2 Date", "Tray Layout", "Tray Type", "Tray Destructive", "Tray Rows", "Tray Amount", "Tray Mute", "Tray E2EE", "Tray Fill", "Tray Motion", "Tray Label", "Tray Behavior", "Amount entry"]) // LOCAL-TUNER
+                mainScene.tunerFloating(groups: ["Profile"]) // LOCAL-TUNER
             }
             #else
             mainScene
