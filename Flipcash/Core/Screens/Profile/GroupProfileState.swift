@@ -68,6 +68,8 @@ nonisolated struct GroupBalanceRequirements: Equatable {
     /// The speaker minimum, falling back to ``join`` when the group sets none: speaker rules equal
     /// listener rules when none are set.
     let chat: MinimumBalanceRequirement?
+    /// The speaker minimum the group sets itself, or nil when it sets none and ``chat`` is the join's.
+    let speaker: MinimumBalanceRequirement?
 
     /// Nil when the group has no minimum balance rule, which hides the card.
     init?(_ rules: ConversationRules?) {
@@ -85,6 +87,7 @@ nonisolated struct GroupBalanceRequirements: Equatable {
         }.first
         guard join != nil || speaker != nil else { return nil }
         self.join = join
+        self.speaker = speaker
         self.chat = speaker ?? join
     }
 }

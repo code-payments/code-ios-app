@@ -69,34 +69,60 @@ struct EditGroupBalanceRequirementScreen: View {
         .ignoresSafeArea(.keyboard)
         .navigationTitle(field.title)
         .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            if model.canRemove {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Remove", action: proposeRemove)
+                        .disabled(saveTask != nil)
+                }
+            }
+        }
         .dialog(item: $dialog)
         .onChange(of: model.failure) { _, failure in
             guard let failure else { return }
             model.failure = nil
-            switch failure {
-            case .unavailable:
-                dialog = .info(
-                    title: "Not Available Yet",
-                    subtitle: "Balance requirements can't be changed yet"
-                )
-            case .failed:
-                dialog = .error(title: "Couldn't Save the Requirement", subtitle: "Try again")
-            }
+            dialog = Self.dialog(for: failure)
         }
         // Leaving the screen abandons the submission: its only continuation is a pop.
         .onDisappear { saveTask?.cancel() }
     }
 
-    /// Save proposes; the dialog commits, since the requirement changes for everyone in the group.
-    private func submit() {
-        guard model.canSave, saveTask == nil else { return }
-        dialog = .confirmGroupChange(field) { save() }
+    static func dialog(for failure: EditGroupBalanceRequirementModel.Failure) -> DialogItem {
+        switch failure {
+        case .chatNotAboveJoin(let join):
+            .error(
+                title: "Chat Minimum Too Low",
+                subtitle: "The chat minimum must be more than the join minimum of \(join.formatted())"
+            )
+        case .invalidRules:
+            .error(title: "This Requirement Isn't Valid", subtitle: "Try a different minimum balance")
+        case .rulesNotSatisfied:
+            .error(title: "You Don't Meet This Requirement", subtitle: "Lower the minimum balance or add funds")
+        case .failed:
+            .error(title: "Couldn't Save the Requirement", subtitle: "Try again")
+        }
     }
 
-    private func save() {
+    /// Save proposes; the dialog commits, since the requirement changes for everyone in the group.
+    /// An entry the server would refuse is stopped here, before the confirmation.
+    private func submit() {
+        guard model.canSave, saveTask == nil else { return }
+        if let blocker = model.blocker {
+            dialog = Self.dialog(for: blocker)
+            return
+        }
+        dialog = .confirmGroupChange(field) { save(model.save) }
+    }
+
+    private func proposeRemove() {
+        guard model.canRemove, saveTask == nil else { return }
+        dialog = .confirmGroupChange(field) { save(model.remove) }
+    }
+
+    private func save(_ operation: @escaping () async -> Void) {
         guard saveTask == nil else { return }
         saveTask = Task {
-            await model.save()
+            await operation()
             if model.state == .saved {
                 // Same beat the other editors hold their checkmark for.
                 try? await Task.delay(milliseconds: 500)

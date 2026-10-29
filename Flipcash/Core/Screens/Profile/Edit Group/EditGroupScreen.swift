@@ -10,8 +10,8 @@ import FlipcashUI
 /// A group's editor, in Edit Profile's shape: the cover and photo at the top, then a card per field,
 /// each opening its own screen that saves on its own.
 ///
-/// Balance Requirements shows even on a group with none, so one can be added. Its rows open the
-/// amount editor, whose save is stubbed until the contract can change a group's rules.
+/// Balance Requirements shows only on a public group with a join minimum, the one rule set the
+/// server lets a group change. It reads the stored rules, so an edit from anywhere shows here at once.
 struct EditGroupScreen: View {
 
     let conversationID: ConversationID
@@ -31,10 +31,13 @@ struct EditGroupScreen: View {
         conversationController.conversation(withID: conversationID)
     }
 
-    /// Nil for a private group, which has no rules and can't gain them.
+    /// Nil unless the group's rules can be edited: a public group with a join minimum. A join
+    /// minimum can't be added to a group without one, nor a private group given rules.
     private var requirements: GroupBalanceRequirements? {
-        guard conversation?.isPrivate != true else { return nil }
-        return GroupBalanceRequirements(conversation?.rules)
+        guard conversation?.isPrivate == false,
+              let requirements = GroupBalanceRequirements(conversation?.rules),
+              requirements.join != nil else { return nil }
+        return requirements
     }
 
     var body: some View {
@@ -45,8 +48,10 @@ struct EditGroupScreen: View {
                     photo
                     fieldCards
                         .padding(.top, 20)
-                    balanceRequirements(requirements)
-                        .padding(.top, 28)
+                    if let requirements {
+                        balanceRequirements(requirements)
+                            .padding(.top, 28)
+                    }
                 }
                 .padding(.horizontal, ProfileHeaderMetrics.inset)
                 .padding(.vertical, 24)
@@ -159,17 +164,18 @@ struct EditGroupScreen: View {
 
     // MARK: - Balance requirements -
 
-    private func balanceRequirements(_ requirements: GroupBalanceRequirements?) -> some View {
+    private func balanceRequirements(_ requirements: GroupBalanceRequirements) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Balance Requirements")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
 
             VStack(spacing: 0) {
-                requirementRow("Join", requirements?.join, role: .join)
+                requirementRow("Join", requirements.join, role: .join)
                 Divider()
                     .overlay(Color.rowSeparator)
-                requirementRow("Chat", requirements?.chat, role: .chat)
+                // "None" when joining is enough to chat: the group sets no chat minimum of its own.
+                requirementRow("Chat", requirements.speaker, role: .chat)
             }
             .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
 

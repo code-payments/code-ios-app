@@ -1298,6 +1298,9 @@ final class ConversationController {
         if let coverPicture = conversation.coverPicture {
             store.applyCoverPictureChanged(coverPicture, in: conversation.id)
         }
+        if let rules = conversation.rules {
+            store.applyRulesChanged(rules, in: conversation.id)
+        }
         persistConversation(conversation.id)
     }
 

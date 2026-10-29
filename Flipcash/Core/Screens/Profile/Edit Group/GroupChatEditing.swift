@@ -35,11 +35,14 @@ protocol GroupChatEditing {
         coverPictureBlobID: BlobID?
     ) async throws -> Conversation
 
-    /// Replaces the minimum balance `role` requires and returns the chat's post-edit metadata.
+    /// Replaces the minimum balance `role` requires in `rules`, the chat's current rules, and returns
+    /// the chat's post-edit metadata. `amount` is in the listener minimum's currency; nil removes the
+    /// chat minimum, leaving no separate speaker rule.
     func setMinimumBalance(
         conversationID: ConversationID,
         role: GroupBalanceRole,
-        requirement: MinimumBalanceRequirement
+        amount: FiatAmount?,
+        in rules: ConversationRules
     ) async throws -> Conversation
 }
 
@@ -50,10 +53,20 @@ nonisolated enum GroupBalanceRole: Hashable, Sendable {
     case chat
 }
 
-/// Thrown by ``SessionGroupChatEditor/setMinimumBalance(conversationID:role:requirement:)`` until
-/// the contract carries a way to change a group's rules.
-enum ErrorSetGroupMinimumBalance: Error {
-    case unavailable
+extension ConversationRulesEdit {
+    /// `rules` with `role`'s minimum set to `amount` and every other rule as the group carries it,
+    /// or nil when `rules` has no listener minimum, `amount` isn't in its currency, or `amount` is
+    /// nil for ``GroupBalanceRole/join``, which can't be removed.
+    init?(editing rules: ConversationRules, role: GroupBalanceRole, amount: FiatAmount?) {
+        guard let requirements = GroupBalanceRequirements(rules), let join = requirements.join else { return nil }
+        switch role {
+        case .join:
+            guard let amount else { return nil }
+            self.init(editing: rules, listener: amount, speaker: requirements.speaker?.amount)
+        case .chat:
+            self.init(editing: rules, listener: join.amount, speaker: amount)
+        }
+    }
 }
 
 /// Edits on behalf of the signed-in owner.
@@ -87,14 +100,21 @@ struct SessionGroupChatEditor: GroupChatEditing {
         )
     }
 
-    // Stubbed: flipcash2-client-protocol 0.18.0 has no RPC that changes a group's rules after
-    // `StartChat`, and `EditChatRequest` carries none. Replace this body with the FlipClient call
-    // once the contract adds one, and seat the returned rules in `ConversationController.applyEdit`.
     func setMinimumBalance(
         conversationID: ConversationID,
         role: GroupBalanceRole,
-        requirement: MinimumBalanceRequirement
+        amount: FiatAmount?,
+        in rules: ConversationRules
     ) async throws -> Conversation {
-        throw ErrorSetGroupMinimumBalance.unavailable
+        guard let edit = ConversationRulesEdit(editing: rules, role: role, amount: amount) else {
+            throw ErrorEditChat.invalidRules
+        }
+        return try await flipClient.editChat(
+            owner: session.ownerKeyPair,
+            conversationID: conversationID,
+            title: nil,
+            pictureBlobID: nil,
+            rules: edit
+        )
     }
 }
