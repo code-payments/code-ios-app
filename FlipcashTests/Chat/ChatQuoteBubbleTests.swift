@@ -10,8 +10,8 @@ import UIKit
 import FlipcashCore
 @testable import FlipcashUI
 
-/// `ChatBubbleView`'s horizontal padding, 12 on each side of the body.
-private let bodyPadding: CGFloat = 24
+/// `ChatBubbleView`'s horizontal padding, the bubble's text inset on each side of the body.
+@MainActor private let bodyPadding: CGFloat = ChatStyle.bubblePaddingX * 2
 
 @Suite("Reply bubble quote panel")
 @MainActor
@@ -202,15 +202,15 @@ struct ChatQuoteBubbleGeometryTests {
     @Test("A quoted reply from me still hugs the trailing edge")
     func selfReply_hugsTrailing() {
         let (cell, bubble) = laidOutCell(sender: .me, quote: shortQuote)
-        #expect(abs(bubble.maxX - (cell.contentView.bounds.width - 12)) < 0.5)
-        #expect(bubble.minX > 12)
+        #expect(abs(bubble.maxX - (cell.contentView.bounds.width - ChatColumnCell.rowInset)) < 0.5)
+        #expect(bubble.minX > ChatColumnCell.rowInset)
     }
 
     @Test("A quoted reply from them still hugs the leading edge")
     func otherReply_hugsLeading() {
         let (cell, bubble) = laidOutCell(sender: .other, quote: shortQuote)
-        #expect(abs(bubble.minX - 12) < 0.5)
-        #expect(bubble.maxX < cell.contentView.bounds.width - 12)
+        #expect(abs(bubble.minX - ChatColumnCell.rowInset) < 0.5)
+        #expect(bubble.maxX < cell.contentView.bounds.width - ChatColumnCell.rowInset)
     }
 
     @Test("A quote wider than the body does not push the bubble past maxWidth")

@@ -232,9 +232,10 @@ public nonisolated enum ChatMotion {
     ///
     /// Bound by the geometry, not by taste: the row below glides up into the line's place on
     /// `reflow` and draws over it, so the line must be gone before that row's top edge arrives. In a
-    /// bubble run that edge sits one tight row gap under the line and gets there about 40 % into the
-    /// glide, 0.08 s on the 0.35 s reflow; a longer fade is cut off by the arriving bubble.
-    public static let receiptExitFade: TimeInterval = 0.08
+    /// bubble run that edge sits one `ChatStyle.runGap` under the line and gets there about 0.05 s
+    /// into the 0.35 s reflow; a longer fade is cut off by the arriving bubble. A tighter run gap
+    /// means a shorter fade.
+    public static let receiptExitFade: TimeInterval = 0.065
 
     /// How long a message growing out of the typing bubble keeps its text hidden, so the words
     /// arrive into a bubble that has mostly taken its shape rather than spilling out of the dots'.

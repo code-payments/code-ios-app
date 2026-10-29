@@ -202,7 +202,7 @@ struct ChatBubbleDeletedTests {
 
         #expect(!marker.isHidden)
         #expect(abs(marker.frame.maxX - (bubble.bounds.width - EditedMarker.trailingInset)) < 0.5)
-        #expect(abs(marker.frame.maxY - (bubble.bounds.height - 9)) < 0.5)
+        #expect(abs(marker.frame.maxY - (bubble.bounds.height - ChatStyle.bubblePaddingY)) < 0.5)
     }
 
     @Test("A last line with room keeps the marker on it, widening the bubble")
@@ -302,11 +302,11 @@ struct ChatBubbleViewBareTests {
         #expect(body(view, "👍")?.frame.minX == 0)
     }
 
-    @Test("An ordinary row keeps the body size and the 12pt inset")
+    @Test("An ordinary row keeps the body size and the bubble's text inset")
     func ordinaryKeepsTheBodyMetrics() {
         let view = bubble(ChatMessage(id: "1", text: "hi", sender: .me))
-        #expect(body(view, "hi")?.font.pointSize == 16)
-        #expect(body(view, "hi")?.frame.minX == 12)
+        #expect(body(view, "hi")?.font.pointSize == ChatStyle.bodySize)
+        #expect(body(view, "hi")?.frame.minX == ChatStyle.bubblePaddingX)
     }
 
     @Test("A bare row has no lift masking path, so nothing casts a bubble-shaped shadow")
@@ -392,8 +392,8 @@ struct ChatBubbleViewBareTests {
         #expect(chrome(view).isDrawingBubble)
         #expect(chrome(view).backgroundColor != .clear)
         #expect(view.maskingPath != nil)
-        #expect(body(view, "hi")?.font.pointSize == 16)
-        #expect(body(view, "hi")?.frame.minX == 12)
+        #expect(body(view, "hi")?.font.pointSize == ChatStyle.bodySize)
+        #expect(body(view, "hi")?.frame.minX == ChatStyle.bubblePaddingX)
     }
 
     @Test("Reconfiguring an ordinary view with a bare message fully reaches the bare state")
