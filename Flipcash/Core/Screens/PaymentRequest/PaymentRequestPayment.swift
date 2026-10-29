@@ -152,8 +152,9 @@ final class PaymentRequestPayment {
             return .failed
         }
 
-        // Backstop: the balance can drop between the pre-check and the swipe.
-        switch session.hasSufficientFunds(for: amount) {
+        // Gate on the uncapped share: `amount` is capped at the balance, so it always passes.
+        let uncapped = selectedBalance.enteredFiat(for: fiat.value, rate: pin.rate) ?? amount
+        switch session.hasSufficientFunds(for: uncapped) {
         case .insufficient(let shortfall):
             showInsufficientFunds(shortfall: shortfall)
             return .failed
@@ -218,8 +219,8 @@ final class PaymentRequestPayment {
     private func showInsufficientFunds(shortfall: ExchangedFiat?) {
         let title = shortfall.map { "You're \($0.nativeAmount.formatted()) Short" } ?? "You Need More Cash"
         let subtitle = shortfall == nil
-            ? "Please add more cash, or try again with a lower amount"
-            : "Add more cash, or try again with a lower amount"
+            ? "Please add more cash, or select a different Community Currency"
+            : "Add more cash, or select a different Community Currency"
         session.dialogItem = .error(title: title, subtitle: subtitle) {
             .destructive("Add More Cash") { [weak self] in
                 self?.depositMint = self?.selectedBalance?.stored.mint
