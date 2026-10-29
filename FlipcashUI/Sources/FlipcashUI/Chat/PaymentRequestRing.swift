@@ -49,7 +49,31 @@ public struct PaymentRequestRing: View {
                 .foregroundStyle(Color.black)
         }
         .frame(width: diameter, height: diameter)
-        .animation(.easeOut(duration: 0.3), value: fraction)
+        .requestMotion(value: fraction)
+        .requestMotion(value: isEnded)
+        .requestMotion(value: isClosed)
         .accessibilityHidden(true)
+    }
+}
+
+private struct RequestMotion<Value: Equatable>: ViewModifier {
+
+    let animation: Animation
+    let value: Value
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.animation(reduceMotion ? nil : animation, value: value)
+    }
+}
+
+public extension View {
+
+    /// Animates a change to `value` on a payment request already on screen: ring sweeps, the switch
+    /// to the ended look, a share turning paid. `animation(_:value:)` skips the first appearance, so
+    /// nothing plays on load. With Reduce Motion on, the change is applied at once.
+    func requestMotion<Value: Equatable>(_ animation: Animation = .easeOut(duration: 0.3), value: Value) -> some View {
+        modifier(RequestMotion(animation: animation, value: value))
     }
 }

@@ -66,6 +66,14 @@ struct PaymentRequestDetailsScreen: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             if let content = content(at: context.date) {
                 loaded(content)
+            } else if sessionContainer.paymentRequests.unavailable.contains(requestID) {
+                // DENIED or NOT_FOUND, for example after the viewer left the group.
+                Text("This request is no longer available.")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -177,6 +185,7 @@ struct PaymentRequestDetailsScreen: View {
                 Text(row.status)
                     .font(.appTextSmall)
                     .foregroundStyle(row.isPaid ? Color.textSuccess : Color.textSecondary)
+                    .contentTransition(.opacity)
             }
             Spacer(minLength: 8)
             Text(row.amount)
@@ -187,6 +196,7 @@ struct PaymentRequestDetailsScreen: View {
         .frame(minHeight: 64)
         .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
         .contentShape(.rect)
+        .requestMotion(value: row.isPaid)
     }
 
     /// The viewer's reading of the request, or nil until it and its title are loaded.

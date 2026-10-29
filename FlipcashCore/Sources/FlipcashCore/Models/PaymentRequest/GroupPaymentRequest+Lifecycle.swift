@@ -82,6 +82,68 @@ extension GroupPaymentRequest {
     }
 }
 
+// MARK: - Live updates -
+
+extension GroupPaymentRequest {
+
+    /// What a batch of live updates did to a held copy.
+    public enum UpdateOutcome: Hashable, Sendable {
+        /// The batch is at or below the held version; the copy is unchanged.
+        case ignored
+        /// The batch applied; this is the new copy, at the batch's version.
+        case applied(GroupPaymentRequest)
+        /// The batch can't be trusted against this copy (a missed version, or an update it can't apply);
+        /// nothing was applied and the request needs a refetch.
+        case refetch
+    }
+
+    /// Applies one `updates` batch at `version` to this copy, by `PaymentRequestUpdate`'s rules.
+    ///
+    /// V <= L is ignored; V == L + 1 applies every update in order and sets the version to V; V > L + 1
+    /// asks for a refetch. A batch holding an update this copy can't apply (an unknown kind, a share
+    /// without a user or that the copy doesn't have, a status other than COMPLETED or CLOSED) applies
+    /// none of it and asks for a refetch.
+    public func applying(version: UInt64, updates: [DecodedPaymentRequestUpdate.Change.Update]) -> UpdateOutcome {
+        guard version > self.version else { return .ignored }
+        guard version == self.version + 1, let split else { return .refetch }
+
+        var shares = split.shares
+        var status = self.status
+        var closedAt = self.closedAt
+        for update in updates {
+            switch update {
+            case .sharePaid(let share):
+                guard let userID = share.userID, let index = shares.firstIndex(where: { $0.userID == userID }) else {
+                    return .refetch
+                }
+                shares[index] = share
+            case .statusChanged(let newStatus, let newClosedAt):
+                switch newStatus {
+                case .completed, .closed:
+                    status = newStatus
+                    // An update that leaves closedAt unset keeps the held copy's.
+                    closedAt = newClosedAt ?? closedAt
+                case .open, .expired, .unknown:
+                    return .refetch
+                }
+            case .unknown:
+                return .refetch
+            }
+        }
+
+        return .applied(GroupPaymentRequest(
+            id: id,
+            creator: creator,
+            createdAt: createdAt,
+            status: status,
+            closedAt: closedAt,
+            version: version,
+            chatID: chatID,
+            split: Split(text: split.text, currency: split.currency, endsAt: split.endsAt, shares: shares)
+        ))
+    }
+}
+
 // MARK: - Deadline -
 
 extension GroupPaymentRequest {

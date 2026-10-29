@@ -247,4 +247,18 @@ struct DeepLinkControllerTests {
                 == .chatProfile(Self.chatID, origin: .featuredGroup)
         )
     }
+
+    @Test("A requested payment opens its chat with the request, and a private outsider gets the profile")
+    func chatDestination_withRequest() {
+        let request = PaymentRequestID(data: Data([7]))
+        #expect(
+            DeepLinkAction.chatDestination(for: .group, conversationID: Self.chatID, request: request)
+                == .chatRequest(Self.chatID, request)
+        )
+        #expect(
+            DeepLinkAction.chatDestination(for: .group, isPrivateOutsider: true, conversationID: Self.chatID, request: request)
+                == .chatProfile(Self.chatID, origin: .featuredGroup)
+        )
+        #expect(DeepLinkAction.chatDestination(for: .contactDm, conversationID: Self.chatID, request: request) == nil)
+    }
 }

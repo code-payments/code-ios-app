@@ -31,8 +31,8 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     /// The reaction this payment boosted, when it was a boost.
     public let boostedReaction: BoostedReaction?
 
-    /// The payment request this payment paid a share of, when it was one. Not persisted by the
-    /// activity store yet, so it is `nil` on activities read back from the database.
+    /// The payment request this payment paid a share of, when it was one. A snapshot from payment
+    /// time: the request may since have closed, or the viewer may no longer be able to read it.
     public let requestedPayment: RequestedPayment?
 
     public var cancellableCashLinkMetadata: CashLinkMetadata? {

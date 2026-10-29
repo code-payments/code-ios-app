@@ -128,6 +128,20 @@ nonisolated public struct BoostedReactionTable: Sendable {
     public let emoji          = Expression <String>    ("emoji")
 }
 
+// Side table for payments that paid a share of a payment request: the chat and request paid. Joined
+// 1:1 to `activity` by id; a row exists only for such a payment. A snapshot from payment time, so the
+// request may since have closed and the viewer may no longer be able to read it.
+nonisolated public struct RequestedPaymentTable: Sendable {
+    public static let name = "requestedPayment"
+
+    public init() {}
+
+    public let table            = Table(Self.name)
+    public let id               = Expression <PublicKey> ("id")
+    public let conversationID   = Expression <Data>      ("conversationID")
+    public let paymentRequestID = Expression <Data>      ("paymentRequestID")
+}
+
 nonisolated public struct LimitsTable: Sendable {
     public static let name = "limits"
 
@@ -522,6 +536,18 @@ nonisolated extension Database {
                     t.column(boostedReactionTable.emoji)
 
                     t.foreignKey(boostedReactionTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let requestedPaymentTable = RequestedPaymentTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(requestedPaymentTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(requestedPaymentTable.id, primaryKey: true)
+                    t.column(requestedPaymentTable.conversationID)
+                    t.column(requestedPaymentTable.paymentRequestID)
+
+                    t.foreignKey(requestedPaymentTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
                 })
             }
 

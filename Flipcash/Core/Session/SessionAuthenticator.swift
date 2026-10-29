@@ -1034,6 +1034,7 @@ final class SessionContainer {
                 )
             }
         )
+        conversationController.paymentRequests = self.paymentRequests
         self.rosterSearch = mentionSearch
 
         // The blocklist drives which conversations the feed hides: it supplies the

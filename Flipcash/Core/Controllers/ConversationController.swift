@@ -433,6 +433,9 @@ final class ConversationController {
     @ObservationIgnored var hostedLobbies: HostedLobbies?
     /// Keeps the private-group rosters the user has opened live. Set by the session after init.
     @ObservationIgnored var groupRosters: GroupRosters?
+    /// The session's payment request store, which live request updates apply to. Weak: the store reads
+    /// this controller for seals. Set by the session after init.
+    @ObservationIgnored weak var paymentRequests: PaymentRequests?
     /// Keeps a photo send running for the time iOS allows after the app leaves the screen.
     private let backgroundTasks: any BackgroundTaskAsserting
 
@@ -591,6 +594,7 @@ final class ConversationController {
                 self.mentionSearch?.apply(event)
                 self.hostedLobbies?.apply(event)
                 self.groupRosters?.apply(event)
+                self.applyPaymentRequests(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }
@@ -892,6 +896,13 @@ final class ConversationController {
     private func applyTyping(_ event: ConversationStreamEvent) {
         guard case .typingChanged(let conversationID, let notifications) = event else { return }
         typing.apply(notifications, in: conversationID)
+    }
+
+    private func applyPaymentRequests(_ event: ConversationStreamEvent) {
+        guard case .paymentRequestsChanged(_, let updates) = event, let paymentRequests else { return }
+        let stale = paymentRequests.apply(updates)
+        guard !stale.isEmpty else { return }
+        Task { await paymentRequests.refetch(stale) }
     }
 
     private func applyReactions(_ event: ConversationStreamEvent) {
@@ -1541,7 +1552,7 @@ final class ConversationController {
             // edited rules rather than the stale ones.
             persistConversation(conversationID)
         case .paymentRequestsChanged:
-            // TODO: apply to payment request state once a consumer holds it; nothing to persist yet.
+            // Request state is session-only and refetched; nothing to persist.
             break
         case .descriptionChanged:
             // Description isn't persisted, so there is nothing to write. Fold this into the

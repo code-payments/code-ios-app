@@ -129,6 +129,9 @@ extension AppRouter {
         /// Same screen as `tipConversation`, opened on one message from a message link. A sibling
         /// case for the same reason as `tipConversationWithKeyboard`: the ordinary opens stay untouched.
         case chatMessage(ConversationID, MessageLanding)
+        /// Same screen as `tipConversation`, opened with one payment request's details presented over
+        /// it, as when the request is tapped in the chat.
+        case chatRequest(ConversationID, PaymentRequestID)
         /// A person's Flipcash profile, pushed from a tip DM's title/card or a group member's face;
         /// hosts the Block action. `origin` decides whether it offers a way into the DM.
         case userProfile(UserID, origin: UserProfileOrigin)
@@ -188,7 +191,7 @@ extension AppRouter {
                  .settingsApplicationLogs, .settingsNotificationStatus, .blockedUsers, .trustedWebsites, .accessKey, .withdraw:
                 return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
-                 .tipConversation, .tipConversationWithKeyboard, .chatMessage, .userProfile, .chatProfile,
+                 .tipConversation, .tipConversationWithKeyboard, .chatMessage, .chatRequest, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
                  .editGroupDescription, .editGroupBalanceRequirement, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers, .groupInvite:
                 return .tips
@@ -250,6 +253,7 @@ extension AppRouter {
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
             case .chatMessage:                  "chatMessage"
+            case .chatRequest:                  "chatRequest"
             case .userProfile:                  "userProfile"
             case .chatProfile:                  "chatProfile"
             case .editGroup:                    "editGroup"
@@ -292,6 +296,7 @@ extension AppRouter {
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID),
                  .chatMessage(let conversationID, _),
+                 .chatRequest(let conversationID, _),
                  .chatProfile(let conversationID, _),
                  .editGroup(let conversationID),
                  .editGroupName(let conversationID),

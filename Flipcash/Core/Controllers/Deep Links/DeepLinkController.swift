@@ -240,6 +240,7 @@ struct DeepLinkAction {
     static func routeChat(
         _ conversationID: ConversationID,
         landing: MessageLanding? = nil,
+        request: PaymentRequestID? = nil,
         origin: DeepLinkOrigin,
         in container: SessionContainer
     ) async {
@@ -252,7 +253,8 @@ struct DeepLinkAction {
             for: conversation?.type,
             isPrivateOutsider: isPrivateOutsider,
             conversationID: conversationID,
-            landing: landing
+            landing: landing,
+            request: request
         ) else {
             logger.info("Ignoring non-tip chat deeplink", metadata: [
                 "conversationID": "\(conversationID)",
@@ -287,7 +289,8 @@ struct DeepLinkAction {
         for type: ConversationType?,
         isPrivateOutsider: Bool = false,
         conversationID: ConversationID,
-        landing: MessageLanding? = nil
+        landing: MessageLanding? = nil,
+        request: PaymentRequestID? = nil
     ) -> AppRouter.Destination? {
         switch type {
         case .group where isPrivateOutsider:
@@ -295,6 +298,9 @@ struct DeepLinkAction {
         case .tipDm, .group:
             if let landing {
                 return .chatMessage(conversationID, landing)
+            }
+            if let request {
+                return .chatRequest(conversationID, request)
             }
             return .tipConversation(conversationID)
         case .contactDm, nil:

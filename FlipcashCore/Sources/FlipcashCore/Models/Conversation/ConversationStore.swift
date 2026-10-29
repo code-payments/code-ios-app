@@ -397,9 +397,8 @@ public struct ConversationStore: Sendable {
             applyRulesChanged(rules, in: conversationID)
             return .none
         case .paymentRequestsChanged:
-            // TODO: apply to payment request state (created: keep greater version; updates at V vs
-            // local L: V<=L ignore, V==L+1 apply in order then set version, V>L+1 or an unknown
-            // update refetch). No consumer holds request state in the conversation store yet.
+            // Request state lives in the app's `PaymentRequests` store, not here; the controller
+            // hands the event to it.
             return .none
         }
     }
