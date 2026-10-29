@@ -654,6 +654,7 @@ struct SendAmountViewModelTests {
         (.usernameLookup, .chat),
         (.transaction, .chat),
         (.joinRequest, .chat),
+        (.communityLeader, .chat),
     ])
     func profileOrigin_mapsToTipOrigin(profileOrigin: UserProfileOrigin, expected: TipOrigin) {
         #expect(profileOrigin.tipOrigin == expected)

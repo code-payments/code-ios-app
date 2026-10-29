@@ -418,6 +418,8 @@ nonisolated enum UserProfileOrigin: Hashable {
     case transaction
     /// A request to join a private group the user hosts.
     case joinRequest
+    /// The leader row on a currency's info screen.
+    case communityLeader
 
     /// Whether Open Chat returns to the DM the profile was opened from rather than pushing a
     /// second copy of it.
@@ -425,7 +427,7 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .directMessage:
             return true
-        case .groupMember, .mention, .deeplink, .scan, .usernameLookup, .transaction, .joinRequest:
+        case .groupMember, .mention, .deeplink, .scan, .usernameLookup, .transaction, .joinRequest, .communityLeader:
             return false
         }
     }
@@ -437,19 +439,19 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .deeplink, .scan, .usernameLookup:
             return true
-        case .directMessage, .groupMember, .mention, .transaction, .joinRequest:
+        case .directMessage, .groupMember, .mention, .transaction, .joinRequest, .communityLeader:
             return false
         }
     }
 
     /// Whether blocking closes just the profile rather than resetting its stack. From a chat the
     /// stack beneath can hold the blocked person's DM, so it resets; a link opened the profile over
-    /// whatever the user was on, and that is where blocking returns them, as does a transaction's
-    /// details. A scan or a username search opens the profile as the Chats tab's only entry, so a
+    /// whatever the user was on, and that is where blocking returns them, as do a transaction's
+    /// details and a currency's leader row. A scan or a username search opens the profile as the Chats tab's only entry, so a
     /// reset lands on the chat list either way.
     var blockReturnsToOpener: Bool {
         switch self {
-        case .deeplink, .transaction, .joinRequest:
+        case .deeplink, .transaction, .joinRequest, .communityLeader:
             return true
         case .directMessage, .groupMember, .mention, .scan, .usernameLookup:
             return false
@@ -462,7 +464,7 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .scan:
             return .tipcard
-        case .directMessage, .groupMember, .mention, .deeplink, .usernameLookup, .transaction, .joinRequest:
+        case .directMessage, .groupMember, .mention, .deeplink, .usernameLookup, .transaction, .joinRequest, .communityLeader:
             return .chat
         }
     }

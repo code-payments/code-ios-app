@@ -18,6 +18,7 @@ final class MockSession:
     ProfileProviding,
     ProfileManaging,
     MintMetadataFetching,
+    CommunityFetching,
     ReservesBuying,
     CurrencyLaunching,
     RecipientResolving,
@@ -56,6 +57,17 @@ final class MockSession:
     func fetchMintMetadata(mint: PublicKey) async throws -> StoredMintMetadata {
         guard let handler = fetchMintMetadataHandler else {
             throw MockSessionError.unimplemented(method: "fetchMintMetadata")
+        }
+        return try await handler(mint)
+    }
+
+    // MARK: - Community
+
+    var fetchCommunityHandler: (@MainActor (PublicKey) async throws -> Community)?
+
+    func fetchCommunity(mint: PublicKey) async throws -> Community {
+        guard let handler = fetchCommunityHandler else {
+            throw MockSessionError.unimplemented(method: "fetchCommunity")
         }
         return try await handler(mint)
     }
