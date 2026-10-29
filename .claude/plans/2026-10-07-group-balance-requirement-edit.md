@@ -1,35 +1,42 @@
-# Editing a group's balance requirements (stubbed)
+# Editing a group's balance requirements
 
-## Contract gap
+Originally built against a stub (flipcash2-client-protocol 0.18.0 had no rules edit). Wired to
+`EditChatRequest.rules` in 0.23.0 on 2026-10-29.
 
-`flipcash2-client-protocol` 0.18.0 (latest tag) has no RPC that changes a group's rules after
-`StartChat`. `EditChatRequest` carries only title, profile picture, description, and cover
-picture. No branch of `code-payments/flipcash2-protobuf-api` adds one as of 2026-10-07. Android has
-no setter either.
+## Contract (`chat/v1/chat_service.proto`, `EditChatRequest.rules`)
 
-## What iOS built
+- Full replacement rule set. Only a public group created with a listener minimum is editable;
+  private is DENIED, anything else INVALID_RULES.
+- The listener minimum keeps its currency and mints; it can't be added or removed.
+- A speaker minimum uses the listener's currency and mints, exceeds the listener minimum by at
+  least the currency's minimum transfer value, and can be added, changed, or removed.
+- Every amount is at least the minimum transfer value (0.01 USD, 1 JPY).
+- Other rules (staff, creator) go back as the group has them.
+- The creator must satisfy the new rules, speaker included (RULES_NOT_SATISFIED otherwise).
+- Rules never remove a member: one short of the listener rules keeps reading but can't speak, as
+  when their balance falls; after a leave they must satisfy the rules to rejoin.
 
-- Edit Group's Balance Requirements card always shows (rows read "None" on a group without one).
-  Each row (Join, Chat) pushes `.editGroupBalanceRequirement(id, role:)`.
-- `EditGroupBalanceRequirementScreen` is `EnterAmountView(mode: .balanceRequirement)` with a
-  "Save" title, confirmed through `DialogItem.confirmGroupChange(.joinRequirement / .chatRequirement)`.
-- `EditGroupBalanceRequirementModel`: entry in `balanceCurrency`, saved in USD (the creation
-  sheet's conversion), keeps the requirement's existing mint, empty mints for a new one. The Chat
-  row seeds from `GroupBalanceRequirements.chat`, which falls back to join; saving writes an
-  explicit speaker rule.
-- The single stub: `SessionGroupChatEditor.setMinimumBalance(conversationID:role:requirement:)`
-  throws `ErrorSetGroupMinimumBalance.unavailable`. The model maps it to a "Not Available Yet"
-  dialog without reporting it.
+## How iOS does it
 
-## When the RPC lands
+- `ConversationRules` keeps the serialized proto the server last sent (`wire`, outside equality).
+  `ConversationRulesEdit` edits that proto, so unreadable rules and malformed mints go back
+  verbatim. `ConversationRules(proto)`'s `compactMap` would drop them.
+- `EditGroupBalanceRequirementModel` converts the entry into the join minimum's currency, rounds
+  to its smallest unit, and blocks before sending: Chat ≤ Join ("Chat Minimum Too Low"), Join ≥
+  Chat (INVALID_RULES copy), and the creator not meeting the rules (RULES_NOT_SATISFIED copy,
+  skipped when the gate is provisional). Unchanged amounts keep Save shut.
+- The Chat row reads the group's own speaker minimum ("None" without one). "Remove" in the Chat
+  editor's toolbar clears it.
+- Edit Group shows the card only on a public group with a join minimum.
+- `applyEdit` seats the returned rules. `applyRulesChanged` ignores a set whose listener rule this
+  client can't read (`dropsListenerRule`), keeping the old gate rather than opening the chat.
+  A refetch would decode the same way.
 
-1. Bump the package; add a `FlipClient`/`ChatService` call.
-2. Replace the stub body with it.
-3. Seat the returned rules: `ConversationController.applyEdit` handles title, description, and
-   pictures only — add a rules branch (and a store mutation if none exists).
-4. Drop the `.unavailable` case and its dialog, and the "stubbed" note in `EditGroupScreen`'s doc.
+## Live rules
 
-## Open
-
-- No way to clear a requirement: the keypad can't express "None".
-- No check that the chat minimum is at least the join minimum.
+- Gates read `conversationController.conversation(withID:)` in their bodies, so the stream's
+  `.rulesChanged` reaches them directly. A member failing the listener rules is `.readOnly`, not
+  `.blocked`.
+- Group link cards overlay the stored rules on their fetched copy (`GroupLinkPresenter.storedRules`).
+- A held group the viewer isn't in gets no `.rulesChanged`, so `hydratedConversation` refetches its
+  rules when it is reopened.

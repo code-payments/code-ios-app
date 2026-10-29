@@ -210,9 +210,15 @@ final class ConversationController {
     /// doesn't hold it yet — the same fetch + apply + persist path stream
     /// events use, so the caller's screen finds the chat populated. Returns
     /// nil when the server doesn't know the chat either.
+    ///
+    /// A group held but not joined, such as one left, has its rules refreshed: the stream doesn't
+    /// carry a non-member's rule changes, and a rejoin has to be weighed against the rules as they
+    /// are now.
     func hydratedConversation(withID conversationID: ConversationID) async -> Conversation? {
         if let conversation = conversation(withID: conversationID) {
-            return conversation
+            guard !store.isMember(of: conversation) else { return conversation }
+            await refreshRules(of: conversationID)
+            return self.conversation(withID: conversationID)
         }
         do {
             let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
@@ -226,6 +232,15 @@ final class ConversationController {
             ErrorReporting.captureError(error, reason: "Failed to hydrate conversation on demand")
             return nil
         }
+    }
+
+    /// Replaces a held chat's rules with the server's. Best-effort: on failure the held rules stand,
+    /// and the server weighs the join against its own.
+    private func refreshRules(of conversationID: ConversationID) async {
+        guard let fetched = try? await fetching.getChat(owner: owner, conversationID: conversationID),
+              let rules = fetched.rules else { return }
+        store.applyRulesChanged(rules, in: conversationID)
+        persistConversation(conversationID)
     }
 
     /// Holds a conversation fetched elsewhere, so a screen opened on it finds it populated. When the

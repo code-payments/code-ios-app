@@ -249,8 +249,8 @@ final class LinkCardFeed: LinkCardSource {
         }
     }
 
-    // Re-presents a group or person card when the picture's bytes land, and yields it to whoever is
-    // still listening. Re-arms once per change, and lapses once no row shows the link.
+    // Re-presents a group or person card when the picture's bytes land, or a group's stored rules
+    // change, and yields it to whoever is still listening. Re-arms once per change, and lapses once no row shows the link.
     private func observePicture(_ key: String) {
         guard !observedPictures.contains(key), let facts = fetched[key] else { return }
         observedPictures.insert(key)

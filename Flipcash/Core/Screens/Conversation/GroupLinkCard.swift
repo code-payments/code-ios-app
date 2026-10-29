@@ -13,7 +13,7 @@ import FlipcashCore
 /// count and rules. The roster is private to members whatever the group's mode, so `members` is
 /// never read, and the fetch asks for redacted content so no message body comes back either.
 nonisolated struct GroupLinkFacts: Sendable, Equatable {
-    let conversation: Conversation
+    var conversation: Conversation
     /// The name of the token ``headline(for:)`` names, or nil when the rule names none or names the
     /// dollar token, which the card states by amount alone.
     let headlineMintName: String?
@@ -39,13 +39,21 @@ protocol GroupLinkPresenting: AnyObject {
 final class GroupLinkPresenter: GroupLinkPresenting {
 
     private let avatars: ProfileAvatarStore
+    private let storedRules: (ConversationID) -> ConversationRules?
 
-    init(avatars: ProfileAvatarStore) {
+    /// - Parameter storedRules: the rules the app holds for a chat, kept current by its stream, or
+    ///   nil when it holds none. Read in place of the fetched rules so the card follows a rules change.
+    init(avatars: ProfileAvatarStore, storedRules: @escaping (ConversationID) -> ConversationRules? = { _ in nil }) {
         self.avatars = avatars
+        self.storedRules = storedRules
     }
 
     func present(_ facts: GroupLinkFacts) -> LinkCard.Group.Resolved {
-        groupLinkCard(facts, imageData: avatars.data(for: .chat(facts.conversation.id)))
+        var facts = facts
+        if let rules = storedRules(facts.conversation.id) {
+            facts.conversation.rules = rules
+        }
+        return groupLinkCard(facts, imageData: avatars.data(for: .chat(facts.conversation.id)))
     }
 
     func loadPicture(for facts: GroupLinkFacts) async {

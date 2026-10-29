@@ -389,15 +389,26 @@ struct ConversationGateTests {
         #expect(conversationGatePresentation(.open, isMember: false) == .join(nil))
     }
 
-    @Test("A failing listener gate blocks the chat whether or not the user is a member")
-    func presentation_listenerFails_isBlockedEitherWay() {
+    @Test("A failing listener gate blocks a non-member but leaves a member reading, unable to speak")
+    func presentation_listenerFails_blocksNonMemberOnly() {
         let gate = ConversationGate(
             listener: .unsatisfied(unmet: [.staff], primary: .staff),
             speaker: .unsatisfied(unmet: [.staff], primary: .staff),
             headline: .staff
         )
         #expect(conversationGatePresentation(gate, isMember: false) == .blocked(.staff))
-        #expect(conversationGatePresentation(gate, isMember: true) == .blocked(.staff))
+        #expect(conversationGatePresentation(gate, isMember: true) == .readOnly(.staff))
+    }
+
+    @Test("A member under a raised join minimum keeps reading, can't speak, and is shown the new minimum")
+    func presentation_memberUnderRaisedJoin_readsOnly() {
+        let rules = ConversationRules(listener: [.minimumBalance(MinimumBalanceRequirement(amount: .usd(500)))])
+        let gate = conversationGate(session: StubHoldings(), rules: rules, rates: [.usd: Rate(fx: 1, currency: .usd)])
+        let presentation = conversationGatePresentation(gate, isMember: true)
+
+        #expect(presentation == .readOnly(.minimumBalance(amount: .usd(500), mint: nil)))
+        #expect(!presentation.obscuresTranscript)
+        #expect(!ConversationLoadCoordinator.access(isMember: true, gate: gate).canPost)
     }
 
     @Test("A member who can read but not send gets a read-only chat, not a blurred one")
