@@ -20,4 +20,11 @@ extension FlipClient {
             pushService.deleteTokens(installationID: installationID, owner: owner) { c.resume(with: $0) }
         }
     }
+
+    /// Asks the server to send a fixed test notification to every device the owner has registered.
+    public func sendTestPush(owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            pushService.sendTestPush(owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

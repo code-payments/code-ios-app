@@ -960,6 +960,14 @@ final class ConversationController {
         case .lobbyChanged:
             // Only delivered to a private chat's admitting members, who already hold the chat.
             return
+        case .rulesChanged:
+            // Only delivered to a chat's members, same reasoning as `.titleChanged`: the feed brings
+            // the current rules with it. Nothing to fetch.
+            return
+        case .paymentRequestsChanged:
+            // Best-effort and only meaningful to a chat the viewer holds; the request is fetched
+            // with the chat. Nothing to fetch.
+            return
         }
         guard !store.conversations.contains(where: { $0.id == conversationID }),
               !hydratingConversationIDs.contains(conversationID) else {
@@ -1510,6 +1518,13 @@ final class ConversationController {
             // Cached like the roster summary/mute above, so a cold restore shows the edited
             // title/picture rather than the stale one until the next full metadata fetch.
             persistConversation(conversationID)
+        case .rulesChanged(let conversationID, _):
+            // Rules are cached with the conversation, so a cold restore gates join/speak on the
+            // edited rules rather than the stale ones.
+            persistConversation(conversationID)
+        case .paymentRequestsChanged:
+            // TODO: apply to payment request state once a consumer holds it; nothing to persist yet.
+            break
         case .descriptionChanged:
             // Description isn't persisted, so there is nothing to write. Fold this into the
             // title/picture case above if it gains a column.

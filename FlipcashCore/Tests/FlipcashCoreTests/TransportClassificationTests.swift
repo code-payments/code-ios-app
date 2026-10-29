@@ -50,6 +50,7 @@ struct TransportClassificationTests {
     @Test func errorFetchTransactionHistoryItemsByID() { assertClassifies(ErrorFetchTransactionHistoryItemsByID.self) }
     @Test func errorAddToken() { assertClassifies(ErrorAddToken.self) }
     @Test func errorDeleteToken() { assertClassifies(ErrorDeleteToken.self) }
+    @Test func errorSendTestPush() { assertClassifies(ErrorSendTestPush.self) }
     @Test func errorUpdateSettings() { assertClassifies(ErrorUpdateSettings.self) }
     @Test func errorFetchJWT() { assertClassifies(ErrorFetchJWT.self) }
     @Test func errorSendEmailCode() { assertClassifies(ErrorSendEmailCode.self) }
@@ -188,6 +189,8 @@ struct TransportClassificationTests {
             (4, .pictureBlobNotAccepted),
             (5, .coverPictureBlobNotAccepted),
             (6, .descriptionModerated(.nsfw)),
+            (7, .invalidRules),
+            (8, .rulesNotSatisfied),
         ]
         for (raw, expected) in wire {
             let result = Flipcash_Chat_V1_EditChatResponse.Result(rawValue: raw)

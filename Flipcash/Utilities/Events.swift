@@ -561,6 +561,8 @@ extension Analytics {
             case .pictureBlobNotAccepted:                         "PictureBlobNotAccepted"
             case .coverPictureBlobNotAccepted:                    "CoverPictureBlobNotAccepted"
             case .descriptionModerated:                           "DescriptionModerated"
+            case .invalidRules:                                   "InvalidRules"
+            case .rulesNotSatisfied:                              "RulesNotSatisfied"
             case .unknown, .transportFailure, .cancelled, .rejected: "Network"
             }
         case let error as ErrorJoinChat:
