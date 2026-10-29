@@ -187,10 +187,10 @@ extension NotificationStatus {
         /// The check's name, used in the report and the passing row.
         public var name: String {
             switch self {
-            case .permission:      "Notifications allowed"
+            case .permission:      "Notifications Allowed"
             case .display:         "Banners and Lock Screen"
-            case .soundsAndBadges: "Sounds and badges"
-            case .registration:    "Registered for push"
+            case .soundsAndBadges: "Sounds and Badges"
+            case .registration:    "Registered for Push"
             }
         }
 

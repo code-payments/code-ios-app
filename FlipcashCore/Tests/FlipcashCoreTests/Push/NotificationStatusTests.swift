@@ -304,10 +304,10 @@ struct NotificationStatusTests {
             2026-10-28 11:06 (UTC-4)
             App 3.4.1 (812) · iOS 26.1 · iPhone17,1
 
-            Notifications allowed: fail (denied)
+            Notifications Allowed: fail (denied)
             Banners and Lock Screen: warning (alertStyle none)
-            Sounds and badges: pass
-            Registered for push: pass (statusPage, 2026-10-28 11:06)
+            Sounds and Badges: pass
+            Registered for Push: pass (statusPage, 2026-10-28 11:06)
             Last ok: 2026-10-28 11:06
 
             Token: …a1b2c3 (last 6)
@@ -316,9 +316,9 @@ struct NotificationStatusTests {
     }
 
     @Test("The report describes this page's run, then the last ok on its own line", arguments: [
-        (NotificationStatus.Registration.finished(.transport), NotificationStatus.RegistrationRecord(at: NotificationStatusTests.now, result: .transport, source: .statusPage), String?("a1b2c3"), "Registered for push: fail (transport, statusPage, 2026-10-28 11:06)", "Last ok: never", "Token: …a1b2c3 (last 6)"),
-        (.noAPNsToken, .init(at: NotificationStatusTests.now, result: .ok, source: .login, lastRegistrationOkAt: NotificationStatusTests.now), nil, "Registered for push: fail (noAPNsToken)", "Last ok: 2026-10-28 11:06", "Token: none"),
-        (.checking, .init(at: NotificationStatusTests.now, result: .ok, source: .login, lastRegistrationOkAt: NotificationStatusTests.now), nil, "Registered for push: checking", "Last ok: 2026-10-28 11:06", "Token: none"),
+        (NotificationStatus.Registration.finished(.transport), NotificationStatus.RegistrationRecord(at: NotificationStatusTests.now, result: .transport, source: .statusPage), String?("a1b2c3"), "Registered for Push: fail (transport, statusPage, 2026-10-28 11:06)", "Last ok: never", "Token: …a1b2c3 (last 6)"),
+        (.noAPNsToken, .init(at: NotificationStatusTests.now, result: .ok, source: .login, lastRegistrationOkAt: NotificationStatusTests.now), nil, "Registered for Push: fail (noAPNsToken)", "Last ok: 2026-10-28 11:06", "Token: none"),
+        (.checking, .init(at: NotificationStatusTests.now, result: .ok, source: .login, lastRegistrationOkAt: NotificationStatusTests.now), nil, "Registered for Push: checking", "Last ok: 2026-10-28 11:06", "Token: none"),
     ])
     func reportRegistration(
         registration: NotificationStatus.Registration,
