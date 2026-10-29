@@ -152,8 +152,9 @@ final class PaymentRequestPayment {
             return .failed
         }
 
-        // Backstop: the balance can drop between the pre-check and the swipe.
-        switch session.hasSufficientFunds(for: amount) {
+        // Gate on the uncapped share: `amount` is capped at the balance, so it always passes.
+        let uncapped = selectedBalance.enteredFiat(for: fiat.value, rate: pin.rate) ?? amount
+        switch session.hasSufficientFunds(for: uncapped) {
         case .insufficient(let shortfall):
             showInsufficientFunds(shortfall: shortfall)
             return .failed
