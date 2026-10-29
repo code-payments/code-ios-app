@@ -18,10 +18,7 @@ struct PushControllerDeadlineTests {
         await #expect(throws: CancellationError.self) {
             try await PushController.withDeadline(start + .milliseconds(100)) {
                 // Stands in for a request that only returns at its own, longer deadline.
-                let end = ContinuousClock.now + .seconds(2)
-                while ContinuousClock.now < end {
-                    try? await Task.sleep(for: .milliseconds(10))
-                }
+                await Self.sleepIgnoringCancellation(seconds: 2)
                 return 1
             }
         }
@@ -51,10 +48,7 @@ struct PushControllerDeadlineTests {
         let start = clock.now
         let call = Task {
             try await PushController.withDeadline(start + .seconds(5)) {
-                let end = ContinuousClock.now + .seconds(2)
-                while ContinuousClock.now < end {
-                    try? await Task.sleep(for: .milliseconds(10))
-                }
+                await Self.sleepIgnoringCancellation(seconds: 2)
                 return 1
             }
         }
@@ -63,5 +57,16 @@ struct PushControllerDeadlineTests {
 
         await #expect(throws: CancellationError.self) { try await call.value }
         #expect(clock.now - start < .milliseconds(600))
+    }
+
+    // MARK: - Support -
+
+    /// Suspends for `seconds` without responding to cancellation, like a send behind a continuation.
+    private static func sleepIgnoringCancellation(seconds: Double) async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
+                continuation.resume()
+            }
+        }
     }
 }

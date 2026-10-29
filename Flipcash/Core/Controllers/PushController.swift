@@ -551,7 +551,7 @@ private nonisolated final class DeadlineRace<T: Sendable>: Sendable {
         var tasks: [Task<Void, Never>] = []
     }
 
-    private let state = OSAllocatedUnfairLock(uncheckedState: State())
+    private let state = OSAllocatedUnfairLock(initialState: State())
 
     func start(
         _ continuation: CheckedContinuation<T, any Error>,
