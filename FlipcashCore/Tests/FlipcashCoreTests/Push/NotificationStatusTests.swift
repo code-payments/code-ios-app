@@ -198,7 +198,7 @@ struct NotificationStatusTests {
         #expect(page.foldedTitle == nil)
     }
 
-    @Test("A re-run keeps every row and its text, marked as checking")
+    @Test("A re-run keeps every row and its text, marked as checking, and the last summary")
     func recheckingKeepsRows() {
         let page = Self.page(.init(authorization: .denied), registration: .noAPNsToken)
         let rechecking = page.rechecking
@@ -206,8 +206,7 @@ struct NotificationStatusTests {
         #expect(rechecking.rows.map(\.check) == page.rows.map(\.check))
         #expect(rechecking.rows.map(\.title) == page.rows.map(\.title))
         #expect(rechecking.rows.allSatisfy { $0.status == .checking })
-        #expect(rechecking.summary.status == .checking)
-        #expect(rechecking.summary.detail == "Checked just now")
+        #expect(rechecking.summary == page.summary)
         #expect(rechecking.isTestEnabled == page.isTestEnabled)
     }
 

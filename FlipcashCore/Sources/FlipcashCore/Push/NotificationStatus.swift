@@ -267,10 +267,7 @@ extension NotificationStatus {
         public var foldedTitle: String?
         /// The mark on the folded row: Pass, or Checking while the checks run again.
         public var foldedStatus: Status {
-            switch summary.status {
-            case .checking:              .checking
-            case .pass, .warning, .fail: .pass
-            }
+            rows.contains { $0.status == .checking } ? .checking : .pass
         }
 
         public func rows(in group: Group) -> [Row] {
@@ -278,14 +275,13 @@ extension NotificationStatus {
         }
 
         /// This page while its checks run again: the same rows with the same text, each marked
-        /// Checking, so nothing on the page moves until the new results land. The summary keeps
-        /// its second line from the last finished run.
+        /// Checking, so nothing on the page moves until the new results land. The summary stays
+        /// the last finished run's until the new one finishes.
         public var rechecking: Page {
             var page = self
             for index in page.rows.indices {
                 page.rows[index].status = .checking
             }
-            page.summary = Summary(status: .checking, title: "Checking…", detail: summary.detail)
             return page
         }
     }

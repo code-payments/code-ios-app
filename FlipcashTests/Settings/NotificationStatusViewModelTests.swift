@@ -37,7 +37,6 @@ struct NotificationStatusViewModelTests {
         #expect(model.isRunning)
         #expect(model.page?.rows.map(\.check) == NotificationStatus.Check.allCases)
         #expect(model.page?.rows.allSatisfy { $0.status == .checking } == true)
-        #expect(model.page?.summary.status == .checking)
 
         settings.release()
         registration.release()
@@ -45,6 +44,40 @@ struct NotificationStatusViewModelTests {
 
         #expect(!model.isRunning)
         #expect(model.page?.rows.allSatisfy { $0.status == .pass } == true)
+    }
+
+    @Test("Check again keeps the last summary until its run finishes; only the first run shows Checking")
+    func checkAgainKeepsSummary() async {
+        let settings = Gate<NotificationStatus.Snapshot>(.init(authorization: .authorized))
+        let registration = Gate<NotificationStatus.Registration>(.finished(.ok))
+        registration.holdsNext = true
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { await settings.next() },
+            registrationCheck: { _ in await registration.next() },
+            recheckPause: .zero
+        )
+
+        let firstRun = Task { await model.runChecks() }
+        await until { registration.isHolding }
+        #expect(model.page?.summary.title == "Checking…")
+        registration.release()
+        await firstRun.value
+        await until { !model.isRunning }
+        let lastSummary = model.page?.summary
+        #expect(lastSummary?.title == "Notifications are working")
+
+        settings.value = .init(authorization: .authorized, alertStyle: .none)
+        registration.holdsNext = true
+        let run = Task { await model.checkAgain() }
+        await until { registration.isHolding }
+        #expect(model.isRunning)
+        #expect(model.page?.summary == lastSummary)
+
+        registration.release()
+        await run.value
+
+        #expect(model.page?.summary.title == "1 thing to check")
     }
 
     @Test("Check again does nothing while a run is in progress")
@@ -276,7 +309,7 @@ private final class Gate<Value: Sendable> {
 
     var holdsNext = false
     private(set) var calls = 0
-    private let value: Value
+    var value: Value
     private var pending: CheckedContinuation<Value, Never>?
 
     var isHolding: Bool { pending != nil }
