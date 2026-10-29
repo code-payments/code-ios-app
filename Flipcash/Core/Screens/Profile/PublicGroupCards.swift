@@ -19,6 +19,13 @@ struct PublicGroupRequirementsView: View {
     @Environment(\.bleedPalette) private var palette
 
     var body: some View {
+        content
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Requirements")
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if tiles.count == 1, let tile = tiles.first {
             VStack(alignment: .leading, spacing: 0) {
                 tileContent(tile, isWide: true)
@@ -28,22 +35,22 @@ struct PublicGroupRequirementsView: View {
                     footer(yourBalance, style: palette.controlSecondaryStyle)
                 }
             }
-            .padding(Self.padding)
+            .padding(PublicGroupLook.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(palette.controlTint, in: surface)
+            .background(palette.controlTint, in: PublicGroupLook.cardShape)
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: PublicGroupLook.cardGap) {
                     ForEach(tiles) { tile in
                         tileContent(tile, isWide: false)
-                            .padding(Self.padding)
+                            .padding(PublicGroupLook.cardPadding)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(palette.controlTint, in: surface)
+                            .background(palette.controlTint, in: PublicGroupLook.cardShape)
                     }
                 }
                 if let yourBalance {
                     footer(yourBalance, style: palette.secondaryStyle)
-                        .padding(.horizontal, Self.padding)
+                        .padding(.horizontal, PublicGroupLook.cardPadding)
                 }
             }
         }
@@ -126,11 +133,6 @@ struct PublicGroupRequirementsView: View {
         .accessibilityIdentifier("group-profile-your-balance")
     }
 
-    private var surface: RoundedRectangle {
-        RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous)
-    }
-
-    private static var padding: CGFloat { 16 }
 }
 
 /// Who has been chatting in a public group lately: a facepile, how many people that is, when the
@@ -170,12 +172,13 @@ struct PublicGroupPulseCard: View {
                 hostRow(host)
             }
         }
-        .padding(.top, Self.padding)
-        .padding(.horizontal, Self.padding)
-        .padding(.bottom, host == nil ? Self.padding : 0)
+        .padding(.top, PublicGroupLook.cardPadding)
+        .padding(.horizontal, PublicGroupLook.cardPadding)
+        .padding(.bottom, host == nil ? PublicGroupLook.cardPadding : 0)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.controlTint, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
+        .background(palette.controlTint, in: PublicGroupLook.cardShape)
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Chatting recently")
         .accessibilityIdentifier("group-profile-chatting")
     }
 
@@ -268,7 +271,6 @@ struct PublicGroupPulseCard: View {
             .accessibilityHidden(true)
     }
 
-    private static var padding: CGFloat { 16 }
     private static var faceSize: CGFloat { 36 }
     private static var faceOverlap: CGFloat { 10 }
     private static var hitHeight: CGFloat { 44 }

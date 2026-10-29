@@ -25,6 +25,43 @@ enum PublicGroupLook {
     /// The cover's height from the top of the screen, under the status and navigation bars.
     static var coverHeight: CGFloat { Tuner.shared.value("Profile/Public/Cover height", default: CGFloat(274), in: 160...420, step: 1, unit: .points) } // LOCAL-TUNER
 
+    // MARK: Boxes and spacing
+
+    /// The corner radius of every box: the requirement tiles, the pulse card and Leave Chat.
+    static var cardRadius: CGFloat { Tuner.shared.value("Profile/Public/Card radius", default: Metrics.boxRadius, in: 6...32, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The padding inside every box.
+    static var cardPadding: CGFloat { Tuner.shared.value("Profile/Public/Card padding", default: CGFloat(16), in: 8...28, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap between boxes, stacked and side by side.
+    static var cardGap: CGFloat { Tuner.shared.value("Profile/Public/Card gap", default: CGFloat(12), in: 0...32, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap from the last element of the identity to the first box.
+    static var identityToCards: CGFloat { Tuner.shared.value("Profile/Public/Identity to cards", default: CGFloat(40), in: 0...56, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The margin the page's content sits inside, on each side.
+    static var sideMargin: CGFloat { Tuner.shared.value("Profile/Public/Side margin", default: CGFloat(20), in: 12...32, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap from the avatar to the name.
+    static var avatarToName: CGFloat { Tuner.shared.value("Profile/Public/Avatar to name", default: CGFloat(12), in: 0...32, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap from the name to the member count.
+    static var nameToMeta: CGFloat { Tuner.shared.value("Profile/Public/Name to meta", default: CGFloat(4), in: 0...16, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap from the member count to the bio.
+    static var metaToBio: CGFloat { Tuner.shared.value("Profile/Public/Meta to bio", default: CGFloat(8), in: 0...24, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The gap from the last text of the identity to the Share and Edit pills.
+    static var bioToActions: CGFloat { Tuner.shared.value("Profile/Public/Bio to actions", default: CGFloat(16), in: 0...32, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The corner radius of the Share and Edit pills; half their height is a capsule.
+    static var pillRadius: CGFloat { Tuner.shared.value("Profile/Public/Pill radius", default: CGFloat(22), in: 6...22, step: 1, unit: .points) } // LOCAL-TUNER
+
+    /// The outline every box is drawn with.
+    static var cardShape: RoundedRectangle {
+        .rect(cornerRadius: cardRadius, style: .continuous)
+    }
+
     /// The palette settings those numbers make.
     static var settings: BleedSettings {
         BleedSettings(saturation: saturation, lightnessDark: lightnessDark, lightnessPull: lightnessPull)

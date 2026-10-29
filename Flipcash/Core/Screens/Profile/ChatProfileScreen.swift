@@ -375,10 +375,10 @@ struct ChatProfileScreen: View {
                 .accessibilityInputLabels(["Share"])
                 .accessibilityIdentifier("chat-profile-share")
             },
+            hasFooter: isMember,
             footer: {
                 if isMember {
-                    leaveButton
-                        .padding(.horizontal, PublicGroupProfileView<EmptyView, EmptyView, EmptyView, EmptyView>.inset)
+                    publicLeaveButton
                 }
             },
             pinned: {
@@ -390,6 +390,18 @@ struct ChatProfileScreen: View {
         .task(id: conversation?.coverPicture?.blobID) {
             await sessionContainer.profileAvatars.load(.groupCover(conversationID), picture: conversation?.coverPicture)
         }
+    }
+
+    /// Leave Chat as the last box of a public group's stack.
+    private var publicLeaveButton: some View {
+        Button {
+            dialogItem = leaveDialog()
+        } label: {
+            ButtonStateLabel("Leave Chat", state: isLeaving ? .loading : .normal)
+        }
+        .buttonStyle(PublicGroupDestructiveBoxButtonStyle())
+        .disabled(isLeaving)
+        .accessibilityIdentifier("chat-profile-leave")
     }
 
     private func publicContent(cover: UIImage?) -> PublicGroupProfileContent {

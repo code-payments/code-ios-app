@@ -35,7 +35,8 @@ struct PublicGroupProfileContent {
 }
 
 /// A public group's profile: its cover melting into a page of the cover's own color, the group's
-/// identity and actions, what it takes to join and chat, and who has been chatting.
+/// identity and actions, then a stack of boxes: what it takes to join and chat, who has been
+/// chatting, and the footer.
 ///
 /// Reads `\.bleedPalette`, so the caller provides it with `.bleedPalette(key:image:settings:)` on
 /// this view. The view paints the page, the navigation container and the pinned bar's fade itself.
@@ -56,7 +57,9 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
     @ViewBuilder let accessory: () -> Accessory
     /// The outline pills under the bio.
     @ViewBuilder let actions: () -> Actions
-    /// Ends the scroll, such as Leave Chat.
+    /// Whether ``footer`` has anything in it, which is when its box and the gap above it belong.
+    let hasFooter: Bool
+    /// The last box of the stack, such as Leave Chat.
     @ViewBuilder let footer: () -> Footer
     /// The bar pinned under the scroll.
     @ViewBuilder let pinned: () -> Pinned
@@ -72,31 +75,34 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
             VStack(alignment: .leading, spacing: 0) {
                 identity
 
-                if !content.requirements.isEmpty {
-                    section("Requirements") {
-                        PublicGroupRequirementsView(
-                            tiles: content.requirements,
-                            yourBalance: content.yourBalance,
-                            onToken: onToken
-                        )
-                    }
-                }
+                if hasBoxes {
+                    VStack(spacing: PublicGroupLook.cardGap) {
+                        if !content.requirements.isEmpty {
+                            PublicGroupRequirementsView(
+                                tiles: content.requirements,
+                                yourBalance: content.yourBalance,
+                                onToken: onToken
+                            )
+                        }
 
-                if let pulse = content.pulse {
-                    section("Chatting recently") {
-                        PublicGroupPulseCard(
-                            pulse: pulse,
-                            host: content.host,
-                            memberCount: content.memberCount,
-                            portraitData: portraitData,
-                            loadPortrait: loadPortrait,
-                            onSelect: onSelectPerson
-                        )
-                    }
-                }
+                        if let pulse = content.pulse {
+                            PublicGroupPulseCard(
+                                pulse: pulse,
+                                host: content.host,
+                                memberCount: content.memberCount,
+                                portraitData: portraitData,
+                                loadPortrait: loadPortrait,
+                                onSelect: onSelectPerson
+                            )
+                        }
 
-                footer()
-                    .padding(.top, 8)
+                        if hasFooter {
+                            footer()
+                        }
+                    }
+                    .padding(.horizontal, PublicGroupLook.sideMargin)
+                    .padding(.top, PublicGroupLook.identityToCards)
+                }
             }
             .padding(.top, 4)
             .padding(.bottom, 24)
@@ -115,6 +121,10 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
         }
         .containerBackground(palette.background, for: .navigation)
         .toolbarColorScheme(palette.colorScheme, for: .navigationBar)
+    }
+
+    private var hasBoxes: Bool {
+        !content.requirements.isEmpty || content.pulse != nil || hasFooter
     }
 
     // MARK: - Cover -
@@ -189,20 +199,20 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                 .font(.appTitleLarge)
                 .foregroundStyle(palette.primaryText)
                 .multilineTextAlignment(.leading)
-                .padding(.top, 12)
+                .padding(.top, PublicGroupLook.avatarToName)
                 .accessibilityIdentifier("profile-name")
 
             Text(PublicGroupCopy.summary(memberCount: content.memberCount))
                 .font(.appTextSmall)
                 .foregroundStyle(palette.secondaryStyle)
-                .padding(.top, 4)
+                .padding(.top, PublicGroupLook.nameToMeta)
 
             if let description = content.description, !description.isEmpty {
                 Text(description)
                     .font(.appTextMessage)
                     .foregroundStyle(palette.primaryText)
                     .multilineTextAlignment(.leading)
-                    .padding(.top, 8)
+                    .padding(.top, PublicGroupLook.metaToBio)
                     .transition(.opacity)
                     .accessibilityIdentifier("profile-bio")
             }
@@ -210,25 +220,11 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
             HStack(spacing: 12) {
                 actions()
             }
-            .padding(.top, 16)
+            .padding(.top, PublicGroupLook.bioToActions)
         }
-        .padding(.horizontal, Self.inset)
+        .padding(.horizontal, PublicGroupLook.sideMargin)
     }
 
-    private func section(_ title: String, @ViewBuilder card: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.appTextSmall)
-                .foregroundStyle(palette.secondaryStyle)
-                .accessibilityAddTraits(.isHeader)
-            card()
-        }
-        .padding(.horizontal, Self.inset)
-        .padding(.top, 16)
-    }
-
-    /// The side inset the page sits on.
-    static var inset: CGFloat { 20 }
     private static var avatarSize: CGFloat { 72 }
     private static var avatarRing: CGFloat { 3 }
 }
@@ -260,8 +256,11 @@ private struct PublicGroupPress: ViewModifier {
     private static let scale: CGFloat = 0.96
 }
 
-/// The outline pill under the bio: a capsule stroked in the palette's secondary color.
+/// The outline pill under the bio: a rounded rectangle, a capsule at its default radius, stroked in
+/// the palette's secondary color.
 struct PublicGroupOutlineButtonStyle: ButtonStyle {
+
+    private static var shape: RoundedRectangle { .rect(cornerRadius: PublicGroupLook.pillRadius) }
 
     @Environment(\.bleedPalette) private var palette
 
@@ -271,8 +270,8 @@ struct PublicGroupOutlineButtonStyle: ButtonStyle {
             .foregroundStyle(palette.secondaryStyle)
             .padding(.horizontal, 24)
             .frame(minHeight: Metrics.buttonHeightThin)
-            .overlay { Capsule().strokeBorder(palette.secondaryStyle, lineWidth: 1.5) }
-            .contentShape(Capsule())
+            .overlay { Self.shape.strokeBorder(palette.secondaryStyle, lineWidth: 1.5) }
+            .contentShape(Self.shape)
             .modifier(PublicGroupPress(isPressed: configuration.isPressed))
     }
 }
@@ -298,6 +297,26 @@ struct PublicGroupCapsuleButtonStyle: ButtonStyle {
 
     /// The side inset of the pinned bar, matching the amount screen's action button.
     static var sideInset: CGFloat { 32 }
+}
+
+/// A box in the stack that is one destructive action, such as Leave Chat: a full-width row on the
+/// cards' surface, radius and padding, at least 44pt tall, with the whole box as the tap target.
+struct PublicGroupDestructiveBoxButtonStyle: ButtonStyle {
+
+    @Environment(\.bleedPalette) private var palette
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.appTextMedium)
+            .foregroundStyle(Color.textError)
+            .tint(Color.textError)
+            .frame(maxWidth: .infinity)
+            .padding(PublicGroupLook.cardPadding)
+            .frame(minHeight: Metrics.buttonHeightThin)
+            .background(palette.controlTint, in: PublicGroupLook.cardShape)
+            .contentShape(PublicGroupLook.cardShape)
+            .modifier(PublicGroupPress(isPressed: configuration.isPressed))
+    }
 }
 
 /// The press of a tappable row or face with no chrome of its own.
@@ -383,7 +402,11 @@ private struct PublicGroupProfilePreview: View {
                     Button("Share") {}
                         .buttonStyle(PublicGroupOutlineButtonStyle())
                 },
-                footer: { EmptyView() },
+                hasFooter: true,
+                footer: {
+                    Button("Leave Chat") {}
+                        .buttonStyle(PublicGroupDestructiveBoxButtonStyle())
+                },
                 pinned: {
                     Button("Open Chat") {}
                         .buttonStyle(PublicGroupCapsuleButtonStyle())
