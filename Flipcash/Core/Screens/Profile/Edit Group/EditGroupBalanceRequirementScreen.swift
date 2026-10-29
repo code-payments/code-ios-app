@@ -72,8 +72,11 @@ struct EditGroupBalanceRequirementScreen: View {
         .toolbar {
             if model.canRemove {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Remove", action: proposeRemove)
-                        .disabled(saveTask != nil)
+                    Button(action: proposeRemove) {
+                        Image.system(.trash)
+                    }
+                    .accessibilityLabel("Remove")
+                    .disabled(saveTask != nil)
                 }
             }
         }
