@@ -2033,13 +2033,9 @@ extension MessageCapability {
     /// says a choice follows, the way Silence's duration sheet and Remove's confirm do.
     func menuTitle(naming senderName: String?) -> String {
         switch self {
-        // Remove asks a follow-up, so its label ends in an ellipsis; Restrict opens a sheet and does not.
-        case .silence:
+        case .silence, .remove:
             guard let senderName else { return title }
             return "\(title) \(senderName)"
-        case .remove:
-            guard let senderName else { return "\(title)…" }
-            return "\(title) \(senderName)…"
         case .copy, .reply, .edit, .delete, .report, .forward:
             return title
         }

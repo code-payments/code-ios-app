@@ -177,9 +177,9 @@ struct LiftMenuRowsTests {
 @MainActor
 @Suite("Moderation row titles")
 struct ModerationRowTitleTests {
-    @Test("Restrict names the sender with no ellipsis; Remove keeps its ellipsis")
+    @Test("Restrict and Remove name the sender with no ellipsis")
     func titles() {
         #expect(MessageCapability.silence.menuTitle(naming: "Ada") == "Restrict Ada")
-        #expect(MessageCapability.remove.menuTitle(naming: "Ada") == "Remove Ada…")
+        #expect(MessageCapability.remove.menuTitle(naming: "Ada") == "Remove Ada")
     }
 }
