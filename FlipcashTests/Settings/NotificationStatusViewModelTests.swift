@@ -314,6 +314,29 @@ struct NotificationStatusViewModelTests {
         #expect(model.isTestSent == (result == .sent))
     }
 
+    @Test(
+        "A failed send after one that worked keeps Send Again",
+        arguments: [NotificationStatus.TestResult.transport, .failed]
+    )
+    func failedSendKeepsSendAgain(failure: NotificationStatus.TestResult) async {
+        var next = NotificationStatus.TestResult.sent
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { .init(authorization: .authorized) },
+            registrationCheck: { _ in .finished(.ok) },
+            sendTestPush: { next },
+            recheckPause: .zero
+        )
+        await model.runChecks()
+
+        #expect(await model.sendTest() == .sent)
+        #expect(model.isTestSent)
+
+        next = failure
+        #expect(await model.sendTest() == failure)
+        #expect(model.isTestSent)
+    }
+
     @Test("A test send does nothing once permission has gone away")
     func sendTestAfterPermissionLost() async {
         var snapshot = NotificationStatus.Snapshot(authorization: .authorized)

@@ -8,7 +8,7 @@ import FlipcashUI
 import FlipcashCore
 
 /// Settings › Advanced › Notifications: whether notifications can reach this phone, what to fix
-/// when they can't, and a local test notification.
+/// when they can't, and a test notification sent by Flipcash.
 struct NotificationStatusScreen: View {
 
     @Environment(PushController.self) private var pushController
