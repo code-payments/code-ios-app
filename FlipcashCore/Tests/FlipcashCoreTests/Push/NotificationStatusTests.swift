@@ -279,11 +279,12 @@ struct NotificationStatusTests {
         #expect(page.rows(in: .flipcash).map(\.check) == [.registration])
     }
 
-    @Test("The test notification is recognised by its flag alone")
-    func testNotificationFlag() {
-        #expect(NotificationStatus.isTestNotification([NotificationStatus.testUserInfoKey: true]))
-        #expect(NotificationStatus.isTestNotification([:]) == false)
-        #expect(NotificationStatus.isTestNotification([NotificationStatus.testUserInfoKey: false]) == false)
+    @Test("A failed test send is transport only when it never reached Flipcash")
+    func testResult() {
+        #expect(NotificationStatus.TestResult(.transportFailure) == .transport)
+        #expect(NotificationStatus.TestResult(.cancelled) == .transport)
+        #expect(NotificationStatus.TestResult(.unknown) == .failed)
+        #expect(NotificationStatus.TestResult(.rejected) == .failed)
     }
 
     @Test("The report lists every check with its raw value and no full token")

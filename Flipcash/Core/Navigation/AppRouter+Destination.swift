@@ -96,7 +96,7 @@ extension AppRouter {
         case settingsAppSettings
         case settingsAccountSelection
         case settingsApplicationLogs
-        /// The notification status page, opened from Settings › Advanced or by tapping the test notification.
+        /// The notification status page, opened from Settings › Advanced.
         case settingsNotificationStatus
         case blockedUsers
         case trustedWebsites

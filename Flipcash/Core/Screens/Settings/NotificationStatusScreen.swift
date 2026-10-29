@@ -126,25 +126,26 @@ struct NotificationStatusScreen: View {
     @ViewBuilder
     private func footer(page: NotificationStatus.Page?) -> some View {
         let isTestSent = model?.isTestSent == true
+        let isSendingTest = model?.isSendingTest == true
         let isTestEnabled = page?.isTestEnabled == true
 
         VStack(spacing: 12) {
-            Button(isTestSent ? "Send Again" : "Send Test Notification") {
+            Button {
                 guard let model else { return }
                 Task {
-                    guard await model.sendTest() else { return }
-                    toasts.show(.init(
-                        "Test notification sent",
-                        systemImage: "checkmark.circle.fill",
-                        messageIdentifier: "notification-status-test-sent",
-                        duration: .seconds(2)
-                    ))
+                    guard let result = await model.sendTest() else { return }
+                    toasts.show(Self.toast(for: result))
                 }
+            } label: {
+                ButtonStateLabel(
+                    isTestSent ? "Send Again" : "Send Test Notification",
+                    state: isSendingTest ? .loading : .normal
+                )
             }
             .buttonStyle(isTestSent ? .filled20 : .filled)
             // Both fills are translucent; without this the checks show through them.
             .background(Color.backgroundMain, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius))
-            .disabled(!isTestEnabled)
+            .disabled(!isTestEnabled || isSendingTest)
             .accessibilityIdentifier("notification-status-send-test")
 
             ShareLink(item: model?.report ?? "") {
@@ -158,7 +159,7 @@ struct NotificationStatusScreen: View {
                     Text("Turn on notifications to send a test.")
                         .foregroundStyle(Color.textSecondary)
                 } else {
-                    Text("The test is posted by this phone. It shows that notifications can appear here, not that Flipcash's servers can reach you.")
+                    Text("Flipcash sends the test to every phone signed in to this account.")
                         .foregroundStyle(Color.textSecondary)
                 }
             }
@@ -169,6 +170,30 @@ struct NotificationStatusScreen: View {
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 20)
+    }
+
+    private static func toast(for result: NotificationStatus.TestResult) -> ToastController.Toast {
+        switch result {
+        case .sent:
+            .init(
+                "Test notification sent",
+                systemImage: "checkmark.circle.fill",
+                messageIdentifier: "notification-status-test-sent",
+                duration: .seconds(2)
+            )
+        case .transport:
+            .init(
+                "Couldn't reach Flipcash",
+                systemImage: "exclamationmark.circle.fill",
+                messageIdentifier: "notification-status-test-unreachable"
+            )
+        case .failed:
+            .init(
+                "Couldn't send a test notification",
+                systemImage: "exclamationmark.circle.fill",
+                messageIdentifier: "notification-status-test-failed"
+            )
+        }
     }
 }
 

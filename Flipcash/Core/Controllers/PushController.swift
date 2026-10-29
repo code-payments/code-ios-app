@@ -43,12 +43,6 @@ class PushController {
         set { delegate.isArchived = newValue }
     }
 
-    /// Opens the notification status page when the user taps the test notification.
-    var openNotificationStatus: (@MainActor () -> Void)? {
-        get { delegate.openNotificationStatus }
-        set { delegate.openNotificationStatus = newValue }
-    }
-
     /// The last `didFailToRegisterForRemoteNotifications` error this launch, for the report.
     @ObservationIgnored private(set) var lastAPNsError: String?
 
@@ -220,24 +214,27 @@ class PushController {
         return .finished(result)
     }
 
-    /// Posts the local test notification ``NotificationStatus/testDelay`` seconds from now. It has no
-    /// category, so it carries neither the chat Reply action nor the chat content extension.
-    func scheduleTestNotification() async throws {
-        let content = UNMutableNotificationContent()
-        content.title = "Test notification"
-        content.body = "If you can see this, notifications are working."
-        content.sound = .default
-        content.threadIdentifier = NotificationStatus.testThreadIdentifier
-        content.userInfo = [NotificationStatus.testUserInfoKey: true]
-
-        let request = UNNotificationRequest(
-            identifier: NotificationStatus.testThreadIdentifier,
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: NotificationStatus.testDelay, repeats: false)
-        )
-        try await center.add(request)
+    /// Asks Flipcash to send its test notification to every phone signed in to this account,
+    /// giving up after ``NotificationStatus/testTimeout``.
+    func sendTestPush() async -> NotificationStatus.TestResult {
+        do {
+            let client = client
+            let owner = owner
+            try await Self.withDeadline(.now + NotificationStatus.testTimeout) {
+                try await client.sendTestPush(owner: owner)
+            }
+            return .sent
+        } catch let error as ErrorSendTestPush {
+            ErrorReporting.captureError(error, reason: "Failed to send test push")
+            return .init(error)
+        } catch is CancellationError {
+            return .transport
+        } catch {
+            ErrorReporting.captureError(error, reason: "Failed to send test push")
+            return .failed
+        }
     }
-    
+
     // MARK: - Firebase -
     
     private func didReceiveFirebaseToken(token: String?) async throws {
@@ -417,7 +414,6 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
     var isViewingConversation: (@MainActor (ConversationID) -> Bool)?
     var isArchived: (@MainActor (ConversationID) -> Bool)?
-    var openNotificationStatus: (@MainActor () -> Void)?
 
     override init() {
         super.init()
@@ -433,11 +429,6 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         ])
         
         let userInfo = notification.request.content.userInfo
-
-        // The local test notification has no push payload; show it even in the foreground.
-        if NotificationStatus.isTestNotification(userInfo) {
-            return [.banner, .list, .sound]
-        }
 
         Messaging.messaging().appDidReceiveMessage(userInfo)
 
@@ -475,11 +466,6 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         logger.info("Received notification response", metadata: ["action": "\(response.actionIdentifier)"])
-
-        if NotificationStatus.isTestNotification(response.notification.request.content.userInfo) {
-            openNotificationStatus?()
-            return
-        }
 
         Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
 

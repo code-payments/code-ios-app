@@ -1054,9 +1054,6 @@ final class SessionContainer {
         pushController.isArchived = { [weak conversationController] conversationID in
             conversationController?.isArchived(conversationID) == true
         }
-        pushController.openNotificationStatus = { [weak appRouter] in
-            appRouter?.navigate(to: .settingsNotificationStatus, under: [.settings])
-        }
 
         let chatSpotlightIndexer = ChatSpotlightIndexer(
             controller: conversationController,

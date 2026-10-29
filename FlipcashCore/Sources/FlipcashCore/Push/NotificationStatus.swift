@@ -14,23 +14,11 @@ import Foundation
 /// the app maps `UNNotificationSettings` into ``Snapshot`` at the edge.
 public enum NotificationStatus {
 
-    /// Marks the local test notification in its `userInfo`, so the notification delegate can
-    /// recognise it before trying to decode a push payload it doesn't carry.
-    public static let testUserInfoKey = "flipcash_test"
-
-    /// Groups the test notification in Notification Center.
-    public static let testThreadIdentifier = "notification-test"
-
-    /// Seconds between the tap and the test notification.
-    public static let testDelay: TimeInterval = 3
-
     /// How long a registration may take before it counts as unreachable.
     public static let registrationTimeout: Duration = .seconds(10)
 
-    /// Whether `userInfo` belongs to the local test notification.
-    public static func isTestNotification(_ userInfo: [AnyHashable: Any]) -> Bool {
-        userInfo[testUserInfoKey] as? Bool == true
-    }
+    /// How long `SendTestPush` may take before it counts as unreachable.
+    public static let testTimeout: Duration = .seconds(10)
 }
 
 // MARK: - Input -
@@ -106,6 +94,22 @@ extension NotificationStatus {
             case .invalidPushToken:             self = .invalidPushToken
             case .transportFailure, .cancelled: self = .transport
             case .ok, .unknown, .rejected:      self = .unknown
+            }
+        }
+    }
+
+    /// How a `SendTestPush` call went, which picks the toast the page shows.
+    public enum TestResult: Equatable, Sendable {
+        case sent
+        case transport
+        case failed
+
+        /// Classifies a failed `SendTestPush` call. A dropped or cancelled call couldn't reach
+        /// Flipcash; anything else the server didn't accept is a failed send.
+        public init(_ error: ErrorSendTestPush) {
+            switch error {
+            case .transportFailure, .cancelled: self = .transport
+            case .ok, .unknown, .rejected:      self = .failed
             }
         }
     }

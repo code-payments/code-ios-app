@@ -215,6 +215,51 @@ struct NotificationStatusViewModelTests {
         registration.release()
     }
 
+    @Test(
+        "A test send shows its result and only an ok switches the button to Send Again",
+        arguments: [NotificationStatus.TestResult.sent, .transport, .failed]
+    )
+    func sendTestResult(result: NotificationStatus.TestResult) async {
+        let send = Gate<NotificationStatus.TestResult>(result)
+        send.holdsNext = true
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { .init(authorization: .authorized) },
+            registrationCheck: { _ in .finished(.ok) },
+            sendTestPush: { await send.next() },
+            recheckPause: .zero
+        )
+        await model.runChecks()
+
+        let run = Task { await model.sendTest() }
+        await until { send.isHolding }
+        #expect(model.isSendingTest)
+
+        send.release()
+        #expect(await run.value == result)
+        #expect(!model.isSendingTest)
+        #expect(model.isTestSent == (result == .sent))
+    }
+
+    @Test("A test send does nothing once permission has gone away")
+    func sendTestAfterPermissionLost() async {
+        var snapshot = NotificationStatus.Snapshot(authorization: .authorized)
+        let send = Gate<NotificationStatus.TestResult>(.sent)
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { snapshot },
+            registrationCheck: { _ in .finished(.ok) },
+            sendTestPush: { await send.next() },
+            recheckPause: .zero
+        )
+        await model.runChecks()
+
+        snapshot = .init(authorization: .denied)
+        #expect(await model.sendTest() == nil)
+        #expect(send.calls == 0)
+        #expect(model.page?.summary.title == "Notifications are off")
+    }
+
     // MARK: - Support -
 
     /// Yields until `condition` holds, so the view model's unstructured registration task can run.

@@ -17,8 +17,10 @@ final class NotificationStatusViewModel {
     /// Whether the folded "N checks passed" row is open. Lasts until the page closes or the user
     /// folds it again.
     var isExpanded = false
-    /// Whether a test notification was scheduled since the page opened.
+    /// Whether Flipcash accepted a test notification since the page opened.
     private(set) var isTestSent = false
+    /// Whether a `SendTestPush` call is in flight, during which the test button is disabled.
+    private(set) var isSendingTest = false
     /// The page as it stood when "Check Again" was tapped, shown with every row Checking until
     /// that run ends.
     private var recheckingFrom: NotificationStatus.Page?
@@ -34,12 +36,14 @@ final class NotificationStatusViewModel {
     @ObservationIgnored private let registrationCheck: (_ deletingToken: Bool) async -> NotificationStatus.Registration
     @ObservationIgnored private let savedRegistration: () -> NotificationStatus.RegistrationRecord?
     @ObservationIgnored private let requestAuthorization: () async throws -> Bool
+    @ObservationIgnored private let sendTestPush: () async -> NotificationStatus.TestResult
     @ObservationIgnored private let recheckPause: Duration
     @ObservationIgnored private var registrationTask: Task<Void, Never>?
 
-    /// `readSettings`, `registrationCheck`, `savedRegistration` and `requestAuthorization` default to
-    /// the phone's settings, ``PushController/checkRegistration(deletingToken:)``,
-    /// ``PushController/savedRegistration`` and ``PushController/authorizeAndRegister()``.
+    /// `readSettings`, `registrationCheck`, `savedRegistration`, `requestAuthorization` and
+    /// `sendTestPush` default to the phone's settings, ``PushController/checkRegistration(deletingToken:)``,
+    /// ``PushController/savedRegistration``, ``PushController/authorizeAndRegister()`` and
+    /// ``PushController/sendTestPush()``.
     /// `recheckPause` is the least time "Check Again" shows the rows as Checking, so a fast
     /// re-check still reads as one.
     init(
@@ -48,6 +52,7 @@ final class NotificationStatusViewModel {
         registrationCheck: ((_ deletingToken: Bool) async -> NotificationStatus.Registration)? = nil,
         savedRegistration: (() -> NotificationStatus.RegistrationRecord?)? = nil,
         requestAuthorization: (() async throws -> Bool)? = nil,
+        sendTestPush: (() async -> NotificationStatus.TestResult)? = nil,
         recheckPause: Duration = .milliseconds(500)
     ) {
         self.pushController = pushController
@@ -57,6 +62,7 @@ final class NotificationStatusViewModel {
         }
         self.savedRegistration = savedRegistration ?? { [pushController] in pushController.savedRegistration }
         self.requestAuthorization = requestAuthorization ?? { try await PushController.authorizeAndRegister() }
+        self.sendTestPush = sendTestPush ?? { [pushController] in await pushController.sendTestPush() }
         self.recheckPause = recheckPause
     }
 
@@ -178,20 +184,22 @@ final class NotificationStatusViewModel {
     }
 
     /// Re-reads the permission first: if it went away while the page was open, nothing is sent
-    /// and the page shows notifications as off. Returns whether a test was scheduled.
+    /// and the page shows notifications as off. Returns how the send went, or `nil` when nothing
+    /// was sent.
     @discardableResult
-    func sendTest() async -> Bool {
-        await refreshSettings()
-        guard page?.isTestEnabled == true else { return false }
+    func sendTest() async -> NotificationStatus.TestResult? {
+        guard !isSendingTest else { return nil }
+        isSendingTest = true
+        defer { isSendingTest = false }
 
-        do {
-            try await pushController.scheduleTestNotification()
+        await refreshSettings()
+        guard page?.isTestEnabled == true else { return nil }
+
+        let result = await sendTestPush()
+        if result == .sent {
             isTestSent = true
-            return true
-        } catch {
-            ErrorReporting.captureError(error, reason: "Failed to schedule test notification")
-            return false
         }
+        return result
     }
 
     // MARK: - Device -
