@@ -1,5 +1,5 @@
 {
-  "originHash" : "f17a20c394cb2f9ff4303f14ce7697f1acc08d81d8439e2b02f2289ea87dc0aa",
+  "originHash" : "0949e333ed9deff2d24a867708577c820b601cd4655fa62ed4d469a4d88f6147",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -357,8 +357,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-http2.git",
       "state" : {
-        "revision" : "0f3e54e29c944c2e835ad52159da7d9e1c94ac69",
-        "version" : "1.46.0"
+        "revision" : "61d1b44f6e4e118792be1cff88ee2bc0267c6f9a",
+        "version" : "1.44.0"
       }
     },
     {
@@ -411,8 +411,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system.git",
       "state" : {
-        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
-        "version" : "1.8.1"
+        "revision" : "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
+        "version" : "1.6.4"
       }
     },
     {
