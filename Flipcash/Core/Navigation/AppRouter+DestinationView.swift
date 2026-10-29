@@ -274,6 +274,11 @@ struct DestinationView: View {
             ConversationScreen(context: .existing(conversationID), landing: landing)
                 .id(conversationID)
 
+        case .chatRequest(let conversationID, let requestID):
+            // The chat with that request's details presented over it.
+            ConversationScreen(context: .existing(conversationID), openRequest: requestID)
+                .id(conversationID)
+
         case .userProfile(let userID, let origin):
             UserProfileScreen(userID: userID, origin: origin)
                 .id(userID)

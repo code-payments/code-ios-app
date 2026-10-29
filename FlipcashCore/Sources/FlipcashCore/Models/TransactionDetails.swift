@@ -139,8 +139,8 @@ public struct TransactionDetails: Sendable, Equatable, Hashable {
     public enum ChatAction: Sendable, Equatable, Hashable {
         /// Opens the message a boost was for.
         case viewMessage(Activity.BoostedReaction)
-        /// Opens the request this payment paid a share of.
-        case viewRequest(PaymentRequestID)
+        /// Opens the chat the request was made in, with the request's details over it.
+        case viewRequest(Activity.RequestedPayment)
         /// Opens the counterparty's DM, or their profile until the DM exists.
         case viewCounterparty(UserID)
     }
@@ -219,7 +219,7 @@ extension TransactionDetails {
             self.chatAction = .viewMessage(boost)
         } else if let payment = activity.requestedPayment {
             // The request is the more specific place, ahead of the counterparty.
-            self.chatAction = .viewRequest(payment.paymentRequestID)
+            self.chatAction = .viewRequest(payment)
         } else if let userID = activity.counterparty?.userID {
             self.chatAction = .viewCounterparty(userID)
         } else {

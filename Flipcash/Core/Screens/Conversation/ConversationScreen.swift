@@ -45,6 +45,9 @@ struct ConversationScreen: View {
     /// The message a message link opened this chat on, or nil for every other entry point.
     var landing: MessageLanding? = nil
 
+    /// The payment request whose details open over this chat on arrival, or nil.
+    var openRequest: PaymentRequestID? = nil
+
     @Environment(ConversationController.self) private var conversationController
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
@@ -56,6 +59,7 @@ struct ConversationScreen: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var didInitialRead = false
+    @State private var didOpenRequest = false
     /// The chat whose opening load has landed, for a coordinator built after it.
     @State private var loadedConversationID: ConversationID?
     /// The chat whose stored draft has been put back, which is also what permits saving: an empty
@@ -659,6 +663,12 @@ struct ConversationScreen: View {
             .task {
                 if let conversationID { await sessionContainer.groupRosters.refresh(conversationID) }
             }
+        }
+        .task(id: didInitialRead) {
+            // Once, when the chat has loaded, so the details come up over the chat rather than the push.
+            guard didInitialRead, let openRequest, !didOpenRequest else { return }
+            didOpenRequest = true
+            paymentRequestDetails = PaymentRequestSelection(id: openRequest)
         }
         .fullScreenCover(item: $paymentRequestDetails) { selection in
             PaymentRequestDetailsScreen(requestID: selection.id)

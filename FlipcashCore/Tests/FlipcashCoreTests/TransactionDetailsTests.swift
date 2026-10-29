@@ -193,7 +193,7 @@ struct TransactionDetailsTests {
             )
         )
 
-        #expect(details.chatAction == .viewRequest(payment.paymentRequestID))
+        #expect(details.chatAction == .viewRequest(payment))
     }
 
     @Test("D5: a boost wins over a requested payment")

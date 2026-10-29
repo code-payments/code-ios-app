@@ -36,7 +36,6 @@ struct TransactionDetailsScreen: View {
     @State private var resolution = ActivityResolution()
     @State private var dialogItem: DialogItem?
     @State private var didCopyID = false
-    @State private var requestDetails: PaymentRequestSelection?
 
     /// How long the copy control stays on the checkmark before reverting.
     private static let copyConfirmationDuration: Duration = .seconds(1.5)
@@ -89,9 +88,9 @@ struct TransactionDetailsScreen: View {
                                 viewMessage(boost)
                             }
                             .buttonStyle(.filled05)
-                        case .viewRequest(let requestID):
+                        case .viewRequest(let payment):
                             Button("View Request") {
-                                requestDetails = PaymentRequestSelection(id: requestID)
+                                viewRequest(payment)
                             }
                             .buttonStyle(.filled05)
                         case .viewCounterparty(let userID):
@@ -128,9 +127,6 @@ struct TransactionDetailsScreen: View {
             }
         }
         .dialog(item: $dialogItem)
-        .fullScreenCover(item: $requestDetails) { selection in
-            PaymentRequestDetailsScreen(requestID: selection.id)
-        }
         .task(id: activity.id) {
             await resolution.resolve(activity: activity, in: sessionContainer, resolvingEntryToken: true)
         }
@@ -330,6 +326,17 @@ struct TransactionDetailsScreen: View {
 
     /// Opens the boosted message through the deep link's own hydration, so a chat the viewer has
     /// not synced is fetched first and a private group they are not in lands on its profile.
+    private func viewRequest(_ payment: Activity.RequestedPayment) {
+        Task {
+            await DeepLinkAction.routeChat(
+                payment.conversationID,
+                request: payment.paymentRequestID,
+                origin: .activity,
+                in: sessionContainer
+            )
+        }
+    }
+
     private func viewMessage(_ boost: Activity.BoostedReaction) {
         Task {
             await DeepLinkAction.routeChat(

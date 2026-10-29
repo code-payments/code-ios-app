@@ -68,7 +68,7 @@ struct PaymentRequestDetailsScreen: View {
                 loaded(content)
             } else if sessionContainer.paymentRequests.unavailable.contains(requestID) {
                 // DENIED or NOT_FOUND, for example after the viewer left the group.
-                Text("This request isn't available")
+                Text("This request is no longer available.")
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)
