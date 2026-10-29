@@ -102,8 +102,10 @@ extension MessageCapability {
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
-        // Media carries no text, so it offers neither copy nor edit — matching Android's resolver.
+        // `hasText` gates Edit, which only a text body has. `hasCopyableText` gates Copy, which a
+        // photo's caption also offers: it copies the caption. Matching Android's resolver.
         let hasText: Bool
+        let hasCopyableText: Bool
         switch message.content {
         case .deleted, .encrypted, .system:
             // Nothing is left to act on: a tombstone must not be re-deleted, and this client has no
@@ -124,14 +126,19 @@ extension MessageCapability {
             // so the only capability is Reply, which the quote panel supports. Reply follows the
             // chat's speaker rule like any message. Sharing is the card's own button, not a menu action.
             return [.reply]
+        case .widget(.paymentRequest):
+            // Server-authored like the profile card: Reply only. Paying and closing live on the card.
+            return [.reply]
         case .text:
             hasText = true
-        case .media:
+            hasCopyableText = true
+        case .media(_, let caption):
             hasText = false
+            hasCopyableText = !(caption?.isEmpty ?? true)
         }
 
         guard message.isFromSelf(selfUserID) else {
-            return hasText
+            return hasCopyableText
                 ? [.copy, .reply, .report, .forward]
                 : [.reply, .report, .forward]
         }
@@ -144,8 +151,10 @@ extension MessageCapability {
         }
 
         var capabilities: Set<MessageCapability> = [.reply, .forward]
-        if hasText {
+        if hasCopyableText {
             capabilities.insert(.copy)
+        }
+        if hasText {
             if isWithin(policy.editWindow, of: message, at: now) {
                 capabilities.insert(.edit)
             }

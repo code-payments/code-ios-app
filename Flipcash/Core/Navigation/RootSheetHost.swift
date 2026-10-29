@@ -79,6 +79,22 @@ struct RootSheetHostModifier: ViewModifier {
 
     private var session: Session { sessionContainer.session }
 
+    private var notificationPromptReady: Bool {
+        session.transactionNotificationPrompt.pending && !router.isSheetDismissing
+    }
+
+    /// The root sheet when it presents the way `fullScreen` asks for, else nil; writing nil dismisses it.
+    private func presentedRootSheet(fullScreen: Bool) -> Binding<AppRouter.SheetPresentation?> {
+        Binding(
+            get: { router.rootSheet.flatMap { $0.coversFullScreen == fullScreen ? $0 : nil } },
+            set: { newValue in
+                if newValue == nil {
+                    router.dismissSheet()
+                }
+            }
+        )
+    }
+
     func body(content: Content) -> some View {
         content
             // Resume a tip held for profile creation the moment the profile
@@ -104,14 +120,11 @@ struct RootSheetHostModifier: ViewModifier {
             // write through here. Bound to `rootSheet` (bottom of the sheet
             // stack) — nested sheets mount inside this root sheet's content
             // via `.appRouterNestedSheet`.
-            .sheet(item: Binding(
-                get: { router.rootSheet },
-                set: { newValue in
-                    if newValue == nil {
-                        router.dismissSheet()
-                    }
-                }
-            )) { sheet in
+            .sheet(item: presentedRootSheet(fullScreen: false), onDismiss: router.sheetDidFinishDismissing) { sheet in
+                RoutedSheet(sheet: sheet)
+                    .appRouterNestedSheet()
+            }
+            .fullScreenCover(item: presentedRootSheet(fullScreen: true), onDismiss: router.sheetDidFinishDismissing) { sheet in
                 RoutedSheet(sheet: sheet)
                     .appRouterNestedSheet()
             }
@@ -123,6 +136,13 @@ struct RootSheetHostModifier: ViewModifier {
             .onChange(of: session.presentationState.isPresenting) { _, isPresenting in
                 guard isPresenting else { return }
                 router.dismissSheet()
+            }
+            // Offers notifications after an in-place transaction success, once the
+            // flow's sheet has finished dismissing so the dialog never races it.
+            .onChange(of: notificationPromptReady) { _, isReady in
+                guard isReady, session.transactionNotificationPrompt.consume() else { return }
+                // Unstructured so the consume that flips `isReady` back doesn't cancel it.
+                Task { await NotificationPrompt().presentIfNeeded { session.dialogItem = $0 } }
             }
     }
 }

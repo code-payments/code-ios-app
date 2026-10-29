@@ -17,9 +17,8 @@ public struct ChatQuote: Hashable, Sendable, Codable {
         case text
         /// A payment. The snippet is the formatted amount; the branding is the same pair the cash
         /// card itself draws, so a quote of a payment is recognisable as that payment rather than
-        /// as a bare number — `token` is the mint's name ("Cash" for USDF) and `flagImageName` is
-        /// the currency's asset name, `nil` when the currency has no flag.
-        case cash(token: String, flagImageName: String?)
+        /// as a bare number — `token` is the mint's name ("Cash" for USDF).
+        case cash(token: String)
         /// A photo. The snippet is its caption, or "Photo" when it has none; `thumbnailBlobID` is the
         /// blob the panel draws beside it, `nil` when there is none to fetch; `sealed` is what
         /// decrypting it needs when it is end-to-end encrypted.
@@ -58,6 +57,9 @@ public struct ChatQuote: Hashable, Sendable, Codable {
     /// The line a quoted shared-profile widget shows: it has no text of its own.
     public static let sharedProfileSnippet = "Shared a profile"
 
+    /// The snippet for a quoted payment request.
+    public static let paymentRequestSnippet = "Request"
+
     /// Copy for an original that has since been deleted.
     public static let deletedSnippet = "This message was deleted"
 
@@ -67,7 +69,7 @@ public struct ChatQuote: Hashable, Sendable, Codable {
 
     /// One line of preview text: newlines collapsed to spaces, truncated at ``snippetLimit``.
     public static func snippet(forText text: String) -> String {
-        let flattened = text
+        let flattened = InviteLinkText.redacting(text)
             .split(whereSeparator: \.isNewline)
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespaces)

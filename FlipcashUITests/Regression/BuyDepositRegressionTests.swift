@@ -10,13 +10,13 @@ import XCTest
 /// the USDC education pre-flight; Next pushes the deposit-address screen.
 /// Exercises:
 ///
-/// - The Wallet tab's Add Money tile opens the "Add Money With" picker.
+/// - The Wallet tab's Add Dollars tile opens the "Add Dollars With" picker.
 /// - Selecting Other Wallet shows the USDC education screen; Next pushes the
 ///   deposit-address screen with the Copy Address button hittable. The address
 ///   is derived from the session's owner key — its exact value isn't asserted,
 ///   just that the CTA renders.
 ///
-/// Entry is the Wallet tab's own Add Money tile — buy entry is capped
+/// Entry is the Wallet tab's own Add Dollars tile — buy entry is capped
 /// at the highest spendable balance, so the old buy-shortfall vehicle into
 /// Add Money no longer exists.
 ///
@@ -34,7 +34,7 @@ final class BuyDepositRegressionTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Navigate: Wallet tab → Add Money tile → Add Money With → Other Wallet →
+        // Navigate: Wallet tab → Add Dollars tile → Add Dollars With → Other Wallet →
         // USDC education pre-flight → Next → USDC deposit-address screen.
         wallet.open(from: self)
         wallet.tapAddMoneyTile(from: self)

@@ -144,7 +144,7 @@ struct UnreadDividerTests {
         )
         #expect(messageUnderDivider(items) == "3")
         #expect(dividerCount(items) == 1)
-        #expect(items.contains { if case .systemMessage(let id, _, _) = $0 { id == "sys-2" } else { false } })
+        #expect(items.contains { if case .systemMessage(let id, _, _, _) = $0 { id == "sys-2" } else { false } })
     }
 
     // MARK: - Resolution -

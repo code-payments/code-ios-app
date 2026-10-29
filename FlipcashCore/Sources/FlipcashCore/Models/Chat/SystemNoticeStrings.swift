@@ -38,6 +38,46 @@ public enum SystemNoticeStrings {
             guard let admitterName = nameOf(admitter) else { return fallbackText }
             if isViewerJoiner { return "\(admitterName) added you" }
             return nameOf(joiner).map { "\(admitterName) added \($0)" } ?? fallbackText
+        case .userJoinedViaInvite(let joiner, let inviter):
+            // Open 3 option B (nodes 12846:374, 12846:427, 12846:480).
+            if joiner == selfID {
+                return nameOf(inviter).map { "You joined with \($0)’s invite link" } ?? fallbackText
+            }
+            guard let joinerName = nameOf(joiner) else { return fallbackText }
+            if inviter == selfID { return "\(joinerName) joined with your invite link" }
+            return nameOf(inviter).map { "\(joinerName) joined with \($0)’s invite link" } ?? fallbackText
         }
+    }
+
+    /// The name in `text`, the result of ``text(for:fallbackText:selfID:nameOf:)`` for `event`, that
+    /// opens a profile: only the inviter of an invite join. "your" and "You" name the viewer, who
+    /// has no profile to open from a notice, so those notices have none.
+    public static func userLink(
+        for event: ConversationMessage.SystemEvent?,
+        text: String,
+        selfID: UserID?,
+        nameOf: (UserID) -> String?
+    ) -> SystemNoticeUserLink? {
+        guard case .userJoinedViaInvite(_, let inviter) = event, inviter != selfID,
+              let name = nameOf(inviter) else { return nil }
+        // The possessive anchors the match: the joiner's name may contain the inviter's.
+        guard let found = text.range(of: "\(name)’s", options: .backwards) else { return nil }
+        let nameEnd = text.index(found.lowerBound, offsetBy: name.count)
+        return SystemNoticeUserLink(range: NSRange(found.lowerBound..<nameEnd, in: text), userID: inviter)
+    }
+}
+
+/// A name in a system notice's text, as a UTF-16 range, that opens `userID`'s profile.
+public struct SystemNoticeUserLink: Hashable, Codable, Sendable {
+    public let location: Int
+    public let length: Int
+    public let userID: UserID
+
+    public var range: NSRange { NSRange(location: location, length: length) }
+
+    public init(range: NSRange, userID: UserID) {
+        self.location = range.location
+        self.length = range.length
+        self.userID = userID
     }
 }

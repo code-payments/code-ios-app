@@ -55,7 +55,7 @@ struct ChatKeyringTests {
     }
 
     private func keyring(_ resolver: Resolver, store: PeerKeyStore = MemoryKeyStore(), owner: KeyPair? = nil, selfID: UUID? = nil) -> ChatKeyring {
-        ChatKeyring(cipher: DefaultChatCipher.shared, owner: owner ?? alice, selfUserID: selfID ?? aliceID, store: store) { try resolver.resolve($0) }
+        ChatKeyring(cipher: DefaultChatCipher.shared, owner: owner ?? alice, selfUserID: selfID ?? aliceID, store: store, resolveKey: { try resolver.resolve($0) }, groupKey: { _, _ in throw Offline() })
     }
 
     /// An encrypted message from Bob to Alice in `dm()`.
@@ -200,6 +200,26 @@ struct ChatKeyringTests {
         let message = try #require(ConversationMessage(proto))
 
         #expect(await groupRing { _, _ in throw GroupKeyNotSelfWrapped() }.open(message, in: group).decryptFailure == .unsupported)
+    }
+
+    @Test("An invite copy that failed a check is the wrong-key state: messages stay covered, and sending fails")
+    func privateGroupUnusableInviteCopy() async throws {
+        let group = privateGroup()
+        let sender = ChatSeal(cipher: DefaultChatCipher.shared, groupKey: groupKey, conversationID: group.id, selfUserID: bobID)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = MessageID(value: 1).proto
+            $0.senderID = bobID.proto
+            $0.content = [try! sender.seal(text: "hello", repliedTo: nil)]
+        }
+        let message = try #require(ConversationMessage(proto))
+        let ring = groupRing { _, _ in throw GroupKeyUnusable(failsAt: .signature) }
+
+        guard case .unusableKey = await ring.opener(for: group) else {
+            Issue.record("expected the wrong-key opener")
+            return
+        }
+        #expect(await ring.open(message, in: group).isAwaitingDecryption)
+        await #expect(throws: GroupKeyUnusable.self) { try await ring.sealForSending(in: group) }
     }
 
     @Test("Plaintext messages pass through untouched")

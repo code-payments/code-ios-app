@@ -16,7 +16,6 @@ public struct AmountField: View {
     public let defaultValue: DefaultValue
     public let formatter: NumberFormatter
     public let suffix: String?
-    public let showChevron: Bool
     /// Type token for the amount digits. Defaults to `.appDisplayLarge`; the
     /// Convert/Get amount header overrides it with `.appDisplayExtraLarge`.
     public let font: Font
@@ -33,35 +32,22 @@ public struct AmountField: View {
     
     // MARK: - Init -
     
-    public init(content: Binding<String>, defaultValue: String, flagStyle: Flag.Style, formatter: NumberFormatter, suffix: String? = nil, showChevron: Bool = true) {
-        self.init(
-            content: content,
-            defaultValue: .number(defaultValue),
-            prefix: .flagStyle(flagStyle),
-            formatter: formatter,
-            suffix: (suffix == nil) ? nil : " \(suffix!)",
-            showChevron: showChevron
-        )
-    }
-    
     public init(content: Binding<String>, defaultValue: DefaultValue, prefix: String, formatter: NumberFormatter, suffix: String? = nil) {
         self.init(
             content: content,
             defaultValue: defaultValue,
             prefix: .prefix(prefix),
             formatter: formatter,
-            suffix: (suffix == nil) ? nil : " \(suffix!)",
-            showChevron: false
+            suffix: (suffix == nil) ? nil : " \(suffix!)"
         )
     }
     
-    public init(content: Binding<String>, defaultValue: DefaultValue, prefix: Prefix, formatter: NumberFormatter, suffix: String?, showChevron: Bool, font: Font = .appDisplayLarge, height: CGFloat = 70) {
+    public init(content: Binding<String>, defaultValue: DefaultValue, prefix: Prefix, formatter: NumberFormatter, suffix: String?, font: Font = .appDisplayLarge, height: CGFloat = 70) {
         self._content = content
         self.defaultValue = defaultValue
         self.prefix = prefix
         self.formatter = formatter
         self.suffix = (suffix == nil) ? nil : " \(suffix!)"
-        self.showChevron = showChevron
         self.font = font
         self.height = height
     }
@@ -71,9 +57,6 @@ public struct AmountField: View {
             HStack(spacing: 5) {
                 Group {
                     switch prefix {
-                    case .flagStyle(let style):
-                        Flag(style: style)
-                        
                     case .prefix(let string):
                         Text(string)
                         
@@ -87,11 +70,6 @@ public struct AmountField: View {
                         .combined(with: .move(edge: .leading))
                         .animation(.easeOutFastest)
                 )
-                
-                if showChevron {
-                    Image.icon(.chevronDownMedium)
-                        .iconSize(16)
-                }
             }
             .animation(.springFastestDamped, value: content)
             
@@ -329,13 +307,10 @@ private extension AmountField.Char {
 extension AmountField {
     public enum Prefix {
         case none
-        case flagStyle(Flag.Style)
         case prefix(String)
         
         var spacing: CGFloat {
             switch self {
-            case .flagStyle:
-                return 15
             case .prefix:
                 return 0
             case .none:
@@ -351,11 +326,11 @@ struct AmountField_Previews: PreviewProvider {
     static let suffix = " of Kin"
     static var previews: some View {
         Group {
-            AmountField(content: .constant("122"), defaultValue: "0", flagStyle: .fiat(.us), formatter: .fiat(currency: .usd), suffix: suffix)
+            AmountField(content: .constant("122"), defaultValue: .number("0"), prefix: .none, formatter: .fiat(currency: .usd), suffix: suffix)
                 .previewLayout(.fixed(width: 450, height: 100))
-            AmountField(content: .constant("123456"), defaultValue: "0", flagStyle: .fiat(.us), formatter: .fiat(currency: .usd), suffix: suffix)
+            AmountField(content: .constant("123456"), defaultValue: .number("0"), prefix: .none, formatter: .fiat(currency: .usd), suffix: suffix)
                 .previewLayout(.fixed(width: 450, height: 100))
-            AmountField(content: .constant("1234567890"), defaultValue: "0", flagStyle: .fiat(.us), formatter: .fiat(currency: .usd), suffix: suffix)
+            AmountField(content: .constant("1234567890"), defaultValue: .number("0"), prefix: .none, formatter: .fiat(currency: .usd), suffix: suffix)
                 .previewLayout(.fixed(width: 450, height: 100))
         }
     }

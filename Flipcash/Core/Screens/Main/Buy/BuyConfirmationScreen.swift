@@ -13,6 +13,7 @@ struct BuyConfirmationScreen: View {
     @State private var viewModel: BuyConfirmationViewModel
 
     @Environment(AppRouter.self) private var router
+    @Environment(\.dismissParentContainer) private var dismissParentContainer
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
@@ -42,17 +43,25 @@ struct BuyConfirmationScreen: View {
                         )
                         .padding(.top, 24)
 
-                        VStack(spacing: 10) {
-                            ConfirmationBreakdownRow(
-                                title: "Amount to convert",
-                                value: viewModel.amountToBuy.nativeAmount.formatted()
-                            )
-                            ConfirmationBreakdownRow(
-                                title: "Conversion fee",
-                                value: viewModel.feeFormatted
-                            )
+                        // Hidden when there is no fee: the breakdown would only
+                        // repeat the total.
+                        if viewModel.hasFee {
+                            VStack(spacing: 10) {
+                                ConfirmationBreakdownRow(
+                                    title: "Amount to convert",
+                                    value: viewModel.amountToBuy.nativeAmount.formatted()
+                                )
+                                ConfirmationBreakdownRow(
+                                    title: "Conversion fee",
+                                    value: viewModel.feeFormatted
+                                )
+                            }
+                            .padding()
+                        } else {
+                            // Keep the room the breakdown's padding (16 above and
+                            // below) would give, so the two amounts don't crowd.
+                            Color.clear.frame(height: 32)
                         }
-                        .padding()
 
                         ConfirmationAmountRow(
                             title: "You Get",
@@ -89,7 +98,7 @@ struct BuyConfirmationScreen: View {
         // A submit is a live money movement — keep the user on this screen
         // until it resolves (the sheet's swipe-dismiss is already blocked at
         // the stack root while any step is pushed).
-        .navigationBarBackButtonHidden(viewModel.actionButtonState == .loading)
+        .navigationBarBackButtonHidden(!viewModel.actionButtonState.isNormal)
         .dialog(item: $viewModel.dialogItem)
         .task { await viewModel.loadTargetImage(session: session) }
     }
@@ -97,6 +106,6 @@ struct BuyConfirmationScreen: View {
     // MARK: - Actions -
 
     private func performBuy() {
-        Task { await viewModel.buyAction(session: session, router: router) }
+        Task { await viewModel.buyAction(session: session, router: router, dismiss: dismissParentContainer) }
     }
 }

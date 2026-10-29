@@ -36,12 +36,20 @@ extension ChatItem {
     ///     and illustrate cash rows (e.g. "Jeffy" with its icon). The caller resolves these over
     ///     the network; a cash row whose mint is absent shows no token label or icon.
     ///   - counterpartName: The other party's name, for the hint under a message that failed to decrypt.
+    ///   - authorName: The name to label another member's row with in a group, or nil (or empty)
+    ///     to leave the row unattributed. Never asked about the viewer's own rows.
+    ///   - display: The currency cash rows are shown in, or nil to show each as it moved.
+    ///   - paymentRequestCards: The worded card of each payment request the extension managed to
+    ///     fetch; a request missing here keeps the card-less row.
     public static func preview(
         from messages: [ConversationMessage],
         selfUserID: UserID,
         limit: Int = 3,
         mintBranding: [PublicKey: MintBrandingInfo] = [:],
-        counterpartName: String = ""
+        counterpartName: String = "",
+        authorName: (UserID) -> String? = { _ in nil },
+        display: DisplayCurrency? = nil,
+        paymentRequestCards: [PaymentRequestID: ChatPaymentRequestContent.Card] = [:]
     ) -> [ChatItem] {
         // Drop tombstones before slicing so the preview keeps the newest `limit` *visible* messages —
         // filtering after `.suffix` would let a recent delete crowd out a real message (or blank the
@@ -71,17 +79,14 @@ extension ChatItem {
             let content: ChatMessage.Content
             switch message.content {
             case .text(let text):
-                content = .text(text)
+                content = .text(InviteLinkText.redacting(text))
             case .cash(let fiat):
-                // The flag loads from the FlipcashUI bundle, so it resolves inside an extension. The
-                // token name + coin icon come from `mintBranding`; an unresolved mint shows no token
-                // label or icon rather than a misleading fallback.
-                let currency = fiat.nativeAmount.currency
+                // The token name + coin icon come from `mintBranding`; an unresolved mint shows no
+                // token label or icon rather than a misleading fallback.
                 let branding = mintBranding[fiat.mint]
                 content = .cash(ChatCashContent(
-                    amount: fiat.nativeAmount.formatted(),
+                    amount: (display?.amount(fiat) ?? fiat.nativeAmount).formatted(),
                     token: branding?.name ?? "",
-                    flagImageName: currency.region?.rawValue ?? currency.rawValue.uppercased(),
                     iconURL: branding?.iconURL,
                     isTip: message.cashAction == .tipped
                 ))
@@ -94,6 +99,8 @@ extension ChatItem {
                 ))
             case .widget(.shareProfile(let share)):
                 content = .shareProfile(LinkCard.User(profileOf: share.username))
+            case .widget(.paymentRequest(let id)):
+                content = .paymentRequest(ChatPaymentRequestContent(requestID: id.data, card: paymentRequestCards[id]))
             case .widget(.unrecognized):
                 content = .unavailable(.updateApp)
             case .media(let attachments, let caption):
@@ -123,13 +130,27 @@ extension ChatItem {
             case .cash, .deleted, .encrypted, .widget, .media, .system: isEmojiOnly = false
             }
 
+            let author: ChatAuthor?
+            switch sender {
+            case .me:
+                author = nil
+            case .other:
+                if let id = message.senderID, let name = authorName(id), !name.isEmpty {
+                    author = ChatAuthor(id: id, name: name)
+                } else {
+                    author = nil
+                }
+            }
+
             items.append(.message(ChatMessage(
                 id: String(message.id.value),
                 content: content,
                 sender: sender,
                 isContinuationFromPrevious: false,
                 isContinuedByNext: false,
-                isEmojiOnly: isEmojiOnly
+                isEmojiOnly: isEmojiOnly,
+                author: author,
+                sentAt: message.date
             )))
             previous = message
         }
@@ -138,5 +159,5 @@ extension ChatItem {
 
     /// Matches the in-app chat: a separator opens the transcript and breaks any run whose gap from
     /// the previous message exceeds this.
-    private static let separatorGap: TimeInterval = 15 * 60
+    private static let separatorGap: TimeInterval = 60 * 60
 }

@@ -46,15 +46,14 @@ struct CurrencyCreationWizardScreen: View {
         let name: String
     }
 
+    /// A launch whose inline wait ran out, handed to the processing cover with the view model
+    /// that already spent part of the poll budget.
     private struct LaunchContext: Identifiable, Hashable {
-        let swapId: SwapId
-        let launchedMint: PublicKey
-        let currencyName: String
-        let amount: ExchangedFiat
-        /// The token that paid the launch cost, for analytics.
-        let paymentMint: PublicKey
+        let viewModel: CurrencyLaunchProcessingViewModel
+        let id: String
 
-        var id: String { swapId.publicKey.base58 }
+        static func == (lhs: LaunchContext, rhs: LaunchContext) -> Bool { lhs.id == rhs.id }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
     }
 
     static let iconCircleSize: CGFloat = 150
@@ -239,13 +238,7 @@ struct CurrencyCreationWizardScreen: View {
         }
         .fullScreenCover(item: $launchContext) { context in
             NavigationStack {
-                CurrencyLaunchProcessingScreen(
-                    swapId: context.swapId,
-                    launchedMint: context.launchedMint,
-                    currencyName: context.currencyName,
-                    launchAmount: context.amount,
-                    paymentMint: context.paymentMint
-                )
+                CurrencyLaunchProcessingScreen(viewModel: context.viewModel)
                 .environment(\.dismissParentContainer, {
                     Self.dismissCreationFlow(router: router)
                 })
@@ -571,7 +564,7 @@ struct CurrencyCreationWizardScreen: View {
                     ])
                     do {
                         let retrySwapId = try await buy(existing.mint)
-                        launchContext = LaunchContext(
+                        await completeLaunch(
                             swapId: retrySwapId,
                             launchedMint: existing.mint,
                             currencyName: displayName,
@@ -622,15 +615,57 @@ struct CurrencyCreationWizardScreen: View {
                 return
             }
 
-            // Submission accepted — record the mint and present the processing screen.
+            // Submission accepted — record the mint and wait for it to settle.
             captureCreatedMint(launchedMint, name: displayName)
-            launchContext = LaunchContext(
+            await completeLaunch(
                 swapId: swapId,
                 launchedMint: launchedMint!,
                 currencyName: displayName,
                 amount: launchAmount,
                 paymentMint: paymentMint
             )
+        }
+    }
+
+    /// Waits for the submitted launch in place while the payment row spins. A swap that
+    /// settles inside the inline window goes straight to the bill hand-off; anything still
+    /// pending presents the processing cover, which keeps polling with the remaining budget.
+    private func completeLaunch(
+        swapId: SwapId,
+        launchedMint: PublicKey,
+        currencyName: String,
+        amount: ExchangedFiat,
+        paymentMint: PublicKey
+    ) async {
+        let launch = CurrencyLaunchProcessingViewModel(
+            swapId: swapId,
+            launchedMint: launchedMint,
+            currencyName: currencyName,
+            launchAmount: amount,
+            paymentMint: paymentMint,
+            attemptsUsed: InlineCompletion.slowPathCredit
+        )
+
+        switch await launch.awaitInline(session: session, ratesController: ratesController) {
+        case .succeeded:
+            await InlineSuccess.complete(
+                // The bill hand-off follows immediately; there is no button to hold on.
+                hold: .zero,
+                setButtonState: { _ in },
+                updatePostTransaction: { session.updatePostTransaction() },
+                finish: {
+                    await launch.receiveLaunchedCurrency(
+                        session: session,
+                        ratesController: ratesController,
+                        dismiss: { Self.dismissCreationFlow(router: router) }
+                    )
+                },
+                prompt: session.transactionNotificationPrompt
+            )
+        case .failed:
+            errorDialog = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+        case .pending:
+            launchContext = LaunchContext(viewModel: launch, id: swapId.publicKey.base58)
         }
     }
 

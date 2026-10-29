@@ -113,6 +113,21 @@ nonisolated public struct SwapMetadataTable: Sendable {
     public let state            = Expression <Int>           ("state")
 }
 
+// Side table for payments that boosted a reaction: the chat and message boosted, and the emoji.
+// Joined 1:1 to `activity` by id; a row exists only for a boosted payment. A snapshot from payment
+// time, so the message or chat it names may no longer exist.
+nonisolated public struct BoostedReactionTable: Sendable {
+    public static let name = "boostedReaction"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let id             = Expression <PublicKey> ("id")
+    public let conversationID = Expression <Data>      ("conversationID")
+    public let messageID      = Expression <UInt64>    ("messageID")
+    public let emoji          = Expression <String>    ("emoji")
+}
+
 nonisolated public struct LimitsTable: Sendable {
     public static let name = "limits"
 
@@ -389,6 +404,13 @@ nonisolated public struct ConversationMessageTable: Sendable {
     // `systemUserId` is set.
     public let systemUserId   = Expression <UUID?>         ("systemUserId")
     public let systemAdmittedBy = Expression <UUID?>       ("systemAdmittedBy")
+    // A `kind` 6 row's `SystemEvent.userJoinedViaInvite`: the user who created the invite. Set only
+    // together with `systemUserId` and never with `systemAdmittedBy`; set means an invite join.
+    public let systemInvitedBy = Expression <UUID?>        ("systemInvitedBy")
+    // JSON-encoded `[CashPayment]` of a multi-receiver cash row; nil for every other row.
+    public let cashPaymentsJson = Expression <Data?>       ("cashPaymentsJson")
+    // The member a single-receiver group cash row paid; nil for DM cash and every other row.
+    public let cashReceiverId = Expression <UUID?>         ("cashReceiverId")
 }
 
 
@@ -487,6 +509,19 @@ nonisolated extension Database {
                     t.column(swapMetadataTable.state)
 
                     t.foreignKey(swapMetadataTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let boostedReactionTable = BoostedReactionTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(boostedReactionTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(boostedReactionTable.id, primaryKey: true)
+                    t.column(boostedReactionTable.conversationID)
+                    t.column(boostedReactionTable.messageID)
+                    t.column(boostedReactionTable.emoji)
+
+                    t.foreignKey(boostedReactionTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
                 })
             }
 
@@ -673,6 +708,9 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.linkPreviewJson)
                     t.column(conversationMessageTable.systemUserId)
                     t.column(conversationMessageTable.systemAdmittedBy)
+                    t.column(conversationMessageTable.systemInvitedBy)
+                    t.column(conversationMessageTable.cashPaymentsJson)
+                    t.column(conversationMessageTable.cashReceiverId)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
                 })
             }

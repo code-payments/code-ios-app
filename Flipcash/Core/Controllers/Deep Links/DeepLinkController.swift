@@ -171,6 +171,12 @@ final class DeepLinkController {
         case .chatMessage(let conversationID, let messageID):
             return action(.chatMessage(conversationID, messageID))
 
+        case .groupInvite(let secret):
+            return action(.groupInvite(secret))
+
+        case .invalidGroupInvite:
+            return action(.groupInvite(nil))
+
         case .tip(let userID):
             return action(.tip(userID))
 
@@ -231,7 +237,7 @@ struct DeepLinkAction {
     /// joined this link is the only way in — and the screen it lands on is the one that offers the join.
     ///
     /// `landing` names the message a message link points at; the transcript opens on it.
-    private static func routeChat(
+    static func routeChat(
         _ conversationID: ConversationID,
         landing: MessageLanding? = nil,
         origin: DeepLinkOrigin,
@@ -460,6 +466,15 @@ struct DeepLinkAction {
                 )
             }
 
+        case .groupInvite(let secret):
+            if let container = sessionAuthenticator.loggedInContainer {
+                Analytics.deeplinkRouted(kind: kind)
+                if let source = origin.groupInviteSource {
+                    Analytics.groupInviteFollowed(source: source)
+                }
+                container.appRouter.navigate(to: .groupInvite(secret))
+            }
+
         case .chatSendCash(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
                 // Only tip DMs take the Send Cash action; contact/phone sends are no longer
@@ -538,6 +553,9 @@ extension DeepLinkAction {
         case chatSendCash(ConversationID)
         /// One message in a chat: the chat, opened on that message.
         case chatMessage(ConversationID, MessageID)
+        /// The preview of the group an invite link admits to; nil when the link holds no usable
+        /// secret, which shows as a link that matches no invite.
+        case groupInvite(InviteLinkSecret?)
         /// The tipcard for the legacy `/tip/<userId>` link.
         case tip(UserID)
         /// The profile a `flipcash.com/<userId>` or `flipcash.com/<handle>` link names.
@@ -560,6 +578,7 @@ extension DeepLinkAction.Kind {
         case .chat:                 "Chat"
         case .chatSendCash:         "ChatSendCash"
         case .chatMessage:          "ChatMessage"
+        case .groupInvite:          "GroupInvite"
         case .tip:                  "Tip"
         case .profile:              "Profile"
         case .wallet:               "Wallet"

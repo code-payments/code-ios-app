@@ -66,48 +66,30 @@ struct ActivityRow: View {
     // MARK: - Amount
 
     /// A conversion shows the converted (From) fiat amount over its fee; every
-    /// other row leads with the amount in the viewer's own currency and, only when
-    /// the payment was denominated in someone else's, shows what actually moved —
-    /// flagged — underneath. A tip of 7,500 pesos reads "-$5.00" to a viewer in
-    /// dollars, with "-$7,500.00" under an Argentine flag below it.
+    /// other row shows its amount. Every figure is in the viewer's own currency, so
+    /// a tip of 7,500 pesos reads "-$5.00" to a viewer in dollars.
     ///
     /// Converted here rather than where the feed is mapped so that a currency
     /// changed on a screen stacked over the list reaches these rows: reading
     /// ``RatesController`` in the body is what subscribes them to it.
     @ViewBuilder private var amount: some View {
+        let display = ratesController.displayCurrency
         if let swap = activity.swapMetadata {
             VStack(alignment: .trailing, spacing: 2) {
-                Text(swap.fromFiat.formatted())
+                Text(display.amount(swap.fromFiat).formatted())
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
                     .lineLimit(1)
-                Text("-\(swap.fee.formatted()) Fee")
+                Text("-\(display.amount(swap.fee).formatted()) Fee")
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                     .lineLimit(1)
             }
         } else {
-            let amounts = activity.exchangedFiat.forViewer(
-                preferredRate: ratesController.rateForBalanceCurrency(),
-                rates: ratesController.cachedRates
-            )
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(amounts.viewer.formatted(signPrefix: activity.kind.signPrefix))
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
-
-                if let transferred = amounts.transferred {
-                    HStack(spacing: 4) {
-                        Flag(style: transferred.currency.flagStyle, size: .small)
-                        Text(transferred.formatted(signPrefix: activity.kind.signPrefix))
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
-            }
+            Text(display.amount(activity.exchangedFiat).formatted(signPrefix: activity.kind.signPrefix))
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
         }
     }
 
@@ -124,11 +106,64 @@ struct ActivityRow: View {
             ) ?? activity.title
         }
 
-        return Self.peerTitle(
+        return Self.title(
             kind: activity.kind,
+            boostedReaction: activity.boostedReaction,
             name: resolution.counterpartyName,
+            chatName: boostChatName,
             serverTitle: activity.title
         ) ?? activity.title
+    }
+
+    /// The boosted chat's name, for a split boost only: a payment with a counterparty is named by
+    /// that person. Read from the local chat store, never fetched; `nil` when the viewer has left
+    /// the chat or it has not synced.
+    private var boostChatName: String? {
+        guard let boost = activity.boostedReaction, activity.counterparty == nil else { return nil }
+        let controller = sessionContainer.conversationController
+        return controller.conversation(withID: boost.conversationID).map(controller.displayName(for:))
+    }
+
+    /// The title of a peer payment row: the boost title when the payment boosted a reaction,
+    /// else ``peerTitle(kind:name:serverTitle:)``. Returns `nil` when the caller should fall back
+    /// to the server-rendered title.
+    ///
+    /// A boost wins over the tip verb check, and an unresolved name shows the no-name title
+    /// rather than the server's.
+    static func title(
+        kind: Activity.Kind,
+        boostedReaction: Activity.BoostedReaction?,
+        name: String?,
+        chatName: String?,
+        serverTitle: String
+    ) -> String? {
+        guard let boostedReaction else {
+            return peerTitle(kind: kind, name: name, serverTitle: serverTitle)
+        }
+        return boostTitle(kind: kind, emoji: boostedReaction.emoji, name: name, chatName: chatName)
+    }
+
+    /// How a boosted payment is titled: "Boosted 🔥 for Sally" / "Boost 🔥 from Sally" once the
+    /// counterparty resolves, "Boosted 🔥 in Design Team" for a split boost whose chat is known,
+    /// and "Boosted 🔥" / "Boost 🔥 received" when there is no name to use. Returns `nil` for a
+    /// kind that cannot carry a boost.
+    static func boostTitle(kind: Activity.Kind, emoji: String, name: String?, chatName: String?) -> String? {
+        // Empty strings count as unresolved. No closures here: they would inherit the view's
+        // main-actor isolation and trap when a test calls this off the main actor.
+        let name = (name?.isEmpty ?? true) ? nil : name
+        let chatName = (chatName?.isEmpty ?? true) ? nil : chatName
+
+        switch kind {
+        case .gave:
+            if let name { return "Boosted \(emoji) for \(name)" }
+            if let chatName { return "Boosted \(emoji) in \(chatName)" }
+            return "Boosted \(emoji)"
+        case .received:
+            if let name { return "Boost \(emoji) from \(name)" }
+            return "Boost \(emoji) received"
+        default:
+            return nil
+        }
     }
 
     /// How a peer payment is titled once its counterparty resolves — "Tipped

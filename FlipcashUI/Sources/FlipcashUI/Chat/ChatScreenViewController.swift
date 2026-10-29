@@ -198,6 +198,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onCashCardTap = newValue }
     }
 
+    /// Called with a payment request's id bytes when its card is tapped.
+    public var onPaymentRequestTap: ((Data) -> Void)? {
+        get { transcript.onPaymentRequestTap }
+        set { transcript.onPaymentRequestTap = newValue }
+    }
+
     public var onOpenURL: ((URL) -> Void)? {
         get { transcript.onOpenURL }
         set { transcript.onOpenURL = newValue }
@@ -312,6 +318,27 @@ public final class ChatScreenViewController: UIViewController {
         }
     }
 
+    /// Fires when the reader leaves or comes back to the newest messages — see
+    /// ``ChatViewController/onScrolledAwayChange``.
+    public var onScrolledAwayChange: ((Bool) -> Void)? {
+        get { transcript.onScrolledAwayChange }
+        set { transcript.onScrolledAwayChange = newValue }
+    }
+
+    /// Fires as the reader scrolls, with how far they sit from the newest messages — see
+    /// ``ChatViewController/onDistanceFromNewestChange``.
+    public var onDistanceFromNewestChange: ((CGFloat) -> Void)? {
+        get { transcript.onDistanceFromNewestChange }
+        set { transcript.onDistanceFromNewestChange = newValue }
+    }
+
+    /// A band above the newest messages a released scroll never rests inside — see
+    /// ``ChatViewController/snapDistanceFromNewest``.
+    public var snapDistanceFromNewest: CGFloat? {
+        get { transcript.snapDistanceFromNewest }
+        set { transcript.snapDistanceFromNewest = newValue }
+    }
+
     /// Fires on the reader's first drag after the opening scroll — see
     /// ``ChatViewController/onUserScrollBegan``.
     public var onUserScrollBegan: (() -> Void)? {
@@ -341,6 +368,12 @@ public final class ChatScreenViewController: UIViewController {
     public var onReactionAdd: ((String) -> Void)? {
         get { transcript.onReactionAdd }
         set { transcript.onReactionAdd = newValue }
+    }
+
+    /// Forwards a tap on a row's leading "$", with the row's id, to start a paid reaction.
+    public var onReactionBoost: ((String) -> Void)? {
+        get { transcript.onReactionBoost }
+        set { transcript.onReactionBoost = newValue }
     }
 
     /// Supplies the long-press reaction strip's content for a message — recents plus the viewer's own
@@ -473,7 +506,7 @@ public final class ChatScreenViewController: UIViewController {
             composerHeldKeyboardUnderMenu = responder.isFirstResponder
             _ = responder.resignFirstResponder()
         }
-        overlay.present(copy: copy, from: view.convert(frame, to: nil), in: scene, entries: entries, actions: actions, press: press)
+        overlay.present(copy: copy, from: view.convert(frame, to: nil), in: scene, entries: entries, actions: actions, menuHeader: message.sentAt?.formattedChatMessageTime(), press: press)
     }
 
     /// Flies the lift back to where its row sits now, which a message pushed in while it was up may
@@ -998,6 +1031,9 @@ public final class ChatScreenViewController: UIViewController {
 
     /// Whether the transcript sits at its newest message — see ``ChatViewController/isAtBottom``.
     public var isTranscriptAtBottom: Bool { transcript.isAtBottom }
+
+    /// The stable ids of the message rows on screen now.
+    public var visibleMessageIDs: Set<String> { transcript.visibleMessageIDs }
 
     /// Brings a row into view, deferring until the update that contains it lands.
     public func scrollToMessage(id: String) { transcript.scrollToMessage(id: id) }

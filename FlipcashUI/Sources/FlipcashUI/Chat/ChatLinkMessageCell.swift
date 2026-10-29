@@ -73,6 +73,8 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     var onReactionLongPress: ((String) -> Void)?
     /// Fired when the trailing "+" is tapped, to open the picker.
     var onReactionAdd: (() -> Void)?
+    /// Called when the viewer taps the leading "$" to pay for a reaction.
+    var onReactionBoost: (() -> Void)?
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -97,6 +99,7 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
         reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
+        reactionRow.onBoost = { [weak self] in self?.onReactionBoost?() }
     }
 
     @available(*, unavailable)
@@ -132,7 +135,7 @@ public final class ChatLinkMessageCell: ChatColumnCell {
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = message.sender == .me
-        reactionRow.configure(pills: message.reactions, canReact: message.canReact)
+        reactionRow.configure(pills: message.reactions, canReact: message.canReact, canBoost: message.canBoost)
         applyBareness(for: message)
         // A failed row's whole column is the retry target (ChatColumnCell); disable the bubble's own
         // text-view link taps so a tap on a failed message retries the send rather than opening the URL.

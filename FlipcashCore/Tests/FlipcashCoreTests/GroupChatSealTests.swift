@@ -49,6 +49,26 @@ struct GroupChatSealTests {
         #expect(seal(selfID: hostID).open(try message(sealed, from: hostID)).content == .text("welcome"))
     }
 
+    @Test("A sealed payment request opens to its widget for another member and for the creator")
+    func paymentRequestRoundTrip() throws {
+        let id = PaymentRequestID(data: Data(repeating: 0x3C, count: 16))
+        let sealed = try seal(selfID: hostID).seal(paymentRequest: id)
+
+        #expect(seal(selfID: memberID).open(try message(sealed, from: hostID)).content == .widget(.paymentRequest(id)))
+        #expect(seal(selfID: hostID).open(try message(sealed, from: hostID)).content == .widget(.paymentRequest(id)))
+    }
+
+    @Test("A sealed share-profile card is unsupported: only the server sends one")
+    func sealedShareProfileUnsupported() throws {
+        let plaintext = Flipcash_Messaging_V1_Content.with {
+            $0.widget = .with { $0.shareProfile = .init() }
+        }
+        let sealed = try seal(selfID: hostID).seal(plaintext)
+        let opened = seal(selfID: memberID).open(try message(sealed, from: hostID))
+
+        #expect(opened.decryptFailure == .unsupported)
+    }
+
     @Test("A message claimed by a different sender fails authentication")
     func wrongSender() throws {
         let sealed = try seal(selfID: hostID).seal(text: "welcome", repliedTo: nil)

@@ -335,6 +335,7 @@ public final class LinkableBubbleView: UIView {
         // Empty on a card row: the hidden text still widens the row, and a person card, which gives
         // its own width, would sit short of the column's edge inside it.
         textView.attributedText = bare ? nil : Self.linkedText(for: message)
+        textView.spokenTime = message.sentAt?.formattedChatMessageTime()
         // A web card sits under the text rather than replacing it. Its layout comes off before the
         // switch between text and bare and goes on after it, so no row ever holds two bottoms.
         let webInText = !bare && { if case .web = message.linkPreview?.card { true } else { false } }()
@@ -477,12 +478,17 @@ extension LinkableBubbleView {
     static func linkedText(for message: ChatMessage) -> NSAttributedString? {
         guard let text = ChatBubbleView.displayText(for: message) else { return nil }
 
+        return marked(text, links: message.linkPreview?.links ?? [], mentions: message.linkPreview?.mentions ?? [])
+    }
+
+    /// `text` with `links` underlined and `mentions` tagged for their pill, spans outside the text dropped.
+    static func marked(_ text: NSAttributedString, links: [DetectedLink], mentions: [DetectedMention]) -> NSAttributedString {
         let result = NSMutableAttributedString(attributedString: text)
-        for link in message.linkPreview?.links ?? [] where link.length > 0 {
+        for link in links where link.length > 0 {
             guard link.location >= 0, link.location + link.length <= result.length else { continue }
             result.addAttribute(.link, value: link.url, range: link.range)
         }
-        for mention in message.linkPreview?.mentions ?? [] where mention.length > 0 {
+        for mention in mentions where mention.length > 0 {
             guard mention.location >= 0, mention.location + mention.length <= result.length else { continue }
             result.addAttribute(.textItemTag, value: mention.username.value, range: mention.range)
             let mentionFont = UIFont.default(size: ChatStyle.mentionSize, weight: ChatStyle.mentionWeight)
@@ -585,6 +591,14 @@ enum MentionPill {
 /// ChatLayout's own `MessageTextView` recipe.
 final class LinkTextView: UITextView {
     private let pills = CAShapeLayer()
+    /// The message's full send time, read after the text. A text view's value is its text, so the
+    /// time is appended to it rather than set in its place.
+    var spokenTime: String?
+
+    override var accessibilityValue: String? {
+        get { [super.accessibilityValue, spokenTime].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ") }
+        set { super.accessibilityValue = newValue }
+    }
 
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)

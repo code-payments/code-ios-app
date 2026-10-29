@@ -26,7 +26,7 @@ struct AddMoneyStartScreen: View {
         PartialSheet {
             VStack(spacing: 12) {
                 HStack {
-                    Text("Add Money With")
+                    Text("Add Dollars With")
                         .font(.appBarButton)
                         .foregroundStyle(Color.textMain)
                     Spacer()
@@ -188,7 +188,7 @@ struct AddMoneyStartScreen: View {
     }
 }
 
-/// An "Add Money With" row: a titled/subtitled card with a trailing method
+/// An "Add Dollars With" row: a titled/subtitled card with a trailing method
 /// glyph (Figma / Android parity).
 private struct AddMoneyMethodRow: View {
 

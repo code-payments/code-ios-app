@@ -9,6 +9,34 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// A link chip drawn to the design: a 17pt glyph and the app small text label in a 6pt-radius tile.
+/// Local to this section because the shared `IconButtonStyle` sets a bold 16pt label and an 18pt glyph.
+private struct LinkChipStyle: ButtonStyle {
+    let icon: Image
+
+    init(_ icon: Asset) { self.icon = Image.asset(icon) }
+
+    init(_ icon: Icon) { self.icon = Image.icon(icon) }
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 10) {
+            icon
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 17, height: 17)
+            configuration.label
+                .lineLimit(1)
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
+        }
+        .opacity(configuration.isPressed ? 0.6 : 1.0)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(.white.opacity(0.1))
+        .clipShape(.rect(cornerRadius: 6))
+    }
+}
+
 struct CurrencyInfoSocialLinksSection: View {
     let socialLinks: [SocialLink]
 
@@ -19,21 +47,21 @@ struct CurrencyInfoSocialLinksSection: View {
                     switch socialLink {
                     case .website(let url):
                         Link("Website", destination: url)
-                            .buttonStyle(.icon(Icon.globe))
+                            .buttonStyle(LinkChipStyle(Icon.globe))
                     case .x(let handle):
                         if let url = URL.socialProfile(host: "x.com", handle: handle) {
-                            Link(handle, destination: url)
-                                .buttonStyle(.icon(.twitter))
+                            Link("@\(handle)", destination: url)
+                                .buttonStyle(LinkChipStyle(.twitter))
                         }
                     case .telegram(let username):
                         if let url = URL.socialProfile(host: "t.me", handle: username) {
                             Link("Telegram", destination: url)
-                                .buttonStyle(.icon(.telegram))
+                                .buttonStyle(LinkChipStyle(.telegram))
                         }
                     case .discord(let inviteCode):
                         if let url = URL.socialProfile(host: "discord.gg", handle: inviteCode) {
                             Link("Discord", destination: url)
-                                .buttonStyle(.icon(.discord))
+                                .buttonStyle(LinkChipStyle(.discord))
                         }
                     }
                 }

@@ -10,13 +10,17 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
-/// One reaction pill: emoji + count on a capsule. A self-reacted pill takes the accent's tint, ring
-/// and count colour; the ring never changes its width. Tap toggles the reaction; the row it
-/// sits in owns the long press, so a press just off the pill still opens the reactors sheet.
+/// One reaction pill: emoji + count on a capsule. A boosted pill adds its dollar total after the
+/// emoji and shows the count only above one. A self-reacted pill takes the accent's tint, ring and
+/// count colour; the ring never changes its width. A boosted pill the viewer reacted to turns gold
+/// instead: gold ring, amount and count over a gold wash. Someone else's boosted pill keeps the
+/// resting look with its amount at half white. Tap toggles the reaction; the row it sits in owns
+/// the long press, so a press just off the pill still opens the reactors sheet.
 final class ReactionPillView: UIView {
 
     private let stack = UIStackView()
     private let emojiLabel = UILabel()
+    private let boostLabel = UILabel()
     private let countLabel = UILabel()
     /// Holds the count label at the width its reserved digits need, so a count change inside that
     /// room never resizes the pill.
@@ -34,6 +38,12 @@ final class ReactionPillView: UIView {
     private static var restingFill: UIColor { ChatStyle.pillFill }
     private static var selfReactedBorder: UIColor { ChatStyle.accentRing }
     private static var selfReactedBorderWidth: CGFloat { ChatStyle.pillRingWidth }
+    /// The border and amount of a boosted pill the viewer reacted to; its fill is this at 10% and its count at 50%.
+    private static let boosted = UIColor(Color.reactionBoost)
+    private static let boostedFill = boosted.withAlphaComponent(0.1)
+    private static let boostedCount = boosted.withAlphaComponent(0.5)
+    /// The amount on someone else's boosted pill.
+    private static let othersBoostAmount = UIColor.white.withAlphaComponent(0.5)
 
     private lazy var heightConstraint = heightAnchor.constraint(equalToConstant: ChatStyle.pillHeight)
     private lazy var stackLeading = stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatStyle.pillLeadingPadding)
@@ -51,7 +61,9 @@ final class ReactionPillView: UIView {
         addSubview(stack)
 
         countLabel.textAlignment = .left
+        boostLabel.isHidden = true
         stack.addArrangedSubview(emojiLabel)
+        stack.addArrangedSubview(boostLabel)
         stack.addArrangedSubview(countLabel)
 
         NSLayoutConstraint.activate([
@@ -86,28 +98,53 @@ final class ReactionPillView: UIView {
         }
         countLabel.text = "\(pill.count)"
         countWidth.constant = Self.countWidth(digits: max(min(countDigits, ChatStyle.pillCountRoom), "\(pill.count)".count))
+        let boostText = pill.boost.map { ($0.displayed ?? $0.usd).formatted() }
+        boostLabel.text = boostText
+        Self.setHidden(boostLabel, boostText == nil)
+        Self.setHidden(countLabel, boostText != nil && pill.count <= 1)
+        // The trailing padding leans on the count's reserved room, so with no count the amount takes the leading padding.
+        if countLabel.isHidden { stackTrailing.constant = -ChatStyle.pillLeadingPadding }
 
-        let fill = pill.selfReacted ? Self.selfReactedFill : Self.restingFill
+        let isGold = pill.boost != nil && pill.selfReacted
+        boostLabel.textColor = isGold ? Self.boosted : Self.othersBoostAmount
+        countLabel.textColor = isGold ? Self.boostedCount : (pill.selfReacted ? ChatStyle.accentColor : ChatStyle.secondaryText)
+        let fill = isGold ? Self.boostedFill : pill.selfReacted ? Self.selfReactedFill : Self.restingFill
         let borderWidth = pill.selfReacted ? Self.selfReactedBorderWidth : 0
-        if animated, let previous, previous.selfReacted != pill.selfReacted {
-            let border = CABasicAnimation(keyPath: "borderWidth")
-            border.fromValue = layer.presentation()?.borderWidth ?? layer.borderWidth
-            border.toValue = borderWidth
-            border.duration = ChatMotion.reactionChange.duration
-            border.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            layer.add(border, forKey: "borderWidth")
+        let borderColor = (isGold ? Self.boosted : Self.selfReactedBorder).cgColor
+        if animated, let previous,
+           previous.selfReacted != pill.selfReacted || (previous.boost != nil && previous.selfReacted) != isGold {
+            let presentation = layer.presentation()
+            for (keyPath, from, to) in [
+                ("borderWidth", presentation?.borderWidth ?? layer.borderWidth, borderWidth),
+                ("borderColor", presentation?.borderColor ?? layer.borderColor, borderColor),
+            ] as [(String, Any?, Any)] {
+                let border = CABasicAnimation(keyPath: keyPath)
+                border.fromValue = from
+                border.toValue = to
+                border.duration = ChatMotion.reactionChange.duration
+                border.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                layer.add(border, forKey: keyPath)
+            }
             ChatMotion.reactionChange.animate { self.backgroundColor = fill }
         } else {
             backgroundColor = fill
         }
-        layer.borderColor = Self.selfReactedBorder.cgColor
+        layer.borderColor = borderColor
         layer.borderWidth = borderWidth
-        countLabel.textColor = pill.selfReacted ? ChatStyle.accentColor : ChatStyle.secondaryText
 
         isUserInteractionEnabled = true
         isAccessibilityElement = true
-        accessibilityLabel = "\(pill.emoji), \(pill.count) reaction\(pill.count == 1 ? "" : "s")"
+        accessibilityLabel = [pill.emoji, boostText, "\(pill.count) reaction\(pill.count == 1 ? "" : "s")"]
+            .compactMap { $0 }
+            .joined(separator: ", ")
         accessibilityTraits = canReact ? .button : []
+    }
+
+    /// Writes `isHidden` only when it changes. Inside an animation, `UIStackView` counts each hide of an
+    /// already-hidden arranged subview, and one unhide then leaves the label at zero width: a boost that
+    /// arrives after a few animated reconfigures drew a gold pill with no amount.
+    private static func setHidden(_ view: UIView, _ hidden: Bool) {
+        if view.isHidden != hidden { view.isHidden = hidden }
     }
 
     /// The width `digits` digits of the count font can take, whichever digits they are.
@@ -133,6 +170,7 @@ final class ReactionPillView: UIView {
         stackTrailing.constant = -ChatStyle.pillTrailingPadding
         emojiLabel.font = .systemFont(ofSize: ChatStyle.pillEmojiSize)
         countLabel.font = Self.countFont
+        boostLabel.font = Self.countFont
     }
 
     /// Rolls the count to its next value: up for a rise, down for a fall, the way a counter turns.

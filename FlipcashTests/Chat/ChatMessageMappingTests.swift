@@ -22,14 +22,60 @@ struct ChatMessageMappingTests {
     private let base = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 1_000_000))
         .addingTimeInterval(9 * 60 * 60)
 
-    private func text(_ id: UInt64, _ sender: UUID, _ body: String, after offset: TimeInterval) -> ConversationMessage {
-        ConversationMessage(
+    @Test("Only someone else's row the viewer reacted to offers the paid-reaction $, and only when the chat allows boosts")
+    func canBoostOnlyOnOthersReactedRows() {
+        let messages = [
+            text(1, them, "theirs", after: 0, reaction: (count: 1, selfReacted: true)),
+            text(2, me, "mine", after: 60, reaction: (count: 1, selfReacted: true)),
+            text(3, them, "others reacted", after: 120, reaction: (count: 2, selfReacted: false)),
+            text(4, them, "unreacted", after: 180),
+        ]
+        func boostable(_ canBoost: Bool) -> [String: Bool] {
+            let rows = ChatItem.from(messages, selfUserID: me, canBoost: canBoost)
+                .compactMap { if case .message(let m) = $0, case .text(let body) = m.content { (body, m.canBoost) } else { nil } }
+            return Dictionary(uniqueKeysWithValues: rows)
+        }
+        #expect(boostable(true) == ["theirs": true, "mine": false, "others reacted": false, "unreacted": false])
+        #expect(boostable(false).values.allSatisfy { !$0 })
+    }
+
+    @Test("In a DM the other member's reacted message is boostable and the viewer's own is not")
+    func dmBoostIsOnTheOtherMembersMessage() {
+        let messages = [
+            text(1, them, "from them", after: 0, reaction: (count: 1, selfReacted: true)),
+            text(2, me, "from me", after: 60, reaction: (count: 1, selfReacted: true)),
+        ]
+        let rows = ChatItem.from(messages, selfUserID: me, canBoost: true)
+            .compactMap { if case .message(let m) = $0, case .text(let body) = m.content { (body, m.canBoost) } else { nil } }
+        #expect(Dictionary(uniqueKeysWithValues: rows) == ["from them": true, "from me": false])
+    }
+
+    private func text(
+        _ id: UInt64,
+        _ sender: UUID,
+        _ body: String,
+        after offset: TimeInterval,
+        reaction: (count: UInt64, selfReacted: Bool)? = nil
+    ) -> ConversationMessage {
+        var message = ConversationMessage(
             id: MessageID(value: id),
             senderID: sender,
             content: .text(body),
             date: base.addingTimeInterval(offset),
             unreadSeq: id
         )
+        if let reaction {
+            var state = ReactionState()
+            state.applySummary([ReactionState.SummaryEntry(
+                emoji: "👍",
+                count: reaction.count,
+                selfReacted: reaction.selfReacted,
+                version: 1,
+                selfReactedAt: reaction.selfReacted ? base : nil
+            )])
+            message.reactionState = state
+        }
+        return message
     }
 
     private func reply(_ id: UInt64, _ sender: UUID, _ body: String, to repliedTo: UInt64, after offset: TimeInterval) -> ConversationMessage {
@@ -135,7 +181,7 @@ struct ChatMessageMappingTests {
     }
 
     private func systemTexts(_ items: [ChatItem]) -> [String] {
-        items.compactMap { if case .systemMessage(_, let text, _) = $0 { text } else { nil } }
+        items.compactMap { if case .systemMessage(_, let text, _, _) = $0 { text } else { nil } }
     }
 
     @Test("a join notice renders the names it is about")
@@ -151,7 +197,7 @@ struct ChatMessageMappingTests {
     @Test("a system notice carries its message id for the READ pointer")
     func systemNoticeCarriesServerID() {
         let items = ChatItem.from([joinNotice(nil)], selfUserID: me, counterpartName: "Ada")
-        let ids = items.compactMap { if case .systemMessage(_, _, let serverID) = $0 { serverID } else { nil } }
+        let ids = items.compactMap { if case .systemMessage(_, _, let serverID, _) = $0 { serverID } else { nil } }
         #expect(ids == [MessageID(value: 1)])
     }
 
@@ -276,6 +322,20 @@ struct ChatMessageMappingTests {
         #expect(!broken[1].isContinuationFromPrevious)
     }
 
+    @Test("A 90-minute pause opens a date separator; a 30-minute pause does not")
+    func hourGapOpensSeparator() {
+        func separators(afterPause pause: TimeInterval) -> Int {
+            let rows = [
+                ConversationMessage(id: MessageID(value: 1), senderID: me, content: .text("a"), date: base, unreadSeq: 1),
+                ConversationMessage(id: MessageID(value: 2), senderID: me, content: .text("b"), date: base.addingTimeInterval(pause), unreadSeq: 2),
+            ]
+            return separatorCount(ChatItem.from(rows, selfUserID: me))
+        }
+
+        #expect(separators(afterPause: 30 * 60) == 1)  // only the one opening the transcript
+        #expect(separators(afterPause: 90 * 60) == 2)  // the pause heads the second message
+    }
+
     @Test("A run does not carry across a change of day, however short the pause")
     func dayChangeBreaksRun() {
         // Straddling local midnight, so the two rows are minutes apart but on different dates.
@@ -297,7 +357,7 @@ struct ChatMessageMappingTests {
         #expect(separatorCount(items) == 2) // one opening the transcript, one heading the new day
     }
 
-    @Test("Cash messages map to formatted cash content with a currency flag")
+    @Test("Cash messages map to formatted cash content")
     func cash() {
         let fiat = ExchangedFiat(
             nativeAmount: FiatAmount(value: 5, currency: .usd),
@@ -317,9 +377,32 @@ struct ChatMessageMappingTests {
         }
         #expect(cash.token == "Cash")
         #expect(cash.amount == fiat.nativeAmount.formatted())
-        #expect(cash.flagImageName != nil) // currency flag derived from the currency
         #expect(!cash.isTip) // no cash action → plain send
         #expect(ChatCashContent.caption(isFromSelf: false, isTip: cash.isTip) == "You received")
+    }
+
+    @Test("A cash message shows the amount restated in the display currency")
+    func cash_restatedInDisplayCurrency() {
+        let fiat = ExchangedFiat(
+            nativeAmount: FiatAmount(value: 10, currency: .cad),
+            rate: Rate(fx: Decimal(string: "1.37")!, currency: .cad)
+        )
+        let messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: them, content: .cash(fiat), date: base, unreadSeq: 1),
+        ]
+        let display = DisplayCurrency(
+            currency: .usd,
+            rates: [Rate(fx: Decimal(string: "1.37")!, currency: .cad), Rate(fx: 1, currency: .usd)]
+        )
+
+        let rows = messageRows(ChatItem.from(messages, selfUserID: me, viewerAmount: display.amount))
+
+        guard case .cash(let cash) = rows.first?.content else {
+            Issue.record("expected cash content")
+            return
+        }
+        #expect(cash.amount == display.amount(fiat).formatted())
+        #expect(cash.amount != fiat.nativeAmount.formatted())
     }
 
     @Test("Photo messages map to media content, a redacted one staying a photo", arguments: [false, true])
@@ -346,6 +429,29 @@ struct ChatMessageMappingTests {
             caption: "hi",
             isRedacted: redacted
         ))])
+    }
+
+    @Test("A photo's caption carries the mentions and links in it, as a text body does")
+    func mediaCaptionMentionsAndLinks() throws {
+        let caption = "Any idea what might be happening there @jeff @mcansh? https://apple.com"
+        let attachment = MediaAttachment(blobID: BlobID(data: Data([9, 8, 7])), width: 300, height: 400, blurhash: "LEHV6nWB2yk8")
+        let messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: them, content: .media([attachment], caption: caption), date: base, unreadSeq: 1),
+            ConversationMessage(id: MessageID(value: 2), senderID: them, content: .text(caption), date: base, unreadSeq: 2),
+        ]
+
+        let rows = messageRows(ChatItem.from(messages, selfUserID: me))
+
+        guard case .media(let media) = rows[0].content else {
+            Issue.record("expected media content, got \(rows[0].content)")
+            return
+        }
+        let handles = media.captionMentions.map { (caption as NSString).substring(with: $0.range) }
+        #expect(handles == ["@jeff", "@mcansh"])
+        // Exactly what the text path detects for the same words.
+        #expect(media.captionPreview == rows[1].linkPreview)
+        #expect(media.captionPreview?.links.map(\.url) == [URL(string: "https://apple.com")!])
+        #expect(rows[0].linkPreview == nil) // the row is never split around a card
     }
 
     @Test("Tipped cash messages carry the tip flag and caption")

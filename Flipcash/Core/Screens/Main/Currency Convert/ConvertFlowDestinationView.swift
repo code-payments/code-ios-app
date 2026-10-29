@@ -24,13 +24,14 @@ struct ConvertFlowDestinationView: View {
                 pinnedState: pinnedState
             )
 
-        case .processing(let swapId, let destinationMint, let destinationName, let amount):
+        case .processing(let swapId, let destinationMint, let destinationName, let amount, let attemptsUsed):
             SwapProcessingScreen(
                 swapId: swapId,
                 swapType: .convert,
                 targetMint: destinationMint,
                 currencyName: destinationName,
-                amount: amount
+                amount: amount,
+                attemptsUsed: attemptsUsed
             )
         }
     }

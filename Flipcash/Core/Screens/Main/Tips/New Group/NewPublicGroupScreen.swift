@@ -71,6 +71,9 @@ struct NewPublicGroupScreen: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        .onChange(of: communityCurrencies, initial: true) { _, currencies in
+            model.applyDefaultCurrency(from: currencies)
+        }
         .navigationTitle(model.privacy == .private ? "New Private Group" : "New Public Group")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -99,18 +102,13 @@ struct NewPublicGroupScreen: View {
         .sheet(isPresented: $isPickingCurrency) {
             SelectCurrencyScreen(
                 isPresented: $isPickingCurrency,
-                // Dollars isn't a community currency; "Any Community Currency" is the last row.
+                // Dollars isn't a community currency.
                 excludesUSDF: true,
                 // The check follows the requirement's mint, not the wallet's denomination — this
                 // screen is picking what the gate weighs, not what the balance is shown in.
-                isSelected: { $0.stored.mint == model.currency.mint }
+                isSelected: { $0.stored.mint == model.currency?.stored.mint }
             ) { balance in
                 model.select(balance: balance)
-            } footer: {
-                AnyCommunityCurrencyRow(isSelected: model.currency == .anyCommunityCurrency) {
-                    model.selectAnyCommunityCurrency()
-                    isPickingCurrency = false
-                }
             }
         }
         .sheet(isPresented: $isEnteringCustomAmount) {
@@ -162,14 +160,15 @@ struct NewPublicGroupScreen: View {
             sectionHeader("Community Currency")
 
             Group {
-                switch model.currency {
-                case .anyCommunityCurrency:
-                    CommunityCurrencyRow(name: AnyCommunityCurrency.name, action: { isPickingCurrency = true }) {
-                        AllCurrenciesIcon(size: 32)
-                    }
-                case .specific(let balance):
+                if let balance = model.currency {
                     CommunityCurrencyRow(name: balance.stored.name, action: { isPickingCurrency = true }) {
                         TokenIcon(url: balance.stored.imageURL, monogramID: balance.stored.mint.base58, size: 32)
+                    }
+                } else {
+                    // Reached only by a route that skips the chooser's check, or before balances
+                    // load; the design draws no frame for it.
+                    CommunityCurrencyRow(name: "Select a Currency", action: { isPickingCurrency = true }) {
+                        EmptyView()
                     }
                 }
             }
@@ -187,12 +186,14 @@ struct NewPublicGroupScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.backgroundRow, in: .rect(cornerRadius: Metrics.buttonRadius))
 
-            Text(model.requirementCaption)
-                .font(.default(size: 13, weight: .medium))
-                .foregroundStyle(Color.textMain.opacity(0.5))
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 12)
-                .accessibilityIdentifier("new-group-requirement-caption")
+            if let caption = model.requirementCaption {
+                Text(caption)
+                    .font(.default(size: 13, weight: .medium))
+                    .foregroundStyle(Color.textMain.opacity(0.5))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .accessibilityIdentifier("new-group-requirement-caption")
+            }
 
             // The server refuses a chat whose creator is short of its own rules, so say so here
             // rather than spending the round trip to be told.
@@ -214,13 +215,18 @@ struct NewPublicGroupScreen: View {
             .padding(.horizontal, 12)
     }
 
+    /// A USD-priced minimum as the viewer reads it, in the display currency.
+    private func displayed(_ amount: FiatAmount) -> FiatAmount {
+        ratesController.displayCurrency.amount(amount)
+    }
+
     private var presets: some View {
         HStack(spacing: 8) {
             ForEach(NewPublicGroupModel.presets, id: \.self) { amount in
                 AmountPresetButton(isSelected: model.minimumBalance == amount) {
                     model.select(minimumBalance: amount)
                 } label: {
-                    Text(amount.formattedDroppingZeroFraction())
+                    Text(displayed(amount).formattedDroppingZeroFraction())
                 }
             }
 
@@ -232,13 +238,13 @@ struct NewPublicGroupScreen: View {
                 isEnteringCustomAmount = true
             } label: {
                 if let custom = model.customMinimumBalance {
-                    Text(custom.formattedDroppingZeroFraction())
+                    Text(displayed(custom).formattedDroppingZeroFraction())
                 } else {
                     Image.system(.ellipsis)
                 }
             }
             .accessibilityLabel(
-                model.customMinimumBalance.map { "Custom amount, \($0.formattedDroppingZeroFraction())" }
+                model.customMinimumBalance.map { "Custom amount, \(displayed($0).formattedDroppingZeroFraction())" }
                     ?? "Custom amount"
             )
             .accessibilityIdentifier("new-group-custom-amount-button")
@@ -247,6 +253,11 @@ struct NewPublicGroupScreen: View {
 
     /// Shown only once the limit is close enough to explain a disabled Create.
     private static let countdownThreshold = 10
+
+    /// The picker's list, whose first entry is the form's default currency.
+    private var communityCurrencies: [ExchangedBalance] {
+        session.balances(for: ratesController.rateForBalanceCurrency()).communityCurrencies()
+    }
 
     private var satisfiesOwnRules: Bool {
         model.satisfiesOwnRules(session: session, rates: ratesController.cachedRates)
@@ -401,40 +412,5 @@ private struct GroupPictureTile: View {
             .clipShape(Circle())
             .overlay { Circle().strokeBorder(Color.white.opacity(0.17)) }
             .contentShape(Circle())
-    }
-}
-
-// MARK: - AmountPresetButton -
-
-/// One of the minimum-balance presets, or the custom-entry ellipsis beside them (node
-/// 10127:118261). The selected one inverts to a white fill.
-private struct AmountPresetButton<Label: View>: View {
-
-    let isSelected: Bool
-    let action: () -> Void
-    @ViewBuilder let label: () -> Label
-
-    /// Node 10127:118260 — the preset row is 61pt tall.
-    private static var height: CGFloat { 61 }
-
-    var body: some View {
-        Button(action: action) {
-            label()
-                .font(.default(size: 22, weight: .bold))
-                .tracking(-0.88)
-                // Four chips share the row, so a custom amount wider than a preset shrinks to fit
-                // rather than wrapping or clipping.
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .foregroundStyle(isSelected ? Color.textAction : Color.textMain)
-                .frame(maxWidth: .infinity)
-                .frame(height: Self.height)
-                .background(
-                    isSelected ? Color.action : Color.white.opacity(0.1),
-                    in: .rect(cornerRadius: Metrics.buttonRadius)
-                )
-                .contentShape(.rect(cornerRadius: Metrics.buttonRadius))
-        }
-        .buttonStyle(.plain)
     }
 }

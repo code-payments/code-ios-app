@@ -97,10 +97,10 @@ struct UsernameEntryScreen: View {
         .onDisappear { submitTask?.cancel() }
     }
 
-    /// The server's minimum in USD, or nil before user flags have loaded.
+    /// The server's USD minimum in the display currency, or nil before user flags have loaded.
     private var minimumBalance: FiatAmount? {
         guard let minimum = session.userFlags?.usernameMinBalance else { return nil }
-        return .usd(minimum.decimalValue)
+        return session.displayCurrency.amount(.usd(minimum.decimalValue))
     }
 
     /// Enabled for anything non-empty that isn't the handle they already hold,

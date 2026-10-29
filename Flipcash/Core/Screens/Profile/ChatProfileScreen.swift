@@ -124,9 +124,10 @@ struct ChatProfileScreen: View {
     }
 
     /// "$10 of NYC", or the bare amount for a dollar-token or any-holding rule: the dollar amount
-    /// already states it, the way the gate panel words it.
+    /// already states it, the way the gate panel words it. The amount is restated in the display
+    /// currency.
     private func holding(_ amount: FiatAmount, mint: PublicKey?) -> String {
-        let formatted = amount.formattedDroppingZeroFraction()
+        let formatted = ratesController.displayCurrency.amount(amount).formattedDroppingZeroFraction()
         guard let mint, mint != .usdf, let name = mintMetadata[mint]?.name else { return formatted }
         return "\(formatted) of \(name)"
     }
@@ -141,10 +142,13 @@ struct ChatProfileScreen: View {
             }
         }
         .dialog(item: $dialogItem)
-        .fullScreenCover(isPresented: $isInviting) {
-            ShareToChatsSheet(subject: .group(conversationID), isPresented: $isInviting) { chatID in
-                router.push(.tipConversation(chatID))
-            }
+        .invitePeople(
+            conversationID,
+            canInvite: conversation?.canInvite ?? false,
+            isPresented: $isInviting,
+            onManageInvites: { router.push(.inviteLinks(conversationID)) }
+        ) { chatID in
+            router.openSharedChat(chatID)
         }
         .tray(isPresented: $isPickingMuteDuration) {
             MuteChatSheet(conversationID: conversationID, isPresented: $isPickingMuteDuration)
@@ -414,7 +418,9 @@ struct ChatProfileScreen: View {
             avatarImageData: sessionContainer.profileAvatars.data(for: .chat(conversationID)),
             avatarBlurhash: conversation?.picture?.thumbnailBlurhash,
             cover: cover,
-            requirements: named.map { PublicGroupRequirementTile.tiles(for: $0, metadata: mintMetadata) } ?? [],
+            requirements: named.map {
+                PublicGroupRequirementTile.tiles(for: $0, metadata: mintMetadata, display: ratesController.displayCurrency)
+            } ?? [],
             yourBalance: named.flatMap { yourBalance(in: $0) },
             // Held back with the requirements above it, so a late reveal doesn't push the card down.
             pulse: chatters.isEmpty || !requirementsNamed ? nil : PublicGroupPulse(chatters: chatters, now: .now),
@@ -575,21 +581,13 @@ struct ChatProfileScreen: View {
         .accessibilityIdentifier(identifier)
     }
 
-    /// What the viewer holds toward the rule, in the rule's currency and token: the join rule when
-    /// there is one, else the chat rule. Nil while no rate can restate it.
+    /// What the viewer holds toward the rule, in the rule's token: the join rule when there is
+    /// one, else the chat rule.
     private func yourBalance(in requirements: GroupBalanceRequirements) -> String? {
         guard let rule = requirements.join ?? requirements.chat else { return nil }
         let mint = rule.mints.first
         let held = heldBalance(in: mint, session: session).roundedToSmallestUnit()
-        let currency = rule.amount.currency
-        let stated: FiatAmount
-        if currency == .usd {
-            stated = held
-        } else {
-            guard let rate = ratesController.cachedRates[currency] else { return nil }
-            stated = held.converting(to: rate)
-        }
-        return holding(stated, mint: mint)
+        return holding(held, mint: mint)
     }
 
     /// Whether Leave Chat ends the scroll content rather than sitting in the pinned bar.

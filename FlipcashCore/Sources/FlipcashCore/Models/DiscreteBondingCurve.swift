@@ -219,9 +219,12 @@ extension DiscreteBondingCurve {
     /// - Parameter supplyQuarks: Current supply in quarks (10 decimals)
     /// - Returns: Market cap in USDC
     public func marketCap(for supplyQuarks: Int) -> Foundation.Decimal? {
-        let supply = supplyQuarks / Self.quarksPerToken
-        guard let price = spotPrice(at: supply) else { return nil }
-        return BigDecimal(supply).multiply(price, Self.rounding).asDecimal()
+        // The price is the whole-token step's; the supply it multiplies keeps its fractional token,
+        // as Android's `Estimator.currentMarketCap` does.
+        let wholeTokens = supplyQuarks / Self.quarksPerToken
+        guard let price = spotPrice(at: wholeTokens) else { return nil }
+        let supply = BigDecimal(supplyQuarks).divide(BigDecimal(Self.quarksPerToken), Self.rounding)
+        return supply.multiply(price, Self.rounding).asDecimal()
     }
 
     /// Estimate a buy operation

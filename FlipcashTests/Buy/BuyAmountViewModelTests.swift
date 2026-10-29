@@ -206,7 +206,7 @@ struct BuyAmountViewModelTests {
 
     // MARK: - Fee-affordable entry
 
-    @Test("Paying the whole Dollars balance drops the entry to what the on-top fee leaves")
+    @Test("Paying the whole Dollars balance is left alone — Dollars carry no fee")
     func wholeDollarsBalance_isCorrected() async throws {
         let container = try await Self.makeContainer(holdings: [
             SessionContainer.Holding(mint: .usdf, quarks: 10_000_000), // $10.00
@@ -216,8 +216,8 @@ struct BuyAmountViewModelTests {
 
         viewModel.correctEntryToAffordable()
 
-        // $10.00 / 1.01 = $9.90099, floored to the cent so the debit fits.
-        #expect(viewModel.enteredAmount == "9.90")
+        // Nothing is charged on top, so the full balance is spendable.
+        #expect(viewModel.enteredAmount == "10")
     }
 
     @Test("A Dollars entry with room for its fee is left exactly as typed")

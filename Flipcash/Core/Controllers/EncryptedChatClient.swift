@@ -155,6 +155,16 @@ extension EncryptedChatClient: ConversationMessaging {
         }
     }
 
+    /// Requests exist only in private groups, which always encrypt, so a chat without a seal fails.
+    func sendPaymentRequestMessage(owner: KeyPair, conversationID: ConversationID, paymentRequestID id: PaymentRequestID, clientMessageID: UUID) async throws -> ConversationMessage {
+        try await refetchingOnRefusal(conversationID) {
+            guard let seal = try await sealForSending(conversationID, owner: owner) else {
+                throw ErrorSendMessage.encryptionRequired
+            }
+            return try await client.sendPaymentRequestMessage(owner: owner, conversationID: conversationID, paymentRequestID: id, seal: seal, clientMessageID: clientMessageID)
+        }
+    }
+
     func photoSeal(owner: KeyPair, conversationID: ConversationID) async throws -> ChatSeal? {
         try await sealForSending(conversationID, owner: owner)
     }
@@ -162,7 +172,7 @@ extension EncryptedChatClient: ConversationMessaging {
     func openingSeal(owner: KeyPair, conversationID: ConversationID) async -> ChatSeal? {
         switch await opener(conversationID, owner: owner) {
         case .seal(let seal):            seal
-        case .awaitingKey, .unsupported: nil
+        case .awaitingKey, .unsupported, .unusableKey: nil
         }
     }
 
@@ -243,7 +253,7 @@ extension EncryptedChatClient: ConversationEventStreaming {
         case .metadataRefresh(let conversation):
             return .metadataRefresh(await opened(conversation))
         case .lastActivityChanged, .readPointersChanged, .typingChanged, .rosterChanged,
-             .viewerStateChanged, .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged:
+             .viewerStateChanged, .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged, .rulesChanged, .paymentRequestsChanged:
             return event
         }
     }

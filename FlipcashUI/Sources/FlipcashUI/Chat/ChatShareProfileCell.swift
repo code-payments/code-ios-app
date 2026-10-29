@@ -74,6 +74,7 @@ public final class ChatShareProfileCell: ChatColumnCell {
         reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
         reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
+        reactionRow.onBoost = { [weak self] in self?.onReactionBoost?() }
 
         cardWidthConstraint = card.widthAnchor.constraint(equalToConstant: Self.designedWidth)
         reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: Self.designedWidth)
@@ -96,6 +97,8 @@ public final class ChatShareProfileCell: ChatColumnCell {
     var onReactionLongPress: ((String) -> Void)?
     /// Fired when the trailing "+" is tapped, to open the picker.
     var onReactionAdd: (() -> Void)?
+    /// Called when the viewer taps the leading "$" to pay for a reaction.
+    var onReactionBoost: (() -> Void)?
 
     /// Scopes the row's touch target to the card, not the full-width cell.
     public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
@@ -130,7 +133,7 @@ public final class ChatShareProfileCell: ChatColumnCell {
         )
         reactionRow.layoutWidth = width
         reactionRow.hugsTrailingEdge = message.sender == .me
-        reactionRow.configure(pills: message.reactions, canReact: message.canReact)
+        reactionRow.configure(pills: message.reactions, canReact: message.canReact, canBoost: message.canBoost)
         updateColumn(for: message, authorImageData: authorImageData)
 
         // A reconfigure in place (a grouping or reaction change) keeps the subscription it has.

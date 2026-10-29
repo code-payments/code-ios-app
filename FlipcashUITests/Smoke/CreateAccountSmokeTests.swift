@@ -32,6 +32,10 @@ final class CreateAccountSmokeTests: BaseUITestCase {
         assertMainScreenReached(
             "Expected to reach the main screen after account creation via Save to Photos"
         )
+        XCTAssertTrue(
+            app.tabBars.buttons["Chat"].firstMatch.isSelected,
+            "Expected Chat to be the selected tab after onboarding"
+        )
     }
 
     func testCreateAccount_wroteDownInstead() {
@@ -51,6 +55,10 @@ final class CreateAccountSmokeTests: BaseUITestCase {
 
         assertMainScreenReached(
             "Expected to reach the main screen after account creation via Wrote Down"
+        )
+        XCTAssertTrue(
+            app.tabBars.buttons["Chat"].firstMatch.isSelected,
+            "Expected Chat to be the selected tab after onboarding"
         )
     }
 }

@@ -65,7 +65,7 @@ struct EditProfileScreen: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("edit-profile-cover")
         .overlay(alignment: .topTrailing) {
-            Button("Change cover") {
+            Button(EditProfileCopy.coverChip(hasCover: profile?.coverPicture != nil)) {
                 router.push(.changeCoverPicture)
             }
             .buttonStyle(.plain)
@@ -91,7 +91,7 @@ struct EditProfileScreen: View {
                 .overlay { Circle().strokeBorder(Color.backgroundMain, lineWidth: 5) }
                 .overlay(alignment: .bottomTrailing) { cameraBadge }
 
-                Text("Change photo")
+                Text(EditProfileCopy.photoCaption(hasPhoto: profile?.profilePicture != nil))
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                     .padding(.bottom, 6)
@@ -137,26 +137,21 @@ struct EditProfileScreen: View {
             }
             .accessibilityIdentifier("edit-profile-minimum")
 
-            FieldCard(title: "Favorite Public Groups", value: featuredGroupsSummary, placeholder: "Add groups") {
+            FieldCard(title: "Favorite Community Chats", value: featuredGroupsSummary, placeholder: "Add chats") {
                 router.push(.editFeaturedGroups)
             }
             .accessibilityIdentifier("edit-profile-featured-groups")
         }
     }
 
-    @ViewBuilder
     private var usernameCard: some View {
-        if needsUsernameClaim {
-            FieldCard(title: "Username", value: "Claim your username", placeholder: "", valueIsPrompt: true, action: beginUsernameClaim)
-                .accessibilityIdentifier("edit-profile-username")
-        } else if let username = profile?.username {
-            // No balance gate on a held handle: the gate exists to stop squatting at claim time,
-            // and a user who already holds one has cleared it.
-            FieldCard(title: "Username", value: "@\(username.value)", placeholder: "") {
-                router.push(.username(username))
-            }
-            .accessibilityIdentifier("edit-profile-username")
-        }
+        FieldCard(
+            title: "Username",
+            value: EditProfileCopy.usernameValue(profile?.username),
+            placeholder: "Add a username",
+            action: openUsername
+        )
+        .accessibilityIdentifier("edit-profile-username")
     }
 
     /// How many groups the profile features, or nil for none.
@@ -176,18 +171,38 @@ struct EditProfileScreen: View {
         return string
     }
 
-    // MARK: - Username claim -
+    // MARK: - Username -
 
-    /// The same entry the You tab's progress card takes: the claim screen once the balance clears
-    /// the server's minimum, the balance dialog otherwise.
-    private func beginUsernameClaim() {
-        switch usernameGate(session: session, minimum: session.userFlags?.usernameMinBalance) {
-        case .proceed:
+    /// A handle the user chose is opened directly: the balance gate exists to stop squatting at
+    /// claim time, and a user who holds one has cleared it. Otherwise the gate decides between the
+    /// claim screen and the balance dialog.
+    private func openUsername() {
+        let gate = usernameGate(session: session, minimum: session.userFlags?.usernameMinBalance)
+        switch usernameRowDestination(needsClaim: needsUsernameClaim, gate: gate) {
+        case .username:
             router.push(.username(profile?.username))
-        case .addMoney(let minimum, _, _):
-            dialog = .usernameMinimumBalance(minimum: minimum) {
+        case .balanceRequired(let minimum):
+            dialog = .usernameMinimumBalance(minimum: ratesController.displayCurrency.amount(minimum)) {
                 router.presentAddMoney(.general, source: .usernameShortfall)
             }
         }
+    }
+}
+
+/// The Edit Profile strings that depend on what the profile already holds.
+enum EditProfileCopy {
+    /// The cover chip's label: "Add cover photo" until there is a cover, then "Change cover".
+    static func coverChip(hasCover: Bool) -> String {
+        hasCover ? "Change cover" : "Add cover photo"
+    }
+
+    /// The caption under the avatar: "Add profile photo" until there is a photo, then "Change photo".
+    static func photoCaption(hasPhoto: Bool) -> String {
+        hasPhoto ? "Change photo" : "Add profile photo"
+    }
+
+    /// The Username row's value, or nil when there is no handle to show.
+    static func usernameValue(_ username: Username?) -> String? {
+        username?.handle
     }
 }

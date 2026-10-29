@@ -12,6 +12,8 @@ import ChatLayout
 import DifferenceKit
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.chat-transcript")
+
 /// A standalone chat transcript: a `ChatLayout`-backed collection view that opens at the
 /// newest message and renders whatever `[ChatMessage]` it is handed. Dumb and push-driven —
 /// it pulls nothing. The owner calls `update(messages:)`; there is no network, no database,
@@ -48,6 +50,10 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the user taps a cash card; the argument is the message's stable id. The owner opens
     /// that token's currency info. Only cash rows are selectable (see `shouldHighlightItemAt`).
     public var onCashCardTap: ((String) -> Void)?
+
+    /// Called when the user taps a payment request card; the argument is the request's id bytes. The
+    /// owner opens the request's details.
+    public var onPaymentRequestTap: ((Data) -> Void)?
 
     /// Called when the user taps a URL in a text bubble; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
@@ -100,8 +106,8 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the "Encrypted" marker is tapped; nil leaves it inert.
     public var onEncryptionMarkerTap: (() -> Void)?
 
-    /// Called when the user taps an author's face in the gutter; the argument is that author's user
-    /// id. Never fires in a DM, where no row draws one.
+    /// Called when the user taps an author's face in the gutter, or the inviter's name in an invite
+    /// join notice; the argument is that user's id. Never fires in a DM, where no row draws one.
     public var onAuthorTap: ((UserID) -> Void)?
 
     /// Fired when a context-menu action other than Copy is chosen, with the row's id. Copy is handled
@@ -122,6 +128,8 @@ public final class ChatViewController: UICollectionViewController {
     /// Fired when a message row's trailing "+" reaction pill is tapped, to open the picker for that
     /// row's stable id.
     public var onReactionAdd: ((String) -> Void)?
+    /// Fired when a message row's leading "$" is tapped, to start a paid reaction on that row's id.
+    public var onReactionBoost: ((String) -> Void)?
     /// Fired when a photo row's image is tapped, to open the full-screen viewer. Never fires for a
     /// BlurHash-only or failed row, or one with nothing to show yet.
     public var onMediaTap: ((ChatMediaViewerRequest) -> Void)?
@@ -149,7 +157,11 @@ public final class ChatViewController: UICollectionViewController {
     /// The width a link message's card is held to, or nil when it takes the bubble's width. A message
     /// card sits at the cash card's width in every state rather than filling the row.
     private func linkCardWidth(for message: ChatMessage, available: CGFloat) -> CGFloat? {
-        guard case .message = message.linkPreview?.card else { return nil }
+        linkCardWidth(for: message.linkPreview?.card, available: available)
+    }
+
+    private func linkCardWidth(for card: LinkCard?, available: CGFloat) -> CGFloat? {
+        guard case .message = card else { return nil }
         return cashCardWidth(available: available)
     }
 
@@ -228,10 +240,21 @@ public final class ChatViewController: UICollectionViewController {
     /// Fires when the jump-to-bottom button should appear or go: the opening scroll has landed and the
     /// reader is outside ``bottomThreshold`` of the newest message.
     var onJumpButtonVisibilityChange: ((Bool) -> Void)?
+    /// Fires when the reader leaves or comes back to the newest messages, once the opening scroll has
+    /// landed. Unlike the jump button it ignores a pending return to a quote.
+    var onScrolledAwayChange: ((Bool) -> Void)?
+    /// Fires on every scroll once the opening scroll has landed, with how far in points the
+    /// newest message's edge sits below the visible area; zero at the newest messages.
+    var onDistanceFromNewestChange: ((CGFloat) -> Void)?
+    /// A band this many points above the newest messages that a released scroll never rests inside: it
+    /// settles at whichever edge is nearer, so what follows the band (a collapsing header) ends at
+    /// one end or the other. Nil leaves releases alone.
+    var snapDistanceFromNewest: CGFloat?
     /// Fires when the reader starts a drag after the opening scroll has landed — the signal that
     /// ends the jump badge's frozen count. Programmatic scrolls never fire it.
     public var onUserScrollBegan: (() -> Void)?
     private var isJumpButtonVisible = false
+    private var isScrolledAway = false
     /// What this visit has reported read so far.
     private var readProgress = ReadProgress()
     /// Whether a read report is queued for the next main-queue turn, so a burst of scroll ticks
@@ -253,11 +276,18 @@ public final class ChatViewController: UICollectionViewController {
     /// Drag a row towards the leading edge to reply to it. Owns its own recognizer and state — see
     /// `ChatSwipeToReply` for why it is exclusive with every other gesture here.
     private let swipeToReply = ChatSwipeToReply()
+    /// Drag the transcript towards the leading edge to reveal send times. The opposite direction to
+    /// `swipeToReply`, and exclusive with it the same way.
+    private let timestampReveal = ChatTimestampReveal()
     /// Breathing room kept below the last item, above the bar, so a trailing receipt doesn't sit
     /// flush against the bar.
     private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
+
+    /// True only while UIKit re-runs `cellForItemAt` for reconfigured rows, the one call where the
+    /// cell already on screen must be of the row's class.
+    private var isReconfiguring = false
     /// The first row of the new block appended at the bottom by the batch in flight, or nil when the
     /// batch appends nothing there. Those rows start below their slots (see `insertionRise(for:frame:)`).
     private var appendedFrom: Int?
@@ -371,6 +401,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatLinkMessageCell.self, forCellWithReuseIdentifier: ChatLinkMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatShareProfileCell.self, forCellWithReuseIdentifier: ChatShareProfileCell.reuseIdentifier)
+        collectionView.register(ChatPaymentRequestCell.self, forCellWithReuseIdentifier: ChatPaymentRequestCell.reuseIdentifier)
         collectionView.register(ChatMediaCell.self, forCellWithReuseIdentifier: ChatMediaCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
@@ -398,6 +429,18 @@ public final class ChatViewController: UICollectionViewController {
             self?.onMessageAction?(stableID, .reply)
         }
         collectionView.addGestureRecognizer(swipeToReply.recognizer)
+
+        timestampReveal.isBlocked = { [weak self] in
+            guard let self else { return true }
+            return self.isShowingContextMenu || self.isUpdating
+        }
+        timestampReveal.onOffsetChange = { [weak self] offset in
+            guard let self else { return }
+            for case let cell as ChatColumnCell in self.collectionView.visibleCells {
+                cell.revealOffset = offset
+            }
+        }
+        collectionView.addGestureRecognizer(timestampReveal.recognizer)
 
         collectionView.reloadData()
     }
@@ -469,6 +512,8 @@ public final class ChatViewController: UICollectionViewController {
             // never inherit a translation from the row that was dragged before it.
             swipeToReply.recognizer.isEnabled = false
             swipeToReply.recognizer.isEnabled = true
+            timestampReveal.recognizer.isEnabled = false
+            timestampReveal.recognizer.isEnabled = true
             collectionView.reloadData()
             // A jump that was waiting on this update owns where the transcript lands, so it runs
             // instead of the opening scroll-to-bottom rather than after it: that scroll queues a
@@ -520,6 +565,7 @@ public final class ChatViewController: UICollectionViewController {
                     // no scroll event would report it.
                     scheduleReadReport()
                 },
+                reconfiguring: { [weak self] in self?.isReconfiguring = $0 },
                 setData: { [weak self] data in
                     self?.items = data
                 }
@@ -632,6 +678,7 @@ public final class ChatViewController: UICollectionViewController {
 
     public override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let item = items[indexPath.item]
+        logLiveCellMismatch(at: indexPath, expected: item.cellReuseIdentifier)
         // Dequeue by the item's `cellReuseIdentifier` — the same value folded into the diff
         // identity — so the class dequeued at a position always matches the one the diff promised
         // there, and a reconfigure can never land on a cell of a different class (UIKit forbids that).
@@ -646,12 +693,35 @@ public final class ChatViewController: UICollectionViewController {
         case .encryptionMarker:
             let tap: (() -> Void)? = onEncryptionMarkerTap == nil ? nil : { [weak self] in self?.onEncryptionMarkerTap?() }
             (cell as! ChatEncryptionMarkerCell).configure(onTap: tap)
-        case .systemMessage(_, let text, _):
-            (cell as! ChatSystemMessageCell).configure(text: text)
+        case .systemMessage(_, let text, _, let userLink):
+            let tap: ((UserID) -> Void)? = onAuthorTap == nil ? nil : { [weak self] in self?.onAuthorTap?($0) }
+            (cell as! ChatSystemMessageCell).configure(text: text, userLink: userLink, onUserTap: tap)
         case .message(let message):
             configure(cell, with: message)
         }
         return cell
+    }
+
+    /// Logs when a reconfigure is about to hand back a cell of another class than the one on screen,
+    /// which UIKit aborts on (Bugsnag 6ae1d31); the line rides along in that crash's `app_logs`.
+    /// Outside a reconfigure `cellForItem(at:)` can still answer with the pre-batch cell, so a
+    /// differing class there is ordinary.
+    private func logLiveCellMismatch(at indexPath: IndexPath, expected: String) {
+        guard isReconfiguring,
+              let live = collectionView.cellForItem(at: indexPath)?.reuseIdentifier,
+              live != expected else { return }
+        logger.error("Live cell class differs from its row", metadata: [
+            "row": "\(indexPath.item)",
+            "itemCount": "\(items.count)",
+            "expected": "\(expected)",
+            "live": "\(live)",
+            "isUpdating": "\(isUpdating)",
+            "isDragging": "\(collectionView.isDragging)",
+            "isDecelerating": "\(collectionView.isDecelerating)",
+            "offsetFromBottom": "\(Int(collectionView.contentSize.height - collectionView.bounds.maxY))",
+            "hasPendingScroll": "\(pendingScrollTargetID != nil)",
+            "needsInitialScroll": "\(needsInitialScroll)",
+        ])
     }
 
     /// The widest an attributed member's bubble gets: the same fraction of the row less the avatar
@@ -695,6 +765,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatMessageCell:
             cell.configure(
                 with: message,
@@ -708,11 +779,15 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatCashCardCell:
-            cell.configure(with: message, maxWidth: cashCardWidth(available: available), authorImageData: authorImageData)
+            // Every cash card is one width, so an incoming card in a group doesn't give up the avatar
+            // gutter the way a bubble does.
+            cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatShareProfileCell:
             cell.linkCardSource = linkCardSource
             cell.ownProfile = ownProfile
@@ -722,8 +797,18 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
+        case let cell as ChatPaymentRequestCell:
+            cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
+            cell.onRetry = { [weak self] id in self?.onRetry?(id) }
+            cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
+            cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
+            cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatMediaCell:
             guard case .media(let media) = message.content else { return }
+            // Before `configure`, which is where the caption's card draws.
+            cell.linkCardSource = linkCardSource
             let remote = mediaURLResolver?.location(for: media, canReact: message.canReact) { [weak self] _ in
                 self?.reconfigureVisibleMessage(id: message.id)
             }
@@ -735,7 +820,8 @@ public final class ChatViewController: UICollectionViewController {
                 progress: pendingMediaProgress?(message.id),
                 remote: remote,
                 quoteThumbnail: quoteThumbnail(for: message),
-                authorImageData: authorImageData
+                authorImageData: authorImageData,
+                captionWidth: linkCardWidth(for: media.captionCard, available: available)
             )
             cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onImageTap = { [weak self, weak cell] in
@@ -748,10 +834,14 @@ public final class ChatViewController: UICollectionViewController {
                 ) else { return }
                 onMediaTap?(request)
             }
+            cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
+            cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+            cell.onLinkCardTap = { [weak self] card in self?.onLinkCardTap?(card, message.messageID) }
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
+            cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         default:
             assertionFailure("Unhandled chat cell class for message row")
         }
@@ -788,19 +878,34 @@ public final class ChatViewController: UICollectionViewController {
 
     // MARK: - Selection
 
-    /// Only cash cards are tappable — they open the token's currency info. Text bubbles and date
+    /// Only cash and payment request cards are tappable: a cash card opens the token's currency
+    /// info, a request card its details. Text bubbles and date
     /// separators opt out (a text row's only tap is retry, handled by its own recognizer). Gating
     /// highlight is enough to gate selection too: UIKit won't select a row it didn't highlight, and
     /// `didSelectItemAt` re-checks for cash as a backstop.
     public override func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
-        cashMessageID(at: indexPath) != nil
+        cashMessageID(at: indexPath) != nil || paymentRequestID(at: indexPath) != nil
     }
 
     public override func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         // Selection here is a momentary tap action, not a persisted state — clear it immediately.
         collectionView.deselectItem(at: indexPath, animated: false)
+        if let requestID = paymentRequestID(at: indexPath) {
+            onPaymentRequestTap?(requestID)
+            return
+        }
         guard let id = cashMessageID(at: indexPath) else { return }
         onCashCardTap?(id)
+    }
+
+    /// The id of the payment request whose card is at `indexPath`, or nil if that row isn't one or
+    /// its message failed to send (the tap retries it instead).
+    private func paymentRequestID(at indexPath: IndexPath) -> Data? {
+        guard items.indices.contains(indexPath.item),
+              case .message(let message) = items[indexPath.item],
+              case .paymentRequest(let request) = message.content,
+              !message.isFailed else { return nil }
+        return request.requestID
     }
 
     /// The stable id of the cash message at `indexPath`, or nil if that row isn't a cash card. The
@@ -816,6 +921,8 @@ public final class ChatViewController: UICollectionViewController {
     /// hooks, so the wave restarts every time the row is (re)inserted.
     public override func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         (cell as? ChatTypingIndicatorCell)?.startAnimating()
+        // A row scrolled in mid-reveal joins the rest instead of sitting closed among them.
+        (cell as? ChatColumnCell)?.revealOffset = timestampReveal.offset
         reattachAttention(to: cell, at: indexPath)
     }
 
@@ -926,6 +1033,14 @@ public final class ChatViewController: UICollectionViewController {
         return frame.minY < chatLayout.visibleBounds.minY
     }
 
+    /// The stable ids of the message rows that are on screen now, for deciding whether an alert about
+    /// a message needs a pill or whether the message is already in front of the reader.
+    public var visibleMessageIDs: Set<String> {
+        Set(collectionView.indexPathsForVisibleItems.compactMap { indexPath in
+            items.indices.contains(indexPath.item) ? items[indexPath.item].messageID : nil
+        })
+    }
+
     /// Scrolls the given row into view, or waits for the update that brings it in.
     public func scrollToMessage(id: String) {
         guard items.contains(where: { $0.messageID == id }) else {
@@ -955,27 +1070,57 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Centers a row that is already in `items` and flashes it, so the jump lands on a message the
     /// eye can pick out of the transcript rather than on an unmarked one in the middle of the screen.
+    ///
+    /// Rows that have never been on screen sit at the layout's 56pt estimate, so an offset worked out
+    /// before the jump lands short of a target far up a transcript of photos. The destination is
+    /// settled by re-anchoring on the target until the rows around it have self-sized, then the scroll
+    /// runs to that measured offset.
     private func scrollToRow(id: String, animated: Bool) {
         guard let index = items.firstIndex(where: { $0.messageID == id }) else { return }
         let indexPath = IndexPath(item: index, section: 0)
         positionClaim += 1
         let claim = positionClaim
         guard animated else {
-            collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            centerRow(at: indexPath)
             wasAtBottom = isNearBottomByGeometry
             flashAttention(forStableID: id)
+            // Re-anchor once the rows the jump brought on screen have self-sized.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, positionClaim == claim else { return }
+                centerRow(at: indexPath)
+                wasAtBottom = isNearBottomByGeometry
+            }
             return
         }
+        // Measure the destination, then put the reader back where they were so the scroll starts
+        // from what is on screen. All of it runs before the next frame, so none of it is drawn.
+        let origin = chatLayout.getContentOffsetSnapshot(from: .bottom)
+        centerRow(at: indexPath)
+        centerRow(at: indexPath)
+        let destination = collectionView.contentOffset
+        if let origin { chatLayout.restoreContentOffset(with: origin) }
         ChatMotion.scroll.animate {
-            self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            self.collectionView.setContentOffset(destination, animated: false)
         } completion: { _ in
             guard self.positionClaim == claim else { return }
+            // Rows between the reader and the target self-size as the scroll passes them.
+            self.centerRow(at: indexPath)
             self.wasAtBottom = self.isNearBottomByGeometry
         }
         // Alongside the scroll rather than after it: the flash's rise is shorter than the scroll's
         // settle, so the row is already lit when it arrives and there is no beat where the transcript
         // has stopped on a message that looks like every other one.
         flashAttention(forStableID: id)
+    }
+
+    /// Puts the row at `indexPath` in the middle of the visible area by its current height, without
+    /// animating. A row taller than the visible area is top-aligned instead, so it reads from its start.
+    private func centerRow(at indexPath: IndexPath) {
+        guard let frame = chatLayout.layoutAttributesForItem(at: indexPath)?.frame else { return }
+        let inset = collectionView.adjustedContentInset
+        let visibleHeight = collectionView.bounds.height - inset.top - inset.bottom
+        let offset = max(0, (visibleHeight - frame.height) / 2) - chatLayout.settings.additionalInsets.top
+        chatLayout.restoreContentOffset(with: ChatLayoutPositionSnapshot(indexPath: indexPath, edge: .top, offset: offset))
     }
 
     /// Puts the top of the row at `indexPath` at the top of the visible area, without animating. The
@@ -1086,11 +1231,21 @@ public final class ChatViewController: UICollectionViewController {
     /// Whether the offset sits within ``bottomThreshold`` of the bottom edge. Geometry only; unlike
     /// ``wasAtBottom`` it reads the live offset, so it is right after a programmatic move.
     private var isNearBottomByGeometry: Bool {
+        distanceFromNewest < Self.bottomThreshold
+    }
+
+    /// How far the offset sits above the bottom edge, from the live geometry.
+    private var distanceFromNewest: CGFloat {
         let maxOffset = chatLayout.collectionViewContentSize.height - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
-        return maxOffset - collectionView.contentOffset.y < Self.bottomThreshold
+        return maxOffset - collectionView.contentOffset.y
     }
 
     private func publishJumpButtonState() {
+        let away = hasPositioned && !wasAtBottom
+        if away != isScrolledAway {
+            isScrolledAway = away
+            onScrolledAwayChange?(away)
+        }
         let visible = hasPositioned && (!wasAtBottom || !replyReturns.isEmpty)
         guard visible != isJumpButtonVisible else { return }
         isJumpButtonVisible = visible
@@ -1172,8 +1327,37 @@ public final class ChatViewController: UICollectionViewController {
         trackUserScrollPosition()
     }
 
+    public override func scrollViewWillEndDragging(
+        _ scrollView: UIScrollView,
+        withVelocity velocity: CGPoint,
+        targetContentOffset: UnsafeMutablePointer<CGPoint>
+    ) {
+        // A release with no fling is settled in `scrollViewDidEndDragging`: a target moved without
+        // velocity jumps rather than animates.
+        guard velocity.y != 0, let snapped = snappedOffset(forResting: targetContentOffset.pointee.y) else { return }
+        targetContentOffset.pointee.y = snapped
+    }
+
     public override func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        if !decelerate { trackUserScrollPosition() }
+        if !decelerate {
+            if let snapped = snappedOffset(forResting: scrollView.contentOffset.y) {
+                scrollView.setContentOffset(CGPoint(x: 0, y: snapped), animated: true)
+            }
+            trackUserScrollPosition()
+        }
+    }
+
+    /// Where a scroll resting at `offset` settles instead, when it would rest inside
+    /// ``snapDistanceFromNewest``; nil when it's outside the band or the transcript can't scroll
+    /// the band's full height.
+    private func snappedOffset(forResting offset: CGFloat) -> CGFloat? {
+        guard hasPositioned, let band = snapDistanceFromNewest, band > 0 else { return nil }
+        let maxOffset = chatLayout.collectionViewContentSize.height - collectionView.bounds.height + collectionView.adjustedContentInset.bottom
+        let minOffset = -collectionView.adjustedContentInset.top
+        let distance = maxOffset - offset
+        guard distance > 0.5, distance < band - 0.5 else { return nil }
+        guard maxOffset - minOffset >= band else { return maxOffset }
+        return distance < band / 2 ? maxOffset : maxOffset - band
     }
 
     public override func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
@@ -1182,6 +1366,9 @@ public final class ChatViewController: UICollectionViewController {
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
         onScroll?()
+        if hasPositioned {
+            onDistanceFromNewestChange?(max(0, distanceFromNewest))
+        }
         scheduleReadReport()
         // Track "at the bottom" only from real user scrolling, so an inset change (keyboard) or
         // content settling doesn't flip it.
@@ -1261,7 +1448,7 @@ public final class ChatViewController: UICollectionViewController {
             case .other: false
             }
             return ReadProgress.VisibleMessage(id: serverID, isFromSelf: isFromSelf)
-        case .systemMessage(_, _, let serverID):
+        case .systemMessage(_, _, let serverID, _):
             return serverID.map { ReadProgress.VisibleMessage(id: $0, isFromSelf: false) }
         case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker:
             return nil
@@ -1543,7 +1730,7 @@ extension ChatViewController: UIGestureRecognizerDelegate {
     /// everything: once it lifts a row, the taps under the finger must fail rather than fire on
     /// release, and the scroll must not move the transcript under the lift.
     public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        let exclusive: [UIGestureRecognizer?] = [swipeToReply.recognizer, bubbleLongPress]
+        let exclusive: [UIGestureRecognizer?] = [swipeToReply.recognizer, timestampReveal.recognizer, bubbleLongPress]
         return !exclusive.contains { $0 === gestureRecognizer || $0 === otherGestureRecognizer }
     }
 
@@ -1581,7 +1768,12 @@ extension ChatViewController {
         guard !message.actions.isEmpty else { return nil }
 
         // A split row copies the whole message, not the piece of it the row happens to draw.
-        let body: String? = if case .text(let text) = message.content { message.part?.messageText ?? text } else { nil }
+        // A photo copies its caption.
+        let body: String? = switch message.content {
+        case .text(let text): message.part?.messageText ?? text
+        case .media(let media): media.caption.flatMap { $0.isEmpty ? nil : $0 }
+        case .cash, .deleted, .unavailable, .shareProfile, .paymentRequest: nil
+        }
         let rowID = message.messageID
         let handler = onMessageAction
 

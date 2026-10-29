@@ -60,7 +60,7 @@ struct HistoryControllerTests {
     }
 
     /// An empty local cache means "we haven't looked yet" until a sync says
-    /// otherwise — the wallet withholds its new-user tutorial on this.
+    /// otherwise — the wallet withholds its new-user Add Money row on this.
     @Test("Initial syncState is .unknown before the first sync")
     func initialSyncStateIsUnknown() throws {
         let (database, url) = try Database.makeTemp()

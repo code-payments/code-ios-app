@@ -169,11 +169,53 @@ extension Activity.BoostedReaction {
     /// payments that boosted nothing.
     init?(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
         switch proto {
-        case .directlySentCrypto(let metadata) where metadata.hasBoostedReaction:
-            self.init(metadata.boostedReaction)
-        case .receivedCrypto(let metadata) where metadata.hasBoostedReaction:
-            self.init(metadata.boostedReaction)
-        case .directlySentCrypto, .receivedCrypto, .withdrewCrypto, .indirectlySentCrypto,
+        case .directlySentCrypto(let metadata):
+            guard case .boostedReaction(let reaction)? = metadata.context else { return nil }
+            self.init(reaction)
+        case .receivedCrypto(let metadata):
+            guard case .boostedReaction(let reaction)? = metadata.context else { return nil }
+            self.init(reaction)
+        case .withdrewCrypto, .indirectlySentCrypto,
+             .depositedCrypto, .boughtCrypto, .soldCrypto, .swappedCrypto, .none:
+            return nil
+        }
+    }
+}
+
+extension Activity {
+    /// The payment request a payment paid a share of: for a send, the payer paid their share to the
+    /// request's creator; for a receive, a debtor paid their share of the viewer's request. The
+    /// request may since have closed and the viewer may no longer be a member of the chat.
+    public struct RequestedPayment: Sendable, Equatable, Hashable {
+        public let conversationID: ConversationID
+        public let paymentRequestID: PaymentRequestID
+
+        public init(conversationID: ConversationID, paymentRequestID: PaymentRequestID) {
+            self.conversationID = conversationID
+            self.paymentRequestID = paymentRequestID
+        }
+    }
+}
+
+extension Activity.RequestedPayment {
+    init(_ proto: Flipcash_Activity_V1_RequestedPayment) {
+        self.init(
+            conversationID: ConversationID(proto.chatID),
+            paymentRequestID: PaymentRequestID(proto.paymentRequestID)
+        )
+    }
+
+    /// The requested payment a send or receive notification carries; `nil` for other kinds and for
+    /// payments that paid no request.
+    init?(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
+        switch proto {
+        case .directlySentCrypto(let metadata):
+            guard case .requestedPayment(let payment)? = metadata.context else { return nil }
+            self.init(payment)
+        case .receivedCrypto(let metadata):
+            guard case .requestedPayment(let payment)? = metadata.context else { return nil }
+            self.init(payment)
+        case .withdrewCrypto, .indirectlySentCrypto,
              .depositedCrypto, .boughtCrypto, .soldCrypto, .swappedCrypto, .none:
             return nil
         }

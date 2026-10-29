@@ -10,12 +10,12 @@ import FlipcashUI
 struct CurrencyDiscoveryScreen: View {
 
     @Environment(AppRouter.self) private var router
+    @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                LeaderboardSectionTitle()
-
                 CurrencyDiscoveryList(
                     onSelectMint: { mint in
                         Analytics.tokenInfoOpened(from: .openedFromDiscovery, mint: mint)
@@ -25,7 +25,32 @@ struct CurrencyDiscoveryScreen: View {
             }
         }
         .background(Color.backgroundMain)
-        .navigationTitle("Discover Currencies")
+        .navigationTitle("Currency Leaderboard")
         .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            if let threshold = session.userFlags?.minimumHolderValue {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showRankingInfo(threshold: threshold)
+                    } label: {
+                        Image.system(.info)
+                    }
+                    .accessibilityLabel("Leaderboard Ranking")
+                }
+            }
+        }
+    }
+
+    private func showRankingInfo(threshold: TokenAmount) {
+        let amount = ExchangedFiat.compute(
+            onChainAmount: threshold,
+            rate: .oneToOne,
+            supplyQuarks: 0
+        )
+        let minimum = ratesController.displayCurrency.amount(amount.nativeAmount)
+        session.dialogItem = .info(
+            title: "Leaderboard Ranking",
+            subtitle: "Members must have a minimum balance of \(minimum.formattedDroppingZeroFraction()) to be counted"
+        )
     }
 }

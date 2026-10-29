@@ -56,7 +56,7 @@ final class TransactionService: Sendable {
 
     // MARK: - Transfer -
 
-    func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, sourceCluster: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, appMetadata: Data? = nil, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, sourceCluster: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, appMetadata: Data? = nil, owner: KeyPair, rendezvous: PublicKey, intentIDIsSensitive: Bool = false, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Sending transfer")
 
         let intent = IntentTransfer(
@@ -69,7 +69,7 @@ final class TransactionService: Sendable {
             appMetadata: appMetadata
         )
 
-        submit(intent: intent, owner: owner) { result in
+        submit(intent: intent, owner: owner, intentIDIsSensitive: intentIDIsSensitive) { result in
             switch result {
             case .success(_):
                 logger.info("Transfer succeeded")
@@ -682,8 +682,9 @@ final class TransactionService: Sendable {
 
     // MARK: - Submit -
 
-    private func submit<T>(intent: T, owner: KeyPair, deviceToken: Data? = nil, completion: @Sendable @escaping (Result<T, ErrorSubmitIntent>) -> Void) where T: IntentType {
-        logger.info("Submitting intent", metadata: ["type": "\(T.self)", "intentId": "\(intent.id.base58)"])
+    private func submit<T>(intent: T, owner: KeyPair, deviceToken: Data? = nil, intentIDIsSensitive: Bool = false, completion: @Sendable @escaping (Result<T, ErrorSubmitIntent>) -> Void) where T: IntentType {
+        let logID = IntentLogID(id: intent.id, isSensitive: intentIDIsSensitive)
+        logger.info("Submitting intent", metadata: ["type": "\(T.self)", "intentId": "\(logID.pending)"])
 
         // `IntentType` is a reference type that is not `Sendable`; the response
         // handler mutates it (`apply(parameters:)`) within the single-threaded
@@ -712,14 +713,14 @@ final class TransactionService: Sendable {
                     logger.info("Received server parameters, submitting signatures", metadata: [
                         "type": "\(T.self)",
                         "paramCount": "\(parameters.serverParameters.count)",
-                        "intentId": "\(intent.id.base58)"
+                        "intentId": "\(logID.pending)"
                     ])
 
                 } catch {
                     logger.error("Received server parameters but failed to apply them", metadata: [
                         "type": "\(T.self)",
                         "paramCount": "\(parameters.serverParameters.count)",
-                        "intentId": "\(intent.id.base58)",
+                        "intentId": "\(logID.pending)",
                         "error": "\(error)"
                     ])
                     reference.cancel()
@@ -732,7 +733,7 @@ final class TransactionService: Sendable {
                 logger.info("Intent submitted successfully", metadata: [
                     "type": "\(T.self)",
                     "code": "\(success.code.rawValue)",
-                    "intentId": "\(intent.id.base58)"
+                    "intentId": "\(logID.settled)"
                 ])
                 reference.cancel()
                 completion(.success(intent))
@@ -755,7 +756,7 @@ final class TransactionService: Sendable {
                     "type": "\(T.self)",
                     "code": "\(error.code)",
                     "detailCount": "\(error.errorDetails.count)",
-                    "intentId": "\(intent.id.base58)",
+                    "intentId": "\(logID.pending)",
                     "invalidSignatures": "\(invalidSignatures)"
                 ])
 

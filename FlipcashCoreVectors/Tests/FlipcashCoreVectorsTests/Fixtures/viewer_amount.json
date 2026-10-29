@@ -1,0 +1,366 @@
+{
+  "algorithm": "viewer-amount",
+  "source": "docs/specs/single-display-currency.md; Android LocalFiat.forViewer (code/cash), iOS ExchangedFiat.forViewer (main), 2026-10-23",
+  "note": "Restate a fiat amount in the display currency. rates are units per 1 USD. mint is usdf or other; settledUsd is the USD value fixed at settlement, present for usdf. expected.viewer.amount is rounded half-even to the display currency's minor units. converted false means the amount is shown as it moved, with no flag or code.",
+  "minorDigits": {
+    "USD": 2,
+    "CAD": 2,
+    "EUR": 2,
+    "MXN": 2,
+    "ARS": 2,
+    "JPY": 0
+  },
+  "cases": [
+    {
+      "name": "same currency",
+      "native": {
+        "amount": "10.00",
+        "currency": "CAD"
+      },
+      "mint": "other",
+      "display": "CAD",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": false,
+        "viewer": {
+          "amount": "10.00",
+          "currency": "CAD"
+        }
+      },
+      "note": "No conversion when the amount already moved in the display currency."
+    },
+    {
+      "name": "CAD bill to USD viewer",
+      "native": {
+        "amount": "10.00",
+        "currency": "CAD"
+      },
+      "mint": "other",
+      "display": "USD",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "7.30",
+          "currency": "USD"
+        }
+      },
+      "note": "The spec's bill example: the bill face says 10.00, the received sheet says 7.30."
+    },
+    {
+      "name": "one CAD to USD viewer",
+      "native": {
+        "amount": "1.00",
+        "currency": "CAD"
+      },
+      "mint": "other",
+      "display": "USD",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "0.73",
+          "currency": "USD"
+        }
+      },
+      "note": "1 / 1.37 = 0.7299..., rounds to 0.73."
+    },
+    {
+      "name": "USD to CAD viewer",
+      "native": {
+        "amount": "1.00",
+        "currency": "USD"
+      },
+      "mint": "other",
+      "display": "CAD",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "1.37",
+          "currency": "CAD"
+        }
+      },
+      "note": "A USD-priced amount (a $1 boost chip) shown to a CAD viewer."
+    },
+    {
+      "name": "USD preset to JPY viewer",
+      "native": {
+        "amount": "10.00",
+        "currency": "USD"
+      },
+      "mint": "other",
+      "display": "JPY",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "1500",
+          "currency": "JPY"
+        }
+      },
+      "note": "Zero minor digits."
+    },
+    {
+      "name": "JPY to USD viewer",
+      "native": {
+        "amount": "100",
+        "currency": "JPY"
+      },
+      "mint": "other",
+      "display": "USD",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "0.67",
+          "currency": "USD"
+        }
+      },
+      "note": "100 / 150 = 0.6666..., rounds to 0.67."
+    },
+    {
+      "name": "cross through USD",
+      "native": {
+        "amount": "100.00",
+        "currency": "MXN"
+      },
+      "mint": "other",
+      "display": "EUR",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "4.97",
+          "currency": "EUR"
+        }
+      },
+      "note": "100 / 18.5 x 0.92 = 4.9729..., neither leg is USD."
+    },
+    {
+      "name": "tie rounds to even (down)",
+      "native": {
+        "amount": "0.125",
+        "currency": "USD"
+      },
+      "mint": "other",
+      "display": "EUR",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "1",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "0.12",
+          "currency": "EUR"
+        }
+      },
+      "note": "Exactly half a cent: 0.125 rounds to 0.12, not 0.13."
+    },
+    {
+      "name": "tie rounds to even (up)",
+      "native": {
+        "amount": "0.135",
+        "currency": "USD"
+      },
+      "mint": "other",
+      "display": "EUR",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "1",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "0.14",
+          "currency": "EUR"
+        }
+      },
+      "note": "Exactly half a cent: 0.135 rounds to 0.14."
+    },
+    {
+      "name": "USDF uses settled USD",
+      "native": {
+        "amount": "7500.00",
+        "currency": "ARS"
+      },
+      "mint": "usdf",
+      "display": "USD",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "3000",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "5.00",
+          "currency": "USD"
+        }
+      },
+      "note": "A USDF payment converts from the USD fixed at settlement, not today's ARS rate (3000 would give 2.50).",
+      "settledUsd": "5.00"
+    },
+    {
+      "name": "USDF to non-USD viewer",
+      "native": {
+        "amount": "7500.00",
+        "currency": "ARS"
+      },
+      "mint": "usdf",
+      "display": "CAD",
+      "rates": {
+        "USD": "1",
+        "CAD": "1.37",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "6.85",
+          "currency": "CAD"
+        }
+      },
+      "note": "Settled 5.00 USD x 1.37.",
+      "settledUsd": "5.00"
+    },
+    {
+      "name": "no rate for native",
+      "native": {
+        "amount": "10.00",
+        "currency": "CAD"
+      },
+      "mint": "other",
+      "display": "USD",
+      "rates": {
+        "USD": "1",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": false,
+        "viewer": {
+          "amount": "10.00",
+          "currency": "CAD"
+        }
+      },
+      "note": "No CAD rate: shown unconverted, with no flag and no code."
+    },
+    {
+      "name": "zero rate for native",
+      "native": {
+        "amount": "10.00",
+        "currency": "CAD"
+      },
+      "mint": "other",
+      "display": "USD",
+      "rates": {
+        "USD": "1",
+        "CAD": "0",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": false,
+        "viewer": {
+          "amount": "10.00",
+          "currency": "CAD"
+        }
+      },
+      "note": "A zero fx is treated as missing."
+    },
+    {
+      "name": "USDF needs no native rate",
+      "native": {
+        "amount": "10.00",
+        "currency": "CAD"
+      },
+      "mint": "usdf",
+      "display": "USD",
+      "rates": {
+        "USD": "1",
+        "EUR": "0.92",
+        "MXN": "18.5",
+        "ARS": "1500",
+        "JPY": "150"
+      },
+      "expected": {
+        "converted": true,
+        "viewer": {
+          "amount": "7.30",
+          "currency": "USD"
+        }
+      },
+      "note": "USDF converts from settled USD, so a missing CAD rate does not matter.",
+      "settledUsd": "7.30"
+    }
+  ]
+}

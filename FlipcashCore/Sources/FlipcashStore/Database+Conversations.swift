@@ -614,6 +614,7 @@ nonisolated extension Database {
             var linkPreviewJson: Data?
             var systemUserId: UUID?
             var systemAdmittedBy: UUID?
+            var systemInvitedBy: UUID?
             if let sealed = message.sealed {
                 encryptedScheme = sealed.scheme
                 encryptedNonce = sealed.nonce
@@ -641,11 +642,18 @@ nonisolated extension Database {
                 encryptedNonce = nonce
                 encryptedCiphertext = ciphertext
             case .widget(let widget):
-                // The username rides in `text`; a widget with none is one this client can't draw.
-                kind = 4
+                // A profile share's username rides in `text`; a widget with none is one this client
+                // can't draw. A payment request is its own kind, its id base64 in `text`.
                 switch widget {
-                case .shareProfile(let share): text = share.username.value
-                case .unrecognized:            text = nil
+                case .shareProfile(let share):
+                    kind = 4
+                    text = share.username.value
+                case .paymentRequest(let id):
+                    kind = 7
+                    text = id.data.base64EncodedString()
+                case .unrecognized:
+                    kind = 4
+                    text = nil
                 }
             case .system(let fallbackText, let event):
                 kind = 6
@@ -654,6 +662,9 @@ nonisolated extension Database {
                 case .userJoined(let userID, let admittedBy):
                     systemUserId = userID
                     systemAdmittedBy = admittedBy
+                case .userJoinedViaInvite(let userID, let invitedBy):
+                    systemUserId = userID
+                    systemInvitedBy = invitedBy
                 case nil:
                     break
                 }
@@ -699,7 +710,10 @@ nonisolated extension Database {
                     m.mediaJson           <- mediaJson,
                     m.linkPreviewJson     <- linkPreviewJson,
                     m.systemUserId        <- systemUserId,
-                    m.systemAdmittedBy    <- systemAdmittedBy
+                    m.systemAdmittedBy    <- systemAdmittedBy,
+                    m.systemInvitedBy     <- systemInvitedBy,
+                    m.cashPaymentsJson    <- Self.encodeCashPayments(message.cashPayments),
+                    m.cashReceiverId      <- message.cashReceiverID
                 )
             )
         }
@@ -768,6 +782,14 @@ nonisolated extension Database {
 
     nonisolated private static func encodeReactions(_ state: ReactionState?) -> Data? {
         state.flatMap { try? JSONEncoder().encode($0) }
+    }
+
+    nonisolated private static func encodeCashPayments(_ payments: [CashPayment]) -> Data? {
+        payments.isEmpty ? nil : try? JSONEncoder().encode(payments)
+    }
+
+    nonisolated private static func decodeCashPayments(_ data: Data?) -> [CashPayment] {
+        data.flatMap { try? JSONDecoder().decode([CashPayment].self, from: $0) } ?? []
     }
 
     nonisolated private static func decodeReactions(_ data: Data?) -> ReactionState? {
@@ -853,7 +875,7 @@ nonisolated extension Database {
 
     /// Returns nil for rows this client can't represent (unknown kind, a text
     /// row missing its text, or a cash row missing its amount columns).
-    private func conversationMessage(from row: RowIterator.Element) -> ConversationMessage? {
+    func conversationMessage(from row: RowIterator.Element) -> ConversationMessage? {
         let m = ConversationMessageTable()
 
         let cashAction: CashAction? = switch row[m.cashAction] {
@@ -910,6 +932,9 @@ nonisolated extension Database {
             content = .widget(
                 row[m.text].flatMap(Username.init).map { .shareProfile(ShareProfileWidget(username: $0)) } ?? .unrecognized
             )
+        case 7:
+            guard let id = row[m.text].flatMap({ Data(base64Encoded: $0) }) else { return nil }
+            content = .widget(.paymentRequest(PaymentRequestID(data: id)))
         case 5:
             guard let data = row[m.mediaJson],
                   let media = try? JSONDecoder().decode(StoredMedia.self, from: data) else {
@@ -919,8 +944,12 @@ nonisolated extension Database {
             redacted = media.redacted
         case 6:
             guard let text = row[m.text] else { return nil }
-            let event = row[m.systemUserId].map {
-                ConversationMessage.SystemEvent.userJoined(userID: $0, admittedBy: row[m.systemAdmittedBy])
+            let event = row[m.systemUserId].map { userID in
+                if let invitedBy = row[m.systemInvitedBy] {
+                    ConversationMessage.SystemEvent.userJoinedViaInvite(userID: userID, invitedBy: invitedBy)
+                } else {
+                    ConversationMessage.SystemEvent.userJoined(userID: userID, admittedBy: row[m.systemAdmittedBy])
+                }
             }
             content = .system(fallbackText: text, event: event)
         default:
@@ -937,6 +966,8 @@ nonisolated extension Database {
             senderID: row[m.senderId],
             content: content,
             cashAction: cashAction,
+            cashReceiverID: row[m.cashReceiverId],
+            cashPayments: Self.decodeCashPayments(row[m.cashPaymentsJson]),
             date: date,
             unreadSeq: row[m.unreadSeq],
             eventSequence: row[m.eventSequence],

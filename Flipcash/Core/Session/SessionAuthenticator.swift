@@ -30,11 +30,12 @@ final class SessionAuthenticator {
     /// Whether the user has been unlocked (biometrics/passcode verified).
     private(set) var isUnlocked: Bool = false
 
+    /// An account that is signed in but has not finished onboarding. The logged-out
+    /// screen picks it up and runs the remaining steps before calling ``completeLogin``.
+    private(set) var pendingOnboarding: InitializedAccount?
+
     /// The top-level authentication state driving the view hierarchy.
     private(set) var state: AuthenticationState = .migrating
-
-    /// The tab the home screen opens on for the current login.
-    private(set) var landingTab: HomeTab = .initial
 
     /// Feature flags available before authentication (e.g. minimum build version).
     private(set) var unauthenticatedUserFlags: UnauthenticatedUserFlags?
@@ -58,6 +59,9 @@ final class SessionAuthenticator {
     }
 
     var requiresUpgrade: Bool {
+        #if DEBUG
+        return false // Debug builds never show the forced-upgrade gate.
+        #else
         guard let minBuildNumber = unauthenticatedUserFlags?.minBuildNumber, minBuildNumber > 0 else {
             return false // No minimum requirement or server didn't provide one
         }
@@ -67,6 +71,7 @@ final class SessionAuthenticator {
         }
 
         return currentBuild < minBuildNumber
+        #endif
     }
 
     @ObservationIgnored private let container: Container
@@ -84,7 +89,8 @@ final class SessionAuthenticator {
 
         // Update launch state.
         // This is a fresh install.
-        if UserDefaults.launchCount == nil {
+        let isFreshInstall = UserDefaults.launchCount == nil
+        if isFreshInstall {
             logger.debug("First launch...")
         }
 
@@ -108,12 +114,7 @@ final class SessionAuthenticator {
         SharedKeychainMigration.migrateOwnerKeyIfNeeded()
 
         initializeState { userAccount in
-            let initializedAccount = InitializedAccount(
-                keyAccount: userAccount.keyAccount,
-                userID: userAccount.userID
-            )
-
-            self.completeLogin(with: initializedAccount)
+            self.resolveLaunch(of: userAccount, isFreshInstall: isFreshInstall)
         } didFindRecentAccount: { [weak self] description in
             guard let self else { return }
 
@@ -142,7 +143,7 @@ final class SessionAuthenticator {
             // launch backfills the ID and this branch stops being reached.
             Task {
                 do {
-                    let account = try await self.initialize(using: description.account.mnemonic, isRegistration: false)
+                    let account = try await self.initialize(using: description.account.mnemonic, isRegistration: false, interactive: false)
                     self.completeLogin(with: account)
                     Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
                 } catch {
@@ -152,6 +153,31 @@ final class SessionAuthenticator {
         }
     }
     
+    /// Launch with a current account: goes home, or holds the account in ``pendingOnboarding``
+    /// when the app was killed before its onboarding finished.
+    private func resolveLaunch(of userAccount: UserAccount, isFreshInstall: Bool) {
+        let account = InitializedAccount(
+            keyAccount: userAccount.keyAccount,
+            userID: userAccount.userID
+        )
+
+        switch OnboardingProgress.launchRoute(for: userAccount.keyAccount.ownerPublicKey, isFreshInstall: isFreshInstall) {
+        case .home:
+            completeLogin(with: account)
+        case .resumeOnboarding:
+            logger.info("Resuming onboarding", metadata: ["owner": "\(account.keyAccount.ownerPublicKey)"])
+            pendingOnboarding = account
+            state = .loggedOut
+        }
+    }
+
+    /// Hands a freshly authenticated account to the onboarding flow instead of opening the
+    /// session, so permissions and the display name are checked before home.
+    func beginOnboarding(with initializedAccount: InitializedAccount) {
+        pendingOnboarding = initializedAccount
+        state = .loggedOut
+    }
+
     private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (AccountDescription) -> Void) {
         logger.info("initializeState called", metadata: ["count": "\(count)"])
         
@@ -310,7 +336,7 @@ final class SessionAuthenticator {
             session?.userFlags?.preferredOnrampUsdcLiquidityPool ?? .unknown
         })
 
-        return SessionContainer(
+        let sessionContainer = SessionContainer(
             session: session,
             database: database,
             client: container.client,
@@ -321,18 +347,67 @@ final class SessionAuthenticator {
             contactSyncController: contactSyncController,
             flipClient: container.flipClient
         )
+        wireReactionAlerts(on: sessionContainer, toasts: container.toasts)
+        return sessionContainer
+    }
+
+    /// Points the in-app reaction pill at this session's chats, rates and router. The pill draws
+    /// through the app's toast host; its tap opens the chat at the reacted message.
+    private func wireReactionAlerts(on sessionContainer: SessionContainer, toasts: ToastController) {
+        let alerts = ReactionAlertController(
+            pill: toasts.alerts,
+            selfUserID: sessionContainer.session.userID,
+            conversations: sessionContainer.conversationController
+        )
+        alerts.canPresent = { [weak toasts] in toasts?.canPresentAlert ?? false }
+        alerts.displayCurrency = { [weak ratesController = sessionContainer.ratesController] in
+            ratesController?.displayCurrency ?? DisplayCurrency(currency: .usd, rates: [:])
+        }
+        alerts.knownName = { [weak knownAuthors = sessionContainer.knownAuthors] userID in
+            guard let knownAuthors else { return nil }
+            if knownAuthors.snapshot.membersByUserID[userID] == nil {
+                await knownAuthors.resolve([userID])
+            }
+            return knownAuthors.snapshot.membersByUserID[userID]?.displayName
+        }
+        alerts.avatarData = { [weak sessionContainer] userID in
+            guard let sessionContainer else { return nil }
+            if let data = sessionContainer.profileAvatars.data(for: userID) { return data }
+            let rosterMember = sessionContainer.conversationController.conversations
+                .lazy
+                .flatMap(\.members)
+                .first { $0.userID == userID && $0.profilePicture != nil }
+            guard let picture = (rosterMember ?? sessionContainer.knownAuthors.snapshot.membersByUserID[userID])?.profilePicture else {
+                return nil
+            }
+            await sessionContainer.profileAvatars.load(userID: userID, picture: picture)
+            return sessionContainer.profileAvatars.data(for: userID)
+        }
+        alerts.openMessage = { [weak sessionContainer] conversationID, messageID in
+            guard let sessionContainer else { return }
+            // The alert is only ever for a chat the user posted in, so it is a member's transcript.
+            sessionContainer.appRouter.navigate(to: .chatMessage(conversationID, MessageLanding(messageID: messageID, returnTo: nil)))
+        }
+        sessionContainer.conversationController.reactionAlerts = alerts
     }
     
     // MARK: - Login -
     
-    func initialize(using mnemonic: MnemonicPhrase, isRegistration: Bool) async throws -> InitializedAccount {
+    /// Registers or logs in. `interactive` is true when the user just asked for this login
+    /// (seed entry, account picker, deep link) and false for a silent relaunch; interactive
+    /// logins and registrations reopen the account's onboarding marker.
+    func initialize(using mnemonic: MnemonicPhrase, isRegistration: Bool, interactive: Bool = true) async throws -> InitializedAccount {
         loginButtonState = .loading
         defer {
             loginButtonState = .normal
         }
 
         do {
-            return try await authenticate(using: mnemonic, isRegistration: isRegistration)
+            return try await authenticate(
+                using: mnemonic,
+                isRegistration: isRegistration,
+                marksOnboardingIncomplete: isRegistration || interactive
+            )
         } catch {
             ErrorReporting.captureError(
                 error,
@@ -345,7 +420,11 @@ final class SessionAuthenticator {
     /// Registers or logs the owner in and makes sure its accounts exist, without touching
     /// ``loginButtonState`` or reporting the failure. ``initialize`` adds both for a login
     /// the user is watching; ``refreshRecentAccount`` wants neither.
-    private func authenticate(using mnemonic: MnemonicPhrase, isRegistration: Bool) async throws -> InitializedAccount {
+    ///
+    /// - Parameter marksOnboardingIncomplete: writes the account's onboarding marker as `false`
+    ///   before the account becomes current, so a kill between the two relaunches into onboarding
+    ///   instead of home. Written after instead, that window skips onboarding for good.
+    private func authenticate(using mnemonic: MnemonicPhrase, isRegistration: Bool, marksOnboardingIncomplete: Bool) async throws -> InitializedAccount {
         let derivedKey: DerivedKey = .derive(
             using: .primary(),
             mnemonic: mnemonic
@@ -381,6 +460,10 @@ final class SessionAuthenticator {
             derivationIndex: 0
         )
 
+        if marksOnboardingIncomplete {
+            OnboardingProgress.setCompleted(false, owner: keyAccount.ownerPublicKey)
+        }
+
         accountManager.set(
             keyAccount: keyAccount,
             userID: userID
@@ -403,7 +486,7 @@ final class SessionAuthenticator {
     /// request; here that case is a warning and the next launch tries again.
     private func refreshRecentAccount(_ keyAccount: KeyAccount) async {
         do {
-            _ = try await authenticate(using: keyAccount.mnemonic, isRegistration: false)
+            _ = try await authenticate(using: keyAccount.mnemonic, isRegistration: false, marksOnboardingIncomplete: false)
         } catch ErrorLoginAccount.denied {
             logger.error(
                 "Login denied for a stored account, logging out",
@@ -418,8 +501,8 @@ final class SessionAuthenticator {
         }
     }
     
-    /// Builds the session for `initializedAccount` and shows the home screen on `landingTab`.
-    func completeLogin(with initializedAccount: InitializedAccount, landingTab: HomeTab = .initial) {
+    /// Builds the session for `initializedAccount` and shows the home screen on `HomeTab.initial`.
+    func completeLogin(with initializedAccount: InitializedAccount) {
         logger.info("completeLogin", metadata: ["owner": "\(initializedAccount.keyAccount.ownerPublicKey)"])
         
         let session = createSessionContainer(
@@ -427,7 +510,7 @@ final class SessionAuthenticator {
             initializedAccount: initializedAccount
         )
         
-        self.landingTab = landingTab
+        pendingOnboarding = nil
         state = .loggedIn(session)
         session.quickActionsController.configure()
         UserDefaults.wasLoggedIn = true
@@ -455,7 +538,7 @@ final class SessionAuthenticator {
             logout()
             try await Task.delay(seconds: 1)
         
-            completeLogin(
+            beginOnboarding(
                 with: try await initialize(
                     using: mnemonic,
                     isRegistration: false
@@ -497,6 +580,7 @@ final class SessionAuthenticator {
         // another account's Coinbase orders.
         CoinbaseOrderEmail.unverifiedEmail = nil
 
+        pendingOnboarding = nil
         state = .loggedOut
         requiresForceLogout = false
         UserDefaults.wasLoggedIn = false
@@ -570,7 +654,8 @@ final class SessionContainer {
         cachedChatAvatars: { [profileAvatars, conversationController] chatID in
             guard let conversation = conversationController.conversation(withID: chatID) else { return nil }
             return profileAvatars.data(for: conversation.avatar(excluding: conversationController.selfUserID).subject)
-        }
+        },
+        displayCurrency: { [weak ratesController] in ratesController?.balanceCurrency }
     )
 
     /// Lazy so it can capture the container it reads its dependencies from;
@@ -607,11 +692,24 @@ final class SessionContainer {
     /// The members of the private groups the signed-in user has opened, kept live from the stream.
     let groupRosters: GroupRosters
 
+    /// Reads, makes and revokes a hosted private group's invite links, for ``GroupInviteLinks``.
+    let inviteLinks: GroupInviteLinks.Service
+    let inviteLanding: GroupInviteLanding
+
+    /// The group payment requests the signed-in user's private chats carry, refetched by the chat screen.
+    let paymentRequests: PaymentRequests
+
     /// The emoji the signed-in user reacts with most, for the reaction strip and picker.
     let recentReactions: RecentReactionsStore
 
     /// The public groups the signed-in user features on their profile.
     let featuredGroups: FeaturedGroups
+
+    /// The chats the signed-in user opened from Chats Search, for its Recent row.
+    let chatSearchRecents: ChatSearchRecents
+
+    /// The currencies `Discover` last returned, which Chats Search filters by name.
+    let discoveredCurrencies: DiscoveredCurrencies
 
     init(
         session: Session,
@@ -773,6 +871,8 @@ final class SessionContainer {
         }
         let recentReactions = RecentReactionsStore(owner: owner.publicKey)
         self.recentReactions = recentReactions
+        self.chatSearchRecents = ChatSearchRecents(owner: owner.publicKey)
+        self.discoveredCurrencies = DiscoveredCurrencies(discover: { client.discoverCurrencies(category: $0) })
         self.featuredGroups = FeaturedGroups(fetching: { [weak flipClient] username in
             guard let flipClient else { return [] }
             return try await flipClient.getFeaturedGroups(owner: owner, username: username)
@@ -785,18 +885,22 @@ final class SessionContainer {
 
         let knownAuthors = KnownAuthorDirectory(database: database, flipClient: flipClient, owner: session.ownerKeyPair)
         self.knownAuthors = knownAuthors
+        let viewerAmount: @Sendable (ExchangedFiat) async -> FiatAmount = { [weak ratesController] fiat in
+            await MainActor.run { ratesController?.displayCurrency.amount(fiat) } ?? fiat.nativeAmount
+        }
         self.linkCardResolver = LinkCardResolver(
-            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner),
+            cashLookup: LinkCardResolver.giftCardLookup(reader: client, viewer: owner, viewerAmount: viewerAmount),
             mintLookup: LinkCardResolver.mintLookup(reader: client),
             groupLookup: LinkCardResolver.groupLookup(chats: flipClient, mints: client, viewer: owner),
+            inviteLookup: LinkCardResolver.inviteLookup(invites: flipClient, mints: client, viewer: owner),
             userLookup: LinkCardResolver.userLookup(profiles: flipClient, viewer: owner, viewerID: session.userID),
             messageLookup: LinkCardResolver.messageLookup(
                 chats: flipClient,
                 messages: chatClient,
                 mints: client,
                 owner: owner,
-                viewer: MessageLinkViewer(controller: conversationController, knownAuthors: knownAuthors, userID: session.userID),
-                cashLinks: LinkCardResolver.giftCardLookup(reader: client, viewer: owner)
+                viewer: MessageLinkViewer(controller: conversationController, knownAuthors: knownAuthors, userID: session.userID, viewerAmount: viewerAmount),
+                cashLinks: LinkCardResolver.giftCardLookup(reader: client, viewer: owner, viewerAmount: viewerAmount)
             )
         )
 
@@ -817,7 +921,11 @@ final class SessionContainer {
 
         let hostedLobbies = HostedLobbies(
             getMembers: { [flipClient, owner = session.ownerKeyPair] conversationID in
-                try await flipClient.getLobbyMembers(owner: owner, conversationID: conversationID)
+                let members = try await flipClient.getLobbyMembers(owner: owner, conversationID: conversationID)
+                #if DEBUG
+                if members.isEmpty, let stub = HostedLobbies.stubbedMembers() { return stub }
+                #endif
+                return members
             },
             wrapKey: { [groupKeys = self.groupKeys] recipient, conversationID in
                 try await groupKeys.wrap(for: recipient, in: conversationID)
@@ -839,6 +947,91 @@ final class SessionContainer {
         )
         conversationController.groupRosters = groupRosters
         self.groupRosters = groupRosters
+
+        self.inviteLanding = GroupInviteLanding(service: .init(
+            owner: session.ownerKeyPair,
+            getInvite: { [flipClient, owner = session.ownerKeyPair] token in
+                try await flipClient.getInvite(owner: owner, token: token)
+            },
+            getRoster: { [flipClient, owner = session.ownerKeyPair] conversationID, token in
+                try await flipClient.getRoster(owner: owner, conversationID: conversationID, inviteToken: token)
+            },
+            join: { [conversationController] conversationID, invite in
+                try await conversationController.join(conversationID: conversationID, invite: invite)
+            },
+            isMember: { [conversationController] conversationID in
+                conversationController.conversation(withID: conversationID).map { conversationController.isMember(of: $0) } ?? false
+            }
+        ))
+
+        let inviteSealer = SharedCoreInviteSealer()
+        self.inviteLinks = GroupInviteLinks.Service(
+            selfUserID: session.userID,
+            list: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getChatInvites(owner: owner, conversationID: conversationID)
+            },
+            create: { [flipClient, groupKeys, conversationController, owner = session.ownerKeyPair] conversationID, secret, maxUses, expiresAt in
+                let creator = conversationController.conversation(withID: conversationID)?.creator
+                let groupKey = try await groupKeys.groupKey(for: conversationID, creator: creator)
+                let mint = try inviteSealer.mint(secret: secret, owner: owner, conversationID: conversationID, groupKey: groupKey)
+                return try await flipClient.createInvite(
+                    owner: owner,
+                    conversationID: conversationID,
+                    token: mint.token,
+                    keyEnvelope: mint.keyEnvelope,
+                    secretEnvelope: mint.secretEnvelope,
+                    maxUses: maxUses,
+                    expiresAt: expiresAt
+                )
+            },
+            revoke: { [flipClient, owner = session.ownerKeyPair] conversationID, inviteID in
+                try await flipClient.revokeInvite(owner: owner, conversationID: conversationID, inviteID: inviteID)
+            },
+            secret: { [owner = session.ownerKeyPair] invite in
+                inviteSealer.secret(of: invite, owner: owner)
+            },
+            link: { secret in
+                try? inviteSealer.link(secret: secret)
+            },
+            newSecret: {
+                inviteSealer.newSecret()
+            }
+        )
+        self.paymentRequests = PaymentRequests(
+            getChatPage: { [flipClient, owner = session.ownerKeyPair] conversationID, section, pageSize in
+                try await flipClient.getChatPaymentRequestsPage(
+                    owner: owner,
+                    conversationID: conversationID,
+                    section: section,
+                    pageSize: pageSize,
+                    pagingToken: nil
+                ).requests
+            },
+            getRequest: { [flipClient, owner = session.ownerKeyPair] id in
+                try await flipClient.getPaymentRequest(owner: owner, id: id)
+            },
+            openingSeal: { [conversationController] conversationID in
+                await conversationController.openingSeal(for: conversationID)
+            },
+            create: { [flipClient, owner = session.ownerKeyPair] key, conversationID, split in
+                try await flipClient.createPaymentRequest(owner: owner, idempotencyKey: key, chatID: conversationID, split: split)
+            },
+            close: { [flipClient, owner = session.ownerKeyPair] id in
+                try await flipClient.closePaymentRequest(owner: owner, id: id)
+            },
+            markPaid: { [flipClient, owner = session.ownerKeyPair] id, userID in
+                try await flipClient.markPaid(owner: owner, id: id, userID: userID)
+            },
+            getPage: { [flipClient, owner = session.ownerKeyPair] conversationID, section, pageSize, pagingToken in
+                try await flipClient.getChatPaymentRequestsPage(
+                    owner: owner,
+                    conversationID: conversationID,
+                    section: section,
+                    pageSize: pageSize,
+                    pagingToken: pagingToken
+                )
+            }
+        )
         self.rosterSearch = mentionSearch
 
         // The blocklist drives which conversations the feed hides: it supplies the
@@ -864,7 +1057,8 @@ final class SessionContainer {
 
         let chatSpotlightIndexer = ChatSpotlightIndexer(
             controller: conversationController,
-            contactSyncController: contactSyncController
+            contactSyncController: contactSyncController,
+            displayCurrency: { [weak ratesController] in ratesController?.displayCurrency }
         )
         chatSpotlightIndexer.start()
         self.chatSpotlightIndexer = chatSpotlightIndexer
@@ -951,7 +1145,7 @@ struct InitializedAccount {
     let owner: AccountCluster
     let userID: UserID
     
-    fileprivate init(keyAccount: KeyAccount, userID: UserID) {
+    init(keyAccount: KeyAccount, userID: UserID) {
         self.keyAccount = keyAccount
         self.owner = .init(
             authority: .derive(using: .primary(), mnemonic: keyAccount.mnemonic),

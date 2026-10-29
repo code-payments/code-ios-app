@@ -79,6 +79,8 @@ protocol MentionSuggestionFetching: AnyObject, Sendable {
 protocol ConversationMembership: AnyObject, Sendable {
     /// Joins a chat, returning its metadata as it stands after the join.
     func joinChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
+    /// Joins a private group through an invite link.
+    func joinChat(owner: KeyPair, conversationID: ConversationID, invite: InviteJoinParameters) async throws -> Conversation
     func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws
 }
 
@@ -124,6 +126,8 @@ protocol ConversationMessaging: AnyObject, Sendable {
     /// Sends the finalized `photo` as one media message, with `caption` under it; a sealed photo
     /// goes out inside `EncryptedContent`.
     func sendMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: UploadedPhoto, caption: String?, repliedTo: MessageID?, clientMessageID: UUID) async throws -> ConversationMessage
+    /// Sends a widget naming the payment request `id`; it always goes out inside `EncryptedContent`.
+    func sendPaymentRequestMessage(owner: KeyPair, conversationID: ConversationID, paymentRequestID id: PaymentRequestID, clientMessageID: UUID) async throws -> ConversationMessage
     /// The seal a photo sent into `conversationID` is encrypted with, nil when it goes out in
     /// plaintext. Throws when the chat encrypts but its seal can't be built.
     func photoSeal(owner: KeyPair, conversationID: ConversationID) async throws -> ChatSeal?

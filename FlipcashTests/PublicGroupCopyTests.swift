@@ -103,6 +103,8 @@ struct PublicGroupCopyTests {
 
     // MARK: - Requirement tiles
 
+    private static let usd = DisplayCurrency(currency: .usd, rates: [Rate]())
+
     private func requirements(join: Decimal?, chat: Decimal?) -> GroupBalanceRequirements? {
         GroupBalanceRequirements(ConversationRules(
             listener: join.map { [.minimumBalance(MinimumBalanceRequirement(amount: .usd($0)))] } ?? [],
@@ -114,7 +116,7 @@ struct PublicGroupCopyTests {
     func collapsedTile() throws {
         let rules = try #require(requirements(join: 100, chat: 100))
 
-        let tiles = PublicGroupRequirementTile.tiles(for: rules, metadata: [:])
+        let tiles = PublicGroupRequirementTile.tiles(for: rules, metadata: [:], display: Self.usd)
 
         #expect(tiles.map(\.purpose) == [.joinAndChat])
         #expect(tiles.first?.amount == "$100")
@@ -124,16 +126,29 @@ struct PublicGroupCopyTests {
     func joinOnlyTile() throws {
         let rules = try #require(requirements(join: 50, chat: nil))
 
-        #expect(PublicGroupRequirementTile.tiles(for: rules, metadata: [:]).map(\.purpose) == [.joinAndChat])
+        #expect(PublicGroupRequirementTile.tiles(for: rules, metadata: [:], display: Self.usd).map(\.purpose) == [.joinAndChat])
     }
 
     @Test("Different join and chat rules are two tiles")
     func splitTiles() throws {
         let rules = try #require(requirements(join: 50, chat: 100))
 
-        let tiles = PublicGroupRequirementTile.tiles(for: rules, metadata: [:])
+        let tiles = PublicGroupRequirementTile.tiles(for: rules, metadata: [:], display: Self.usd)
 
         #expect(tiles.map(\.purpose) == [.join, .chat])
         #expect(tiles.map(\.amount) == ["$50", "$100"])
+    }
+
+    @Test("A tile restates its amount in the display currency")
+    func tileInDisplayCurrency() throws {
+        let rules = try #require(requirements(join: 50, chat: 100))
+        let cad = DisplayCurrency(currency: .cad, rates: [Rate(fx: 2, currency: .cad)])
+
+        let tiles = PublicGroupRequirementTile.tiles(for: rules, metadata: [:], display: cad)
+
+        #expect(tiles.map(\.amount) == [
+            FiatAmount(value: 100, currency: .cad).formattedDroppingZeroFraction(),
+            FiatAmount(value: 200, currency: .cad).formattedDroppingZeroFraction(),
+        ])
     }
 }

@@ -61,6 +61,11 @@ final class ConversationLoadCoordinator {
     /// on every observation tick — see ``scheduleWindowExpiry(for:)``.
     @ObservationIgnored private var capabilityClock: Date = .now
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
+    /// Where request widgets read their cards; nil draws them loading.
+    @ObservationIgnored private let paymentRequests: PaymentRequests?
+    /// When this transcript opened; paid-share messages after it refetch their request once.
+    @ObservationIgnored private let openedAt: Date = .now
+    @ObservationIgnored private var refetchedPayments: Set<UInt64> = []
 
     /// Fire a beat after the deadline, not on it. The window boundary is inclusive, so a timer that
     /// landed exactly on `date + window` would still resolve the capability as granted and then
@@ -81,8 +86,10 @@ final class ConversationLoadCoordinator {
         controller: ConversationController,
         session: Session,
         knownAuthors: KnownAuthorDirectory,
+        paymentRequests: PaymentRequests? = nil,
         openingLoadLanded: Bool = false
     ) {
+        self.paymentRequests = paymentRequests
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
@@ -251,6 +258,23 @@ final class ConversationLoadCoordinator {
                 quotedMessages[repliedTo.value] = persisted
             }
         }
+        // Read inside the observation scope, so a fetched or refetched request re-maps its row.
+        var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
+        if let paymentRequests {
+            let copy = PaymentRequestCopy(session.displayCurrency)
+            for message in window {
+                if let id = message.paymentRequestID, message.date > openedAt,
+                   refetchedPayments.insert(message.id.value).inserted {
+                    Task { _ = try? await paymentRequests.refresh(id) }
+                }
+                guard case .widget(.paymentRequest(let id)) = message.content else { continue }
+                let state = paymentRequests.cardState(for: id, in: conversationID, sentBy: message.senderID, copy: copy, now: capabilityClock)
+                paymentRequestCards[message.id.value] = state
+                if state == .loading, paymentRequests.request(id) == nil {
+                    Task { await paymentRequests.fetchIfMissing(id) }
+                }
+            }
+        }
         return Inputs(
             messages: window,
             selfUserID: controller.selfUserID,
@@ -261,6 +285,7 @@ final class ConversationLoadCoordinator {
             // compared on every tick nor sent off to have their picture fetched.
             typists: Array(controller.typists(in: conversationID).suffix(ChatItem.maxTypingAvatars)),
             branding: branding,
+            display: session.displayCurrency,
             conversation: conversation,
             // A chat whose record hasn't landed yet has no gate to read, so it keeps the member menu.
             isMember: conversation.map(controller.isMember(of:)) ?? true,
@@ -272,11 +297,13 @@ final class ConversationLoadCoordinator {
             now: capabilityClock,
             namesAuthors: namesAuthors,
             canReact: access?.canReact ?? true,
+            canBoost: conversation != nil,
             // Only a transcript that attributes its rows has anything to resolve, so a DM never
             // takes a dependency on the directory and never re-maps when it reloads.
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory,
-            unreadBoundary: unreadBoundary(in: window)
+            unreadBoundary: unreadBoundary(in: window),
+            paymentRequestCards: paymentRequestCards
         )
     }
 
@@ -309,6 +336,8 @@ final class ConversationLoadCoordinator {
                 guard let branding = inputs.branding[fiat.mint] else { return ("Cash", nil) }
                 return (branding.token, branding.iconURL)
             },
+            viewerAmount: inputs.display.amount,
+            viewerPrice: inputs.display.amount,
             deletedPresentation: inputs.policy.deletedPresentation,
             // `now` is carried in `Inputs` rather than read here, which keeps `map` pure and keeps
             // the equality short-circuit meaningful: an unrelated tick sees the same clock and does
@@ -334,10 +363,12 @@ final class ConversationLoadCoordinator {
             namesAuthors: inputs.namesAuthors,
             nameOf: { authors[$0]?.name },
             canReact: inputs.canReact,
+            canBoost: inputs.canBoost,
             // Classification is pure and host-gated, and that is all mapping does with a link: the
             // card is the link's identity, and the card view looks it up for itself. So nothing
             // here touches the network, and an answer landing cannot re-diff this window.
             linkCard: { links in classifier.firstCard(in: links) },
+            paymentRequest: { inputs.paymentRequestCards[$0.id.value] ?? .loading },
             unreadBoundary: inputs.unreadBoundary,
             headsHistory: inputs.headsHistory
         )
@@ -419,6 +450,8 @@ final class ConversationLoadCoordinator {
         /// The other members typing, oldest first, capped at ``ChatItem/maxTypingAvatars``.
         var typists: [UserID]
         var branding: [PublicKey: Branding]
+        /// The currency cash rows are shown in; read here so a currency change re-maps.
+        var display: DisplayCurrency
         var conversation: Conversation?
         /// False for a non-member reading a group they have not joined, who is offered no Reply.
         var isMember: Bool
@@ -438,6 +471,8 @@ final class ConversationLoadCoordinator {
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
         /// they have not joined. True for a DM, where there is no conversation record to preview.
         var canReact: Bool
+        /// Whether others' rows offer a paid reaction — groups only, since a boost pays the group host.
+        var canBoost: Bool
         /// Identities for senders the chat's own roster leaves out. Compared by identity — see
         /// ``KnownAuthorDirectory/Snapshot``.
         var knownAuthors: KnownAuthorDirectory.Snapshot
@@ -445,6 +480,8 @@ final class ConversationLoadCoordinator {
         var headsHistory: Bool
         /// Where the divider goes; `.none` draws none.
         var unreadBoundary: UnreadBoundary
+        /// Each request widget's card in the window, keyed by raw message id.
+        var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
 
         struct Branding: Equatable, Sendable {
             var token: String

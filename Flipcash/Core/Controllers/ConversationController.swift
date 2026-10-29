@@ -111,10 +111,23 @@ final class ConversationController {
                 isArchived: archived.contains(conversation.id),
                 isMuted: conversation.isMuted(at: .now),
                 isHidden: conversation.isHidden,
-                unread: chatListUnread(for: conversation)
+                unread: chatListUnread(for: conversation),
+                joinRequests: chatListJoinRequests(for: conversation.id)
             )
         }
         return ChatListProjection.project(entries)
+    }
+
+    /// The people waiting to join `conversationID`, newest first; empty for a chat the user doesn't host.
+    func joinRequests(for conversationID: ConversationID) -> [LobbyMember] {
+        hostedLobbies?.requests(for: conversationID) ?? []
+    }
+
+    /// The join requests a chat's row and list position reflect.
+    func chatListJoinRequests(for conversationID: ConversationID) -> ChatListJoinRequests {
+        let requests = joinRequests(for: conversationID)
+        guard !requests.isEmpty else { return .none }
+        return ChatListJoinRequests(count: requests.count, newestEnteredAt: requests.compactMap(\.enteredAt).max())
     }
 
     private func chatListUnread(for conversation: Conversation) -> ChatListUnread {
@@ -272,6 +285,9 @@ final class ConversationController {
     /// suppress foreground banners for the open chat; never drives a view, so
     /// it's excluded from observation.
     @ObservationIgnored var visibleConversationID: ConversationID?
+
+    /// Raises the in-app pill for reactions on the user's own messages; wired at session setup.
+    @ObservationIgnored var reactionAlerts: ReactionAlertController?
 
     var store: ConversationStore
 
@@ -866,6 +882,7 @@ final class ConversationController {
     private func applyReactions(_ event: ConversationStreamEvent) {
         guard case .reactionsChanged(let conversationID, let updates) = event else { return }
         reactions.apply(updates, in: conversationID)
+        reactionAlerts?.handle(updates, in: conversationID)
     }
 
     /// Returns whether another member is currently typing in the conversation.
@@ -942,6 +959,14 @@ final class ConversationController {
             return
         case .lobbyChanged:
             // Only delivered to a private chat's admitting members, who already hold the chat.
+            return
+        case .rulesChanged:
+            // Only delivered to a chat's members, same reasoning as `.titleChanged`: the feed brings
+            // the current rules with it. Nothing to fetch.
+            return
+        case .paymentRequestsChanged:
+            // Best-effort and only meaningful to a chat the viewer holds; the request is fetched
+            // with the chat. Nothing to fetch.
             return
         }
         guard !store.conversations.contains(where: { $0.id == conversationID }),
@@ -1190,7 +1215,16 @@ final class ConversationController {
     /// Joins a group and seats the metadata the join returns. Throws so the caller can surface the
     /// failure; nothing local moves unless the server accepted the join.
     func join(conversationID: ConversationID) async throws {
-        let conversation = try await membership.joinChat(owner: owner, conversationID: conversationID)
+        seatJoined(try await membership.joinChat(owner: owner, conversationID: conversationID), in: conversationID)
+    }
+
+    /// Joins a private group through an invite link. Throws ``ErrorJoinChat`` as the server
+    /// answered; the group is seated only once the join is accepted.
+    func join(conversationID: ConversationID, invite: InviteJoinParameters) async throws {
+        seatJoined(try await membership.joinChat(owner: owner, conversationID: conversationID, invite: invite), in: conversationID)
+    }
+
+    private func seatJoined(_ conversation: Conversation, in conversationID: ConversationID) {
         store.apply(.metadataRefresh(conversation))
         store.setMembership(true, in: conversationID)
         persistConversation(conversation)
@@ -1484,6 +1518,13 @@ final class ConversationController {
             // Cached like the roster summary/mute above, so a cold restore shows the edited
             // title/picture rather than the stale one until the next full metadata fetch.
             persistConversation(conversationID)
+        case .rulesChanged(let conversationID, _):
+            // Rules are cached with the conversation, so a cold restore gates join/speak on the
+            // edited rules rather than the stale ones.
+            persistConversation(conversationID)
+        case .paymentRequestsChanged:
+            // TODO: apply to payment request state once a consumer holds it; nothing to persist yet.
+            break
         case .descriptionChanged:
             // Description isn't persisted, so there is nothing to write. Fold this into the
             // title/picture case above if it gains a column.
@@ -1603,9 +1644,15 @@ final class ConversationController {
     }
 
     /// Persist operations that write confirmed messages — the ones that must bump `messageRevision`.
+    ///
+    /// The conversation and feed writes are here too: they persist each conversation's `lastMessage`
+    /// as a message row, so a newer message that arrives only as metadata (a join, a feed refresh)
+    /// would otherwise sit in the table behind a transcript window cached before it landed. One
+    /// bump per feed apply costs a single window re-read for the open chat.
     private static let messageWriteOperations: Set<String> = [
         "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
-        "send-message", "send-media-message", "reset-resync", "edit-message", "delete-message",
+        "send-message", "send-media-message", "send-payment-request", "reset-resync", "edit-message", "delete-message",
+        "upsert-conversation", "replace-feed", "replace-group-feed",
     ]
 
     // MARK: - Names
@@ -1628,9 +1675,13 @@ final class ConversationController {
     /// whoever wrote it. `currencyName` resolves a mint to its display name; nil —
     /// or the reserve, whose formatted amount already names itself — drops the
     /// "of …" suffix. `knownAuthors` names a group sender the chat's roster subset leaves out.
+    /// `viewerAmount` restates a payment in the display currency. `requestTitle` is a payment
+    /// request's title as the viewer reads it, nil while it isn't loaded or can't be opened.
     func lastMessagePreview(
         for conversation: Conversation,
         knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
+        viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
+        requestTitle: (PaymentRequestID) -> String? = { _ in nil },
         currencyName: (PublicKey) -> String?
     ) -> String? {
         if isCounterpartTyping(in: conversation.id) {
@@ -1644,18 +1695,22 @@ final class ConversationController {
         case .text(let text):
             // A bare prefix says less than no line at all, so an empty body previews as nothing.
             guard !text.isEmpty else { return nil }
+            let text = InviteLinkText.redacting(text)
             if isFromSelf { return "You: \(text)" }
             guard let senderName else { return text }
             return "\(senderName): \(text)"
 
         case .cash(let amount):
-            let formatted = amount.nativeAmount.formatted()
+            let formatted = viewerAmount(amount).formatted()
             // The reserve would read "$1.00 of Dollars" — the amount alone already says it.
-            let label: String
+            var label: String
             if amount.mint != .usdf, let name = currencyName(amount.mint) {
                 label = "\(formatted) of \(name)"
             } else {
                 label = formatted
+            }
+            if message.cashPayments.count >= 2 {
+                label += " to \(message.cashPayments.count) people"
             }
             let isTip = message.cashAction == .tipped
             if let senderName {
@@ -1690,6 +1745,14 @@ final class ConversationController {
         case .widget(.shareProfile):
             // The server sends it; no user is the sender to name.
             return "Shared a profile"
+
+        case .widget(.paymentRequest(let id)):
+            // A title that hasn't loaded or won't open drops the "for …" rather than blanking the line.
+            let subject = requestTitle(id).map { " for \($0)" } ?? ""
+            if isFromSelf { return "You sent request\(subject)" }
+            guard let senderName else { return nil }
+            let firstName = senderName.split(separator: " ").first.map(String.init) ?? senderName
+            return "\(firstName) sent request\(subject)"
 
         case .widget(.unrecognized):
             return nil
@@ -2214,6 +2277,9 @@ final class ConversationController {
             _ = await deliver(clientMessageID: clientMessageID, text: text, repliedTo: pending.repliedTo, linkPreview: pending.linkPreview, to: conversationID)
         case .media(_, let caption):
             await retryMedia(clientMessageID: clientMessageID, caption: caption, repliedTo: pending.repliedTo, in: conversationID)
+        case .widget(.paymentRequest(let id)):
+            store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+            _ = await deliverPaymentRequest(id, clientMessageID: clientMessageID, to: conversationID, attempts: 1)
         case .encrypted, .cash, .deleted, .widget, .system:
             if case .failure(let error) = Result(catching: { try pending.content.asProto() }) {
                 logger.error("Cannot retry a send this client has no path to re-send", metadata: [
@@ -2280,6 +2346,70 @@ final class ConversationController {
         }
     }
 
+    /// Sends the widget for the payment request `id` into `conversationID` as a pending row, retrying a
+    /// failed send with the same request; returns whether it was delivered. A final failure leaves the
+    /// row failed in the transcript, where a tap retries it like any message.
+    @discardableResult
+    func sendPaymentRequest(_ id: PaymentRequestID, in conversationID: ConversationID, attempts: Int = 3) async -> Bool {
+        let clientMessageID = UUID()
+        let pending = ConversationMessage(
+            id: .unassigned,
+            senderID: selfUserID,
+            content: .widget(.paymentRequest(id)),
+            date: .now,
+            unreadSeq: 0,
+            status: .sending,
+            clientMessageID: clientMessageID
+        )
+        let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
+        store.insertPending(pending, anchoredTo: anchor, into: conversationID)
+        receiptSettle.hold(clientMessageID.uuidString)
+        return await deliverPaymentRequest(id, clientMessageID: clientMessageID, to: conversationID, attempts: attempts)
+    }
+
+    private func deliverPaymentRequest(_ id: PaymentRequestID, clientMessageID: UUID, to conversationID: ConversationID, attempts: Int) async -> Bool {
+        let chatType = conversation(withID: conversationID)?.type
+        var lastError: Error = ErrorSendMessage.unknown
+        for attempt in 0..<attempts {
+            if attempt > 0 {
+                try? await Task.sleep(for: .seconds(attempt))
+            }
+            do {
+                var confirmed = try await messaging.sendPaymentRequestMessage(
+                    owner: owner,
+                    conversationID: conversationID,
+                    paymentRequestID: id,
+                    clientMessageID: clientMessageID
+                )
+                confirmed.clientMessageID = clientMessageID
+                if persist(operation: "send-payment-request", { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
+                    store.dropPending(clientMessageID: clientMessageID, confirmedAt: confirmed.id, in: conversationID)
+                } else {
+                    scheduleGapCatchUp(conversationID)
+                }
+                store.advanceLastActivity(to: confirmed.date, in: conversationID)
+                if advanceReadPointer(to: confirmed.id, in: conversationID) {
+                    confirmedOwnSendCounts[conversationID, default: 0] += 1
+                }
+                refreshFeedPreview(for: conversationID)
+                persistConversation(conversationID)
+                Analytics.sentMessage(chatType: chatType)
+                return true
+            } catch {
+                lastError = error
+                logger.warning("Failed to send payment request message", metadata: [
+                    "conversationID": "\(conversationID)",
+                    "attempt": "\(attempt)",
+                    "error": "\(error)",
+                ])
+            }
+        }
+        store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
+        ErrorReporting.captureError(lastError, reason: "Failed to send payment request message")
+        Analytics.sentMessage(chatType: chatType, error: lastError)
+        return false
+    }
+
     /// Sends each staged chip as its own message, in chip order, with `caption` under the last and
     /// `repliedTo` on the first; returns whether every one was delivered.
     ///
@@ -2291,6 +2421,12 @@ final class ConversationController {
     /// plaintext photos; throws when the chat encrypts but its seal can't be built.
     func photoSeal(for conversationID: ConversationID) async throws -> ChatSeal? {
         try await messaging.photoSeal(owner: owner, conversationID: conversationID)
+    }
+
+    /// The seal that opens `conversationID`'s payment-request text, nil while the chat's key is
+    /// unknown or the chat doesn't encrypt.
+    func openingSeal(for conversationID: ConversationID) async -> ChatSeal? {
+        await messaging.openingSeal(owner: owner, conversationID: conversationID)
     }
 
     /// Decrypts `conversationID`'s end-to-end encrypted photo blobs, or nil while the chat's key is

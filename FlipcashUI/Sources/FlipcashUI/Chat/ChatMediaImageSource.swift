@@ -78,6 +78,42 @@ public enum ChatMediaImageSource {
         return cache
     }()
 
+    /// The decrypted bytes of each downloaded photo exactly as sent. The main cache holds only a
+    /// decoded copy re-serialized as JPEG, which would turn a PNG or HEIC into a lossy JPEG on save.
+    nonisolated static let originals: ImageCache = {
+        let cache = ImageCache(name: "chat-media-originals")
+        cache.diskStorage.config.sizeLimit = 500 * 1024 * 1024
+        cache.diskStorage.config.expiration = .days(30)
+        return cache
+    }()
+
+    nonisolated static func storeOriginal(_ data: Data, forKey key: String) {
+        try? originals.diskStorage.store(value: data, forKey: key)
+    }
+
+    /// The photo's bytes as sent, or nil when this device never downloaded them (a staged send, or a
+    /// photo cached before originals were kept).
+    public static func originalData(blobID: BlobID?) -> Data? {
+        guard let blobID else { return nil }
+        return try? originals.diskStorage.value(forKey: cacheKey(for: blobID))
+    }
+
+    /// Whether `data` is an image Photos takes as-is, read from its leading bytes rather than any
+    /// label the cache or URL carries.
+    public static func isLibraryImage(_ data: Data) -> Bool {
+        let b = [UInt8](data.prefix(12))
+        guard b.count >= 12 else { return false }
+        if b[0] == 0xFF, b[1] == 0xD8, b[2] == 0xFF { return true }                       // JPEG
+        if b[0...3] == [0x89, 0x50, 0x4E, 0x47] { return true }                           // PNG
+        if b[0...3] == [0x47, 0x49, 0x46, 0x38] { return true }                           // GIF
+        if b[0...3] == [0x52, 0x49, 0x46, 0x46], b[8...11] == [0x57, 0x45, 0x42, 0x50] { return true } // WebP
+        if b[4...7] == [0x66, 0x74, 0x79, 0x70] {                                         // ISO BMFF: HEIC
+            let brand = String(decoding: b[8...11], as: UTF8.self)
+            return ["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1"].contains(brand)
+        }
+        return false
+    }
+
     /// The options every chat photo load passes, `processor` included when it draws a downsampled copy.
     public static func options(processor: ImageProcessor? = nil) -> KingfisherOptionsInfo {
         var options: KingfisherOptionsInfo = [.targetCache(cache)]
@@ -131,6 +167,7 @@ private struct DecryptingProvider: ImageDataProvider {
                     throw URLError(.badServerResponse)
                 }
                 let image = try decrypt(blob)
+                ChatMediaImageSource.storeOriginal(image, forKey: cacheKey)
                 // The decoded image is authoritative; bytes that don't decode render as unsupported.
                 guard UIImage(data: image) != nil else { throw BlobOpenFailure.undecodable }
                 handler(.success(image))

@@ -12,7 +12,8 @@ private let logger = Logger(label: "flipcash.convert-confirmation")
 /// Confirms a conversion and submits it. A convert to Dollars is the existing
 /// sell (source → USDF); a convert to another token is buy-with-currency
 /// (source → token). Both spend the same source-denominated `amount` and carry
-/// the same 1% source sell fee.
+/// the source's fee: Dollars charge `LaunchpadFee.dollarsFeeBps` on top, a token
+/// source pays its pool's sell fee.
 @Observable
 @MainActor
 final class ConvertConfirmationViewModel {
@@ -22,11 +23,14 @@ final class ConvertConfirmationViewModel {
     @ObservationIgnored let destinationName: String
     /// The source amount being converted, denominated in the source token.
     @ObservationIgnored let amount: ExchangedFiat
-    /// The source pool's sell fee in basis points; nil falls back to 100 (1%).
+    /// The source pool's sell fee in basis points; nil falls back to `LaunchpadFee.houseSellFeeBps`.
     @ObservationIgnored let sellFeeBps: Int?
     @ObservationIgnored let pinnedState: VerifiedState
 
     var dialogItem: DialogItem?
+    /// Replaces the session poll in tests.
+    @ObservationIgnored var swapPoller: ((SwapId) -> SwapPoller)?
+    @ObservationIgnored var successHold: Duration = InlineCompletion.successHold
     private(set) var actionButtonState: ButtonState = .normal
     var canDismissSheet: Bool = false
 
@@ -38,12 +42,20 @@ final class ConvertConfirmationViewModel {
 
     var canPerformAction: Bool { !pinnedState.isStale }
 
-    /// The conversion fee. From Dollars it's a flat 1% added on top of the
-    /// purchase (a reserves buy — the server splits it off on-chain); token
-    /// conversions carry the source pool's sell fee taken out of the amount.
+    /// The conversion fee. From Dollars it's `LaunchpadFee.dollarsFeeBps` added
+    /// on top of the purchase (a reserves buy — the server splits it off
+    /// on-chain; zero by default, so none is charged); token conversions carry
+    /// the source pool's sell fee taken out of the amount.
     var fee: ExchangedFiat {
-        let bps: UInt64 = isFromDollars ? 100 : UInt64(max(0, sellFeeBps ?? 100))
+        let bps = isFromDollars ? LaunchpadFee.dollarsFeeBps : LaunchpadFee.poolSellFeeBps(sellFeeBps)
         return amount.launchpadSellFee(bps: bps)
+    }
+
+    /// Whether the confirmation lists the fee breakdown (both rows). Hidden when there is no fee to
+    /// show (Dollars as the source at 0 bps); a token's pool fee that rounds to
+    /// nothing still renders as "~$0.00".
+    var hasFee: Bool {
+        !(isFromDollars && LaunchpadFee.dollarsFeeBps == 0)
     }
 
     /// Formats the fee, prefixing "~" when non-zero but below display precision.
@@ -77,7 +89,8 @@ final class ConvertConfirmationViewModel {
 
     // MARK: - Actions -
 
-    func performConvert(session: Session, router: AppRouter) {
+    /// Runs the conversion. `dismiss` closes the convert flow once the swap finalizes in place.
+    func performConvert(session: Session, router: AppRouter, dismiss: @escaping () -> Void = {}) {
         guard actionButtonState == .normal else { return }
         actionButtonState = .loading
 
@@ -89,20 +102,14 @@ final class ConvertConfirmationViewModel {
                     swapId = try await session.sell(amount: amount, verifiedState: pinnedState, in: sourceMint)
                 } else if isFromDollars {
                     // Dollars → a token is a buy paid from reserves. `amount` is
-                    // the net purchase; the 1% fee is added on top and split off
+                    // the net purchase; any Dollars fee is added on top and split off
                     // on-chain, so the debit is `amount + fee`.
                     swapId = try await session.buy(amount: amount, feeAmount: fee, verifiedState: pinnedState, of: destinationMint)
                 } else {
                     // Token → token is buy-with-currency.
                     swapId = try await session.buy(amount: amount, with: sourceMint, verifiedState: pinnedState, of: destinationMint)
                 }
-                actionButtonState = .normal
-                router.pushAny(ConvertFlowPath.processing(
-                    swapId: swapId,
-                    destinationMint: destinationMint,
-                    destinationName: destinationName,
-                    amount: amountAfterFee
-                ))
+                await completeInline(swapId: swapId, session: session, router: router, dismiss: dismiss)
             } catch Session.Error.verifiedStateStale {
                 // Session.assertFresh already logged this. The pin can't refresh
                 // here (quarks are tied to it), so give the user a way out.
@@ -139,6 +146,40 @@ final class ConvertConfirmationViewModel {
                 actionButtonState = .normal
                 showErrorDialog(error: error)
             }
+        }
+    }
+
+    /// Waits for the swap on this screen. A terminal result resolves here; anything still
+    /// pending after the inline window continues on the processing screen.
+    func completeInline(swapId: SwapId, session: Session, router: AppRouter, dismiss: @escaping () -> Void) async {
+        let poller: SwapPoller = swapPoller?(swapId) ?? { attempts, interval in
+            try await session.pollSwapState(swapId: swapId, maxAttempts: attempts, interval: interval)
+        }
+        let completion = InlineSwapCompletion(
+            reporter: SwapCompletionReporter(swapId: swapId, swapType: .convert, targetMint: destinationMint, amount: amountAfterFee),
+            poll: poller
+        )
+        switch await completion.awaitOutcome() {
+        case .succeeded:
+            await InlineSuccess.complete(
+                hold: successHold,
+                setButtonState: { actionButtonState = $0 },
+                updatePostTransaction: { session.updatePostTransaction() },
+                finish: { dismiss() },
+                prompt: session.transactionNotificationPrompt
+            )
+        case .failed:
+            actionButtonState = .normal
+            dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+        case .pending:
+            actionButtonState = .normal
+            router.pushAny(ConvertFlowPath.processing(
+                swapId: swapId,
+                destinationMint: destinationMint,
+                destinationName: destinationName,
+                amount: amountAfterFee,
+                attemptsUsed: InlineCompletion.slowPathCredit
+            ))
         }
     }
 

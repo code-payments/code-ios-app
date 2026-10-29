@@ -232,7 +232,7 @@ struct ChatBubbleDeletedTests {
 
     @Test("A cash row has no bubble text — it uses its own cell")
     func cashRowHasNoBubbleText() {
-        let cash = ChatCashContent(amount: "$5.00", token: "Cash", flagImageName: nil, iconURL: nil, isTip: false)
+        let cash = ChatCashContent(amount: "$5.00", token: "Cash", iconURL: nil, isTip: false)
         #expect(ChatBubbleView.displayText(for: ChatMessage(id: "1", content: .cash(cash), sender: .me)) == nil)
     }
 

@@ -6,7 +6,7 @@
 import XCTest
 
 /// Page object for the standalone Add Money flow: "No Balance Yet" →
-/// "Add Money With" → the per-method screens.
+/// "Add Dollars With" → the per-method screens.
 @MainActor
 struct AddMoneyStartScreen {
 
@@ -24,17 +24,17 @@ struct AddMoneyStartScreen {
 
     /// The "No Balance Yet" primary CTA, scoped to the dialog. An unscoped
     /// "Add Money" match can resolve to the wallet behind the dialog, which has
-    /// both a tile and a new-user tutorial row under that label.
+    /// an "Add Money" button of its own.
     var addMoneyButton: XCUIElement {
         app.otherElements["No Balance Yet"].buttons["Add Money"]
     }
 
-    // MARK: - Add Money With
+    // MARK: - Add Dollars With
 
-    /// The method picker's heading. The tab-bar UI titles it "Add Money With";
+    /// The method picker's heading. The tab-bar UI titles it "Add Dollars With";
     /// "Select Method" was the pre-tab-bar heading.
     var methodPickerTitle: XCUIElement {
-        app.staticTexts["Add Money With"]
+        app.staticTexts["Add Dollars With"]
     }
 
     /// Debit card (Coinbase) row, matched by identifier — the row carries the
@@ -54,7 +54,7 @@ struct AddMoneyStartScreen {
     // MARK: - Phantom education
 
     var phantomEducationTitle: XCUIElement {
-        app.staticTexts["Add Money With Phantom"]
+        app.staticTexts["Add Dollars With Phantom"]
     }
 
     var connectPhantomButton: XCUIElement {
@@ -73,14 +73,14 @@ struct AddMoneyStartScreen {
     func assertMethodPickerReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
             methodPickerTitle.waitForExistence(timeout: timeout),
-            "Expected the 'Add Money With' sheet"
+            "Expected the 'Add Dollars With' sheet"
         )
     }
 
     func assertPhantomEducationReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
             phantomEducationTitle.waitForExistence(timeout: timeout),
-            "Expected the 'Add Money With Phantom' education screen"
+            "Expected the 'Add Dollars With Phantom' education screen"
         )
         XCTAssertTrue(
             connectPhantomButton.exists,

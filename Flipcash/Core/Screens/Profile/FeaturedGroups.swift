@@ -22,6 +22,9 @@ final class FeaturedGroups {
 
     private(set) var groups: [Conversation] = []
 
+    /// Whether the list has been read or saved, so an empty `groups` means none rather than not yet.
+    private(set) var isLoaded = false
+
     @ObservationIgnored private let fetching: (Username) async throws -> [Conversation]
     @ObservationIgnored private let fillingCovers: ([Conversation]) async -> [ConversationID: Conversation]
 
@@ -50,6 +53,7 @@ final class FeaturedGroups {
             let full = await fillingCovers(groups)
             // Keyed by id rather than replaced wholesale, so a save landing meanwhile stands.
             groups = groups.map { full[$0.id] ?? $0 }
+            isLoaded = true
             return true
         } catch {
             guard !Task.isCancelled else { return false }
@@ -62,5 +66,6 @@ final class FeaturedGroups {
     /// Takes the list a save returned, which is the server's word on what is now featured.
     func replace(with groups: [Conversation]) {
         self.groups = groups
+        isLoaded = true
     }
 }

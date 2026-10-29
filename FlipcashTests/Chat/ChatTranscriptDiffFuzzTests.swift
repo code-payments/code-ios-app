@@ -71,7 +71,7 @@ struct ChatTranscriptDiffFuzzTests {
             case .cash(let id):
                 .message(ChatMessage(
                     id: "m\(id)",
-                    content: .cash(ChatCashContent(amount: "$\(id).00", token: "Cash", flagImageName: "us")),
+                    content: .cash(ChatCashContent(amount: "$\(id).00", token: "Cash")),
                     sender: .other
                 ))
             case .separator(let id):

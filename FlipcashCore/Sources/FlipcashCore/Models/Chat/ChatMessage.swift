@@ -34,6 +34,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         case shareProfile(LinkCard.User)
         /// A photo, drawn from its blob once a download URL is resolved and from its BlurHash until then.
         case media(ChatMediaContent)
+        /// A group payment request card, worded for the viewer; its frame alone while the request loads.
+        case paymentRequest(ChatPaymentRequestContent)
     }
 
     /// Why an unavailable message can't be shown, which picks the bubble's copy.
@@ -137,9 +139,15 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// have not joined. They still see the pills other members left; the trailing "+" is withheld
     /// and a tap on an existing pill is inert, but a long-press still opens the reactors sheet.
     public let canReact: Bool
+    /// Whether the leading "$" offers a paid reaction — only on someone else's message in a group the
+    /// viewer may react in.
+    public let canBoost: Bool
     /// Whether this is the viewer's own row that the server has not confirmed — still sending, or
     /// failed. Only an earlier-confirmed row's `receipt` is withheld, so a nil receipt doesn't say this.
     public let isUnsent: Bool
+    /// When the message was sent, or nil for a row built without one (previews, fixtures). Drives
+    /// the reveal column and the full time in the menu header and the spoken description.
+    public let sentAt: Date?
 
     /// The id of the message this row draws some or all of. Every action that means the message
     /// rather than the row — the menu, a reply swipe, retry, a jump to a quoted original — goes by
@@ -153,7 +161,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         guard isEmojiOnly, quote == nil, linkPreview == nil else { return false }
         switch content {
         case .text:           return true
-        case .cash, .deleted, .unavailable, .shareProfile, .media: return false
+        case .cash, .deleted, .unavailable, .shareProfile, .media, .paymentRequest: return false
         }
     }
 
@@ -195,7 +203,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             return false
         case .media(let media) where media.isRedacted:
             return false
-        case .text, .cash, .shareProfile, .media:
+        case .text, .cash, .shareProfile, .media, .paymentRequest:
             return !isUnsent
         }
     }
@@ -207,7 +215,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         guard offersReactionStrip else { return false }
         switch content {
         case .text, .media:                                 return true
-        case .cash, .deleted, .unavailable, .shareProfile:  return false
+        case .cash, .deleted, .unavailable, .shareProfile, .paymentRequest: return false
         }
     }
 
@@ -232,7 +240,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         reactions: [ReactionPill] = [],
         selfReactions: [SelfReaction] = [],
         canReact: Bool = true,
-        isUnsent: Bool = false
+        canBoost: Bool = false,
+        isUnsent: Bool = false,
+        sentAt: Date? = nil
     ) {
         self.id = id
         self.serverID = serverID
@@ -254,7 +264,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.reactions = reactions
         self.selfReactions = selfReactions
         self.canReact = canReact
+        self.canBoost = canBoost
         self.isUnsent = isUnsent
+        self.sentAt = sentAt
     }
 
     /// Convenience for text rows.
@@ -279,7 +291,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         reactions: [ReactionPill] = [],
         selfReactions: [SelfReaction] = [],
         canReact: Bool = true,
-        isUnsent: Bool = false
+        canBoost: Bool = false,
+        isUnsent: Bool = false,
+        sentAt: Date? = nil
     ) {
         self.init(
             id: id,
@@ -302,7 +316,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             reactions: reactions,
             selfReactions: selfReactions,
             canReact: canReact,
-            isUnsent: isUnsent
+            canBoost: canBoost,
+            isUnsent: isUnsent,
+            sentAt: sentAt
         )
     }
 }
@@ -362,6 +378,21 @@ public struct ChatAuthor: Hashable, Sendable, Codable {
     }
 }
 
+/// One row of a photo's caption the transcript split around a Flipcash link card, as a text message
+/// is: the words before the link, the card, or the words after it.
+public struct ChatMediaCaptionRow: Hashable, Sendable, Codable {
+    public let kind: ChatMessagePart.Kind
+    /// The row's text: the caption's words, or the link the card stands for.
+    public let text: String
+    public let preview: LinkPreview?
+
+    public init(kind: ChatMessagePart.Kind, text: String, preview: LinkPreview?) {
+        self.kind = kind
+        self.text = text
+        self.preview = preview
+    }
+}
+
 /// A photo row's display data: what the bubble needs to size itself and draw a placeholder before
 /// any bytes arrive. The download URL and a pending row's local image stay outside this value — a
 /// URL is signed and minted per fetch, and an image is not `Codable` — and reach the cell at
@@ -377,41 +408,112 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
     public let blurhash: String?
     /// The text sent with the photo, drawn as its own bubble under the image.
     public let caption: String?
+    /// What the caption's text holds, detected as a text message's body is: its links, its
+    /// `@handle` mentions, and the web card its sender attached. Nil when it holds none.
+    public let captionPreview: LinkPreview?
+    /// The caption split around its Flipcash card when words sit beside the link, in the order the
+    /// text path draws a message: leading text, card, trailing text. Empty for a caption that is
+    /// drawn whole, including one that is only the link.
+    public let captionRows: [ChatMediaCaptionRow]
+    /// The Flipcash card the caption draws, whole or split, if any.
+    public var captionCard: LinkCard? {
+        captionRows.compactMap(\.preview?.card).first ?? captionPreview?.card
+    }
+    /// Every well-formed `@handle` in `caption`, as UTF-16 offsets into it, drawn as pills.
+    public var captionMentions: [DetectedMention] { captionPreview?.mentions ?? [] }
+    /// Whether the caption is one to three emoji and nothing else: the text path's rule, so the
+    /// caption draws bare and enlarged under the photo as such a message does, with no bubble.
+    public var captionIsEmojiOnly: Bool { caption.map { EmojiOnlyDetector.isEmojiOnly($0) } ?? false }
     /// Whether the server withheld the photo's download URL; the bubble then only ever draws its BlurHash.
     public let isRedacted: Bool
     /// What decrypting the blob needs when it is end-to-end encrypted, nil for a plaintext blob.
     public let sealed: SealedBlob?
 
-    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, isRedacted: Bool, sealed: SealedBlob? = nil) {
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionPreview: LinkPreview? = nil, captionRows: [ChatMediaCaptionRow] = [], isRedacted: Bool, sealed: SealedBlob? = nil) {
         self.blobID = blobID
         self.width = width
         self.height = height
         self.blurhash = blurhash
         self.caption = caption
+        self.captionPreview = captionPreview
+        self.captionRows = captionRows
         self.isRedacted = isRedacted
         self.sealed = sealed
     }
 }
 
+/// A payment request row's display data: the request it opens, and its card once the request is known.
+public struct ChatPaymentRequestContent: Hashable, Sendable, Codable {
+    /// The request's id bytes.
+    public let requestID: Data
+    /// The worded card; nil while the request loads, which draws the frame with placeholder lines.
+    public let card: Card?
+
+    /// What a request card shows, already put into words.
+    public struct Card: Hashable, Sendable, Codable {
+        public let title: String
+        /// "$40 paid, $60 requested", in the viewer's amounts.
+        public let progressLine: String
+        /// The paid share of the requested total, 0 through 1.
+        public let fraction: Double
+        /// "2 days left to pay", "Paid in full", and the other deadline lines.
+        public let statusLine: String
+        /// Whether the request has ended, which greys the card.
+        public let isEnded: Bool
+
+        public init(title: String, progressLine: String, fraction: Double, statusLine: String, isEnded: Bool) {
+            self.title = title
+            self.progressLine = progressLine
+            self.fraction = fraction
+            self.statusLine = statusLine
+            self.isEnded = isEnded
+        }
+    }
+
+    public init(requestID: Data, card: Card?) {
+        self.requestID = requestID
+        self.card = card
+    }
+}
+
 /// A cash payment row's display data — already formatted, so the cell renders strings + images.
 public struct ChatCashContent: Hashable, Sendable, Codable {
-    /// The amount in the user's currency, formatted for display (e.g. "$5.00").
+    /// The amount in the viewer's display currency, formatted for display (e.g. "$5.00").
     public let amount: String
     /// The token's display name (e.g. "Cash").
     public let token: String
-    /// Asset-catalog name of the currency flag shown beside the amount (e.g. "us", "USDC").
-    public let flagImageName: String?
     /// Remote icon for a launchpad token shown beside its name; nil for plain cash (USDF).
     public let iconURL: URL?
     /// Whether the payment was a tip, which selects the caption verb ("tipped" vs "sent").
     public let isTip: Bool
+    /// The lines a payment in a group adds to a plain cash card; nil outside a group, or when the
+    /// card needs only the plain caption.
+    public let group: GroupSend?
 
-    public init(amount: String, token: String, flagImageName: String? = nil, iconURL: URL? = nil, isTip: Bool = false) {
+    /// The lines a payment in a group adds to a plain cash card.
+    public struct GroupSend: Hashable, Sendable, Codable {
+        /// Replaces the caption: "You sent", or the sender's name in place of "You".
+        public let caption: String
+        /// The per-person line: "$1.00 Each", or "~$0.33 Each" (the smallest part) when uneven; nil
+        /// for a payment to one member.
+        public let each: String?
+        /// Who was paid, at the foot of the card: "to Alex Morgan and 1 Other", or "to You and 1 Other"
+        /// when the viewer was paid.
+        public let recipients: String
+
+        public init(caption: String, each: String?, recipients: String) {
+            self.caption = caption
+            self.each = each
+            self.recipients = recipients
+        }
+    }
+
+    public init(amount: String, token: String, iconURL: URL? = nil, isTip: Bool = false, group: GroupSend? = nil) {
         self.amount = amount
         self.token = token
-        self.flagImageName = flagImageName
         self.iconURL = iconURL
         self.isTip = isTip
+        self.group = group
     }
 
     /// The caption shown above the amount on a cash card, selected by side and tip vs. plain send.

@@ -17,6 +17,14 @@ import FlipcashCore
 /// sentence as literal text beside it — the same split ``ShareCashLinkItem`` makes.
 final class GroupInviteShareItem: NSObject, UIActivityItemSource {
 
+    /// Which link is shared, which sets the invitation's wording.
+    enum Kind {
+        /// The plain `/chat/{uuid}` link: the recipient asks to join, or joins a public group.
+        case groupLink
+        /// A private group's invite link, which admits whoever opens it.
+        case inviteLink
+    }
+
     let url: URL
 
     private let content: String
@@ -33,7 +41,8 @@ final class GroupInviteShareItem: NSObject, UIActivityItemSource {
     ///     the rule Android's invite follows.
     ///   - icon: the group's picture, for the share sheet's own preview card. Nil when the group
     ///     has none or its avatar hasn't loaded; the card then carries the name alone.
-    init(url: URL, title: String?, icon: UIImage? = nil) {
+    ///   - kind: which link `url` is.
+    init(url: URL, title: String?, icon: UIImage? = nil, kind: Kind = .groupLink) {
         self.url  = url
         self.icon = icon
 
@@ -44,7 +53,12 @@ final class GroupInviteShareItem: NSObject, UIActivityItemSource {
             name = nil
         }
 
-        let invitation = name.map { "Join \($0) on Flipcash and let's chat" }
+        let invitation = name.map { name in
+            switch kind {
+            case .groupLink: "Join \(name) on Flipcash and let's chat"
+            case .inviteLink: "Join \(name) on Flipcash"
+            }
+        }
 
         self.name       = name
         self.invitation = invitation

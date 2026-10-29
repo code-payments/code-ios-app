@@ -83,6 +83,7 @@ struct GroupEventsTests {
     @Test("Group: Invite Shared carries its method", arguments: [
         (GroupInviteMethod.share, "Share"),
         (.theCopy, "Copy"),
+        (.download, "Download"),
     ])
     func inviteShared(_ method: GroupInviteMethod, _ expected: String) throws {
         let sent = Analytics.recordingSends { Analytics.groupInviteShared(method: method) }
@@ -223,6 +224,12 @@ struct GroupEventsTests {
         #expect(anyCurrency.gateMint == nil)
         #expect(staff.gateMint == nil)
         #expect((nil as ConversationRules?).gateMint == nil)
+    }
+
+    @Test("Group: Card Shown carries the member count")
+    func cardShown() throws {
+        let sent = Analytics.recordingSends { Analytics.groupCardShown(memberCount: 7) }
+        try expectEvent(sent, "Group: Card Shown", ["Member Count": .number(7)])
     }
 
     // MARK: - Helpers -

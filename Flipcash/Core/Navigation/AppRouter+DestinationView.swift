@@ -53,6 +53,16 @@ struct DestinationView: View {
         case .transactionHistory(let mint):
             TransactionHistoryScreen(mint: mint)
 
+        case .topCommunityChats(let mint):
+            TopCommunityChatsDestination(mint: mint)
+                .id(mint)
+
+        case .currencySendAmount(let mint):
+            CurrencySendAmountDestination(mint: mint)
+
+        case .currencySendRecipient(let mint, let amount):
+            CurrencySendRecipientDestination(mint: mint, amount: amount)
+
         case .marketCapExplainer(let mint):
             MarketCapExplainerScreen(
                 mint: mint,
@@ -188,6 +198,11 @@ struct DestinationView: View {
                 onComplete: { sessionContainer.appRouter.popToRoot() }
             )
 
+        case .depositCurrency(let mint):
+            if let screen = DepositScreen.currencyDeposit(mint: mint, session: sessionContainer.session) {
+                screen
+            }
+
         case .usdcDepositEducation:
             USDCDepositEducationScreen(
                 onNext: { sessionContainer.appRouter.push(.usdcDepositAddress) }
@@ -222,6 +237,9 @@ struct DestinationView: View {
         case .archivedChats:
             ArchivedChatsScreen()
 
+        case .chatSearch:
+            ChatSearchScreen()
+
         case .requests:
             RequestsScreen()
 
@@ -229,9 +247,16 @@ struct DestinationView: View {
             JoinRequestsScreen(conversationID: conversationID)
                 .id(conversationID)
 
+        case .inviteLinks(let conversationID):
+            InviteLinksScreen(conversationID: conversationID)
+                .id(conversationID)
+
         case .groupMembers(let conversationID):
             GroupMembersScreen(conversationID: conversationID)
                 .id(conversationID)
+
+        case .groupInvite(let secret):
+            GroupInviteScreen(secret: secret)
 
         case .tipConversation(let conversationID):
             // `.id` forces fresh view identity per conversation.

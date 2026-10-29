@@ -45,20 +45,19 @@ struct WalletScreen {
     /// The balance header button that shows the flag + total amount + chevron.
     var balanceHeader: XCUIElement { app.buttons["balance-header"] }
 
-    /// The "Add Money" tile. Matched by identifier, not label: the new-user
-    /// tutorial above it renders an "Add Money" row too, and on a funded account
-    /// that row is completed and therefore disabled.
+    /// The "Add Money" tile. Matched by identifier, which is stable
+    /// across label changes.
     var addMoneyTile: XCUIElement { app.buttons["wallet-tile-add-money"] }
 
     /// The "Withdraw Money" tile, which pushes the currency picker onto the
     /// wallet's own stack.
     var withdrawMoneyTile: XCUIElement { app.buttons["wallet-tile-withdraw-money"] }
 
-    /// The "Discover Currencies" tile, which pushes the leaderboard onto the
+    /// The "Currency Leaderboard" tile, which pushes the leaderboard onto the
     /// wallet's own stack — v1 opened it as a sheet off the scanner.
     var discoverCurrenciesTile: XCUIElement { app.buttons["wallet-tile-discover-currencies"] }
 
-    /// The "Create a Currency" tile, which pushes the creation summary directly.
+    /// The "Create Your Own Currency" tile, which pushes the creation summary directly.
     /// It replaces Discover's promo card, which the tab-bar UI hides
     /// (`CurrencyDiscoveryScreen.hidesPromo`).
     var createCurrencyTile: XCUIElement { app.buttons["wallet-tile-create-currency"] }

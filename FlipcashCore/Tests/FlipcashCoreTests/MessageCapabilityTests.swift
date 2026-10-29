@@ -112,20 +112,31 @@ struct MessageCapabilityTests {
         #expect(resolve(cash(from: them), isMember: false) == [.report, .forward])
     }
 
-    @Test("My own photo can be replied to and deleted, but has no text to copy or edit")
-    func ownMediaOffersReplyAndDelete() {
-        #expect(resolve(media(from: me)) == [.reply, .delete, .forward])
+    @Test("My own photo with a caption can be copied, replied to and deleted, but not edited")
+    func ownMediaOffersCopyButNotEdit() {
+        #expect(resolve(media(from: me)) == [.copy, .reply, .delete, .forward])
     }
 
-    @Test("Someone else's photo can be replied to and reported, but not copied")
-    func otherPersonsMediaIsReportable() {
-        #expect(resolve(media(from: them)) == [.reply, .report, .forward])
+    @Test("My own photo with no caption has no text to copy")
+    func ownCaptionlessMediaOffersNoCopy() {
+        #expect(resolve(media(from: me, caption: nil)) == [.reply, .delete, .forward])
+        #expect(resolve(media(from: me, caption: "")) == [.reply, .delete, .forward])
     }
 
-    private func media(from sender: UUID) -> ConversationMessage {
+    @Test("Someone else's captioned photo can be copied, replied to and reported")
+    func otherPersonsMediaIsCopyableAndReportable() {
+        #expect(resolve(media(from: them)) == [.copy, .reply, .report, .forward])
+    }
+
+    @Test("Someone else's photo with no caption can be replied to and reported, but not copied")
+    func otherPersonsCaptionlessMediaIsNotCopyable() {
+        #expect(resolve(media(from: them, caption: nil)) == [.reply, .report, .forward])
+    }
+
+    private func media(from sender: UUID, caption: String? = "hi") -> ConversationMessage {
         ConversationMessage(
             id: MessageID(value: 4), senderID: sender,
-            content: .media([MediaAttachment(blobID: BlobID(data: Data([1])), width: 1, height: 1, blurhash: nil)], caption: "hi"),
+            content: .media([MediaAttachment(blobID: BlobID(data: Data([1])), width: 1, height: 1, blurhash: nil)], caption: caption),
             date: now, unreadSeq: 1, eventSequence: 2
         )
     }

@@ -27,6 +27,12 @@ extension AppRouter {
         case transactionHistory(PublicKey)
         /// The "How Market Cap Works" explainer for one currency.
         case marketCapExplainer(PublicKey)
+        /// Every ranked community chat for one currency ("View All" on Currency Info).
+        case topCommunityChats(PublicKey)
+        /// Send from Currency Info, step one: the amount, pushed onto the current stack.
+        case currencySendAmount(PublicKey)
+        /// Send from Currency Info, step two: Select Recipient, carrying the typed amount.
+        case currencySendRecipient(PublicKey, amount: String)
         /// The unified, cross-token activity history — the "dive in" from the
         /// Wallet's Recent section. `transactionHistory` is the per-token slice.
         case activity
@@ -47,8 +53,10 @@ extension AppRouter {
         /// finish). `nil` starts on the currency picker; a mint skips the picker
         /// pre-selected — Dollars (USDF) lands on the "Withdraw as USDC" intro,
         /// any other currency on the amount screen. Pushed from the Wallet
-        /// "Withdraw Money" tile (`nil`) and Currency Info (a mint).
+        /// "Withdraw Dollars" tile (`nil`) and Currency Info (a mint).
         case withdrawCurrency(PublicKey?)
+        /// The deposit address for one currency, from Currency Info's More sheet.
+        case depositCurrency(PublicKey)
         /// USDC → USDF deposit education screen.
         case usdcDepositEducation
         /// USDC → USDF deposit address screen. Shows the user's authority
@@ -138,13 +146,20 @@ extension AppRouter {
         case editGroupDescription(ConversationID)
         /// The list of archived chats, pushed from the Archived row on the Chats tab.
         case archivedChats
+        /// Chats Search, pushed from the Chats tab's search button.
+        case chatSearch
         /// Join requests in both directions, pushed from the Chats tab's leading bar item.
         case requests
         /// The pending requests to join a private group the user hosts, pushed from its profile card,
         /// the Requests screen, or the chat's request anchor.
         case joinRequests(ConversationID)
+        /// A hosted private group's invite links, pushed from the Invite People sheet and the create-failed dialog.
+        case inviteLinks(ConversationID)
         /// Every member of a private group, pushed from the count on its profile's Members grid.
         case groupMembers(ConversationID)
+        /// The group an invite link admits to, previewed before joining; nil for a link that holds
+        /// no usable secret. The secret prints redacted, and ``payload`` never carries it.
+        case groupInvite(InviteLinkSecret?)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -157,9 +172,9 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .marketCapExplainer, .activity, .transactionDetails, .give,
+                 .transactionHistory, .marketCapExplainer, .topCommunityChats, .currencySendAmount, .currencySendRecipient, .activity, .transactionDetails, .give,
                  .buyCurrency, .convertCurrency,
-                 .withdrawCurrency, .usdcDepositEducation, .usdcDepositAddress:
+                 .withdrawCurrency, .depositCurrency, .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture, .username,
@@ -170,7 +185,7 @@ extension AppRouter {
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .tipConversation, .tipConversationWithKeyboard, .chatMessage, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats, .requests, .joinRequests, .groupMembers:
+                 .editGroupDescription, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers, .groupInvite:
                 return .tips
             }
         }
@@ -188,6 +203,9 @@ extension AppRouter {
             case .currencyCreationSummary:      "currencyCreationSummary"
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
+            case .topCommunityChats:            "topCommunityChats"
+            case .currencySendAmount:           "currencySendAmount"
+            case .currencySendRecipient:        "currencySendRecipient"
             case .marketCapExplainer:           "marketCapExplainer"
             case .activity:                     "activity"
             case .transactionDetails:           "transactionDetails"
@@ -195,6 +213,7 @@ extension AppRouter {
             case .buyCurrency:                  "buyCurrency"
             case .convertCurrency:              "convertCurrency"
             case .withdrawCurrency:             "withdrawCurrency"
+            case .depositCurrency:              "depositCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
             case .settings:                     "settings"
@@ -233,9 +252,12 @@ extension AppRouter {
             case .editGroupCover:               "editGroupCover"
             case .editGroupDescription:         "editGroupDescription"
             case .archivedChats:                "archivedChats"
+            case .chatSearch:                   "chatSearch"
             case .requests:                     "requests"
             case .joinRequests:                 "joinRequests"
+            case .inviteLinks:                  "inviteLinks"
             case .groupMembers:                 "groupMembers"
+            case .groupInvite:                  "groupInvite"
             }
         }
 
@@ -248,8 +270,12 @@ extension AppRouter {
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
                  .marketCapExplainer(let mint),
+                 .topCommunityChats(let mint),
+                 .currencySendAmount(let mint),
+                 .currencySendRecipient(let mint, _),
                  .give(let mint),
                  .buyCurrency(let mint),
+                 .depositCurrency(let mint),
                  .convertCurrency(let mint):
                 return mint.base58
             case .withdrawCurrency(let mint):
@@ -266,6 +292,7 @@ extension AppRouter {
                  .editGroupCover(let conversationID),
                  .editGroupDescription(let conversationID),
                  .joinRequests(let conversationID),
+                 .inviteLinks(let conversationID),
                  .groupMembers(let conversationID):
                 return conversationID.description
             case .userProfile(let userID, _):
@@ -282,7 +309,7 @@ extension AppRouter {
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
                  .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
-                 .archivedChats, .requests:
+                 .archivedChats, .chatSearch, .requests, .groupInvite:
                 return nil
             }
         }

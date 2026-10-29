@@ -79,9 +79,10 @@ extension FiatAmount {
     }
 
     /// This amount restated in `currency`, routed through USD the way the rate
-    /// table is keyed, and rounded to the target's display precision — half-up
-    /// by default, or up when `roundingUp` so the result never falls short of
-    /// this amount. `nil` when either leg of the conversion has no rate.
+    /// table is keyed, and rounded to the target's display precision — half-even
+    /// by default, matching the formatter, or up when `roundingUp` so the result
+    /// never falls short of this amount. `nil` when either leg of the conversion
+    /// has no usable rate.
     public func converted(
         to currency: CurrencyCode,
         rates: [CurrencyCode: Rate],
@@ -90,16 +91,34 @@ extension FiatAmount {
         if self.currency == currency {
             return self
         }
-        guard let ownRate = rates[self.currency] else { return nil }
+        guard let ownRate = rates.usable(self.currency) else { return nil }
         let usd = convertingToUSD(rate: ownRate)
         let unrounded: FiatAmount
         if currency == .usd {
             unrounded = usd
         } else {
-            guard let targetRate = rates[currency] else { return nil }
+            guard let targetRate = rates.usable(currency) else { return nil }
             unrounded = usd.converting(to: targetRate)
         }
-        return roundingUp ? unrounded.ceiledToSmallestUnit() : unrounded.roundedToSmallestUnit()
+        if roundingUp {
+            return unrounded.ceiledToSmallestUnit()
+        }
+        return FiatAmount(
+            value: unrounded.value.roundedHalfEven(to: currency.maximumFractionDigits),
+            currency: currency
+        )
+    }
+}
+
+extension Dictionary where Key == CurrencyCode, Value == Rate {
+
+    /// The rate for `currency` when it can carry a conversion: present with a
+    /// positive fx. USD is fx 1 by definition, so it never needs a table entry.
+    func usable(_ currency: CurrencyCode) -> Rate? {
+        if let rate = self[currency], rate.fx > 0 {
+            return rate
+        }
+        return currency == .usd ? .oneToOne : nil
     }
 }
 

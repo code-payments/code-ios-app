@@ -61,7 +61,7 @@ public actor ChatKeyring {
     private let selfUserID: UserID
     private let store: any PeerKeyStore
     private let resolveKey: ResolveKey
-    private let groupKey: GroupKey?
+    private let groupKey: GroupKey
 
     private var peerKeys: [UserID: PublicKey] = [:]
     private var seals: [ConversationID: ChatSeal] = [:]
@@ -72,7 +72,7 @@ public actor ChatKeyring {
         selfUserID: UserID,
         store: any PeerKeyStore = AppGroupPeerKeyStore(),
         resolveKey: @escaping ResolveKey,
-        groupKey: GroupKey? = nil
+        groupKey: @escaping GroupKey
     ) {
         self.cipher = cipher
         self.owner = owner
@@ -80,6 +80,29 @@ public actor ChatKeyring {
         self.store = store
         self.resolveKey = resolveKey
         self.groupKey = groupKey
+    }
+
+    /// A keyring whose private-group chat keys are opened from the envelopes `getEnvelope` fetches.
+    public init(
+        owner: KeyPair,
+        selfUserID: UserID,
+        resolveKey: @escaping ResolveKey,
+        setEnvelope: @escaping GroupKeyEnvelopes.SetEnvelope,
+        getEnvelope: @escaping GroupKeyEnvelopes.GetEnvelope,
+        opensInviteBundles: Bool
+    ) {
+        let groupKeys = GroupKeyEnvelopes(
+            sealer: SharedCoreGroupKeySealer(),
+            owner: owner,
+            selfUserID: selfUserID,
+            setEnvelope: setEnvelope,
+            getEnvelope: getEnvelope,
+            resolveKey: resolveKey,
+            opensInviteBundles: opensInviteBundles
+        )
+        self.init(owner: owner, selfUserID: selfUserID, resolveKey: resolveKey) { conversationID, creator in
+            try await groupKeys.groupKey(for: conversationID, creator: creator)
+        }
     }
 
     /// The seal to send into `conversation` with, or nil when it is sent in plaintext.
@@ -99,6 +122,8 @@ public actor ChatKeyring {
             return .awaitingKey
         } catch is GroupKeyUnavailable {
             return .awaitingKey
+        } catch is GroupKeyUnusable {
+            return .unusableKey
         } catch {
             // No peer to decrypt with (a group), or a key shared-core rejects: nothing will open these.
             return .unsupported
@@ -150,14 +175,17 @@ public actor ChatKeyring {
         return key
     }
 
-    /// A private group's seal. Public groups have no key; an envelope from an untrusted wrapper
-    /// will never open, while any other failure (network, not yet admitted) may on a later try.
+    /// A private group's seal. Public groups have no key; an envelope from an untrusted wrapper or
+    /// an invite copy that failed a check will never open, while any other failure (network, not yet
+    /// admitted) may on a later try.
     private func groupSeal(for conversation: Conversation) async throws -> ChatSeal {
-        guard conversation.isPrivate, let groupKey else { throw NoPeer() }
+        guard conversation.isPrivate else { throw NoPeer() }
         let key: Data
         do {
             key = try await groupKey(conversation.id, conversation.creator)
         } catch let error as GroupKeyNotSelfWrapped {
+            throw error
+        } catch let error as GroupKeyUnusable {
             throw error
         } catch {
             throw GroupKeyUnavailable()
@@ -181,6 +209,9 @@ public enum ChatOpener: Sendable {
     case awaitingKey
     /// Nothing will ever decrypt this chat's messages on this client.
     case unsupported
+    /// A private group joined by invite whose copy of the chat key failed a check. The viewer is a
+    /// member with no usable key; messages stay undecrypted and unmarked, and leaving is the repair.
+    case unusableKey
 
     /// `messages` with every one awaiting decryption decrypted or marked with why it couldn't be.
     public func open(_ messages: [ConversationMessage]) -> [ConversationMessage] {
@@ -191,9 +222,9 @@ public enum ChatOpener: Sendable {
     public func open(_ message: ConversationMessage) -> ConversationMessage {
         guard message.isAwaitingDecryption else { return message }
         switch self {
-        case .seal(let seal):  return seal.open(message)
-        case .awaitingKey:     return message
-        case .unsupported:     return message.opened(.failure(.unsupported))
+        case .seal(let seal):            return seal.open(message)
+        case .awaitingKey, .unusableKey: return message
+        case .unsupported:               return message.opened(.failure(.unsupported))
         }
     }
 }

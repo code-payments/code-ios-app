@@ -26,7 +26,6 @@ public final class ChatMediaCell: ChatColumnCell {
     /// two read as one run.
     static let captionGap: CGFloat = 5
     private static let captionInset: CGFloat = 12
-    private static let captionPadding: CGFloat = 9
     private static let fadeDuration: TimeInterval = 0.25
     /// The progress capsule's inset from the photo's bottom-right corner.
     private static let progressInset: CGFloat = 10
@@ -48,14 +47,33 @@ public final class ChatMediaCell: ChatColumnCell {
     /// A reply's quote, drawn over the photo. A sibling of the photo rather than its subview, so it
     /// stays its own accessibility element and its tap never reaches the photo's.
     let quotePanel = ChatQuotePanelView()
-    let captionBubble = BubbleBackgroundView()
-    let captionLabel = UILabel()
+    /// The caption, drawn by the same view a text message uses, so its links, mention pills, Flipcash
+    /// card, taps and chrome are the text bubble's own.
+    let captionBubble = LinkableBubbleView()
+    /// The card of a caption with words around its Flipcash link, under the text before it: the
+    /// view a text message's card row uses. Hidden when the caption is not split.
+    let captionCardBubble = LinkableBubbleView()
+    /// The text after a split caption's card. Hidden when the caption is not split.
+    let captionTrailingBubble = LinkableBubbleView()
+    /// An emoji-only caption: the view a text message of one to three emoji uses, drawn bare and
+    /// enlarged with no bubble. Mutually exclusive with ``captionBubble``.
+    let captionEmoji = ChatBubbleView()
     let reactionRow = ReactionPillRowView()
     let imageTap = UITapGestureRecognizer()
 
     private var imageWidthConstraint: NSLayoutConstraint!
     private var imageHeightConstraint: NSLayoutConstraint!
     private var captionMaxWidthConstraint: NSLayoutConstraint!
+    /// Holds a bare caption card open at the bubble's full width, as `ChatLinkMessageCell` does.
+    private var captionCardWidthConstraint: NSLayoutConstraint!
+    private var captionEmojiMaxWidthConstraint: NSLayoutConstraint!
+    private var captionCardMaxWidthConstraint: NSLayoutConstraint!
+    private var captionCardFillConstraint: NSLayoutConstraint!
+    private var captionTrailingMaxWidthConstraint: NSLayoutConstraint!
+    private var captionCardMessage: ChatMessage?
+    /// Every view a caption can draw into, in the order they stack under the photo.
+    private var captionBubbles: [LinkableBubbleView] { [captionBubble, captionCardBubble, captionTrailingBubble] }
+    private var captionMessage: ChatMessage?
     private var reactionRowWidthConstraint: NSLayoutConstraint!
 
     /// The row the image view is currently drawing, so a pending row that confirms keeps its local
@@ -78,6 +96,24 @@ public final class ChatMediaCell: ChatColumnCell {
     var onReactionLongPress: ((String) -> Void)?
     /// Fired when the trailing "+" is tapped, to open the picker.
     var onReactionAdd: (() -> Void)?
+    /// Called when the viewer taps the leading "$" to pay for a reaction.
+    var onReactionBoost: (() -> Void)?
+
+    /// Fired when the viewer taps an `@handle` in the caption, with the handle it names.
+    var onMentionTap: ((Username) -> Void)? {
+        didSet { captionBubbles.forEach { $0.onMentionTap = onMentionTap } }
+    }
+    /// Fired when the viewer taps a link in the caption.
+    var onOpenURL: ((URL) -> Void)? {
+        didSet { captionBubbles.forEach { $0.onOpenURL = onOpenURL } }
+    }
+    /// Fired when the viewer taps the card the caption drew in place of its link.
+    var onLinkCardTap: ((LinkCard) -> Void)? {
+        didSet { captionBubbles.forEach { $0.onLinkCardTap = onLinkCardTap } }
+    }
+    weak var linkCardSource: (any LinkCardSource)? {
+        didSet { captionBubbles.forEach { $0.linkCardSource = linkCardSource } }
+    }
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -101,17 +137,26 @@ public final class ChatMediaCell: ChatColumnCell {
         imageTap.addTarget(self, action: #selector(imageTapped))
         imageBubble.addGestureRecognizer(imageTap)
 
-        captionLabel.font = .default(size: 16, weight: .medium)
-        captionLabel.textColor = .white
-        captionLabel.numberOfLines = 0
-        captionLabel.translatesAutoresizingMaskIntoConstraints = false
-        captionBubble.addSubview(captionLabel)
-        captionBubble.isHidden = true
+        captionBubbles.forEach { $0.isHidden = true }
+        captionEmoji.isHidden = true
+        // The transcript self-sizes on invalidation, so a card that grows after its preview
+        // lands re-measures its row, and a link-only caption going bare re-measures its width.
+        captionBubble.onCardHeightChange = { [weak self] in self?.contentView.invalidateIntrinsicContentSize() }
+        for bubble in captionBubbles {
+            bubble.onCardHeightChange = { [weak self] in self?.contentView.invalidateIntrinsicContentSize() }
+            bubble.onBareChange = { [weak self] in
+                self?.applyCaptionBareness()
+                self?.contentView.invalidateIntrinsicContentSize()
+            }
+        }
 
         stack.axis = .vertical
         stack.spacing = Self.captionGap
         stack.addArrangedSubview(imageBubble)
         stack.addArrangedSubview(captionBubble)
+        stack.addArrangedSubview(captionCardBubble)
+        stack.addArrangedSubview(captionTrailingBubble)
+        stack.addArrangedSubview(captionEmoji)
 
         quotePanel.ground = UIColor(Color.backgroundMain).withAlphaComponent(Self.quoteGroundAlpha)
         quotePanel.isHidden = true
@@ -122,18 +167,29 @@ public final class ChatMediaCell: ChatColumnCell {
         reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
         reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
+        reactionRow.onBoost = { [weak self] in self?.onReactionBoost?() }
 
         imageWidthConstraint = imageBubble.widthAnchor.constraint(equalToConstant: 240)
         // Below required so the photo yields to the cell's self-sizing height instead of fighting it.
         imageHeightConstraint = imageBubble.heightAnchor.constraint(equalToConstant: 240)
         imageHeightConstraint.priority = UILayoutPriority(999)
         captionMaxWidthConstraint = captionBubble.widthAnchor.constraint(lessThanOrEqualToConstant: 240)
+        captionEmojiMaxWidthConstraint = captionEmoji.widthAnchor.constraint(lessThanOrEqualToConstant: 240)
+        captionCardWidthConstraint = captionBubble.widthAnchor.constraint(equalToConstant: 240)
+        captionCardWidthConstraint.priority = .defaultHigh
+        captionCardMaxWidthConstraint = captionCardBubble.widthAnchor.constraint(lessThanOrEqualToConstant: 240)
+        captionCardFillConstraint = captionCardBubble.widthAnchor.constraint(equalToConstant: 240)
+        captionCardFillConstraint.priority = .defaultHigh
+        captionTrailingMaxWidthConstraint = captionTrailingBubble.widthAnchor.constraint(lessThanOrEqualToConstant: 240)
         reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 240)
 
         NSLayoutConstraint.activate([
             imageWidthConstraint,
             imageHeightConstraint,
             captionMaxWidthConstraint,
+            captionEmojiMaxWidthConstraint,
+            captionCardMaxWidthConstraint,
+            captionTrailingMaxWidthConstraint,
             reactionRowWidthConstraint,
 
             imageView.topAnchor.constraint(equalTo: imageBubble.topAnchor),
@@ -154,11 +210,6 @@ public final class ChatMediaCell: ChatColumnCell {
             quotePanel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.quoteInset),
             quotePanel.widthAnchor.constraint(lessThanOrEqualTo: imageBubble.widthAnchor, multiplier: Self.quoteMaxWidthFraction),
             quotePanel.bottomAnchor.constraint(lessThanOrEqualTo: imageBubble.bottomAnchor, constant: -Self.quoteInset),
-
-            captionLabel.topAnchor.constraint(equalTo: captionBubble.topAnchor, constant: Self.captionPadding),
-            captionLabel.bottomAnchor.constraint(equalTo: captionBubble.bottomAnchor, constant: -Self.captionPadding),
-            captionLabel.leadingAnchor.constraint(equalTo: captionBubble.leadingAnchor, constant: Self.captionInset),
-            captionLabel.trailingAnchor.constraint(equalTo: captionBubble.trailingAnchor, constant: -Self.captionInset),
         ])
     }
 
@@ -173,8 +224,23 @@ public final class ChatMediaCell: ChatColumnCell {
             || authorAvatarContains(point)
     }
 
+    /// A bare caption card runs to the full bubble width, as in a text row; a person card hugs its
+    /// own width, as `ChatLinkMessageCell` decides.
+    private func applyCaptionBareness() {
+        captionCardWidthConstraint.isActive = captionBubble.isBare
+            && ChatLinkMessageCell.cardFillsWidth(captionMessage?.linkPreview?.card)
+        captionCardFillConstraint.isActive = captionCardBubble.isBare
+            && ChatLinkMessageCell.cardFillsWidth(captionCardMessage?.linkPreview?.card)
+    }
+
     public override func prepareForReuse() {
         super.prepareForReuse()
+        captionMessage = nil
+        captionCardMessage = nil
+        captionBubbles.forEach { $0.prepareForReuse() }
+        captionEmoji.isHidden = true
+        captionCardWidthConstraint.isActive = false
+        captionCardFillConstraint.isActive = false
         imageView.kf.cancelDownloadTask()
         imageView.image = nil
         showUnavailable(false)
@@ -195,6 +261,8 @@ public final class ChatMediaCell: ChatColumnCell {
     ///   - progress: the send progress of a pending photo this device staged, or nil.
     ///   - remote: where the photo downloads from, or nil until it is resolved.
     ///   - quoteThumbnail: where a quoted photo's thumbnail loads from, or nil.
+    ///   - captionWidth: the width a caption's card is held to, or nil for the transcript's bubble
+    ///     width. A message card sits at the cash card's width, as in a text row.
     public func configure(
         with message: ChatMessage,
         maxWidth: CGFloat,
@@ -202,9 +270,11 @@ public final class ChatMediaCell: ChatColumnCell {
         progress: ChatPhotoSendProgress? = nil,
         remote: ChatMediaLocation?,
         quoteThumbnail: ChatMediaLocation? = nil,
-        authorImageData: Data? = nil
+        authorImageData: Data? = nil,
+        captionWidth: CGFloat? = nil
     ) {
         guard case .media(let media) = message.content else { return }
+        imageBubble.accessibilityValue = message.sentAt?.formattedChatMessageTime()
         let blurhashOnly = Self.isBlurhashOnly(media, canReact: message.canReact)
         self.blurhashOnly = blurhashOnly
 
@@ -228,9 +298,76 @@ public final class ChatMediaCell: ChatColumnCell {
         imageTap.isEnabled = !blurhashOnly && !message.isFailed
 
         let caption = media.caption.flatMap { $0.isEmpty ? nil : $0 }
-        captionLabel.text = caption
-        captionBubble.isHidden = caption == nil
-        captionMaxWidthConstraint.constant = maxWidth
+        let emojiCaption = caption != nil && media.captionIsEmojiOnly
+        let captionMax = captionWidth ?? maxWidth
+        // A caption split around its Flipcash card draws the text path's rows: the words before the
+        // card, the card, the words after it. Only the card is held to the card's width.
+        let splitRows = emojiCaption ? [] : media.captionRows
+        let isSplit = !splitRows.isEmpty
+        captionMaxWidthConstraint.constant = isSplit ? maxWidth : captionMax
+        captionCardWidthConstraint.constant = captionMax
+        captionCardMaxWidthConstraint.constant = captionMax
+        captionCardFillConstraint.constant = captionMax
+        captionTrailingMaxWidthConstraint.constant = maxWidth
+        captionEmojiMaxWidthConstraint.constant = maxWidth
+        captionBubbles.forEach { $0.prepareForReuse(); $0.isHidden = true }
+        captionMessage = nil
+        captionCardMessage = nil
+        captionEmoji.isHidden = true
+        if isSplit {
+            for (position, row) in splitRows.enumerated() {
+                let isLast = position == splitRows.count - 1
+                let rowMessage = ChatMessage(
+                    id: message.id,
+                    text: row.text,
+                    sender: message.sender,
+                    joinsBubbleAbove: true,
+                    joinsBubbleBelow: isLast ? message.joinsBubbleBelow : true,
+                    linkPreview: row.preview
+                )
+                let bubble: LinkableBubbleView
+                switch row.kind {
+                case .leadingText:
+                    bubble = captionBubble
+                    captionMessage = rowMessage
+                case .card:
+                    bubble = captionCardBubble
+                    captionCardMessage = rowMessage
+                case .trailingText:
+                    bubble = captionTrailingBubble
+                }
+                bubble.configure(with: rowMessage)
+                bubble.isHidden = false
+            }
+            captionCardWidthConstraint.isActive = false
+            applyCaptionBareness()
+        } else if let caption {
+            // The caption is a text message's body in the same place: an emoji-only one draws as the
+            // text path's bare emoji, anything else through the text bubble, from a text row of its
+            // own words, preview, and bubble-run position.
+            let captionRow = ChatMessage(
+                id: message.id,
+                text: caption,
+                sender: message.sender,
+                joinsBubbleAbove: !emojiCaption,
+                joinsBubbleBelow: message.joinsBubbleBelow,
+                isEmojiOnly: emojiCaption,
+                linkPreview: emojiCaption ? nil : media.captionPreview
+            )
+            captionMessage = captionRow
+            if emojiCaption {
+                captionBubble.isHidden = true
+                captionEmoji.configure(with: captionRow)
+                captionEmoji.isHidden = false
+                captionCardWidthConstraint.isActive = false
+            } else {
+                captionBubble.configure(with: captionRow)
+                captionBubble.isHidden = false
+                applyCaptionBareness()
+            }
+        }
+        // A failed row's whole column is the retry target, so the caption's link taps stand down.
+        captionBubbles.forEach { $0.isUserInteractionEnabled = !message.isFailed }
 
         let isFromSelf = message.sender == .me
         let fill = BubbleBackgroundView.fill(isFromSelf: isFromSelf)
@@ -239,13 +376,8 @@ public final class ChatMediaCell: ChatColumnCell {
             radii: BubbleBackgroundView.radii(
                 isFromSelf: isFromSelf,
                 groupedAbove: message.joinsBubbleAbove,
-                groupedBelow: caption != nil || message.joinsBubbleBelow
+                groupedBelow: (caption != nil && !emojiCaption) || message.joinsBubbleBelow
             ),
-            identity: message.id
-        )
-        captionBubble.apply(
-            fill: fill,
-            radii: BubbleBackgroundView.radii(isFromSelf: isFromSelf, groupedAbove: true, groupedBelow: message.joinsBubbleBelow),
             identity: message.id
         )
         stack.alignment = isFromSelf ? .trailing : .leading
@@ -265,7 +397,7 @@ public final class ChatMediaCell: ChatColumnCell {
         reactionRowWidthConstraint.constant = maxWidth
         reactionRow.layoutWidth = maxWidth
         reactionRow.hugsTrailingEdge = isFromSelf
-        reactionRow.configure(pills: blurhashOnly ? [] : message.reactions, canReact: message.canReact && !blurhashOnly)
+        reactionRow.configure(pills: blurhashOnly ? [] : message.reactions, canReact: message.canReact && !blurhashOnly, canBoost: message.canBoost)
         reactionRow.isHidden = blurhashOnly
         updateColumn(for: message, authorImageData: authorImageData)
     }
@@ -326,17 +458,24 @@ extension ChatMediaCell: BubbleCarrying {
 
     var liftPreviewMaskingPath: UIBezierPath? {
         let path = UIBezierPath()
-        for bubble in [imageBubble, captionBubble] where !bubble.isHidden {
-            let shape = bubble.maskingPath
-            shape.apply(CGAffineTransform(translationX: bubble.frame.minX, y: bubble.frame.minY))
-            path.append(shape)
+        let bubbles: [(frame: CGRect, shape: UIBezierPath)] = [
+            (imageBubble.frame, imageBubble.maskingPath),
+            (captionBubble.frame, captionBubble.maskingPath),
+            (captionCardBubble.frame, captionCardBubble.maskingPath),
+            (captionTrailingBubble.frame, captionTrailingBubble.maskingPath),
+        ]
+        let hidden = [imageBubble.isHidden, captionBubble.isHidden, captionCardBubble.isHidden, captionTrailingBubble.isHidden]
+        for (bubble, hidden) in zip(bubbles, hidden) where !hidden {
+            bubble.shape.apply(CGAffineTransform(translationX: bubble.frame.minX, y: bubble.frame.minY))
+            path.append(bubble.shape)
         }
         return path
     }
 
     func flashAttention(startedAt start: CFTimeInterval) {
         imageBubble.flashAttention(startedAt: start)
-        if !captionBubble.isHidden { captionBubble.flashAttention(startedAt: start) }
+        for bubble in captionBubbles where !bubble.isHidden { bubble.flashAttention(startedAt: start) }
+        if !captionEmoji.isHidden { captionEmoji.flashAttention(startedAt: start) }
     }
 }
 #endif

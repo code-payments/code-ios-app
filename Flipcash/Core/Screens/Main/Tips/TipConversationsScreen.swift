@@ -17,11 +17,15 @@ struct TipConversationsScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
+    /// Whether the toolbar offers Search. Off where the iOS 26 tab bar has its own search tab.
+    var showsSearchButton = true
+
     @State private var muteTarget: MuteTarget?
     @State private var filter: ChatListFilter = .all
     @Environment(ToastController.self) private var toasts
     /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
     @State private var chipsRevealed = false
+    @State private var isTabBarOnSide = false
     /// The chip row's height: while hidden, the list rests scrolled down by exactly this much.
     @State private var chipsHeight: CGFloat = 0
     /// The hidden chips' fade, set per frame by the scroll view. Only the chip row reads it, so a
@@ -104,6 +108,15 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    // With the tab bar on a side edge nothing sits along the bottom, and the blur
+                    // the search field adds there would otherwise linger after Search closes.
+                    // `tabBarPlacement` still reads `.bottomBar` there, so this goes by which
+                    // edge the bar's inset lands on.
+                    .hidesBottomScrollEdge(isTabBarOnSide)
+                    .onGeometryChange(for: Bool.self) { proxy in
+                        let insets = proxy.safeAreaInsets
+                        return max(insets.leading, insets.trailing) > insets.bottom
+                    } action: { isTabBarOnSide = $0 }
                     // Collapses the large title 24 pt past where the list rests, which is past the chips
                     // while they're hidden.
                     .onScrollGeometryChange(for: Bool.self) { geometry in
@@ -149,9 +162,27 @@ struct TipConversationsScreen: View {
                     .opacity(titleCollapsed ? 1 : 0)
                     .accessibilityHidden(!titleCollapsed)
             }
+            if showsSearchButton {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        router.push(.chatSearch)
+                    } label: {
+                        Image.icon(.magnifyingGlass)
+                            .iconSize(24)
+                            .foregroundStyle(Color.textMain)
+                    }
+                    .accessibilityLabel("Search")
+                    .accessibilityIdentifier("chat-search-button")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
             }
+        }
+        // Search filters currencies by name over what Discover returned; fetched here so the
+        // Currencies results are ready by the time Search opens.
+        .task {
+            await sessionContainer.discoveredCurrencies.refresh()
         }
         // Takes a finished cache read before the first frame, instead of drawing empty until launch
         // work lets the controller's own hydration run.
@@ -355,9 +386,14 @@ struct TipConversationRow: View {
     var body: some View {
         let counterpart = conversation.counterpart(excluding: conversationController.selfUserID)
         let title = conversationController.displayName(for: conversation)
-        let subtitle = self.subtitle
-        let hasUnread = conversation.hasUnread(for: conversationController.selfUserID)
-        let unreadCount = hasUnread ? conversationController.unreadCount(for: conversation) : nil
+        let joinRequests = ChatRowJoinRequests(conversationController.joinRequests(for: conversation.id))
+        let hasUnreadMessages = conversation.hasUnread(for: conversationController.selfUserID)
+        let unreadMessageCount = hasUnreadMessages ? conversationController.unreadCount(for: conversation) : nil
+        let subtitle = joinRequests.subtitle(preview: self.subtitle, hasUnreadMessages: hasUnreadMessages)
+        let hasUnread = hasUnreadMessages || joinRequests.count > 0
+        // A pending request moves the row up, so the time shown is the one it sorts by.
+        let timestamp = conversationController.chatListJoinRequests(for: conversation.id)
+            .sortTime(after: conversation.lastActivity)
         // Read once, for the label only — the bell keeps its own clock. A label can't: VoiceOver
         // reads it when it lands on the row, and this view redraws on store changes rather than at
         // the instant a timed mute lapses, so it can be a moment stale.
@@ -373,11 +409,17 @@ struct TipConversationRow: View {
             blurhash: avatarPicture?.thumbnailBlurhash,
             accessoryPlacement: .titleLine,
             mute: conversation.viewerState?.mute,
-            accessibilityLabel: accessibilityLabel(title: title, hasUnread: hasUnread, unreadCount: unreadCount, isMuted: isMuted),
+            accessibilityLabel: accessibilityLabel(
+                title: title,
+                joinRequests: joinRequests.line,
+                hasUnreadMessages: hasUnreadMessages,
+                unreadMessageCount: unreadMessageCount,
+                isMuted: isMuted
+            ),
             onTap: onTap
         ) {
             RecipientRowAccessory(
-                timestamp: conversation.lastActivity,
+                timestamp: timestamp,
                 isUnknown: false,
                 hasUnread: hasUnread
             )
@@ -391,6 +433,17 @@ struct TipConversationRow: View {
         .task(id: UnreadCountSubject(conversation: conversation, selfUserID: conversationController.selfUserID)) {
             await conversationController.resolveUnreadCount(for: conversation)
         }
+        // A request's preview names its title, which only the request itself carries, sealed to the chat.
+        .task(id: lastRequestID) {
+            guard let lastRequestID else { return }
+            await sessionContainer.paymentRequests.fetchIfMissing(lastRequestID)
+            await sessionContainer.paymentRequests.loadSeal(for: conversation.id)
+        }
+    }
+
+    private var lastRequestID: PaymentRequestID? {
+        guard case .widget(.paymentRequest(let id)) = conversation.lastMessage?.content else { return nil }
+        return id
     }
 
     /// The preview line: the last message, or an italic "Nothing yet" for a chat with no message
@@ -401,6 +454,10 @@ struct TipConversationRow: View {
         if let preview = conversationController.lastMessagePreview(
             for: conversation,
             knownAuthors: sessionContainer.knownAuthors.snapshot,
+            viewerAmount: session.displayCurrency.amount,
+            requestTitle: { id in
+                sessionContainer.paymentRequests.request(id).flatMap(sessionContainer.paymentRequests.text)?.title
+            },
             currencyName: { session.balance(for: $0)?.name }
         ) {
             return AttributedString(preview)
@@ -422,8 +479,14 @@ struct TipConversationRow: View {
     }
 
     /// The row reads as one element, so the bell's own label is discarded — it has to be said here.
-    private func accessibilityLabel(title: String, hasUnread: Bool, unreadCount: Int?, isMuted: Bool) -> String {
-        [title, hasUnread ? unreadLabel(count: unreadCount) : nil, isMuted ? "muted" : nil]
+    private func accessibilityLabel(
+        title: String,
+        joinRequests: String?,
+        hasUnreadMessages: Bool,
+        unreadMessageCount: Int?,
+        isMuted: Bool
+    ) -> String {
+        [title, joinRequests, hasUnreadMessages ? unreadLabel(count: unreadMessageCount) : nil, isMuted ? "muted" : nil]
             .compactMap { $0 }
             .joined(separator: ", ")
     }

@@ -7,25 +7,54 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The "Favorite Public Groups" section on a profile, one row per group in the owner's order. Draws
-/// nothing when the list is empty.
+/// The "Favorite Community Chats" section on a profile, one row per group in the owner's order. With
+/// no groups it draws nothing, or a "None yet" line when `showsEmptyState` is set.
 struct FeaturedGroupsSection: View {
 
+    /// The section heading, on every profile that shows it.
+    static let title = "Favorite Community Chats"
+    /// The line shown in place of the list when the owner has no groups.
+    static let emptyText = "None yet"
+
     let groups: [Conversation]
+    /// Whether an empty list still draws the section with the "None yet" line; own profile only.
+    var showsEmptyState: Bool = false
     let onTap: (ConversationID) -> Void
 
-    var body: some View {
-        if !groups.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                Color.rowSeparator
-                    .frame(height: 1)
+    /// Whether the owner's own profile can say "None yet": only once their favorites are known to be
+    /// empty, so an account that has favorites never flashes it while the read is in flight or failed.
+    /// With no username there is nothing to read, so the list is known empty straight away.
+    static func ownProfileShowsEmptyState(hasUsername: Bool, isLoaded: Bool) -> Bool {
+        !hasUsername || isLoaded
+    }
 
-                Text("Favorite Public Groups")
+    /// Whether the section renders for `groupCount` groups.
+    static func isVisible(groupCount: Int, showsEmptyState: Bool) -> Bool {
+        groupCount > 0 || showsEmptyState
+    }
+
+    var body: some View {
+        if Self.isVisible(groupCount: groups.count, showsEmptyState: showsEmptyState) {
+            VStack(alignment: .leading, spacing: 0) {
+                // The empty state sits straight under the details card, with no rule (node 12527:81838).
+                if !groups.isEmpty {
+                    Color.rowSeparator
+                        .frame(height: 1)
+                }
+
+                Text(Self.title)
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
                     .padding(.top, 24)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, groups.isEmpty ? 10 : 24)
                     .accessibilityAddTraits(.isHeader)
+
+                if groups.isEmpty {
+                    Text(Self.emptyText)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .accessibilityIdentifier("profile-featured-groups-empty")
+                }
 
                 VStack(spacing: 16) {
                     ForEach(groups) { group in
@@ -41,6 +70,7 @@ struct FeaturedGroupsSection: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, ProfileHeaderMetrics.inset)
             .accessibilityIdentifier("profile-featured-groups")
         }

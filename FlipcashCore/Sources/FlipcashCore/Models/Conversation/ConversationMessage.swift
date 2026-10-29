@@ -24,6 +24,20 @@ public enum CashAction: Sendable, Hashable {
     case tipped
 }
 
+/// One receiver's part of a multi-receiver cash payment, in the currency and mint of the message's
+/// total. See `messaging.v1.CashContent.Payment`.
+public struct CashPayment: Sendable, Hashable, Codable {
+    public let receiverID: UserID?
+    public let nativeAmount: Double
+    public let quarks: UInt64
+
+    public init(receiverID: UserID?, nativeAmount: Double, quarks: UInt64) {
+        self.receiverID = receiverID
+        self.nativeAmount = nativeAmount
+        self.quarks = quarks
+    }
+}
+
 /// A single message within a conversation.
 public struct ConversationMessage: Identifiable, Hashable, Sendable {
 
@@ -70,6 +84,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public enum SystemEvent: Hashable, Sendable {
         /// `userID` joined the group, directly or, when `admittedBy` is set, admitted by that user.
         case userJoined(userID: UserID, admittedBy: UserID?)
+        /// `userID` joined through an invite link created by `invitedBy`.
+        case userJoinedViaInvite(userID: UserID, invitedBy: UserID)
 
         /// The users this event names, in reading order, without duplicates and without `selfID`.
         public func namedUserIDs(excluding selfID: UserID?) -> [UserID] {
@@ -77,6 +93,12 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
             case .userJoined(let userID, let admittedBy):
                 var ids: [UserID] = []
                 for id in [admittedBy, userID].compactMap({ $0 }) where id != selfID && !ids.contains(id) {
+                    ids.append(id)
+                }
+                return ids
+            case .userJoinedViaInvite(let userID, let invitedBy):
+                var ids: [UserID] = []
+                for id in [invitedBy, userID] where id != selfID && !ids.contains(id) {
                     ids.append(id)
                 }
                 return ids
@@ -88,6 +110,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// media and reply, so a widget decrypted out of `EncryptedContent` is still unsupported.
     public enum Widget: Hashable, Sendable {
         case shareProfile(ShareProfileWidget)
+        /// A group payment request card; the request itself is fetched by id.
+        case paymentRequest(PaymentRequestID)
         /// A variant this client doesn't recognize, one missing what it needs (a malformed
         /// username), or a message content type this client doesn't know. Drawn as an unsupported
         /// message.
@@ -122,9 +146,15 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// How a `.cash` message was delivered (sent vs. tipped); `nil` for non-cash content.
     public let cashAction: CashAction?
     /// The member a group-chat `.cash` payment was sent to; `nil` for DM cash (the counterpart is
-    /// implicit) and for non-cash content. Set only on messages built from the wire proto; it is
-    /// not persisted, so a message read back from the local store has `nil`.
+    /// implicit) and for non-cash content. Persisted, so it survives a relaunch.
     public let cashReceiverID: UserID?
+    /// The per-receiver parts of a group-chat `.cash` payment sent to several members at once (the
+    /// `.cash` amount is their total); empty for a single-receiver payment and for non-cash content.
+    /// Persisted, so a group send's bubble keeps its recipients across a relaunch.
+    public let cashPayments: [CashPayment]
+    /// The payment request whose share this `.cash` message paid; `nil` for any other cash message and
+    /// for non-cash content. Not persisted, so a message read back from the local store has `nil`.
+    public let paymentRequestID: PaymentRequestID?
     public let date: Date
     public let unreadSeq: UInt64
     /// The event-log version at which this message reached its current state,
@@ -172,6 +202,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         content: Content,
         cashAction: CashAction? = nil,
         cashReceiverID: UserID? = nil,
+        cashPayments: [CashPayment] = [],
+        paymentRequestID: PaymentRequestID? = nil,
         date: Date,
         unreadSeq: UInt64,
         eventSequence: UInt64 = 0,
@@ -190,6 +222,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.content = content
         self.cashAction = cashAction
         self.cashReceiverID = cashReceiverID
+        self.cashPayments = cashPayments
+        self.paymentRequestID = paymentRequestID
         self.date = date
         self.unreadSeq = unreadSeq
         self.eventSequence = eventSequence
@@ -233,6 +267,8 @@ extension ConversationMessage {
             content: content,
             cashAction: cashAction,
             cashReceiverID: cashReceiverID,
+            cashPayments: cashPayments,
+            paymentRequestID: paymentRequestID,
             date: date,
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
@@ -299,6 +335,8 @@ extension ConversationMessage {
             content: content,
             cashAction: cashAction,
             cashReceiverID: cashReceiverID,
+            cashPayments: cashPayments,
+            paymentRequestID: paymentRequestID,
             date: date,
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
@@ -362,6 +400,8 @@ extension ConversationMessage {
         let repliedTo: MessageID?
         var linkPreview: MessageLinkPreview?
         var cashReceiverID: UserID?
+        var cashPayments: [CashPayment] = []
+        var paymentRequestID: PaymentRequestID?
         switch proto.content.first?.type {
         case .text(let textContent):
             self.content = .text(textContent.text)
@@ -369,13 +409,27 @@ extension ConversationMessage {
             self.cashAction = nil
             repliedTo = nil
         case .cash(let cashContent):
-            guard let amount = try? ExchangedFiat(cashContent.amount) else {
+            guard let amount = try? ExchangedFiat(cashContent.totalAmount) else {
                 return nil
             }
             self.content = .cash(amount)
             // Unrecognized verbs fall back to `.sent`, per the proto contract.
             self.cashAction = cashContent.verb == .tipped ? .tipped : .sent
-            cashReceiverID = cashContent.hasReceiver ? try? UUID(data: cashContent.receiver.value) : nil
+            switch cashContent.recipient {
+            case .singleReceiver(let receiver):
+                cashReceiverID = try? UUID(data: receiver.value)
+            case .multiReceiver(let payments):
+                cashPayments = payments.items.map {
+                    CashPayment(
+                        receiverID: $0.hasReceiver ? try? UUID(data: $0.receiver.value) : nil,
+                        nativeAmount: $0.nativeAmount,
+                        quarks: $0.quarks
+                    )
+                }
+            case nil:
+                break
+            }
+            paymentRequestID = cashContent.hasPaymentRequestID ? PaymentRequestID(cashContent.paymentRequestID) : nil
             repliedTo = nil
         case .deleted(let deletedContent):
             self.content = .deleted(
@@ -422,7 +476,7 @@ extension ConversationMessage {
             // Kept even when the variant is unknown: a widget has no fallback text, so the contract
             // is that a client which can't draw one shows the message as unsupported. A poll widget
             // is such a variant until the app can draw one.
-            self.content = .widget(widgetContent.shareProfile.map(Widget.shareProfile) ?? .unrecognized)
+            self.content = .widget(Widget(widgetContent))
             self.cashAction = nil
             repliedTo = nil
         case .system(let systemContent):
@@ -441,6 +495,8 @@ extension ConversationMessage {
 
         self.id = MessageID(proto.messageID)
         self.cashReceiverID = cashReceiverID
+        self.cashPayments = cashPayments
+        self.paymentRequestID = paymentRequestID
         self.senderID = try? UUID(data: proto.senderID.value)
         self.date = proto.hasTs ? proto.ts.date : .now
         self.unreadSeq = proto.unreadSeq
@@ -525,6 +581,12 @@ extension ConversationMessage.Content {
             case .admitted(let admitted):
                 let admitter = admitted.hasAdmittedBy ? try? UUID(data: admitted.admittedBy.value) : nil
                 return .userJoined(userID: userID, admittedBy: admitter)
+            case .invited(let invited):
+                // `invited_by` is required on the wire; one that doesn't parse reads as a plain join.
+                guard invited.hasInvitedBy, let inviter = try? UUID(data: invited.invitedBy.value) else {
+                    return .userJoined(userID: userID, admittedBy: nil)
+                }
+                return .userJoinedViaInvite(userID: userID, invitedBy: inviter)
             case .direct, .none:
                 return .userJoined(userID: userID, admittedBy: nil)
             }

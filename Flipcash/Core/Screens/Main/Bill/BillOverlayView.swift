@@ -64,7 +64,7 @@ private struct BillOverlayContent: View {
             PartialSheet(background: .clear, canAccessBackground: true) {
                 ModalCashReceived(
                     title: "You received",
-                    fiat: valuation.exchangedFiat.nativeAmount,
+                    fiat: session.displayCurrency.amount(valuation.exchangedFiat),
                     currencyName: valuation.mintMetadata?.name ?? "currency",
                     currencyImageURL: valuation.mintMetadata?.imageURL,
                     actionTitle: "Put in Wallet",

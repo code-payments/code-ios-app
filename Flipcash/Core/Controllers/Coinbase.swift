@@ -159,6 +159,23 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
         public var title: String { copy.title }
         public var subtitle: String { copy.subtitle }
 
+        /// The subtitle for a user entering amounts at `rate`, with the USD weekly limit restated in that currency.
+        public func subtitle(at rate: Rate) -> String {
+            switch self {
+            case .transactionLimit:
+                // Floored: the restated limit must never read above what Coinbase allows.
+                let limit = FiatAmount.usd(Self.weeklyLimitUSD)
+                    .converting(to: rate)
+                    .flooredToSmallestUnit()
+                return "You can only add up to \(limit.formatted(minimumFractionDigits: 0)) per week"
+            default:
+                return subtitle
+            }
+        }
+
+        /// Coinbase's weekly guest-checkout limit, in USD.
+        static let weeklyLimitUSD: Decimal = 1_000
+
         private var copy: (title: String, subtitle: String) {
             switch self {
             case .invalidCard, .invalidCardNotDebit:

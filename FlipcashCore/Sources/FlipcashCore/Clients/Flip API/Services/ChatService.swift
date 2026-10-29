@@ -202,9 +202,17 @@ final class ChatService: Sendable {
         }
     }
 
-    func joinChat(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<Conversation, ErrorJoinChat>) -> Void) {
+    /// Joins `conversationID`. Pass `invite` to enter a private group through an invite link: the
+    /// token and the joiner's secret envelope travel together, and the server rejects either alone.
+    func joinChat(owner: KeyPair, conversationID: ConversationID, invite: InviteJoinParameters? = nil, completion: @Sendable @escaping (Result<Conversation, ErrorJoinChat>) -> Void) {
         let request = Flipcash_Chat_V1_JoinChatRequest.with {
             $0.chatID = conversationID.proto
+            if let invite {
+                $0.invite = .with {
+                    $0.inviteToken = invite.token.proto
+                    $0.secretEnvelope = invite.secretEnvelope.proto
+                }
+            }
             $0.auth = owner.authFor(message: $0)
         }
 
@@ -242,6 +250,159 @@ final class ChatService: Sendable {
                     return
                 }
                 await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    // MARK: - Moderation -
+
+    /// Silences `userID` in `conversationID`: they may keep reading but not speak. Creator only.
+
+    func silenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, silence: ConversationSilenceState, completion: @Sendable @escaping (Result<Void, ErrorSilenceUser>) -> Void) {
+        let request = Flipcash_Chat_V1_SilenceUserRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = userID.proto
+            $0.silence = silence.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.silenceUser(request, options: .unaryDefault)
+                let error = ErrorSilenceUser(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to silenceUser", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Lifts a silence on `userID`. Creator only.
+
+    func unsilenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, completion: @Sendable @escaping (Result<Void, ErrorUnsilenceUser>) -> Void) {
+        let request = Flipcash_Chat_V1_UnsilenceUserRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = userID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.unsilenceUser(request, options: .unaryDefault)
+                let error = ErrorUnsilenceUser(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to unsilenceUser", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Bans `userID` from `conversationID`, removing them. Creator only.
+
+    func banUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, completion: @Sendable @escaping (Result<Void, ErrorBanUser>) -> Void) {
+        let request = Flipcash_Chat_V1_BanUserRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = userID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.banUser(request, options: .unaryDefault)
+                let error = ErrorBanUser(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to banUser", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Lifts a ban on `userID`, letting them rejoin. Creator only.
+
+    func unbanUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, completion: @Sendable @escaping (Result<Void, ErrorUnbanUser>) -> Void) {
+        let request = Flipcash_Chat_V1_UnbanUserRequest.with {
+            $0.chatID = conversationID.proto
+            $0.userID = userID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.unbanUser(request, options: .unaryDefault)
+                let error = ErrorUnbanUser(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to unbanUser", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    struct RestrictedUsersPage: Sendable {
+        let users: [ConversationRestrictedUser]
+        let pagingToken: Data
+        let hasMore: Bool
+    }
+
+    /// One page of the users silenced or banned in `conversationID`. Creator only.
+    func getRestrictedUsers(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<RestrictedUsersPage, ErrorGetRestrictedUsers>) -> Void) {
+        let request = Flipcash_Chat_V1_GetRestrictedUsersRequest.with {
+            $0.chatID = conversationID.proto
+            $0.queryOptions = .with {
+                $0.pageSize = Int32(pageSize)
+                if let pagingToken {
+                    $0.pagingToken = .with { $0.value = pagingToken }
+                }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getRestrictedUsers(request, options: .unaryDefault)
+                let error = ErrorGetRestrictedUsers(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch restricted users", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                let page = RestrictedUsersPage(
+                    users: response.users.map(ConversationRestrictedUser.init),
+                    pagingToken: response.pagingToken.value,
+                    hasMore: response.hasMore_p
+                )
+                await MainActor.run { completion(.success(page)) }
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
@@ -314,7 +475,10 @@ final class ChatService: Sendable {
     /// staleness contract) — callers must merge each page against what the event stream has already
     /// told them, by ``ConversationMember/version``, greater winning, rather than trusting a page to
     /// be a complete, current snapshot.
-    func getRoster(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<RosterFeedPage, ErrorGetRoster>) -> Void) {
+    ///
+    /// `owner` is optional because an `inviteToken` can stand in for auth: a link holder may read the
+    /// roster of the group the invite is for before joining.
+    func getRoster(owner: KeyPair?, conversationID: ConversationID, inviteToken: InviteToken? = nil, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<RosterFeedPage, ErrorGetRoster>) -> Void) {
         let request = Flipcash_Chat_V1_GetRosterRequest.with {
             $0.chatID = conversationID.proto
             $0.queryOptions = .with {
@@ -323,7 +487,12 @@ final class ChatService: Sendable {
                     $0.pagingToken = .with { $0.value = pagingToken }
                 }
             }
-            $0.auth = owner.authFor(message: $0)
+            if let inviteToken {
+                $0.inviteToken = inviteToken.proto
+            }
+            if let owner {
+                $0.auth = owner.authFor(message: $0)
+            }
         }
 
         Task {
@@ -396,14 +565,15 @@ final class ChatService: Sendable {
     ///
     /// `description` is ``ConversationDescriptionEdit/unchanged`` by default; use `.clear` to remove
     /// an existing description.
-    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
+    func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRules? = nil, completion: @Sendable @escaping (Result<Conversation, ErrorEditChat>) -> Void) {
         let request = Self.editChatRequest(
             owner: owner,
             conversationID: conversationID,
             title: title,
             description: description,
             pictureBlobID: pictureBlobID,
-            coverPictureBlobID: coverPictureBlobID
+            coverPictureBlobID: coverPictureBlobID,
+            rules: rules
         )
 
         Task {
@@ -429,8 +599,9 @@ final class ChatService: Sendable {
     }
 
     /// The signed `EditChat` request; a nil title or blob and an `.unchanged` description leave that
-    /// field unset, so the server keeps its current value.
-    static func editChatRequest(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit, pictureBlobID: BlobID?, coverPictureBlobID: BlobID?) -> Flipcash_Chat_V1_EditChatRequest {
+    /// field unset, so the server keeps its current value. `rules`, when set, is the full replacement
+    /// rule set (public groups with a listener minimum balance only).
+    static func editChatRequest(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit, pictureBlobID: BlobID?, coverPictureBlobID: BlobID?, rules: ConversationRules? = nil) -> Flipcash_Chat_V1_EditChatRequest {
         Flipcash_Chat_V1_EditChatRequest.with {
             $0.chatID = conversationID.proto
             if let title {
@@ -444,6 +615,9 @@ final class ChatService: Sendable {
             }
             if let coverPictureBlobID {
                 $0.coverPicture = .with { $0.blobID = .with { $0.value = coverPictureBlobID.data } }
+            }
+            if let rules {
+                $0.rules = rules.proto
             }
             $0.auth = owner.authFor(message: $0)
         }
@@ -723,10 +897,160 @@ final class ChatService: Sendable {
         }
     }
 
-    struct KeyEnvelopeResult: Sendable {
-        let envelope: ConversationKeyEnvelope
-        /// The member who wrapped the chat key for the signed-in user.
-        let wrappedBy: UserID?
+    /// The key material the server holds for the signed-in user in a chat.
+    enum KeyEnvelopeResult: Sendable {
+        /// The user's own envelope, wrapped by themself or by another member.
+        case own(envelope: ConversationKeyEnvelope, wrappedBy: UserID?, wrappedByPublicKey: PublicKey?)
+        /// The user joined by invite and has not yet stored an envelope of their own: the server
+        /// returns the invite's copy of the chat key instead. It is not a usable own envelope.
+        case invite(InviteKeyBundle, wrappedBy: UserID?, wrappedByPublicKey: PublicKey?)
+
+        /// What ``GroupKeyEnvelopes`` opens the chat key from.
+        var material: GroupKeyMaterial {
+            switch self {
+            case .own(let envelope, let wrappedBy, _):
+                .own(envelope: envelope, wrappedBy: wrappedBy)
+            case .invite(let bundle, let wrappedBy, let wrappedByPublicKey):
+                .invite(bundle, wrappedBy: wrappedBy, wrappedByPublicKey: wrappedByPublicKey)
+            }
+        }
+    }
+
+    // MARK: - Invites -
+
+    /// Creates an invite to a private group. Idempotent on `token`. `maxUses` of `0` means unlimited.
+    func createInvite(owner: KeyPair, conversationID: ConversationID, token: InviteToken, keyEnvelope: InviteKeyEnvelope, secretEnvelope: InviteSecretEnvelope, maxUses: UInt32 = 0, expiresAt: Date? = nil, completion: @Sendable @escaping (Result<Invite, ErrorCreateInvite>) -> Void) {
+        let request = Flipcash_Chat_V1_CreateInviteRequest.with {
+            $0.chatID = conversationID.proto
+            $0.inviteToken = token.proto
+            $0.keyEnvelope = keyEnvelope.proto
+            $0.secretEnvelope = secretEnvelope.proto
+            $0.maxUses = maxUses
+            if let expiresAt {
+                $0.expiresAt = .init(date: expiresAt)
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.createInvite(request, options: .unaryDefault)
+                let error = ErrorCreateInvite(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasInvite else {
+                    logger.error("Failed to create invite", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(Invite(response.invite))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    struct InvitePreview: Sendable {
+        let conversation: Conversation
+        let status: Invite.Status
+    }
+
+    /// Reads the group an invite is for and the invite's status. Anonymous reads are allowed, so
+    /// `owner` is optional; a caller banned from the group gets `.banned`.
+    func getInvite(owner: KeyPair?, token: InviteToken, completion: @Sendable @escaping (Result<InvitePreview, ErrorGetInvite>) -> Void) {
+        let request = Flipcash_Chat_V1_GetInviteRequest.with {
+            $0.inviteToken = token.proto
+            if let owner {
+                $0.auth = owner.authFor(message: $0)
+            }
+        }
+
+        Task {
+            do {
+                let response = try await service.getInvite(request, options: .unaryDefault)
+                let error = ErrorGetInvite(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasChat else {
+                    logger.error("Failed to fetch invite", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                let preview = InvitePreview(conversation: Conversation(response.chat), status: Invite.Status(response.status))
+                await MainActor.run { completion(.success(preview)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    struct InvitesPage: Sendable {
+        let invites: [Invite]
+        let pagingToken: Data
+        let hasMore: Bool
+    }
+
+    /// Pages a group's invites. Leave `pagingToken` `nil` on the first call and pass back the previous
+    /// page's token after that. `pageSize` is capped at 100 server-side.
+    func getChatInvites(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<InvitesPage, ErrorGetChatInvites>) -> Void) {
+        let request = Flipcash_Chat_V1_GetChatInvitesRequest.with {
+            $0.chatID = conversationID.proto
+            $0.queryOptions = .with {
+                $0.pageSize = Int32(pageSize)
+                if let pagingToken {
+                    $0.pagingToken = .with { $0.value = pagingToken }
+                }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getChatInvites(request, options: .unaryDefault)
+                let error = ErrorGetChatInvites(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch chat invites", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                let page = InvitesPage(
+                    invites: response.invites.map(Invite.init),
+                    pagingToken: response.pagingToken.value,
+                    hasMore: response.hasMore_p
+                )
+                await MainActor.run { completion(.success(page)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Revokes an invite. A ban does not stop a link holder, so revoke the invite too when banning.
+    func revokeInvite(owner: KeyPair, conversationID: ConversationID, inviteID: InviteID, completion: @Sendable @escaping (Result<Void, ErrorRevokeInvite>) -> Void) {
+        let request = Flipcash_Chat_V1_RevokeInviteRequest.with {
+            $0.chatID = conversationID.proto
+            $0.inviteID = inviteID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.revokeInvite(request, options: .unaryDefault)
+                let error = ErrorRevokeInvite(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to revoke invite", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
     }
 
     /// Fetches the chat key `conversationID` wrapped for the signed-in user, along with who
@@ -741,15 +1065,24 @@ final class ChatService: Sendable {
             do {
                 let response = try await service.getKeyEnvelope(request, options: .unaryDefault)
                 let error = ErrorGetKeyEnvelope(rawValue: response.result.rawValue) ?? .unknown
-                guard error == .ok, response.hasKeyEnvelope else {
+                guard error == .ok else {
                     logger.error("Failed to fetch key envelope")
-                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
-                let result = KeyEnvelopeResult(
-                    envelope: ConversationKeyEnvelope(response.keyEnvelope),
-                    wrappedBy: response.hasWrappedBy ? try? UUID(data: response.wrappedBy.value) : nil
-                )
+                let wrappedBy = response.hasWrappedBy ? try? UUID(data: response.wrappedBy.value) : nil
+                let wrappedByPublicKey = response.hasWrappedByPublicKey ? try? PublicKey(response.wrappedByPublicKey.value) : nil
+                let result: KeyEnvelopeResult
+                switch response.envelope {
+                case .keyEnvelope(let envelope):
+                    result = .own(envelope: ConversationKeyEnvelope(envelope), wrappedBy: wrappedBy, wrappedByPublicKey: wrappedByPublicKey)
+                case .inviteKeyBundle(let bundle):
+                    result = .invite(InviteKeyBundle(bundle), wrappedBy: wrappedBy, wrappedByPublicKey: wrappedByPublicKey)
+                case nil:
+                    logger.error("Key envelope response carried no envelope")
+                    await MainActor.run { completion(.failure(.unknown)) }
+                    return
+                }
                 await MainActor.run { completion(.success(result)) }
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
@@ -815,6 +1148,11 @@ public enum ErrorJoinChat: Int, Error {
     case denied
     case notFound
     case rulesNotSatisfied
+    case banned
+    case inviteNotFound
+    case inviteExhausted
+    case inviteExpired
+    case inviteRevoked
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -887,6 +1225,8 @@ public enum ErrorEditChat: Error, Sendable, Equatable {
     case pictureBlobNotAccepted
     case coverPictureBlobNotAccepted
     case descriptionModerated(Flipcash_Moderation_V1_FlaggedCategory)
+    case invalidRules
+    case rulesNotSatisfied
     case unknown
     case transportFailure
     case cancelled
@@ -929,6 +1269,7 @@ public enum ErrorEnterLobby: Int, Error {
     case alreadyMember
     case lobbyFull
     case tooManyLobbies
+    case banned
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
@@ -967,6 +1308,49 @@ public enum ErrorAdmitLobbyMember: Int, Error {
 }
 
 public enum ErrorDenyLobbyMember: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorCreateInvite: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case invalidExpiresAt
+    case tooManyInvites
+    case invalidSignature
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetInvite: Int, Error {
+    case ok
+    case notFound
+    case banned
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetChatInvites: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorRevokeInvite: Int, Error {
     case ok
     case denied
     case notFound
@@ -1077,7 +1461,8 @@ extension ErrorJoinChat: ServerError, TransportClassifiableError {
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .notFound, .rulesNotSatisfied: .info
+        case .denied, .notFound, .rulesNotSatisfied, .banned: .info
+        case .inviteNotFound, .inviteExhausted, .inviteExpired, .inviteRevoked: .info
         case .unknown, .rejected: .error
         }
     }
@@ -1121,7 +1506,7 @@ extension ErrorEnterLobby: ServerError, TransportClassifiableError {
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .notFound, .alreadyMember, .lobbyFull, .tooManyLobbies: .info
+        case .denied, .notFound, .alreadyMember, .lobbyFull, .tooManyLobbies, .banned: .info
         case .unknown, .rejected: .error
         }
     }
@@ -1161,6 +1546,50 @@ extension ErrorAdmitLobbyMember: ServerError, TransportClassifiableError {
 }
 
 extension ErrorDenyLobbyMember: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorCreateInvite: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .invalidExpiresAt, .tooManyInvites: .info
+        case .invalidSignature, .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetInvite: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .notFound, .banned: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetChatInvites: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorRevokeInvite: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
@@ -1256,7 +1685,7 @@ extension ErrorEditChat: ServerError, TransportClassifiableError {
         switch self {
         case .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted, .coverPictureBlobNotAccepted, .descriptionModerated: .info
+        case .denied, .notFound, .titleModerated, .pictureBlobNotAccepted, .coverPictureBlobNotAccepted, .descriptionModerated, .invalidRules, .rulesNotSatisfied: .info
         case .unknown, .rejected: .error
         }
     }
@@ -1283,6 +1712,10 @@ extension ErrorEditChat {
             self = .coverPictureBlobNotAccepted
         case .descriptionModerated:
             self = .descriptionModerated(flaggedCategory)
+        case .invalidRules:
+            self = .invalidRules
+        case .rulesNotSatisfied:
+            self = .rulesNotSatisfied
         case .UNRECOGNIZED:
             self = .unknown
         }
@@ -1356,6 +1789,117 @@ extension ErrorGetFeaturedGroups {
         case .ok: self = .unknown
         case .notFound: self = .notFound
         case .UNRECOGNIZED: self = .unknown
+        }
+    }
+}
+
+// MARK: - Moderation errors -
+
+/// Positional over `chat.v1` moderation `Result`s, which share the OK/DENIED/NOT_FOUND prefix.
+
+public enum ErrorSilenceUser: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case cannotRestrictCreator
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorUnsilenceUser: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorBanUser: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case cannotRestrictCreator
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorUnbanUser: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetRestrictedUsers: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorSilenceUser: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .cannotRestrictCreator: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorUnsilenceUser: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorBanUser: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .cannotRestrictCreator: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorUnbanUser: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetRestrictedUsers: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
+        case .unknown, .rejected: .error
         }
     }
 }

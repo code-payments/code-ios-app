@@ -55,12 +55,11 @@ final class ConvertFromDollarsRegressionTests: BaseUITestCase {
         // $0.01 is well inside any plausible USDF balance, so the flow must not
         // detour through Add Money.
         XCTAssertFalse(
-            app.staticTexts["Add Money With"].waitForExistence(timeout: 2),
+            app.staticTexts["Add Dollars With"].waitForExistence(timeout: 2),
             "A covered amount must route straight to the swap, not the Add Money sheet"
         )
 
-        processing.assertReached()
-        processing.waitForCompletionAndDismiss()
+        processing.waitForCompletionAndDismiss(confirmAnchor: convert.confirmButton)
 
         assertMainScreenReached("Expected the Wallet root after a completed convert")
     }

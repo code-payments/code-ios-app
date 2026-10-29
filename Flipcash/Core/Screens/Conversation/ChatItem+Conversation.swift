@@ -69,21 +69,26 @@ nonisolated private func webCard(for page: MessageLinkPreview, in text: String) 
 extension ChatItem {
 
     /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
-    /// formats cash amounts, derives the currency flag, inserts a date separator before the first
+    /// formats cash amounts, inserts a date separator before the first
     /// message, whenever a gap longer than `gap` opens and at every change of day, and computes
     /// same-sender grouping the way the transcript does. Pure — `cashBranding` supplies the token
     /// name + launchpad icon so this stays testable; it defaults to plain "Cash" (USDF), and the
-    /// screen injects bonded-mint branding from `Session`.
+    /// screen injects bonded-mint branding from `Session`. `viewerAmount` restates a payment in the
+    /// display currency; it defaults to the amount as it moved, and the screen injects the
+    /// conversion from ``RatesController``. `viewerPrice` does the same for a USD-priced amount, a
+    /// reaction boost.
     nonisolated static func from(
         _ messages: [ConversationMessage],
         selfUserID: UserID,
         // How long a pause has to be before it heads the next message with its own separator and
-        // ends the run above it. Android's `SeparatorConfig.Continuous` gap, so a pause of minutes
-        // keeps one exchange together on both platforms instead of cutting it into single bubbles.
-        gap: TimeInterval = 3 * 60 * 60,
+        // ends the run above it. Android's `SeparatorConfig.Continuous` gap (one hour), so a pause of
+        // minutes keeps one exchange together on both platforms instead of cutting it into single bubbles.
+        gap: TimeInterval = 60 * 60,
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) },
+        viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
+        viewerPrice: (FiatAmount) -> FiatAmount = { $0 },
         deletedPresentation: DeletedMessagePresentation = .hidden,
         capabilities: (ConversationMessage) -> Set<MessageCapability> = { _ in [] },
         counterpartName: String = "",
@@ -96,11 +101,16 @@ extension ChatItem {
         /// Whether the viewer may add or remove a reaction — false for someone previewing a group
         /// they have not joined, or who fails a reaction-blocking speaker rule (see `ChatMessage.canReact`).
         canReact: Bool = true,
+        /// Whether others' rows offer the leading "$" for a paid reaction. The viewer's own rows never do.
+        canBoost: Bool = false,
         /// The card, if any, for a message's detected links. Injected like the other collaborators
         /// so the mapper stays pure; the screen supplies classification and nothing else, and it
         /// defaults to no card. Takes the detected links rather than the text so the detector runs
         /// once per message, here.
         linkCard: ([DetectedLink]) -> LinkCard? = { _ in nil },
+        /// How a payment-request widget draws; resolved by the caller from the request store so
+        /// the mapper stays pure. Defaults to the loading card.
+        paymentRequest: (ConversationMessage) -> PaymentRequestCardState = { _ in .loading },
         /// Where the viewer's unread messages began at open; the divider heads the first message
         /// after it that someone else sent.
         unreadBoundary: UnreadBoundary = .none,
@@ -274,18 +284,27 @@ extension ChatItem {
                     selfID: selfUserID,
                     nameOf: nameOf
                 )
-                items.append(.systemMessage(id: "sys-\(message.stableID)", text: text, serverID: message.id))
+                let userLink = SystemNoticeStrings.userLink(for: event, text: text, selfID: selfUserID, nameOf: nameOf)
+                items.append(.systemMessage(id: "sys-\(message.stableID)", text: text, serverID: message.id, userLink: userLink))
                 continue
             case .text(let text):
                 content = .text(text)
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
                 content = .cash(ChatCashContent(
-                    amount: fiat.nativeAmount.formatted(),
+                    amount: viewerAmount(fiat).formatted(),
                     token: branding.token,
-                    flagImageName: flagImageName(for: fiat),
                     iconURL: branding.iconURL,
-                    isTip: message.cashAction == .tipped
+                    isTip: message.cashAction == .tipped,
+                    group: namesAuthors ? groupSend(
+                        message.cashPayments,
+                        receiver: message.cashReceiverID,
+                        total: fiat.nativeAmount,
+                        shownAs: viewerAmount(fiat),
+                        sender: isFromSelf ? "You" : author(message)?.name,
+                        selfUserID: selfUserID,
+                        nameOf: nameOf
+                    ) : nil
                 ))
             case .deleted(let deletion):
                 content = .deleted(
@@ -295,6 +314,12 @@ extension ChatItem {
                 )
             case .widget(.shareProfile(let share)):
                 content = .shareProfile(LinkCard.User(profileOf: share.username))
+            case .widget(.paymentRequest(let id)):
+                switch paymentRequest(message) {
+                case .loading:          content = .paymentRequest(ChatPaymentRequestContent(requestID: id.data, card: nil))
+                case .card(let card):   content = .paymentRequest(ChatPaymentRequestContent(requestID: id.data, card: card))
+                case .unsupported:      content = .unavailable(.updateApp)
+                }
             case .widget(.unrecognized):
                 // A widget variant this build doesn't draw; a newer one will.
                 content = .unavailable(.updateApp)
@@ -310,12 +335,20 @@ extension ChatItem {
                 // A redacted photo stays a photo row, drawn from its BlurHash, rather than a tombstone.
                 // A send carries one attachment (see `ChatMediaSendPlan`); the row draws the first.
                 let attachment = attachments.first
+                // The detection a text body gets: links, mentions, and a Flipcash card, which draws
+                // under the photo as the text path draws it: bare when the caption is only the link,
+                // else split around it with the words in bubbles. A cash or token link stays
+                // underlined text. A caption never carries a sender web card: a client sends the
+                // text as its own message.
+                let captionLayout = caption.map { Self.captionLayout(for: $0, card: linkCard) }
                 content = .media(ChatMediaContent(
                     blobID: attachment?.blobID,
                     width: attachment?.width ?? 0,
                     height: attachment?.height ?? 0,
                     blurhash: attachment?.blurhash,
                     caption: caption,
+                    captionPreview: captionLayout?.preview,
+                    captionRows: captionLayout?.rows ?? [],
                     isRedacted: message.redacted,
                     sealed: attachment?.sealed
                 ))
@@ -357,6 +390,7 @@ extension ChatItem {
                     selfUserID: selfUserID,
                     counterpartName: counterpartName,
                     cashBranding: cashBranding,
+                    viewerAmount: viewerAmount,
                     author: author
                 )
             }
@@ -406,10 +440,14 @@ extension ChatItem {
                     // already has — only the long-press strip is withheld, and that already follows from
                     // a tombstone offering no context-menu actions. The pills sit under the message's
                     // last row, with its receipt.
-                    reactions: isLast ? message.reactionState?.pills ?? [] : [],
+                    reactions: isLast ? (message.reactionState?.pills ?? []).map { $0.restatingBoost(viewerPrice) } : [],
                     selfReactions: message.reactionState?.selfReactions ?? [],
                     canReact: canReact,
-                    isUnsent: isUnsent
+                    // "$" boosts a reaction the viewer already has, so it waits for one.
+                    canBoost: canBoost && !isFromSelf && message.senderID != nil && !message.isDeleted && !isUnsent
+                        && !(message.reactionState?.selfReactions.isEmpty ?? true),
+                    isUnsent: isUnsent,
+                    sentAt: message.date
                 )))
             }
         }
@@ -425,6 +463,7 @@ extension ChatItem {
         selfUserID: UserID,
         counterpartName: String,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?),
+        viewerAmount: (ExchangedFiat) -> FiatAmount,
         author: (ConversationMessage) -> ChatAuthor?
     ) -> ChatQuote {
         guard let original else {
@@ -450,14 +489,13 @@ extension ChatItem {
                 authorID: original.senderID
             )
         case .cash(let fiat):
-            // Same branding the card carries, so the quote of a payment reads as that payment. The
-            // launchpad icon is deliberately left out: it is a remote fetch, and the flag already
-            // keys the currency at this size.
+            // Same amount and token the card carries, so the quote of a payment reads as that
+            // payment. The launchpad icon is deliberately left out: it is a remote fetch.
             return ChatQuote(
                 stableID: original.stableID,
                 authorName: authorName,
-                snippet: fiat.nativeAmount.formatted(),
-                kind: .cash(token: cashBranding(fiat).token, flagImageName: flagImageName(for: fiat)),
+                snippet: viewerAmount(fiat).formatted(),
+                kind: .cash(token: cashBranding(fiat).token),
                 authorID: original.senderID
             )
         case .deleted:
@@ -473,6 +511,14 @@ extension ChatItem {
                 stableID: original.stableID,
                 authorName: authorName,
                 snippet: ChatQuote.sharedProfileSnippet,
+                kind: .text,
+                authorID: original.senderID
+            )
+        case .widget(.paymentRequest):
+            return ChatQuote(
+                stableID: original.stableID,
+                authorName: authorName,
+                snippet: ChatQuote.paymentRequestSnippet,
                 kind: .text,
                 authorID: original.senderID
             )
@@ -504,14 +550,6 @@ extension ChatItem {
                 authorID: original.senderID
             )
         }
-    }
-
-    /// The currency's flag asset: a region flag where the currency has one, else the ticker, which
-    /// is how the crypto flags are named. One derivation for the card and the quote so a payment
-    /// keys the same way wherever it is drawn.
-    nonisolated static func flagImageName(for fiat: ExchangedFiat) -> String {
-        let currency = fiat.nativeAmount.currency
-        return currency.region?.rawValue ?? currency.rawValue.uppercased()
     }
 
     /// One row a message draws: the whole message, or one part of a message split around its card.
@@ -603,6 +641,34 @@ extension ChatItem {
         ].compactMap { $0 }
     }
 
+    /// What a photo's caption draws: the preview a text body of the same words gets, and, when a
+    /// non-money Flipcash card has words beside it, the rows the text path splits that message into.
+    /// A card that is the whole caption keeps the preview and needs no rows; a cash or token card
+    /// is dropped back to underlined link text.
+    nonisolated static func captionLayout(
+        for caption: String,
+        card: ([DetectedLink]) -> LinkCard?
+    ) -> (preview: LinkPreview?, rows: [ChatMediaCaptionRow]) {
+        guard let preview = detectedLink(in: caption, card: card) else { return (nil, []) }
+        guard let linkCard = preview.card else { return (preview, []) }
+        let withoutCard = preview.links.isEmpty && preview.mentions.isEmpty
+            ? nil
+            : LinkPreview(links: preview.links, mentions: preview.mentions)
+        let layout = rows(for: caption, preview: preview)
+        if layout.count == 1, layout[0].part == .card { return (preview, []) }
+        switch linkCard {
+        case .cash, .token, .web:
+            return (withoutCard, [])
+        case .group, .message, .user:
+            let split = layout.compactMap { row in
+                row.part.flatMap { kind in
+                    row.text.map { ChatMediaCaptionRow(kind: kind, text: $0, preview: row.preview) }
+                }
+            }
+            return (withoutCard, split)
+        }
+    }
+
     /// What a text row may hold and still say nothing: a segment of only these is dropped, not
     /// drawn as a bubble of stray punctuation next to its card.
     nonisolated private static let carriesNothing = CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters)
@@ -615,6 +681,44 @@ extension ChatItem {
     /// menu reads "yours ends with delete, theirs ends with report".
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
         [.copy, .reply, .forward, .edit, .delete, .report].filter(capabilities.contains)
+    }
+
+    /// The group lines for a payment in a group chat, or nil when its receiver isn't known; a
+    /// payment to the viewer alone reads "to You". A split between two or more
+    /// members restates each part by its share of `total`, so the parts and the card's `shownAs`
+    /// total use one conversion. `sender` is "You" for the viewer's own send.
+    nonisolated static func groupSend(
+        _ payments: [CashPayment],
+        receiver: UserID?,
+        total: FiatAmount,
+        shownAs shown: FiatAmount,
+        sender: String?,
+        selfUserID: UserID,
+        nameOf: (UserID) -> String?
+    ) -> ChatCashContent.GroupSend? {
+        let sender = sender.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone"
+        func name(_ id: UserID) -> String? {
+            id == selfUserID ? "You" : nameOf(id).flatMap { $0.isEmpty ? nil : $0 }
+        }
+        guard payments.count >= 2, total.value > 0 else {
+            guard let receiver, let receiverName = name(receiver) else { return nil }
+            return ChatCashContent.GroupSend(caption: "\(sender) sent", each: nil, recipients: "to \(receiverName)")
+        }
+        func formatted(_ payment: CashPayment) -> String {
+            FiatAmount(value: shown.value * Decimal(payment.nativeAmount) / total.value, currency: shown.currency).formatted()
+        }
+        let smallest = payments.min { $0.nativeAmount < $1.nativeAmount } ?? payments[0]
+        let isEven = Set(payments.map(\.nativeAmount)).count == 1
+        let others = payments.count - 1
+        // A paid viewer leads the list; otherwise it is named by the first recipient in selection order.
+        let first = payments.contains { $0.receiverID == selfUserID } ? selfUserID : payments[0].receiverID
+        let recipients = first.flatMap(name).map { "to \($0) and \(others) \(others == 1 ? "Other" : "Others")" }
+            ?? "to \(payments.count) people"
+        return ChatCashContent.GroupSend(
+            caption: "\(sender) sent",
+            each: isEven ? "\(formatted(smallest)) each" : "~\(formatted(smallest)) each",
+            recipients: recipients
+        )
     }
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's

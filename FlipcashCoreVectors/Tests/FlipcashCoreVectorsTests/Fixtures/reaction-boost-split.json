@@ -1,0 +1,424 @@
+{
+  "algorithm": "reaction-boost-split",
+  "source": "flipcash2-server 85aec15, messaging/boost.go and intent/chat.go (DMs: ac7a092, DmBoostPayees); flipcash2-protobuf-api 82e6429 (DM comments); flipcash2-client-protocol 0.20.0, proto/intent/v1/model.proto:70-107 (ReactionBoost)",
+  "note": "Pick the intent and per-share fiat for a reaction boost. chat is group or dm. payer is creator, member, or sender (the person who sent the message, i.e. a self-boost); messageSender is creator or member. A DM has no creator: payer is member or sender, messageSender is member, and the other member is paid the whole. Amounts are USD decimal strings. creator = round_half_even(total * creatorPercent / 100) to the cent, sender = total - creator. The server accepts either rounding direction within half a cent, so half-even is a client-parity choice; at 20% no whole-cent total produces a tie. Multi-payment payees are listed sender then creator, the order multi_payment_intent.json's 'boost 80/20' uses; the server accepts either order. Quarks are omitted on purpose: each share's quarks are computed from that share's own fiat at the shared verified rate and reserve state (curve.json / curve_fractional.json gate that conversion), never as a split of the whole's quarks. expectedError names the rule, not a platform error type.",
+  "creatorPercent": 20,
+  "minimumShare": "0.01",
+  "minimumTwoPayeeTotal": "0.03",
+  "vectors": [
+    {
+      "name": "member boosts member",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "1.00",
+      "note": "Two payees: creator 20% of the whole, sender the rest, one SendPublicMultiPayment.",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.80"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "0.20"
+          }
+        ]
+      }
+    },
+    {
+      "name": "member boosts creator's message",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "creator",
+      "total": "1.00",
+      "note": "The creator sent it, so the creator is paid the whole: one SendPublicPayment.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "creator",
+            "nativeAmount": "1.00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "creator boosts member",
+      "chat": "group",
+      "payer": "creator",
+      "messageSender": "member",
+      "total": "1.00",
+      "note": "The creator pays, so the sender is paid the whole: one SendPublicPayment.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "1.00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "member boosts own message",
+      "chat": "group",
+      "payer": "sender",
+      "messageSender": "member",
+      "total": "1.00",
+      "note": "No one boosts their own message.",
+      "expected": {
+        "intent": "rejected",
+        "expectedError": "self-boost"
+      }
+    },
+    {
+      "name": "creator boosts own message",
+      "chat": "group",
+      "payer": "creator",
+      "messageSender": "creator",
+      "total": "1.00",
+      "note": "No self-boost, the group's creator included.",
+      "expected": {
+        "intent": "rejected",
+        "expectedError": "self-boost"
+      }
+    },
+    {
+      "name": "rounds down from .2",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "1.01",
+      "note": "Exact creator share 20.2c rounds to 20c; sender 81c (exact 80.8c).",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.81"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "0.20"
+          }
+        ]
+      }
+    },
+    {
+      "name": "rounds down from .4",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.07",
+      "note": "Exact creator share 1.4c rounds to 1c; sender 6c (exact 5.6c).",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.06"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "0.01"
+          }
+        ]
+      }
+    },
+    {
+      "name": "rounds up from .6",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.08",
+      "note": "Exact creator share 1.6c rounds to 2c; sender 6c (exact 6.4c).",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.06"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "0.02"
+          }
+        ]
+      }
+    },
+    {
+      "name": "rounds up from .8",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "9.99",
+      "note": "Exact creator share 199.8c rounds to $2.00; sender $7.99 (exact 799.2c).",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "7.99"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "2.00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "exact split",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.05",
+      "note": "Exact creator share 1c, sender 4c.",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.04"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "0.01"
+          }
+        ]
+      }
+    },
+    {
+      "name": "large exact split",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "1000.00",
+      "note": "Exact creator share $200.00, sender $800.00.",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "800.00"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "200.00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "below the proto's five units",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.04",
+      "note": "Creator 0.8c rounds to 1c, sender 3c. The proto says a two-payee boost is at least five minor units, but the server checks each share alone, so this passes.",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.03"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "0.01"
+          }
+        ]
+      }
+    },
+    {
+      "name": "smallest two-payee boost",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.03",
+      "note": "Creator 0.6c rounds to 1c, sender 2c (exact 2.4c).",
+      "expected": {
+        "intent": "SendPublicMultiPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.02"
+          },
+          {
+            "role": "creator",
+            "nativeAmount": "0.01"
+          }
+        ]
+      }
+    },
+    {
+      "name": "two-payee below minimum",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.02",
+      "note": "Creator 0.4c rounds to 0, and 1c is more than half a cent from 0.4c, so no split passes.",
+      "expected": {
+        "intent": "rejected",
+        "expectedError": "boost share below minimum transfer value"
+      }
+    },
+    {
+      "name": "two-payee well below minimum",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.01",
+      "note": "Creator 0.2c rounds to 0.",
+      "expected": {
+        "intent": "rejected",
+        "expectedError": "boost share below minimum transfer value"
+      }
+    },
+    {
+      "name": "single to creator at minimum",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "creator",
+      "total": "0.01",
+      "note": "One payee needs only one minor unit.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "creator",
+            "nativeAmount": "0.01"
+          }
+        ]
+      }
+    },
+    {
+      "name": "single to sender at minimum",
+      "chat": "group",
+      "payer": "creator",
+      "messageSender": "member",
+      "total": "0.01",
+      "note": "One payee needs only one minor unit.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.01"
+          }
+        ]
+      }
+    },
+    {
+      "name": "single to creator odd",
+      "chat": "group",
+      "payer": "member",
+      "messageSender": "creator",
+      "total": "9.99",
+      "note": "One payee is paid the whole; no rounding.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "creator",
+            "nativeAmount": "9.99"
+          }
+        ]
+      }
+    },
+    {
+      "name": "single to sender odd",
+      "chat": "group",
+      "payer": "creator",
+      "messageSender": "member",
+      "total": "1.01",
+      "note": "One payee is paid the whole; no rounding.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "1.01"
+          }
+        ]
+      }
+    },
+    {
+      "name": "dm: boost the other member",
+      "chat": "dm",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "1.00",
+      "note": "No creator in a DM: the other member is paid the whole, one SendPublicPayment.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "1.00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "dm: own message",
+      "chat": "dm",
+      "payer": "sender",
+      "messageSender": "member",
+      "total": "1.00",
+      "note": "No one boosts their own message.",
+      "expected": {
+        "intent": "rejected",
+        "expectedError": "self-boost"
+      }
+    },
+    {
+      "name": "dm: at minimum",
+      "chat": "dm",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.01",
+      "note": "One payee needs only one minor unit; the same total is rejected as a group's two-payee boost.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "0.01"
+          }
+        ]
+      }
+    },
+    {
+      "name": "dm: odd amount",
+      "chat": "dm",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "9.99",
+      "note": "The whole goes to one payee; no rounding.",
+      "expected": {
+        "intent": "SendPublicPayment",
+        "payees": [
+          {
+            "role": "sender",
+            "nativeAmount": "9.99"
+          }
+        ]
+      }
+    },
+    {
+      "name": "dm: below minimum",
+      "chat": "dm",
+      "payer": "member",
+      "messageSender": "member",
+      "total": "0.00",
+      "note": "The whole is under one minor unit.",
+      "expected": {
+        "intent": "rejected",
+        "expectedError": "boost amount below minimum transfer value"
+      }
+    }
+  ]
+}

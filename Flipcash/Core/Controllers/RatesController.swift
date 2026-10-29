@@ -32,6 +32,13 @@ class RatesController {
     var balanceCurrency: CurrencyCode = .usd {
         willSet {
             LocalDefaults.balanceCurrency = newValue
+            DisplayCurrency.sharedSelection = newValue
+        }
+        didSet {
+            // The notification previews hold amounts already formatted in the old currency.
+            if balanceCurrency != oldValue {
+                NotificationPreviewCache.clear()
+            }
         }
     }
 
@@ -89,6 +96,7 @@ class RatesController {
         }
 
         balanceCurrency = LocalDefaults.balanceCurrency!
+        DisplayCurrency.sharedSelection = balanceCurrency
         selectedTokenMint = loadSelectedToken()
 
         // Rehydrate last-known display rates from the database so screens
@@ -291,6 +299,11 @@ class RatesController {
 
     func rateForBalanceCurrency() -> Rate {
         rate(for: balanceCurrency) ?? .oneToOne
+    }
+
+    /// The balance currency and the rates that restate every other amount into it.
+    var displayCurrency: DisplayCurrency {
+        DisplayCurrency(currency: balanceCurrency, rates: cachedRates)
     }
 
     func rate(for currency: CurrencyCode) -> Rate? {

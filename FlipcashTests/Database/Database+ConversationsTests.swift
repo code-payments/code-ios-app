@@ -108,7 +108,63 @@ struct DatabaseConversationsTests {
         }
     }
 
-    @Test("Widget messages round-trip, and a widget with no username reads back as unrecognized")
+    @Test("A group send's per-recipient parts round-trip, so its bubble survives a relaunch")
+    func cashPaymentsRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let onChain = TokenAmount(quarks: 1_000_000, mint: .usdf)
+        let native = FiatAmount(value: 1, currency: .usd)
+        let parts = [
+            CashPayment(receiverID: UUID(), nativeAmount: 0.34, quarks: 340_000),
+            CashPayment(receiverID: UUID(), nativeAmount: 0.33, quarks: 330_000),
+            CashPayment(receiverID: nil, nativeAmount: 0.33, quarks: 330_000),
+        ]
+        func cash(_ n: UInt64, _ payments: [CashPayment]) -> ConversationMessage {
+            ConversationMessage(
+                id: MessageID(value: n),
+                senderID: selfID,
+                content: .cash(ExchangedFiat(onChainAmount: onChain, nativeAmount: native, currencyRate: Rate(fx: 1, currency: .usd))),
+                cashPayments: payments,
+                date: Date(timeIntervalSince1970: TimeInterval(n)),
+                unreadSeq: n
+            )
+        }
+
+        try database.upsertConversationMessages([cash(1, parts), cash(2, [])], conversationID: id)
+        let loaded = try database.getConversationMessages(conversationID: id)
+
+        #expect(loaded.map(\.cashPayments) == [parts, []])
+    }
+
+    @Test("A single-receiver group payment keeps its receiver across a relaunch")
+    func cashReceiverRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let receiver = UUID()
+        func cash(_ n: UInt64, _ receiverID: UserID?) -> ConversationMessage {
+            ConversationMessage(
+                id: MessageID(value: n),
+                senderID: selfID,
+                content: .cash(ExchangedFiat(
+                    onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+                    nativeAmount: FiatAmount(value: 1, currency: .usd),
+                    currencyRate: Rate(fx: 1, currency: .usd)
+                )),
+                cashReceiverID: receiverID,
+                date: Date(timeIntervalSince1970: TimeInterval(n)),
+                unreadSeq: n
+            )
+        }
+
+        try database.upsertConversationMessages([cash(1, receiver), cash(2, nil)], conversationID: id)
+        let loaded = try database.getConversationMessages(conversationID: id)
+
+        #expect(loaded.map(\.cashReceiverID) == [receiver, nil])
+    }
+
+    @Test("Widget messages round-trip, including a payment request, and a widget with no username reads back as unrecognized")
     func widgetMessageRoundTrip() throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
@@ -119,12 +175,16 @@ struct DatabaseConversationsTests {
                                 date: Date(timeIntervalSince1970: TimeInterval(n)), unreadSeq: n)
         }
         try database.upsertConversationMessages(
-            [widget(1, .shareProfile(ShareProfileWidget(username: alice))), widget(2, .unrecognized)],
+            [
+                widget(1, .shareProfile(ShareProfileWidget(username: alice))), widget(2, .unrecognized),
+                widget(3, .paymentRequest(PaymentRequestID(data: Data([1, 2, 3])))),
+            ],
             conversationID: id
         )
         let loaded = try database.getConversationMessages(conversationID: id)
         #expect(loaded.map(\.content) == [
             .widget(.shareProfile(ShareProfileWidget(username: alice))), .widget(.unrecognized),
+            .widget(.paymentRequest(PaymentRequestID(data: Data([1, 2, 3])))),
         ])
     }
 
@@ -514,7 +574,8 @@ struct DatabaseConversationsTests {
         try database.upsertConversationMessages(
             [system(1, .userJoined(userID: joiner, admittedBy: nil)),
              system(2, .userJoined(userID: joiner, admittedBy: admitter)),
-             system(3, nil)],
+             system(3, nil),
+             system(4, .userJoinedViaInvite(userID: joiner, invitedBy: admitter))],
             conversationID: id
         )
         let loaded = try database.getConversationMessages(conversationID: id)
@@ -522,6 +583,7 @@ struct DatabaseConversationsTests {
             .system(fallbackText: "notice 1", event: .userJoined(userID: joiner, admittedBy: nil)),
             .system(fallbackText: "notice 2", event: .userJoined(userID: joiner, admittedBy: admitter)),
             .system(fallbackText: "notice 3", event: nil),
+            .system(fallbackText: "notice 4", event: .userJoinedViaInvite(userID: joiner, invitedBy: admitter)),
         ])
     }
 
@@ -725,6 +787,19 @@ struct DatabaseConversationsTests {
         // And the expiry, not a muted flag: the mute lapses on its own after a cold start.
         #expect(loaded.isMuted(at: expiry.addingTimeInterval(-1)))
         #expect(loaded.isMuted(at: expiry) == false)
+    }
+
+    @Test("canInvite round-trips, so a host's invite entry points survive a cold start")
+    func viewerStateCanInviteRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        var stored = conversation(byte: 1)
+        stored.viewerState = ConversationViewerState(canInvite: true)
+
+        try database.upsertConversation(stored)
+
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.viewerState?.canInvite == true)
     }
 
     @Test("A conversation with no viewer state round-trips as none")

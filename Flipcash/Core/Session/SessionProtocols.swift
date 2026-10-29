@@ -89,12 +89,35 @@ protocol RecipientResolving: AnyObject {
 // MARK: - Direct send
 
 /// Direct on-chain payment to a resolved recipient owner.
+/// Pays a share of a group payment request under the intent ID the server issued for it.
+protocol RequestedPaying: AnyObject {
+
+    func payRequestShare(
+        amount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        to creatorOwner: PublicKey,
+        chatID: ConversationID,
+        paymentRequestID: PaymentRequestID,
+        intentID: PublicKey
+    ) async throws
+}
+
 protocol DirectSending: AnyObject {
 
     func send(
         amount: ExchangedFiat,
         verifiedState: VerifiedState,
         to destination: PublicKey,
+        chat: ChatPaymentMetadata?
+    ) async throws
+}
+
+/// One payment to several resolved recipients in a single intent.
+protocol MultiSending: AnyObject {
+
+    func sendMultiple(
+        _ payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)],
+        verifiedState: VerifiedState,
         chat: ChatPaymentMetadata?
     ) async throws
 }
@@ -118,4 +141,6 @@ extension Session: AccountProviding,
                     CurrencyLaunching,
                     RecipientResolving,
                     DirectSending,
+                    RequestedPaying,
+                    MultiSending,
                     CashLinkSending {}

@@ -40,13 +40,11 @@ final class ChatQuotePanelView: UIView {
     private let rule = UIView()
     private let authorLabel = UILabel()
     private let snippetLabel = UILabel()
-    /// Drawn only for a quoted payment: the currency's flag and the mint's name around the amount,
-    /// the same pair the cash card itself leads with. A bare "$5.00" in a quote reads as a number
-    /// rather than as the payment it points at.
-    private let flagView = UIImageView()
+    /// Drawn only for a quoted payment: the mint's name after the amount, as the cash card itself
+    /// carries it. A bare "$5.00" in a quote reads as a number rather than as the payment it points at.
     private let tokenLabel = UILabel()
     private let detailRow = UIStackView()
-    /// Takes the slack so the flag, amount and token stay clustered at the leading edge instead of
+    /// Takes the slack so the amount and token stay clustered at the leading edge instead of
     /// the amount stretching and pushing the token to the far side of the panel.
     private let detailSpacer = UIView()
     /// Drawn only for a quoted photo the viewer may see: the photo itself at the trailing edge.
@@ -75,10 +73,6 @@ final class ChatQuotePanelView: UIView {
     private static let cornerRadius = BubbleBackgroundView.baseRadius - surroundInset
 
     private static let ruleWidth: CGFloat = 3
-
-    /// Sized to the cap height of the amount beside it, so the flag reads as a mark on the line
-    /// rather than as a second element the line has to make room for.
-    private static let flagDiameter: CGFloat = 14
 
     /// The two text lines' height, so the thumbnail sits in the panel without growing it.
     private static let thumbnailSide: CGFloat = 34
@@ -119,10 +113,6 @@ final class ChatQuotePanelView: UIView {
         snippetLabel.numberOfLines = 2
         snippetLabel.lineBreakMode = .byTruncatingTail
 
-        flagView.contentMode = .scaleAspectFill
-        flagView.clipsToBounds = true
-        flagView.layer.cornerRadius = Self.flagDiameter / 2
-
         tokenLabel.font = .default(size: 12, weight: .medium)
         tokenLabel.textColor = UIColor.white.withAlphaComponent(0.35)
         tokenLabel.numberOfLines = 1
@@ -134,7 +124,6 @@ final class ChatQuotePanelView: UIView {
         detailRow.alignment = .center
         detailRow.spacing = 5
         detailRow.translatesAutoresizingMaskIntoConstraints = false
-        detailRow.addArrangedSubview(flagView)
         detailRow.addArrangedSubview(snippetLabel)
         detailRow.addArrangedSubview(tokenLabel)
         detailRow.addArrangedSubview(detailSpacer)
@@ -182,9 +171,6 @@ final class ChatQuotePanelView: UIView {
 
             detailRow.topAnchor.constraint(equalTo: authorLabel.bottomAnchor, constant: 1),
             detailRow.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
-
-            flagView.widthAnchor.constraint(equalToConstant: Self.flagDiameter),
-            flagView.heightAnchor.constraint(equalToConstant: Self.flagDiameter),
         ])
 
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
@@ -239,10 +225,7 @@ final class ChatQuotePanelView: UIView {
         authorLabel.isHidden = quote.authorName.isEmpty
         snippetLabel.text = quote.snippet
         switch quote.kind {
-        case .cash(let token, let flagImageName):
-            let flag = flagImageName.flatMap { UIImage(named: $0, in: .module, compatibleWith: nil) }
-            flagView.image = flag
-            flagView.isHidden = flag == nil
+        case .cash(let token):
             tokenLabel.text = token
             tokenLabel.isHidden = false
             // A payment's amount is the whole of what was said, so it is read rather than glanced
@@ -250,18 +233,16 @@ final class ChatQuotePanelView: UIView {
             snippetLabel.textColor = ink.withAlphaComponent(0.75)
             showThumbnail(blobID: nil, location: nil)
         case .media(let thumbnailBlobID, _):
-            flagView.isHidden = true
             tokenLabel.isHidden = true
             snippetLabel.textColor = snippetColor
             showThumbnail(blobID: thumbnailBlobID, location: thumbnail)
         case .text, .unavailable:
-            flagView.isHidden = true
             tokenLabel.isHidden = true
             snippetLabel.textColor = snippetColor
             showThumbnail(blobID: nil, location: nil)
         }
         let spoken = switch quote.kind {
-        case .cash(let token, _):  "\(quote.snippet) \(token)"
+        case .cash(let token):  "\(quote.snippet) \(token)"
         case .text, .media, .unavailable:  quote.snippet
         }
         isUserInteractionEnabled = quote.isJumpable
@@ -279,8 +260,6 @@ final class ChatQuotePanelView: UIView {
         authorLabel.text = nil
         snippetLabel.text = nil
         tokenLabel.text = nil
-        flagView.image = nil
-        flagView.isHidden = true
         tokenLabel.isHidden = true
         showThumbnail(blobID: nil, location: nil)
         isUserInteractionEnabled = false

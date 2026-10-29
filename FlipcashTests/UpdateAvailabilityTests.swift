@@ -127,7 +127,9 @@ import FlipcashUI
         channel: InstallChannel = .store,
         lookup: Data = staleLookup,
         manifest: Data? = nil,
-        at date: Date? = nil
+        at date: Date? = nil,
+        installChannel: (() async -> InstallChannel?)? = nil,
+        channelLookupTimeout: Duration = .seconds(10)
     ) -> UpdateAvailability {
         let time = date ?? now
         return UpdateAvailability(
@@ -141,9 +143,14 @@ import FlipcashUI
                 }
                 return lookup
             },
-            installChannel: { channel }
+            installChannel: installChannel ?? { channel },
+            channelLookupTimeout: channelLookupTimeout
         )
     }
+
+    private static let testFlightManifest = Data(
+        #"{"production":{"version":"2026.10.2","priority":0},"testflight":{"build":281}}"#.utf8
+    )
 
     @Test func storeBuildFindsTheNewerVersion() async {
         let updates = sut()
@@ -183,6 +190,36 @@ import FlipcashUI
         let relaunched = sut(channel: .testFlight)
         #expect(relaunched.channel == .testFlight)
         #expect(relaunched.latestTestFlightBuild == 281)
+    }
+
+    @Test func hungChannelLookupStillReadsTheManifest() async {
+        await sut(channel: .testFlight).check()
+        let updates = sut(
+            manifest: Self.testFlightManifest,
+            installChannel: {
+                try? await Task.sleep(for: .seconds(3600))
+                return .store
+            },
+            channelLookupTimeout: .milliseconds(50)
+        )
+        await updates.check()
+        #expect(updates.latestTestFlightBuild == 281)
+        #expect(updates.channel == .testFlight)
+    }
+
+    @Test func failedChannelLookupKeepsTheLastKnownChannel() async {
+        await sut(channel: .testFlight).check()
+        let updates = sut(manifest: Self.testFlightManifest, installChannel: { nil })
+        await updates.check()
+        #expect(updates.channel == .testFlight)
+        #expect(sut(channel: .store).channel == .testFlight)
+    }
+
+    @Test func failedChannelLookupWithNoHistoryIsOther() async {
+        let updates = sut(manifest: Self.testFlightManifest, installChannel: { nil })
+        await updates.check()
+        #expect(updates.channel == .other)
+        #expect(updates.latestTestFlightBuild == 281)
     }
 
     @Test func manifestWithoutTestFlightLeavesTheBuildUnknown() async {

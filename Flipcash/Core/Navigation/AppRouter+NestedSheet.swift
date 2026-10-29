@@ -27,25 +27,37 @@ private struct AppRouterNestedSheetModifier: ViewModifier {
     @Environment(\.nestedSheetDepth) private var depth
 
     func body(content: Content) -> some View {
+        let myDepth = depth + 1
+        return content
+            .background(
+                Color.clear.sheet(item: binding(at: myDepth, fullScreen: false), onDismiss: router.sheetDidFinishDismissing) { nested in
+                    NestedSheetRootView(sheet: nested)
+                        .environment(\.nestedSheetDepth, myDepth)
+                }
+            )
+            .background(
+                Color.clear.fullScreenCover(item: binding(at: myDepth, fullScreen: true), onDismiss: router.sheetDidFinishDismissing) { nested in
+                    NestedSheetRootView(sheet: nested)
+                        .environment(\.nestedSheetDepth, myDepth)
+                }
+            )
+    }
+
+    /// The presentation at `depth`, when it is the kind this host shows.
+    private func binding(at depth: Int, fullScreen: Bool) -> Binding<AppRouter.SheetPresentation?> {
         // SwiftUI also calls the setter with nil after a programmatic dismiss
         // completes; without the in-bounds guard that re-entry would pop the
         // parent sheet too.
-        let myDepth = depth + 1
-        let binding = Binding<AppRouter.SheetPresentation?>(
+        Binding(
             get: {
-                guard router.presentedSheets.indices.contains(myDepth) else { return nil }
-                return router.presentedSheets[myDepth]
+                guard router.presentedSheets.indices.contains(depth) else { return nil }
+                let sheet = router.presentedSheets[depth]
+                return sheet.coversFullScreen == fullScreen ? sheet : nil
             },
             set: { newValue in
                 guard newValue == nil else { return }
-                guard router.presentedSheets.indices.contains(myDepth) else { return }
+                guard router.presentedSheets.indices.contains(depth) else { return }
                 router.dismissSheet()
-            }
-        )
-        return content.background(
-            Color.clear.sheet(item: binding) { nested in
-                NestedSheetRootView(sheet: nested)
-                    .environment(\.nestedSheetDepth, myDepth)
             }
         )
     }
@@ -194,13 +206,18 @@ struct SendAmountSheetRoot: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        NavigationStack {
-            SendAmountScreen(target: target)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        CloseButton(action: router.dismissSheet)
+        switch target {
+        case .privateGroup(let conversationID):
+            GroupSendFlow(conversationID: conversationID)
+        case .contact, .tip, .group:
+            NavigationStack {
+                SendAmountScreen(target: target)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            CloseButton(action: router.dismissSheet)
+                        }
                     }
-                }
+            }
         }
     }
 }

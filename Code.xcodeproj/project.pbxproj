@@ -16,6 +16,7 @@
 		4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
 		4CA1B0022FD00002000AA002 /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CA1B0012FD00001000AA001 /* FlipcashStore */; };
 		4CA1B0032FD00003000AA003 /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CA1B0012FD00001000AA001 /* FlipcashStore */; };
+		4CA1B0042FD00004000AA004 /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CA1B0012FD00001000AA001 /* FlipcashStore */; };
 		08B8484332ED78035E9D399B /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D62DD627C0001B260A /* Bugsnag */; };
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
@@ -171,6 +172,7 @@
 				47DDE1F353D72DB6C899D6E0 /* Foundation.framework in Frameworks */,
 				56BF88A54E7F0C5DAB42710A /* FlipcashCore in Frameworks */,
 				A3BE11B009F4E2EF7ED93F05 /* FlipcashUI in Frameworks */,
+				4CA1B0042FD00004000AA004 /* FlipcashStore in Frameworks */,
 				8778E6B10D2DD83ABE8E2969 /* UserNotificationsUI.framework in Frameworks */,
 				B4D66444ACFD12F6C0FE8FA2 /* UserNotifications.framework in Frameworks */,
 			);
@@ -409,6 +411,7 @@
 			packageProductDependencies = (
 				8DFC9D975C89EBB9B4E50C4D /* FlipcashCore */,
 				EFFC929EC8849F357BE7F997 /* FlipcashUI */,
+				4CA1B0012FD00001000AA001 /* FlipcashStore */,
 			);
 			productName = NotificationContent;
 			productReference = C402C27F9E020E000EBA2936 /* NotificationContent.appex */;
@@ -769,7 +772,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -810,7 +813,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.FlipcashShare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -851,7 +854,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -892,7 +895,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.FlipcashShare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -929,7 +932,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -965,7 +968,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.FlipcashShare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1001,7 +1004,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1037,7 +1040,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.FlipcashShare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1077,7 +1080,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1247,7 +1250,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Upload your contacts to Flipcash's servers to send cash and get in touch with your friends and help us provide a better experience.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key and any photo you choose to save from a chat to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -1257,7 +1260,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1302,7 +1305,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Upload your contacts to Flipcash's servers to send cash and get in touch with your friends and help us provide a better experience.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key and any photo you choose to save from a chat to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -1312,7 +1315,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1353,7 +1356,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Upload your contacts to Flipcash's servers to send cash and get in touch with your friends and help us provide a better experience.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key and any photo you choose to save from a chat to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -1363,7 +1366,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1403,7 +1406,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Upload your contacts to Flipcash's servers to send cash and get in touch with your friends and help us provide a better experience.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key and any photo you choose to save from a chat to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -1413,7 +1416,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1790,7 +1793,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1827,7 +1830,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1863,7 +1866,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.10.4;
+				MARKETING_VERSION = 2026.10.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

@@ -253,7 +253,10 @@ final class ShareModel {
                 sendState = .idle
                 return
             } catch {
-                ExtensionReporting.capture(error, reason: "Share send failed")
+                ExtensionReporting.capture(error, reason: "Share send failed", metadata: [
+                    "chatType": String(describing: chat.type),
+                    "isPrivate": String(chat.isPrivate),
+                ])
                 progress.markFailed(id, message: Self.message(for: error), canRetry: Self.canRetry(error))
             }
             self.progress = progress
@@ -296,9 +299,22 @@ final class ShareModel {
         let owner = account.keyAccount.owner
         let flipClient = try self.flipClient ?? FlipClient(network: .mainNet)
         self.flipClient = flipClient
-        let keyring = ChatKeyring(owner: owner, selfUserID: account.userID) { userID in
-            try await flipClient.resolveUserID(userID, owner: owner)
-        }
+        let keyring = ChatKeyring(
+            owner: owner,
+            selfUserID: account.userID,
+            resolveKey: { userID in
+                try await flipClient.resolveUserID(userID, owner: owner)
+            },
+            setEnvelope: { conversationID, envelope in
+                try await flipClient.setKeyEnvelope(owner: owner, conversationID: conversationID, keyEnvelope: envelope)
+            },
+            getEnvelope: { conversationID in
+                try await flipClient.getKeyEnvelope(owner: owner, conversationID: conversationID)
+            },
+            // Like the notification extension, this only opens an invite-joined member's own
+            // envelope; the app opens the invite's copy and stores it.
+            opensInviteBundles: false
+        )
         let conversation = try await flipClient.getChat(owner: owner, conversationID: chat.id)
         let seal = try await keyring.sealForSending(in: conversation)
         let uploader = ChatMediaUploader(

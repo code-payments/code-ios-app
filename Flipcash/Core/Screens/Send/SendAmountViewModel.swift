@@ -84,17 +84,11 @@ final class SendAmountViewModel {
     /// Where this send reports as coming from, which is not always the surface
     /// that composed it.
     ///
-    /// The payment that opens the DM always reports as `TIPCARD`, however it was
-    /// composed — a scanned card, or the chat the username lookup pushes before
-    /// the thread is real. Matches Android's rule, which reads the same flag off
-    /// a bottom bar still showing "Send a Tip".
-    ///
-    /// What the server actually enforces is the verb, not this field: a send is
-    /// denied with `tip dm has not been initialized` unless the chat already
-    /// exists, and only a tip may open one. Since `action` is derived from this
-    /// value, keeping it `TIPCARD` here is what makes the opening payment
-    /// resolve to a tip on a server that reads `action` and on one that predates
-    /// it alike.
+    /// The payment that opens the DM reports its location as `FLIPCARD`, however
+    /// it was composed: a `CHAT` location was denied with `tip dm has not been
+    /// initialized` before the thread existed. The location says nothing about
+    /// the verb — `action` follows the recipient's own origin, so only a scanned
+    /// Flipcard sends a tip.
     private var effectiveTipOrigin: TipOrigin? {
         guard case .tip(let recipient) = target else { return nil }
         return opensTipDM ? .tipcard : recipient.origin
@@ -104,7 +98,7 @@ final class SendAmountViewModel {
     /// `currency`, or nil when it has none.
     ///
     /// A fee the recipient sets buys the conversation, so it applies to exactly
-    /// one payment: the tip that opens the DM. Past that the tip card falls back
+    /// one payment: the one that opens the DM. Past that the tip card falls back
     /// to the regional minimum every tip carries, and an in-chat send — a plain
     /// send into an open thread — carries no floor at all.
     func tipFloor(in currency: CurrencyCode) -> TipFloor? {
@@ -128,7 +122,7 @@ final class SendAmountViewModel {
     /// rejection is the exception rather than the flow. Nil when this entry
     /// carries no floor, and until the server's presets arrive.
     var tipMinimum: FiatAmount? {
-        tipFloor(in: ratesController.balanceCurrency)?.displayed
+        tipFloor(in: ratesController.balanceCurrency)?.displayed(in: ratesController.displayCurrency)
     }
 
     /// What the amount header states while a send is in flight or has landed,
@@ -176,7 +170,7 @@ final class SendAmountViewModel {
     /// opens the DM doesn't flip to "Swipe to Send" once the DM exists.
     var swipeLabel: String {
         let opensTipDM = if let sendingSnapshot { sendingSnapshot.opensTipDM } else { opensTipDM }
-        return opensTipDM ? "Swipe to Tip" : "Swipe to Send"
+        return opensTipDM ? "Swipe to Chat" : "Swipe to Send"
     }
 
     /// The keypad buffer parsed to a positive amount, or nil.
@@ -322,7 +316,7 @@ final class SendAmountViewModel {
         // Grey rather than red: the entry is under a stated floor, not a
         // failure, and the floor is already on screen (node 9553:20236).
         session.dialogItem = .info(
-            title: "\(floor.displayed.formatted()) Minimum Tip",
+            title: "\(floor.displayed(in: ratesController.displayCurrency).formatted()) Minimum Tip",
             subtitle: "Please enter a higher amount"
         )
         return false
@@ -385,6 +379,9 @@ final class SendAmountViewModel {
             switch target {
             case .group(let conversationID):
                 payee = .cashLink(into: conversationID)
+            case .privateGroup:
+                assertionFailure("A private group sends through GroupSendViewModel")
+                return .failed
             case .contact, .tip:
                 switch await resolveRecipient() {
                 case .resolved(let owner):
@@ -437,10 +434,9 @@ final class SendAmountViewModel {
                 return await sendCashLink(amount: amountToSend, verifiedState: pinnedState, into: conversationID)
             }
 
-            // Both the scanned tipcard flow and the Send Cash action inside a tip
-            // thread submit here; `chat` is the single source for whether this
-            // reports as a tip, so the wire `action` and the analytics event
-            // never drift apart.
+            // Every tip-DM payment submits here, the opening one included; `chat`
+            // is the single source for whether this reports as a tip, so the
+            // wire `action` and the analytics event never drift apart.
             let chat = chatPaymentMetadata()
             let transferEvent: Analytics.TransferEvent = (chat?.isTip ?? false) ? .sentTip : .sentCash
 
@@ -504,13 +500,12 @@ final class SendAmountViewModel {
                 destinationPhoneE164: contact.phoneE164
             )
         case .tip(let recipient):
-            let origin = effectiveTipOrigin ?? recipient.origin
             return .tipDm(
                 chatID: .tipDm(between: session.userID, and: recipient.userID),
-                origin: origin,
-                action: origin == .tipcard ? .tip : .send
+                origin: effectiveTipOrigin ?? recipient.origin,
+                action: recipient.origin == .tipcard ? .tip : .send
             )
-        case .group:
+        case .group, .privateGroup:
             return nil
         }
     }
@@ -543,7 +538,7 @@ final class SendAmountViewModel {
                     owner = try await resolver.resolveContact(e164: contact.phoneE164)
                 case .tip(let recipient):
                     owner = try await resolver.resolveUserID(recipient.userID)
-                case .group:
+                case .group, .privateGroup:
                     assertionFailure("A group send funds a cash link and has no recipient to resolve")
                     return .failed
                 }
@@ -568,7 +563,7 @@ final class SendAmountViewModel {
         switch target {
         case .contact(let contact): contact.contactId
         case .tip(let recipient):   recipient.userID.uuidString
-        case .group(let id):        id.description
+        case .group(let id), .privateGroup(let id): id.description
         }
     }
 
@@ -601,7 +596,7 @@ final class SendAmountViewModel {
                     mint: mint
                 )
             }
-        case .contact, .group:
+        case .contact, .group, .privateGroup:
             pinnedState = await ratesController.currentPinnedState(
                 for: ratesController.balanceCurrency,
                 mint: mint

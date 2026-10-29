@@ -97,7 +97,15 @@ public struct ChatSeal: @unchecked Sendable {
         try seal(.plaintext(media: photo.media, caption: caption, repliedTo: repliedTo))
     }
 
-    private func seal(_ plaintext: Flipcash_Messaging_V1_Content) throws -> Flipcash_Messaging_V1_Content {
+    /// Encrypts a widget naming the payment request `id` into the content to send in its place.
+    public func seal(paymentRequest id: PaymentRequestID) throws -> Flipcash_Messaging_V1_Content {
+        try seal(.with {
+            $0.widget = .with { $0.paymentRequest = .with { $0.paymentRequestID = id.proto } }
+        })
+    }
+
+    /// Encrypts `plaintext` into the content to send in its place.
+    func seal(_ plaintext: Flipcash_Messaging_V1_Content) throws -> Flipcash_Messaging_V1_Content {
         let bytes = SharedBytes.shared
         let content = bytes.byteArray(data: try plaintext.serializedData())
         let payload: EncryptedPayload
@@ -209,10 +217,61 @@ public struct ChatSeal: @unchecked Sendable {
         return message.opened(.success((readable.content, readable.repliedTo)), linkPreview: readable.linkPreview)
     }
 
+    // MARK: - Payment request text -
+
+    /// The wire `EncryptedPaymentRequestText.Scheme` a private group's request text is sealed with.
+    public static let requestTextScheme = Flipcash_Paymentrequest_V1_EncryptedPaymentRequestText.Scheme.chatKeyXchacha20Poly1305
+
+    /// Encrypts a request's `title` and `description`, created by this user, as the split's
+    /// `encrypted` text. Throws in a DM, which has no group key.
+    public func sealRequestText(title: String, description: String) throws -> GroupPaymentRequest.Text {
+        guard case .group(let groupKey) = mode else { throw RequestTextFailure.notGroup }
+        let bytes = SharedBytes.shared
+        let text = Flipcash_Paymentrequest_V1_PaymentRequestText.with {
+            $0.title = title
+            $0.description_p = description
+        }
+        let payload = try cipher.encryptPaymentRequestText(
+            text: bytes.byteArray(data: try text.serializedData()),
+            groupKey: groupKey,
+            chatId: chatID,
+            creatorId: userID(selfUserID)
+        )
+        return .encrypted(
+            scheme: Self.requestTextScheme.rawValue,
+            nonce: bytes.data(bytes: payload.nonce),
+            ciphertext: bytes.data(bytes: payload.ciphertext)
+        )
+    }
+
+    /// Decrypts a request's encrypted text, created by `creator`. Throws when the scheme is not
+    /// ``requestTextScheme``, the seal is a DM's, or the text fails to authenticate or decode.
+    public func openRequestText(scheme: Int, nonce: Data, ciphertext: Data, creator: UserID?) throws -> (title: String, description: String) {
+        guard case .group(let groupKey) = mode else { throw RequestTextFailure.notGroup }
+        guard scheme == Self.requestTextScheme.rawValue, let creator else { throw RequestTextFailure.unsupported }
+        let bytes = SharedBytes.shared
+        let plaintext = try cipher.decryptPaymentRequestText(
+            payload: EncryptedPayload(nonce: bytes.byteArray(data: nonce), ciphertext: bytes.byteArray(data: ciphertext)),
+            groupKey: groupKey,
+            chatId: chatID,
+            creatorId: userID(creator)
+        )
+        let text = try Flipcash_Paymentrequest_V1_PaymentRequestText(serializedBytes: bytes.data(bytes: plaintext))
+        return (text.title, text.description_p)
+    }
+
     /// The raw `UserId.value` bytes the group aads bind.
     private func userID(_ id: UserID) -> KotlinByteArray {
         SharedBytes.shared.byteArray(data: id.data)
     }
+}
+
+/// Why a payment request's text could not be sealed or opened.
+public enum RequestTextFailure: Error, Hashable, Sendable {
+    /// The seal is a DM's; request text is sealed only under a group key.
+    case notGroup
+    /// The scheme is unknown or the request names no creator.
+    case unsupported
 }
 
 /// Why a photo blob could not be decrypted; either way the photo draws as unsupported.
@@ -333,7 +392,15 @@ extension Flipcash_Messaging_V1_Content {
             case .cash, .system, .widget, .deleted, .encrypted, .reply, nil:
                 return nil
             }
-        case .cash, .system, .widget, .deleted, .encrypted, nil:
+        case .widget(let widget):
+            // A request is the one card a member seals; a profile share comes only from the server.
+            switch widget.type {
+            case .paymentRequest(let request) where request.hasPaymentRequestID:
+                return (.widget(.paymentRequest(PaymentRequestID(request.paymentRequestID))), nil, nil)
+            case .paymentRequest, .shareProfile, .poll, nil:
+                return nil
+            }
+        case .cash, .system, .deleted, .encrypted, nil:
             return nil
         }
     }

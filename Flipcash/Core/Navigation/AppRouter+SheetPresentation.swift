@@ -31,6 +31,17 @@ extension AppRouter {
 
         var id: Self { self }
 
+        /// Whether this presentation covers the screen and closes only from its close button, as the
+        /// share screen does.
+        var coversFullScreen: Bool {
+            switch self {
+            case .sendAmount(.privateGroup):
+                true
+            case .give, .buy, .addMoney, .downloadApp, .sendAmount, .tips, .switchAccount:
+                false
+            }
+        }
+
         /// The stack hosted inside this sheet. Inverse of `Stack.sheet`.
         /// Used by `dismissSheet` to clear the dismissed stack's path so a
         /// re-presentation starts at root rather than restoring the stale leaf.
@@ -40,7 +51,7 @@ extension AppRouter {
             case .buy:          .buy
             case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
-            case .sendAmount:   .sendAmount
+            case .sendAmount: .sendAmount
             case .tips:         .tips
             case .switchAccount: .switchAccount
             }

@@ -50,6 +50,7 @@ struct TransportClassificationTests {
     @Test func errorFetchTransactionHistoryItemsByID() { assertClassifies(ErrorFetchTransactionHistoryItemsByID.self) }
     @Test func errorAddToken() { assertClassifies(ErrorAddToken.self) }
     @Test func errorDeleteToken() { assertClassifies(ErrorDeleteToken.self) }
+    @Test func errorSendTestPush() { assertClassifies(ErrorSendTestPush.self) }
     @Test func errorUpdateSettings() { assertClassifies(ErrorUpdateSettings.self) }
     @Test func errorFetchJWT() { assertClassifies(ErrorFetchJWT.self) }
     @Test func errorSendEmailCode() { assertClassifies(ErrorSendEmailCode.self) }
@@ -98,9 +99,23 @@ struct TransportClassificationTests {
     @Test func errorGetPolls() { assertClassifies(ErrorGetPolls.self) }
     @Test func errorVote() { assertClassifies(ErrorVote.self) }
     @Test func errorJoinChat() { assertClassifies(ErrorJoinChat.self) }
+    @Test func errorCreateInvite() { assertClassifies(ErrorCreateInvite.self) }
+    @Test func errorGetInvite() { assertClassifies(ErrorGetInvite.self) }
+    @Test func errorGetChatInvites() { assertClassifies(ErrorGetChatInvites.self) }
+    @Test func errorRevokeInvite() { assertClassifies(ErrorRevokeInvite.self) }
     @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }
     @Test func errorMuteChat() { assertClassifies(ErrorMuteChat.self) }
     @Test func errorUnmuteChat() { assertClassifies(ErrorUnmuteChat.self) }
+    @Test func errorSilenceUser() { assertClassifies(ErrorSilenceUser.self) }
+    @Test func errorUnsilenceUser() { assertClassifies(ErrorUnsilenceUser.self) }
+    @Test func errorBanUser() { assertClassifies(ErrorBanUser.self) }
+    @Test func errorUnbanUser() { assertClassifies(ErrorUnbanUser.self) }
+    @Test func errorGetRestrictedUsers() { assertClassifies(ErrorGetRestrictedUsers.self) }
+    @Test func errorCreatePaymentRequest() { assertClassifies(ErrorCreatePaymentRequest.self) }
+    @Test func errorGetPaymentRequest() { assertClassifies(ErrorGetPaymentRequest.self) }
+    @Test func errorGetChatPaymentRequests() { assertClassifies(ErrorGetChatPaymentRequests.self) }
+    @Test func errorClosePaymentRequest() { assertClassifies(ErrorClosePaymentRequest.self) }
+    @Test func errorMarkPaid() { assertClassifies(ErrorMarkPaid.self) }
     @Test func errorGetRoster() { assertClassifies(ErrorGetRoster.self) }
     @Test func errorGetMentionSuggestions() { assertClassifies(ErrorGetMentionSuggestions.self) }
     @Test func errorEditChat() { assertClassifies(ErrorEditChat.self) }
@@ -174,6 +189,8 @@ struct TransportClassificationTests {
             (4, .pictureBlobNotAccepted),
             (5, .coverPictureBlobNotAccepted),
             (6, .descriptionModerated(.nsfw)),
+            (7, .invalidRules),
+            (8, .rulesNotSatisfied),
         ]
         for (raw, expected) in wire {
             let result = Flipcash_Chat_V1_EditChatResponse.Result(rawValue: raw)

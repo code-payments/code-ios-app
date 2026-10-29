@@ -421,10 +421,8 @@ class WithdrawViewModel {
                     Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: true, error: nil)
                 }
 
-                try await Task.delay(milliseconds: 500)
                 withdrawButtonState = .success
-                try await Task.delay(milliseconds: 500)
-                showSuccessfulWithdrawalDialog()
+                await PaymentSuccess.release { showSuccessfulWithdrawalDialog() }
 
             } catch Session.Error.verifiedStateStale {
                 withdrawButtonState = .normal

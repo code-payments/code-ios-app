@@ -678,6 +678,45 @@ struct ConversationControllerTests {
         #expect(messages.first?.id.value == 9)
     }
 
+    @Test("a request message that fails to send stays in the transcript as failed")
+    func paymentRequestSendFailureKeepsFailedRow() async {
+        let mock = MockConversations()
+        mock.sendError = ErrorSendMessage.transportFailure
+        let controller = makeController(mock, selfUserID: UUID())
+        let id = PaymentRequestID(data: Data([1, 2, 3]))
+
+        let ok = await controller.sendPaymentRequest(id, in: ConversationID.test(1), attempts: 2)
+
+        #expect(!ok)
+        #expect(mock.sentClientIDs.count == 2)
+        #expect(Set(mock.sentClientIDs).count == 1)
+        let messages = controller.messages(for: ConversationID.test(1))
+        #expect(messages.count == 1)
+        #expect(messages.first?.status == .failed)
+        #expect(messages.first?.content == .widget(.paymentRequest(id)))
+    }
+
+    @Test("retry re-sends a failed request message with its client id")
+    func paymentRequestRetryReusesClientID() async throws {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.sendError = ErrorSendMessage.transportFailure
+        let controller = makeController(mock, selfUserID: me)
+        let id = PaymentRequestID(data: Data([1, 2, 3]))
+        await controller.sendPaymentRequest(id, in: ConversationID.test(1), attempts: 1)
+        let clientID = try #require(controller.messages(for: ConversationID.test(1)).first?.clientMessageID)
+
+        mock.sendError = nil
+        mock.sendResult = ConversationMessage(id: MessageID(value: 9), senderID: me, content: .widget(.paymentRequest(id)), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        await controller.retry(clientMessageID: clientID, in: ConversationID.test(1))
+
+        #expect(mock.sentClientIDs == [clientID, clientID])
+        let messages = controller.messages(for: ConversationID.test(1))
+        #expect(messages.count == 1)
+        #expect(messages.first?.status == .sent)
+        #expect(messages.first?.id.value == 9)
+    }
+
     private struct ReadPointerRejected: Error {}
 
     /// A DM whose self row holds `pointer`, with an inbound message at each id in `messageIDs`.
@@ -1268,6 +1307,30 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [3, 4])
     }
 
+    @Test("joining a group whose last message is newer than the cached transcript refreshes the open window")
+    func joinRefreshesTranscriptWindowWithNewerLastMessage() async throws {
+        let mock = MockConversations()
+        let id = ConversationID.test(1)
+        func message(_ n: UInt64) -> ConversationMessage {
+            ConversationMessage(id: MessageID(value: n), senderID: nil, content: .text("m\(n)"), date: Date(timeIntervalSince1970: Double(n) * 10), unreadSeq: n, eventSequence: n)
+        }
+        func group(lastMessage: ConversationMessage) -> Conversation {
+            Conversation(id: id, members: [], lastMessage: lastMessage, lastActivity: Date(timeIntervalSince1970: 100), type: .group)
+        }
+        mock.groupFeed = [group(lastMessage: message(4))]
+        let controller = makeController(mock)
+        try await controller.join(conversationID: id)
+        // The open transcript has read the window once, so it is cached against the current revision.
+        #expect(controller.windowedMessages(for: id, startingAt: nil, limit: 50).map(\.id.value) == [4])
+
+        // A newer message arrives only as conversation metadata (JoinChat's reply): it lands in the
+        // messages table through the conversation write, which must invalidate the cached window.
+        mock.groupFeed = [group(lastMessage: message(5))]
+        try await controller.join(conversationID: id)
+
+        #expect(controller.windowedMessages(for: id, startingAt: nil, limit: 50).map(\.id.value) == [4, 5])
+    }
+
     @Test("a feed reporting a deleted newest message previews the message before it, not a blank row")
     func feedLoadFallsBackPastATombstone() async throws {
         let mock = MockConversations()
@@ -1734,6 +1797,45 @@ struct ConversationControllerTests {
         let knownAuthors = KnownAuthorDirectory.Snapshot(membersByUserID: [them: member(them, named: "Stale")])
 
         #expect(controller.lastMessagePreview(for: conversation, knownAuthors: knownAuthors) { _ in nil } == "Alice: gm")
+    }
+
+    @Test("a request previews as \"<first name> sent request for <title>\", or \"You sent request for <title>\"")
+    func requestPreviewNamesSenderAndTitle() {
+        let me = UUID()
+        let them = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+
+        let fromThem = requestConversation(from: them, members: [member(them, named: "Alice Smith")])
+        let fromMe = requestConversation(from: me, members: [])
+        #expect(controller.lastMessagePreview(for: fromThem, requestTitle: { _ in "Dinner" }) { _ in nil } == "Alice sent request for Dinner")
+        #expect(controller.lastMessagePreview(for: fromMe, requestTitle: { _ in "Dinner" }) { _ in nil } == "You sent request for Dinner")
+    }
+
+    @Test("a request whose title can't be read previews without it, and as nothing while its sender can't be named")
+    func requestPreviewWithoutTitleOrSender() {
+        let me = UUID()
+        let them = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+
+        #expect(controller.lastMessagePreview(for: requestConversation(from: me, members: [])) { _ in nil } == "You sent request")
+        #expect(controller.lastMessagePreview(for: requestConversation(from: them, members: [member(them, named: "Alice")])) { _ in nil } == "Alice sent request")
+        #expect(controller.lastMessagePreview(for: requestConversation(from: UUID(), members: []), requestTitle: { _ in "Dinner" }) { _ in nil } == nil)
+    }
+
+    private func requestConversation(from sender: UUID, members: [ConversationMember]) -> Conversation {
+        Conversation(
+            id: ConversationID.test(1),
+            members: members,
+            lastMessage: ConversationMessage(
+                id: MessageID(value: 1),
+                senderID: sender,
+                content: .widget(.paymentRequest(PaymentRequestID(data: Data(repeating: 7, count: 32)))),
+                date: Date(timeIntervalSince1970: 1),
+                unreadSeq: 1
+            ),
+            lastActivity: Date(timeIntervalSince1970: 1),
+            type: .group
+        )
     }
 
     @Test("only group senders nothing can name are asked for, once each")

@@ -108,7 +108,7 @@ nonisolated struct PublicGroupRequirementTile: Identifiable, Equatable {
     }
 
     let purpose: Purpose
-    /// The amount, as the gate panel words it: "$100".
+    /// The amount, as the gate panel words it and restated in the display currency: "$100".
     let amount: String
     /// The token the amount is held in; `nil` for a dollar-token or any-holding rule, or one whose
     /// name isn't known.
@@ -116,26 +116,39 @@ nonisolated struct PublicGroupRequirementTile: Identifiable, Equatable {
 
     var id: Purpose { purpose }
 
-    /// The tiles for `requirements`: one reading "to join and chat" when both rules are the same
-    /// amount in the same tokens, else one per rule.
-    static func tiles(for requirements: GroupBalanceRequirements, metadata: [PublicKey: StoredMintMetadata]) -> [PublicGroupRequirementTile] {
+    /// The tiles for `requirements`, with amounts in `display`: one reading "to join and chat" when
+    /// both rules are the same amount in the same tokens, else one per rule.
+    // On the main actor, where the app's `GroupBalanceRequirements.formatted` lives.
+    @MainActor
+    static func tiles(
+        for requirements: GroupBalanceRequirements,
+        metadata: [PublicKey: StoredMintMetadata],
+        display: DisplayCurrency
+    ) -> [PublicGroupRequirementTile] {
         if let join = requirements.join, join == requirements.chat {
-            return [tile(.joinAndChat, join, metadata)]
+            return [tile(.joinAndChat, join, metadata, display)]
         }
         var tiles: [PublicGroupRequirementTile] = []
-        if let join = requirements.join { tiles.append(tile(.join, join, metadata)) }
-        if let chat = requirements.chat { tiles.append(tile(.chat, chat, metadata)) }
+        if let join = requirements.join { tiles.append(tile(.join, join, metadata, display)) }
+        if let chat = requirements.chat { tiles.append(tile(.chat, chat, metadata, display)) }
         return tiles
     }
 
-    private static func tile(_ purpose: Purpose, _ requirement: MinimumBalanceRequirement, _ metadata: [PublicKey: StoredMintMetadata]) -> PublicGroupRequirementTile {
+    @MainActor
+    private static func tile(
+        _ purpose: Purpose,
+        _ requirement: MinimumBalanceRequirement,
+        _ metadata: [PublicKey: StoredMintMetadata],
+        _ display: DisplayCurrency
+    ) -> PublicGroupRequirementTile {
         var token: PublicGroupToken?
         if let mint = requirement.mints.first, mint != .usdf, let stored = metadata[mint] {
             token = PublicGroupToken(mint: mint, name: stored.name, imageURL: stored.imageURL)
         }
         return PublicGroupRequirementTile(
             purpose: purpose,
-            amount: requirement.amount.formattedDroppingZeroFraction(),
+            // No token name: the tile names the token beside the amount.
+            amount: GroupBalanceRequirements.formatted(requirement, mintName: nil, in: display),
             token: token
         )
     }

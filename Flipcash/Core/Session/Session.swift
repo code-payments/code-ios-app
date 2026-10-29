@@ -58,6 +58,10 @@ class Session {
     /// ``DialogWindow`` in a separate `UIWindow` above all sheets.
     var dialogItem: DialogItem?
 
+    /// A held request to offer notifications after a transaction finished in place;
+    /// presented by ``RootSheetHostModifier`` once the exiting sheet has dismissed.
+    let transactionNotificationPrompt = TransactionNotificationPrompt()
+
     /// Shows `fallback` for a request that never reached the server, or a dialog naming the
     /// Cellular Data switch when that switch is what blocked the request.
     func showConnectionFailure(_ fallback: DialogItem) {
@@ -123,6 +127,11 @@ class Session {
         userFlags?.hasPreferredOnrampProvider == true
     }
     
+    /// The balance currency every amount is shown in, with the rates that restate others into it.
+    var displayCurrency: DisplayCurrency {
+        ratesController.displayCurrency
+    }
+
     /// Every holding's worth added up, in the balance currency.
     ///
     /// Built from each balance's stored ``StoredBalance/usdf`` rather than from
@@ -181,6 +190,18 @@ class Session {
         updateableBalances.value.first { $0.mint == mint }
     }
 
+    /// Whether the server has already listed a token account for `mint`. Balances are
+    /// written from `fetchPrimaryAccounts` (zero-quark accounts included) and accounts
+    /// are never removed, so a hit means the account exists; a miss only means "not
+    /// seen yet" and falls back to the idempotent create-account intent.
+    func hasAccount(for mint: PublicKey) -> Bool {
+        Self.hasAccount(for: mint, knownMints: updateableBalances.value.map(\.mint))
+    }
+
+    nonisolated static func hasAccount(for mint: PublicKey, knownMints: [PublicKey]) -> Bool {
+        knownMints.contains(mint)
+    }
+
     /// Locally-cached metadata for any known mint, held or not. Nil when the mint
     /// has never been synced — a swap's counterpart currency may not be a balance.
     func storedMintMetadata(for mint: PublicKey) -> StoredMintMetadata? {
@@ -213,11 +234,6 @@ class Session {
     /// too small to give away still proves money arrived.
     private var holdsBalance: Bool {
         updateableBalances.value.contains { $0.quarks > 0 }
-    }
-
-    /// Whether the caller has ever sent a tip — the "scan a tip card" milestone.
-    func hasEverTipped() -> Bool {
-        (try? database.hasEverTipped(selfUserID: userID)) ?? false
     }
 
     /// The mint's bill-customization colors (the `#RRGGBB` palette users pick in
@@ -364,6 +380,11 @@ class Session {
     
     // MARK: - Info -
     
+    /// The community of the currency launched as `mint`, with its ranked top-holder chats.
+    func fetchCommunity(mint: PublicKey) async throws -> Community {
+        try await flipClient.fetchCommunity(mint: mint, owner: ownerKeyPair)
+    }
+
     func updateProfile() async throws {
         let fetched = try await Task.retry(
             maxAttempts: 3,
@@ -702,6 +723,11 @@ class Session {
         historyController.sync()
     }
     
+    /// Polls a swap this session submitted until it is terminal or the budget is spent.
+    func pollSwapState(swapId: SwapId, maxAttempts: Int, interval: Duration) async throws -> SwapMetadata {
+        try await client.pollSwapState(swapId: swapId, owner: ownerKeyPair, maxAttempts: maxAttempts, pollInterval: interval)
+    }
+
     func fetchMintMetadata(mint: PublicKey) async throws -> StoredMintMetadata {
         if let metadata = try database.getMintMetadata(mint: mint) {
             return metadata
@@ -790,7 +816,7 @@ class Session {
             "symbol": "\(token.symbol)"
         ])
 
-        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner)
+        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint))
     }
 
     /// Buys `mint` paying with another launchpad currency. `amount` is denominated
@@ -831,7 +857,7 @@ class Session {
             "symbol": "\(token.symbol)"
         ])
 
-        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner)
+        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint))
     }
 
     @discardableResult
@@ -1071,6 +1097,23 @@ class Session {
     /// VM time-authority and carried alongside `recipientOwner` so the
     /// server recognises a Code-managed destination.
     func send(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?) async throws {
+        try await submitDirect(amount: amount, verifiedState: verifiedState, to: recipientOwner, chat: chat, intentID: nil)
+    }
+
+    /// Pays the viewer's share of a payment request to its creator under the server-issued
+    /// `intentID`, which is never logged or reported: anyone holding it before the share is paid
+    /// can use it up.
+    func payRequestShare(amount: ExchangedFiat, verifiedState: VerifiedState, to creatorOwner: PublicKey, chatID: ConversationID, paymentRequestID: PaymentRequestID, intentID: PublicKey) async throws {
+        try await submitDirect(
+            amount: amount,
+            verifiedState: verifiedState,
+            to: creatorOwner,
+            chat: .requestedPayment(chatID: chatID, paymentRequestID: paymentRequestID),
+            intentID: intentID
+        )
+    }
+
+    private func submitDirect(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?, intentID: PublicKey?) async throws {
         try assertFresh(verifiedState, operation: "send", currency: amount.nativeAmount.currency, mint: amount.mint)
 
         let mint = amount.mint
@@ -1084,14 +1127,15 @@ class Session {
             timeAuthority: vmAuthority
         ).vault.publicKey
 
-        let rendezvous = PublicKey.generate()!
+        let rendezvous = intentID ?? PublicKey.generate()!
+        let tracesRendezvous = intentID == nil
 
         logger.info("Sending direct transfer", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
             "mint": "\(mint.base58)",
             "recipientOwner": "\(recipientOwner.base58)",
             "recipientVault": "\(recipientVault.base58)",
-            "rendezvous": "\(rendezvous.base58)",
+            "rendezvous": "\(tracesRendezvous ? rendezvous.base58 : "server-issued")",
             "hasChatMetadata": "\(chat != nil)",
         ])
 
@@ -1112,14 +1156,91 @@ class Session {
             guard !(error is CancellationError) else { throw error }
             logger.error("Send failed", metadata: [
                 "recipientOwner": "\(recipientOwner.base58)",
-                "rendezvous": "\(rendezvous.base58)",
+                "rendezvous": "\(tracesRendezvous ? rendezvous.base58 : "server-issued")",
                 "amount": "\(amount.nativeAmount.formatted())",
+                "error": "\(error)",
+            ])
+            if tracesRendezvous {
+                ErrorReporting.capturePayment(
+                    error: error,
+                    rendezvous: rendezvous,
+                    exchangedFiat: amount,
+                    userFacing: true
+                )
+            } else {
+                ErrorReporting.captureError(error, reason: "Requested payment failed", userFacing: true)
+            }
+            throw error
+        }
+    }
+
+    /// `fiat` (in `pin.rate.currency`) priced in `mint` at `pin`, or nil when it can't be priced.
+    /// The one pricing step every part of a multi-recipient payment goes through.
+    func price(_ fiat: FiatAmount, mint: PublicKey, at pin: VerifiedState) -> ExchangedFiat? {
+        if mint == .usdf {
+            return ExchangedFiat(nativeAmount: fiat, rate: pin.rate)
+        }
+        let balance = balance(for: mint)
+        guard let supply = pin.supplyFromBonding else { return nil }
+        return ExchangedFiat.compute(
+            fromEntered: fiat,
+            rate: pin.rate,
+            mint: mint,
+            supplyQuarks: supply,
+            balance: balance.map(\.usdf),
+            tokenBalanceQuarks: balance?.quarks
+        )
+    }
+
+    /// Pays two or more resolved recipients in one intent, every amount priced from `verifiedState`.
+    func sendMultiple(_ payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)], verifiedState: VerifiedState, chat: ChatPaymentMetadata?) async throws {
+        guard let first = payments.first else { return }
+        let mint = first.amount.mint
+        try assertFresh(verifiedState, operation: "sendMultiple", currency: first.amount.nativeAmount.currency, mint: mint)
+
+        guard let vmAuthority = try database.getVMAuthority(mint: mint) else {
+            throw Error.vmMetadataMissing
+        }
+
+        let destinations = payments.map { payment in
+            (
+                destination: TimelockDerivedAccounts(owner: payment.recipientOwner, mint: mint, timeAuthority: vmAuthority).vault.publicKey,
+                destinationOwner: payment.recipientOwner,
+                exchangedFiat: payment.amount
+            )
+        }
+
+        let rendezvous = PublicKey.generate()!
+
+        logger.info("Sending multi-recipient transfer", metadata: [
+            "recipients": "\(payments.count)",
+            "mint": "\(mint.base58)",
+            "rendezvous": "\(rendezvous.base58)",
+            "hasChatMetadata": "\(chat != nil)",
+        ])
+
+        do {
+            try await client.transferMultiple(
+                payments: destinations,
+                verifiedState: verifiedState,
+                owner: owner.use(mint: mint, timeAuthority: vmAuthority),
+                chatMetadata: chat,
+                rendezvous: rendezvous
+            )
+
+            updatePostTransaction()
+
+        } catch {
+            guard !(error is CancellationError) else { throw error }
+            logger.error("Multi-recipient send failed", metadata: [
+                "recipients": "\(payments.count)",
+                "rendezvous": "\(rendezvous.base58)",
                 "error": "\(error)",
             ])
             ErrorReporting.capturePayment(
                 error: error,
                 rendezvous: rendezvous,
-                exchangedFiat: amount,
+                exchangedFiat: first.amount,
                 userFacing: true
             )
             throw error

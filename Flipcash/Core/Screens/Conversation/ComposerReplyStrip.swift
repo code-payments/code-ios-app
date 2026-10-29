@@ -44,10 +44,6 @@ struct ComposerReplyStrip: View {
     /// from the bar's edges as it is from the controls.
     private static let inset: CGFloat = 12
 
-    /// Sized to the cap height of the amount beside it, so the flag reads as a mark on the line
-    /// rather than as a second element the line has to make room for.
-    private static let flagDiameter: CGFloat = 16
-
     /// The quote's two text lines' height, so the photo sits beside them without growing the strip.
     private static let thumbnailSide: CGFloat = 38
 
@@ -117,20 +113,13 @@ struct ComposerReplyStrip: View {
     /// quote is the subject of the strip, so it is read, not glanced at. `textMain` for the same
     /// reason — dimming it made it look like placeholder text for the field below.
     ///
-    /// A payment carries the flag and the mint's name the cash card leads with. The amount alone
-    /// reads as a number; with the flag beside it, it reads as the payment being answered.
+    /// A payment carries the mint's name the cash card leads with. The amount alone reads as a
+    /// number; with the token beside it, it reads as the payment being answered.
     @ViewBuilder
     private var quoteLine: some View {
         switch target.kind {
-        case .cash(let token, let flagImageName):
+        case .cash(let token):
             HStack(spacing: 6) {
-                if let flag = flagImageName.flatMap(Image.cashFlag(named:)) {
-                    flag
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: Self.flagDiameter, height: Self.flagDiameter)
-                        .clipShape(.circle)
-                }
                 Text(target.snippet)
                     .font(.default(size: 14, weight: .medium))
                     .foregroundStyle(Color.textMain)
@@ -178,7 +167,7 @@ struct ComposerReplyStrip: View {
     /// is drawn as a separate run that the combined element would otherwise drop.
     private var spokenSnippet: String {
         switch target.kind {
-        case .cash(let token, _):  "\(target.snippet) \(token)"
+        case .cash(let token):  "\(target.snippet) \(token)"
         case .text, .media, .unavailable:  target.snippet
         }
     }

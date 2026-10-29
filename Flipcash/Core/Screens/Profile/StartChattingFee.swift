@@ -24,7 +24,7 @@ enum StartChattingFee {
             presets: presets,
             in: currency,
             rates: rates
-        )?.displayed
+        )?.displayed(in: DisplayCurrency(currency: currency, rates: rates))
     }
 
     /// The fee for `profile`, in the user's balance currency.

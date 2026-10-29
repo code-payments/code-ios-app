@@ -114,8 +114,10 @@ struct RecipientRowBody<Trailing: View>: View {
         .contentShape(Rectangle())
     }
 
-    /// The preview with a leading "Name:" set apart in bold.
+    /// The preview with a leading "Name:" set apart in bold. A subtitle that already carries its
+    /// own colour, like a join-request line, is left as its builder styled it.
     private static func styledPreview(_ text: AttributedString) -> AttributedString {
+        guard !text.runs.contains(where: { $0[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] != nil }) else { return text }
         let plain = String(text.characters)
         guard let colon = plain.firstIndex(of: ":"), plain.distance(from: plain.startIndex, to: colon) <= 28,
               let end = text.characters.index(text.startIndex, offsetBy: plain.distance(from: plain.startIndex, to: colon) + 1, limitedBy: text.endIndex)

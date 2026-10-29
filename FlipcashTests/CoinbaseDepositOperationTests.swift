@@ -58,6 +58,22 @@ struct CoinbaseDepositOperationTests {
         #expect(env.ordering.createOrderCalls.count == 1)
     }
 
+    @Test("The minimum is restated in the entered currency")
+    func belowMinimum_nonUSD_showsConvertedMinimum() async {
+        let env = Env()
+        let amount = ExchangedFiat(
+            nativeAmount: FiatAmount(value: 5, currency: .cad),
+            rate: Rate(fx: 1.416385, currency: .cad)
+        )
+        await #expect(throws: DepositError.externalRejected(
+            title: "$7.08 Minimum Purchase",
+            subtitle: "Please enter an amount of $7.08 or higher"
+        )) {
+            try await env.op.start(amount: amount)
+        }
+        #expect(env.ordering.createOrderCalls.isEmpty)
+    }
+
     @Test("Profile without verified phone+email throws requirementUnsatisfied")
     func profileNotVerified_throws() async {
         let env = Env(profile: Profile(displayName: nil, phone: Phone?.none, email: nil))

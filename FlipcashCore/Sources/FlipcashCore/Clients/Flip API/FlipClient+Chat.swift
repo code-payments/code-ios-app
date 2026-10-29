@@ -50,6 +50,52 @@ extension FlipClient {
         }
     }
 
+    // MARK: - Moderation -
+
+    /// Silences `userID` in `conversationID` until `silence` lapses (or forever). Creator only.
+    public func silenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID, silence: ConversationSilenceState) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: silence) { c.resume(with: $0) }
+        }
+    }
+
+    /// Lifts a silence on `userID` in `conversationID`. Creator only.
+    public func unsilenceUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.unsilenceUser(owner: owner, conversationID: conversationID, userID: userID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Bans `userID` from `conversationID`. Creator only.
+    public func banUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.banUser(owner: owner, conversationID: conversationID, userID: userID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Lifts a ban on `userID` in `conversationID`. Creator only.
+    public func unbanUser(owner: KeyPair, conversationID: ConversationID, userID: UserID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.unbanUser(owner: owner, conversationID: conversationID, userID: userID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Every user silenced or banned in `conversationID`, paged to exhaustion. Creator only.
+    public func getRestrictedUsers(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationRestrictedUser] {
+        var all: [ConversationRestrictedUser] = []
+        var pagingToken: Data?
+
+        while true {
+            let page: ChatService.RestrictedUsersPage = try await withCheckedThrowingContinuation { c in
+                chatService.getRestrictedUsers(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
+            }
+            all.append(contentsOf: page.users)
+            guard page.hasMore else { break }
+            pagingToken = page.pagingToken
+        }
+        return all
+    }
+
     /// Page the group chat feed to exhaustion against a single pinned snapshot. Unlike a DM feed, the
     /// caller's own membership can change mid-read (a join or a leave lands as a `rosterChanged`
     /// stream event, not a feed mutation) — the same live-stream caveat as `getDmChatFeed` applies.
@@ -98,6 +144,14 @@ extension FlipClient {
         }
     }
 
+    /// Joins a private group through an invite link. The failures include `.inviteNotFound`,
+    /// `.inviteExhausted`, `.inviteExpired` and `.inviteRevoked`.
+    public func joinChat(owner: KeyPair, conversationID: ConversationID, invite: InviteJoinParameters) async throws -> Conversation {
+        try await withCheckedThrowingContinuation { c in
+            chatService.joinChat(owner: owner, conversationID: conversationID, invite: invite) { c.resume(with: $0) }
+        }
+    }
+
     /// Leaves a group chat. The caller's own `rosterChanged` event (naming itself) is what actually
     /// drops the chat from the local feed and database — this call just tells the server to emit it.
     public func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws {
@@ -123,14 +177,16 @@ extension FlipClient {
     /// consuming its `subscribeConversationStream` events — as with `getDmChatFeed`/
     /// `getGroupChatFeed` — and must merge the result against them by ``ConversationMember/version``
     /// rather than treating it as an authoritative snapshot; see ``RosterPage``.
-    public func getRoster(owner: KeyPair, conversationID: ConversationID) async throws -> RosterPage {
+    ///
+    /// `owner` may be `nil` when `inviteToken` is given: the token stands in for auth.
+    public func getRoster(owner: KeyPair?, conversationID: ConversationID, inviteToken: InviteToken? = nil) async throws -> RosterPage {
         var members: [ConversationMember] = []
         var rosterSummary = ConversationRosterSummary(memberCount: 0, version: 0)
         var pagingToken: Data?
 
         while true {
             let page = try await withCheckedThrowingContinuation { c in
-                chatService.getRoster(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
+                chatService.getRoster(owner: owner, conversationID: conversationID, inviteToken: inviteToken, pagingToken: pagingToken) { c.resume(with: $0) }
             }
             members.append(contentsOf: page.members)
             rosterSummary = page.rosterSummary
@@ -186,9 +242,12 @@ extension FlipClient {
     /// `MetadataUpdate.titleChanged`/`.descriptionChanged`/`.pictureChanged`/`.coverPictureChanged`
     /// for the chat's other members (and the caller's other devices); this call's return value is
     /// only this device's confirmation.
-    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil) async throws -> Conversation {
+    ///
+    /// `rules`, when set, fully replaces the chat's rules (public groups with a listener minimum balance
+    /// only); fails with `.invalidRules` or `.rulesNotSatisfied`. `nil` leaves the rules as they are.
+    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRules? = nil) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
-            chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID, coverPictureBlobID: coverPictureBlobID) { c.resume(with: $0) }
+            chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID, coverPictureBlobID: coverPictureBlobID, rules: rules) { c.resume(with: $0) }
         }
     }
 
@@ -243,6 +302,15 @@ extension FlipClient {
     public func sendSealedMediaMessage(owner: KeyPair, conversationID: ConversationID, photo: SealedPhoto, caption: String?, repliedTo: MessageID?, seal: ChatSeal, clientMessageID: UUID) async throws -> ConversationMessage {
         try await withCheckedThrowingContinuation { c in
             chatMessagingService.sendSealedMediaMessage(owner: owner, conversationID: conversationID, photo: photo, caption: caption, repliedTo: repliedTo, seal: seal, clientMessageID: clientMessageID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Sends a widget naming the payment request `id`, sealed with `seal`, and returns the server's
+    /// copy (decrypted).
+    @discardableResult
+    public func sendPaymentRequestMessage(owner: KeyPair, conversationID: ConversationID, paymentRequestID id: PaymentRequestID, seal: ChatSeal, clientMessageID: UUID) async throws -> ConversationMessage {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.sendPaymentRequestMessage(owner: owner, conversationID: conversationID, paymentRequestID: id, seal: seal, clientMessageID: clientMessageID) { c.resume(with: $0) }
         }
     }
 
@@ -402,11 +470,56 @@ extension FlipClient {
         }
     }
 
-    /// Fetches the chat key `conversationID` wrapped for the signed-in user and who wrapped it.
-    public func getKeyEnvelope(owner: KeyPair, conversationID: ConversationID) async throws -> (envelope: ConversationKeyEnvelope, wrappedBy: UserID?) {
+    /// Fetches the chat key `conversationID` wrapped for the signed-in user and who wrapped it, or
+    /// the invite's copy for a member who joined by invite and hasn't stored their own yet.
+    public func getKeyEnvelope(owner: KeyPair, conversationID: ConversationID) async throws -> GroupKeyMaterial {
         let result = try await withCheckedThrowingContinuation { c in
             chatService.getKeyEnvelope(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
         }
-        return (result.envelope, result.wrappedBy)
+        return result.material
+    }
+
+    // MARK: - Invites -
+
+    /// Creates an invite to a private group the caller may invite to (``ConversationViewerState/canInvite``).
+    /// Idempotent on `token`; `maxUses` of `0` means unlimited. The caller supplies the envelopes —
+    /// ``InviteSealing/mint(secret:owner:conversationID:groupKey:)`` derives and seals them.
+    public func createInvite(owner: KeyPair, conversationID: ConversationID, token: InviteToken, keyEnvelope: InviteKeyEnvelope, secretEnvelope: InviteSecretEnvelope, maxUses: UInt32 = 0, expiresAt: Date? = nil) async throws -> Invite {
+        try await withCheckedThrowingContinuation { c in
+            chatService.createInvite(owner: owner, conversationID: conversationID, token: token, keyEnvelope: keyEnvelope, secretEnvelope: secretEnvelope, maxUses: maxUses, expiresAt: expiresAt) { c.resume(with: $0) }
+        }
+    }
+
+    /// Reads the group an invite is for and the invite's status. `owner` is optional: the read is
+    /// allowed anonymously.
+    public func getInvite(owner: KeyPair?, token: InviteToken) async throws -> (conversation: Conversation, status: Invite.Status) {
+        let preview = try await withCheckedThrowingContinuation { c in
+            chatService.getInvite(owner: owner, token: token) { c.resume(with: $0) }
+        }
+        return (preview.conversation, preview.status)
+    }
+
+    /// A group's invites, paged to exhaustion.
+    public func getChatInvites(owner: KeyPair, conversationID: ConversationID) async throws -> [Invite] {
+        var invites: [Invite] = []
+        var pagingToken: Data?
+
+        while true {
+            let page = try await withCheckedThrowingContinuation { c in
+                chatService.getChatInvites(owner: owner, conversationID: conversationID, pagingToken: pagingToken) { c.resume(with: $0) }
+            }
+            invites.append(contentsOf: page.invites)
+            if !page.hasMore { break }
+            pagingToken = page.pagingToken
+        }
+
+        return invites
+    }
+
+    /// Revokes an invite. A ban does not stop a link holder, so revoke the invite too when banning.
+    public func revokeInvite(owner: KeyPair, conversationID: ConversationID, inviteID: InviteID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.revokeInvite(owner: owner, conversationID: conversationID, inviteID: inviteID) { c.resume(with: $0) }
+        }
     }
 }

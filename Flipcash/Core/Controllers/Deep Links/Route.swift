@@ -32,8 +32,20 @@ nonisolated struct Route {
             normalizedPath = components.path
         }
 
-        guard let path = Path.parse(path: normalizedPath, scheme: components.scheme) else {
+        guard var path = Path.parse(path: normalizedPath, scheme: components.scheme) else {
             return nil
+        }
+
+        // An invite link's fragment is its secret, not a set of route fragments: it is read here
+        // and nowhere else, and the link carries no properties to keep.
+        if case .invalidGroupInvite = path {
+            if let fragment = url.fragment(percentEncoded: true), let secret = InviteLinkSecret(fragment: fragment) {
+                path = .groupInvite(secret)
+            }
+            self.path = path
+            self.properties = [:]
+            self.fragments = [:]
+            return
         }
         
         // 1. Parse any query items into properties
@@ -85,14 +97,7 @@ nonisolated extension Route {
     /// A jump link carries its target percent-encoded in `#source=`. A jump pointing at another
     /// jump is malformed and is not followed. Mirrors Android `DeepLink.unwrapJumpTarget`.
     static func unwrappingJump(_ url: URL) -> URL? {
-        let prefix = "https://jump.flipcash.com/#source="
-        guard url.absoluteString.hasPrefix(prefix) else { return nil }
-        let encoded = String(url.absoluteString.dropFirst(prefix.count))
-        guard let decoded = encoded.removingPercentEncoding,
-              let target = URL(string: decoded),
-              !decoded.hasPrefix(prefix)
-        else { return nil }
-        return target
+        InviteLinkText.unwrappingJump(url)
     }
 }
 
@@ -104,13 +109,8 @@ nonisolated extension Route {
     /// Android's manifest intent filters. `www.flipcash.com` is Android-only for routing and is
     /// here anyway: whether a link *is* a Flipcash link is not a question about which app opens
     /// it, and the cross-platform fixture has to agree on one answer.
-    static let flipcashHosts: Set<String> = [
-        "app.flipcash.com",
-        "send.flipcash.com",
-        "flipcash.com",
-        "www.flipcash.com",
-        "jump.flipcash.com",
-    ]
+    /// Kept in FlipcashCore so the preview text that hides invite links matches on the same hosts.
+    static let flipcashHosts: Set<String> = InviteLinkText.flipcashHosts
 
     /// Whether `url` is one of ours: the custom scheme, or an exact match on ``flipcashHosts``.
     ///
@@ -148,6 +148,10 @@ nonisolated extension Route {
         /// One message in a chat — `/chat/{chatId}/m/{seq}`, where `seq` is the message's
         /// per-chat id. Opens the chat on that message.
         case chatMessage(ConversationID, MessageID)
+        /// A group invite link — `/chat/invite#s=<secret>`. Opens the invite preview.
+        case groupInvite(InviteLinkSecret)
+        /// `/chat/invite` whose fragment holds no usable secret: a broken link, shown as one.
+        case invalidGroupInvite
         /// The older tipcard link, `/tip/<userId>`, which stays parseable for
         /// links already shared and still opens the tipcard.
         case tip(UserID)
@@ -204,6 +208,12 @@ nonisolated extension Route {
             case "chat":
                 guard components.count > 1 else {
                     return nil
+                }
+                // Ahead of the chat id: `/chat/invite` holds a secret in its fragment and never
+                // falls through to a chat, or to the browser, whether or not the secret parses.
+                // ``Route/init(url:)`` reads the fragment.
+                if components.count == 2, components[1].lowercased() == "invite" {
+                    return .invalidGroupInvite
                 }
                 // A group's id is a 16-byte UUID and travels as the dashed form
                 // an invite link carries; a DM's is a 32-byte hash with no UUID

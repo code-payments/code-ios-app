@@ -37,8 +37,24 @@ extension Flipcash_Messaging_V1_WidgetContent {
     var shareProfile: ShareProfileWidget? {
         switch type {
         case .shareProfile(let widget): ShareProfileWidget(widget)
-        // A poll widget has no local representation yet; it degrades to `.unrecognized` upstream.
-        case .poll, nil:                nil
+        // Poll and payment-request widgets aren't profile shares.
+        case .poll, .paymentRequest, nil: nil
+        }
+    }
+}
+
+extension ConversationMessage.Widget {
+
+    /// The widget `content` carries; `.unrecognized` for a poll, an unknown variant, or a
+    /// payment request with no id.
+    init(_ content: Flipcash_Messaging_V1_WidgetContent) {
+        switch content.type {
+        case .shareProfile:
+            self = content.shareProfile.map(Self.shareProfile) ?? .unrecognized
+        case .paymentRequest(let widget) where widget.hasPaymentRequestID:
+            self = .paymentRequest(PaymentRequestID(widget.paymentRequestID))
+        case .paymentRequest, .poll, nil:
+            self = .unrecognized
         }
     }
 }

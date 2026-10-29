@@ -39,7 +39,6 @@ public struct TrayAmountEntry: View {
                     prefix: .none,
                     formatter: .fiat(currency: currency, minimumFractionDigits: 0),
                     suffix: nil,
-                    showChevron: false,
                     font: .default(size: TrayAmountMetrics.amountSize, weight: .bold),
                     height: TrayAmountMetrics.amountHeight
                 )

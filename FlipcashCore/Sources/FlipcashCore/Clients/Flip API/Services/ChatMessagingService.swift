@@ -212,6 +212,19 @@ final class ChatMessagingService: Sendable {
         send(content, owner: owner, conversationID: conversationID, seal: seal, clientMessageID: clientMessageID, completion: completion)
     }
 
+    /// Sends a widget naming the payment request `id`, sealed with `seal`, as `EncryptedContent`.
+    func sendPaymentRequestMessage(owner: KeyPair, conversationID: ConversationID, paymentRequestID id: PaymentRequestID, seal: ChatSeal, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
+        let content: Flipcash_Messaging_V1_Content
+        do {
+            content = try seal.seal(paymentRequest: id)
+        } catch {
+            logger.error("Failed to encrypt payment request message")
+            completion(.failure(.encryptionFailed))
+            return
+        }
+        send(content, owner: owner, conversationID: conversationID, seal: seal, clientMessageID: clientMessageID, completion: completion)
+    }
+
     private func send(_ content: Flipcash_Messaging_V1_Content, owner: KeyPair, conversationID: ConversationID, seal: ChatSeal?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
         let request = Flipcash_Messaging_V1_SendMessageRequest.with {
             $0.chatID = conversationID.proto

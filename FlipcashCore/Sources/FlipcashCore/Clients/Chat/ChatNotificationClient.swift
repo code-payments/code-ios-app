@@ -22,6 +22,8 @@ public final class ChatNotificationClient: Sendable {
     private let messagingService: ChatMessagingService
     private let chatService: ChatService
     private let resolverService: ResolverService
+    private let profileService: ProfileService
+    private let paymentRequestService: PaymentRequestService
     private let coreClient: GRPCClient<AppTransport>
     /// The core client's connection loop; retained for its lifetime — dropping it makes the client
     /// inert and every RPC hangs.
@@ -47,6 +49,8 @@ public final class ChatNotificationClient: Sendable {
         self.messagingService = ChatMessagingService(client: coreClient)
         self.chatService = ChatService(client: coreClient)
         self.resolverService = ResolverService(client: coreClient)
+        self.profileService = ProfileService(client: coreClient)
+        self.paymentRequestService = PaymentRequestService(client: coreClient)
     }
 
     deinit {
@@ -75,10 +79,10 @@ public final class ChatNotificationClient: Sendable {
                 resolverService.resolveUserID(userID, owner: owner) { continuation.resume(with: $0) }
             }
         }
-        let groupKeys = GroupKeyEnvelopes(
-            sealer: SharedCoreGroupKeySealer(),
+        return ChatKeyring(
             owner: owner,
             selfUserID: selfUserID,
+            resolveKey: resolveKey,
             setEnvelope: { [chatService] conversationID, envelope in
                 try await withCheckedThrowingContinuation { continuation in
                     chatService.setKeyEnvelope(owner: owner, conversationID: conversationID, keyEnvelope: envelope) {
@@ -92,17 +96,66 @@ public final class ChatNotificationClient: Sendable {
                         continuation.resume(with: $0)
                     }
                 }
-                return (result.envelope, result.wrappedBy)
+                return result.material
             },
-            resolveKey: resolveKey
+            // The extension only reads: an invite-joined member's push stays undecrypted until the
+            // app opens the invite's copy and stores the member's own envelope.
+            opensInviteBundles: false
         )
-        return ChatKeyring(
-            owner: owner,
-            selfUserID: selfUserID,
-            resolveKey: resolveKey,
-            groupKey: { conversationID, creator in
-                try await groupKeys.groupKey(for: conversationID, creator: creator)
+    }
+
+    // MARK: - Profiles -
+
+    /// Fetches the profile of `userID`, for naming a group member the shared store doesn't know.
+    public func fetchProfile(userID: UserID, owner: KeyPair) async throws -> Profile {
+        try await withCheckedThrowingContinuation { continuation in
+            profileService.fetchProfile(.userID(userID), owner: owner) { continuation.resume(with: $0) }
+        }
+    }
+
+    // MARK: - Payment requests -
+
+    /// The words a pushed payment request is shown with, or nil when it can't be read in `timeout`
+    /// (a failed lookup, a request the viewer can't see, or no time left). The banner keeps the
+    /// server's body then. The title is opened with the chat's seal when it is encrypted, so a title
+    /// that won't open still yields the banner line, without a card.
+    public func paymentRequestPreview(
+        id: PaymentRequestID,
+        in conversationID: ConversationID,
+        owner: KeyPair,
+        selfUserID: UserID,
+        senderName: String?,
+        copy: PaymentRequestCopy,
+        timeout: Duration = .seconds(4),
+        now: Date = .now
+    ) async -> PaymentRequestPreview? {
+        let fetched: PaymentRequestService.Fetched
+        do {
+            fetched = try await withCheckedThrowingContinuation { continuation in
+                paymentRequestService.getPaymentRequest(owner: owner, id: id, timeout: timeout) {
+                    continuation.resume(with: $0)
+                }
             }
+        } catch {
+            logger.warning("Payment request lookup failed", metadata: ["error": "\(error)"])
+            return nil
+        }
+        // A request that isn't this chat's is not worded into its banner.
+        guard fetched.request.chatID == conversationID else { return nil }
+
+        var seal: ChatSeal?
+        if case .encrypted = fetched.request.split?.text, let conversation = try? await getChat(owner: owner, conversationID: conversationID) {
+            if case .seal(let opened) = await keyring(owner: owner, selfUserID: selfUserID).opener(for: conversation) {
+                seal = opened
+            }
+        }
+        return PaymentRequestPreview(
+            request: fetched.request,
+            seal: seal,
+            viewer: selfUserID,
+            senderName: senderName,
+            copy: copy,
+            now: now
         )
     }
 

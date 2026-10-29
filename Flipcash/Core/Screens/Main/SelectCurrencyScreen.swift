@@ -23,9 +23,8 @@ struct SelectCurrencyScreen<Footer: View>: View {
     private let footer: Footer?
 
     private var balances: [ExchangedBalance] {
-        let giveable = session.balances(for: ratesController.rateForBalanceCurrency())
-            .giveable()
-        return excludesUSDF ? giveable.excludingUSDF() : giveable
+        let balances = session.balances(for: ratesController.rateForBalanceCurrency())
+        return excludesUSDF ? balances.communityCurrencies() : balances.giveable()
     }
 
     /// Creates a picker with `footer` drawn as the last item of the currency list.
@@ -120,14 +119,17 @@ extension SelectCurrencyScreen where Footer == EmptyView {
     ///
     /// - Parameter isSelected: which row draws its checkmark. Defaults to the currency the wallet is
     ///   denominated in, which is what picking one here changes.
+    /// - Parameter excludesUSDF: drops Dollars from the list, for a screen that picks a community
+    ///   currency. Defaults to showing every giveable balance.
     init(
         isPresented: Binding<Bool>,
+        excludesUSDF: Bool = false,
         isEnabled: @escaping (ExchangedBalance) -> Bool = { _ in true },
         isSelected: ((ExchangedBalance) -> Bool)? = nil,
         action: @escaping (ExchangedBalance) -> Void
     ) {
         self._isPresented = isPresented
-        self.excludesUSDF = false
+        self.excludesUSDF = excludesUSDF
         self.isEnabled = isEnabled
         self.isSelected = isSelected
         self.action = action

@@ -267,12 +267,8 @@ private struct AccountRow: View {
                         Spacer()
 
                         if let balance = account.totalBalance {
-                            AmountText(
-                                flagStyle: balance.nativeAmount.currency.flagStyle,
-                                flagSize: .small,
-                                content: balance.nativeAmount.formatted(),
-                                canScale: false
-                            )
+                            Text(balance.nativeAmount.formatted())
+                                .lineLimit(1)
                             .font(.appTextMedium)
                         }
                     }

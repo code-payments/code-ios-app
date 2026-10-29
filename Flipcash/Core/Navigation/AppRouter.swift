@@ -109,6 +109,15 @@ final class AppRouter {
     /// would miss "different `.buy(mint)`" re-opens that share the same stack.
     private var dismissedStacks: Set<Stack> = []
 
+    /// Whether a sheet popped by `dismissSheet()` is still animating out. Cleared by the
+    /// sheet hosts' `onDismiss` (via `sheetDidFinishDismissing()`) or by the next presentation.
+    private(set) var isSheetDismissing = false
+
+    /// Called from a hosting `.sheet`'s `onDismiss`, once its dismiss animation has finished.
+    func sheetDidFinishDismissing() {
+        isSheetDismissing = false
+    }
+
     init() {}
 
     /// Bindable per-stack `NavigationPath`. Drives `NavigationStack(path: $router[.balance])`.
@@ -197,6 +206,18 @@ final class AppRouter {
     func popTopmost() {
         guard let stack = topmostStack else { return }
         pop(on: stack)
+    }
+
+    /// What every share-to-chats sheet does once a send lands: the sheet has already closed itself,
+    /// and the chat picked first opens on the current stack.
+    func openSharedChat(_ id: ConversationID) {
+        push(.tipConversation(id))
+    }
+
+    /// Pops up to `count` destinations from whichever stack the presented sheet (or active tab) hosts.
+    func popTopmost(_ count: Int) {
+        guard let stack = topmostStack else { return }
+        popLast(count, on: stack)
     }
 
     /// Atomic replace of the topmost destination on whichever stack is
@@ -374,6 +395,7 @@ final class AppRouter {
         }
 
         presentedSheets = [sheet]
+        isSheetDismissing = false
         logger.info("Presented sheet", metadata: [
             "sheet": "\(sheet)",
             "previousSheet": "\(previousTop.map(String.init(describing:)) ?? "<none>")",
@@ -425,6 +447,7 @@ final class AppRouter {
         }
 
         presentedSheets.append(sheet)
+        isSheetDismissing = false
         logger.info("Presented nested sheet", metadata: [
             "sheet": "\(sheet)",
             "depth": "\(presentedSheets.count)",
@@ -487,6 +510,7 @@ final class AppRouter {
     /// re-open instead.
     func dismissSheet() {
         guard let dismissing = presentedSheets.popLast() else { return }
+        isSheetDismissing = true
         dismissedStacks.insert(dismissing.stack)
         logger.info("Dismissed sheet", metadata: [
             "sheet": "\(dismissing)",

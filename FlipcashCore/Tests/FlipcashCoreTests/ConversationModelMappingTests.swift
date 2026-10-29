@@ -75,6 +75,31 @@ struct ConversationModelMappingTests {
         #expect(message.content == .system(fallbackText: "fallback", event: .userJoined(userID: joiner, admittedBy: admitter)))
     }
 
+    @Test("An invited join maps to a userJoinedViaInvite event carrying the inviter")
+    func invitedJoin() throws {
+        let joiner = UUID()
+        let inviter = UUID()
+        let message = try systemMessage {
+            $0.userJoined = .with {
+                $0.userID = .with { $0.value = joiner.data }
+                $0.invited = .with { $0.invitedBy = .with { $0.value = inviter.data } }
+            }
+        }
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoinedViaInvite(userID: joiner, invitedBy: inviter)))
+    }
+
+    @Test("An invited join without a parseable invited_by reads as a plain join")
+    func invitedWithoutInviter() throws {
+        let joiner = UUID()
+        let message = try systemMessage {
+            $0.userJoined = .with {
+                $0.userID = .with { $0.value = joiner.data }
+                $0.invited = .init()
+            }
+        }
+        #expect(message.content == .system(fallbackText: "fallback", event: .userJoined(userID: joiner, admittedBy: nil)))
+    }
+
     @Test("A join with no method is a direct join")
     func joinWithoutMethod() throws {
         let joiner = UUID()
@@ -187,7 +212,7 @@ struct ConversationModelMappingTests {
             $0.content = [.with {
                 $0.cash = .with {
                     $0.intentID = .with { $0.value = Data(repeating: 0x03, count: 32) }
-                    $0.amount = .with {
+                    $0.totalAmount = .with {
                         $0.currency = "usd"
                         $0.nativeAmount = 5.0
                         $0.quarks = 5_000_000
@@ -210,6 +235,52 @@ struct ConversationModelMappingTests {
         #expect(message.cashAction == .sent)
     }
 
+    @Test("Cash message maps a multi-receiver split and its payment request")
+    func cashMessageMapsMultiReceiverAndPaymentRequest() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 14 }
+            $0.content = [.with {
+                $0.cash = .with {
+                    $0.totalAmount = .with {
+                        $0.currency = "usd"
+                        $0.nativeAmount = 9.0
+                        $0.quarks = 9_000_000
+                        $0.mint = .with { $0.value = Data(repeating: 0x02, count: 32) }
+                    }
+                    $0.multiReceiver = .with {
+                        $0.items = (1...3).map { i in
+                            .with {
+                                $0.receiver = .with { $0.value = Data(repeating: UInt8(i), count: 16) }
+                                $0.nativeAmount = 3.0
+                                $0.quarks = 3_000_000
+                            }
+                        }
+                    }
+                    $0.paymentRequestID = .with { $0.value = Data(repeating: 0x07, count: 32) }
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.cashPayments.count == 3)
+        #expect(message.cashPayments.map(\.quarks) == [3_000_000, 3_000_000, 3_000_000])
+        #expect(message.cashReceiverID == nil)
+        #expect(message.paymentRequestID?.data == Data(repeating: 0x07, count: 32))
+    }
+
+    @Test("Viewer state maps silence and moderation permissions")
+    func viewerStateMapsModeration() {
+        let proto = Flipcash_Chat_V1_ViewerState.with {
+            $0.restrictions = .with { $0.silence = .with { $0.forever = .init() } }
+            $0.permissions = .with { $0.moderation = .with { $0.canSilence = true; $0.canBan = true } }
+        }
+        let rules = ConversationViewerState(proto)
+        #expect(rules.isSilenced())
+        #expect(rules.canSilence)
+        #expect(rules.canBan)
+        #expect(!ConversationViewerState(.init()).isSilenced())
+    }
+
     @Test("Cash message maps the tipped action")
     func cashMessageMapsTippedAction() throws {
         let proto = Flipcash_Messaging_V1_Message.with {
@@ -217,7 +288,7 @@ struct ConversationModelMappingTests {
             $0.content = [.with {
                 $0.cash = .with {
                     $0.verb = .tipped
-                    $0.amount = .with {
+                    $0.totalAmount = .with {
                         $0.currency = "usd"
                         $0.nativeAmount = 2.0
                         $0.quarks = 2_000_000
@@ -238,7 +309,7 @@ struct ConversationModelMappingTests {
             // Missing mint bytes — ExchangedFiat(proto:) must reject it.
             $0.content = [.with {
                 $0.cash = .with {
-                    $0.amount = .with {
+                    $0.totalAmount = .with {
                         $0.currency = "usd"
                         $0.nativeAmount = 5.0
                         $0.quarks = 5_000_000
@@ -593,6 +664,34 @@ struct ConversationModelMappingTests {
         }
 
         #expect(ConversationViewerState(proto).canEdit)
+    }
+
+    @Test("ViewerState maps permissions.canInvite and defaults it to false")
+    func viewerStateMapsCanInvite() {
+        let granted = Flipcash_Chat_V1_ViewerState.with { $0.permissions = .with { $0.canInvite = true } }
+        #expect(ConversationViewerState(granted).canInvite)
+        #expect(ConversationViewerState(Flipcash_Chat_V1_ViewerState()).canInvite == false)
+    }
+
+    @Test("Invite maps its fields and status")
+    func inviteMapping() {
+        let creator = UUID()
+        let proto = Flipcash_Chat_V1_Invite.with {
+            $0.inviteID = .with { $0.value = Data(repeating: 1, count: 16) }
+            $0.chatID = .with { $0.value = Data(repeating: 2, count: 32) }
+            $0.createdBy = .with { $0.value = creator.data }
+            $0.maxUses = 5
+            $0.useCount = 2
+            $0.status = .exhausted
+            $0.secretEnvelope = .with { $0.scheme = .x25519Xchacha20Poly1305; $0.nonce = Data([1]); $0.ciphertext = Data([2]) }
+        }
+        let invite = Invite(proto)
+        #expect(invite.id.data == Data(repeating: 1, count: 16))
+        #expect(invite.createdBy == creator)
+        #expect(invite.maxUses == 5 && invite.useCount == 2)
+        #expect(invite.status == .exhausted)
+        #expect(invite.expiresAt == nil)
+        #expect(invite.secretEnvelope == InviteSecretEnvelope(scheme: 1, nonce: Data([1]), ciphertext: Data([2])))
     }
 
     @Test("ViewerState without permissions defaults canEdit to false (never derivable client-side)")

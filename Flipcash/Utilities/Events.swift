@@ -487,6 +487,11 @@ extension Analytics {
         track(GroupEvents.shared.inviteShared(method: method))
     }
 
+    /// The group card appeared.
+    static func groupCardShown(memberCount: UInt64) {
+        track(GroupEvents.shared.cardShown(memberCount: Int32(clamping: memberCount)))
+    }
+
     /// A group opened from an invite.
     static func groupInviteFollowed(source: GroupInviteSource) {
         track(GroupEvents.shared.inviteFollowed(source: source))
@@ -556,6 +561,8 @@ extension Analytics {
             case .pictureBlobNotAccepted:                         "PictureBlobNotAccepted"
             case .coverPictureBlobNotAccepted:                    "CoverPictureBlobNotAccepted"
             case .descriptionModerated:                           "DescriptionModerated"
+            case .invalidRules:                                   "InvalidRules"
+            case .rulesNotSatisfied:                              "RulesNotSatisfied"
             case .unknown, .transportFailure, .cancelled, .rejected: "Network"
             }
         case let error as ErrorJoinChat:
@@ -563,6 +570,11 @@ extension Analytics {
             case .denied:                                         "Denied"
             case .notFound:                                       "NotFound"
             case .rulesNotSatisfied:                              "RulesNotSatisfied"
+            case .banned:                                         "Banned"
+            case .inviteNotFound:                                 "InviteNotFound"
+            case .inviteExhausted:                                "InviteExhausted"
+            case .inviteExpired:                                  "InviteExpired"
+            case .inviteRevoked:                                  "InviteRevoked"
             case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
             }
         case let error as ErrorLeaveChat:
