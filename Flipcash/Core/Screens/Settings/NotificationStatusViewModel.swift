@@ -27,6 +27,9 @@ final class NotificationStatusViewModel {
     /// The saved `AddToken` record as it stood when the current registration started, before
     /// that attempt overwrote it.
     private var savedBeforeRegistration: NotificationStatus.RegistrationRecord?
+    /// The summary the page showed when a re-run started, kept until that run's registration
+    /// finishes. `nil` on the page's first run, which shows "Checking…".
+    private var heldSummary: NotificationStatus.Summary?
     /// Whether a run has finished since the page opened, after which the summary keeps
     /// "Checked just now" through every later run.
     private var hasChecked = false
@@ -72,13 +75,17 @@ final class NotificationStatusViewModel {
             return recheckingFrom.rechecking
         }
         return snapshot.map {
-            NotificationStatus.evaluate(
+            var page = NotificationStatus.evaluate(
                 snapshot: $0,
                 registration: registration,
                 saved: savedBeforeRegistration,
                 hasChecked: hasChecked,
                 now: .now
             )
+            if let heldSummary {
+                page.summary = heldSummary
+            }
+            return page
         }
     }
 
@@ -144,8 +151,13 @@ final class NotificationStatusViewModel {
         snapshot = await readSettings()
     }
 
-    private func register(deletingToken: Bool = false) {
+    /// `shownSummary` is the summary to keep while this run goes, when the page has already
+    /// changed since the user acted; it defaults to the one showing now.
+    private func register(deletingToken: Bool = false, keeping shownSummary: NotificationStatus.Summary? = nil) {
         registrationTask?.cancel()
+        if hasChecked {
+            heldSummary = shownSummary ?? heldSummary ?? page?.summary
+        }
         savedBeforeRegistration = savedRegistration()
         registration = .checking
         registrationTask = Task { [registrationCheck] in
@@ -153,6 +165,7 @@ final class NotificationStatusViewModel {
             guard !Task.isCancelled else { return }
             registration = result
             hasChecked = true
+            heldSummary = nil
             registrationTask = nil
         }
     }
@@ -165,6 +178,7 @@ final class NotificationStatusViewModel {
             guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
             await UIApplication.shared.open(url)
         case .requestAuthorization:
+            let shownSummary = page?.summary
             var granted = false
             do {
                 granted = try await requestAuthorization()
@@ -174,7 +188,7 @@ final class NotificationStatusViewModel {
             await refreshSettings()
             // The phone can only register once notifications are allowed.
             if granted {
-                register()
+                register(keeping: shownSummary)
             }
         case .retryRegistration:
             register()

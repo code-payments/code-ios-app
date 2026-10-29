@@ -225,8 +225,8 @@ struct NotificationStatusViewModelTests {
         #expect(model.snapshot?.authorization == (granted ? .authorized : .denied))
     }
 
-    @Test("Try Again keeps Checked just now while registration runs again")
-    func tryAgainKeepsChecked() async {
+    @Test("Try Again keeps the last summary until registration finishes again")
+    func tryAgainKeepsSummary() async {
         let registration = Gate<NotificationStatus.Registration>(.finished(.unknown))
         let model = NotificationStatusViewModel(
             pushController: .mock,
@@ -237,15 +237,55 @@ struct NotificationStatusViewModelTests {
 
         await model.runChecks()
         await until { !model.isRunning }
-        #expect(model.page?.summary.detail == "Checked just now")
+        let lastSummary = model.page?.summary
+        #expect(lastSummary?.status == .fail)
+        #expect(lastSummary?.detail == "Checked just now")
 
+        registration.value = .finished(.ok)
         registration.holdsNext = true
         await model.perform(.retryRegistration)
         await until { registration.isHolding }
 
-        #expect(model.page?.summary.status == .checking)
-        #expect(model.page?.summary.detail == "Checked just now")
+        #expect(model.isRunning)
+        #expect(model.page?.rows.first { $0.check == .registration }?.status == .checking)
+        #expect(model.page?.summary == lastSummary)
+
         registration.release()
+        await until { !model.isRunning }
+        #expect(model.page?.summary.title == "Notifications are working")
+    }
+
+    @Test("Turn On, once granted, keeps the summary from before the tap until registration finishes")
+    func turnOnKeepsSummary() async {
+        var snapshot = NotificationStatus.Snapshot(authorization: .notDetermined)
+        let registration = Gate<NotificationStatus.Registration>(.noAPNsToken)
+        let model = NotificationStatusViewModel(
+            pushController: .mock,
+            readSettings: { snapshot },
+            registrationCheck: { _ in await registration.next() },
+            requestAuthorization: {
+                snapshot = .init(authorization: .authorized)
+                return true
+            },
+            recheckPause: .zero
+        )
+
+        await model.runChecks()
+        await until { !model.isRunning }
+        let lastSummary = model.page?.summary
+        #expect(lastSummary?.status == .fail)
+
+        registration.value = .finished(.ok)
+        registration.holdsNext = true
+        await model.perform(.requestAuthorization)
+        await until { registration.isHolding }
+
+        #expect(model.isRunning)
+        #expect(model.page?.summary == lastSummary)
+
+        registration.release()
+        await until { !model.isRunning }
+        #expect(model.page?.summary.title == "Notifications are working")
     }
 
     @Test(
