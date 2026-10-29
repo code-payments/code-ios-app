@@ -29,7 +29,6 @@ enum HomeTab: Int, CaseIterable, Identifiable, Hashable {
 
     /// The tab's Central glyph: filled when selected, outlined otherwise, per the tab bar spec.
     func icon(isSelected: Bool) -> Icon {
-        let isSelected = isSelected && TabBarItemStyle.fillsSelected // LOCAL-TUNER
         switch self {
         case .scan:    return isSelected ? .kikCodeFilled      : .kikCode
         case .chat:    return isSelected ? .chatBubblesFilled  : .chatBubbles

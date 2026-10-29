@@ -182,9 +182,10 @@ struct JumpToBottomOverlay: View {
         let isCompact = !model.isComposing
         // The attach panel takes every touch outside itself, the button's included.
         let takesTouches = !model.attachPanel.isOpen
-        // Centred on the trailing control's column, which is narrower than the button.
-        let inset = BarMetrics.trailingControlCentreInset(isCompact: true) // LOCAL-TUNER: same column resting and typing
-            - JumpToBottomButtonView.diameter / 2 + ComposerTuning.jumpNudge // LOCAL-TUNER
+        // Centred on the resting trailing control's column, resting and typing alike, then moved
+        // 32pt toward the screen's edge.
+        let inset = BarMetrics.trailingControlCentreInset(isCompact: true)
+            - JumpToBottomButtonView.diameter / 2 - 32
         JumpToBottomButtonView(unreadCount: jump.unreadCount, action: jump.onTap)
             .frame(width: JumpToBottomButtonView.diameter, height: JumpToBottomButtonView.diameter)
             // Opacity only: a glass effect under a scale effect drew a shrunken copy of the screen.
@@ -215,34 +216,33 @@ private let replySpring = ChatMotion.replySurface.animation
 /// the field the controls are field-sized, not standard-button-sized.
 enum BarMetrics {
     nonisolated static let fieldMinHeight: CGFloat = 34
-    nonisolated static var fieldVerticalPadding: CGFloat { Tuner.value("Chat v2 Composer/Field padding Y", default: 8, in: 0...20, unit: .points) } // LOCAL-TUNER
+    nonisolated static let fieldVerticalPadding: CGFloat = 8
     /// The field's padding on every side: where `+` stands in from the field's leading edge, and so
     /// how far the open attach menu reaches back past `+` to line up with the field.
-    nonisolated static var fieldPadding: CGFloat { Tuner.value("Chat v2 Composer/Field padding X", default: 8, in: 0...20, unit: .points) } // LOCAL-TUNER
+    nonisolated static let fieldPadding: CGFloat = 8
     static let cornerRadius: CGFloat = 14
     /// The composer field's corner, rounder than the bar's other controls.
-    nonisolated static var fieldCornerRadius: CGFloat { fieldPadding + accessorySize / 2 } // LOCAL-TUNER
+    nonisolated static let fieldCornerRadius: CGFloat = fieldPadding + accessorySize / 2
     /// The height of every bar control: a single-line field plus its padding, and the height the
     /// Send Cash button morphs at while there is a composer beside it.
-    nonisolated static var contentHeight: CGFloat { fieldMinHeight + fieldVerticalPadding * 2 } // LOCAL-TUNER
+    nonisolated static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
     /// The diameter of the controls beside the text: `+`, the Send Cash button and the send button.
-    nonisolated static var accessorySize: CGFloat { Tuner.value("Chat v2 Composer/Button size", default: 34, in: 24...48, unit: .points) } // LOCAL-TUNER
+    nonisolated static let accessorySize: CGFloat = 34
     /// The bar's own margin around its controls, above and below.
-    static var contentPadding: CGFloat { Tuner.value("Chat v2 Composer/Bar padding Y", default: 8, in: 0...24, unit: .points) } // LOCAL-TUNER
+    static let contentPadding: CGFloat = 8
     /// The margin between the bar's controls and the screen's sides while the keyboard is up.
-    static var edgeInset: CGFloat { Tuner.value("Chat v2 Composer/Side inset typing", default: 12, in: 0...40, unit: .points) } // LOCAL-TUNER
+    static let edgeInset: CGFloat = 12
     /// How far into the home indicator's safe area the compact bar rests while the keyboard is down.
-    static var compactDrop: CGFloat { Tuner.value("Chat v2 Composer/Rest drop", default: 8, in: 0...30, unit: .points) } // LOCAL-TUNER
+    static let compactDrop: CGFloat = 8
     /// The margin between the compact bar's controls and the screen's sides.
-    static var compactInset: CGFloat { Tuner.value("Chat v2 Composer/Side inset resting", default: 32, in: 0...48, unit: .points) } // LOCAL-TUNER
+    static let compactInset: CGFloat = 32
     /// The gap between the field and the `$` beside it, the same compact and composing.
-    nonisolated static var controlSpacing: CGFloat { Tuner.value("Chat v2 Composer/Field to $ gap", default: 12, in: 0...24, unit: .points) } // LOCAL-TUNER
-    /// The gap between the jump-to-bottom button's bottom edge and the top edge of `$`: twice the
-    /// field's gap to `$`.
-    static var jumpButtonGap: CGFloat { Tuner.value("Chat v2 Jump/Gap above $", default: 23.6, in: 0...60, unit: .points) } // LOCAL-TUNER
+    nonisolated static let controlSpacing: CGFloat = 12
+    /// The gap between the jump-to-bottom button's bottom edge and the top edge of `$`.
+    static let jumpButtonGap: CGFloat = 23.6
     /// How far above the bar's top edge the button's bottom edge stands, which is `$`'s top edge
     /// less the bar's own margin above its controls.
-    static var jumpButtonGapAboveBar: CGFloat { jumpButtonGap - contentPadding } // LOCAL-TUNER
+    static let jumpButtonGapAboveBar: CGFloat = jumpButtonGap - contentPadding
 
     /// The margin between the bar's controls and the screen's sides: ``compactInset`` while the bar
     /// rests compact, ``edgeInset`` while composing.
@@ -259,7 +259,7 @@ enum BarMetrics {
     /// How far a toast comes back down into the compact bar's measured height, so it rests 8pt above
     /// the controls: the bar's top margin, its drop into the safe area, and the 4pt the toast host's
     /// 12pt padding exceeds that gap.
-    static var toastOverlap: CGFloat { contentPadding + compactDrop + 4 } // LOCAL-TUNER
+    static let toastOverlap: CGFloat = contentPadding + compactDrop + 4
 }
 
 /// What stands outside the message field, beside it.
@@ -391,7 +391,7 @@ struct ConversationBottomBar: View {
         .combined(with: .scale(scale: 0.4))
     /// The gap between the field and the control beside it: cancel-edit on its left, `$` on its right. The composer's glass joins across no
     /// more than this, so `$` stays bridged to the field while it travels and pinches off at rest.
-    static var leadingSpacing: CGFloat { BarMetrics.controlSpacing } // LOCAL-TUNER
+    static let leadingSpacing: CGFloat = BarMetrics.controlSpacing
     /// How close the composer's glass shapes come before they flow together: under the resting gap,
     /// so `$` is bridged to the field while it travels and stands clear of it at rest.
     private static let glassJoinDistance: CGFloat = 8
@@ -1149,6 +1149,8 @@ struct ConversationComposer: View {
     private static let cashJoinDelay: TimeInterval = 0.16
     /// The text's and chips' inset from the field's leading edge.
     private static let leadingInset: CGFloat = 14
+    /// The draft's type, shared by the field and the hidden measure of its one-line width.
+    private static let draftFont: Font = .default(size: 17, weight: .regular)
     /// The stacked text's insets from the field's leading and trailing edges.
     private static let stackedHorizontalInset: CGFloat = 14
     /// The stacked text's inset from the field's top edge.
@@ -1228,7 +1230,7 @@ struct ConversationComposer: View {
     var body: some View {
         let motion = AttachMotion(reduceMotion: reduceMotion)
         let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
-            .font(ComposerTuning.font) // LOCAL-TUNER
+            .font(Self.draftFont)
             .foregroundStyle(Color.textMain)
             .tint(.white)
             .lineLimit(1...7)
@@ -1271,7 +1273,7 @@ struct ConversationComposer: View {
                 .background(alignment: .leading) {
                     // The draft's width on one line, to tell when the inline field would wrap.
                     Text(composer.draft.isEmpty ? " " : composer.draft)
-                        .font(ComposerTuning.font) // LOCAL-TUNER
+                        .font(Self.draftFont)
                         .lineLimit(1)
                         .fixedSize()
                         .hidden()
@@ -1551,21 +1553,3 @@ struct ComposerImageDropDelegate: DropDelegate {
         return true
     }
 }
-
-// LOCAL-TUNER: composer and jump-button controls that aren't plain BarMetrics numbers.
-enum ComposerTuning { // LOCAL-TUNER
-    static var textSize: CGFloat { Tuner.value("Chat v2 Composer/Text size", default: 17, in: 13...22, unit: .points) } // LOCAL-TUNER
-    static var textWeight: ChatTitleWeight { Tuner.value("Chat v2 Composer/Text weight", default: ChatTitleWeight.regular) } // LOCAL-TUNER
-    static var font: Font { .default(size: textSize, weight: textWeight.weight) } // LOCAL-TUNER
-    static var plusStyle: ComposerPlusStyle { Tuner.value("Chat v2 Composer/Plus style", default: ComposerPlusStyle.filled) } // LOCAL-TUNER
-    static var plusFill: Color { Tuner.value("Chat v2 Composer/Plus fill", default: Color.white.opacity(0.08)) } // LOCAL-TUNER
-    static var plusIconSize: CGFloat { Tuner.value("Chat v2 Composer/Plus icon size", default: 22, in: 12...30, unit: .points) } // LOCAL-TUNER
-    static var plusIconColor: Color { Tuner.value("Chat v2 Composer/Plus icon color", default: Color.textMain) } // LOCAL-TUNER
-    /// Moves the jump button sideways from its column: positive goes left. // LOCAL-TUNER
-    static var jumpNudge: CGFloat { Tuner.value("Chat v2 Jump/Horizontal nudge", default: -32, in: -40...40, unit: .points) } // LOCAL-TUNER
-} // LOCAL-TUNER
-
-enum ComposerPlusStyle: String, TunableEnum { // LOCAL-TUNER
-    case filled, outlined, bare // LOCAL-TUNER
-} // LOCAL-TUNER
-

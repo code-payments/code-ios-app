@@ -142,7 +142,6 @@ public struct EnterAmountView: View {
                 // absorbs the rest on taller devices.
                 Spacer().frame(maxHeight: 24)
                 header
-                    .padding(.leading, Tuner.shared.value("Amount entry/Amount left inset", default: CGFloat(20), in: 0...48, unit: .points) - 20) // LOCAL-TUNER
             } else {
                 Spacer()
 
@@ -234,7 +233,7 @@ public struct EnterAmountView: View {
                 .disabled(!actionEnabled(enteredAmount) || !isActionIdle)
                 // Amount entry v2: 32 from the screen's sides and bottom (the screens already pad 20),
                 // 22 below the keypad.
-                .padding(.top, Tuner.shared.value("Amount entry/Keypad to button", default: CGFloat(20), in: 0...48, unit: .points)) // LOCAL-TUNER
+                .padding(.top, 20)
                 .modifier(ActionSlotInsets())
             }
         }
@@ -260,8 +259,8 @@ private enum SwipeDim {
 private struct ActionSlotInsets: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .padding(.horizontal, Tuner.shared.value("Amount entry/Button side inset", default: CGFloat(32), in: 16...56, unit: .points) - 20) // LOCAL-TUNER
-            .padding(.bottom, Tuner.shared.value("Amount entry/Button bottom inset", default: CGFloat(32), in: 0...80, unit: .points) - 54) // LOCAL-TUNER
+            .padding(.horizontal, 32 - 20)
+            .padding(.bottom, 32 - 54)
     }
 }
 
@@ -353,14 +352,13 @@ private struct AmountActionButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let height = Tuner.shared.value("Amount entry/Button height", default: CGFloat(54), in: 40...64, unit: .points) // LOCAL-TUNER
-        return configuration.label
+        configuration.label
             .font(.appTextMedium)
             .foregroundStyle(isEnabled ? Color.textAction : Color.textMain.opacity(0.2))
             .frame(maxWidth: .infinity)
-            .frame(height: height)
+            .frame(height: 54)
             .background {
-                RoundedRectangle(cornerRadius: Tuner.shared.value("Amount entry/Button radius", default: CGFloat(27), in: 0...32, unit: .points), style: .continuous) // LOCAL-TUNER
+                RoundedRectangle(cornerRadius: 27, style: .continuous)
                     .fill(isEnabled ? Color.action : Color.action.opacity(0.1))
             }
             .opacity(configuration.isPressed ? 0.7 : 1.0)

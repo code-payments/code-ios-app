@@ -52,7 +52,7 @@ public struct ListRow<Leading: View, Trailing: View>: View {
                         Text(title)
                             .foregroundStyle(titleColor)
                             .lineLimit(1)
-                            .font(.default(size: Tuner.shared.value("Rows/Title size", default: CGFloat(16), in: 13...24, unit: .points), weight: [Font.Weight.regular, .medium, .semibold, .bold][Tuner.shared.value("Rows/Title weight (1 regular–4 bold)", default: 2, in: 1...4) - 1])) // LOCAL-TUNER
+                            .font(.default(size: 16, weight: .medium))
                         if let subtitle {
                             Text(subtitle)
                                 .font(.appTextSmall)
@@ -70,7 +70,7 @@ public struct ListRow<Leading: View, Trailing: View>: View {
                     if showsDivider {
                         Rectangle()
                             .fill(Color.rowSeparator)
-                            .frame(height: Tuner.shared.value("Rows/Divider weight", default: CGFloat(1.0 / 3.0), in: 0...2, unit: .points)) // LOCAL-TUNER
+                            .frame(height: 1.0 / 3.0)
                             .padding(.trailing, ListRowMetrics.dividerTrailingInset)
                     }
                 }
@@ -97,33 +97,33 @@ public enum ListRowTone {
 }
 
 /// The row's metrics, shared by `ListRow` and `ListSectionTitle` so a group of rows stays aligned.
-@MainActor public enum ListRowMetrics { // LOCAL-TUNER
+public enum ListRowMetrics {
     /// Screen-edge inset on both sides.
-    public static var margin: CGFloat { Tuner.shared.value("Rows/Side margin", default: CGFloat(20), in: 0...32, unit: .points) } // LOCAL-TUNER
+    public static let margin: CGFloat = 20
     /// The smallest a single-line row can be.
-    public static var minHeight: CGFloat { Tuner.shared.value("Rows/Min height", default: CGFloat(60), in: 32...88, unit: .points) } // LOCAL-TUNER
+    public static let minHeight: CGFloat = 60
     /// Space above and below the text.
-    public static var verticalPadding: CGFloat { Tuner.shared.value("Rows/Vertical padding", default: CGFloat(20), in: 0...28, unit: .points) } // LOCAL-TUNER
+    public static let verticalPadding: CGFloat = 20
     /// Width and height of the leading slot; the title starts after it.
-    public static var leadingSlot: CGFloat { Tuner.shared.value("Rows/Leading slot", default: CGFloat(30), in: 20...60, unit: .points) } // LOCAL-TUNER
+    public static let leadingSlot: CGFloat = 30
     /// Space between the leading slot, the text and the trailing accessory.
-    public static var gap: CGFloat { Tuner.shared.value("Rows/Gap", default: CGFloat(12), in: 0...28, unit: .points) } // LOCAL-TUNER
+    public static let gap: CGFloat = 12
     /// Space between the title and the subtitle.
-    public static var subtitleGap: CGFloat { Tuner.shared.value("Rows/Subtitle gap", default: CGFloat(2), in: 0...12, unit: .points) } // LOCAL-TUNER
+    public static let subtitleGap: CGFloat = 2
     /// How far before the trailing edge the divider stops.
-    public static var dividerTrailingInset: CGFloat { Tuner.shared.value("Rows/Divider right inset", default: CGFloat(20), in: 0...40, unit: .points) } // LOCAL-TUNER
+    public static let dividerTrailingInset: CGFloat = 20
     /// The size of an icon in the leading slot.
-    public static var iconSize: CGFloat { Tuner.shared.value("Rows/Icon size", default: CGFloat(20), in: 12...36, unit: .points) } // LOCAL-TUNER
+    public static let iconSize: CGFloat = 20
     /// The opacity of an icon in the leading slot.
-    public static var iconOpacity: Double { Tuner.shared.value("Rows/Icon opacity", default: 0.5, in: 0...1) } // LOCAL-TUNER
+    public static let iconOpacity: Double = 0.5
     /// The diameter of a flag in the leading slot.
-    public static var flagSize: CGFloat { Tuner.shared.value("Rows/Flag size", default: CGFloat(28), in: 16...48, unit: .points) } // LOCAL-TUNER
+    public static let flagSize: CGFloat = 28
     /// Space above a section title.
-    public static var sectionTop: CGFloat { Tuner.shared.value("Rows/Section top", default: CGFloat(24), in: 0...48, unit: .points) } // LOCAL-TUNER
+    public static let sectionTop: CGFloat = 24
     /// Space between a section title and its first row.
-    public static var sectionBottom: CGFloat { Tuner.shared.value("Rows/Section bottom", default: CGFloat(0), in: 0...24, unit: .points) } // LOCAL-TUNER
+    public static let sectionBottom: CGFloat = 0
     /// The opacity of a section title.
-    public static var sectionOpacity: Double { Tuner.shared.value("Rows/Section title opacity", default: 0.5, in: 0...1) } // LOCAL-TUNER
+    public static let sectionOpacity: Double = 0.5
 }
 
 /// A leading-slot icon at the row's icon size and opacity.

@@ -65,19 +65,12 @@ final class ChatSwipeToReply: NSObject {
         affordance.alpha = 0
 
         affordanceIcon.image = UIImage.icon(.arrowShareLeftFilled)
-        affordanceIcon.tintColor = UIColor.white.withAlphaComponent(0.75)
+        affordanceIcon.tintColor = UIColor(ChatStyle.replyIconColor)
         affordanceIcon.contentMode = .scaleAspectFit
-        affordanceIcon.frame = affordance.bounds.insetBy(dx: 8, dy: 8)
+        let iconInset = (Self.affordanceDiameter - ChatStyle.replyIconSize) / 2
+        affordanceIcon.frame = affordance.bounds.insetBy(dx: iconInset, dy: iconInset)
         affordance.addSubview(affordanceIcon)
     }
-
-    // LOCAL-TUNER: the reply glyph's size and colour from the tuner.
-    private func applyTuning() { // LOCAL-TUNER
-        let size = ChatStyle.replyIconSize // LOCAL-TUNER
-        let box = Self.affordanceDiameter // LOCAL-TUNER
-        affordanceIcon.frame = CGRect(x: (box - size) / 2, y: (box - size) / 2, width: size, height: size) // LOCAL-TUNER
-        affordanceIcon.tintColor = UIColor(ChatStyle.replyIconColor) // LOCAL-TUNER
-    } // LOCAL-TUNER
 
     /// Whether a drag with this velocity is a reply swipe rather than a scroll.
     ///
@@ -162,7 +155,6 @@ final class ChatSwipeToReply: NSObject {
         haptics.prepare()
 
         affordance.alpha = 0
-        applyTuning() // LOCAL-TUNER
         affordance.transform = CGAffineTransform(scaleX: Self.arrowStartScale, y: Self.arrowStartScale)
         affordance.center = Self.affordanceCenter(inRowOfHeight: row.cell.bounds.height)
         row.cell.contentView.addSubview(affordance)

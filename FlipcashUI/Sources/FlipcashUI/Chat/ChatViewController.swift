@@ -324,36 +324,8 @@ public final class ChatViewController: UICollectionViewController {
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    private var tunerRestylePending = false // LOCAL-TUNER
-    // LOCAL-TUNER: reloads without animation and puts the transcript back where its bottom was.
-    private func restyleForTuner() { // LOCAL-TUNER
-        tunerRestylePending = false // LOCAL-TUNER
-        guard !isUpdating else { tunerRestylePending = true; DispatchQueue.main.async { [weak self] in self?.restyleForTuner() }; return } // LOCAL-TUNER
-        UIView.performWithoutAnimation { // LOCAL-TUNER
-            collectionView.backgroundColor = UIColor(Color.backgroundMain) // LOCAL-TUNER
-            let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom) // LOCAL-TUNER
-            collectionView.reloadData() // LOCAL-TUNER
-            if let snapshot { chatLayout.restoreContentOffset(with: snapshot) } // LOCAL-TUNER
-        } // LOCAL-TUNER
-    } // LOCAL-TUNER
-
-    // LOCAL-TUNER: redraws the transcript whenever a Chat v2 tuner value changes.
-    private func observeChatStyle() { // LOCAL-TUNER
-        withObservationTracking { _ = ChatStyle.readAll() } onChange: { // LOCAL-TUNER
-            Task { @MainActor [weak self] in // LOCAL-TUNER
-                guard let self else { return } // LOCAL-TUNER
-                observeChatStyle() // LOCAL-TUNER
-                guard !tunerRestylePending else { return } // LOCAL-TUNER
-                tunerRestylePending = true // LOCAL-TUNER
-                // One restyle per frame however fast the slider moves, holding the bottom in place. // LOCAL-TUNER
-                DispatchQueue.main.async { [weak self] in self?.restyleForTuner() } // LOCAL-TUNER
-            } // LOCAL-TUNER
-        } // LOCAL-TUNER
-    } // LOCAL-TUNER
-
     public override func viewDidLoad() {
         super.viewDidLoad()
-        observeChatStyle() // LOCAL-TUNER
         collectionView.backgroundColor = UIColor(Color.backgroundMain)
         collectionView.alwaysBounceVertical = true
         collectionView.keyboardDismissMode = .interactive

@@ -22,17 +22,17 @@ struct FlipcashApp: App {
         WindowGroup {
             #if DEBUG
             if MotionSandbox.isRequested {
-                MotionSandbox().tunerFloating() // LOCAL-TUNER
-            } else if DialogSandbox.isRequested { // LOCAL-TUNER
-                DialogSandbox().tunerFloating() // LOCAL-TUNER
-            } else if TraySandbox.isRequested { // LOCAL-TUNER
-                TraySandbox().tunerFloating() // LOCAL-TUNER
-            } else if SwipeSandbox.isRequested { // LOCAL-TUNER
-                SwipeShowcaseHost().tunerFloating() // LOCAL-TUNER
+                MotionSandbox()
+            } else if DialogSandbox.isRequested {
+                DialogSandbox()
+            } else if TraySandbox.isRequested {
+                TraySandbox()
+            } else if SwipeSandbox.isRequested {
+                SwipeShowcaseHost()
             } else if let benchmark = ScrollBenchmark.requested {
                 benchmark
             } else {
-                mainScene.tunerFloating(groups: ["Profile"]) // LOCAL-TUNER
+                mainScene
             }
             #else
             mainScene
@@ -190,50 +190,50 @@ private extension View {
     }
 }
 
-#if DEBUG // LOCAL-TUNER
-/// Real `DialogItem`s through the real `.dialog(item:)` seam, with no sign-in (`--dialog-sandbox`, // LOCAL-TUNER
-/// `--dialog-sandbox-open <n>`). Actions do nothing. // LOCAL-TUNER
-private struct DialogSandbox: View { // LOCAL-TUNER
+#if DEBUG
+/// Real `DialogItem`s through the real `.dialog(item:)` seam, with no sign-in (`--dialog-sandbox`,
+/// `--dialog-sandbox-open <n>`). Actions do nothing.
+private struct DialogSandbox: View {
 
-    static var isRequested: Bool { ProcessInfo.processInfo.arguments.contains("--dialog-sandbox") } // LOCAL-TUNER
+    static var isRequested: Bool { ProcessInfo.processInfo.arguments.contains("--dialog-sandbox") }
 
-    @State private var dialogItem: DialogItem? // LOCAL-TUNER
+    @State private var dialogItem: DialogItem?
 
-    private let trustedWebsites = TrustedWebsites(defaults: UserDefaults(suiteName: "dialog-sandbox")!) // LOCAL-TUNER
+    private let trustedWebsites = TrustedWebsites(defaults: UserDefaults(suiteName: "dialog-sandbox")!)
 
-    private var items: [(String, () -> DialogItem)] { // LOCAL-TUNER
-        [ // LOCAL-TUNER
-            ("Log out (alert, destructive)", { // LOCAL-TUNER
-                .alert(title: "Are You Sure You Want To Log Out?", subtitle: "You can get into this account using your Access Key") { // LOCAL-TUNER
-                    DialogAction.destructive("Log Out") {} // LOCAL-TUNER
-                    DialogAction.cancel() // LOCAL-TUNER
-                } // LOCAL-TUNER
-            }), // LOCAL-TUNER
-            ("Leaving Flipcash (info, checkbox)", { .leavingFlipcash(host: "example.com", trustedWebsites: trustedWebsites) {} }), // LOCAL-TUNER
-            ("Error (tracked, default OK)", { .error(title: "Something Went Wrong", subtitle: "Please try again later") }), // LOCAL-TUNER
-            ("Success (not dismissable)", { .success(title: "Report Sent", subtitle: "Thanks. We'll take a look") }), // LOCAL-TUNER
-        ] // LOCAL-TUNER
-    } // LOCAL-TUNER
+    private var items: [(String, () -> DialogItem)] {
+        [
+            ("Log out (alert, destructive)", {
+                .alert(title: "Are You Sure You Want To Log Out?", subtitle: "You can get into this account using your Access Key") {
+                    DialogAction.destructive("Log Out") {}
+                    DialogAction.cancel()
+                }
+            }),
+            ("Leaving Flipcash (info, checkbox)", { .leavingFlipcash(host: "example.com", trustedWebsites: trustedWebsites) {} }),
+            ("Error (tracked, default OK)", { .error(title: "Something Went Wrong", subtitle: "Please try again later") }),
+            ("Success (not dismissable)", { .success(title: "Report Sent", subtitle: "Thanks. We'll take a look") }),
+        ]
+    }
 
-    var body: some View { // LOCAL-TUNER
-        VStack(spacing: 12) { // LOCAL-TUNER
-            ForEach(items.indices, id: \.self) { index in // LOCAL-TUNER
-                Button(items[index].0) { dialogItem = items[index].1() } // LOCAL-TUNER
-                    .buttonStyle(.filled20Compact) // LOCAL-TUNER
-            } // LOCAL-TUNER
-        } // LOCAL-TUNER
-        .padding(20) // LOCAL-TUNER
-        .frame(maxWidth: .infinity, maxHeight: .infinity) // LOCAL-TUNER
-        .background(Color.backgroundMain) // LOCAL-TUNER
-        .dialog(item: $dialogItem) // LOCAL-TUNER
-        .preferredColorScheme(.dark) // LOCAL-TUNER
-        .task { // LOCAL-TUNER
-            let arguments = ProcessInfo.processInfo.arguments // LOCAL-TUNER
-            guard let i = arguments.firstIndex(of: "--dialog-sandbox-open"), i + 1 < arguments.count, // LOCAL-TUNER
-                  let index = Int(arguments[i + 1]), items.indices.contains(index) else { return } // LOCAL-TUNER
-            try? await Task.sleep(for: .seconds(0.5)) // LOCAL-TUNER
-            dialogItem = items[index].1() // LOCAL-TUNER
-        } // LOCAL-TUNER
-    } // LOCAL-TUNER
-} // LOCAL-TUNER
-#endif // LOCAL-TUNER
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(items.indices, id: \.self) { index in
+                Button(items[index].0) { dialogItem = items[index].1() }
+                    .buttonStyle(.filled20Compact)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.backgroundMain)
+        .dialog(item: $dialogItem)
+        .preferredColorScheme(.dark)
+        .task {
+            let arguments = ProcessInfo.processInfo.arguments
+            guard let i = arguments.firstIndex(of: "--dialog-sandbox-open"), i + 1 < arguments.count,
+                  let index = Int(arguments[i + 1]), items.indices.contains(index) else { return }
+            try? await Task.sleep(for: .seconds(0.5))
+            dialogItem = items[index].1()
+        }
+    }
+}
+#endif

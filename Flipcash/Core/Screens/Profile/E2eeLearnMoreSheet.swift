@@ -26,7 +26,7 @@ struct E2eeLearnMoreSheet: View {
 
     var body: some View {
         Tray(title: title, message: message, icon: icon, actions: actions) {
-            VStack(spacing: E2eeTrayLook.sectionGap) {
+            VStack(spacing: 12) {
                 section("ENCRYPTED", items: encrypted, isEncrypted: true)
                 section("NOT ENCRYPTED", items: notEncrypted, isEncrypted: false)
             }
@@ -44,12 +44,11 @@ struct E2eeLearnMoreSheet: View {
     }
 
     private var actions: [TrayAction] {
-        E2eeTrayLook.showsCTA ? [TrayAction("Got It") { isPresented = false }] : []
+        [TrayAction("Got It") { isPresented = false }]
     }
 
-    @ViewBuilder
     private func section(_ heading: String, items: [String], isEncrypted: Bool) -> some View {
-        let list = VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(heading)
                 .font(.system(size: 11, weight: .bold))
                 .tracking(0.44)
@@ -67,18 +66,8 @@ struct E2eeLearnMoreSheet: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-
-        switch E2eeTrayLook.sectionStyle {
-        case .card:
-            list
-                .padding(16)
-                .background(
-                    Color.white.opacity(E2eeTrayLook.sectionFillOpacity),
-                    in: .rect(cornerRadius: E2eeTrayLook.sectionRadius, style: .continuous)
-                )
-        case .plain:
-            list
-        }
+        .padding(16)
+        .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 16, style: .continuous))
     }
 
     private func bullet(isEncrypted: Bool) -> some View {
@@ -189,16 +178,3 @@ struct E2eeFooter: View {
         }
     }
 }
-
-/// The E2EE tray's options while the look is tuned. // LOCAL-TUNER
-@MainActor // LOCAL-TUNER
-enum E2eeTrayLook { // LOCAL-TUNER
-    static var showsCTA: Bool { Tuner.value("Tray E2EE/Got It button", default: true) } // LOCAL-TUNER
-    static var sectionStyle: E2eeSectionStyle { Tuner.value("Tray E2EE/Section style", default: E2eeSectionStyle.card) } // LOCAL-TUNER
-    static var sectionRadius: CGFloat { Tuner.value("Tray E2EE/Section radius", default: 16, in: 0...32, unit: .points) } // LOCAL-TUNER
-    static var sectionFillOpacity: Double { Tuner.value("Tray E2EE/Section fill opacity", default: 0.05, in: 0...0.2) } // LOCAL-TUNER
-    static var sectionGap: CGFloat { Tuner.value("Tray E2EE/Section gap", default: 12, in: 0...32, unit: .points) } // LOCAL-TUNER
-} // LOCAL-TUNER
-
-/// Whether each E2EE list sits on a card. // LOCAL-TUNER
-enum E2eeSectionStyle: TunableEnum { case card, plain } // LOCAL-TUNER

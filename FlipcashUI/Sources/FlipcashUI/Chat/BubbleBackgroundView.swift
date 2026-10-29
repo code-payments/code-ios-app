@@ -239,9 +239,9 @@ final class BubbleBackgroundView: UIView {
     /// flat against the transcript, measured at rgb 17 right up to its edge on all sides. Owning the
     /// values here also means the menu's lift and the edit that follows it share one shadow rather
     /// than one of them guessing at a system default the other inherited.
-    private static var liftShadowOpacity: Float { Float(Tuner.value("Chat v2 Lift/Shadow opacity", default: 0.135, in: 0...0.6, unit: .percent)) } // LOCAL-TUNER
-    private static var liftShadowRadius: CGFloat { Tuner.value("Chat v2 Lift/Shadow blur", default: 20, in: 0...60, unit: .points) } // LOCAL-TUNER
-    private static var liftShadowOffset: CGSize { CGSize(width: 0, height: Tuner.value("Chat v2 Lift/Shadow offset Y", default: 10, in: -20...40, unit: .points)) } // LOCAL-TUNER
+    private static let liftShadowOpacity: Float = 0.135
+    private static let liftShadowRadius: CGFloat = 20
+    private static let liftShadowOffset = CGSize(width: 0, height: 10)
 
     /// Raises `view` to the lifted plane. `shape` is the bubble's own path, so the shadow follows a
     /// flattened grouped corner instead of falling back to the view's square bounds. `nil` — a bare

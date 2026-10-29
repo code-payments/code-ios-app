@@ -376,30 +376,8 @@ public final class ChatScreenViewController: UIViewController {
         set { imagePaste.onImages = newValue }
     }
 
-    // LOCAL-TUNER: moves the jump button when its height slider changes.
-    private func observeJumpLift() { // LOCAL-TUNER
-        withObservationTracking { _ = Self.jumpLift } onChange: { // LOCAL-TUNER
-            Task { @MainActor [weak self] in self?.jumpHostBottom?.constant = -Self.jumpLift; self?.observeJumpLift() } // LOCAL-TUNER
-        } // LOCAL-TUNER
-    } // LOCAL-TUNER
-
-    // LOCAL-TUNER: repaints the screen's own background surfaces when the tuner changes the app background.
-    private func observeBackground() { // LOCAL-TUNER
-        withObservationTracking { _ = Color.backgroundMain } onChange: { // LOCAL-TUNER
-            Task { @MainActor [weak self] in // LOCAL-TUNER
-                guard let self else { return } // LOCAL-TUNER
-                view.backgroundColor = UIColor(Color.backgroundMain) // LOCAL-TUNER
-                keyboardCornerCover.backgroundColor = UIColor(Color.backgroundMain) // LOCAL-TUNER
-                fade.applyColors() // LOCAL-TUNER
-                observeBackground() // LOCAL-TUNER
-        observeJumpLift() // LOCAL-TUNER
-            } // LOCAL-TUNER
-        } // LOCAL-TUNER
-    } // LOCAL-TUNER
-
     public override func viewDidLoad() {
         super.viewDidLoad()
-        observeBackground() // LOCAL-TUNER
         view.backgroundColor = UIColor(Color.backgroundMain)
         // SwiftUI can rebuild the composer's field, so the paste handler goes on whichever one
         // starts editing.
@@ -977,11 +955,8 @@ public final class ChatScreenViewController: UIViewController {
         didSet { jump.unreadCount = unreadBelowCount }
     }
 
-    /// Stands the button's box on the clip's top edge, so it rides the keyboard and every travel of
-    /// that edge in the same layout pass as the clip.
-    private var jumpHostBottom: NSLayoutConstraint! // LOCAL-TUNER
-    private static var jumpLift: CGFloat { Tuner.value("Chat v2 Jump/Height above bottom", default: 56, in: 0...200, unit: .points) } // LOCAL-TUNER
-
+    /// Holds the button's box a fixed height over the keyboard's top (the screen's foot while it's
+    /// down), so the button stays put while the bar grows or settles between resting and typing.
     private func addJumpButton() {
         guard let jumpButtonController else { return }
         let host = PassthroughView()
@@ -994,13 +969,10 @@ public final class ChatScreenViewController: UIViewController {
         button.translatesAutoresizingMaskIntoConstraints = false
         host.addSubview(button)
         jumpButtonController.didMove(toParent: self)
-        // LOCAL-TUNER: held at a fixed height over the keyboard's top (the screen's foot while it's
-        // down), so the button stays put while the bar grows or settles between resting and typing.
-        jumpHostBottom = host.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor, constant: -Self.jumpLift) // LOCAL-TUNER
         NSLayoutConstraint.activate([
             host.leadingAnchor.constraint(equalTo: barClip.leadingAnchor),
             host.trailingAnchor.constraint(equalTo: barClip.trailingAnchor),
-            jumpHostBottom, // LOCAL-TUNER
+            host.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor, constant: -56),
             host.heightAnchor.constraint(equalToConstant: JumpToBottomButtonView.reach.height),
             button.topAnchor.constraint(equalTo: host.topAnchor),
             button.leadingAnchor.constraint(equalTo: host.leadingAnchor),

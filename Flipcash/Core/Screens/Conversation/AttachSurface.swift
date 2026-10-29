@@ -248,8 +248,8 @@ struct AttachSurface: View {
     /// `+`'s glyph where `+` stands, so the surface reads as `+` itself as it grows and collapses.
     private var plusGlyph: some View {
         Image.icon(.plusLarge)
-            .iconSize(ComposerTuning.plusIconSize) // LOCAL-TUNER
-            .foregroundStyle(ComposerTuning.plusIconColor) // LOCAL-TUNER
+            .iconSize(22)
+            .foregroundStyle(Color.textMain)
             .frame(width: plus.width, height: plus.height)
             .accessibilityHidden(true)
     }

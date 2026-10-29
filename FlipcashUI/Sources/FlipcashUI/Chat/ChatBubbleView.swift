@@ -387,7 +387,6 @@ public final class ChatBubbleView: UIView {
         if !message.rendersAsLargeEmoji {
             attributes.merge(ChatStyle.bodyLineAttributes(for: bodyFont)) { _, new in new }
         }
-        if isFromSelf, !isPlaceholder, let glow = ChatStyle.sentGlow { attributes[.shadow] = glow } // LOCAL-TUNER
         let result = NSMutableAttributedString(string: body, attributes: attributes)
 
         if Self.showsEditedMarker(for: message), !message.rendersAsLargeEmoji {

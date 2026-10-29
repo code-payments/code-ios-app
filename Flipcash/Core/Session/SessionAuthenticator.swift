@@ -58,7 +58,6 @@ final class SessionAuthenticator {
     }
 
     var requiresUpgrade: Bool {
-        if true { return false } // LOCAL-TUNER: local dev builds skip the server's minimum-build gate
         guard let minBuildNumber = unauthenticatedUserFlags?.minBuildNumber, minBuildNumber > 0 else {
             return false // No minimum requirement or server didn't provide one
         }

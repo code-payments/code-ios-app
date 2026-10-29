@@ -73,7 +73,7 @@ public struct ContactAvatarView: View {
         }
         .frame(width: size, height: size)
         .clipShape(clipShape)
-        .overlay(Circle().strokeBorder(Color.white.opacity(ChatStyle.avatarStrokeOpacity), lineWidth: ChatStyle.avatarStrokeWidth)) // LOCAL-TUNER
+        .overlay(Circle().strokeBorder(Color.white.opacity(ChatStyle.avatarStrokeOpacity), lineWidth: ChatStyle.avatarStrokeWidth))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(displayName.isEmpty ? "Contact" : displayName))
         .accessibilityAddTraits(.isImage)

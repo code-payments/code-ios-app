@@ -24,7 +24,7 @@ enum ChatBackdrop {
     /// is paused part-way, which is the only handle on its strength. At full strength the transcript
     /// smears into flat colour; Android frosts the same screen at a 25dp radius and reads far softer,
     /// and this is matched to that.
-    static var blurFraction: CGFloat { Tuner.value("Chat v2 Lift/Blur strength", default: 0.1, in: 0...1, unit: .percent) } // LOCAL-TUNER
+    static let blurFraction: CGFloat = 0.1
 
     /// The black that goes with the blur wherever nothing else is darkening the screen.
     ///
@@ -35,7 +35,7 @@ enum ChatBackdrop {
     /// set well below the value that matches the menu exactly — matching it left an edit as dark as
     /// the menu, which is heavier than Android's frosting of the same screen, and the menu's own
     /// dimming isn't ours to lighten to meet it.
-    static var dimAlpha: CGFloat { Tuner.value("Chat v2 Lift/Dim", default: 0.33, in: 0...0.9, unit: .percent) } // LOCAL-TUNER
+    static let dimAlpha: CGFloat = 0.33
 
     /// Applies the material to `view` at ``blurFraction``, and hands back the animator holding it
     /// there.
@@ -45,17 +45,10 @@ enum ChatBackdrop {
     /// animator still active when it goes traps. Teardown belongs to the caller, which is the only
     /// side that knows when its blur is finished with.
     static func frost(_ view: UIVisualEffectView) -> UIViewPropertyAnimator {
-        let material = UIBlurEffect(style: Tuner.value("Chat v2 Lift/Material", default: ChatBlurMaterial.ultraThin).style) // LOCAL-TUNER
+        let material = UIBlurEffect(style: .systemUltraThinMaterialDark)
         let strength = UIViewPropertyAnimator(duration: 1, curve: .linear) { view.effect = material }
         strength.fractionComplete = blurFraction
         return strength
     }
 }
-
-nonisolated enum ChatBlurMaterial: String, TunableEnum, Sendable { // LOCAL-TUNER
-    case ultraThin, thin, regular, thick, chrome // LOCAL-TUNER
-    var style: UIBlurEffect.Style { // LOCAL-TUNER
-        switch self { case .ultraThin: .systemUltraThinMaterialDark; case .thin: .systemThinMaterialDark; case .regular: .systemMaterialDark; case .thick: .systemThickMaterialDark; case .chrome: .systemChromeMaterialDark } // LOCAL-TUNER
-    } // LOCAL-TUNER
-} // LOCAL-TUNER
 #endif

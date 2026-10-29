@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// One choice in a tray's list: an optional icon, a title, and a check while it is selected. A tap
 /// plays a selection haptic on touch down.
@@ -65,6 +66,9 @@ public struct TrayOptionRow: View {
 /// A tray row or tile's press: a slight scale, or a dim under Reduce Motion, with the haptic on touch down.
 struct TrayRowPressStyle: ButtonStyle {
 
+    /// Kept prepared between taps, so fast typing gets its haptic on time.
+    @MainActor private static let selectionGenerator = UISelectionFeedbackGenerator()
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
@@ -73,7 +77,10 @@ struct TrayRowPressStyle: ButtonStyle {
             .modifier(Press(isPressed: isPressed, reduceMotion: reduceMotion))
             // On touch down, as a physical control answers, not on release.
             .onChange(of: isPressed) { _, isPressed in
-                if isPressed { TrayMetrics.rowHaptic.play() }
+                if isPressed {
+                    Self.selectionGenerator.selectionChanged()
+                    Self.selectionGenerator.prepare()
+                }
             }
     }
 }
@@ -97,6 +104,6 @@ private struct Press: ViewModifier {
 }
 
 extension TrayOptionRow {
-    /// The space between stacked rows. // LOCAL-TUNER
-    @MainActor public static var gap: CGFloat { TrayMetrics.rowGap } // LOCAL-TUNER
+    /// The space between stacked rows.
+    @MainActor public static let gap: CGFloat = TrayMetrics.rowGap
 }

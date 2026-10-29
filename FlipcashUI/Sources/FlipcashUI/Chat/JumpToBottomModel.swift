@@ -31,14 +31,14 @@ public final class JumpToBottomModel {
     public var isShown: Bool { isVisible && !isSuppressed }
 }
 
-/// The jump-to-bottom button: a 44pt circle in the composer's glass, with a chevron and an unread badge.
+/// The jump-to-bottom button: a 36pt circle in the composer's glass, with a chevron and an unread badge.
 public struct JumpToBottomButtonView: View {
 
-    public static var diameter: CGFloat { Tuner.value("Chat v2 Jump/Size", default: 36, in: 28...64, unit: .points) } // LOCAL-TUNER
+    public static let diameter: CGFloat = 36
     /// The area above the bar's top edge, from its trailing side, that the button and its badge
     /// occupy, with the gap the bar leaves under the button. Touches in it go to the button.
-    public static var reach: CGSize { CGSize(width: 88, height: 20 + diameter + 12) } // LOCAL-TUNER
-    private static var badgeHeight: CGFloat { Tuner.value("Chat v2 Jump/Badge size", default: 22, in: 14...32, unit: .points) } // LOCAL-TUNER
+    public static let reach = CGSize(width: 88, height: 20 + diameter + 12)
+    private static let badgeHeight: CGFloat = 22
 
     public let unreadCount: Int
     public let action: () -> Void
@@ -55,7 +55,7 @@ public struct JumpToBottomButtonView: View {
         let badgeText = UnreadBadgeText.text(for: unreadCount)
         Button(action: action) {
             Image.icon(.chevronDownMedium)
-                .iconSize(Tuner.value("Chat v2 Jump/Icon size", default: 22, in: 12...32, unit: .points)) // LOCAL-TUNER
+                .iconSize(22)
                 .foregroundStyle(.white)
                 .frame(width: Self.diameter, height: Self.diameter)
                 .composerGlass(in: Circle(), id: "jump", namespace: glassNamespace)

@@ -49,7 +49,9 @@ public struct TrayPage<Content: View>: View {
                 Text(message)
                     .font(.system(size: TrayMetrics.scaled(TrayMetrics.bodySize, .subheadline, dynamicTypeSize)))
                     .lineSpacing(TrayMetrics.bodyLineSpacing(dynamicTypeSize))
-                    .trayBodyStyle(TrayMetrics.bodyStyle) // LOCAL-TUNER
+                    // Dark-mode vibrancy: light ink added onto what's beneath it.
+                    .foregroundStyle(Color.white.opacity(TrayMetrics.bodyOpacity))
+                    .blendMode(.plusLighter)
                     .padding(.top, title == nil ? 0 : TrayMetrics.titleToBody)
             }
 
@@ -81,19 +83,3 @@ struct TrayTitleKey: PreferenceKey {
         value = nextValue() ?? value
     }
 }
-
-extension View {
-    /// The body's ink: a flat colour, or vibrancy that lets the card's colour show through. // LOCAL-TUNER
-    @ViewBuilder // LOCAL-TUNER
-    func trayBodyStyle(_ style: TrayBodyStyle) -> some View { // LOCAL-TUNER
-        switch style { // LOCAL-TUNER
-        case .flat: // LOCAL-TUNER
-            foregroundStyle(Color.textMain.opacity(TrayMetrics.bodyOpacity)) // LOCAL-TUNER
-        case .vibrant: // LOCAL-TUNER
-            // Dark-mode vibrancy: light ink added onto what's beneath it. // LOCAL-TUNER
-            foregroundStyle(Color.white.opacity(TrayMetrics.bodyOpacity)).blendMode(.plusLighter) // LOCAL-TUNER
-        case .hierarchical: // LOCAL-TUNER
-            foregroundStyle(.secondary) // LOCAL-TUNER
-        } // LOCAL-TUNER
-    } // LOCAL-TUNER
-} // LOCAL-TUNER

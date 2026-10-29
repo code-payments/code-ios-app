@@ -57,15 +57,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
 
     /// The resting transcript the script runs on top of. Ends on a `.me` run, so the scripted send
     /// is a continuation and its top corner flattens — which is what makes the corner morph visible.
-    private let base: [ChatMessage] = ChatMessage.previewConversation(count: 8) + ChatMotionSandboxViewController.v2Samples // LOCAL-TUNER
-    // LOCAL-TUNER: a money card and reactions, so the Chat v2 sliders have something to move.
-    private static let v2Samples: [ChatMessage] = [ // LOCAL-TUNER
-        ChatMessage(id: "v2-text", content: .text("Splitting the cab from last night"), sender: .other), // LOCAL-TUNER
-        ChatMessage(id: "v2-cash", content: .cash(ChatCashContent(amount: "$12.00", token: "Cash", flagImageName: "us")), sender: .other, // LOCAL-TUNER
-                    reactions: [ReactionPill(emoji: "❤️", count: 1, selfReacted: true, pending: false), ReactionPill(emoji: "😂", count: 2, selfReacted: false, pending: false)]), // LOCAL-TUNER
-        ChatMessage(id: "v2-thanks", content: .text("Thank you!"), sender: .me), // LOCAL-TUNER
-        ChatMessage(id: "v2-next", content: .text("Next one’s on me"), sender: .me), // LOCAL-TUNER
-    ] // LOCAL-TUNER
+    private let base: [ChatMessage] = ChatMessage.previewConversation(count: 8)
 
     /// The line `base`'s trailing own row carries until the scripted send takes it over.
     private static let baseReceipt = ChatReceipt.delivered
@@ -280,8 +272,7 @@ public final class ChatMotionSandboxViewController: UIViewController {
                 receipt: receipts[index],
                 linkPreview: message.linkPreview,
                 author: message.author,
-                isAttributedTranscript: message.isAttributedTranscript,
-                reactions: message.reactions // LOCAL-TUNER
+                isAttributedTranscript: message.isAttributedTranscript
             )
         }
     }

@@ -1607,21 +1607,7 @@ private struct ConversationTitleItem: View {
     }
 }
 
-enum ChatAvatarMode: String, TunableEnum { // LOCAL-TUNER
-    case real, initials, link // LOCAL-TUNER
-} // LOCAL-TUNER
-
-enum ChatTitleWeight: String, TunableEnum { // LOCAL-TUNER
-    case regular, medium, semibold // LOCAL-TUNER
-    var weight: Font.Weight { switch self { case .regular: .regular; case .medium: .medium; case .semibold: .semibold } } // LOCAL-TUNER
-} // LOCAL-TUNER
-
 private struct ConversationTitleLabel: View {
-
-    // LOCAL-TUNER: first letters of the first two words, for the initials preview.
-    private static func initials(_ name: String) -> String { // LOCAL-TUNER
-        name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased() // LOCAL-TUNER
-    } // LOCAL-TUNER
 
     let title: String
     let subtitle: String?
@@ -1632,42 +1618,22 @@ private struct ConversationTitleLabel: View {
     let width: CGFloat
     var mute: ConversationMuteState? = nil
 
-    @Tunable("Chat v2 Avatar/Mode") var avatarMode = ChatAvatarMode.real // LOCAL-TUNER
-    @Tunable("Chat v2 Avatar/Image link") var avatarURL = "https://picsum.photos/seed/flipcash/200" // LOCAL-TUNER
-    @Tunable("Chat v2 Avatar/Initials top") var initialsTop = Color(red: 0.25, green: 0.25, blue: 0.25) // LOCAL-TUNER
-    @Tunable("Chat v2 Avatar/Initials bottom") var initialsBottom = Color(red: 0.13, green: 0.13, blue: 0.13) // LOCAL-TUNER
-    @Tunable("Chat v2 Avatar/Initials color") var initialsColor = Color.white // LOCAL-TUNER
-    @Tunable("Chat v2 Avatar/Initials size", in: 0.2...0.6) var initialsScale: CGFloat = 0.36 // LOCAL-TUNER
-    @Tunable("Chat v2 Title/Avatar size", in: 28...56, unit: .points) var avatarSize: CGFloat = 44 // LOCAL-TUNER
-    @Tunable("Chat v2 Title/Avatar to name", in: 4...20, unit: .points) var avatarSpacing: CGFloat = 12 // LOCAL-TUNER
-    @Tunable("Chat v2 Title/Name size", in: 13...22, unit: .points) var nameSize: CGFloat = 17 // LOCAL-TUNER
-    @Tunable("Chat v2 Title/Name weight") var nameWeight = ChatTitleWeight.semibold // LOCAL-TUNER
-
     var body: some View {
-        HStack(spacing: avatarSpacing) { // LOCAL-TUNER
+        HStack(spacing: 12) {
             ContactAvatarView(
                 id: contact?.contactId ?? conversationID?.description ?? title,
                 displayName: title,
-                imageData: avatarMode == .real ? imageData : nil, // LOCAL-TUNER
-                blurhash: avatarMode == .real ? blurhash : nil, // LOCAL-TUNER
-                size: avatarSize // LOCAL-TUNER
+                imageData: imageData,
+                blurhash: blurhash,
+                size: 44
             )
-            .overlay { // LOCAL-TUNER
-                if avatarMode == .initials { // LOCAL-TUNER
-                    Circle().fill(LinearGradient(colors: [initialsTop, initialsBottom], startPoint: .top, endPoint: .bottom)) // LOCAL-TUNER
-                        .overlay(Text(Self.initials(title)).font(.default(size: avatarSize * initialsScale, weight: .semibold)).foregroundStyle(initialsColor)) // LOCAL-TUNER
-                } else if avatarMode == .link, let url = URL(string: avatarURL) { // LOCAL-TUNER
-                    AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { Color.clear } // LOCAL-TUNER
-                        .frame(width: avatarSize, height: avatarSize).clipShape(Circle()) // LOCAL-TUNER
-                } // LOCAL-TUNER
-            } // LOCAL-TUNER
             .accessibilityHidden(true)
             // The 44pt avatar already sets the bar's height, so the second line costs nothing and a
             // titled-only DM keeps the layout it has (nodes 10125:19191-19194).
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
                     Text(title)
-                        .font(.default(size: nameSize, weight: nameWeight.weight)) // LOCAL-TUNER
+                        .font(.default(size: 17, weight: .semibold))
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                     MuteBell(mute)

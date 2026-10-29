@@ -85,7 +85,7 @@ final class ReactionPillView: UIView {
             rollCount(up: pill.count > previous.count)
         }
         countLabel.text = "\(pill.count)"
-        countWidth.constant = Self.countWidth(digits: max(min(countDigits, ChatStyle.pillCountRoom), "\(pill.count)".count)) // LOCAL-TUNER
+        countWidth.constant = Self.countWidth(digits: max(min(countDigits, ChatStyle.pillCountRoom), "\(pill.count)".count))
 
         let fill = pill.selfReacted ? Self.selfReactedFill : Self.restingFill
         let borderWidth = pill.selfReacted ? Self.selfReactedBorderWidth : 0

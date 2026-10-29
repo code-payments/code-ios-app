@@ -5,7 +5,7 @@
 //  Copyright © 2026 Code Inc. All rights reserved.
 //
 
-#if DEBUG // LOCAL-TUNER: the swipe showcase, a local feel tool
+#if DEBUG
 import SwiftUI
 import FlipcashUI
 import FlipcashCore

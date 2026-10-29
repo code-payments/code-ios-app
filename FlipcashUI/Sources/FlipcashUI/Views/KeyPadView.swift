@@ -430,10 +430,10 @@ private struct KeyPadBorderlessStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration
             .label
-            .scaleEffect(configuration.isPressed ? Tuner.shared.value("Amount entry/Key pressed scale", default: CGFloat(1.35), in: 1...2) : 1.0, anchor: .center) // LOCAL-TUNER
+            .scaleEffect(configuration.isPressed ? 1.35 : 1.0, anchor: .center)
             .frame(width: size.width, height: size.height) // FIXME: Invalid size here sometimes
             .background(configuration.isPressed ? Color.white.opacity(0.1) : restFill)
-            .foregroundStyle(Color.white.opacity(configuration.isPressed ? Tuner.shared.value("Amount entry/Key pressed opacity", default: 1.0, in: 0...1) : Tuner.shared.value("Amount entry/Key rest opacity", default: 0.8, in: 0...1))) // LOCAL-TUNER
+            .foregroundStyle(configuration.isPressed ? Color.white : Color.white.opacity(0.8))
             .clipShape(.rect(cornerRadius: 5))
     }
 }

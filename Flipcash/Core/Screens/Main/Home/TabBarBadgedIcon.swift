@@ -15,7 +15,7 @@ import FlipcashUI
 enum TabBarBadgedIcon {
 
     /// The slot every tab glyph is drawn into.
-    private static var glyphSize: CGFloat { TabBarItemStyle.glyphSize } // LOCAL-TUNER
+    private static let glyphSize: CGFloat = TabBarItemStyle.glyphSize
 
     /// How far the bubble reaches past the glyph's top-right corner, matching
     /// the legacy pill's badge (node 8966:1846).
@@ -28,18 +28,18 @@ enum TabBarBadgedIcon {
     /// and each call would otherwise run two `ImageRenderer` passes.
     static func itemImages(for tab: HomeTab, count: Int) -> TabBarProfilePhoto.ItemImages? {
         guard count > 0 else { return nil }
-        if let memoized, memoized.tab == tab, memoized.count == count, memoized.size == glyphSize, memoized.opacity == TabBarItemStyle.unselectedOpacity, memoized.fills == TabBarItemStyle.fillsSelected { return memoized.images } // LOCAL-TUNER
+        if let memoized, memoized.tab == tab, memoized.count == count { return memoized.images }
 
         guard let normal = image(of: icon(for: tab, count: count, isSelected: false)),
               let selected = image(of: icon(for: tab, count: count, isSelected: true))
         else { return nil }
 
         let images = TabBarProfilePhoto.ItemImages(normal: normal, selected: selected)
-        memoized = (tab, count, glyphSize, TabBarItemStyle.unselectedOpacity, TabBarItemStyle.fillsSelected, images) // LOCAL-TUNER
+        memoized = (tab, count, images)
         return images
     }
 
-    private static var memoized: (tab: HomeTab, count: Int, size: CGFloat, opacity: Double, fills: Bool, images: TabBarProfilePhoto.ItemImages)? // LOCAL-TUNER
+    private static var memoized: (tab: HomeTab, count: Int, images: TabBarProfilePhoto.ItemImages)?
 
     /// The glyph colored as the bar would tint it for the state, since an
     /// original-rendered image is not tinted (dimmed when unselected), with the

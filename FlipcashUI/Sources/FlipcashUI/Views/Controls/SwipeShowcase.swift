@@ -14,9 +14,9 @@ import SwiftUI
 /// device on the swipe controls with no sign-in. DEBUG-only, so it can't ship.
 public enum SwipeSandbox {
 
-    /// Whether the app was launched with `--swipe-sandbox`. // LOCAL-TUNER
+    /// Whether the app was launched with `--swipe-sandbox`.
     @MainActor public static var isRequested: Bool {
-        ProcessInfo.processInfo.arguments.contains("--swipe-sandbox") // LOCAL-TUNER
+        ProcessInfo.processInfo.arguments.contains("--swipe-sandbox")
     }
 }
 

@@ -88,13 +88,10 @@ struct MuteChatSheet: View {
                     TrayOptionRow(
                         row.title,
                         icon: icon(for: row.option),
-                        isSelected: pattern == .selectThenConfirm && selection == row.option
+                        isSelected: selection == row.option
                     ) {
                         guard !isWorking else { return }
-                        switch pattern {
-                        case .tapToApply: Task { await apply(row.option) }
-                        case .selectThenConfirm: selection = row.option
-                        }
+                        selection = row.option
                     }
                     .accessibilityIdentifier("mute-chat-\(identifier(for: row.option))")
                 }
@@ -102,26 +99,18 @@ struct MuteChatSheet: View {
         }
     }
 
-    /// Whether a row applies itself or waits for the CTA; the tuner's "Tray Mute/Pattern". // LOCAL-TUNER
-    private var pattern: MuteTrayPattern { Tuner.value("Tray Mute/Pattern", default: MuteTrayPattern.selectThenConfirm) } // LOCAL-TUNER
-
     /// The CTA that applies the selected row, worded for an unmute when that is the pick.
     private var actions: [TrayAction] {
-        switch pattern {
-        case .tapToApply:
-            return []
-        case .selectThenConfirm:
-            return [
-                TrayAction(
-                    selection == .never ? "Unmute" : "Mute",
-                    state: isWorking ? .loading : .normal,
-                    isEnabled: selection != nil
-                ) {
-                    guard let selection else { return }
-                    Task { await apply(selection) }
-                },
-            ]
-        }
+        [
+            TrayAction(
+                selection == .never ? "Unmute" : "Mute",
+                state: isWorking ? .loading : .normal,
+                isEnabled: selection != nil
+            ) {
+                guard let selection else { return }
+                Task { await apply(selection) }
+            },
+        ]
     }
 
     private func icon(for option: Option) -> Icon {
@@ -182,11 +171,3 @@ struct MuteChatSheet: View {
         }
     }
 }
-
-/// How the mute tray's rows act. // LOCAL-TUNER
-enum MuteTrayPattern: TunableEnum { // LOCAL-TUNER
-    /// A tap mutes at once, with no CTA. // LOCAL-TUNER
-    case tapToApply // LOCAL-TUNER
-    /// A tap selects; the CTA mutes. // LOCAL-TUNER
-    case selectThenConfirm // LOCAL-TUNER
-} // LOCAL-TUNER

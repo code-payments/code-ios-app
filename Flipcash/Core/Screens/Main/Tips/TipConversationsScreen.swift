@@ -10,12 +10,8 @@ import FlipcashUI
 /// The Chats tab: the list of tip conversations — tips sent and received.
 struct TipConversationsScreen: View {
 
-    @Tunable("Chat list/Title style") var titleStyle = ChatListTitleStyle.music // LOCAL-TUNER
-    @Tunable("Chat list/Collapse after", in: 0...120, unit: .points) var collapseDistance: CGFloat = 24 // LOCAL-TUNER
-    @Tunable("Chat list/Large title size", in: 24...44, unit: .points) var largeTitleSize: CGFloat = 34 // LOCAL-TUNER
-    @Tunable("Chat list/Large title offset", in: -80...20, unit: .points) var largeTitleOffset: CGFloat = -53 // LOCAL-TUNER
-    @Tunable("Chat list/Large title leading", in: 0...32, unit: .points) var largeTitleLeading: CGFloat = 16 // LOCAL-TUNER
-    @State private var titleCollapsed = false // LOCAL-TUNER
+    /// Set once the list scrolls the large title away, handing it to the bar's inline title.
+    @State private var titleCollapsed = false
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
@@ -108,11 +104,13 @@ struct TipConversationsScreen: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    .onScrollGeometryChange(for: Bool.self) { geometry in // LOCAL-TUNER
-                        geometry.contentOffset.y + geometry.contentInsets.top > (showsChips ? 0 : chipsHeight) + collapseDistance // LOCAL-TUNER
-                    } action: { _, collapsed in // LOCAL-TUNER
-                        withAnimation(.smooth(duration: 0.25)) { titleCollapsed = collapsed } // LOCAL-TUNER
-                    } // LOCAL-TUNER
+                    // Collapses the large title 24 pt past where the list rests, which is past the chips
+                    // while they're hidden.
+                    .onScrollGeometryChange(for: Bool.self) { geometry in
+                        geometry.contentOffset.y + geometry.contentInsets.top > (showsChips ? 0 : chipsHeight) + 24
+                    } action: { _, collapsed in
+                        withAnimation(.smooth(duration: 0.25)) { titleCollapsed = collapsed }
+                    }
                     .overlay {
                         // Over the List rather than a row in it, so it centres in the whole
                         // screen and the List keeps the pull that reveals the chips.
@@ -125,36 +123,32 @@ struct TipConversationsScreen: View {
                     }
             }
         }
-        // LOCAL-TUNER: the large title is content, not a toolbar item, so a push slides it away with
-        // the page instead of morphing it through the bar's glass.
-        .overlay(alignment: .topLeading) { // LOCAL-TUNER
-            if titleStyle == .music { // LOCAL-TUNER
-                Text("Chat") // LOCAL-TUNER
-                    .font(.system(size: largeTitleSize, weight: .bold)) // LOCAL-TUNER
-                    .foregroundStyle(Color.textMain) // LOCAL-TUNER
-                    .fixedSize() // LOCAL-TUNER
-                    .padding(.leading, largeTitleLeading) // LOCAL-TUNER
-                    .offset(y: largeTitleOffset) // LOCAL-TUNER
-                    .opacity(titleCollapsed ? 0 : 1) // LOCAL-TUNER
-                    .allowsHitTesting(false) // LOCAL-TUNER
-                    .accessibilityAddTraits(.isHeader) // LOCAL-TUNER
-            } // LOCAL-TUNER
-        } // LOCAL-TUNER
+        // The large title is content, not a toolbar item, so a push slides it away with the page
+        // instead of morphing it through the bar's glass.
+        .overlay(alignment: .topLeading) {
+            Text("Chat")
+                .font(.system(size: 34, weight: .bold))
+                .foregroundStyle(Color.textMain)
+                .fixedSize()
+                .padding(.leading, 16)
+                .offset(y: -53)
+                .opacity(titleCollapsed ? 0 : 1)
+                .allowsHitTesting(false)
+                .accessibilityAddTraits(.isHeader)
+        }
         .tray(item: $muteTarget) { target in
             MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
         }
         .navigationTitle("Chat")
-        .toolbarTitleDisplayMode(titleStyle.mode) // LOCAL-TUNER
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            if titleStyle == .music { // LOCAL-TUNER
-                ToolbarItem(placement: .principal) { // LOCAL-TUNER
-                    Text("Chat") // LOCAL-TUNER
-                        .font(.headline) // LOCAL-TUNER
-                        .foregroundStyle(Color.textMain) // LOCAL-TUNER
-                        .opacity(titleCollapsed ? 1 : 0) // LOCAL-TUNER
-                        .accessibilityHidden(!titleCollapsed) // LOCAL-TUNER
-                } // LOCAL-TUNER
-            } // LOCAL-TUNER
+            ToolbarItem(placement: .principal) {
+                Text("Chat")
+                    .font(.headline)
+                    .foregroundStyle(Color.textMain)
+                    .opacity(titleCollapsed ? 1 : 0)
+                    .accessibilityHidden(!titleCollapsed)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 NewChatButton()
             }
@@ -385,8 +379,7 @@ struct TipConversationRow: View {
             RecipientRowAccessory(
                 timestamp: conversation.lastActivity,
                 isUnknown: false,
-                hasUnread: hasUnread,
-                unreadCount: unreadCount
+                hasUnread: hasUnread
             )
         }
         .accessibilityIdentifier(chatTypeIdentifier)
@@ -435,7 +428,7 @@ struct TipConversationRow: View {
             .joined(separator: ", ")
     }
 
-    /// The count when the row shows one, else the bare state the dot stands for.
+    /// The count once it's known, else the bare state the dot stands for.
     private func unreadLabel(count: Int?) -> String {
         switch count {
         case .some(1): "1 unread message"
@@ -618,8 +611,3 @@ private struct FadingChips<Content: View>: View {
         content.opacity(isShown ? 1 : fade.progress)
     }
 }
-
-enum ChatListTitleStyle: String, TunableEnum { // LOCAL-TUNER
-    case music, large, inlineLarge, inline // LOCAL-TUNER
-    var mode: ToolbarTitleDisplayMode { switch self { case .music, .inline: .inline; case .large: .large; case .inlineLarge: .inlineLarge } } // LOCAL-TUNER
-} // LOCAL-TUNER

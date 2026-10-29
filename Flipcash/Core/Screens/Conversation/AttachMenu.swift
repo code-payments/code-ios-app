@@ -60,11 +60,10 @@ struct AttachMenu: View {
             panel.animate { $0.toggle() }
         } label: {
             Image.icon(.plusLarge)
-                .iconSize(ComposerTuning.plusIconSize) // LOCAL-TUNER
-                .foregroundStyle(ComposerTuning.plusIconColor) // LOCAL-TUNER
+                .iconSize(22)
+                .foregroundStyle(Color.textMain)
                 .frame(width: BarMetrics.accessorySize, height: BarMetrics.accessorySize)
-                .background(ComposerTuning.plusStyle == .filled ? ComposerTuning.plusFill : .clear, in: Circle()) // LOCAL-TUNER
-                .overlay(Circle().strokeBorder(ComposerTuning.plusStyle == .outlined ? ComposerTuning.plusFill : .clear, lineWidth: 1.5)) // LOCAL-TUNER
+                .background(Color.white.opacity(0.08), in: Circle())
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)

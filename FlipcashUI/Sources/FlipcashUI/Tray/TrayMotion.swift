@@ -14,75 +14,49 @@ import SwiftUI
 nonisolated enum TrayMotion {
 
     /// The card's height, and the chrome and page with it, as a step changes.
-    static var resize: ChatSpring { spring("Tray Motion/Resize", 0.35, 0) } // LOCAL-TUNER
+    static let resize = ChatSpring(duration: 0.35, bounce: 0)
 
     /// The incoming page fading and unblurring into place.
-    static var contentIn: ChatSpring { spring("Tray Motion/Content in", 0.27, 0) } // LOCAL-TUNER
+    static let contentIn = ChatSpring(duration: 0.27, bounce: 0)
 
     /// The outgoing page clearing; quicker than the entrance so the two never read as a muddle.
-    static var contentOut: ChatSpring { spring("Tray Motion/Content out", 0.20, 0) } // LOCAL-TUNER
+    static let contentOut = ChatSpring(duration: 0.20, bounce: 0)
 
     /// The action's old title clearing; quicker than the new one arriving.
-    static var labelOut: ChatSpring { spring("Tray Label/Out", 0.17, 0) } // LOCAL-TUNER
+    static let labelOut = ChatSpring(duration: 0.17, bounce: 0)
 
     /// The action's new title settling into place.
-    static var labelIn: ChatSpring { spring("Tray Label/In", 0.34, 0.1) } // LOCAL-TUNER
+    static let labelIn = ChatSpring(duration: 0.34, bounce: 0.1)
 
     /// How long the new title waits, so it lands as the old one clears.
-    static var labelInDelay: TimeInterval {
-        Tuner.value("Tray Label/In delay", default: 0.045, in: 0...0.2, unit: .seconds) // LOCAL-TUNER
-    }
+    static let labelInDelay: TimeInterval = 0.045
 
     /// The blur a title carries at either end of its change.
-    static var labelBlur: CGFloat {
-        Tuner.value("Tray Label/Blur", default: 0, in: 0...10, unit: .points) // LOCAL-TUNER
-    }
+    static let labelBlur: CGFloat = 0
 
     /// How far a title travels as it changes: the new one rises into place, the old one rises away.
-    static var labelRise: CGFloat {
-        Tuner.value("Tray Label/Rise", default: 0, in: 0...20, unit: .points) // LOCAL-TUNER
-    }
+    static let labelRise: CGFloat = 0
 
     /// The scale a title holds at either end of its change.
-    static var labelScale: CGFloat {
-        Tuner.value("Tray Label/Scale", default: 1, in: 0.8...1) // LOCAL-TUNER
-    }
+    static let labelScale: CGFloat = 1
 
     /// Whether a step back reverses the rise, so the title falls the way the flow went.
-    static var labelFollowsDirection: Bool {
-        Tuner.value("Tray Label/Follow direction", default: true) // LOCAL-TUNER
-    }
+    static let labelFollowsDirection = true
 
     /// How long the incoming page waits, so it lands as the outgoing one clears.
-    static var contentInDelay: TimeInterval {
-        Tuner.value("Tray Motion/Content in delay", default: 0.05, in: 0...0.3, unit: .seconds) // LOCAL-TUNER
-    }
+    static let contentInDelay: TimeInterval = 0.05
 
     /// The blur a page carries at either end of its crossfade.
-    static var pageBlur: CGFloat {
-        Tuner.value("Tray Motion/Page blur", default: 2, in: 0...20, unit: .points) // LOCAL-TUNER
-    }
+    static let pageBlur: CGFloat = 2
 
     /// Whether a page scales as it crossfades.
-    static var pageScales: Bool {
-        Tuner.value("Tray Motion/Page scale", default: true) // LOCAL-TUNER
-    }
+    static let pageScales = true
 
     /// The scale a leaving page shrinks to.
-    static var pageScaleOut: CGFloat {
-        Tuner.value("Tray Motion/Scale out", default: 0.96, in: 0.85...1) // LOCAL-TUNER
-    }
+    static let pageScaleOut: CGFloat = 0.96
 
     /// The scale an arriving page grows from.
-    static var pageScaleIn: CGFloat {
-        Tuner.value("Tray Motion/Scale in from", default: 0.96, in: 0.85...1) // LOCAL-TUNER
-    }
-
-    // Bakes back to `ChatSpring(duration:bounce:)` lets.
-    private static func spring(_ key: String, _ duration: TimeInterval, _ bounce: Double) -> ChatSpring {
-        let spring = Tuner.value(key, default: Spring(duration: duration, bounce: bounce), form: "ChatSpring(duration: {duration}, bounce: {bounce})") // LOCAL-TUNER
-        return ChatSpring(duration: spring.duration, bounce: spring.bounce)
-    }
+    static let pageScaleIn: CGFloat = 0.96
 }
 
 extension ChatSpring {

@@ -17,11 +17,9 @@ import FlipcashCore
 /// `--tray-sandbox-open <kind>` opens one kind at launch. DEBUG-only, so it can't ship.
 public struct TraySandbox: View {
 
-    /// Whether the app was launched with `--tray-sandbox`, or the tuner's "Tray Behavior/Open tray
-    /// sandbox" is on, which holds across launches from the home screen. // LOCAL-TUNER
+    /// Whether the app was launched with `--tray-sandbox`.
     @MainActor public static var isRequested: Bool {
         ProcessInfo.processInfo.arguments.contains("--tray-sandbox")
-            || Tuner.shared.value("Tray Behavior/Open tray sandbox", default: false) // LOCAL-TUNER
     }
 
     /// Whether the deposit flow plays itself (`--tray-sandbox-autoplay`): open, forward to the end,
@@ -73,13 +71,6 @@ public struct TraySandbox: View {
                     open(requested)
                 }
             }
-            // A release in these groups replays nothing rather than stepping the flow.
-            .onTunerReplay("Tray Layout") {} // LOCAL-TUNER
-            .onTunerReplay("Tray Type") {} // LOCAL-TUNER
-            .onTunerReplay("Tray Fill") {} // LOCAL-TUNER
-            .onTunerReplay("Tray Behavior") {} // LOCAL-TUNER
-            .onTunerReplay("Tray Rows") {} // LOCAL-TUNER
-            .onTunerReplay("Tray Amount") {} // LOCAL-TUNER
     }
 
     private func open(_ kind: TrayKind) {
@@ -316,7 +307,7 @@ private struct DepositFlowTray: View {
     }
 
     @State private var flow = TrayFlow(root: Step.education)
-    /// Which way a tuner replay walks the flow; it turns at either end.
+    /// Which way an autoplay step walks the flow; it turns at either end.
     @State private var replaysForward = true
 
     @Environment(\.dismiss) private var dismiss
@@ -340,9 +331,6 @@ private struct DepositFlowTray: View {
                 TrayPage(title: "Confirm Deposit", message: "We'll let you know when it arrives.")
             }
         }
-        // A motion release walks the flow forward to the end, then back.
-        .onTunerReplay("Tray Motion") { replayStep() } // LOCAL-TUNER
-        .onTunerReplay("Tray Label") { replayStep() } // LOCAL-TUNER
         .task {
             guard TraySandbox.autoplays else { return }
             for _ in 0..<4 {
@@ -606,7 +594,6 @@ private struct AmountEntryBackdrop: View {
             .padding(.bottom, 32)
             .accessibilityHidden(true)
 
-            // Below the keypad, where the tuner panel never docks.
             Menu {
                 ForEach(TrayKind.allCases) { kind in
                     Button(kind.name) { open(kind) }
