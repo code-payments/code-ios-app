@@ -184,7 +184,7 @@ extension NotificationStatus {
         /// i4
         case registration
 
-        /// The check's name, used in the report and the passing row.
+        /// The check's name: the row's title in every state, and the report's label.
         public var name: String {
             switch self {
             case .permission:      "Notifications Allowed"
@@ -229,7 +229,9 @@ extension NotificationStatus {
     public struct Row: Equatable, Identifiable, Sendable {
         public var check: Check
         public var status: Status
+        /// The check's name, whatever the status.
         public var title: String
+        /// On a warning or fail, the problem on the first line and any explanation on the second.
         public var detail: String?
         public var fix: Fix?
         /// The raw value behind the status, for the report.
@@ -347,9 +349,9 @@ extension NotificationStatus {
         case .authorized, .provisional, .ephemeral:
             return Row(check: .permission, status: .pass, title: Check.permission.name, detail: "Allowed in iOS Settings", raw: raw)
         case .denied:
-            return Row(check: .permission, status: .fail, title: "Notifications are turned off", detail: "Turned off for Flipcash in iOS Settings", fix: .openNotificationSettings, raw: raw)
+            return Row(check: .permission, status: .fail, title: Check.permission.name, detail: problem("Notifications are turned off", "Turned off for Flipcash in iOS Settings"), fix: .openNotificationSettings, raw: raw)
         case .notDetermined:
-            return Row(check: .permission, status: .fail, title: "Notifications aren't turned on yet", detail: "Flipcash hasn't asked yet", fix: .requestAuthorization, raw: raw)
+            return Row(check: .permission, status: .fail, title: Check.permission.name, detail: problem("Notifications aren't turned on yet", "Flipcash hasn't asked yet"), fix: .requestAuthorization, raw: raw)
         }
     }
 
@@ -364,16 +366,16 @@ extension NotificationStatus {
         let raw = off.isEmpty ? nil : off.joined(separator: ", ")
 
         if bannersOff {
-            return Row(check: .display, status: .warning, title: "Banners are off", detail: "New notifications only go to Notification Center", fix: .openNotificationSettings, raw: raw)
+            return Row(check: .display, status: .warning, title: Check.display.name, detail: problem("Banners are off", "New notifications only go to Notification Center"), fix: .openNotificationSettings, raw: raw)
         }
         if lockScreenOff {
-            return Row(check: .display, status: .warning, title: "Hidden on the Lock Screen", fix: .openNotificationSettings, raw: raw)
+            return Row(check: .display, status: .warning, title: Check.display.name, detail: problem("Hidden on the Lock Screen"), fix: .openNotificationSettings, raw: raw)
         }
         return Row(check: .display, status: .pass, title: Check.display.name, detail: "Both on", raw: raw)
     }
 
     static func soundsAndBadgesRow(_ snapshot: Snapshot) -> Row {
-        let title: String? = switch (snapshot.sound.isOff, snapshot.badge.isOff) {
+        let problem: String? = switch (snapshot.sound.isOff, snapshot.badge.isOff) {
         case (true, true):   "Sounds and badges are off"
         case (true, false):  "Sounds are off"
         case (false, true):  "Badges are off"
@@ -385,31 +387,31 @@ extension NotificationStatus {
         if snapshot.badge.isOff { off.append("badge disabled") }
         let raw = off.isEmpty ? nil : off.joined(separator: ", ")
 
-        guard let title else {
+        guard let problem else {
             return Row(check: .soundsAndBadges, status: .pass, title: Check.soundsAndBadges.name, detail: "Both on", raw: raw)
         }
-        return Row(check: .soundsAndBadges, status: .warning, title: title, fix: .openNotificationSettings, raw: raw)
+        return Row(check: .soundsAndBadges, status: .warning, title: Check.soundsAndBadges.name, detail: Self.problem(problem), fix: .openNotificationSettings, raw: raw)
     }
 
     static func registrationRow(_ registration: Registration, saved: RegistrationRecord?, now: Date, locale: Locale) -> Row {
         let name = Check.registration.name
         switch registration {
         case .checking:
-            return Row(check: .registration, status: .checking, title: "Checking registration…", detail: "Contacting Flipcash", raw: "checking")
+            return Row(check: .registration, status: .checking, title: name, detail: "Contacting Flipcash", raw: "checking")
         case .noAPNsToken:
-            return Row(check: .registration, status: .fail, title: "This phone isn't registered with Apple", fix: .retryRegistration, raw: "noAPNsToken")
+            return Row(check: .registration, status: .fail, title: name, detail: problem("This phone isn't registered with Apple"), fix: .retryRegistration, raw: "noAPNsToken")
         case .finished(.ok):
             return Row(check: .registration, status: .pass, title: name, detail: "Confirmed just now", raw: RegistrationResult.ok.rawValue)
         case .finished(.invalidPushToken):
-            return Row(check: .registration, status: .fail, title: "Flipcash rejected this phone's push token", fix: .retryRegistrationDeletingToken, raw: RegistrationResult.invalidPushToken.rawValue)
+            return Row(check: .registration, status: .fail, title: name, detail: problem("Flipcash rejected this phone's push token"), fix: .retryRegistrationDeletingToken, raw: RegistrationResult.invalidPushToken.rawValue)
         case .finished(.transport):
             let raw = RegistrationResult.transport.rawValue
             if let okAt = saved?.lastRegistrationOkAt {
-                return Row(check: .registration, status: .warning, title: "Couldn't reach Flipcash", detail: "Last confirmed \(relative(okAt, to: now, locale: locale))", fix: .retryRegistration, raw: raw)
+                return Row(check: .registration, status: .warning, title: name, detail: problem("Couldn't reach Flipcash", "Last confirmed \(relative(okAt, to: now, locale: locale))"), fix: .retryRegistration, raw: raw)
             }
-            return Row(check: .registration, status: .fail, title: "Couldn't reach Flipcash", detail: "Check your connection", fix: .retryRegistration, raw: raw)
+            return Row(check: .registration, status: .fail, title: name, detail: problem("Couldn't reach Flipcash", "Check your connection"), fix: .retryRegistration, raw: raw)
         case .finished(.unknown):
-            return Row(check: .registration, status: .fail, title: "Registration failed", fix: .retryRegistration, raw: RegistrationResult.unknown.rawValue)
+            return Row(check: .registration, status: .fail, title: name, detail: problem("Registration failed"), fix: .retryRegistration, raw: RegistrationResult.unknown.rawValue)
         }
     }
 
@@ -433,6 +435,11 @@ extension NotificationStatus {
             return Summary(status: .checking, title: "Checking…", detail: checked)
         }
         return Summary(status: .pass, title: "Notifications are working", detail: checked)
+    }
+
+    /// A problem row's detail: the problem, then the explanation on its own line.
+    static func problem(_ problem: String, _ explanation: String? = nil) -> String {
+        [problem, explanation].compactMap { $0 }.joined(separator: "\n")
     }
 
     static func plural(_ count: Int, _ one: String, _ many: String) -> String {

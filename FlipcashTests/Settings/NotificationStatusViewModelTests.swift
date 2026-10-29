@@ -148,7 +148,8 @@ struct NotificationStatusViewModelTests {
         let row = try #require(model.page?.rows.first { $0.check == .registration })
         #expect(store.record?.result == .transport)
         #expect(row.status == .warning)
-        #expect(row.detail == "Last confirmed 5 minutes ago")
+        #expect(row.title == "Registered for Push")
+        #expect(row.detail == "Couldn't reach Flipcash\nLast confirmed 5 minutes ago")
         #expect(model.page?.summary.status == .warning)
     }
 
