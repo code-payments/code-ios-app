@@ -174,8 +174,7 @@ struct EditGroupScreen: View {
                 requirementRow("Join", requirements.join, role: .join)
                 Divider()
                     .overlay(Color.rowSeparator)
-                // "None" when joining is enough to chat: the group sets no chat minimum of its own.
-                requirementRow("Chat", requirements.speaker, role: .chat)
+                requirementRow("Chat", requirements.chat, role: .chat)
             }
             .background(Color.backgroundRow, in: RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous))
 

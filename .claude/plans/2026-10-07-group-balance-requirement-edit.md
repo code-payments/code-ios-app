@@ -25,8 +25,8 @@ Originally built against a stub (flipcash2-client-protocol 0.18.0 had no rules e
   to its smallest unit, and blocks before sending: Chat ≤ Join ("Chat Minimum Too Low"), Join ≥
   Chat (INVALID_RULES copy), and the creator not meeting the rules (RULES_NOT_SATISFIED copy,
   skipped when the gate is provisional). Unchanged amounts keep Save shut.
-- The Chat row reads the group's own speaker minimum ("None" without one). "Remove" in the Chat
-  editor's toolbar clears it.
+- The Chat row shows the Join minimum when the group sets no speaker minimum, matching the group
+  profile. "Remove" in the Chat editor's toolbar clears a speaker minimum.
 - Edit Group shows the card only on a public group with a join minimum.
 - `applyEdit` seats the returned rules. `applyRulesChanged` ignores a set whose listener rule this
   client can't read (`dropsListenerRule`), keeping the old gate rather than opening the chat.
