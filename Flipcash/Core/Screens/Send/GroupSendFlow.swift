@@ -120,7 +120,7 @@ private struct GroupSendSelectPeopleScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 SelectPeopleList(
-                    members: viewModel.members,
+                    members: [viewModel.youRow] + viewModel.members,
                     isSelected: viewModel.isSelected,
                     toggle: viewModel.toggle,
                     rowIdentifier: "group-send-member-row"
@@ -129,7 +129,7 @@ private struct GroupSendSelectPeopleScreen: View {
                 CodeButton(
                     style: .filled,
                     title: "Next",
-                    disabled: viewModel.selection.isEmpty
+                    disabled: viewModel.payees.isEmpty
                 ) {
                     if viewModel.confirmSelection() {
                         isConfirming = true
@@ -258,7 +258,7 @@ private struct GroupSendConfirmSheet: View {
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
-                    if viewModel.selection.count > 1, let each = viewModel.eachLabel {
+                    if viewModel.payees.count > 1, let each = viewModel.eachLabel {
                         Text(each)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)

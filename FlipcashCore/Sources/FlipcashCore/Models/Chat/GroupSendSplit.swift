@@ -41,8 +41,14 @@ public struct GroupSendSplit: Hashable, Sendable {
 
     /// Splits `totalUnits` between `recipients` members.
     public static func split(totalUnits: UInt64, recipients: Int) throws(Rejection) -> GroupSendSplit {
-        guard recipients > 0 else { throw .noRecipients }
         guard recipients <= maxRecipients else { throw .tooManyRecipients }
+        return try divide(totalUnits: totalUnits, participants: recipients)
+    }
+
+    /// Splits `totalUnits` between `participants` people, which may be `maxRecipients` members and the sender.
+    static func divide(totalUnits: UInt64, participants recipients: Int) throws(Rejection) -> GroupSendSplit {
+        guard recipients > 0 else { throw .noRecipients }
+        guard recipients <= maxRecipients + 1 else { throw .tooManyRecipients }
 
         let count = UInt64(recipients)
         let base = totalUnits / count
@@ -61,6 +67,18 @@ extension GroupSendSplit {
     /// Splits an entered `total` between `recipients` members, in `total.currency`'s minor unit.
     public static func split(total: FiatAmount, recipients: Int) throws(Rejection) -> GroupSendSplit {
         try split(totalUnits: minorUnits(of: total), recipients: recipients)
+    }
+
+    /// Splits an entered `total` between `participants` people, one of whom may be the sender.
+    public static func split(total: FiatAmount, participants: Int) throws(Rejection) -> GroupSendSplit {
+        try divide(totalUnits: minorUnits(of: total), participants: participants)
+    }
+
+    /// The split without the part at `index`: the sender's, which is kept rather than paid.
+    public func removingPart(at index: Int) -> GroupSendSplit {
+        var parts = parts
+        parts.remove(at: index)
+        return GroupSendSplit(parts: parts)
     }
 
     /// Each part as an amount in `currency`, in selection order.
