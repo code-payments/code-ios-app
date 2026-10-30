@@ -1012,6 +1012,10 @@ final class ConversationController {
             // Only delivered to a chat's members, same reasoning as `.titleChanged`: the feed brings
             // the current rules with it. Nothing to fetch.
             return
+        case .pinsChanged:
+            // Only delivered to a chat's members, same reasoning as `.titleChanged`: `GetChat` brings
+            // the current pin summary with it. Nothing to fetch.
+            return
         case .paymentRequestsChanged:
             // Best-effort and only meaningful to a chat the viewer holds; the request is fetched
             // with the chat. Nothing to fetch.
@@ -1196,6 +1200,7 @@ final class ConversationController {
     private func applyGroupFeed(_ groups: [Conversation]) {
         let departed = store.setGroupFeed(groups)
         reconcileHidden()
+        paymentRequests?.forget(conversations: departed)
         persist(operation: "replace-group-feed") {
             try database.replaceGroupFeed(groups.map(withStoreMembers), departed: departed)
         }
@@ -1573,6 +1578,10 @@ final class ConversationController {
             // Rules are cached with the conversation, so a cold restore gates join/speak on the
             // edited rules rather than the stale ones.
             persistConversation(conversationID)
+        case .pinsChanged(let conversationID, _, let summary):
+            // The database applies the same strictly-newer rule as the store, so a stale or re-delivered
+            // update never overwrites the stored pins.
+            persist(operation: "apply-pin-summary") { try database.applyPinSummary(summary, for: conversationID) }
         case .paymentRequestsChanged:
             // Request state is session-only and refetched; nothing to persist.
             break

@@ -84,7 +84,13 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     /// server's copy refreshes it.
     public var holdingsSummary: HoldingsSummary?
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false, description: String? = nil, coverPicture: ProfilePicture? = nil, holdingsSummary: HoldingsSummary? = nil) {
+    /// Summary of the chat's pins. `nil` until the server reports one: the feed RPCs may leave it
+    /// unset, so the store keeps a held summary when a copy carries none (see
+    /// ``ConversationPinSummary/version``) and `GetChat` is what fetches it. Not persisted: a
+    /// conversation restored from the local database reports `nil` until the server's copy refreshes it.
+    public var pinSummary: ConversationPinSummary?
+
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm, isHidden: Bool = false, title: String? = nil, latestEventSequence: UInt64 = 0, picture: ProfilePicture? = nil, rosterSummary: ConversationRosterSummary = ConversationRosterSummary(memberCount: 0, version: 0), rules: ConversationRules? = nil, viewerState: ConversationViewerState? = nil, creator: UserID? = nil, useE2Ee: Bool = false, isPrivate: Bool = false, inLobby: Bool = false, description: String? = nil, coverPicture: ProfilePicture? = nil, holdingsSummary: HoldingsSummary? = nil, pinSummary: ConversationPinSummary? = nil) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -104,6 +110,7 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.isPrivate = isPrivate
         self.inLobby = inLobby
         self.holdingsSummary = holdingsSummary
+        self.pinSummary = pinSummary
     }
 }
 
@@ -194,6 +201,7 @@ extension Conversation {
         self.isPrivate = proto.isPrivate
         self.inLobby = proto.inLobby
         self.holdingsSummary = proto.hasHoldingsSummary ? HoldingsSummary(proto.holdingsSummary) : nil
+        self.pinSummary = proto.hasPinSummary ? ConversationPinSummary(proto.pinSummary) : nil
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.

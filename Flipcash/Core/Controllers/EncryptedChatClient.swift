@@ -22,12 +22,15 @@ final class EncryptedChatClient: Sendable {
 
     private let client: FlipClient
     private let keyring: ChatKeyring
+    /// The chat as the database holds it, for opening messages while the server can't be reached.
+    private let storedConversation: @Sendable (ConversationID) -> Conversation?
 
     /// Every chat seen on its way through, so a message can be opened without a `GetChat`.
     private let conversations = OSAllocatedUnfairLock<[ConversationID: Conversation]>(initialState: [:])
 
-    init(client: FlipClient, keyring: ChatKeyring) {
+    init(client: FlipClient, storedConversation: @escaping @Sendable (ConversationID) -> Conversation? = { _ in nil }, keyring: ChatKeyring) {
         self.client = client
+        self.storedConversation = storedConversation
         self.keyring = keyring
     }
 
@@ -43,8 +46,13 @@ final class EncryptedChatClient: Sendable {
         return fetched
     }
 
-    /// How `conversationID`'s messages open; waits on the key when the chat can't be fetched.
+    /// How `conversationID`'s messages open; waits on the key when the chat is neither stored nor
+    /// fetchable. The stored copy is enough to open with and is not remembered, since a send needs the
+    /// server's current encryption choice.
     private func opener(_ conversationID: ConversationID, owner: KeyPair) async -> ChatOpener {
+        if let known = conversations.withLock({ $0[conversationID] }) ?? storedConversation(conversationID) {
+            return await keyring.opener(for: known)
+        }
         guard let conversation = try? await conversation(conversationID, owner: owner) else { return .awaitingKey }
         return await keyring.opener(for: conversation)
     }
@@ -253,7 +261,7 @@ extension EncryptedChatClient: ConversationEventStreaming {
         case .metadataRefresh(let conversation):
             return .metadataRefresh(await opened(conversation))
         case .lastActivityChanged, .readPointersChanged, .typingChanged, .rosterChanged,
-             .viewerStateChanged, .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged, .rulesChanged, .paymentRequestsChanged:
+             .viewerStateChanged, .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged, .rulesChanged, .pinsChanged, .paymentRequestsChanged:
             return event
         }
     }

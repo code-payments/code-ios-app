@@ -51,5 +51,5 @@ public enum MentionDetector {
 
     // Swift Regex has no lookbehind, so the preceding character is matched (and excluded from
     // the mention's range) instead. Case folds after the match; `Username` stores lowercase.
-    private nonisolated(unsafe) static let pattern = /(?:^|[^A-Za-z0-9_.@])(@([A-Za-z0-9_]{2,15}))(?![A-Za-z0-9_@])/
+    private nonisolated(unsafe) static let pattern = /(?:^|[^A-Za-z0-9_.@])(@([A-Za-z0-9_]{2,30}))(?![A-Za-z0-9_@])/
 }

@@ -111,6 +111,9 @@ struct TransportClassificationTests {
     @Test func errorBanUser() { assertClassifies(ErrorBanUser.self) }
     @Test func errorUnbanUser() { assertClassifies(ErrorUnbanUser.self) }
     @Test func errorGetRestrictedUsers() { assertClassifies(ErrorGetRestrictedUsers.self) }
+    @Test func errorPinMessage() { assertClassifies(ErrorPinMessage.self) }
+    @Test func errorUnpinMessage() { assertClassifies(ErrorUnpinMessage.self) }
+    @Test func errorGetPinnedMessages() { assertClassifies(ErrorGetPinnedMessages.self) }
     @Test func errorCreatePaymentRequest() { assertClassifies(ErrorCreatePaymentRequest.self) }
     @Test func errorGetPaymentRequest() { assertClassifies(ErrorGetPaymentRequest.self) }
     @Test func errorGetChatPaymentRequests() { assertClassifies(ErrorGetChatPaymentRequests.self) }

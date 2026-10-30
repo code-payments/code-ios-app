@@ -438,7 +438,8 @@ struct RouteTests {
 
     @Test("The handle bounds hold at both ends", arguments: [
         ("https://app.flipcash.com/te", "te"),
-        ("https://app.flipcash.com/abcdefghijklmno", "abcdefghijklmno"),
+        ("https://app.flipcash.com/ted_livingston_2", "ted_livingston_2"),
+        ("https://app.flipcash.com/abcdefghijklmnopqrstuvwxyz1234", "abcdefghijklmnopqrstuvwxyz1234"),
         ("https://app.flipcash.com/a_1", "a_1"),
     ])
     func usernameRoute_bounds(urlString: String, handle: String) throws {
@@ -451,10 +452,10 @@ struct RouteTests {
     }
 
     @Test("A segment that can't be a handle stays unknown", arguments: [
-        // One character, sixteen characters, and a hyphen — the three ways the
+        // One character, thirty-one characters, and a hyphen — the three ways the
         // handle pattern is missed.
         "https://app.flipcash.com/t",
-        "https://app.flipcash.com/abcdefghijklmnop",
+        "https://app.flipcash.com/abcdefghijklmnopqrstuvwxyz12345",
         "https://app.flipcash.com/not-a-handle",
         // A handle is the whole path or it isn't a handle.
         "https://app.flipcash.com/taylor/photos",

@@ -109,7 +109,8 @@ nonisolated extension Database {
                 creator: row[c.creator],
                 useE2Ee: row[c.useE2Ee],
                 isPrivate: row[c.isPrivate],
-                coverPicture: conversationCoverPicture(from: row)
+                coverPicture: conversationCoverPicture(from: row),
+                pinSummary: conversationPinSummary(from: row)
             )
         }
     }
@@ -338,6 +339,8 @@ nonisolated extension Database {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
+            let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
             let ids = conversations.map(\.id.data)
             // IMMEDIATE: this transaction reads before it writes. A DEFERRED one that reads first fails
             // the write with SQLITE_BUSY at once when another writer holds the lock, without consulting
@@ -356,6 +359,8 @@ nonisolated extension Database {
                 if !doomed.isEmpty {
                     try writer.run(c.table.filter(doomed.contains(c.id)).delete())
                     try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
+                    try writer.run(k.table.filter(doomed.contains(k.conversationID)).delete())
+                    try writer.run(p.table.filter(doomed.contains(p.conversationID)).delete())
                 }
                 for conversation in conversations where conversation.type == type {
                     try writeConversation(conversation)
@@ -375,9 +380,13 @@ nonisolated extension Database {
             let c = ConversationTable()
             let m = ConversationMemberTable()
             let g = GroupMembershipTable()
+            let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
             try writer.transaction(.immediate) {
                 let doomed = departed.map(\.data)
                 if !doomed.isEmpty {
+                    try writer.run(k.table.filter(doomed.contains(k.conversationID)).delete())
+                    try writer.run(p.table.filter(doomed.contains(p.conversationID)).delete())
                     try writer.run(c.table.filter(doomed.contains(c.id)).delete())
                     try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
                     try writer.run(g.table.filter(doomed.contains(g.conversationId)).delete())
@@ -468,17 +477,44 @@ nonisolated extension Database {
         }
     }
 
-    /// Removes a conversation the signed-in user has left (or been removed from): its row and member
-    /// rows. Messages are left in place, orphaned but unread — the same treatment
+    /// Removes a conversation the signed-in user has left (or been removed from): its row, member
+    /// rows and stored key envelope. Messages are left in place, orphaned but unread — the same treatment
     /// `replaceConversationFeed` gives a conversation that drops out of a feed snapshot.
     public func deleteConversation(conversationID: ConversationID) throws {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
+            let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
             try writer.transaction(.immediate) {
                 try writer.run(c.table.filter(c.id == conversationID.data).delete())
                 try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+                try writer.run(k.table.filter(k.conversationID == conversationID.data).delete())
+                try writer.run(p.table.filter(p.conversationID == conversationID.data).delete())
             }
+        }
+    }
+
+    /// Store a pin summary delivered by `PinsChanged`: applied only when strictly newer than the stored
+    /// one, like ``ConversationStore/applyPinsChanged(_:in:)``. No-ops for a conversation not yet in
+    /// the feed.
+    public func applyPinSummary(_ summary: ConversationPinSummary, for conversationID: ConversationID) throws {
+        try write { _ in
+            try writePinSummary(summary, conversationID: conversationID, replacingEqualVersion: false)
+        }
+    }
+
+    private func writePinSummary(_ summary: ConversationPinSummary, conversationID: ConversationID, replacingEqualVersion: Bool) throws {
+        try write { writer in
+            let c = ConversationTable()
+            let versionGuard = replacingEqualVersion ? c.pinVersion <= summary.version : c.pinVersion < summary.version
+            try writer.run(
+                c.table.filter(c.id == conversationID.data && versionGuard).update(
+                    c.pinCount   <- UInt64(summary.count),
+                    c.pinVersion <- summary.version,
+                    c.pinLatest  <- summary.latest?.serializedBytes
+                )
+            )
         }
     }
 
@@ -526,6 +562,12 @@ nonisolated extension Database {
                         c.coverPictureThumbnailBlurhash <- cover.thumbnailBlurhash
                     )
                 )
+            }
+
+            // Same keep rule as ConversationStore: a copy with no summary or an older one leaves the
+            // stored pins alone; an equal or newer version replaces them.
+            if let pins = conversation.pinSummary {
+                try writePinSummary(pins, conversationID: conversation.id, replacingEqualVersion: true)
             }
 
             try writer.run(m.table.filter(m.conversationId == conversation.id.data).delete())
@@ -845,6 +887,17 @@ nonisolated extension Database {
         let c = ConversationTable()
         guard let data = row[c.rules] else { return nil }
         return try? JSONDecoder().decode(ConversationRules.self, from: data)
+    }
+
+    /// Nil for a row that has never held a summary (count 0, version 0, no pin), which is what every
+    /// row reads as before its first pin write. A blob that no longer decodes loads as no latest pin.
+    private func conversationPinSummary(from row: RowIterator.Element) -> ConversationPinSummary? {
+        let c = ConversationTable()
+        let latest = row[c.pinLatest].flatMap { ConversationPin(serializedBytes: $0) }
+        let count = row[c.pinCount]
+        let version = row[c.pinVersion]
+        guard latest != nil || count > 0 || version > 0 else { return nil }
+        return ConversationPinSummary(latest: latest, count: UInt32(clamping: count), version: version)
     }
 
     /// Returns nil when the chat carries no viewer state, and also when the

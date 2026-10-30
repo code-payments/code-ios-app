@@ -142,6 +142,38 @@ nonisolated public struct RequestedPaymentTable: Sendable {
     public let paymentRequestID = Expression <Data>      ("paymentRequestID")
 }
 
+// One row per payment request, kept so a chat's request cards and details draw offline. The whole
+// `PaymentRequestMetadata` is stored serialized (private-chat text still sealed); `version`, `status`
+// and `conversationID` sit beside it as columns for the merge rule and the per-chat read. A request
+// the server shows no chat for keeps a nil `conversationID`.
+nonisolated public struct PaymentRequestTable: Sendable {
+    public static let name = "paymentRequest"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let id             = Expression <Data>    ("id")
+    public let conversationID = Expression <Data?>   ("conversationID")
+    public let version        = Expression <UInt64>  ("version")
+    public let status         = Expression <Int>     ("status")
+    public let endsAt         = Expression <Double?> ("endsAt")
+    public let createdAt      = Expression <Double?> ("createdAt")
+    public let metadata       = Expression <Data>    ("metadata")
+}
+
+// One row per private group: the viewer's key envelope exactly as the server returned it, so the
+// chat opens offline and after a restart. `envelope` is the serialized `GetKeyEnvelopeResponse`
+// (scheme, nonce, ciphertext, and who wrapped it); the unwrapped chat key is never stored.
+nonisolated public struct GroupKeyEnvelopeTable: Sendable {
+    public static let name = "groupKeyEnvelope"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationID = Expression <Data> ("conversationID")
+    public let envelope       = Expression <Data> ("envelope")
+}
+
 nonisolated public struct LimitsTable: Sendable {
     public static let name = "limits"
 
@@ -322,6 +354,13 @@ nonisolated public struct ConversationTable: Sendable {
     // as its until-timestamp, never as a computed muted boolean, because a
     // timed mute lapses with no server signal.
     public let viewerState       = Expression <Data?>  ("viewerState")
+    // Pin summary. Count and version default to 0, which also reads back as "no summary". The latest
+    // pin is the serialized `chat.v1.Pin`: the pinned message may not be in the local message store.
+    // Written only by a copy whose version is not older than the stored one, so a feed row without a
+    // summary never clears pins.
+    public let pinCount          = Expression <UInt64> ("pinCount")
+    public let pinVersion        = Expression <UInt64> ("pinVersion")
+    public let pinLatest         = Expression <Data?>  ("pinLatest")
 }
 
 // The group chats the signed-in user has joined. Its own table rather than a
@@ -551,6 +590,30 @@ nonisolated extension Database {
                 })
             }
 
+            let paymentRequestTable = PaymentRequestTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(paymentRequestTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(paymentRequestTable.id, primaryKey: true)
+                    t.column(paymentRequestTable.conversationID)
+                    t.column(paymentRequestTable.version)
+                    t.column(paymentRequestTable.status)
+                    t.column(paymentRequestTable.endsAt)
+                    t.column(paymentRequestTable.createdAt)
+                    t.column(paymentRequestTable.metadata)
+                })
+                try writer.run(paymentRequestTable.table.createIndex(paymentRequestTable.conversationID, ifNotExists: true))
+            }
+
+            let groupKeyEnvelopeTable = GroupKeyEnvelopeTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(groupKeyEnvelopeTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(groupKeyEnvelopeTable.conversationID, primaryKey: true)
+                    t.column(groupKeyEnvelopeTable.envelope)
+                })
+            }
+
             let limitsTable = LimitsTable()
 
             try writer.transaction(.immediate) {
@@ -672,6 +735,9 @@ nonisolated extension Database {
                     t.column(conversationTable.creator)
                     t.column(conversationTable.useE2Ee, defaultValue: false)
                     t.column(conversationTable.isPrivate, defaultValue: false)
+                    t.column(conversationTable.pinCount, defaultValue: 0)
+                    t.column(conversationTable.pinVersion, defaultValue: 0)
+                    t.column(conversationTable.pinLatest)
                 })
             }
 
