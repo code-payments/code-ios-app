@@ -142,6 +142,38 @@ nonisolated public struct RequestedPaymentTable: Sendable {
     public let paymentRequestID = Expression <Data>      ("paymentRequestID")
 }
 
+// One row per payment request, kept so a chat's request cards and details draw offline. The whole
+// `PaymentRequestMetadata` is stored serialized (private-chat text still sealed); `version`, `status`
+// and `conversationID` sit beside it as columns for the merge rule and the per-chat read. A request
+// the server shows no chat for keeps a nil `conversationID`.
+nonisolated public struct PaymentRequestTable: Sendable {
+    public static let name = "paymentRequest"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let id             = Expression <Data>    ("id")
+    public let conversationID = Expression <Data?>   ("conversationID")
+    public let version        = Expression <UInt64>  ("version")
+    public let status         = Expression <Int>     ("status")
+    public let endsAt         = Expression <Double?> ("endsAt")
+    public let createdAt      = Expression <Double?> ("createdAt")
+    public let metadata       = Expression <Data>    ("metadata")
+}
+
+// One row per private group: the viewer's key envelope exactly as the server returned it, so the
+// chat opens offline and after a restart. `envelope` is the serialized `GetKeyEnvelopeResponse`
+// (scheme, nonce, ciphertext, and who wrapped it); the unwrapped chat key is never stored.
+nonisolated public struct GroupKeyEnvelopeTable: Sendable {
+    public static let name = "groupKeyEnvelope"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationID = Expression <Data> ("conversationID")
+    public let envelope       = Expression <Data> ("envelope")
+}
+
 nonisolated public struct LimitsTable: Sendable {
     public static let name = "limits"
 
@@ -555,6 +587,30 @@ nonisolated extension Database {
                     t.column(requestedPaymentTable.paymentRequestID)
 
                     t.foreignKey(requestedPaymentTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let paymentRequestTable = PaymentRequestTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(paymentRequestTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(paymentRequestTable.id, primaryKey: true)
+                    t.column(paymentRequestTable.conversationID)
+                    t.column(paymentRequestTable.version)
+                    t.column(paymentRequestTable.status)
+                    t.column(paymentRequestTable.endsAt)
+                    t.column(paymentRequestTable.createdAt)
+                    t.column(paymentRequestTable.metadata)
+                })
+                try writer.run(paymentRequestTable.table.createIndex(paymentRequestTable.conversationID, ifNotExists: true))
+            }
+
+            let groupKeyEnvelopeTable = GroupKeyEnvelopeTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(groupKeyEnvelopeTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(groupKeyEnvelopeTable.conversationID, primaryKey: true)
+                    t.column(groupKeyEnvelopeTable.envelope)
                 })
             }
 

@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import FlipcashCore
+import FlipcashStore
 
 nonisolated private let logger = Logger(label: "flipcash.payment-requests")
 
@@ -18,6 +19,11 @@ nonisolated private let logger = Logger(label: "flipcash.payment-requests")
 /// ``ingest(_:)``, which keeps the greater version and, at an equal version, EXPIRED over OPEN; live
 /// updates go through ``apply(_:)``, which follows the same version rule. Updates are best effort, so
 /// the polls stay as reconciliation.
+///
+/// Every copy that lands is also written to the database, which applies the same merge rule, and a
+/// chat's or a request's stored copies are read back ahead of the network read so cards and details
+/// draw offline and after a restart. Writes and reads are best effort: a failed one is logged and the
+/// network path carries on. `unavailable`, the seals and the retry sets are session state and are not stored.
 @MainActor
 @Observable
 final class PaymentRequests {
@@ -62,6 +68,7 @@ final class PaymentRequests {
     @ObservationIgnored private let closeRequest: Close
     @ObservationIgnored private let markPaidShare: MarkPaid
     @ObservationIgnored private let getPage: GetPage
+    @ObservationIgnored private let database: Database?
     @ObservationIgnored private var inFlight: Set<PaymentRequestID> = []
     @ObservationIgnored private var sealReads: Set<ConversationID> = []
     /// Requests whose last read failed short of a server answer, retried on the next chat refetch.
@@ -76,8 +83,10 @@ final class PaymentRequests {
         create: @escaping Create = { _, _, _ in throw Unconfigured() },
         close: @escaping Close = { _ in throw Unconfigured() },
         markPaid: @escaping MarkPaid = { _, _ in throw Unconfigured() },
-        getPage: @escaping GetPage = { _, _, _, _ in throw Unconfigured() }
+        getPage: @escaping GetPage = { _, _, _, _ in throw Unconfigured() },
+        database: Database? = nil
     ) {
+        self.database = database
         self.getChatPage = getChatPage
         self.getRequest = getRequest
         self.openingSeal = openingSeal
@@ -149,8 +158,55 @@ final class PaymentRequests {
         GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID }, viewer: viewer, at: now)
     }
 
-    /// Merges fetched copies into the store.
+    /// Drops the held requests and chat seals of conversations the user has left, so a card for a
+    /// departed chat can't redraw. The database rows go with the conversation's own delete.
+    func forget(conversations departed: Set<ConversationID>) {
+        guard !departed.isEmpty else { return }
+        requests = requests.filter { entry in entry.value.chatID.map { !departed.contains($0) } ?? true }
+        for id in departed { seals[id] = nil }
+    }
+
+    /// Merges fetched copies into the store and writes them through to the database.
     func ingest(_ incoming: [GroupPaymentRequest]) {
+        merge(incoming)
+        unavailable.subtract(incoming.map(\.id))
+        persist(incoming)
+    }
+
+    /// Reads `conversationID`'s stored requests into the store, ahead of the network read.
+    func hydrate(_ conversationID: ConversationID) async {
+        guard let database else { return }
+        do {
+            let stored = try await Task.detached { try database.paymentRequests(in: conversationID) }.value
+            merge(stored)
+        } catch {
+            logger.warning("Failed to read a chat's stored payment requests", metadata: ["error": "\(error)"])
+        }
+    }
+
+    /// Reads the stored copy of `id` into the store, ahead of the network read.
+    private func hydrate(_ id: PaymentRequestID) async {
+        guard let database else { return }
+        do {
+            let stored = try await Task.detached { try database.paymentRequest(id: id) }.value
+            if let stored { merge([stored]) }
+        } catch {
+            logger.warning("Failed to read a stored payment request", metadata: ["error": "\(error)"])
+        }
+    }
+
+    /// Writes `requests` to the database, which keeps the greater version per request. A failure
+    /// leaves the in-memory copy in place and never fails the fetch it came from.
+    private func persist(_ requests: [GroupPaymentRequest]) {
+        guard let database, !requests.isEmpty else { return }
+        do {
+            try database.upsertPaymentRequests(requests)
+        } catch {
+            logger.warning("Failed to store payment requests", metadata: ["error": "\(error)"])
+        }
+    }
+
+    private func merge(_ incoming: [GroupPaymentRequest]) {
         for request in incoming {
             if let existing = requests[request.id] {
                 let kept = GroupPaymentRequest.merged(existing: existing, incoming: request)
@@ -158,7 +214,6 @@ final class PaymentRequests {
             } else {
                 requests[request.id] = request
             }
-            unavailable.remove(request.id)
         }
     }
 
@@ -181,6 +236,7 @@ final class PaymentRequests {
                     break
                 case .applied(let applied):
                     requests[update.id] = applied
+                    persist([applied])
                 case .refetch:
                     if !refetch.contains(update.id) { refetch.append(update.id) }
                 }
@@ -204,6 +260,7 @@ final class PaymentRequests {
     /// Reads `conversationID`'s OPEN and RESOLVED first pages, and its seal if not held yet. A failed
     /// read keeps what was held.
     func refreshChat(_ conversationID: ConversationID) async {
+        await hydrate(conversationID)
         async let sealed: Void = loadSeal(for: conversationID)
         do {
             async let open = getChatPage(conversationID, .open, Self.openPageSize)
@@ -257,6 +314,7 @@ final class PaymentRequests {
     /// viewer pays under, `nil` when the viewer has no unpaid share. Throws what the read threw.
     @discardableResult
     func refresh(_ id: PaymentRequestID) async throws -> Data? {
+        if requests[id] == nil { await hydrate(id) }
         do {
             let fetched = try await getRequest(id)
             ingest([fetched.request])
