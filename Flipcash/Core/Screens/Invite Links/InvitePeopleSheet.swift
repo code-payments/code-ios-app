@@ -149,6 +149,10 @@ struct InviteLinkCard: View {
     private static let cardFill = Color.white.opacity(0.08)
     /// Frame 1m's link pill fill, inside the link card, white 6%.
     private static let pillFill = Color.white.opacity(0.06)
+    /// The caption and Approve New Members subtitle. Figma has Inter Regular 13 at white 60%;
+    /// Avenir's regular reads much lighter than Inter's, so Medium at 68% matches its weight.
+    private static let secondaryFont = Font.default(size: 13, weight: .medium)
+    private static let secondaryText = Color.white.opacity(0.68)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -186,8 +190,8 @@ struct InviteLinkCard: View {
 
             if let caption {
                 Text(caption)
-                    .font(.appTextCaption)
-                    .foregroundStyle(Color.textSecondary)
+                    .font(Self.secondaryFont)
+                    .foregroundStyle(Self.secondaryText)
                     .multilineTextAlignment(.center)
                     .contentTransition(.opacity)
                     .accessibilityIdentifier("invite-card-caption")
@@ -237,8 +241,8 @@ struct InviteLinkCard: View {
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
                 Text(InviteLinkCopy.approveSubtitle(isOn: isApproving))
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
+                    .font(Self.secondaryFont)
+                    .foregroundStyle(Self.secondaryText)
                     .contentTransition(.opacity)
             }
             .multilineTextAlignment(.leading)
