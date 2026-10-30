@@ -28,8 +28,6 @@ struct ComposerReplyStrip: View {
     let onDismiss: () -> Void
     @Environment(\.barCardCollapsed) private var collapsed
 
-    @State private var resolvedThumbnail: ChatMediaLocation?
-
     /// Wider than the 4pt a blockquote rule usually takes, because the quote's corner radius is the
     /// bar's 14: the leading edge is straight for only `contentHeight - 14 * 2` of its run, and the
     /// corners taper the rest away. Thickness can't lengthen that straight core — it only gives the
@@ -44,30 +42,25 @@ struct ComposerReplyStrip: View {
     /// from the bar's edges as it is from the controls.
     private static let inset: CGFloat = 12
 
-    /// The quote's two text lines' height, so the photo sits beside them without growing the strip.
-    private static let thumbnailSide: CGFloat = 38
-
     var body: some View {
         // One colour for the rule and the name, so the rule keeps the name's contrast on the surface.
         let name = ComplementaryPalette.nameColor(for: target.authorID)
 
         HStack(alignment: .center, spacing: Self.gutter) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(target.authorName)
-                    .font(.appTextHeading)
-                    .foregroundStyle(name)
-                quoteLine
-            }
-            .padding(.vertical, BarMetrics.fieldVerticalPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            ChatQuoteContent(
+                authorName: target.authorName,
+                authorID: target.authorID,
+                snippet: target.snippet,
+                kind: target.kind,
+                snippetLines: 2,
+                thumbnailLocation: thumbnailLocation
+            )
             // Combined here rather than on the row, so the quote reads as one element while the
             // dismiss button stays a button of its own — a row-level combine folds the button into
             // the label and leaves nothing to press.
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Replying to \(target.authorName): \(spokenSnippet)")
+            .accessibilityLabel("Replying to \(target.authorName): \(ChatQuoteContent.spokenSnippet(target.snippet, kind: target.kind))")
             .accessibilityIdentifier("composer-reply-quote")
-
-            thumbnail
 
             // A disc rather than a bare ✕, because the ground behind it is glass sampling the
             // transcript: a hairline glyph's contrast changed with whatever message scrolled past.
@@ -115,7 +108,46 @@ struct ComposerReplyStrip: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("composer-reply-strip")
     }
+}
 
+/// A quote's content without its ground: the author's name in their own colour over what they
+/// said, and a photo's thumbnail beside it. The reply strip and the pin bar both draw a quote with
+/// this, each on its own surface.
+struct ChatQuoteContent: View {
+
+    let authorName: String
+    let authorID: UserID?
+    let snippet: String
+    let kind: ChatQuote.Kind
+    /// How many lines a text snippet may take.
+    let snippetLines: Int
+    /// Where a quoted photo's thumbnail loads from; nil for anything else, or a photo with none to fetch.
+    var thumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
+    /// The space above and below the text, inside the quote.
+    var textVerticalPadding: CGFloat = BarMetrics.fieldVerticalPadding
+
+    @State private var resolvedThumbnail: ChatMediaLocation?
+
+    /// The quote's two text lines' height, so the photo sits beside them without growing the quote.
+    private static let thumbnailSide: CGFloat = 38
+
+    /// The gap between the text and the thumbnail.
+    private static let gutter: CGFloat = 9
+
+    var body: some View {
+        HStack(alignment: .center, spacing: Self.gutter) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(authorName)
+                    .font(.appTextHeading)
+                    .foregroundStyle(ComplementaryPalette.nameColor(for: authorID))
+                quoteLine
+            }
+            .padding(.vertical, textVerticalPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            thumbnail
+        }
+    }
 
     /// The quoted original itself. One step under the bubble body's 16, and in the same weight: the
     /// quote is the subject of the strip, so it is read, not glanced at. `textMain` for the same
@@ -125,10 +157,10 @@ struct ComposerReplyStrip: View {
     /// number; with the token beside it, it reads as the payment being answered.
     @ViewBuilder
     private var quoteLine: some View {
-        switch target.kind {
+        switch kind {
         case .cash(let token):
             HStack(spacing: 6) {
-                Text(target.snippet)
+                Text(snippet)
                     .font(.default(size: 14, weight: .medium))
                     .foregroundStyle(Color.textMain)
                 Text(token)
@@ -137,17 +169,17 @@ struct ComposerReplyStrip: View {
             }
             .lineLimit(1)
         case .text, .media, .unavailable:
-            Text(target.snippet)
+            Text(snippet)
                 .font(.default(size: 14, weight: .medium))
                 .foregroundStyle(Color.textMain)
-                .lineLimit(2)
+                .lineLimit(snippetLines)
         }
     }
 
     /// A quoted photo's thumbnail; nothing for any other quote, or a redacted photo.
     @ViewBuilder
     private var thumbnail: some View {
-        switch target.kind {
+        switch kind {
         case .media(let thumbnailBlobID?, _):
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color.white.opacity(0.08))
@@ -164,19 +196,19 @@ struct ComposerReplyStrip: View {
                 .clipShape(.rect(cornerRadius: 6))
                 .accessibilityHidden(true)
                 .task(id: thumbnailBlobID) {
-                    resolvedThumbnail = await thumbnailLocation(target.kind)
+                    resolvedThumbnail = await thumbnailLocation(kind)
                 }
         case .media(nil, _), .text, .cash, .unavailable:
             EmptyView()
         }
     }
 
-    /// What VoiceOver reads for the quote — the mint's name is part of a payment's identity, and it
-    /// is drawn as a separate run that the combined element would otherwise drop.
-    private var spokenSnippet: String {
-        switch target.kind {
-        case .cash(let token):  "\(target.snippet) \(token)"
-        case .text, .media, .unavailable:  target.snippet
+    /// What VoiceOver reads for a quote — the mint's name is part of a payment's identity, and it
+    /// is drawn as a separate run that a combined element would otherwise drop.
+    static func spokenSnippet(_ snippet: String, kind: ChatQuote.Kind) -> String {
+        switch kind {
+        case .cash(let token):  "\(snippet) \(token)"
+        case .text, .media, .unavailable:  snippet
         }
     }
 }

@@ -201,21 +201,26 @@ struct PinBarTests {
 
     private let me = UUID()
 
-    private func snippet(_ content: ConversationMessage.Content) -> String {
+    private func quote(_ content: ConversationMessage.Content, from senderID: UUID = UUID()) -> ChatQuote {
         let message = ConversationMessage(
             id: MessageID(value: 1),
-            senderID: UUID(),
+            senderID: senderID,
             content: content,
             date: .now,
             unreadSeq: 1,
             eventSequence: 1
         )
-        return ChatItem.pinSnippet(
+        return ChatItem.pinQuote(
             of: message,
             selfUserID: me,
+            authorName: "Maya",
             cashBranding: { _ in ("Cash", nil) },
             viewerAmount: { $0.nativeAmount }
         )
+    }
+
+    private func snippet(_ content: ConversationMessage.Content) -> String {
+        quote(content).snippet
     }
 
     @Test("A text pin reads as its text")
@@ -226,6 +231,19 @@ struct PinBarTests {
     @Test("A pin this device can't open reads as an encrypted message")
     func sealedSnippet() {
         #expect(snippet(.encrypted(scheme: 1, nonce: Data(), ciphertext: Data())) == "Encrypted message")
+    }
+
+    @Test("A pin names its sender, and the viewer as You")
+    func pinAuthor() {
+        #expect(quote(.text("hi")).authorName == "Maya")
+        #expect(quote(.text("hi"), from: me).authorName == "You")
+    }
+
+    @Test("A photo pin carries its thumbnail, as a reply's quote does")
+    func photoPinThumbnail() {
+        let blobID = BlobID(data: Data([9, 8, 7]))
+        let attachment = MediaAttachment(blobID: blobID, width: 300, height: 400, blurhash: "LEHV6nWB2yk8")
+        #expect(quote(.media([attachment], caption: nil)).kind == .media(thumbnailBlobID: blobID, sealed: nil))
     }
 
     @Test("Only an upward drag on the strip carries it toward the pill")

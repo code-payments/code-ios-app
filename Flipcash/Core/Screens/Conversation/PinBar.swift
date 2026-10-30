@@ -6,51 +6,52 @@
 //
 
 import SwiftUI
+import FlipcashCore
 import FlipcashUI
 
-/// The pinned message under the navigation bar: a title and one line of the pin it shows. Tapping
-/// the bar jumps to that message; the list button opens every pin.
+/// The pinned message under the navigation bar, drawn as the composer's reply strip quotes a
+/// message: the author's rule, their name, and one line or a thumbnail of what they said. The rule
+/// splits into one segment per pin, with the shown pin's lit. Tapping the bar jumps to that message;
+/// the list button opens every pin.
 struct PinBar: View {
 
-    /// The line the bar shows for the pin it's on.
-    let snippet: String
-    /// How many pins the viewer can see, which the segments count.
+    /// The pin the bar shows, quoted as a reply would quote it.
+    let quote: ChatQuote
+    /// How many pins the viewer can see, which the rule's segments count.
     let count: Int
     /// Where the shown pin sits among them, newest first.
     let index: Int
+    /// Where a pinned photo's thumbnail loads from.
+    var thumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
     let onTap: () -> Void
     let onList: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
             Button(action: onTap) {
-                HStack(spacing: 12) {
-                    if count > 1 {
-                        PinBarSegments(count: count, index: index)
-                    }
-                    Image.system(.pinFill)
-                        .foregroundStyle(Color.textMain)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Pinned message")
-                            .font(.appTextMedium)
-                            .foregroundStyle(Color.textMain)
-                        Text(snippet)
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
-                    }
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 10) {
+                    PinBarRule(count: count, index: index, color: ComplementaryPalette.nameColor(for: quote.authorID))
+                    ChatQuoteContent(
+                        authorName: quote.authorName,
+                        authorID: quote.authorID,
+                        snippet: quote.snippet,
+                        kind: quote.kind,
+                        snippetLines: 1,
+                        thumbnailLocation: thumbnailLocation,
+                        textVerticalPadding: 0
+                    )
                 }
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Pinned message from \(quote.authorName): \(ChatQuoteContent.spokenSnippet(quote.snippet, kind: quote.kind))")
             .accessibilityHint("Shows the message in the chat")
+            .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("pin-bar")
 
             Button(action: onList) {
-                Image.system(.listBullet)
+                Image.asset(.listBulletPin)
                     .foregroundStyle(Color.textMain)
                     .frame(maxHeight: .infinity)
                     .contentShape(.rect)
@@ -59,7 +60,7 @@ struct PinBar: View {
             .accessibilityLabel("Pinned Messages")
             .accessibilityIdentifier("pin-bar-list")
         }
-        // The list button fills the bar's height, not the overlay's.
+        // The rule and the list button fill the bar's height, not the overlay's.
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -70,26 +71,24 @@ struct PinBar: View {
     }
 }
 
-/// The bar's leading segments, one per pin, with the shown one lit, as Telegram marks which pin
-/// a cycling bar is on. Past three pins it shows a window of three that follows the lit one.
-private struct PinBarSegments: View {
+/// The author's rule down the quote's leading edge, split into one segment per pin with the shown
+/// one lit, as Telegram marks which pin a cycling bar is on. One pin is one unbroken rule.
+private struct PinBarRule: View {
 
     let count: Int
     let index: Int
+    let color: Color
 
     private static let width: CGFloat = 3
-    private static let length: CGFloat = 10
     private static let gap: CGFloat = 2
-    private static let window = 3
 
     var body: some View {
-        let shown = min(count, Self.window)
-        let start = max(0, min(index - 1, count - shown))
         VStack(spacing: Self.gap) {
-            ForEach(start..<(start + shown), id: \.self) { segment in
+            ForEach(0..<max(count, 1), id: \.self) { segment in
                 Capsule()
-                    .fill(segment == index ? Color.textMain : Color.textSecondary.opacity(0.4))
-                    .frame(width: Self.width, height: Self.length)
+                    .fill(segment == index ? color : Color.textSecondary.opacity(0.4))
+                    .frame(width: Self.width)
+                    .frame(maxHeight: .infinity)
             }
         }
         .accessibilityHidden(true)
@@ -104,7 +103,7 @@ struct PinToolbarButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image.system(.pinFill)
+            Image.asset(.listBulletPin)
                 .foregroundStyle(Color.textMain)
                 .frame(width: Metrics.buttonHeightThin, height: Metrics.buttonHeightThin)
                 .overlayGlassBackground(in: Circle())

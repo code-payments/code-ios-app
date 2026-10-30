@@ -454,23 +454,32 @@ extension ChatItem {
         return items
     }
 
-    /// The one line the pin bar shows for a pinned `message`: what a reply's quote of it reads, or
-    /// "Encrypted message" for one this device can't open.
-    nonisolated static func pinSnippet(
+    /// The pin bar's quote of a pinned `message`: the same author, snippet and kind a reply's quote
+    /// of it carries, or "Encrypted message" for one this device can't open. `authorName` names a
+    /// sender other than the viewer, as the reply strip resolves it.
+    nonisolated static func pinQuote(
         of message: ConversationMessage,
         selfUserID: UserID,
+        authorName: String,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?),
         viewerAmount: (ExchangedFiat) -> FiatAmount
-    ) -> String {
-        if case .encrypted = message.content { return "Encrypted message" }
-        return quote(
+    ) -> ChatQuote {
+        let quote = quote(
             resolving: message,
             selfUserID: selfUserID,
-            counterpartName: "",
+            counterpartName: authorName,
             cashBranding: cashBranding,
             viewerAmount: viewerAmount,
             author: { _ in nil }
-        ).snippet
+        )
+        guard case .encrypted = message.content else { return quote }
+        return ChatQuote(
+            stableID: message.stableID,
+            authorName: quote.authorName,
+            snippet: "Encrypted message",
+            kind: .text,
+            authorID: message.senderID
+        )
     }
 
     /// The quoted original, for each of the three states it can be in. A message the local database

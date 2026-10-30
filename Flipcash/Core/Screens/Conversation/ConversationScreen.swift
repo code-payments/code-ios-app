@@ -931,9 +931,10 @@ struct ConversationScreen: View {
             }
             if pinSlot == .bar, let conversationID, let pin = conversationController.pins.barPin(in: conversationID) {
                 PinBar(
-                    snippet: pinSnippet(pin),
+                    quote: pinQuote(pin),
                     count: visiblePins.count,
                     index: visiblePins.firstIndex { $0.messageID == pin.messageID } ?? 0,
+                    thumbnailLocation: pinThumbnailLocation,
                     onTap: { jumpToBarPin(pin, in: conversationID) },
                     onList: { openPinnedList(waiting: nil) }
                 )
@@ -968,22 +969,34 @@ struct ConversationScreen: View {
         conversationID.flatMap(conversationController.conversation(withID:))?.viewerState?.canPin ?? false
     }
 
-    /// The pin's one line, or the message's, for the bar and the list's header.
-    private func pinSnippet(_ pin: ConversationPin) -> String {
-        guard let message = pin.message else { return "" }
-        return pinSnippet(message)
+    /// The bar's quote of a pin, named the way the reply strip names a message's author.
+    private func pinQuote(_ pin: ConversationPin) -> ChatQuote {
+        guard let message = pin.message else {
+            return ChatQuote(stableID: nil, authorName: "", snippet: "", kind: .text)
+        }
+        return pinQuote(message)
     }
 
-    private func pinSnippet(_ message: ConversationMessage) -> String {
-        ChatItem.pinSnippet(
+    private func pinQuote(_ message: ConversationMessage) -> ChatQuote {
+        ChatItem.pinQuote(
             of: message,
             selfUserID: session.userID,
+            authorName: message.senderID.flatMap { coordinator?.attributedName(for: $0) }
+                ?? coordinator?.counterpartName
+                ?? "",
             cashBranding: { fiat in
                 guard let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
                 return (balance.name, balance.imageURL)
             },
             viewerAmount: session.displayCurrency.amount
         )
+    }
+
+    /// Where the bar's pinned photo loads from, through the pinned list's resolver.
+    private func pinThumbnailLocation(_ kind: ChatQuote.Kind) async -> ChatMediaLocation? {
+        pinnedList.mintMediaURL = mintMediaURL
+        pinnedList.mediaBlobDecrypt = mediaBlobDecrypt
+        return await pinnedList.mediaURLResolver.thumbnailLocation(for: kind, canReact: true)
     }
 
     /// Lands on the bar's pin, then moves the bar on to the next older one.
@@ -1038,7 +1051,7 @@ struct ConversationScreen: View {
                 pins: conversationController.pins,
                 canPin: canPin,
                 selfUserID: session.userID,
-                waitingSnippet: request.waiting.map(pinSnippet),
+                waitingSnippet: request.waiting.map { pinQuote($0).snippet },
                 waiting: request.waiting,
                 row: { message in
                     coordinator?.row(for: message).map { $0.pinnedListRow(author: pinnedListAuthor(of: message, in: $0)) }
