@@ -75,7 +75,11 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
     /// Whether the viewer may create invites to this chat. Server-computed; never derive it client-side.
     public let canInvite: Bool
 
-    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false, canInvite: Bool = false) {
+    /// Whether the viewer may pin and unpin messages in this chat. Server-computed; never derive it
+    /// client-side. Defaults to `false`, so an unset permission always means not permitted.
+    public let canPin: Bool
+
+    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false, canInvite: Bool = false, canPin: Bool = false) {
         self.mute = mute
         self.canEdit = canEdit
         self.version = version
@@ -83,10 +87,11 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
         self.canSilence = canSilence
         self.canBan = canBan
         self.canInvite = canInvite
+        self.canPin = canPin
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mute, canEdit, version, silence, canSilence, canBan
+        case mute, canEdit, version, silence, canSilence, canBan, canInvite, canPin
     }
 
     /// Reads a row stored before a field existed. The synthesized decoder throws on a missing key,
@@ -100,7 +105,9 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
             version: try container.decodeIfPresent(UInt64.self, forKey: .version) ?? 0,
             silence: try container.decodeIfPresent(ConversationSilenceState.self, forKey: .silence),
             canSilence: try container.decodeIfPresent(Bool.self, forKey: .canSilence) ?? false,
-            canBan: try container.decodeIfPresent(Bool.self, forKey: .canBan) ?? false
+            canBan: try container.decodeIfPresent(Bool.self, forKey: .canBan) ?? false,
+            canInvite: try container.decodeIfPresent(Bool.self, forKey: .canInvite) ?? false,
+            canPin: try container.decodeIfPresent(Bool.self, forKey: .canPin) ?? false
         )
     }
 }
@@ -114,7 +121,8 @@ extension ConversationViewerState {
             silence: (proto.hasRestrictions && proto.restrictions.hasSilence) ? ConversationSilenceState(proto.restrictions.silence) : nil,
             canSilence: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canSilence : false,
             canBan: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canBan : false,
-            canInvite: proto.hasPermissions ? proto.permissions.canInvite : false
+            canInvite: proto.hasPermissions ? proto.permissions.canInvite : false,
+            canPin: proto.hasPermissions ? proto.permissions.canPin : false
         )
     }
 }

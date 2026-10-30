@@ -322,6 +322,13 @@ nonisolated public struct ConversationTable: Sendable {
     // as its until-timestamp, never as a computed muted boolean, because a
     // timed mute lapses with no server signal.
     public let viewerState       = Expression <Data?>  ("viewerState")
+    // Pin summary. Count and version default to 0, which also reads back as "no summary". The latest
+    // pin is the serialized `chat.v1.Pin`: the pinned message may not be in the local message store.
+    // Written only by a copy whose version is not older than the stored one, so a feed row without a
+    // summary never clears pins.
+    public let pinCount          = Expression <UInt64> ("pinCount")
+    public let pinVersion        = Expression <UInt64> ("pinVersion")
+    public let pinLatest         = Expression <Data?>  ("pinLatest")
 }
 
 // The group chats the signed-in user has joined. Its own table rather than a
@@ -672,6 +679,9 @@ nonisolated extension Database {
                     t.column(conversationTable.creator)
                     t.column(conversationTable.useE2Ee, defaultValue: false)
                     t.column(conversationTable.isPrivate, defaultValue: false)
+                    t.column(conversationTable.pinCount, defaultValue: 0)
+                    t.column(conversationTable.pinVersion, defaultValue: 0)
+                    t.column(conversationTable.pinLatest)
                 })
             }
 

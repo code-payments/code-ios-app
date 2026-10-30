@@ -59,7 +59,7 @@ public struct ConversationStore: Sendable {
 
     /// Replace the feed from a paged load, sorted most-recent-activity first.
     public mutating func setFeed(_ conversations: [Conversation]) {
-        let merged = conversations.map { keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0)))) }
+        let merged = conversations.map { keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0))))) }
         self.conversations = merged.sorted { $0.lastActivity > $1.lastActivity }
     }
 
@@ -69,7 +69,7 @@ public struct ConversationStore: Sendable {
     public mutating func setFeed(_ conversations: [Conversation], type: ConversationType) {
         // Only the incoming rows are merged: re-merging the other types against themselves would
         // read the store's own copy as the server acknowledging an unsynced READ pointer.
-        let incoming = conversations.filter { $0.type == type }.map { keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0)))) }
+        let incoming = conversations.filter { $0.type == type }.map { keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0))))) }
         self.conversations = (self.conversations.filter { $0.type != type } + incoming)
             .sorted { $0.lastActivity > $1.lastActivity }
     }
@@ -396,6 +396,9 @@ public struct ConversationStore: Sendable {
         case .rulesChanged(let conversationID, let rules):
             applyRulesChanged(rules, in: conversationID)
             return .none
+        case .pinsChanged(let conversationID, _, let summary):
+            applyPinsChanged(summary, in: conversationID)
+            return .none
         case .paymentRequestsChanged:
             // Request state lives in the app's `PaymentRequests` store, not here; the controller
             // hands the event to it.
@@ -565,7 +568,7 @@ public struct ConversationStore: Sendable {
     public mutating func refreshViewerPermissions(from fetched: ConversationViewerState, in conversationID: ConversationID) -> Bool {
         guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return false }
         let current = conversations[index].viewerState ?? ConversationViewerState()
-        guard current.canEdit != fetched.canEdit || current.canSilence != fetched.canSilence || current.canBan != fetched.canBan else {
+        guard current.canEdit != fetched.canEdit || current.canSilence != fetched.canSilence || current.canBan != fetched.canBan || current.canPin != fetched.canPin else {
             return false
         }
         conversations[index].viewerState = ConversationViewerState(
@@ -574,7 +577,8 @@ public struct ConversationStore: Sendable {
             version: current.version,
             silence: current.silence,
             canSilence: fetched.canSilence,
-            canBan: fetched.canBan
+            canBan: fetched.canBan,
+            canPin: fetched.canPin
         )
         return true
     }
@@ -625,6 +629,15 @@ public struct ConversationStore: Sendable {
         conversations[index].rules = rules
     }
 
+    /// Apply a pin summary delivered via `MetadataUpdate.PinsChanged`, or fetched with the chat.
+    /// Convergent like ``applyRosterUpdates(_:in:)``: only a version greater than the held one is
+    /// kept, so delivery order and re-delivery don't matter. No-ops for a chat the store doesn't hold.
+    public mutating func applyPinsChanged(_ summary: ConversationPinSummary, in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard summary.version > (conversations[index].pinSummary?.version ?? 0) else { return }
+        conversations[index].pinSummary = summary
+    }
+
     /// Drops the cached viewer state for a chat the signed-in user just left.
     ///
     /// The server clears mute on leave and restarts the version with it, so this discards the
@@ -636,7 +649,7 @@ public struct ConversationStore: Sendable {
     }
 
     private mutating func upsert(_ conversation: Conversation) {
-        var conversation = keepingViewerState(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated(conversation)))))
+        var conversation = keepingViewerState(keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated(conversation))))))
         if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
             if conversation.type == .group {
                 conversation.members = mergedMembers(conversation.members, over: conversations[index].members)
@@ -726,7 +739,8 @@ public struct ConversationStore: Sendable {
                 version: incoming.version,
                 silence: incoming.silence,
                 canSilence: incoming.canSilence || held.canSilence,
-                canBan: incoming.canBan || held.canBan
+                canBan: incoming.canBan || held.canBan,
+                canPin: incoming.canPin || held.canPin
             )
         }
         return conversation
@@ -742,6 +756,21 @@ public struct ConversationStore: Sendable {
         }
         var conversation = conversation
         conversation.coverPicture = held
+        return conversation
+    }
+
+    /// `conversation` with the stored pin summary kept when the incoming copy carries none or an older
+    /// one. Feed and list RPCs may omit the summary, so an unset one there is "not reported", not
+    /// "cleared"; `GetChat` and `pinsChanged` are what change it.
+    private func keepingPinSummary(_ conversation: Conversation) -> Conversation {
+        guard let held = conversations.first(where: { $0.id == conversation.id })?.pinSummary else {
+            return conversation
+        }
+        if let incoming = conversation.pinSummary, incoming.version >= held.version {
+            return conversation
+        }
+        var conversation = conversation
+        conversation.pinSummary = held
         return conversation
     }
 

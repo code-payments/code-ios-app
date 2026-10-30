@@ -253,7 +253,7 @@ extension EncryptedChatClient: ConversationEventStreaming {
         case .metadataRefresh(let conversation):
             return .metadataRefresh(await opened(conversation))
         case .lastActivityChanged, .readPointersChanged, .typingChanged, .rosterChanged,
-             .viewerStateChanged, .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged, .rulesChanged, .paymentRequestsChanged:
+             .viewerStateChanged, .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged, .rulesChanged, .pinsChanged, .paymentRequestsChanged:
             return event
         }
     }
