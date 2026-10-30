@@ -161,6 +161,19 @@ nonisolated public struct PaymentRequestTable: Sendable {
     public let metadata       = Expression <Data>    ("metadata")
 }
 
+// One row per private group: the viewer's key envelope exactly as the server returned it, so the
+// chat opens offline and after a restart. `envelope` is the serialized `GetKeyEnvelopeResponse`
+// (scheme, nonce, ciphertext, and who wrapped it); the unwrapped chat key is never stored.
+nonisolated public struct GroupKeyEnvelopeTable: Sendable {
+    public static let name = "groupKeyEnvelope"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationID = Expression <Data> ("conversationID")
+    public let envelope       = Expression <Data> ("envelope")
+}
+
 nonisolated public struct LimitsTable: Sendable {
     public static let name = "limits"
 
@@ -590,6 +603,15 @@ nonisolated extension Database {
                     t.column(paymentRequestTable.metadata)
                 })
                 try writer.run(paymentRequestTable.table.createIndex(paymentRequestTable.conversationID, ifNotExists: true))
+            }
+
+            let groupKeyEnvelopeTable = GroupKeyEnvelopeTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(groupKeyEnvelopeTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(groupKeyEnvelopeTable.conversationID, primaryKey: true)
+                    t.column(groupKeyEnvelopeTable.envelope)
+                })
             }
 
             let limitsTable = LimitsTable()
