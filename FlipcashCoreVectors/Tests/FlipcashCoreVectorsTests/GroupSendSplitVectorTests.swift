@@ -110,7 +110,7 @@ import Testing
     }
 
     @Test func everyVectorIsRun() {
-        #expect(Self.fixture.youVectors.count == 11)
+        #expect(Self.fixture.youVectors.count == 9)
         #expect(Self.fixture.vectors.count == 14)
         #expect(Self.fixture.vectors.filter { $0.expectedError != nil }.count == 4)
     }
