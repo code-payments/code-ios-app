@@ -155,9 +155,12 @@ struct PaymentRequestPeople: Hashable, Sendable {
         }
     }
 
-    /// "Request $33.34 Each", naming the largest share of `total`; nil when the total can't be split.
+    /// "Request $20 Each" when `total` splits evenly, "Request ~$33.33 Each" (the smallest share)
+    /// when it doesn't; nil when the total can't be split.
     func buttonTitle(total: FiatAmount) -> String? {
-        shareAmounts(total: total)?.max().map { "Request \($0.formattedDroppingZeroFraction()) Each" }
+        guard let amounts = shareAmounts(total: total), let smallest = amounts.min() else { return nil }
+        let share = smallest.formattedDroppingZeroFraction()
+        return amounts.max() == smallest ? "Request \(share) Each" : "Request ~\(share) Each"
     }
 
     /// Splits `total` smallest units into `count` shares: each gets the total divided by the count,

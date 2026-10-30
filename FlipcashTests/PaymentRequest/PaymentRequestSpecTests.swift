@@ -416,7 +416,15 @@ struct PaymentRequestSpecTests {
         p.toggle(p.members[3])
         #expect(p.shareAmounts(total: .usd(100)) == [.usd(Decimal(string: "33.33")!), .usd(Decimal(string: "33.34")!), .usd(Decimal(string: "33.33")!)])
         #expect(p.shares(total: .usd(100))?.compactMap(\.userID) == Array(p.members.prefix(3)))
-        #expect(p.buttonTitle(total: .usd(100)) == "Request $33.34 Each")
+        #expect(p.buttonTitle(total: .usd(100)) == "Request ~$33.33 Each")
+    }
+
+    @Test("53: $100.02 between the creator and two others splits evenly, with no ~")
+    func splitEvenWithCreator() {
+        let p = people(count: 3)
+        let total = FiatAmount.usd(Decimal(string: "100.02")!)
+        #expect(p.shareAmounts(total: total) == Array(repeating: .usd(Decimal(string: "33.34")!), count: 3))
+        #expect(p.buttonTitle(total: total) == "Request $33.34 Each")
     }
 
     @Test("50: $100.02 between three others, the creator deselected, splits evenly")

@@ -377,7 +377,7 @@ private struct PaymentRequestSummaryScreen: View {
                             Text(viewModel.amount?.formatted() ?? "")
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
-                            Text("total")
+                            Text("Total")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                         }
