@@ -194,7 +194,7 @@ public class ChatColumnCell: UICollectionViewCell {
     }
 
     /// The transcript's side margin, and the avatar gutter's own leading inset.
-    static let rowInset: CGFloat = 12
+    public static let rowInset: CGFloat = 12
 
     /// Between "Edited" and the receipt — the same gap the receipt sets between its own two halves.
     private static let metadataSpacing: CGFloat = 4

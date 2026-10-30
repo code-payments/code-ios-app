@@ -146,12 +146,12 @@ public final class ChatViewController: UICollectionViewController {
     public var pendingMediaProgress: ((String) -> ChatPhotoSendProgress?)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
-    private static let maxBubbleWidthFraction: CGFloat = 0.78
+    static let maxBubbleWidthFraction: CGFloat = 0.78
 
     /// A cash card's width as a fraction of the row between the column insets — narrower than a
     /// bubble, and taken of the inset row rather than the full width. Matches Android's
     /// `CASH_CARD_WIDTH_FRACTION` so the card reads the same size on both.
-    private static let cashCardWidthFraction: CGFloat = 0.64
+    static let cashCardWidthFraction: CGFloat = 0.64
 
     /// The width of a cash card in a row `available` points wide.
     private func cashCardWidth(available: CGFloat) -> CGFloat {
@@ -1509,8 +1509,16 @@ public final class ChatViewController: UICollectionViewController {
         let wasAtTop = collectionView.contentOffset.y <= -collectionView.adjustedContentInset.top + 1
         collectionView.contentInset.top = inset
         collectionView.verticalScrollIndicatorInsets.top = inset
-        if wasAtTop {
-            collectionView.contentOffset.y = -collectionView.adjustedContentInset.top
+        guard wasAtTop else { return }
+        let target = -collectionView.adjustedContentInset.top
+        // On screen it glides with the surface coming in or going out, rather than jumping once
+        // the surface has finished moving.
+        guard view.window != nil else {
+            collectionView.contentOffset.y = target
+            return
+        }
+        UIView.animate(springDuration: 0.4, bounce: 0.12, options: [.allowUserInteraction, .beginFromCurrentState]) {
+            self.collectionView.contentOffset.y = target
         }
     }
 
@@ -1579,8 +1587,9 @@ public final class ChatViewController: UICollectionViewController {
     private func restoreInset() {
         guard frozenBottomInset != nil else { return }
         frozenBottomInset = nil
-        if let inset = savedContentInset { collectionView.contentInset = inset }
-        if let indicator = savedScrollIndicatorInsets { collectionView.verticalScrollIndicatorInsets = indicator }
+        // Only the bottom was held; the top may have moved under the menu (Pin raises the pin bar).
+        if let inset = savedContentInset { collectionView.contentInset.bottom = inset.bottom }
+        if let indicator = savedScrollIndicatorInsets { collectionView.verticalScrollIndicatorInsets.bottom = indicator.bottom }
         savedContentInset = nil
         savedScrollIndicatorInsets = nil
         // No `restoreContentOffset` re-anchor: forcing ChatLayout's layout pass during the

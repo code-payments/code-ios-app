@@ -6,6 +6,8 @@ description: Build, install, and drive Flipcash on the iPhone 17 simulator to ob
 # Verifying Flipcash changes on the simulator
 
 Done when the changed surface has been driven on the simulator and captured in a screenshot.
+If the change adds or alters a transition (something appears, disappears, or moves), a
+screenshot is not enough: record it and step the frames (see "Checking motion").
 Report expected vs. observed, and if they differ, which step.
 
 ## Build + install + launch
@@ -69,6 +71,23 @@ L "$U/api/screenshot?$TGT" -o shot.png               # PNG at device resolution
   `{"action":"reclaim"}` (restarts SpringBoard, ~9s). If taps answer `{"ok":true}` but the
   screen doesn't change and `reclaim` reports `no frontmost application`, CoreSimulator is
   wedged — see the `unwedging-ios-simulator` skill rather than retrying.
+
+## Checking motion
+
+Stills and center taps hide the bugs users feel: a sheet blanking before it dismisses, content
+snapping after a bar leaves, a press effect spreading over a whole sheet, a target too small
+to hit with a finger.
+
+```bash
+xcrun simctl io "$SIM" recordVideo --codec=h264 /tmp/v.mp4 &   # loupe's recorder can drop frames after a reboot
+# ... drive the transition ...
+kill -INT %1; ffmpeg -loglevel error -i /tmp/v.mp4 -vf fps=30 /tmp/f_%03d.png
+```
+
+- Step the frames across each transition, in both directions (show and hide).
+- Tap controls off-center (about 30 px from the edge of where they draw), not at the tree's
+  `center`; a miss there means the hit area is too small.
+- Drive the heaviest path too (at a cap, the longest list, the tallest detent), not just one item.
 
 ## Flows worth driving
 

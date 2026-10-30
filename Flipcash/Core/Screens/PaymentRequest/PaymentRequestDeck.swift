@@ -424,12 +424,16 @@ struct PaymentRequestPill: View {
     @Bindable var state: PaymentRequestDeckState
     /// Starts paying the viewer's share of a request, from the strip's Pay button.
     var pay: ((PaymentRequestID) -> Void)? = nil
+    /// The strip's collapse, which a swipe up on the strip drives into the pill.
+    var dock: PaymentRequestStripCollapse? = nil
 
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The finger's downward travel, not the front card's: the card rubber-bands past one pill height.
     @State private var drag: CGFloat = 0
     @State private var frontHeight: CGFloat = 43
+    /// Whether this drag has moved up, so it drives the dock rather than leaving the collapse to the scroll.
+    @State private var isDocking = false
 
     private static let peekStep: CGFloat = 5
     /// How much each step back shrinks a card, so its sides tuck in under the one in front.
@@ -522,15 +526,36 @@ struct PaymentRequestPill: View {
         return knee + room * (1 - exp(-(drag - knee) / room))
     }
 
+    /// The collapse a swipe up docks, on the strip only.
+    private var stripDock: PaymentRequestStripCollapse? {
+        style == .strip ? dock : nil
+    }
+
+    /// How far into the pill a vertical drag of `translation` has carried the strip: upward only,
+    /// over the same distance the scroll collapses it.
+    static func dockFraction(_ translation: CGFloat) -> CGFloat {
+        max(0, -translation) / PaymentRequestStripCollapse.distance
+    }
+
     private var cycleGesture: some Gesture {
         DragGesture(minimumDistance: 6)
             .onChanged { value in
+                if let dock = stripDock, isDocking || value.translation.height < 0 {
+                    isDocking = true
+                    dock.dock(following: Self.dockFraction(value.translation.height))
+                }
                 // A short spring picks the cards up from wherever a release left them mid-flight.
                 withAnimation(.interactiveSpring(duration: 0.15)) {
                     drag = max(0, value.translation.height)
                 }
             }
             .onEnded { value in
+                if let dock = stripDock, isDocking {
+                    withAnimation(Self.settle) {
+                        dock.endDock(at: Self.dockFraction(value.translation.height))
+                    }
+                }
+                isDocking = false
                 let finishes = items.count > 1 && PaymentRequestDeckOrder.finishesCycle(
                     translation: value.translation.height,
                     predictedTranslation: value.predictedEndTranslation.height,

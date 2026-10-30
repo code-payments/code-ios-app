@@ -109,6 +109,10 @@ struct ConversationScreen: View {
     @State private var stripCollapse = PaymentRequestStripCollapse()
     /// The owed strip's measured height, reserved at the transcript's top; 0 while hidden.
     @State private var stripHeight: CGFloat = 0
+    /// The pin bar's measured height, reserved at the transcript's top; 0 while hidden.
+    @State private var pinBarHeight: CGFloat = 0
+    /// The pinned list sheet and the jump a row asks for.
+    @State private var pinnedList = PinnedMessagesPresentation()
     /// Whether a private group's Money sheet (Send or Request) is open.
     @State private var isShowingMoneyActions = false
     /// The Money sheet's choice, run once that sheet has gone so the next one can present.
@@ -514,7 +518,8 @@ struct ConversationScreen: View {
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
             // Each anchor shown takes its height and the stack's 8-point gap.
-            transcriptTopInset: [anchorHeight, stripHeight].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
+            // The pin bar shares the strip's slot, taking it once the strip has gone into the pill.
+            transcriptTopInset: [anchorHeight, max(stripHeight, showsPinBar ? pinBarHeight : 0)].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
             onDistanceFromNewestChange: { [stripCollapse] in stripCollapse.update(distanceFromNewest: $0) },
             // Released mid-way, the strip finishes the move it's nearer to rather than resting half-shrunk.
             snapDistanceFromNewest: viewerOwes && !stripCollapse.isPinned ? PaymentRequestStripCollapse.distance : nil,
@@ -656,6 +661,11 @@ struct ConversationScreen: View {
         .onChange(of: conversationController.reactions.error) { _, _ in
             scheduleReactionErrorDismissal()
         }
+        .sheet(item: $pinnedList.request, onDismiss: {
+            if let messageID = pinnedList.takePendingJump() { land(on: messageID) }
+        }) { request in
+            pinnedListSheet(request)
+        }
         .sheet(item: $reactionPickerRequest) { request in
             EmojiPickerSheet(
                 recents: sessionContainer.recentReactions.row(limit: RecentReactionsStore.pickerRowLimit, undrawable: undrawableEmoji)
@@ -761,24 +771,7 @@ struct ConversationScreen: View {
                     .onDisappear { anchorHeight = 0 }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                // Mounted for as long as the viewer owes, so scrolling only moves it: its slot at the
-                // transcript's top stays put, and the strip shrinks into the pill in step with the scroll.
-                if viewerOwes {
-                    PaymentRequestPill(
-                        items: requestDeckItems,
-                        style: .strip,
-                        accessibilityLabel: requestDeckAccessibilityLabel,
-                        state: paymentRequestDeck,
-                        pay: payRequest
-                    )
-                    .modifier(PaymentRequestStripCollapseEffect(collapse: stripCollapse))
-                    // The slot, not the moving strip: the collapse's transforms leave it alone.
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.stripFrame = $0 }
-                    .padding(.horizontal, BarMetrics.edgeInset)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stripHeight = $0 }
-                    .onDisappear { stripHeight = 0 }
-                    .transition(.scale(scale: 0.3, anchor: .topTrailing).combined(with: .opacity))
-                }
+                requestAndPinSlot
                 if let reactionToastText {
                     ToastLabel(reactionToastText)
                         .allowsHitTesting(false)
@@ -787,6 +780,7 @@ struct ConversationScreen: View {
             }
             .padding(.top, 8)
             .animation(Self.deckStyleMotion, value: viewerOwes)
+            .animation(Self.deckStyleMotion, value: pinSlot)
         }
         .paymentRequestPaySheet(requestPayFlow)
         .onChange(of: requestDeckStyle, initial: true) { _, style in
@@ -853,10 +847,10 @@ struct ConversationScreen: View {
                 if requestPillPresence.isInBar {
                     // The pill draws its own capsule, so the iOS 26 platter stays off.
                     if #available(iOS 26.0, *) {
-                        ToolbarItem(placement: .topBarTrailing) { requestPill }
+                        ToolbarItem(placement: .topBarTrailing) { trailingBarItem }
                             .sharedBackgroundVisibility(.hidden)
                     } else {
-                        ToolbarItem(placement: .topBarTrailing) { requestPill }
+                        ToolbarItem(placement: .topBarTrailing) { trailingBarItem }
                     }
                 }
             }
@@ -910,6 +904,179 @@ struct ConversationScreen: View {
 
     private var owedRequestIDs: Set<PaymentRequestID> {
         Set(requestDeckItems.filter { $0.owedShare != nil }.map(\.id))
+    }
+
+    /// The strip and the pin bar share one slot: the bar takes it once the strip has gone
+    /// into the pill, and steps aside to the toolbar button while the strip is out.
+    private var requestAndPinSlot: some View {
+        ZStack(alignment: .top) {
+            // Mounted for as long as the viewer owes, so scrolling only moves it: its slot at the
+            // transcript's top stays put, and the strip shrinks into the pill in step with the scroll.
+            if viewerOwes {
+                PaymentRequestPill(
+                    items: requestDeckItems,
+                    style: .strip,
+                    accessibilityLabel: requestDeckAccessibilityLabel,
+                    state: paymentRequestDeck,
+                    pay: payRequest,
+                    dock: stripCollapse
+                )
+                .modifier(PaymentRequestStripCollapseEffect(collapse: stripCollapse))
+                // The slot, not the moving strip: the collapse's transforms leave it alone.
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.stripFrame = $0 }
+                .padding(.horizontal, BarMetrics.edgeInset)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stripHeight = $0 }
+                .onDisappear { stripHeight = 0 }
+                .transition(.scale(scale: 0.3, anchor: .topTrailing).combined(with: .opacity))
+            }
+            if pinSlot == .bar, let conversationID, let pin = conversationController.pins.barPin(in: conversationID) {
+                PinBar(
+                    quote: pinQuote(pin),
+                    count: visiblePins.count,
+                    index: visiblePins.firstIndex { $0.messageID == pin.messageID } ?? 0,
+                    thumbnailLocation: pinThumbnailLocation,
+                    onTap: { jumpToBarPin(pin, in: conversationID) },
+                    onList: { openPinnedList(waiting: nil) }
+                )
+                .padding(.horizontal, BarMetrics.edgeInset)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pinBarHeight = $0 }
+                .onDisappear { pinBarHeight = 0 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    // MARK: - Pins
+
+    /// The pins the viewer can see, newest first.
+    private var visiblePins: [ConversationPin] {
+        conversationID.map(conversationController.pins.visible(in:)) ?? []
+    }
+
+    /// Where the pins show beside the request deck.
+    private var pinSlot: PinSlot {
+        PinSlot.resolve(hasPins: !visiblePins.isEmpty, deckStyle: viewerOwes ? requestDeckStyle : nil)
+    }
+
+    /// Whether the bar is shown, read before its exit transition ends so the transcript moves
+    /// with it rather than after it.
+    private var showsPinBar: Bool {
+        pinSlot == .bar && conversationID.flatMap(conversationController.pins.barPin(in:)) != nil
+    }
+
+    /// Whether the viewer may pin and unpin here, as the server decides it.
+    private var canPin: Bool {
+        conversationID.flatMap(conversationController.conversation(withID:))?.viewerState?.canPin ?? false
+    }
+
+    /// The bar's quote of a pin, named the way the reply strip names a message's author.
+    private func pinQuote(_ pin: ConversationPin) -> ChatQuote {
+        guard let message = pin.message else {
+            return ChatQuote(stableID: nil, authorName: "", snippet: "", kind: .text)
+        }
+        return pinQuote(message)
+    }
+
+    private func pinQuote(_ message: ConversationMessage) -> ChatQuote {
+        ChatItem.pinQuote(
+            of: message,
+            selfUserID: session.userID,
+            authorName: message.senderID.flatMap { coordinator?.attributedName(for: $0) }
+                ?? coordinator?.counterpartName
+                ?? "",
+            cashBranding: { fiat in
+                guard let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
+                return (balance.name, balance.imageURL)
+            },
+            viewerAmount: session.displayCurrency.amount
+        )
+    }
+
+    /// Where the bar's pinned photo loads from, through the pinned list's resolver.
+    private func pinThumbnailLocation(_ kind: ChatQuote.Kind) async -> ChatMediaLocation? {
+        pinnedList.mintMediaURL = mintMediaURL
+        pinnedList.mediaBlobDecrypt = mediaBlobDecrypt
+        return await pinnedList.mediaURLResolver.thumbnailLocation(for: kind, canReact: true)
+    }
+
+    /// Lands on the bar's pin, then moves the bar on to the next older one.
+    private func jumpToBarPin(_ pin: ConversationPin, in conversationID: ConversationID) {
+        land(on: pin.messageID)
+        conversationController.pins.advanceBar(in: conversationID)
+    }
+
+    /// Opens the pinned list; with a `waiting` message, as the prompt to unpin one so it can pin.
+    private func openPinnedList(waiting: ConversationMessage?) {
+        pinnedList.mintMediaURL = mintMediaURL
+        pinnedList.mediaBlobDecrypt = mediaBlobDecrypt
+        pinnedList.keyboard.suppress()
+        afterKeyboardLowered {
+            pinnedList.request = PinnedMessagesRequest(waiting: waiting)
+        }
+    }
+
+    /// The pictures of everyone who sent a visible pin, the viewer included.
+    private var pinnedSenderAvatars: [UserID: Data] {
+        var avatars: [UserID: Data] = [:]
+        for senderID in Set(visiblePins.compactMap { $0.message?.senderID }) {
+            avatars[senderID] = sessionContainer.profileAvatars.data(for: senderID)
+        }
+        return avatars
+    }
+
+    /// Who the pinned list names over `message`: "You" for the viewer, else the sender as the
+    /// transcript names them.
+    private func pinnedListAuthor(of message: ConversationMessage, in row: ChatMessage) -> ChatAuthor {
+        let senderID = message.senderID ?? UUID()
+        let name = senderID == session.userID ? "You" : pinnerName(senderID)
+        return ChatAuthor(id: senderID, name: name, blurhash: row.author?.blurhash)
+    }
+
+    /// The name "Pinned by" gives `userID`: "you", else their name in this chat.
+    private func pinnerName(_ userID: UserID) -> String {
+        if userID == session.userID { return "you" }
+        if let name = coordinator?.attributedName(for: userID), !name.isEmpty { return name }
+        let member = conversationID
+            .flatMap(conversationController.conversation(withID:))?
+            .members.first { $0.userID == userID }
+        if let name = member?.displayName, !name.isEmpty { return name }
+        return "Member"
+    }
+
+    @ViewBuilder
+    private func pinnedListSheet(_ request: PinnedMessagesRequest) -> some View {
+        if let conversationID {
+            PinnedMessagesSheet(
+                conversationID: conversationID,
+                pins: conversationController.pins,
+                canPin: canPin,
+                selfUserID: session.userID,
+                waitingSnippet: request.waiting.map { pinQuote($0).snippet },
+                waiting: request.waiting,
+                row: { message in
+                    coordinator?.row(for: message).map { $0.pinnedListRow(author: pinnedListAuthor(of: message, in: $0)) }
+                },
+                quote: pinQuote,
+                name: pinnerName,
+                avatarData: pinnedSenderAvatars,
+                linkCardSource: sessionContainer.linkCardFeed,
+                mediaURLResolver: pinnedList.mediaURLResolver,
+                onSelect: { pinnedList.pendingJump = $0 }
+            )
+        }
+    }
+
+    /// The bar's trailing slot: the request pill, with the pin button over it while the strip
+    /// holds the slot under the bar and the pill is hidden behind it.
+    private var trailingBarItem: some View {
+        ZStack(alignment: .trailing) {
+            requestPill
+            if pinSlot == .toolbarButton {
+                PinToolbarButton { openPinnedList(waiting: nil) }
+                    .transition(.opacity)
+            }
+        }
+        .animation(Self.deckStyleMotion, value: pinSlot)
     }
 
     /// Kept in the bar under the strip, hidden, so the bar never rebuilds its item as the strip comes
@@ -1376,7 +1543,7 @@ struct ConversationScreen: View {
             case .pinned:
                 break
             case .full:
-                session.dialogItem = .info(title: "Too Many Pinned Messages", subtitle: "Unpin a message to pin this one.")
+                openPinnedList(waiting: message)
             case .failed:
                 session.dialogItem = .error(title: "Couldn't Pin Message", subtitle: "Please try again.")
             }
