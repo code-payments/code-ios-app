@@ -143,6 +143,8 @@ struct InviteLinkCard: View {
     let onShare: () -> Void
     let onManageInvites: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// Frame 1m's card fill (Link card, Approve New Members, Manage Invites), white 8%.
     private static let cardFill = Color.white.opacity(0.08)
     /// Frame 1m's link pill fill, inside the link card, white 6%.
@@ -171,6 +173,8 @@ struct InviteLinkCard: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 20)
+        // Approve New Members crossfades the pill, caption and subtitle; any height change rides along.
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: isApproving)
     }
 
     private var linkCard: some View {
@@ -185,6 +189,7 @@ struct InviteLinkCard: View {
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)
+                    .contentTransition(.opacity)
                     .accessibilityIdentifier("invite-card-caption")
             }
         }
@@ -196,6 +201,7 @@ struct InviteLinkCard: View {
 
     private var pillView: some View {
         pillText
+            .contentTransition(.opacity)
             .font(.default(size: 14, weight: .medium))
             .lineLimit(1)
             .truncationMode(.middle)
@@ -233,6 +239,7 @@ struct InviteLinkCard: View {
                 Text(InviteLinkCopy.approveSubtitle(isOn: isApproving))
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
+                    .contentTransition(.opacity)
             }
             .multilineTextAlignment(.leading)
         }
