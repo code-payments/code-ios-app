@@ -30,7 +30,8 @@ struct EnterAmountHeader: View {
     }
 
     @Binding var enteredAmount: String
-    let hint: Hint
+    /// Nil leaves the amount on its own, for screens whose currency is picked later.
+    let hint: Hint?
 
     @Environment(RatesController.self) private var ratesController
 
@@ -39,7 +40,7 @@ struct EnterAmountHeader: View {
     /// Mirrors `EnterAmountView`'s overrun colouring: the hint turns red once the
     /// entry exceeds what's available.
     private var isExceeding: Bool {
-        guard case .available(let available) = hint else { return false }
+        guard case .available(let available)? = hint else { return false }
         guard let value = AmountValidator().validate(enteredAmount), value > 0 else { return false }
         return !EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
@@ -47,18 +48,19 @@ struct EnterAmountHeader: View {
         )
     }
 
-    private var hintText: String {
+    private var hintText: String? {
         switch hint {
-        case .available(let available): "\(available.nativeAmount.formatted()) available"
-        case .caption(let text):        text
-        case .description(let text):    text
+        case nil:                       nil
+        case .available(let available)?: "\(available.nativeAmount.formatted()) available"
+        case .caption(let text)?:       text
+        case .description(let text)?:   text
         }
     }
 
     private var hintFont: Font {
         switch hint {
-        case .available, .caption: .appTextMedium
-        case .description:         .appTextSmall
+        case nil, .available?, .caption?: .appTextMedium
+        case .description?:               .appTextSmall
         }
     }
 
@@ -79,10 +81,12 @@ struct EnterAmountHeader: View {
             )
             .foregroundStyle(enteredAmount.isEmpty ? Color.textTertiary : Color.textMain)
 
-            Text(hintText)
-                .font(hintFont)
-                .foregroundStyle(isExceeding ? Color.textError : Color.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if let hintText {
+                Text(hintText)
+                    .font(hintFont)
+                    .foregroundStyle(isExceeding ? Color.textError : Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

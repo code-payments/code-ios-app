@@ -46,20 +46,31 @@ struct GroupSendViewModelTests {
         #expect(payments.groupChatIDs == [Self.groupID])
     }
 
-    @Test("An amount over the balance shows the insufficient balance alert instead of moving on")
-    func overBalanceIsRefusedOnNext() async throws {
+    @Test("An amount above the selected balance can still move on to Split Between")
+    func overBalanceCanContinue() async throws {
         let (viewModel, _) = try await make(total: "101")
 
-        #expect(viewModel.confirmAmount() == false)
-        #expect(viewModel.session.dialogItem?.title == "Insufficient Balance")
+        #expect(viewModel.canContinue)
+        #expect(viewModel.session.dialogItem == nil)
     }
 
-    @Test("An amount within the balance moves on to Select People")
-    func withinBalanceMovesOn() async throws {
-        let (viewModel, _) = try await make(total: "100")
+    @Test("No amount, or zero, cannot move on")
+    func emptyAmountCannotContinue() async throws {
+        let (viewModel, _) = try await make(total: "0")
 
-        #expect(viewModel.confirmAmount())
-        #expect(viewModel.session.dialogItem == nil)
+        #expect(viewModel.canContinue == false)
+    }
+
+    @Test("A total above the balance is refused on the confirm sheet with the insufficient balance alert")
+    func overBalanceIsRefusedOnSubmit() async throws {
+        let (viewModel, payments) = try await make(total: "101")
+        viewModel.toggle(UUID())
+
+        #expect(await viewModel.submit() == .failed)
+
+        #expect(viewModel.session.dialogItem?.title == "Insufficient Balance")
+        #expect(payments.singleSends.isEmpty)
+        #expect(payments.multiSends.isEmpty)
     }
 
     @Test("A total under one cent each is refused before anything is sent")
@@ -95,7 +106,6 @@ struct GroupSendViewModelTests {
         viewModel.toggle(b)
 
         #expect(viewModel.selection == [a, c])
-        #expect(viewModel.sendButtonTitle == "Send to 2 People")
     }
 
     // MARK: - Helpers

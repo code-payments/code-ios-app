@@ -78,35 +78,9 @@ final class GroupSendViewModel {
         validatedEntered.map { FiatAmount(value: $0, currency: ratesController.balanceCurrency) }
     }
 
-    /// Whether the amount screen can move on to picking people.
+    /// Whether the amount screen can move on to picking people; funds are checked on the confirm sheet.
     var canContinue: Bool {
-        guard let validatedEntered, let selectedBalance else { return false }
-        let fiat = selectedBalance.enteredFiat(for: validatedEntered, rate: ratesController.rateForBalanceCurrency())
-        return (fiat?.onChainAmount.quarks ?? 0) > 0
-    }
-
-    /// Whether the amount screen can go on to Select People; an amount over the balance shows the insufficient balance alert instead.
-    func confirmAmount() -> Bool {
-        guard let validatedEntered, let selectedBalance,
-              let fiat = selectedBalance.enteredFiat(for: validatedEntered, rate: ratesController.rateForBalanceCurrency()) else {
-            return false
-        }
-        switch session.hasSufficientFunds(for: fiat) {
-        case .insufficient:
-            showInsufficientBalanceError()
-            return false
-        case .sufficient:
-            return true
-        }
-    }
-
-    /// What's left to spend in the selected currency.
-    var available: ExchangedFiat {
-        let rate = ratesController.rateForBalanceCurrency()
-        guard let mint = selectedBalance?.stored.mint, let balance = session.balance(for: mint) else {
-            return ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: rate, supplyQuarks: nil)
-        }
-        return balance.computeExchangedValue(with: rate)
+        validatedEntered != nil
     }
 
     /// The balances the currency picker offers.
@@ -159,11 +133,6 @@ final class GroupSendViewModel {
             return
         }
         selection.append(userID)
-    }
-
-    /// "Send to N People", worded for one.
-    var sendButtonTitle: String {
-        selection.count == 1 ? "Send to 1 Person" : "Send to \(selection.count) People"
     }
 
     /// The entered total split between the current selection, or nil when it can't be.
