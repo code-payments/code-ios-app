@@ -174,7 +174,9 @@ struct InviteLinkCard: View {
             )
         }
         .padding(.horizontal)
-        .padding(.vertical, 20)
+        // 16pt top puts the ✕ where the E2EE sheet has it.
+        .padding(.top, 16)
+        .padding(.bottom, 20)
         // Approve New Members crossfades the pill, caption and subtitle; any height change rides along.
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: isApproving)
     }
