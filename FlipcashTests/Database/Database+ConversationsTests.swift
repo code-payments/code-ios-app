@@ -9,6 +9,7 @@ import Foundation
 import Testing
 @testable import FlipcashCore
 import FlipcashStore
+import SQLite
 @testable import Flipcash
 import FlipcashAPI
 
@@ -1397,5 +1398,18 @@ struct DatabaseConversationsTests {
         #expect(Set(updated.keys) == [MessageID(value: 1), MessageID(value: 2)])
         let stored = try database.getConversationMessages(conversationID: id)
         #expect(Dictionary(uniqueKeysWithValues: stored.map { ($0.id, $0.reactionState) }) == updated.mapValues { Optional($0) })
+    }
+
+    @Test("Replacing a conversation's members looks them up by index, not a table scan")
+    func memberDeleteUsesIndex() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        let plan = try database.reader
+            .prepare("EXPLAIN QUERY PLAN DELETE FROM \(ConversationMemberTable.name) WHERE conversationId = x''")
+            .map { $0[3] as? String ?? "" }
+            .joined(separator: "\n")
+
+        #expect(plan.contains("USING INDEX"), "\(plan)")
     }
 }
