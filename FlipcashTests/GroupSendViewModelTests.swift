@@ -46,20 +46,136 @@ struct GroupSendViewModelTests {
         #expect(payments.groupChatIDs == [Self.groupID])
     }
 
-    @Test("An amount over the balance shows the insufficient balance alert instead of moving on")
-    func overBalanceIsRefusedOnNext() async throws {
+    @Test("An amount above the selected balance can still move on to Split Between")
+    func overBalanceCanContinue() async throws {
         let (viewModel, _) = try await make(total: "101")
 
-        #expect(viewModel.confirmAmount() == false)
-        #expect(viewModel.session.dialogItem?.title == "Insufficient Balance")
+        #expect(viewModel.canContinue)
+        #expect(viewModel.session.dialogItem == nil)
     }
 
-    @Test("An amount within the balance moves on to Select People")
-    func withinBalanceMovesOn() async throws {
-        let (viewModel, _) = try await make(total: "100")
+    @Test("No amount, or zero, cannot move on")
+    func emptyAmountCannotContinue() async throws {
+        let (viewModel, _) = try await make(total: "0")
 
-        #expect(viewModel.confirmAmount())
+        #expect(viewModel.canContinue == false)
+    }
+
+    @Test("A total above the balance is refused on the confirm sheet with the insufficient balance alert")
+    func overBalanceIsRefusedOnSubmit() async throws {
+        let (viewModel, payments) = try await make(total: "101")
+        viewModel.toggle(UUID())
+
+        #expect(await viewModel.submit() == .failed)
+
+        #expect(viewModel.session.dialogItem?.title == "Insufficient Balance")
+        #expect(payments.singleSends.isEmpty)
+        #expect(payments.multiSends.isEmpty)
+    }
+
+    @Test("You in the split is never paid: $30.00 between You and 2 others pays $10.00 to each of the 2")
+    func youIsDroppedFromPayments() async throws {
+        let (viewModel, payments) = try await make(total: "30")
+        let (a, b) = (UUID(), UUID())
+        [viewModel.session.userID, a, b].forEach(viewModel.toggle)
+
+        #expect(viewModel.payees == [a, b])
+        #expect(viewModel.eachLabel == "$10.00 Each, including You")
+        #expect(await viewModel.submit() == .success)
+
+        let multi = try #require(payments.multiSends.first)
+        #expect(multi.map(\.amount.nativeAmount.value) == [10, 10])
+        #expect(multi.map(\.recipientOwner) == [a, b].map(payments.key(for:)))
+    }
+
+    @Test("You's part is always last, so $1.00 between You, A and B pays A $0.34 and B $0.33")
+    func youTakesTheLastShare() async throws {
+        let (viewModel, payments) = try await make(total: "1")
+        let (a, b) = (UUID(), UUID())
+        [viewModel.session.userID, a, b].forEach(viewModel.toggle)
+
+        #expect(await viewModel.submit() == .success)
+
+        let multi = try #require(payments.multiSends.first)
+        #expect(multi.map(\.amount.nativeAmount.value) == [Decimal(string: "0.34"), Decimal(string: "0.33")])
+    }
+
+    @Test("You and one other is one single payment of half")
+    func youAndOneIsASingleSend() async throws {
+        let (viewModel, payments) = try await make(total: "10")
+        let a = UUID()
+        [viewModel.session.userID, a].forEach(viewModel.toggle)
+
+        #expect(await viewModel.submit() == .success)
+
+        #expect(payments.multiSends.isEmpty)
+        #expect(payments.singleSends.map(\.amount.nativeAmount.value) == [5])
+        #expect(payments.singleSends.map(\.recipientOwner) == [payments.key(for: a)])
+    }
+
+    @Test("With You in the split the each line says so, even for one paid member")
+    func eachLineSaysIncludingYou() async throws {
+        let (viewModel, _) = try await make(total: "10")
+        [viewModel.session.userID, UUID()].forEach(viewModel.toggle)
+
+        #expect(viewModel.includesYou)
+        #expect(viewModel.eachLabel == "$5.00 Each, including You")
+    }
+
+    @Test("Without You the each line is unchanged")
+    func eachLineWithoutYou() async throws {
+        let (viewModel, _) = try await make(total: "1")
+        [UUID(), UUID(), UUID()].forEach(viewModel.toggle)
+
+        #expect(viewModel.includesYou == false)
+        #expect(viewModel.eachLabel == "~$0.33 Each")
+    }
+
+    @Test("Only You checked leaves nobody to pay")
+    func onlyYouCannotContinue() async throws {
+        let (viewModel, payments) = try await make(total: "10")
+        viewModel.toggle(viewModel.session.userID)
+
+        #expect(viewModel.payees.isEmpty)
+        #expect(viewModel.confirmSelection() == false)
+        #expect(await viewModel.submit() == .failed)
+        #expect(payments.singleSends.isEmpty)
+        #expect(payments.multiSends.isEmpty)
+    }
+
+    @Test("The cap counts You: You plus 9 others is the most")
+    func capCountsYou() async throws {
+        let (viewModel, _) = try await make(total: "20")
+        viewModel.toggle(viewModel.session.userID)
+        (0..<9).forEach { _ in viewModel.toggle(UUID()) }
+
+        #expect(viewModel.selection.count == 10)
         #expect(viewModel.session.dialogItem == nil)
+        #expect(viewModel.confirmSelection())
+
+        viewModel.toggle(UUID())
+
+        #expect(viewModel.selection.count == 10)
+        #expect(viewModel.session.dialogItem?.title == "10 People Max")
+    }
+
+    @Test("The too-small check counts You: $0.02 between You and 2 others is refused")
+    func tooSmallCountsYou() async throws {
+        let (viewModel, _) = try await make(total: "0.02")
+        [viewModel.session.userID, UUID(), UUID()].forEach(viewModel.toggle)
+
+        #expect(viewModel.confirmSelection() == false)
+        #expect(viewModel.session.dialogItem?.title == "Amount Too Small")
+    }
+
+    @Test("Funds are checked against what the sender pays, not the entered total")
+    func fundsCheckUsesThePaidParts() async throws {
+        let (viewModel, payments) = try await make(total: "150")
+        [viewModel.session.userID, UUID()].forEach(viewModel.toggle)
+
+        #expect(await viewModel.submit() == .success)
+
+        #expect(payments.singleSends.map(\.amount.nativeAmount.value) == [75])
     }
 
     @Test("A total under one cent each is refused before anything is sent")
@@ -95,7 +211,6 @@ struct GroupSendViewModelTests {
         viewModel.toggle(b)
 
         #expect(viewModel.selection == [a, c])
-        #expect(viewModel.sendButtonTitle == "Send to 2 People")
     }
 
     // MARK: - Helpers

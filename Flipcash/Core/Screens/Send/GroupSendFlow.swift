@@ -46,7 +46,7 @@ private struct GroupSendFlowContent: View {
     var body: some View {
         NavigationStack(path: $path) {
             GroupSendAmountScreen(viewModel: viewModel) {
-                if viewModel.confirmAmount() { path.append(.selectPeople) }
+                path.append(.selectPeople)
             }
             .toolbar { closeButton }
             .navigationDestination(for: GroupSendStep.self) { step in
@@ -80,52 +80,27 @@ private struct GroupSendAmountScreen: View {
     @Bindable var viewModel: GroupSendViewModel
     let next: () -> Void
 
-    @State private var isShowingTokenSelection = false
-
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
                 mode: .currency,
                 enteredAmount: $viewModel.enteredAmount,
-                subtitle: .balanceWithLimit(viewModel.available),
+                subtitle: .hidden,
                 actionState: .constant(.normal),
                 actionEnabled: { _ in viewModel.canContinue },
                 action: next,
                 actionTitle: "Next",
                 header: AnyView(EnterAmountHeader(
                     enteredAmount: $viewModel.enteredAmount,
-                    hint: .available(viewModel.available)
+                    hint: nil
                 ))
             )
             .foregroundStyle(.textMain)
             .padding(20)
         }
         .ignoresSafeArea(.keyboard)
-        .navigationTitle("")
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                TokenSelectorButton(
-                    selectedBalance: viewModel.selectedBalance,
-                    action: { isShowingTokenSelection = true }
-                )
-                .id(viewModel.selectedBalance?.stored.mint)
-            }
-        }
-        // On the screen, not the button: the button's `.id` changes with the pick, and a sheet
-        // hosted on it would be torn down mid-dismiss, taking the whole flow with it.
-        .sheet(isPresented: $isShowingTokenSelection) {
-            let options = viewModel.paymentOptions
-            CurrencyPickerSheet(
-                options: options,
-                selectedMint: viewModel.selectedBalance?.stored.mint ?? .usdf,
-                onSelect: { mint in
-                    if let balance = options.first(where: { $0.stored.mint == mint }) {
-                        viewModel.selectCurrencyAction(exchangedBalance: balance)
-                    }
-                    isShowingTokenSelection = false
-                }
-            )
-        }
+        .navigationTitle("Total Amount To Send")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -145,7 +120,7 @@ private struct GroupSendSelectPeopleScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 SelectPeopleList(
-                    members: viewModel.members,
+                    members: [viewModel.youRow] + viewModel.members,
                     isSelected: viewModel.isSelected,
                     toggle: viewModel.toggle,
                     rowIdentifier: "group-send-member-row"
@@ -153,8 +128,8 @@ private struct GroupSendSelectPeopleScreen: View {
 
                 CodeButton(
                     style: .filled,
-                    title: viewModel.sendButtonTitle,
-                    disabled: viewModel.selection.isEmpty
+                    title: "Next",
+                    disabled: viewModel.payees.isEmpty
                 ) {
                     if viewModel.confirmSelection() {
                         isConfirming = true
@@ -163,7 +138,7 @@ private struct GroupSendSelectPeopleScreen: View {
                 .padding(20)
             }
         }
-        .navigationTitle("Select People")
+        .navigationTitle("Split Between")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()
@@ -283,7 +258,7 @@ private struct GroupSendConfirmSheet: View {
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
-                    if viewModel.selection.count > 1, let each = viewModel.eachLabel {
+                    if viewModel.payees.count > 1 || viewModel.includesYou, let each = viewModel.eachLabel {
                         Text(each)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)

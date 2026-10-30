@@ -31,7 +31,8 @@ final class GroupSendViewModel {
 
     private(set) var selectedBalance: ExchangedBalance?
 
-    /// The members picked, in the order they were picked; that order decides who gets a leftover unit.
+    /// Who is checked, in the order they were checked; that order decides who gets a leftover unit.
+    /// Holds `session.userID` when You is checked: You shares the total but is never paid.
     private(set) var selection: [UserID] = []
 
     let conversationID: ConversationID
@@ -78,35 +79,9 @@ final class GroupSendViewModel {
         validatedEntered.map { FiatAmount(value: $0, currency: ratesController.balanceCurrency) }
     }
 
-    /// Whether the amount screen can move on to picking people.
+    /// Whether the amount screen can move on to picking people; funds are checked on the confirm sheet.
     var canContinue: Bool {
-        guard let validatedEntered, let selectedBalance else { return false }
-        let fiat = selectedBalance.enteredFiat(for: validatedEntered, rate: ratesController.rateForBalanceCurrency())
-        return (fiat?.onChainAmount.quarks ?? 0) > 0
-    }
-
-    /// Whether the amount screen can go on to Select People; an amount over the balance shows the insufficient balance alert instead.
-    func confirmAmount() -> Bool {
-        guard let validatedEntered, let selectedBalance,
-              let fiat = selectedBalance.enteredFiat(for: validatedEntered, rate: ratesController.rateForBalanceCurrency()) else {
-            return false
-        }
-        switch session.hasSufficientFunds(for: fiat) {
-        case .insufficient:
-            showInsufficientBalanceError()
-            return false
-        case .sufficient:
-            return true
-        }
-    }
-
-    /// What's left to spend in the selected currency.
-    var available: ExchangedFiat {
-        let rate = ratesController.rateForBalanceCurrency()
-        guard let mint = selectedBalance?.stored.mint, let balance = session.balance(for: mint) else {
-            return ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: rate, supplyQuarks: nil)
-        }
-        return balance.computeExchangedValue(with: rate)
+        validatedEntered != nil
     }
 
     /// The balances the currency picker offers.
@@ -121,6 +96,16 @@ final class GroupSendViewModel {
     }
 
     // MARK: - People -
+
+    /// The "You" row Split Between lists before the members.
+    var youRow: GroupPortrait {
+        GroupPortrait(userID: session.userID, name: "You", picture: nil, isHost: false)
+    }
+
+    /// The members checked, You left out, in check order: the people who get paid.
+    var payees: [UserID] {
+        selection.filter { $0 != session.userID }
+    }
 
     /// The group's members the sender can pay, the sender left out, host first.
     var members: [GroupPortrait] {
@@ -145,7 +130,7 @@ final class GroupSendViewModel {
         selection.contains(userID)
     }
 
-    /// Checks or unchecks a member. An eleventh check is refused with the "10 People Max" notice.
+    /// Checks or unchecks a member or You. An eleventh person, You included, is refused with the "10 People Max" notice.
     func toggle(_ userID: UserID) {
         if let index = selection.firstIndex(of: userID) {
             selection.remove(at: index)
@@ -161,18 +146,18 @@ final class GroupSendViewModel {
         selection.append(userID)
     }
 
-    /// "Send to N People", worded for one.
-    var sendButtonTitle: String {
-        selection.count == 1 ? "Send to 1 Person" : "Send to \(selection.count) People"
-    }
-
-    /// The entered total split between the current selection, or nil when it can't be.
+    /// The entered total split between everyone checked, You included; `parts` are the ones paid.
     var split: GroupSendSplit? {
         guard let enteredTotal else { return nil }
-        return try? GroupSendSplit.split(total: enteredTotal, recipients: selection.count)
+        return try? GroupSendSplit.split(total: enteredTotal, recipients: payees.count, includesYou: includesYou)
     }
 
-    /// The per-person line for the confirm sheet: "$1.00 Each", or "~$0.33 Each" when uneven.
+    /// Whether the sender shares the total, which the confirm sheet says even for one paid member.
+    var includesYou: Bool {
+        selection.contains(session.userID)
+    }
+
+    /// The per-person line for the confirm sheet, from the parts paid: "$1.00 Each", or "~$0.33 Each" when uneven, ", including You" when You shares it.
     var eachLabel: String? {
         guard let split, let enteredTotal else { return nil }
         return split.eachLabel(in: enteredTotal.currency)
@@ -180,9 +165,9 @@ final class GroupSendViewModel {
 
     /// Whether the selection can go on to confirm; a total too small to split shows the alert instead.
     func confirmSelection() -> Bool {
-        guard let enteredTotal else { return false }
+        guard let enteredTotal, !payees.isEmpty else { return false }
         do {
-            _ = try GroupSendSplit.split(total: enteredTotal, recipients: selection.count)
+            _ = try GroupSendSplit.split(total: enteredTotal, recipients: payees.count, includesYou: includesYou)
             return true
         } catch {
             switch error {
@@ -197,7 +182,7 @@ final class GroupSendViewModel {
 
     // MARK: - Submit -
 
-    /// Splits the total, prices every part at one verified state, and pays the selection.
+    /// Splits the total, prices every part at one verified state, and pays the members checked.
     func submit() async -> Outcome {
         guard let enteredTotal, let split else { return .failed }
 
@@ -215,8 +200,7 @@ final class GroupSendViewModel {
         }
 
         let mint = selectedBalance.stored.mint
-        guard let pin = await ratesController.currentPinnedState(for: enteredTotal.currency, mint: mint),
-              let total = session.price(FiatAmount(value: enteredTotal.value, currency: pin.rate.currency), mint: mint, at: pin) else {
+        guard let pin = await ratesController.currentPinnedState(for: enteredTotal.currency, mint: mint) else {
             ErrorReporting.captureError(
                 RatesController.Error.exchangeRateUnavailable,
                 reason: "No fresh rate at group send submission",
@@ -236,7 +220,16 @@ final class GroupSendViewModel {
             return .failed
         }
 
-        switch session.hasSufficientFunds(for: total) {
+        // What the sender pays is the parts of everyone but You, not the entered total.
+        let paidFiat = FiatAmount(
+            value: split.amounts(in: pin.rate.currency).reduce(Decimal(0)) { $0 + $1.value },
+            currency: pin.rate.currency
+        )
+        guard let paid = session.price(paidFiat, mint: mint, at: pin) else {
+            showSendError()
+            return .failed
+        }
+        switch session.hasSufficientFunds(for: paid) {
         case .insufficient:
             showInsufficientBalanceError()
             return .failed
@@ -250,14 +243,14 @@ final class GroupSendViewModel {
             return .failed
         }
 
-        let sendLimit = session.sendLimitFor(currency: total.nativeAmount.currency) ?? .zero
-        guard total.nativeAmount.value <= sendLimit.nextTransaction.value else {
+        let sendLimit = session.sendLimitFor(currency: paid.nativeAmount.currency) ?? .zero
+        guard paid.nativeAmount.value <= sendLimit.nextTransaction.value else {
             showLimitsError()
             return .failed
         }
 
         var payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)] = []
-        for (userID, amount) in zip(selection, amounts) {
+        for (userID, amount) in zip(payees, amounts) {
             do {
                 payments.append((amount, try await resolver.resolveUserID(userID)))
             } catch {
@@ -273,10 +266,10 @@ final class GroupSendViewModel {
             } else {
                 try await multiSender.sendMultiple(payments, verifiedState: pin, chat: chat)
             }
-            Analytics.sentCash(exchangedFiat: total, context: .groupSend, recipientCount: payments.count, error: nil)
+            Analytics.sentCash(exchangedFiat: paid, context: .groupSend, recipientCount: payments.count, error: nil)
             return .success
         } catch {
-            Analytics.sentCash(exchangedFiat: total, context: .groupSend, recipientCount: payments.count, error: error)
+            Analytics.sentCash(exchangedFiat: paid, context: .groupSend, recipientCount: payments.count, error: error)
             if !(error is CancellationError) {
                 showSendError()
             }

@@ -10,6 +10,7 @@ import Testing
         let maxRecipients: Int
         let minimumPart: String
         let vectors: [Vector]
+        let youVectors: [YouVector]
     }
 
     struct Vector: Decodable, Sendable, CustomTestStringConvertible {
@@ -18,6 +19,20 @@ import Testing
         let recipients: Int
         let intent: String?
         let parts: [String]?
+        let eachLabel: String?
+        let expectedError: String?
+
+        var testDescription: String { name }
+    }
+
+    struct YouVector: Decodable, Sendable, CustomTestStringConvertible {
+        let name: String
+        let total: String
+        let recipients: Int
+        let intent: String?
+        let youPart: String?
+        let parts: [String]?
+        let paidTotal: String?
         let eachLabel: String?
         let expectedError: String?
 
@@ -63,7 +78,39 @@ import Testing
         }
     }
 
+    @Test(arguments: fixture.youVectors)
+    func youSplitMatchesTheCrossPlatformVectors(vector: YouVector) throws {
+        let total = FiatAmount(value: try #require(Decimal(string: vector.total)), currency: .usd)
+        let result = Result { () throws(GroupSendSplit.Rejection) in
+            try GroupSendSplit.split(total: total, recipients: vector.recipients, includesYou: true)
+        }
+
+        if let expectedError = vector.expectedError {
+            #expect(throws: Self.rejection(expectedError)) { try result.get() }
+            return
+        }
+
+        let split = try result.get()
+        let parts = try #require(vector.parts)
+        #expect(split.parts == parts.map(Self.usd))
+        #expect(split.youPart == vector.youPart.map(Self.usd))
+        #expect(split.parts.reduce(0, +) == vector.paidTotal.map(Self.usd))
+        #expect((split.youPart ?? 0) + split.parts.reduce(0, +) == Self.usd(vector.total))
+        #expect((split.parts.count > 1 ? "SendPublicMultiPayment" : "SendPublicPayment") == vector.intent)
+        #expect(vector.eachLabel == split.eachLabel(in: .usd))
+    }
+
+    static func rejection(_ name: String) -> GroupSendSplit.Rejection {
+        switch name {
+        case "no-recipients": .noRecipients
+        case "too-many-recipients": .tooManyRecipients
+        case "part-below-minimum": .partBelowMinimum
+        default: fatalError("unknown error \(name)")
+        }
+    }
+
     @Test func everyVectorIsRun() {
+        #expect(Self.fixture.youVectors.count == 9)
         #expect(Self.fixture.vectors.count == 14)
         #expect(Self.fixture.vectors.filter { $0.expectedError != nil }.count == 4)
     }
