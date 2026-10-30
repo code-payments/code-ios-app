@@ -374,7 +374,7 @@ private struct PaymentRequestSummaryScreen: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.amount?.formatted() ?? "")
+                            Text(viewModel.amount?.formattedDroppingZeroFraction() ?? "")
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
                             Text("Total")
