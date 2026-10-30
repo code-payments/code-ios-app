@@ -11,7 +11,7 @@ import FlipcashCore
 
 nonisolated private let logger = Logger(label: "flipcash.approve-new-members")
 
-/// Which hosted groups have Approve new members on: the host's link card shows the plain
+/// Which hosted groups have Approve New Members on: the host's link card shows the plain
 /// `/chat/{uuid}` link for those, and the current invite link for the rest.
 ///
 /// Kept on this device only, never on the server, and owner-scoped in `UserDefaults` like

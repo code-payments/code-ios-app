@@ -54,9 +54,9 @@ enum InviteLinkCopy {
     /// The host sheet's pill before the current link exists: nothing is made on open (Decision 9).
     static let noLinkYet = "No link yet"
 
-    /// The Approve new members row's subtitle for the switch's position.
+    /// The Approve New Members row's subtitle for the switch's position.
     static func approveSubtitle(isOn: Bool) -> String {
-        isOn ? "On: you approve each person in Join Requests" : "Off: anyone with the link joins right away"
+        isOn ? "You approve each person in Join Requests" : "Anyone with the link joins right away"
     }
 
     /// The sheet's meta line under the current link: "Expires Nov 3 · 0 joined".

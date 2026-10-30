@@ -9,7 +9,7 @@ import FlipcashCore
 @testable import Flipcash
 
 @MainActor
-@Suite("Approve new members")
+@Suite("Approve New Members")
 struct ApproveNewMembersTests {
 
     private let defaults: UserDefaults

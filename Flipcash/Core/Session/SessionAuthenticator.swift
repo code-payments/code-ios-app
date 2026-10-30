@@ -696,7 +696,7 @@ final class SessionContainer {
 
     /// Reads, makes and revokes a hosted private group's invite links, for ``GroupInviteLinks``.
     let inviteLinks: GroupInviteLinks.Service
-    /// Which hosted groups' link cards show the plain link (Approve new members), on this device.
+    /// Which hosted groups' link cards show the plain link (Approve New Members), on this device.
     let approveNewMembers: ApproveNewMembers
     let inviteLanding: GroupInviteLanding
 
