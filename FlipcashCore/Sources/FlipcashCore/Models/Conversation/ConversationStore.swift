@@ -568,7 +568,7 @@ public struct ConversationStore: Sendable {
     public mutating func refreshViewerPermissions(from fetched: ConversationViewerState, in conversationID: ConversationID) -> Bool {
         guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return false }
         let current = conversations[index].viewerState ?? ConversationViewerState()
-        guard current.canEdit != fetched.canEdit || current.canSilence != fetched.canSilence || current.canBan != fetched.canBan || current.canPin != fetched.canPin else {
+        guard current.canEdit != fetched.canEdit || current.canSilence != fetched.canSilence || current.canBan != fetched.canBan || current.canInvite != fetched.canInvite || current.canPin != fetched.canPin else {
             return false
         }
         conversations[index].viewerState = ConversationViewerState(
@@ -578,6 +578,7 @@ public struct ConversationStore: Sendable {
             silence: current.silence,
             canSilence: fetched.canSilence,
             canBan: fetched.canBan,
+            canInvite: fetched.canInvite,
             canPin: fetched.canPin
         )
         return true
@@ -740,6 +741,7 @@ public struct ConversationStore: Sendable {
                 silence: incoming.silence,
                 canSilence: incoming.canSilence || held.canSilence,
                 canBan: incoming.canBan || held.canBan,
+                canInvite: incoming.canInvite || held.canInvite,
                 canPin: incoming.canPin || held.canPin
             )
         }

@@ -162,4 +162,25 @@ struct ConversationMuteTests {
         store.apply(.metadataRefresh(conversation(1, viewerState: nil)))
         #expect(store.conversations[0].viewerState?.canSilence == true)
     }
+
+    @Test("canInvite survives a feed row at the same version and a permissions refresh")
+    func canInviteSurvivesBothMerges() {
+        var store = ConversationStore()
+        store.apply(.metadataRefresh(conversation(1, viewerState: ConversationViewerState(version: 0, canInvite: true))))
+
+        // A feed row at the same version that omits the permission keeps it.
+        store.apply(.metadataRefresh(conversation(1, viewerState: ConversationViewerState(version: 0))))
+        #expect(store.conversations[0].viewerState?.canInvite == true)
+
+        // A refresh that changes another permission carries canInvite through the rebuild.
+        let changed = store.refreshViewerPermissions(from: ConversationViewerState(version: 0, canBan: true, canInvite: true), in: conversationID(1))
+        #expect(changed)
+        #expect(store.conversations[0].viewerState?.canInvite == true)
+        #expect(store.conversations[0].viewerState?.canBan == true)
+
+        // A refresh that changes only canInvite is applied.
+        let revoked = store.refreshViewerPermissions(from: ConversationViewerState(version: 0, canBan: true, canInvite: false), in: conversationID(1))
+        #expect(revoked)
+        #expect(store.conversations[0].viewerState?.canInvite == false)
+    }
 }
