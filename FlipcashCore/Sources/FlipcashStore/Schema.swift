@@ -142,6 +142,25 @@ nonisolated public struct RequestedPaymentTable: Sendable {
     public let paymentRequestID = Expression <Data>      ("paymentRequestID")
 }
 
+// One row per payment request, kept so a chat's request cards and details draw offline. The whole
+// `PaymentRequestMetadata` is stored serialized (private-chat text still sealed); `version`, `status`
+// and `conversationID` sit beside it as columns for the merge rule and the per-chat read. A request
+// the server shows no chat for keeps a nil `conversationID`.
+nonisolated public struct PaymentRequestTable: Sendable {
+    public static let name = "paymentRequest"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let id             = Expression <Data>    ("id")
+    public let conversationID = Expression <Data?>   ("conversationID")
+    public let version        = Expression <UInt64>  ("version")
+    public let status         = Expression <Int>     ("status")
+    public let endsAt         = Expression <Double?> ("endsAt")
+    public let createdAt      = Expression <Double?> ("createdAt")
+    public let metadata       = Expression <Data>    ("metadata")
+}
+
 nonisolated public struct LimitsTable: Sendable {
     public static let name = "limits"
 
@@ -556,6 +575,21 @@ nonisolated extension Database {
 
                     t.foreignKey(requestedPaymentTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
                 })
+            }
+
+            let paymentRequestTable = PaymentRequestTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(paymentRequestTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(paymentRequestTable.id, primaryKey: true)
+                    t.column(paymentRequestTable.conversationID)
+                    t.column(paymentRequestTable.version)
+                    t.column(paymentRequestTable.status)
+                    t.column(paymentRequestTable.endsAt)
+                    t.column(paymentRequestTable.createdAt)
+                    t.column(paymentRequestTable.metadata)
+                })
+                try writer.run(paymentRequestTable.table.createIndex(paymentRequestTable.conversationID, ifNotExists: true))
             }
 
             let limitsTable = LimitsTable()
