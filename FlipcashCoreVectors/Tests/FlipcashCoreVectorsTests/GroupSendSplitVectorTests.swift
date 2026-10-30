@@ -2,7 +2,8 @@ import Foundation
 import Testing
 @testable import FlipcashCore
 
-/// `test-vectors/group-send-split.json`: each recipient's part of a group send, in selection order.
+/// `test-vectors/group-send-split.json`: each recipient's part of a group send, in selection order,
+/// and the sender's kept share when they include themselves.
 /// The canonical copy lives in the orchestrator repo; this one is synced. Never edit it locally.
 @Suite struct GroupSendSplitVectorTests {
 
@@ -16,8 +17,11 @@ import Testing
         let name: String
         let total: String
         let recipients: Int
+        let includesSender: Bool?
         let intent: String?
         let parts: [String]?
+        let kept: String?
+        let sent: String?
         let eachLabel: String?
         let expectedError: String?
 
@@ -38,7 +42,7 @@ import Testing
     func splitMatchesTheCrossPlatformVectors(vector: Vector) throws {
         let total = FiatAmount(value: try #require(Decimal(string: vector.total)), currency: .usd)
         let result = Result { () throws(GroupSendSplit.Rejection) in
-            try GroupSendSplit.split(total: total, recipients: vector.recipients)
+            try GroupSendSplit.split(total: total, recipients: vector.recipients, includesSender: vector.includesSender ?? false)
         }
 
         if let expectedError = vector.expectedError {
@@ -55,23 +59,37 @@ import Testing
         let split = try result.get()
         let parts = try #require(vector.parts)
         #expect(split.parts == parts.map(Self.usd))
-        #expect(split.parts.reduce(0, +) == Self.usd(vector.total))
+        #expect(split.kept == vector.kept.map(Self.usd))
+        #expect(split.sent == Self.usd(vector.sent ?? vector.total))
+        #expect(split.sent + (split.kept ?? 0) == Self.usd(vector.total))
         #expect(split.amounts(in: .usd).map { $0.formatted(minimumFractionDigits: 2) } == parts.map { "$\($0)" })
         #expect((split.parts.count > 1 ? "SendPublicMultiPayment" : "SendPublicPayment") == vector.intent)
         if let eachLabel = vector.eachLabel {
             #expect(split.eachLabel(in: .usd) == eachLabel)
+        } else {
+            #expect(split.shareCount == 1)
         }
     }
 
     @Test func everyVectorIsRun() {
-        #expect(Self.fixture.vectors.count == 14)
-        #expect(Self.fixture.vectors.filter { $0.expectedError != nil }.count == 4)
+        #expect(Self.fixture.vectors.count == 23)
+        #expect(Self.fixture.vectors.filter { $0.expectedError != nil }.count == 7)
+        #expect(Self.fixture.vectors.filter { $0.includesSender == true }.count == 9)
     }
 
     @Test func zeroDecimalCurrencySplitsInWholeUnits() throws {
         let split = try GroupSendSplit.split(total: FiatAmount(value: 1000, currency: .jpy), recipients: 3)
         #expect(split.parts == [334, 333, 333])
         #expect(split.amounts(in: .jpy).map(\.value) == [334, 333, 333])
+    }
+
+    /// The fixture has no case where every leftover unit lands on the paid parts: they come out
+    /// even, but the sender's smaller share makes the split uneven.
+    @Test func sendersSmallerShareMakesTheSplitUneven() throws {
+        let split = try GroupSendSplit.split(total: FiatAmount(value: Decimal(string: "1.01")!, currency: .usd), recipients: 2, includesSender: true)
+        #expect(split.parts == [34, 34])
+        #expect(split.kept == 33)
+        #expect(split.eachLabel(in: .usd) == "~$0.33 Each")
     }
 
     /// Parses a two-place USD string such as "9.99" to cents without going through `Double`.

@@ -9,8 +9,9 @@ import Foundation
 import FlipcashCore
 
 /// Sends cash into a private group: the sender enters a total, picks up to ten members, and the total
-/// is split between them in the order they were picked. One recipient is a single payment; two or more
-/// are one multi-recipient intent, every part priced at one verified state.
+/// is split between them in the order they were picked. The sender can include themselves, keeping the
+/// last share. One recipient is a single payment; two or more are one multi-recipient intent, every
+/// part priced at one verified state.
 @Observable
 final class GroupSendViewModel {
 
@@ -33,6 +34,9 @@ final class GroupSendViewModel {
 
     /// The members picked, in the order they were picked; that order decides who gets a leftover unit.
     private(set) var selection: [UserID] = []
+
+    /// Whether the sender checked You: the total is split with them too, and their share is kept.
+    private(set) var includesSender = false
 
     let conversationID: ConversationID
 
@@ -131,6 +135,15 @@ final class GroupSendViewModel {
         }
     }
 
+    /// The sender as the "You" row atop Select People, drawn with their own roster portrait.
+    var you: GroupPortrait {
+        let creator = conversationController.conversation(withID: conversationID)?.creator
+        let own = rosters.members(for: conversationID, creator: creator)
+            .first { $0.userID == session.userID }
+            .flatMap { GroupPortrait($0, creator: creator) }
+        return GroupPortrait(userID: session.userID, name: "You", picture: own?.picture, isHost: own?.isHost ?? false)
+    }
+
     /// The picked members in selection order, as far as the roster names them.
     var selectedMembers: [GroupPortrait] {
         let byID = Dictionary(members.map { ($0.userID, $0) }, uniquingKeysWith: { first, _ in first })
@@ -142,39 +155,55 @@ final class GroupSendViewModel {
     }
 
     func isSelected(_ userID: UserID) -> Bool {
-        selection.contains(userID)
+        userID == session.userID ? includesSender : selection.contains(userID)
     }
 
-    /// Checks or unchecks a member. An eleventh check is refused with the "10 People Max" notice.
+    /// How many ways the total splits: the picked members, and the sender when You is checked.
+    var shareCount: Int {
+        selection.count + (includesSender ? 1 : 0)
+    }
+
+    /// Checks or unchecks a member, or You for the sender's own id. An eleventh check, You counted,
+    /// is refused with the "10 People Max" notice.
     func toggle(_ userID: UserID) {
+        let isSender = userID == session.userID
+        if isSender, includesSender {
+            includesSender = false
+            return
+        }
         if let index = selection.firstIndex(of: userID) {
             selection.remove(at: index)
             return
         }
-        guard selection.count < GroupSendSplit.maxRecipients else {
+        guard shareCount < GroupSendSplit.maxRecipients else {
             session.dialogItem = .info(
                 title: "10 People Max",
                 subtitle: "The maximum number of people you can send to at once is 10 people"
             )
             return
         }
-        selection.append(userID)
+        if isSender {
+            includesSender = true
+        } else {
+            selection.append(userID)
+        }
     }
 
-    /// "Send to N People", worded for one.
+    /// "Send to N People", worded for one; N counts the other members, never You.
     var sendButtonTitle: String {
         selection.count == 1 ? "Send to 1 Person" : "Send to \(selection.count) People"
     }
 
-    /// The entered total split between the current selection, or nil when it can't be.
+    /// The entered total split between the current selection and You when checked, or nil when it can't be.
     var split: GroupSendSplit? {
         guard let enteredTotal else { return nil }
-        return try? GroupSendSplit.split(total: enteredTotal, recipients: selection.count)
+        return try? GroupSendSplit.split(total: enteredTotal, recipients: selection.count, includesSender: includesSender)
     }
 
-    /// The per-person line for the confirm sheet: "$1.00 Each", or "~$0.33 Each" when uneven.
+    /// The per-person line for the confirm sheet: "$1.00 Each", or "~$0.33 Each" when uneven; nil for
+    /// a single share.
     var eachLabel: String? {
-        guard let split, let enteredTotal else { return nil }
+        guard let split, split.shareCount > 1, let enteredTotal else { return nil }
         return split.eachLabel(in: enteredTotal.currency)
     }
 
@@ -182,7 +211,7 @@ final class GroupSendViewModel {
     func confirmSelection() -> Bool {
         guard let enteredTotal else { return false }
         do {
-            _ = try GroupSendSplit.split(total: enteredTotal, recipients: selection.count)
+            _ = try GroupSendSplit.split(total: enteredTotal, recipients: selection.count, includesSender: includesSender)
             return true
         } catch {
             switch error {
@@ -197,7 +226,8 @@ final class GroupSendViewModel {
 
     // MARK: - Submit -
 
-    /// Splits the total, prices every part at one verified state, and pays the selection.
+    /// Splits the total, prices every paid part at one verified state, and pays the selection; the
+    /// sender's own share, when included, is never sent.
     func submit() async -> Outcome {
         guard let enteredTotal, let split else { return .failed }
 
@@ -216,7 +246,7 @@ final class GroupSendViewModel {
 
         let mint = selectedBalance.stored.mint
         guard let pin = await ratesController.currentPinnedState(for: enteredTotal.currency, mint: mint),
-              let total = session.price(FiatAmount(value: enteredTotal.value, currency: pin.rate.currency), mint: mint, at: pin) else {
+              let total = session.price(split.sentAmount(in: pin.rate.currency), mint: mint, at: pin) else {
             ErrorReporting.captureError(
                 RatesController.Error.exchangeRateUnavailable,
                 reason: "No fresh rate at group send submission",
@@ -294,7 +324,7 @@ final class GroupSendViewModel {
     private func showTooSmallToSplitError(total: FiatAmount) {
         session.dialogItem = .error(
             title: "Amount Too Small",
-            subtitle: "\(total.formatted()) is too small to split between \(selection.count) people. Pick fewer people or enter a higher amount"
+            subtitle: "\(total.formatted()) is too small to split between \(shareCount) people. Pick fewer people or enter a higher amount"
         )
     }
 

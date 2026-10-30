@@ -145,6 +145,7 @@ private struct GroupSendSelectPeopleScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 SelectPeopleList(
+                    you: viewModel.you,
                     members: viewModel.members,
                     isSelected: viewModel.isSelected,
                     toggle: viewModel.toggle,
@@ -191,11 +192,13 @@ private struct GroupSendSelectPeopleScreen: View {
 
 // MARK: - Member checklist -
 
-/// The checklist of a group's members that group send and a new request both pick from.
+/// The checklist of a group's members that group send and a new request both pick from, with the
+/// sender's own "You" row first when `you` is given.
 struct SelectPeopleList: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
+    var you: GroupPortrait? = nil
     let members: [GroupPortrait]
     let isSelected: (UserID) -> Bool
     let toggle: (UserID) -> Void
@@ -204,8 +207,11 @@ struct SelectPeopleList: View {
     var body: some View {
         List {
             Section {
+                if let you {
+                    row(you, identifier: "\(rowIdentifier)-you")
+                }
                 ForEach(members, id: \.userID) { portrait in
-                    row(portrait)
+                    row(portrait, identifier: rowIdentifier)
                 }
             } header: {
                 Text("Members")
@@ -218,7 +224,7 @@ struct SelectPeopleList: View {
         .scrollContentBackground(.hidden)
     }
 
-    private func row(_ portrait: GroupPortrait) -> some View {
+    private func row(_ portrait: GroupPortrait, identifier: String) -> some View {
         let checked = isSelected(portrait.userID)
         return RecipientRowScaffold(
             avatarID: portrait.userID.uuidString,
@@ -233,7 +239,7 @@ struct SelectPeopleList: View {
                 .font(.system(size: 22))
                 .foregroundStyle(checked ? Color.textMain : Color.textSecondary)
         }
-        .accessibilityIdentifier(rowIdentifier)
+        .accessibilityIdentifier(identifier)
         .accessibilityAddTraits(checked ? .isSelected : [])
         .task(id: portrait.userID) {
             await sessionContainer.profileAvatars.load(userID: portrait.userID, picture: portrait.picture)
@@ -283,7 +289,7 @@ private struct GroupSendConfirmSheet: View {
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
-                    if viewModel.selection.count > 1, let each = viewModel.eachLabel {
+                    if let each = viewModel.eachLabel {
                         Text(each)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)

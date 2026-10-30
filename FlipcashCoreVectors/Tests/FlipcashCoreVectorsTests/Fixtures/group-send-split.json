@@ -1,7 +1,7 @@
 {
   "algorithm": "group-send-split",
   "source": "docs/specs/group-send.md (Splitting the total); flipcash2-client-protocol 0.21.0 CashContent.multi_receiver; ocp SendPublicMultiPaymentMetadata",
-  "note": "Amounts are USD decimal strings. parts are in selection order: the first recipients checked get the leftover cents. Quarks are omitted: each part is priced from its own fiat at one verified state. expectedError names the rule, not a platform error type.",
+  "note": "Amounts are USD decimal strings. parts are in selection order: the first recipients checked get the leftover cents. Quarks are omitted: each part is priced from its own fiat at one verified state. expectedError names the rule, not a platform error type. With includesSender, the sender's part is the last share, kept rather than paid: parts lists the paid members only, kept is the sender's part, sent is what the intent pays, and maxRecipients counts the sender's share.",
   "maxRecipients": 10,
   "minimumPart": "0.01",
   "vectors": [
@@ -175,6 +175,123 @@
       "name": "no recipients",
       "total": "1.00",
       "recipients": 0,
+      "expectedError": "no-recipients"
+    },
+    {
+      "name": "you and four",
+      "total": "5.00",
+      "recipients": 4,
+      "includesSender": true,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00"
+      ],
+      "kept": "1.00",
+      "sent": "4.00",
+      "eachLabel": "$1.00 Each"
+    },
+    {
+      "name": "you and one",
+      "total": "5.00",
+      "recipients": 1,
+      "includesSender": true,
+      "intent": "SendPublicPayment",
+      "parts": [
+        "2.50"
+      ],
+      "kept": "2.50",
+      "sent": "2.50",
+      "eachLabel": "$2.50 Each"
+    },
+    {
+      "name": "you and two uneven",
+      "total": "1.00",
+      "recipients": 2,
+      "includesSender": true,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "0.34",
+        "0.33"
+      ],
+      "kept": "0.33",
+      "sent": "0.67",
+      "eachLabel": "~$0.33 Each"
+    },
+    {
+      "name": "you and three one cent left",
+      "total": "1.01",
+      "recipients": 3,
+      "includesSender": true,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "0.26",
+        "0.25",
+        "0.25"
+      ],
+      "kept": "0.25",
+      "sent": "0.76",
+      "eachLabel": "~$0.25 Each"
+    },
+    {
+      "name": "you and five exact minimum",
+      "total": "0.06",
+      "recipients": 5,
+      "includesSender": true,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01",
+        "0.01"
+      ],
+      "kept": "0.01",
+      "sent": "0.05",
+      "eachLabel": "$0.01 Each"
+    },
+    {
+      "name": "you and nine",
+      "total": "10.00",
+      "recipients": 9,
+      "includesSender": true,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00"
+      ],
+      "kept": "1.00",
+      "sent": "9.00",
+      "eachLabel": "$1.00 Each"
+    },
+    {
+      "name": "you and ten",
+      "total": "11.00",
+      "recipients": 10,
+      "includesSender": true,
+      "expectedError": "too-many-recipients"
+    },
+    {
+      "name": "too small with you",
+      "total": "0.02",
+      "recipients": 2,
+      "includesSender": true,
+      "expectedError": "part-below-minimum"
+    },
+    {
+      "name": "you alone",
+      "total": "1.00",
+      "recipients": 0,
+      "includesSender": true,
       "expectedError": "no-recipients"
     }
   ]

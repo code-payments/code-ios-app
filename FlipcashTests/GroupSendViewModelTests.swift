@@ -98,6 +98,100 @@ struct GroupSendViewModelTests {
         #expect(viewModel.sendButtonTitle == "Send to 2 People")
     }
 
+    // MARK: - Including yourself
+
+    @Test("You and four on $5.00 pays each of the four $1.00 in one intent and keeps the fifth share")
+    func youAndFourPaysFourParts() async throws {
+        let (viewModel, payments) = try await make(total: "5")
+        let picked = [UUID(), UUID(), UUID(), UUID()]
+        viewModel.toggle(viewModel.session.userID)
+        picked.forEach(viewModel.toggle)
+
+        #expect(viewModel.sendButtonTitle == "Send to 4 People")
+        #expect(viewModel.eachLabel == "$1.00 Each")
+        #expect(await viewModel.submit() == .success)
+
+        let multi = try #require(payments.multiSends.first)
+        #expect(multi.map(\.amount.nativeAmount.value) == [1, 1, 1, 1])
+        #expect(multi.map(\.recipientOwner) == picked.map(payments.key(for:)))
+    }
+
+    @Test("You and one on $5.00 is a single payment of half, shown as $2.50 Each")
+    func youAndOneIsSingleHalf() async throws {
+        let (viewModel, payments) = try await make(total: "5")
+        let alice = UUID()
+        viewModel.toggle(alice)
+        viewModel.toggle(viewModel.session.userID)
+
+        #expect(viewModel.sendButtonTitle == "Send to 1 Person")
+        #expect(viewModel.eachLabel == "$2.50 Each")
+        #expect(await viewModel.submit() == .success)
+
+        #expect(payments.multiSends.isEmpty)
+        #expect(payments.singleSends.map(\.amount.nativeAmount.value) == [Decimal(string: "2.5")])
+        #expect(payments.singleSends.map(\.recipientOwner) == [payments.key(for: alice)])
+    }
+
+    @Test("Your share is the last one wherever You was checked, so it never takes a leftover cent")
+    func yourShareIsLast() async throws {
+        let (viewModel, payments) = try await make(total: "1")
+        let (a, b) = (UUID(), UUID())
+        viewModel.toggle(viewModel.session.userID)
+        [a, b].forEach(viewModel.toggle)
+
+        #expect(viewModel.split?.kept == 33)
+        #expect(await viewModel.submit() == .success)
+
+        let multi = try #require(payments.multiSends.first)
+        #expect(multi.map(\.amount.nativeAmount.value) == [Decimal(string: "0.34"), Decimal(string: "0.33")])
+    }
+
+    @Test("You alone can't send: the button stays disabled and the selection can't confirm")
+    func youAloneCannotSend() async throws {
+        let (viewModel, _) = try await make(total: "1")
+        viewModel.toggle(viewModel.session.userID)
+
+        #expect(viewModel.isSelected(viewModel.session.userID))
+        #expect(viewModel.selection.isEmpty)
+        #expect(viewModel.confirmSelection() == false)
+    }
+
+    @Test("You count toward the 10: with You checked a tenth member is refused")
+    func youCountTowardTheCapFirst() async throws {
+        let (viewModel, _) = try await make(total: "20")
+        viewModel.toggle(viewModel.session.userID)
+        (0..<9).forEach { _ in viewModel.toggle(UUID()) }
+        #expect(viewModel.session.dialogItem == nil)
+
+        viewModel.toggle(UUID())
+
+        #expect(viewModel.selection.count == 9)
+        #expect(viewModel.session.dialogItem?.title == "10 People Max")
+    }
+
+    @Test("With ten members checked, checking You is refused")
+    func youCountTowardTheCapLast() async throws {
+        let (viewModel, _) = try await make(total: "20")
+        (0..<10).forEach { _ in viewModel.toggle(UUID()) }
+
+        viewModel.toggle(viewModel.session.userID)
+
+        #expect(viewModel.includesSender == false)
+        #expect(viewModel.session.dialogItem?.title == "10 People Max")
+    }
+
+    @Test("The too-small check counts your share")
+    func tooSmallCountsYourShare() async throws {
+        let (viewModel, payments) = try await make(total: "0.02")
+        viewModel.toggle(viewModel.session.userID)
+        [UUID(), UUID()].forEach(viewModel.toggle)
+
+        #expect(viewModel.confirmSelection() == false)
+        #expect(viewModel.session.dialogItem?.title == "Amount Too Small")
+        #expect(await viewModel.submit() == .failed)
+        #expect(payments.multiSends.isEmpty)
+    }
+
     // MARK: - Helpers
 
     private func make(total: String) async throws -> (GroupSendViewModel, FakeGroupPayments) {
