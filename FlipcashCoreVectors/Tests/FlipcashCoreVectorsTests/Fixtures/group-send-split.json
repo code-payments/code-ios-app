@@ -236,6 +236,20 @@
       "eachLabel": "~$0.25 Each"
     },
     {
+      "name": "you and two equal parts, less kept",
+      "total": "0.05",
+      "recipients": 2,
+      "includesSender": true,
+      "intent": "SendPublicMultiPayment",
+      "parts": [
+        "0.02",
+        "0.02"
+      ],
+      "kept": "0.01",
+      "sent": "0.04",
+      "eachLabel": "~$0.01 Each"
+    },
+    {
       "name": "you and five exact minimum",
       "total": "0.06",
       "recipients": 5,
