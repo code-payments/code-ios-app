@@ -18,6 +18,14 @@ enum InviteCardLink: Equatable {
     case plain
 }
 
+extension InviteLinkDialogs {
+    /// `createFailed` for the host's link card. Frame 1e's Share Group Link shares the plain link
+    /// once and leaves Approve New Members as it is: only the host's tap on the switch changes it.
+    static func cardCreateFailed(_ error: Error, onManage: @escaping () -> Void, onShare: @escaping (InviteCardLink) -> Void) -> DialogItem {
+        createFailed(error, onManage: onManage, onShareGroupLink: { onShare(.plain) })
+    }
+}
+
 /// Invite People for a viewer with `can_invite` (surface 1, frames 1m and 1m′, node 13137:203):
 /// one link card, the Approve New Members switch that picks its link, and Manage Invites.
 ///
@@ -107,11 +115,10 @@ private struct InviteLinkCardSheet: View {
                 _ = try await links.currentLink()
                 choose(.share(.invite))
             } catch {
-                dialogItem = InviteLinkDialogs.createFailed(
+                dialogItem = InviteLinkDialogs.cardCreateFailed(
                     error,
                     onManage: { choose(.manageInvites) },
-                    // Frame 1e: invite links aren't available yet, so the card moves to the plain link.
-                    onShareGroupLink: { approvingBinding.wrappedValue = true }
+                    onShare: { choose(.share($0)) }
                 )
             }
         }

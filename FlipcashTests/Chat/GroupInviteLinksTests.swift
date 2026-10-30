@@ -202,6 +202,23 @@ struct GroupInviteLinksTests {
         #expect(sharedGroupLink)
     }
 
+    @Test("1e on the link card shares the plain link once and leaves Approve New Members off")
+    @MainActor
+    func deniedOnCardLeavesApproveOff() {
+        let suite = "approve-1e-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let conversation = ConversationID(data: Data(repeating: 3, count: 16))
+        let approve = ApproveNewMembers(defaults: defaults, owner: KeyPair.generate()!.publicKey)
+
+        var shared: [InviteCardLink] = []
+        let item = InviteLinkDialogs.cardCreateFailed(ErrorCreateInvite.denied, onManage: {}, onShare: { shared.append($0) })
+        item.actions.first { $0.title == "Share Group Link" }?.action()
+
+        #expect(shared == [.plain])
+        #expect(!approve.isOn(for: conversation))
+    }
+
     @Test("An OK that isn't active is not used as a link")
     func inactiveCreateRejected() async {
         let server = Server()
