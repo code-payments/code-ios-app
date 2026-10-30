@@ -1032,7 +1032,8 @@ final class SessionContainer {
                     pageSize: pageSize,
                     pagingToken: pagingToken
                 )
-            }
+            },
+            database: database
         )
         conversationController.paymentRequests = self.paymentRequests
         self.rosterSearch = mentionSearch
