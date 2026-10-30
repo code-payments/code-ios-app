@@ -66,7 +66,7 @@ struct WalletScreen {
 
     /// Opens the Wallet tab and waits for it to load.
     func open(from testCase: BaseUITestCase) {
-        testCase.waitAndTap(app.tabBars.buttons["Money"].firstMatch)
+        testCase.waitAndTap(app.tabBars.buttons["Wallet"].firstMatch)
     }
 
     /// Taps the balance header to open the region selection sheet.
