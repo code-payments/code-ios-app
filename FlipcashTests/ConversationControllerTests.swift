@@ -1113,10 +1113,33 @@ struct ConversationControllerTests {
 
         controller.handleForeground()
 
-        // The ordinary catch-up path re-applies and re-persists the row, which bumps `messageRevision`
-        // and makes the transcript visible - the same route a message never preloaded would take.
+        // The foreground's disk reload surfaces the row; the catch-up still runs to advance the cursor.
         try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        try await waitUntil { mock.deltaAfterSequences.contains(1) }
         controller.stop()
+    }
+
+    @Test("a catch-up that only re-fetches rows the extension already stored redraws nothing")
+    func catchUpOfStoredRowsLeavesRevisionAlone() async throws {
+        let (database, _) = try Database.makeTemp()
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)]
+        let controller = makeController(mock, database: database)
+        await controller.loadFeed()
+
+        let pushed = ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("pushed"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)
+        try database.persistMessages([pushed], cursor: 0, conversationID: .test(1))
+        let revision = controller.messageRevision
+
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200), latestEventSequence: 2)]
+        mock.deltaHead = 2
+        mock.deltaBatches = [MockConversations.DeltaBatch(messages: [pushed], checkpoint: 2)]
+        await controller.loadFeed()
+
+        #expect(mock.deltaAfterSequences == [1])
+        #expect(controller.messageRevision == revision)
+        #expect(try database.catchupCursor(conversationID: .test(1)) == 2)
     }
 
     @Test("foreground surfaces an extension-preloaded message even when the network is down (offline-resume regression)")

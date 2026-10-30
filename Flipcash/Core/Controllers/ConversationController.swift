@@ -701,17 +701,21 @@ final class ConversationController {
                 // Batch + checkpoint cursor persist atomically; advance the in-memory checkpoint only
                 // after the write succeeds, so a rolled-back batch isn't skipped on the next catch-up.
                 let cursor = checkpoint ?? self.store.appliedCursor(for: conversationID)
-                let ok = self.persist(operation: "delta-batch") {
+                let outcome = self.persistChanges(operation: "delta-batch") {
                     try self.database.persistMessages(reconciled, cursor: cursor, conversationID: conversationID)
                 }
-                if ok {
+                if outcome.succeeded {
                     self.commitReconciled(pairs, in: conversationID)
                     self.receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .catchUp)
                     if let checkpoint { self.store.setAppliedCursor(checkpoint, for: conversationID) }
                 } else {
                     anyBatchFailed = true
                 }
-                self.refreshFeedPreview(for: conversationID)
+                // A batch of rows already stored, such as the ones the notification extension wrote,
+                // leaves the preview as it was.
+                if outcome != .unchanged {
+                    self.refreshFeedPreview(for: conversationID)
+                }
             }
             // Clean completion: the head is authoritative — but only when every batch landed. Seating
             // head over a rolled-back batch would orphan its messages from every future GetDelta.
@@ -1201,7 +1205,7 @@ final class ConversationController {
         let departed = store.setGroupFeed(groups)
         reconcileHidden()
         paymentRequests?.forget(conversations: departed)
-        persist(operation: "replace-group-feed") {
+        persistChanges(operation: "replace-group-feed") {
             try database.replaceGroupFeed(groups.map(withStoreMembers), departed: departed)
         }
         resendUnsyncedReadPointers()
@@ -1237,7 +1241,7 @@ final class ConversationController {
     private func applyFeed(_ conversations: [Conversation], type: ConversationType) {
         store.setFeed(conversations, type: type)
         reconcileHidden()
-        persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
+        persistChanges(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
         resendUnsyncedReadPointers()
         // The store refuses a tombstone as a preview, so a chat whose newest message is deleted
         // seats blank here. Fill it from the newest visible message already cached — the feed
@@ -1538,17 +1542,19 @@ final class ConversationController {
             // in-memory cursor optimistically, so if this write rolls back, re-seat the cursor to the
             // persisted value and catch up — otherwise the un-persisted messages are skipped by the next
             // GetDelta and lost (the store no longer holds a confirmed copy).
-            let ok = persist(operation: "apply-chat-events") {
+            let outcome = persistChanges(operation: "apply-chat-events") {
                 try database.persistMessages(reconciled, cursor: store.appliedCursor(for: conversationID), conversationID: conversationID)
             }
-            if ok {
+            if outcome.succeeded {
                 commitReconciled(pairs, in: conversationID)
                 receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .live)
             } else {
                 store.reseatCursor((try? database.catchupCursor(conversationID: conversationID)) ?? 0, for: conversationID)
                 scheduleGapCatchUp(conversationID)
             }
-            refreshFeedPreview(for: conversationID)
+            if outcome != .unchanged {
+                refreshFeedPreview(for: conversationID)
+            }
             persistConversation(conversationID)
         case .metadataRefresh(let conversation):
             persistConversation(conversation)
@@ -1666,7 +1672,7 @@ final class ConversationController {
     }
 
     private func persistConversation(_ conversation: Conversation) {
-        persist(operation: "upsert-conversation") { try database.upsertConversation(withStoreMembers(conversation)) }
+        persistChanges(operation: "upsert-conversation") { try database.upsertConversation(withStoreMembers(conversation)) }
     }
 
     /// A server copy of a group carrying the store's member list instead of its own. A group's server
@@ -1685,13 +1691,45 @@ final class ConversationController {
 
     @discardableResult
     func persist(operation: String, _ write: () throws -> Void) -> Bool {
+        guard attempt(operation: operation, write) else { return false }
+        // A successful confirmed-message write invalidates the DB-backed transcript window; bump the
+        // revision the coordinator observes so it re-reads.
+        if Self.messageWriteOperations.contains(operation) {
+            messageRevision &+= 1
+        }
+        return true
+    }
+
+    /// What a write that reports its own effect did to the stored messages.
+    enum PersistOutcome {
+        case changed
+        /// Succeeded without changing a message row: a re-delivery of rows already stored.
+        case unchanged
+        case failed
+
+        var succeeded: Bool {
+            switch self {
+            case .changed, .unchanged: true
+            case .failed:              false
+            }
+        }
+    }
+
+    /// Runs a write that returns whether it changed a message row, bumping `messageRevision` only
+    /// when it did. A catch-up that re-fetches what the notification extension already stored then
+    /// redraws nothing, instead of invalidating every chat row's unread count once per batch.
+    @discardableResult
+    func persistChanges(operation: String, _ write: () throws -> Bool) -> PersistOutcome {
+        var changed = false
+        guard attempt(operation: operation, { changed = try write() }) else { return .failed }
+        guard changed else { return .unchanged }
+        messageRevision &+= 1
+        return .changed
+    }
+
+    private func attempt(operation: String, _ write: () throws -> Void) -> Bool {
         do {
             try write()
-            // A successful confirmed-message write invalidates the DB-backed transcript window; bump the
-            // revision the coordinator observes so it re-reads.
-            if Self.messageWriteOperations.contains(operation) {
-                messageRevision &+= 1
-            }
             return true
         } catch {
             logger.error("Failed to persist conversation state", metadata: [
@@ -1705,14 +1743,12 @@ final class ConversationController {
 
     /// Persist operations that write confirmed messages — the ones that must bump `messageRevision`.
     ///
-    /// The conversation and feed writes are here too: they persist each conversation's `lastMessage`
-    /// as a message row, so a newer message that arrives only as metadata (a join, a feed refresh)
-    /// would otherwise sit in the table behind a transcript window cached before it landed. One
-    /// bump per feed apply costs a single window re-read for the open chat.
+    /// The live-event, catch-up, conversation and feed writes go through ``persistChanges(operation:_:)``
+    /// instead, which bumps only when a row changed: they run on every launch and stream event, and
+    /// mostly rewrite rows already stored.
     private static let messageWriteOperations: Set<String> = [
-        "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
+        "upsert-messages", "load-messages", "load-older",
         "send-message", "send-media-message", "send-payment-request", "reset-resync", "edit-message", "delete-message",
-        "upsert-conversation", "replace-feed", "replace-group-feed",
     ]
 
     // MARK: - Names

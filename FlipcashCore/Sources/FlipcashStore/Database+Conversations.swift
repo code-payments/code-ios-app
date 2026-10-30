@@ -334,14 +334,16 @@ nonisolated extension Database {
 
     /// Mirror one type's paged feed load: replaces that type's conversation + member sets (messages
     /// are retained, other types' conversations untouched), then stores each conversation's
-    /// last-message preview.
-    public func replaceConversationFeed(_ conversations: [Conversation], type: ConversationType) throws {
+    /// last-message preview. Returns whether any preview's message row changed.
+    @discardableResult
+    public func replaceConversationFeed(_ conversations: [Conversation], type: ConversationType) throws -> Bool {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
             let k = GroupKeyEnvelopeTable()
             let p = PaymentRequestTable()
             let ids = conversations.map(\.id.data)
+            var changed = false
             // IMMEDIATE: this transaction reads before it writes. A DEFERRED one that reads first fails
             // the write with SQLITE_BUSY at once when another writer holds the lock, without consulting
             // the busy handler.
@@ -363,25 +365,29 @@ nonisolated extension Database {
                     try writer.run(p.table.filter(doomed.contains(p.conversationID)).delete())
                 }
                 for conversation in conversations where conversation.type == type {
-                    try writeConversation(conversation)
+                    changed = try writeConversation(conversation) || changed
                 }
             }
+            return changed
         }
     }
 
     /// Mirror a group feed load: upsert the feed's groups, record them as joined, and delete the
     /// groups the user left elsewhere (`departed`, as reported by ``ConversationStore/setGroupFeed(_:)``).
+    /// Returns whether any group's last-message row changed.
     ///
     /// Deliberately not ``replaceConversationFeed(_:type:)``: the group feed carries only joined
     /// groups, so deleting every group it omits would evict a group the user reached by link and has
     /// not joined — including the one whose join screen is on top.
-    public func replaceGroupFeed(_ groups: [Conversation], departed: Set<ConversationID>) throws {
+    @discardableResult
+    public func replaceGroupFeed(_ groups: [Conversation], departed: Set<ConversationID>) throws -> Bool {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
             let g = GroupMembershipTable()
             let k = GroupKeyEnvelopeTable()
             let p = PaymentRequestTable()
+            var changed = false
             try writer.transaction(.immediate) {
                 let doomed = departed.map(\.data)
                 if !doomed.isEmpty {
@@ -392,10 +398,11 @@ nonisolated extension Database {
                     try writer.run(g.table.filter(doomed.contains(g.conversationId)).delete())
                 }
                 for group in groups where group.type == .group {
-                    try writeConversation(group)
+                    changed = try writeConversation(group) || changed
                     try writer.run(g.table.insert(or: .replace, g.conversationId <- group.id.data))
                 }
             }
+            return changed
         }
     }
 
@@ -421,12 +428,15 @@ nonisolated extension Database {
     }
 
     /// Upsert one conversation: its row, its members (replaced wholesale), and
-    /// its last-message preview row.
-    public func upsertConversation(_ conversation: Conversation) throws {
+    /// its last-message preview row. Returns whether that preview's message row changed.
+    @discardableResult
+    public func upsertConversation(_ conversation: Conversation) throws -> Bool {
         try write { writer in
+            var changed = false
             try writer.transaction(.immediate) {
-                try writeConversation(conversation)
+                changed = try writeConversation(conversation)
             }
+            return changed
         }
     }
 
@@ -447,14 +457,16 @@ nonisolated extension Database {
     /// the working set, would orphan that message from GetDelta recovery. The cursor advances only when
     /// established (> 0) and only forward — a catch-up batch's interior checkpoint must not regress a
     /// cursor a live event already persisted. The conversation row need not exist yet (the update no-ops
-    /// until it does).
-    public func persistMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws {
+    /// until it does). Returns whether any message row changed; the cursor alone doesn't count.
+    @discardableResult
+    public func persistMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws -> Bool {
         try write { writer in
             let c = ConversationTable()
+            var changed = false
             // IMMEDIATE: reads the current cursor before updating it (see replaceConversationFeed).
             try writer.transaction(.immediate) {
                 for message in messages {
-                    try writeMessage(message, conversationId: conversationID.data)
+                    changed = try writeMessage(message, conversationId: conversationID.data) || changed
                 }
                 if cursor > 0 {
                     let scoped = c.table.filter(c.id == conversationID.data)
@@ -464,6 +476,7 @@ nonisolated extension Database {
                     }
                 }
             }
+            return changed
         }
     }
 
@@ -518,8 +531,8 @@ nonisolated extension Database {
         }
     }
 
-    /// Must be called inside a `writer.transaction`.
-    private func writeConversation(_ conversation: Conversation) throws {
+    /// Must be called inside a `writer.transaction`. Returns whether the last-message row changed.
+    private func writeConversation(_ conversation: Conversation) throws -> Bool {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
@@ -588,14 +601,14 @@ nonisolated extension Database {
                 )
             }
 
-            if let lastMessage = conversation.lastMessage {
-                try writeMessage(lastMessage, conversationId: conversation.id.data)
-            }
+            guard let lastMessage = conversation.lastMessage else { return false }
+            return try writeMessage(lastMessage, conversationId: conversation.id.data)
         }
     }
 
-    /// Must be called inside a `writer.transaction`.
-    private func writeMessage(_ message: ConversationMessage, conversationId: Data) throws {
+    /// Must be called inside a `writer.transaction`. Returns whether the stored row changed.
+    @discardableResult
+    private func writeMessage(_ message: ConversationMessage, conversationId: Data) throws -> Bool {
         try write { writer in
             let m = ConversationMessageTable()
 
@@ -616,8 +629,9 @@ nonisolated extension Database {
                     // Stale re-delivery: keep the newer stored version.
                     if reactions != storedReactions {
                         try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+                        return true
                     }
-                    return
+                    return false
                 }
                 // A copy that settles a row stored as ciphertext (waiting on a key, or unsupported by the
                 // build that stored it) is not a re-delivery. An unknown stored failure counts as final.
@@ -626,13 +640,16 @@ nonisolated extension Database {
                 if existingSequence == message.eventSequence && !opensStoredRow {
                     // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
                     // copy landing after a stream echo, or vice versa) so identity stays stable.
+                    var changed = false
                     if existing[m.clientMessageID] == nil, let clientMessageID = message.clientMessageID {
                         try writer.run(scoped.update(m.clientMessageID <- clientMessageID))
+                        changed = true
                     }
                     if reactions != storedReactions {
                         try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+                        changed = true
                     }
-                    return
+                    return changed
                 }
                 message.reactionState = reactions
                 // Newer version wins; preserve the row's established identity if the newer copy lacks one.
@@ -758,6 +775,7 @@ nonisolated extension Database {
                     m.cashReceiverId      <- message.cashReceiverID
                 )
             )
+            return true
         }
     }
 
