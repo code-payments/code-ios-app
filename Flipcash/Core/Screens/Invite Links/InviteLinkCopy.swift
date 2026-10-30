@@ -56,7 +56,7 @@ enum InviteLinkCopy {
 
     /// The Approve New Members row's subtitle for the switch's position.
     static func approveSubtitle(isOn: Bool) -> String {
-        isOn ? "You approve each person in Join Requests" : "Anyone with the link joins right away"
+        isOn ? "You approve each person" : "Anyone with the link joins right away"
     }
 
     /// The sheet's meta line under the current link: "Expires Nov 3 · 0 joined".

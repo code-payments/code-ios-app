@@ -85,6 +85,9 @@ private struct InviteLinkCardSheet: View {
                 onShare: share,
                 onManageInvites: { choose(.manageInvites) }
             )
+            // PartialSheet sizes to what it measures, so a card squeezed on first layout
+            // would keep its truncated subtitles; take the card's full height instead.
+            .fixedSize(horizontal: false, vertical: true)
         }
         .dialog(item: $dialogItem)
     }
