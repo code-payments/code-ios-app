@@ -199,7 +199,10 @@ final class ConversationPins {
     }
 
     private func store(_ list: PinnedMessages, in conversationID: ConversationID) {
-        let idsChanged = lists[conversationID]?.messageIDs != list.messageIDs
+        let held = Set(lists[conversationID]?.messageIDs ?? [])
+        let idsChanged = held != Set(list.messageIDs)
+        // A new pin takes the bar, the way a fresh chat opens on its newest pin.
+        if !Set(list.messageIDs).isSubset(of: held) { barCursors[conversationID] = nil }
         lists[conversationID] = list
         if idsChanged { didChange() }
     }

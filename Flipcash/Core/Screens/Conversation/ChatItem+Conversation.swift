@@ -454,6 +454,25 @@ extension ChatItem {
         return items
     }
 
+    /// The one line the pin bar shows for a pinned `message`: what a reply's quote of it reads, or
+    /// "Encrypted message" for one this device can't open.
+    nonisolated static func pinSnippet(
+        of message: ConversationMessage,
+        selfUserID: UserID,
+        cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?),
+        viewerAmount: (ExchangedFiat) -> FiatAmount
+    ) -> String {
+        if case .encrypted = message.content { return "Encrypted message" }
+        return quote(
+            resolving: message,
+            selfUserID: selfUserID,
+            counterpartName: "",
+            cashBranding: cashBranding,
+            viewerAmount: viewerAmount,
+            author: { _ in nil }
+        ).snippet
+    }
+
     /// The quoted original, for each of the three states it can be in. A message the local database
     /// has never seen and a tombstone both render as unavailable and both refuse the jump — the
     /// first because there is no row to land on, the second because `.hidden` filters the tombstone

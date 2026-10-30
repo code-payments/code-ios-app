@@ -187,6 +187,32 @@ final class ConversationLoadCoordinator {
         scheduleWindowExpiry(for: inputs)
     }
 
+    /// `message` as its transcript row draws it, on its own: no receipt, reactions, typing or
+    /// neighbours to group with. Nil for a message the transcript doesn't draw as a message row.
+    func row(for message: ConversationMessage) -> ChatMessage? {
+        var message = message
+        message.reactionState = nil
+        var inputs = currentInputs()
+        inputs.messages = [message]
+        inputs.counterpartPointer = nil
+        inputs.counterpartReadDate = nil
+        inputs.typists = []
+        inputs.unreadBoundary = .none
+        if case .cash(let fiat) = message.content, inputs.branding[fiat.mint] == nil,
+           let balance = session.balance(for: fiat.mint) {
+            inputs.branding[fiat.mint] = .init(token: balance.name, iconURL: balance.imageURL)
+        }
+        if let repliedTo = message.repliedTo, inputs.quotedMessages[repliedTo.value] == nil {
+            inputs.quotedMessages[repliedTo.value] = controller.persistedMessage(repliedTo, in: conversationID)
+        }
+        let attribution = Self.attribution(in: inputs)
+        for item in Self.map(inputs, authors: Self.authors(from: attribution.members)) {
+            guard case .message(let row) = item else { continue }
+            return row
+        }
+        return nil
+    }
+
     // Wakes once, at the next instant a message loses Edit or Delete, and advances `capabilityClock`
     // so the re-map resolves against a real clock. Nothing polls: with no expiring message in the
     // window there is no timer at all, and each firing schedules only the next deadline.

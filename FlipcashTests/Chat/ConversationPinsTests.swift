@@ -93,6 +93,15 @@ struct ConversationPinsTests {
         #expect(unit.barPin(in: chat)?.messageID.value == 3)
     }
 
+    @Test("A new pin takes the bar back to the newest")
+    func newPinResetsBar() async {
+        let (unit, _) = await loaded([pin(2), pin(1)], version: 3)
+        unit.advanceBar(in: chat)
+        #expect(unit.barPin(in: chat)?.messageID.value == 1)
+        unit.apply(.pinsChanged(conversationID: chat, change: .pinned(pin(3)), summary: summary(4)))
+        #expect(unit.barPin(in: chat)?.messageID.value == 3)
+    }
+
     @Test("A pin at the cap is held until an unpin frees a slot")
     func tooManyPinsHoldsPending() async {
         let (unit, messaging) = await loaded([pin(1)], version: 3)
@@ -183,5 +192,45 @@ struct PinSlotTests {
         #expect(!collapse.isScrolledAway)
         let style = PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: collapse.isScrolledAway)
         #expect(PinSlot.resolve(hasPins: true, deckStyle: style) == .toolbarButton)
+    }
+}
+
+@MainActor
+@Suite("Pin bar")
+struct PinBarTests {
+
+    private let me = UUID()
+
+    private func snippet(_ content: ConversationMessage.Content) -> String {
+        let message = ConversationMessage(
+            id: MessageID(value: 1),
+            senderID: UUID(),
+            content: content,
+            date: .now,
+            unreadSeq: 1,
+            eventSequence: 1
+        )
+        return ChatItem.pinSnippet(
+            of: message,
+            selfUserID: me,
+            cashBranding: { _ in ("Cash", nil) },
+            viewerAmount: { $0.nativeAmount }
+        )
+    }
+
+    @Test("A text pin reads as its text")
+    func textSnippet() {
+        #expect(snippet(.text("dinner at 7?")) == "dinner at 7?")
+    }
+
+    @Test("A pin this device can't open reads as an encrypted message")
+    func sealedSnippet() {
+        #expect(snippet(.encrypted(scheme: 1, nonce: Data(), ciphertext: Data())) == "Encrypted message")
+    }
+
+    @Test("Only an upward drag on the strip carries it toward the pill")
+    func dockFollowsUpwardDragOnly() {
+        #expect(PaymentRequestPill.dockFraction(40) == 0)
+        #expect(PaymentRequestPill.dockFraction(-PaymentRequestStripCollapse.distance / 2) == 0.5)
     }
 }
