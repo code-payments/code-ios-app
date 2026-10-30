@@ -22,7 +22,7 @@ enum InviteCardLink: Equatable {
 /// one link card, the Approve New Members switch that picks its link, and Manage Invites.
 ///
 /// Opening it makes nothing (Decision 9). The first Share Link makes the current link when there is
-/// none, with the pill on "Creating link…" until it returns. Copy Link and Show Group Card are on the
+/// none, with the pill on "Creating link…" until it returns. Copy Link and Show QR Code are on the
 /// Invite People sheet Share Link opens; revoking is done in Manage Invites.
 private struct InviteLinkCardSheet: View {
 

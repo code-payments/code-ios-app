@@ -38,7 +38,7 @@ enum ShareToChatsSubject {
 
 /// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a link by Share or Copy,
 /// or post it straight into recent chats with an optional message. A group's sheet shows its link in
-/// a pill above the tiles, whichever link it is. A group gets a third tile, Show Group Card, and a
+/// a pill above the tiles, whichever link it is. A group gets a third tile, Show QR Code, and a
 /// person with a name gets Show Profile Card; either draws its card over the sheet, and closing it
 /// uncovers the sheet as it was left.
 struct ShareToChatsSheet: View {
@@ -378,7 +378,7 @@ struct ShareToChatsSheet: View {
         .onGeometryChange(for: CGFloat.self, of: \.size.height) { headerHeight = $0 }
     }
 
-    /// Share and Copy Invite Link, plus Show Group Card for a group or Show Profile Card for a person
+    /// Share and Copy Invite Link, plus Show QR Code for a group or Show Profile Card for a person
     /// with a card, as tiles side by side, sized to the tallest.
     private var shareTiles: some View {
         HStack(spacing: 10) {
@@ -429,7 +429,7 @@ struct ShareToChatsSheet: View {
             }
 
             if Self.showsGroupCardTile(for: subject) {
-                ShareTile(title: "Show Group Card") {
+                ShareTile(title: "Show QR Code") {
                     Image(HomeTab.scan.iconName(isSelected: false))
                         .renderingMode(.template)
                         .resizable()

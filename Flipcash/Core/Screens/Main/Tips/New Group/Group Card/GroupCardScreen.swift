@@ -8,7 +8,7 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// A group's scan card, drawn over the invite sheet by its Show Group Card tile: the group's
+/// A group's scan card, drawn over the invite sheet by its Show QR Code tile: the group's
 /// picture and title over a QR of the sheet's link, with Download in the top corner and
 /// Close pinned to the bottom. Behaves as ``ProfileCardScreen`` does.
 ///
