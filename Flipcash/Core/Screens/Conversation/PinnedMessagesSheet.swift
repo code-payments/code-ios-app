@@ -83,9 +83,6 @@ struct PinnedMessagesSheet: View {
         let rows = visible.isEmpty ? lastRows : visible
         ScrollView {
             VStack(spacing: 12) {
-                Text("Pinned Messages")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
                 if let waitingSnippet, waiting != nil, isWaiting {
                     Text("Pinned messages are full. Unpin one to pin \"\(waitingSnippet)\"")
                         .font(.appTextMedium)
@@ -110,10 +107,22 @@ struct PinnedMessagesSheet: View {
                 }
                 .animation(.default, value: rows.map(\.messageID))
             }
-            .padding(.top, 20)
+            .padding(.top, 8)
             .padding(.bottom, 16)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .softScrollEdge(for: [.top, .bottom])
+        // Rows fade out under the bottom edge while there's more to scroll; the bar draws nothing.
+        .scrollEdgeBar(.bottom) { Color.clear.frame(height: 0) }
+        .scrollEdgeBar(.top) {
+            Text("Pinned Messages")
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+                .accessibilityAddTraits(.isHeader)
+        }
         .background(Color.backgroundMain)
         .presentationDetents([.medium, .large], selection: $detent)
         .onAppear { if waiting != nil { detent = .large } }
