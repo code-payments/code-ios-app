@@ -795,12 +795,19 @@ final class ConversationController {
 
     /// Re-reads every known conversation's transcript and feed preview straight from disk, with no
     /// network involved. Covers the notification extension's writes: it persists pushed messages into
-    /// the shared store with `cursor: 0` (see `NotificationService.persist`), which the running app's
-    /// in-memory `store` never observes, since `Database.transaction` only posts `.databaseDidChange`
-    /// for writes made by this process. Bumping `messageRevision` invalidates the cached transcript
-    /// window so the next read re-queries the DB; `refreshFeedPreview` does the same for each chat's
-    /// last-message preview and unread state, which don't come from the network-only catch-up paths.
+    /// the shared store, which the running app's in-memory `store` never observes, since
+    /// `Database.transaction` only posts `.databaseDidChange` for writes made by this process. Bumping
+    /// `messageRevision` invalidates the cached transcript window so the next read re-queries the DB;
+    /// `refreshFeedPreview` does the same for each chat's last-message preview and unread state, which
+    /// don't come from the network-only catch-up paths. The extension also advances a chat's catch-up
+    /// cursor when its delta completed (see `NotificationService.persist`), so the stored cursors are
+    /// re-read too and the next catch-up starts past what the extension already wrote.
     private func reloadFromDatabase() {
+        if let cursors = try? database.getCatchupCursors() {
+            for (conversationID, cursor) in cursors {
+                store.setAppliedCursor(cursor, for: conversationID)
+            }
+        }
         bumpMessageRevision()
         for conversationID in store.conversations.map(\.id) {
             refreshFeedPreview(for: conversationID)
@@ -885,11 +892,13 @@ final class ConversationController {
         }
     }
 
-    /// Persist the store's current catch-up frontier (no-op until one is established).
+    /// Persist the store's current catch-up frontier (no-op until one is established). Forward-only:
+    /// the notification extension also advances the stored cursor, and a catch-up that started before
+    /// its write must not land an older head over it.
     private func persistCursor(for conversationID: ConversationID) {
         let cursor = store.appliedCursor(for: conversationID)
         guard cursor > 0 else { return }
-        persist(operation: "update-cursor") { try database.updateCatchupCursor(cursor, for: conversationID) }
+        persist(operation: "update-cursor") { _ = try database.persistMessages([], cursor: cursor, conversationID: conversationID) }
     }
 
     /// Surfaces a counterpart's READ pointer advance — the signal behind the

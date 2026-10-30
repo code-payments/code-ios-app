@@ -407,8 +407,10 @@ final class NotificationService: UNNotificationServiceExtension {
         guard let account = OwnerKeyStore.loadOwnerAccount() else { return deliver() }
         let owner = account.keyAccount.owner
         var embedded = embedded
+        let storedCursor = storedCatchupCursor(for: conversationID, owner: account.keyAccount.ownerPublicKey)
         do {
             let client = try ChatNotificationClient()
+            async let deltaRead = fetchDelta(client: client, owner: owner, conversationID: conversationID, after: storedCursor)
             let fetched = try await client.getMessages(
                 owner: owner,
                 conversationID: conversationID,
@@ -419,14 +421,20 @@ final class NotificationService: UNNotificationServiceExtension {
             if embedded == nil, let messageID, !fetched.contains(where: { $0.id == messageID }) {
                 embedded = try? await client.getMessage(owner: owner, conversationID: conversationID, messageID: messageID)
             }
+            let rawDelta = await deltaRead
+            let embeddedCount = embedded == nil ? 0 : 1
+            // One open for all three sources, so an encrypted chat fetches its keys once.
             let opened = await client.open(
-                fetched + (embedded.map { [$0] } ?? []),
+                fetched + (embedded.map { [$0] } ?? []) + (rawDelta?.messages ?? []),
                 in: conversationID,
                 owner: owner,
                 selfUserID: account.userID
             )
             let messages = Array(opened.prefix(fetched.count))
-            if embedded != nil { embedded = opened.last }
+            if embedded != nil { embedded = opened[fetched.count] }
+            let delta = rawDelta.map {
+                ChatDeltaPage(messages: Array(opened.dropFirst(fetched.count + embeddedCount)), head: $0.head, isComplete: $0.isComplete)
+            }
             let pushedSenderID = (embedded ?? messages.first { $0.id == messageID })?.senderID
             var knownNames = isGroup ? knownMemberNames(owner: account.keyAccount.ownerPublicKey) : [:]
             if isGroup {
@@ -493,7 +501,7 @@ final class NotificationService: UNNotificationServiceExtension {
             guard !messages.isEmpty else {
                 // The fetch came back empty but the push still carried a message. Write that one
                 // rather than nothing.
-                await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
+                await persist(ChatStoreWrite(preview: merge(fetched: [], embedded: embedded), delta: delta), for: conversationID, account: account)
                 return deliver()
             }
             func items(_ branding: [PublicKey: MintBrandingInfo]) -> [ChatItem] {
@@ -516,7 +524,7 @@ final class NotificationService: UNNotificationServiceExtension {
             // roughly 100 ms of checkpoint — but after delivery there is nothing keeping the process
             // alive, and being suspended mid-write while holding the App Group store's lock is the
             // case iOS kills with `0xdead10cc`.
-            await persist(merge(fetched: messages, embedded: embedded), for: conversationID, account: account)
+            await persist(ChatStoreWrite(preview: merge(fetched: messages, embedded: embedded), delta: delta), for: conversationID, account: account)
             deliver()
             let branding = (try? await client.resolveMintBranding(in: messages)) ?? [:]
             if !branding.isEmpty {
@@ -527,7 +535,7 @@ final class NotificationService: UNNotificationServiceExtension {
             // fetch on open. The store write does not fall back, because the embedded message needs
             // no transport: an offline device still lands the message the push carried.
             ExtensionReporting.capture(error, reason: "Notification preview prefetch failed")
-            await persist(merge(fetched: [], embedded: embedded), for: conversationID, account: account)
+            await persist(ChatStoreWrite(preview: merge(fetched: [], embedded: embedded), delta: nil), for: conversationID, account: account)
             deliver()
         }
     }
@@ -602,6 +610,49 @@ final class NotificationService: UNNotificationServiceExtension {
         return (mention, reply)
     }
 
+    /// The catch-up cursor the app last stored for this chat, or 0 when it has none or the store
+    /// can't be read now. A `busy` store means the app is running and will catch up itself.
+    private nonisolated static func storedCatchupCursor(for conversationID: ConversationID, owner: PublicKey) -> UInt64 {
+        var cursor: UInt64 = 0
+        let outcome = ExtensionStore.perform(owner: owner) { database in
+            cursor = try database.catchupCursor(conversationID: conversationID)
+        }
+        return outcome == .wrote ? cursor : 0
+    }
+
+    /// The delta since the app's stored cursor, capped so the banner isn't held for long; nil when
+    /// there is no cursor or the read fails, which leaves the catch-up to the app.
+    private nonisolated static func fetchDelta(
+        client: ChatNotificationClient,
+        owner: KeyPair,
+        conversationID: ConversationID,
+        after cursor: UInt64
+    ) async -> ChatDeltaPage? {
+        guard cursor > 0 else { return nil }
+        let start = ContinuousClock.now
+        do {
+            let page = try await client.getDelta(
+                owner: owner,
+                conversationID: conversationID,
+                afterSequence: cursor,
+                limit: deltaMessageLimit,
+                deadline: deltaDeadline
+            )
+            // Elapsed time and size, so the cap and deadline can be tuned from production.
+            ExtensionReporting.breadcrumb("store delta: \(page.map { "\($0.messages.count) messages, complete \($0.isComplete)" } ?? "deadline") in \(ContinuousClock.now - start)")
+            return page
+        } catch {
+            // resetRequired, denied, or transport: the app's catch-up handles each of these.
+            ExtensionReporting.breadcrumb("store delta failed: \(error)")
+            return nil
+        }
+    }
+
+    /// More messages than this are left to the app; the extension holds them all for one write.
+    private nonisolated static let deltaMessageLimit = 200
+    /// Runs alongside the preview fetch, so it adds to the banner's wait only past that fetch.
+    private nonisolated static let deltaDeadline: Duration = .seconds(2)
+
     /// The messages to write, preferring the fetched copy of any message the push also embedded.
     ///
     /// The two sources overlap by exactly one message in the ordinary case — the push embeds what it
@@ -624,22 +675,23 @@ final class NotificationService: UNNotificationServiceExtension {
     /// is a second destination, not a replacement: the two have different readers, different
     /// lifetimes, and the side-car does not need the store's schema to be current.
     ///
-    /// `cursor: 0` on purpose. Advancing the catch-up cursor would tell the app it has everything up
-    /// to this point, and the extension fetched a bounded preview rather than a delta — the app would
-    /// skip the gap on its next sync. Messages merge on `eventSequence`, so writing the same preview
-    /// twice, or writing one the app already has, changes nothing.
+    /// The cursor advances only when the delta from the app's stored cursor ran to its end (see
+    /// ``ChatStoreWrite``). Then the app's next catch-up starts at the head and fetches nothing it
+    /// already has. Otherwise the cursor stays put, since a preview alone or a capped delta can leave
+    /// a gap the app must still fetch. Messages merge on `eventSequence`, so writing the same rows
+    /// twice, or rows the app already has, changes nothing.
     ///
     /// No conversation row is synthesized. A conversation the app has never seen stays absent from
     /// the feed until sync introduces it; these rows are a warm transcript for a chat the user
     /// already has, not a way to invent one.
     private static func persist(
-        _ messages: [ConversationMessage],
+        _ write: ChatStoreWrite,
         for conversationID: ConversationID,
         account: UserAccount
     ) async {
-        // Nothing to write: no fetch and no embedded message. Opening the store to write zero rows
+        // Nothing to write: no rows and no cursor to advance. Opening the store to write nothing
         // would still cost a checkpoint.
-        guard !messages.isEmpty else { return }
+        guard !write.messages.isEmpty || write.cursor > 0 else { return }
 
         let owner = account.keyAccount.ownerPublicKey
 
@@ -659,7 +711,7 @@ final class NotificationService: UNNotificationServiceExtension {
                 }
 
                 let outcome = ExtensionStore.perform(owner: owner) { database in
-                    try database.persistMessages(messages, cursor: 0, conversationID: conversationID)
+                    try database.persistMessages(write.messages, cursor: write.cursor, conversationID: conversationID)
                 }
 
                 switch outcome {
