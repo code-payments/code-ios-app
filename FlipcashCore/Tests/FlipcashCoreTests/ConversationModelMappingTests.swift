@@ -1010,6 +1010,14 @@ struct ConversationMessageContentEncodingTests {
         #expect(Flipcash_Messaging_V1_WidgetContent().shareProfile == nil)
     }
 
+    @Test("A share-profile widget keeps a handle longer than the claim cap")
+    func shareProfileWidgetKeepsLongHandle() throws {
+        let proto = Flipcash_Messaging_V1_WidgetContent.with {
+            $0.shareProfile = .with { $0.username = .with { $0.value = "ted_livingston_2" } }
+        }
+        #expect(ConversationMessage.Widget(proto) == .shareProfile(ShareProfileWidget(username: try #require(Username("ted_livingston_2")))))
+    }
+
     @Test("A share-profile widget message is kept as a widget")
     func widgetMessageIsKept() throws {
         let proto = Flipcash_Messaging_V1_Message.with {

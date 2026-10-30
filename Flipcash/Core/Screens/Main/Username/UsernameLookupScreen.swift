@@ -37,7 +37,8 @@ struct UsernameLookupScreen: View {
     @Environment(Session.self) private var session
     @Environment(AppRouter.self) private var router
 
-    private static let validator = UsernameValidator()
+    // Any handle the server can hold, including assigned ones past the claim cap.
+    private static let validator = UsernameValidator(maximumLength: Username.maximumLength)
 
     @FocusState private var isFocused: Bool
     @State private var input: String = ""
