@@ -767,6 +767,9 @@ nonisolated extension Database {
                     t.column(conversationMemberTable.profilePictureThumbnailBlurhash)
                     t.column(conversationMemberTable.username)
                 })
+                // Every member write deletes by `conversationId` first. Created with
+                // `ifNotExists` so existing stores pick it up on open without a rebuild.
+                try writer.run(conversationMemberTable.table.createIndex(conversationMemberTable.conversationId, ifNotExists: true))
             }
 
             let conversationMessageTable = ConversationMessageTable()

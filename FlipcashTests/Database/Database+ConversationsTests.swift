@@ -9,6 +9,7 @@ import Foundation
 import Testing
 @testable import FlipcashCore
 import FlipcashStore
+import SQLite
 @testable import Flipcash
 import FlipcashAPI
 
@@ -470,6 +471,29 @@ struct DatabaseConversationsTests {
         try database.persistMessages([textMessage(id: 5)], cursor: 0, conversationID: id)
         #expect(try database.getConversationMessages(conversationID: id).map(\.id.value) == [5])
         #expect(try database.getCatchupCursors()[id] == nil)   // nothing written
+    }
+
+    @Test("persistMessages reports a change only when a message row changed")
+    func persistMessagesReportsChange() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversation(conversation(byte: 1))
+        #expect(try database.persistMessages([textMessage(id: 5)], cursor: 0, conversationID: id))
+        // The same row again, as a catch-up re-fetching what the notification extension stored.
+        #expect(try database.persistMessages([textMessage(id: 5)], cursor: 42, conversationID: id) == false)
+        #expect(try database.catchupCursor(conversationID: id) == 42)   // the cursor still advances
+        let edited = ConversationMessage(id: MessageID(value: 5), senderID: otherID, content: .text("edited"), date: Date(timeIntervalSince1970: 0), unreadSeq: 5, eventSequence: 2)
+        #expect(try database.persistMessages([edited], cursor: 0, conversationID: id))
+    }
+
+    @Test("upsertConversation reports a change only when its last-message row changed")
+    func upsertConversationReportsChange() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let stored = conversation(byte: 1, lastMessage: textMessage(id: 5))
+        #expect(try database.upsertConversation(stored))
+        #expect(try database.upsertConversation(stored) == false)
     }
 
     @Test("catchupCursor round-trips the persisted cursor for one conversation")
@@ -1374,5 +1398,18 @@ struct DatabaseConversationsTests {
         #expect(Set(updated.keys) == [MessageID(value: 1), MessageID(value: 2)])
         let stored = try database.getConversationMessages(conversationID: id)
         #expect(Dictionary(uniqueKeysWithValues: stored.map { ($0.id, $0.reactionState) }) == updated.mapValues { Optional($0) })
+    }
+
+    @Test("Replacing a conversation's members looks them up by index, not a table scan")
+    func memberDeleteUsesIndex() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        let plan = try database.reader
+            .prepare("EXPLAIN QUERY PLAN DELETE FROM \(ConversationMemberTable.name) WHERE conversationId = x''")
+            .map { $0[3] as? String ?? "" }
+            .joined(separator: "\n")
+
+        #expect(plan.contains("USING INDEX"), "\(plan)")
     }
 }
