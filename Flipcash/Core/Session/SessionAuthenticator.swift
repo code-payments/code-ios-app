@@ -684,7 +684,7 @@ final class SessionContainer {
     /// NotificationService extension reads it to decide whether a push may interrupt.
     let chatArchive: ChatArchiveStore
 
-    /// The signed-in user's private-group chat keys, in memory and reopened from the server.
+    /// The signed-in user's private-group chat keys, in memory and reopened from the stored envelope or the server.
     let groupKeys: GroupKeyEnvelopes
 
     /// The private groups the signed-in user has asked to join.
@@ -800,7 +800,8 @@ final class SessionContainer {
             },
             resolveKey: { [flipClient, owner = session.ownerKeyPair] userID in
                 try await flipClient.resolveUserID(userID, owner: owner)
-            }
+            },
+            envelopeStore: database
         )
         self.groupKeys = groupKeys
 
@@ -816,6 +817,9 @@ final class SessionContainer {
 
         let chatClient = EncryptedChatClient(
             client: flipClient,
+            storedConversation: { [database] conversationID in
+                try? database.getConversations().first { $0.id == conversationID }
+            },
             keyring: ChatKeyring(
                 owner: session.ownerKeyPair,
                 selfUserID: session.userID,

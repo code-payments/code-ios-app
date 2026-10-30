@@ -29,7 +29,7 @@ public protocol GroupKeySealing: Sendable {
 
 /// What the server holds for the viewer in a private group: their own envelope, or, after joining
 /// by invite and before storing one, the invite's copy of the chat key.
-public enum GroupKeyMaterial: Sendable {
+public enum GroupKeyMaterial: Sendable, Equatable {
     case own(envelope: ConversationKeyEnvelope, wrappedBy: UserID?)
     case invite(InviteKeyBundle, wrappedBy: UserID?, wrappedByPublicKey: PublicKey?)
 }
@@ -60,8 +60,12 @@ public struct InviteBundleNotOpened: Error {}
 
 /// The signed-in user's private-group chat keys, held in memory only.
 ///
-/// A key is never written to disk: the server keeps the viewer's self-wrapped envelope, which
-/// opens with the owner key, so after a relaunch the key is fetched and opened again on first use.
+/// A key is never written to disk. With a ``GroupKeyEnvelopeStore``, the envelope the server
+/// returned is kept instead, so after a relaunch the key is opened from it on first use, offline,
+/// with the same checks as a fetched one. A stored envelope that fails a check, or that no longer
+/// matches what the server holds, is removed and the key is fetched. Without a store, or with
+/// nothing stored, the server's self-wrapped envelope, which opens with the owner key, is fetched
+/// and opened on first use.
 /// A creator whose key was lost before its envelope landed sees `noEnvelope` and generates a new
 /// one; nothing was encrypted under the lost key.
 ///
@@ -82,6 +86,7 @@ public actor GroupKeyEnvelopes {
     private let getEnvelope: GetEnvelope
     private let resolveKey: ResolveKey
     private let opensInviteBundles: Bool
+    private let envelopeStore: (any GroupKeyEnvelopeStore)?
 
     private var keys: [ConversationID: Data] = [:]
 
@@ -92,7 +97,8 @@ public actor GroupKeyEnvelopes {
         setEnvelope: @escaping SetEnvelope,
         getEnvelope: @escaping GetEnvelope,
         resolveKey: @escaping ResolveKey,
-        opensInviteBundles: Bool = true
+        opensInviteBundles: Bool = true,
+        envelopeStore: (any GroupKeyEnvelopeStore)? = nil
     ) {
         self.sealer = sealer
         self.owner = owner
@@ -101,6 +107,7 @@ public actor GroupKeyEnvelopes {
         self.getEnvelope = getEnvelope
         self.resolveKey = resolveKey
         self.opensInviteBundles = opensInviteBundles
+        self.envelopeStore = envelopeStore
     }
 
     /// Generates `conversationID`'s chat key and stores the creator's own envelope: the second
@@ -114,8 +121,10 @@ public actor GroupKeyEnvelopes {
         do {
             try await setEnvelope(conversationID, envelope)
             keys[conversationID] = key
+            persist(.own(envelope: envelope, wrappedBy: selfUserID), for: conversationID)
         } catch ErrorSetKeyEnvelope.alreadySet {
             keys[conversationID] = nil
+            forgetStored(conversationID)
         }
     }
 
@@ -139,34 +148,80 @@ public actor GroupKeyEnvelopes {
         if let key = keys[conversationID] {
             return key
         }
-        let stored: GroupKeyMaterial
+        if let key = await openStored(for: conversationID, creator: creator) {
+            return key
+        }
+        let fetched: GroupKeyMaterial
         do {
-            stored = try await getEnvelope(conversationID)
+            fetched = try await getEnvelope(conversationID)
         } catch ErrorGetKeyEnvelope.noEnvelope where creator == selfUserID {
             try await storeNewKey(for: conversationID)
             if let key = keys[conversationID] {
                 return key
             }
-            stored = try await getEnvelope(conversationID)
+            fetched = try await getEnvelope(conversationID)
         }
 
         let key: Data
-        switch stored {
+        do {
+            key = try await unlock(fetched, creator: creator, in: conversationID)
+        } catch let distrusted as Distrusted {
+            forgetStored(conversationID)
+            throw distrusted.underlying
+        }
+        keys[conversationID] = key
+        return key
+    }
+
+    /// A key from the envelope kept for `conversationID`, nil when none is kept or it doesn't open,
+    /// in which case the caller fetches. One that fails a check is removed first.
+    private func openStored(for conversationID: ConversationID, creator: UserID?) async -> Data? {
+        guard let envelopeStore, let material = try? envelopeStore.material(for: conversationID) else { return nil }
+        do {
+            let key = try await unlock(material, creator: creator, in: conversationID, stored: true)
+            keys[conversationID] = key
+            return key
+        } catch is Distrusted {
+            forgetStored(conversationID)
+            return nil
+        } catch {
+            return nil
+        }
+    }
+
+    /// Opens the chat key from `material`, then makes what is kept follow the server: the
+    /// material as fetched, or the viewer's own envelope once it replaces a creator's or an
+    /// invite's copy, or nothing once the server holds a different one. `stored` material is
+    /// already kept, so only a change is written.
+    ///
+    /// Throws ``Distrusted`` for a failed check, which the caller answers by forgetting the kept
+    /// envelope; any other error (a lookup that failed, an invite copy not yet openable) may pass.
+    private func unlock(_ material: GroupKeyMaterial, creator: UserID?, in conversationID: ConversationID, stored: Bool = false) async throws -> Data {
+        let key: Data
+        var replacement: SelfWrap = .notAttempted
+        switch material {
         case .own(let envelope, let wrappedBy):
             if wrappedBy == nil || wrappedBy == selfUserID {
-                key = try sealer.unwrap(envelope, owner: owner, wrapper: owner.publicKey, conversationID: conversationID)
+                key = try distrusting { try sealer.unwrap(envelope, owner: owner, wrapper: owner.publicKey, conversationID: conversationID) }
             } else if let wrappedBy, wrappedBy == creator {
                 let creatorKey = try await resolveKey(wrappedBy)
-                key = try sealer.unwrap(envelope, owner: owner, wrapper: creatorKey, conversationID: conversationID)
-                await storeSelfWrapped(key, in: conversationID)
+                key = try distrusting { try sealer.unwrap(envelope, owner: owner, wrapper: creatorKey, conversationID: conversationID) }
+                replacement = await storeSelfWrapped(key, in: conversationID)
             } else {
-                throw GroupKeyNotSelfWrapped()
+                throw Distrusted(underlying: GroupKeyNotSelfWrapped())
             }
         case .invite(let bundle, let wrappedBy, let wrappedByPublicKey):
             key = try await open(bundle, wrappedBy: wrappedBy, wrappedByPublicKey: wrappedByPublicKey, creator: creator, in: conversationID)
-            await storeSelfWrapped(key, in: conversationID)
+            replacement = await storeSelfWrapped(key, in: conversationID)
         }
-        keys[conversationID] = key
+        switch replacement {
+        case .replaced(let own):
+            persist(own, for: conversationID)
+        case .alreadySet:
+            forgetStored(conversationID)
+        case .notAttempted, .failed:
+            if !stored { persist(material, for: conversationID) }
+        }
         return key
     }
 
@@ -179,7 +234,7 @@ public actor GroupKeyEnvelopes {
             throw InviteBundleNotOpened()
         }
         guard wrappedBy == creator else {
-            throw GroupKeyUnusable(failsAt: .wrappedBy)
+            throw Distrusted(underlying: GroupKeyUnusable(failsAt: .wrappedBy))
         }
         let creatorKey: PublicKey
         do {
@@ -188,15 +243,61 @@ public actor GroupKeyEnvelopes {
             guard let wrappedByPublicKey else { throw error }
             creatorKey = wrappedByPublicKey
         }
-        return try sealer.open(bundle, owner: owner, creatorPublicKey: creatorKey, wrappedByCreator: true, conversationID: conversationID)
+        return try distrusting {
+            try sealer.open(bundle, owner: owner, creatorPublicKey: creatorKey, wrappedByCreator: true, conversationID: conversationID)
+        }
+    }
+
+    /// What replacing a creator's or an invite's envelope with the viewer's own came to.
+    private enum SelfWrap {
+        case notAttempted
+        /// The server now holds this envelope.
+        case replaced(GroupKeyMaterial)
+        /// The server already holds an envelope of the viewer's, so the one just opened is stale.
+        case alreadySet
+        case failed
     }
 
     /// Replaces the creator-wrapped envelope with the viewer's own. A failure leaves the creator's
     /// in place, which still opens next time.
-    private func storeSelfWrapped(_ key: Data, in conversationID: ConversationID) async {
+    private func storeSelfWrapped(_ key: Data, in conversationID: ConversationID) async -> SelfWrap {
         guard let envelope = try? sealer.wrap(groupKey: key, owner: owner, recipient: owner.publicKey, conversationID: conversationID) else {
-            return
+            return .failed
         }
-        try? await setEnvelope(conversationID, envelope)
+        do {
+            try await setEnvelope(conversationID, envelope)
+            return .replaced(.own(envelope: envelope, wrappedBy: selfUserID))
+        } catch ErrorSetKeyEnvelope.alreadySet {
+            return .alreadySet
+        } catch {
+            return .failed
+        }
+    }
+
+    /// A check on an envelope failed: it will not open, so no copy of it is worth keeping.
+    private struct Distrusted: Error {
+        let underlying: Error
+    }
+
+    private func distrusting<T>(_ body: () throws -> T) throws -> T {
+        do {
+            return try body()
+        } catch {
+            throw Distrusted(underlying: error)
+        }
+    }
+
+    private func persist(_ material: GroupKeyMaterial, for conversationID: ConversationID) {
+        guard let envelopeStore else { return }
+        do {
+            try envelopeStore.store(material, for: conversationID)
+        } catch {
+            // A row left behind may be stale; take it out rather than let it open the chat.
+            forgetStored(conversationID)
+        }
+    }
+
+    private func forgetStored(_ conversationID: ConversationID) {
+        try? envelopeStore?.remove(for: conversationID)
     }
 }
