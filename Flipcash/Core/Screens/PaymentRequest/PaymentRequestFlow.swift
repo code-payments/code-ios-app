@@ -352,7 +352,7 @@ private struct PaymentRequestAmountScreen: View {
             .padding(20)
         }
         .ignoresSafeArea(.keyboard)
-        .navigationTitle("Amount Per Person")
+        .navigationTitle("Total Amount")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -375,10 +375,10 @@ private struct PaymentRequestSummaryScreen: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.amount?.formatted() ?? "")
+                            Text(viewModel.amount?.formattedDroppingZeroFraction() ?? "")
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
-                            Text("per person")
+                            Text("Total")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                         }
@@ -814,7 +814,7 @@ private struct PaymentRequestSelectPeopleScreen: View {
                     .padding(20)
             }
         }
-        .navigationTitle("Select People")
+        .navigationTitle("Split Between")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()

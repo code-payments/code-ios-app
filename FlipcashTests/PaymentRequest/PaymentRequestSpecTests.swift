@@ -345,24 +345,25 @@ struct PaymentRequestSpecTests {
         PaymentRequestPeople(members: [creator] + (1..<count).map { _ in UUID() }, creator: creator)
     }
 
-    @Test("14: everyone selected in a 26-member group")
-    func everyone() {
+    @Test("14: a $520 total, everyone selected in a 26-member group")
+    func everyone() throws {
         let p = people(count: 26)
         #expect(p.summaryValue == "Everyone, Including You")
         #expect(p.summarySecondLine == "You'll be marked as paid")
-        #expect(p.buttonTitle(amount: "$20") == "Request $20 from 25 People")
-        let shares = p.shares(nativeAmount: 20)
+        #expect(p.buttonTitle(total: .usd(520)) == "Request $20 Each")
+        let shares = try #require(p.shares(total: .usd(520)))
         #expect(shares.count == 26)
         #expect(shares.first?.userID == creator)
         #expect(shares.allSatisfy { !$0.isPaid && $0.nativeAmount == 20 })
     }
 
-    @Test("15: the creator and one other")
+    @Test("15: a $40 total, the creator and one other")
     func creatorAndOne() {
         var p = people(count: 3)
         p.toggle(p.members[2])
         #expect(p.summaryValue == "1 Person, Including You")
-        #expect(p.buttonTitle(amount: "$20") == "Request $20 from 1 Person")
+        #expect(p.buttonTitle(total: .usd(40)) == "Request $20 Each")
+        #expect(p.shareAmounts(total: .usd(40)) == [.usd(20), .usd(20)])
     }
 
     @Test("16: everyone except the creator")
@@ -371,7 +372,7 @@ struct PaymentRequestSpecTests {
         p.toggle(creator)
         #expect(p.summaryValue == "Everyone Except You")
         #expect(p.summarySecondLine == nil)
-        #expect(!p.shares(nativeAmount: 20).contains { $0.userID == creator })
+        #expect(p.shares(total: .usd(20))?.contains { $0.userID == creator } == false)
     }
 
     @Test("17: only the creator selected disables the button")
@@ -405,6 +406,61 @@ struct PaymentRequestSpecTests {
         let overflow = p.toggle(p.members[100])
         #expect(!overflow)
         #expect(p.selected == before)
+    }
+
+    // MARK: - Splitting the total -
+
+    @Test("49: $100 between the creator and two others puts the extra cent on the first other")
+    func splitWithCreator() {
+        var p = people(count: 4)
+        p.toggle(p.members[3])
+        #expect(p.shareAmounts(total: .usd(100)) == [.usd(Decimal(string: "33.33")!), .usd(Decimal(string: "33.34")!), .usd(Decimal(string: "33.33")!)])
+        #expect(p.shares(total: .usd(100))?.compactMap(\.userID) == Array(p.members.prefix(3)))
+        #expect(p.buttonTitle(total: .usd(100)) == "Request ~$33.33 Each")
+    }
+
+    @Test("53: $100.02 between the creator and two others splits evenly, with no ~")
+    func splitEvenWithCreator() {
+        let p = people(count: 3)
+        let total = FiatAmount.usd(Decimal(string: "100.02")!)
+        #expect(p.shareAmounts(total: total) == Array(repeating: .usd(Decimal(string: "33.34")!), count: 3))
+        #expect(p.buttonTitle(total: total) == "Request $33.34 Each")
+    }
+
+    @Test("50: $100.02 between three others, the creator deselected, splits evenly")
+    func splitWithoutCreator() throws {
+        var p = people(count: 4)
+        p.toggle(creator)
+        let total = FiatAmount.usd(Decimal(string: "100.02")!)
+        let amounts = try #require(p.shareAmounts(total: total))
+        #expect(amounts == Array(repeating: .usd(Decimal(string: "33.34")!), count: 3))
+        #expect(amounts.reduce(.zero(in: .usd), +) == total)
+    }
+
+    @Test("51: $0.02 between the creator and two others can't be split")
+    func splitTooSmall() {
+        let p = people(count: 3)
+        let total = FiatAmount.usd(Decimal(string: "0.02")!)
+        #expect(p.shares(total: total) == nil)
+        #expect(p.buttonTitle(total: total) == nil)
+    }
+
+    @Test("52: $40 to one other, the creator deselected, is one $40 share")
+    func splitToOne() {
+        var p = people(count: 3)
+        p.toggle(creator)
+        p.toggle(p.members[2])
+        #expect(p.shareAmounts(total: .usd(40)) == [.usd(40)])
+        #expect(p.buttonTitle(total: .usd(40)) == "Request $40 Each")
+    }
+
+    @Test("The remainder never reaches the creator, and the shares always sum to the total",
+          arguments: [(3, 2), (5, 3), (101, 7), (9_999, 100), (100, 100)])
+    func splitSums(total: Int, count: Int) throws {
+        let units = try #require(PaymentRequestPeople.splitUnits(total: total, count: count, creatorIndex: 0))
+        #expect(units.reduce(0, +) == total)
+        #expect(units[0] == total / count)
+        #expect(units.max()! - units.min()! <= 1)
     }
 
     @Test("Groups of 100 or fewer start with everyone selected")

@@ -11,7 +11,7 @@ import FlipcashUI
 
 private let logger = Logger(label: "flipcash.payment-request-create")
 
-/// A new request in a private group: the per-person amount, its name, who is asked and when it
+/// A new request in a private group: the total amount, its name, who is asked and when it
 /// closes, then the create call and the widget that puts it in the chat.
 @MainActor
 @Observable
@@ -75,7 +75,7 @@ final class PaymentRequestCreateViewModel {
 
     // MARK: - Amount -
 
-    /// The per-person amount in the display currency, or nil at zero.
+    /// The total in the display currency, split between the selected people; nil at zero.
     var amount: FiatAmount? {
         guard let value = amountValidator.validate(enteredAmount), value > 0 else { return nil }
         return FiatAmount(value: value, currency: ratesController.balanceCurrency)
@@ -121,10 +121,17 @@ final class PaymentRequestCreateViewModel {
     var peopleValue: String { people?.summaryValue ?? "Choose People" }
     var peopleSecondLine: String? { people?.summarySecondLine }
     var hasValidPeople: Bool { people?.isValid ?? false }
-    var canSend: Bool { amount != nil && hasValidPeople && !isSending }
+    var canSend: Bool { shares != nil && hasValidPeople && !isSending }
+
+    /// The amount split between the selected people, or nil while it can't be split.
+    private var shares: [GroupPaymentRequest.Share]? {
+        guard let amount else { return nil }
+        return people?.shares(total: amount)
+    }
 
     var sendButtonTitle: String {
-        people?.buttonTitle(amount: amount?.formatted() ?? "") ?? "Request"
+        guard let amount else { return "Request" }
+        return people?.buttonTitle(total: amount) ?? "Request"
     }
 
     // MARK: - Send -
@@ -137,7 +144,7 @@ final class PaymentRequestCreateViewModel {
     }
 
     func send(now: Date = .now) async -> Outcome {
-        guard let amount, let people, people.isValid else { return .failed(Self.genericError) }
+        guard let amount, let people, people.isValid, let shares = people.shares(total: amount) else { return .failed(Self.genericError) }
         prepareConfirm()
         guard let idempotencyKey else { return .failed(Self.genericError) }
         isSending = true
@@ -148,7 +155,7 @@ final class PaymentRequestCreateViewModel {
             request = created
         } else {
             do {
-                request = try await create(amount: amount, people: people, key: idempotencyKey, now: now)
+                request = try await create(currency: amount.currency, shares: shares, key: idempotencyKey, now: now)
                 created = request
                 Analytics.paymentRequestCreated(payerCount: people.askedCount, amount: amount, error: nil)
             } catch let error as ErrorCreatePaymentRequest {
@@ -166,16 +173,16 @@ final class PaymentRequestCreateViewModel {
         return .sent
     }
 
-    private func create(amount: FiatAmount, people: PaymentRequestPeople, key: Data, now: Date) async throws -> GroupPaymentRequest {
+    private func create(currency: CurrencyCode, shares: [GroupPaymentRequest.Share], key: Data, now: Date) async throws -> GroupPaymentRequest {
         guard let seal = try await conversationController.photoSeal(for: conversationID) else {
             throw ErrorCreatePaymentRequest.encryptionRequired
         }
         let title = PaymentRequestTitleValidator().validate(title) ?? defaultPaymentRequestTitle(at: now)
         let split = GroupPaymentRequest.Split(
             text: try seal.sealRequestText(title: title, description: ""),
-            currency: amount.currency.rawValue.lowercased(),
+            currency: currency.rawValue.lowercased(),
             endsAt: deadline.endsAt(sentAt: now),
-            shares: people.shares(nativeAmount: NSDecimalNumber(decimal: amount.value).doubleValue)
+            shares: shares
         )
         return try await requests.create(idempotencyKey: key, in: conversationID, split: split)
     }
