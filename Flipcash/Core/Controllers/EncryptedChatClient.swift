@@ -60,9 +60,13 @@ final class EncryptedChatClient: Sendable {
     /// `conversation` remembered, with its preview message opened.
     private func opened(_ conversation: Conversation) async -> Conversation {
         remember(conversation)
-        guard let lastMessage = conversation.lastMessage, lastMessage.isAwaitingDecryption else { return conversation }
         var conversation = conversation
-        conversation.lastMessage = await keyring.open(lastMessage, in: conversation)
+        if let lastMessage = conversation.lastMessage, lastMessage.isAwaitingDecryption {
+            conversation.lastMessage = await keyring.open(lastMessage, in: conversation)
+        }
+        if let summary = conversation.pinSummary, summary.latest?.message?.isAwaitingDecryption == true {
+            conversation.pinSummary = summary.opened(by: await keyring.opener(for: conversation))
+        }
         return conversation
     }
 
@@ -211,6 +215,33 @@ extension EncryptedChatClient: ConversationMessaging {
         try await client.getReactionSummaries(owner: owner, conversationID: conversationID, messageIDs: messageIDs)
     }
 
+    func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
+        let summary = try await client.pinMessage(owner: owner, conversationID: conversationID, messageID: messageID)
+        guard summary.latest?.message?.isAwaitingDecryption == true else { return summary }
+        return summary.opened(by: await opener(conversationID, owner: owner))
+    }
+
+    func unpinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
+        let summary = try await client.unpinMessage(owner: owner, conversationID: conversationID, messageID: messageID)
+        guard summary.latest?.message?.isAwaitingDecryption == true else { return summary }
+        return summary.opened(by: await opener(conversationID, owner: owner))
+    }
+
+    /// One page of pins, each sealed message opened the way a transcript message is.
+    func getPinnedMessages(owner: KeyPair, conversationID: ConversationID, pagingToken: Data?) async throws -> ConversationPinsPage {
+        let page = try await client.getPinnedMessages(owner: owner, conversationID: conversationID, pagingToken: pagingToken)
+        let sealed = page.pins.contains { $0.message?.isAwaitingDecryption == true }
+            || page.summary?.latest?.message?.isAwaitingDecryption == true
+        guard sealed else { return page }
+        let opener = await opener(conversationID, owner: owner)
+        return ConversationPinsPage(
+            pins: page.pins.map { $0.opened(by: opener) },
+            summary: page.summary?.opened(by: opener),
+            pagingToken: page.pagingToken,
+            hasMore: page.hasMore
+        )
+    }
+
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws {
         try await client.markRead(owner: owner, conversationID: conversationID, messageID: messageID)
     }
@@ -260,8 +291,17 @@ extension EncryptedChatClient: ConversationEventStreaming {
             })
         case .metadataRefresh(let conversation):
             return .metadataRefresh(await opened(conversation))
+        case .pinsChanged(let conversationID, let change, let summary):
+            let pinned: ConversationPin? = if case .pinned(let pin) = change { pin } else { nil }
+            guard pinned?.message?.isAwaitingDecryption == true || summary.latest?.message?.isAwaitingDecryption == true else { return event }
+            let opener = await opener(conversationID, owner: owner)
+            return .pinsChanged(
+                conversationID: conversationID,
+                change: pinned.map { .pinned($0.opened(by: opener)) } ?? change,
+                summary: summary.opened(by: opener)
+            )
         case .lastActivityChanged, .readPointersChanged, .typingChanged, .rosterChanged,
-             .viewerStateChanged, .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged, .rulesChanged, .pinsChanged, .paymentRequestsChanged:
+             .viewerStateChanged, .titleChanged, .pictureChanged, .coverPictureChanged, .descriptionChanged, .reactionsChanged, .lobbyChanged, .rulesChanged, .paymentRequestsChanged:
             return event
         }
     }
@@ -274,5 +314,18 @@ private extension DecodedMutation {
         case .edited(let message):  .edited(opener.open(message))
         case .deleted(let message): .deleted(message)
         }
+    }
+}
+
+private extension ConversationPin {
+    func opened(by opener: ChatOpener) -> ConversationPin {
+        guard let message, message.isAwaitingDecryption else { return self }
+        return ConversationPin(messageID: messageID, pinnedBy: pinnedBy, pinnedAt: pinnedAt, message: opener.open(message))
+    }
+}
+
+private extension ConversationPinSummary {
+    func opened(by opener: ChatOpener) -> ConversationPinSummary {
+        ConversationPinSummary(latest: latest?.opened(by: opener), count: count, version: version)
     }
 }

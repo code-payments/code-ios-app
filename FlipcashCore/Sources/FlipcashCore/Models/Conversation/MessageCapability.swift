@@ -17,6 +17,10 @@ public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable
     case report
     /// Send a link to the message into other chats, or out through the system share sheet.
     case forward
+    /// Pin the message to the top of the chat.
+    case pin
+    /// Take the message off the chat's pins.
+    case unpin
     /// Host-only: stop the message's sender from posting in this group. Picks a duration next.
     case silence
     /// Host-only: put the message's sender out of this group and bar them from rejoining.
@@ -34,6 +38,8 @@ extension MessageCapability {
         case .delete: "Delete"
         case .report: "Report"
         case .forward: "Forward"
+        case .pin:    "Pin"
+        case .unpin:  "Unpin"
         // The transcript menu adds the sender's first name; this is the fallback when none is known.
         case .silence: "Restrict"
         case .remove:  "Remove"
@@ -44,7 +50,7 @@ extension MessageCapability {
     public var isDestructive: Bool {
         switch self {
         // Report is red to match Report on the profile menus, though nothing is destroyed.
-        case .copy, .reply, .edit, .forward: false
+        case .copy, .reply, .edit, .forward, .pin, .unpin: false
         case .delete, .report, .silence, .remove: true
         }
     }
@@ -86,6 +92,9 @@ extension MessageCapability {
     /// composer, since a reply is a post, matching Android. Copy, Report, the link rows and the
     /// sender's own Edit/Delete are not posting and stay. Reactions are not decided here.
     ///
+    /// `isPinned` says whether the message is among the chat's pins, which the message itself does not
+    /// carry. Pin and Unpin follow the viewer's server-computed `canPin`, never the chat type.
+    ///
     /// `now` is a parameter rather than `Date.now` so the result stays a function of its inputs.
     public static func resolve(
         for message: ConversationMessage,
@@ -93,6 +102,7 @@ extension MessageCapability {
         as selfUserID: UserID,
         isMember: Bool,
         canPost: Bool = true,
+        isPinned: Bool = false,
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
@@ -101,7 +111,28 @@ extension MessageCapability {
             capabilities.remove(.reply)
         }
         capabilities.formUnion(moderationCapabilities(for: message, in: conversation, baseline: capabilities))
+        if let pinning = pinCapability(for: message, in: conversation, isPinned: isPinned) {
+            capabilities.insert(pinning)
+        }
         return capabilities
+    }
+
+    /// Pin, or Unpin for a pinned message, when the viewer may pin. System messages and tombstones
+    /// are refused by the server; payment requests are a client gate, since the request strip and pill
+    /// already keep them at the top. An unconfirmed message has no server id to pin yet.
+    private static func pinCapability(
+        for message: ConversationMessage,
+        in conversation: Conversation?,
+        isPinned: Bool
+    ) -> MessageCapability? {
+        guard conversation?.viewerState?.canPin == true else { return nil }
+        if isPinned { return .unpin }
+        switch message.content {
+        case .deleted, .encrypted, .system, .widget(.paymentRequest), .widget(.unrecognized):
+            return nil
+        case .text, .media, .cash, .widget(.shareProfile):
+            return message.eventSequence > 0 ? .pin : nil
+        }
     }
 
     /// Silence and Remove, which follow the viewer's server-computed `canSilence` / `canBan` and

@@ -448,6 +448,9 @@ final class ConversationController {
     /// The emoji reactions concern: the user's taps, their calls, and the stream's updates.
     let reactions: ConversationReactions
 
+    /// The pinned messages of opened chats: the fetched lists, their updates, and the user's pins.
+    let pins: ConversationPins
+
     /// Moves new senders to the front of the mention picker's held suggestions. Set by the session
     /// after init.
     @ObservationIgnored var mentionSearch: ServerMentionSearch?
@@ -509,7 +512,9 @@ final class ConversationController {
             owner: owner,
             selfUserID: selfUserID
         )
+        self.pins = ConversationPins(messaging: messaging, owner: owner, selfUserID: selfUserID)
         reactions.didPersist = { [weak self] in self?.bumpMessageRevision() }
+        pins.didChange = { [weak self] in self?.bumpMessageRevision() }
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
@@ -613,6 +618,7 @@ final class ConversationController {
                 self.logCounterpartRead(event)
                 self.applyTyping(event)
                 self.applyReactions(event)
+                self.pins.apply(event)
                 self.mentionSearch?.apply(event)
                 self.hostedLobbies?.apply(event)
                 self.groupRosters?.apply(event)
@@ -2035,7 +2041,7 @@ final class ConversationController {
                 case .delete: "Couldn't Delete Message"
                 // Neither of these mutates the transcript, so neither can raise a mutation alert.
                 // Report files straight from its sheet and reports its own outcome there.
-                case .copy, .reply, .report, .forward, .silence, .remove: "Something Went Wrong"
+                case .copy, .reply, .report, .forward, .pin, .unpin, .silence, .remove: "Something Went Wrong"
                 }
             }
         }

@@ -303,7 +303,9 @@ final class ConversationLoadCoordinator {
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory,
             unreadBoundary: unreadBoundary(in: window),
-            paymentRequestCards: paymentRequestCards
+            paymentRequestCards: paymentRequestCards,
+            // Read inside the observation scope, so a pin or unpin re-maps the menus.
+            pinnedIDs: controller.pins.pinnedIDs(in: conversationID)
         )
     }
 
@@ -351,6 +353,7 @@ final class ConversationLoadCoordinator {
                     as: inputs.selfUserID,
                     isMember: inputs.isMember,
                     canPost: inputs.canPost,
+                    isPinned: inputs.pinnedIDs.contains(message.id),
                     policy: inputs.policy,
                     now: inputs.now
                 )
@@ -482,6 +485,8 @@ final class ConversationLoadCoordinator {
         var unreadBoundary: UnreadBoundary
         /// Each request widget's card in the window, keyed by raw message id.
         var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
+        /// The chat's pinned messages, which decide Pin or Unpin on each row's menu.
+        var pinnedIDs: Set<MessageID> = []
 
         struct Branding: Equatable, Sendable {
             var token: String

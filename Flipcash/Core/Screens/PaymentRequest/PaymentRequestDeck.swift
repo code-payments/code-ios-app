@@ -237,8 +237,23 @@ final class PaymentRequestStripCollapse {
 
     /// Follows the reader `distanceFromNewest` points above the newest messages.
     func update(distanceFromNewest: CGFloat) {
+        move(to: distanceFromNewest / Self.distance)
+    }
+
+    /// Follows a swipe up on the strip that has covered `fraction` of the way into the pill.
+    func dock(following fraction: CGFloat) {
+        move(to: fraction)
+    }
+
+    /// Ends a swipe up on the strip: past halfway it docks into the pill for the rest of the visit,
+    /// short of that it springs back out.
+    func endDock(at fraction: CGFloat) {
+        move(to: fraction >= 0.5 ? 1 : 0)
+    }
+
+    private func move(to fraction: CGFloat) {
         guard !isPinned else { return }
-        let next = min(max(distanceFromNewest / Self.distance, 0), 1)
+        let next = min(max(fraction, 0), 1)
         if abs(next - progress) > 0.001 || (next != progress && (next == 0 || next == 1)) {
             progress = next
         }

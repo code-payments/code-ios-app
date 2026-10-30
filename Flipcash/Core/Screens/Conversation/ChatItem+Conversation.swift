@@ -676,11 +676,11 @@ extension ChatItem {
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
     /// must not shuffle its rows between renders of the same message.
     ///
-    /// Forward follows Reply, as on Android. Report goes
+    /// Forward follows Reply, as on Android, and Pin follows Forward. Report goes
     /// last: it is the rarest row and the only one that never appears on your own message, so the
     /// menu reads "yours ends with delete, theirs ends with report".
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
-        [.copy, .reply, .forward, .edit, .delete, .report, .silence, .remove].filter(capabilities.contains)
+        [.copy, .reply, .forward, .pin, .unpin, .edit, .delete, .report, .silence, .remove].filter(capabilities.contains)
     }
 
     /// The group lines for a payment in a group chat, or nil when its receiver isn't known; a

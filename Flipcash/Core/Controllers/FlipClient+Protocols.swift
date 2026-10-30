@@ -148,6 +148,13 @@ protocol ConversationMessaging: AnyObject, Sendable {
     func getReactors(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, pageSize: Int, pagingToken: Data?) async throws -> ReactorPage
     /// The current reactions on up to 100 messages, keyed by message; a message with none is absent.
     func getReactionSummaries(owner: KeyPair, conversationID: ConversationID, messageIDs: [MessageID]) async throws -> [MessageID: ReactionState]
+    /// Pins a message, returning the chat's new pin summary. Throws `ErrorPinMessage.tooManyPins`
+    /// at the server's cap.
+    func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary
+    /// Unpins a message, returning the chat's new pin summary.
+    func unpinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary
+    /// One page of the chat's pins, most recently pinned first, with sealed messages opened.
+    func getPinnedMessages(owner: KeyPair, conversationID: ConversationID, pagingToken: Data?) async throws -> ConversationPinsPage
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws
     func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws
 }

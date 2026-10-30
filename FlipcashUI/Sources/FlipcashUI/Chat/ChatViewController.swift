@@ -1792,7 +1792,7 @@ extension ChatViewController {
                 case .copy:
                     if let body { UIPasteboard.general.string = body }
                 // The link rows need the chat's id, which this module never holds.
-                case .reply, .edit, .delete, .report, .forward, .silence, .remove:
+                case .reply, .edit, .delete, .report, .forward, .pin, .unpin, .silence, .remove:
                     handler?(rowID, action)
                 }
             }
@@ -2017,6 +2017,8 @@ extension MessageCapability {
         case .delete: .trash
         case .report: .exclamationBubble
         case .forward: .forwardArrow
+        case .pin:    .pinFill
+        case .unpin:  .pinSlash
         case .silence: .speakerSlash
         case .remove: .personBadgeMinus
         }
@@ -2025,7 +2027,7 @@ extension MessageCapability {
     var isModeration: Bool {
         switch self {
         case .silence, .remove: true
-        case .copy, .reply, .edit, .delete, .report, .forward: false
+        case .copy, .reply, .edit, .delete, .report, .forward, .pin, .unpin: false
         }
     }
 
@@ -2036,7 +2038,7 @@ extension MessageCapability {
         case .silence, .remove:
             guard let senderName else { return title }
             return "\(title) \(senderName)"
-        case .copy, .reply, .edit, .delete, .report, .forward:
+        case .copy, .reply, .edit, .delete, .report, .forward, .pin, .unpin:
             return title
         }
     }
