@@ -95,7 +95,6 @@ struct GroupSendViewModelTests {
         viewModel.toggle(b)
 
         #expect(viewModel.selection == [a, c])
-        #expect(viewModel.sendButtonTitle == "Send to 2 People")
     }
 
     // MARK: - Including yourself
@@ -107,7 +106,6 @@ struct GroupSendViewModelTests {
         viewModel.toggle(viewModel.session.userID)
         picked.forEach(viewModel.toggle)
 
-        #expect(viewModel.sendButtonTitle == "Send to 4 People")
         #expect(viewModel.eachLabel == "$1.00 Each")
         #expect(await viewModel.submit() == .success)
 
@@ -123,7 +121,6 @@ struct GroupSendViewModelTests {
         viewModel.toggle(alice)
         viewModel.toggle(viewModel.session.userID)
 
-        #expect(viewModel.sendButtonTitle == "Send to 1 Person")
         #expect(viewModel.eachLabel == "$2.50 Each")
         #expect(await viewModel.submit() == .success)
 

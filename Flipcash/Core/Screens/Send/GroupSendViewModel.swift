@@ -189,11 +189,6 @@ final class GroupSendViewModel {
         }
     }
 
-    /// "Send to N People", worded for one; N counts the other members, never You.
-    var sendButtonTitle: String {
-        selection.count == 1 ? "Send to 1 Person" : "Send to \(selection.count) People"
-    }
-
     /// The entered total split between the current selection and You when checked, or nil when it can't be.
     var split: GroupSendSplit? {
         guard let enteredTotal else { return nil }

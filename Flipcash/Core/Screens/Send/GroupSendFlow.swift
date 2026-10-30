@@ -154,7 +154,7 @@ private struct GroupSendSelectPeopleScreen: View {
 
                 CodeButton(
                     style: .filled,
-                    title: viewModel.sendButtonTitle,
+                    title: "Next",
                     disabled: viewModel.selection.isEmpty
                 ) {
                     if viewModel.confirmSelection() {
