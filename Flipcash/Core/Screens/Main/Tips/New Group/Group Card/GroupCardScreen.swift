@@ -9,8 +9,11 @@ import FlipcashCore
 import FlipcashUI
 
 /// A group's scan card, drawn over the invite sheet by its Show Group Card tile: the group's
-/// picture and title over a QR of its invite link, with Download in the top corner and
+/// picture and title over a QR of the sheet's link, with Download in the top corner and
 /// Close pinned to the bottom. Behaves as ``ProfileCardScreen`` does.
+///
+/// An invite link's card (frame 1j) adds "Scan to join" and the link's expiry under the QR, and a
+/// line under the card saying whoever scans it joins without approval.
 struct GroupCardScreen: View {
 
     /// What the card shows, taken from the conversation the invite sheet already holds.
@@ -20,9 +23,24 @@ struct GroupCardScreen: View {
         let avatar: Data?
         let blurhash: String?
         let memberCount: UInt64
+        let link: Link
 
-        /// The invite link the QR encodes, from the same builder the Share and Copy tiles use.
-        var url: URL { .groupChatInvite(for: id) }
+        /// Which of the group's links the card encodes. Held in memory only: an invite link carries
+        /// the group's secret, so it never rides on a saved route, an analytics property or a log.
+        enum Link: Equatable {
+            /// The plain `/chat/{uuid}` link, which lands whoever scans it on Request to Join.
+            case plain
+            /// An invite link, which admits whoever scans it until `expiresAt` (nil: never).
+            case invite(URL, expiresAt: Date?)
+        }
+
+        /// The link the QR encodes, the same one the sheet's Share and Copy tiles hand out.
+        var url: URL {
+            switch link {
+            case .plain: .groupChatInvite(for: id)
+            case .invite(let url, _): url
+            }
+        }
 
         /// The title, or `Group Chat` for a group that has none.
         var displayTitle: String {
@@ -87,14 +105,17 @@ struct GroupCardScreen: View {
                 .opacity(isRevealed ? 1 : 0)
 
             ScrollView(showsIndicators: false) {
-                cardView
-                    // The avatar rises above the card, so the card sits half an avatar lower to keep
-                    // the group centred.
-                    .offset(y: avatarDiameter / 2)
-                    .scaleEffect(isCardShown ? 1 : Self.revealScale)
-                    .opacity(isRevealed ? 1 : 0)
-                    .padding(.horizontal, Self.horizontalInset)
-                    .containerRelativeFrame(.vertical, alignment: .center)
+                VStack(spacing: 24) {
+                    cardView
+                    footnote
+                }
+                // The avatar rises above the card, so the card sits half an avatar lower to keep
+                // the group centred.
+                .offset(y: avatarDiameter / 2)
+                .scaleEffect(isCardShown ? 1 : Self.revealScale)
+                .opacity(isRevealed ? 1 : 0)
+                .padding(.horizontal, Self.horizontalInset)
+                .containerRelativeFrame(.vertical, alignment: .center)
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -156,6 +177,9 @@ struct GroupCardScreen: View {
                     .accessibilityLabel("QR code for \(card.displayTitle)")
                     .accessibilityIdentifier("group-card-qr")
             }
+
+            scanLines
+                .padding(.top, width * Self.tileGapFraction)
         }
         .padding(.top, width * Self.contentTopFraction)
         .padding(.bottom, width * Self.bottomInsetFraction)
@@ -165,6 +189,41 @@ struct GroupCardScreen: View {
         .overlay(alignment: .top) {
             avatar
                 .offset(y: -avatarDiameter / 2)
+        }
+    }
+
+    /// "Scan to join" and the expiry, for an invite link's card.
+    @ViewBuilder
+    private var scanLines: some View {
+        switch card.link {
+        case .plain:
+            EmptyView()
+        case .invite(_, let expiresAt):
+            VStack(spacing: 4) {
+                Text(InviteLinkCopy.cardScan)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                Text(InviteLinkCopy.cardExpiry(expiresAt))
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textSecondary)
+                    .accessibilityIdentifier("group-card-expiry")
+            }
+        }
+    }
+
+    /// Under an invite link's card: the image carries the key wherever it goes.
+    @ViewBuilder
+    private var footnote: some View {
+        switch card.link {
+        case .plain:
+            EmptyView()
+        case .invite:
+            Text(InviteLinkCopy.cardFootnote)
+                .font(.appTextCaption)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: cardWidth)
+                .accessibilityIdentifier("group-card-footnote")
         }
     }
 
@@ -245,5 +304,20 @@ struct GroupCardScreen: View {
         guard let previousBrightness, let screen = UIApplication.shared.firstWindowScene?.screen else { return }
         screen.brightness = previousBrightness
         self.previousBrightness = nil
+    }
+}
+
+extension GroupCardScreen.Card {
+
+    /// A card for `id` drawn from the conversation the presenter already holds.
+    init(id: ConversationID, conversation: Conversation?, avatar: Data?, link: Link) {
+        self.init(
+            id: id,
+            title: conversation?.title,
+            avatar: avatar,
+            blurhash: conversation?.picture?.thumbnailBlurhash,
+            memberCount: conversation?.rosterSummary.memberCount ?? 0,
+            link: link
+        )
     }
 }

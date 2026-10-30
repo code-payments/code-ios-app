@@ -696,6 +696,8 @@ final class SessionContainer {
 
     /// Reads, makes and revokes a hosted private group's invite links, for ``GroupInviteLinks``.
     let inviteLinks: GroupInviteLinks.Service
+    /// Which hosted groups' link cards show the plain link (Approve new members), on this device.
+    let approveNewMembers: ApproveNewMembers
     let inviteLanding: GroupInviteLanding
 
     /// The group payment requests the signed-in user's private chats carry, refetched by the chat screen.
@@ -878,6 +880,7 @@ final class SessionContainer {
         let recentReactions = RecentReactionsStore(owner: owner.publicKey)
         self.recentReactions = recentReactions
         self.chatSearchRecents = ChatSearchRecents(owner: owner.publicKey)
+        self.approveNewMembers = ApproveNewMembers(owner: owner.publicKey)
         self.discoveredCurrencies = DiscoveredCurrencies(discover: { client.discoverCurrencies(category: $0) })
         self.featuredGroups = FeaturedGroups(fetching: { [weak flipClient] username in
             guard let flipClient else { return [] }

@@ -14,7 +14,8 @@ enum ShareToChatsSubject {
     /// way in.
     case group(ConversationID)
     /// A private group's invite link, for a viewer with `can_invite` (surface 1). The link carries
-    /// the group's secret, so only E2EE chats are offered and there is no group card (Decision 6).
+    /// the group's secret, so only E2EE chats are offered (Decision 6). Its group card encodes the
+    /// invite link, so whoever scans it joins without approval.
     /// `links` makes the link when the tap that opened the sheet found none. `entry` picks one of the
     /// viewer's active links, as Manage Invites does; nil means the current one.
     case inviteLink(ConversationID, GroupInviteLinks, entry: InviteID? = nil)
@@ -36,9 +37,10 @@ enum ShareToChatsSubject {
 }
 
 /// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a link by Share or Copy,
-/// or post it straight into recent chats with an optional message. A person with a name gets a third
-/// tile, Show Profile Card, which draws their card over the sheet; closing it uncovers the sheet as
-/// it was left.
+/// or post it straight into recent chats with an optional message. A group's sheet shows its link in
+/// a pill above the tiles, whichever link it is. A group gets a third tile, Show Group Card, and a
+/// person with a name gets Show Profile Card; either draws its card over the sheet, and closing it
+/// uncovers the sheet as it was left.
 struct ShareToChatsSheet: View {
 
     let subject: ShareToChatsSubject
@@ -114,24 +116,34 @@ struct ShareToChatsSheet: View {
         }
     }
 
-    /// Whether the sheet offers the group card tile: for every group subject, and for nothing else.
+    /// Whether the sheet offers the group card tile: for every group subject, plain or invite link,
+    /// and for nothing else.
     nonisolated static func showsGroupCardTile(for subject: ShareToChatsSubject) -> Bool {
         switch subject {
-        case .group: true
-        case .inviteLink, .user, .message, .currency: false
+        case .group, .inviteLink: true
+        case .user, .message, .currency: false
         }
     }
 
-    /// The group card's content, from the conversation this sheet's host already holds.
+    /// The group card's content, from the conversation this sheet's host already holds. It encodes
+    /// this sheet's link; nil while an invite link is still being made.
     private var groupCard: GroupCardScreen.Card? {
+        let link: GroupCardScreen.Card.Link
+        switch subject {
+        case .group:
+            link = .plain
+        case .inviteLink:
+            guard let entry = inviteEntry, let url = entry.url else { return nil }
+            link = .invite(url, expiresAt: entry.invite.expiresAt)
+        case .user, .message, .currency:
+            return nil
+        }
         guard let groupID else { return nil }
-        let conversation = conversation
         return GroupCardScreen.Card(
             id: groupID,
-            title: conversation?.title,
+            conversation: conversation,
             avatar: sessionContainer.profileAvatars.data(for: .chat(groupID)),
-            blurhash: conversation?.picture?.thumbnailBlurhash,
-            memberCount: conversation?.rosterSummary.memberCount ?? 0
+            link: link
         )
     }
 
@@ -248,9 +260,9 @@ struct ShareToChatsSheet: View {
                 // toggles it on release.
                 List {
                     Group {
-                        if isInviteMode {
+                        if groupID != nil {
                             VStack(spacing: 16) {
-                                inviteLinkPanel
+                                linkPanel
                                 shareTiles
                             }
                         } else {
@@ -366,8 +378,8 @@ struct ShareToChatsSheet: View {
         .onGeometryChange(for: CGFloat.self, of: \.size.height) { headerHeight = $0 }
     }
 
-    /// Share and Copy Invite Link, plus Show Profile Card for a person with a card, as tiles side by
-    /// side, sized to the tallest.
+    /// Share and Copy Invite Link, plus Show Group Card for a group or Show Profile Card for a person
+    /// with a card, as tiles side by side, sized to the tallest.
     private var shareTiles: some View {
         HStack(spacing: 10) {
             ShareTile(title: "Share") {
@@ -426,6 +438,8 @@ struct ShareToChatsSheet: View {
                     isMessageFocused = false
                     isShowingGroupCard = true
                 }
+                .disabled(!hasLink)
+                .opacity(hasLink ? 1 : 0.35)
                 .accessibilityIdentifier("group-card-tile")
             }
         }
@@ -524,10 +538,11 @@ struct ShareToChatsSheet: View {
 
     // MARK: - Invite link -
 
-    /// The invite link's pill and meta line, above Share and Copy.
-    private var inviteLinkPanel: some View {
+    /// The group's link over the tiles: the invite link with its expiry and uses, or the plain link,
+    /// which has neither.
+    private var linkPanel: some View {
         InviteLinkPanel(
-            pill: inviteURL.map(InviteLinkPanel.Pill.link) ?? .creating,
+            pill: isInviteMode ? inviteURL.map(InviteLinkPanel.Pill.link) ?? .creating : .link(model.url),
             meta: inviteEntry.map { InviteLinkCopy.sheetMeta($0.invite) }
         )
     }

@@ -269,10 +269,10 @@ struct GroupInviteLinksTests {
         #expect(links.loadState == .failed)
     }
 
-    @Test("The invite link's share sheet has no group card (Decision 6)")
-    func inviteSheetHasNoGroupCard() {
+    @Test("The invite link's share sheet has a group card, as the plain link's does")
+    func inviteSheetHasGroupCard() {
         let links = makeLinks(Server())
-        #expect(!ShareToChatsSheet.showsGroupCardTile(for: .inviteLink(group, links)))
+        #expect(ShareToChatsSheet.showsGroupCardTile(for: .inviteLink(group, links)))
         #expect(ShareToChatsSheet.showsGroupCardTile(for: .group(group)))
     }
 
