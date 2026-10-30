@@ -300,13 +300,9 @@ struct NewPublicGroupScreen: View {
                 // form offering to create it twice or at the picker that opened the form. The
                 // chat list is this stack's root, so unwinding to it is the same as popping both.
                 router.popToRoot()
-                switch model.privacy {
-                case .public:
-                    router.push(.tipConversation(conversation.id))
-                case .private:
-                    // The host's first job is inviting people, which starts from the profile.
-                    router.push(.chatProfile(conversation.id, origin: .featuredGroup))
-                }
+                // Both privacies land in the chat. A private group's invite card is there, so the
+                // host's first job (inviting people) starts from it rather than from the profile.
+                router.push(.tipConversation(conversation.id))
 
             } catch {
                 buttonState = .normal

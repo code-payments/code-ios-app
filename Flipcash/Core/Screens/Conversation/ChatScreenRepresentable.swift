@@ -51,6 +51,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let toasts: ToastController
     /// Fired when the user taps the "Encrypted" marker above a DM's first encrypted message.
     let onEncryptionMarkerTap: () -> Void
+    /// Fired when the user taps Invite People on the group-ready card.
+    let onInviteCardTap: () -> Void
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
     let onAuthorTap: (UserID) -> Void
     /// Fired when a context-menu action is chosen on a row, with the row's stable id. Copy never
@@ -201,6 +203,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             conversationController.pendingMediaProgress(forMessageID: id)
         }
         screen.onEncryptionMarkerTap = onEncryptionMarkerTap
+        screen.onInviteCardTap = onInviteCardTap
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in
@@ -258,6 +261,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
         screen.onEncryptionMarkerTap = onEncryptionMarkerTap
+        screen.onInviteCardTap = onInviteCardTap
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in

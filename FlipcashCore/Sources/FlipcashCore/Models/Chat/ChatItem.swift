@@ -29,6 +29,10 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     /// fallback text, shown unmodified. `serverID` is the notice's message id, which the READ pointer
     /// moves past like any inbound message's. `userLink` is the name in `text` that opens a profile.
     case systemMessage(id: String, text: String, serverID: MessageID?, userLink: SystemNoticeUserLink? = nil)
+    /// The "Your Group Is Ready" card at the head of a group the viewer is alone in. Client-only: it
+    /// is never a message, so nothing stores or syncs it. `isLeaving` plays its exit while the card
+    /// is still in the transcript; the owner removes it once that has run.
+    case inviteCard(groupName: String, isLeaving: Bool)
 
     public var id: String {
         switch self {
@@ -39,6 +43,8 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
         case .typingIndicator: "typing-indicator"
         case .encryptionMarker: "encryption-marker"
         case .systemMessage(let id, _, _, _): id
+        // Independent of `isLeaving`, so the exit reconfigures the row in place.
+        case .inviteCard: "invite-card"
         }
     }
 
@@ -50,7 +56,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     public var messageID: String? {
         switch self {
         case .message(let message): message.messageID
-        case .dateSeparator, .unreadDivider, .typingIndicator, .encryptionMarker, .systemMessage: nil
+        case .dateSeparator, .unreadDivider, .typingIndicator, .encryptionMarker, .systemMessage, .inviteCard: nil
         }
     }
 
