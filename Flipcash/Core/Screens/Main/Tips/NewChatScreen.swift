@@ -31,7 +31,7 @@ struct NewChatScreen: View {
                     title: "Create a New Group",
                     accessibilityIdentifier: "new-chat-private-group"
                 ) {
-                    Analytics.groupNewOpened()
+                    Analytics.groupNewOpened(type: .private_)
                     router.push(.newPrivateGroup)
                 }
 
@@ -68,7 +68,7 @@ struct NewChatScreen: View {
             return
         }
 
-        Analytics.groupNewOpened()
+        Analytics.groupNewOpened(type: .community)
         router.push(.newPublicGroup)
     }
 }

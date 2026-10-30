@@ -263,6 +263,7 @@ private struct CurrencyInfoScreenContent: View {
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onMore: { isShowingMore = true },
                     onSelectCommunityChat: { chat in
+                        Analytics.tokenInfoCommunityChatTapped(mint: metadata.mint)
                         conversationController.hold(chat)
                         router.push(.chatProfile(chat.id, origin: .featuredGroup))
                     },
@@ -390,6 +391,7 @@ private struct CurrencyInfoScreenContent: View {
     private func runPendingMoreRow() {
         guard let row = pendingMoreRow else { return }
         pendingMoreRow = nil
+        Analytics.tokenInfoMoreOptionPicked(row: row, mint: mint)
         switch row {
         case .convert:  router.push(.convertCurrency(mint))
         case .withdraw: router.push(.withdrawCurrency(mint))

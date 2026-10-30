@@ -80,12 +80,16 @@ struct ChatSearchScreen: View {
             .animation(.easeInOut(duration: 0.2), value: model?.isIdle ?? true)
         }
         .toolbar(.hidden, for: .navigationBar)
-        .onChange(of: isActive) { _, _ in startFresh() }
+        .onChange(of: isActive) { _, active in
+            if active { Analytics.searchOpened() }
+            startFresh()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { startFresh() }
         }
         .task {
             guard model == nil else { return }
+            if isActive { Analytics.searchOpened() }
             let model = makeModel()
             self.model = model
             await model.load()
@@ -179,16 +183,19 @@ struct ChatSearchScreen: View {
     }
 
     private func open(_ conversation: Conversation) {
+        Analytics.searchResultTapped(.chat)
         sessionContainer.chatSearchRecents.record(conversation.id)
         push(.tipConversation(conversation.id))
     }
 
     private func open(_ hit: ChatSearchMessageHit) {
+        Analytics.searchResultTapped(.message)
         sessionContainer.chatSearchRecents.record(hit.conversationID)
         push(.chatMessage(hit.conversationID, MessageLanding(messageID: hit.messageID, returnTo: nil)))
     }
 
     private func open(_ link: ChatSearchLink) {
+        Analytics.searchResultTapped(.link)
         ExternalLinkOpener(session: session, trustedWebsites: container.trustedWebsites).open(link.url)
     }
 
@@ -197,6 +204,7 @@ struct ChatSearchScreen: View {
     ///
     /// The keyboard goes down first, so it doesn't slide away over the currency.
     private func openCurrency(_ mint: MintMetadata) {
+        Analytics.searchResultTapped(.currency)
         guard isFieldFocused else {
             showCurrency(mint)
             return
@@ -214,6 +222,7 @@ struct ChatSearchScreen: View {
         if chrome == .pushed {
             router.pop(on: .tips)
         }
+        Analytics.tokenInfoOpened(from: .openedFromSearch, mint: mint.address)
         router.navigate(to: .currencyInfo(mint.address))
     }
 }

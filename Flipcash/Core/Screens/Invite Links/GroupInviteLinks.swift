@@ -244,6 +244,7 @@ final class GroupInviteLinks {
             // Only a transport failure is worth retrying with the same token; any answer from the
             // server is final for this secret.
             if error != .transportFailure { pendingSecret = nil }
+            Analytics.groupInviteLinkCreated(error: error)
             throw error
         }
         pendingSecret = nil
@@ -252,12 +253,14 @@ final class GroupInviteLinks {
             logger.warning("CreateInvite returned an unusable invite", metadata: [
                 "status": "\(invite.status)",
             ])
+            Analytics.groupInviteLinkCreated(error: CreatedUnusable())
             throw CreatedUnusable()
         }
 
         let entry = Entry(invite: invite, url: url)
         entries.removeAll { $0.id == entry.id }
         entries.insert(entry, at: 0)
+        Analytics.groupInviteLinkCreated(error: nil)
         return entry
     }
 
@@ -269,7 +272,13 @@ final class GroupInviteLinks {
         revoking.insert(entry.id)
         defer { revoking.remove(entry.id) }
 
-        try await service.revoke(conversationID, entry.id)
+        do {
+            try await service.revoke(conversationID, entry.id)
+        } catch {
+            Analytics.groupInviteLinkRevoked(error: error)
+            throw error
+        }
+        Analytics.groupInviteLinkRevoked(error: nil)
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
         let old = entries[index].invite
         entries[index] = Entry(

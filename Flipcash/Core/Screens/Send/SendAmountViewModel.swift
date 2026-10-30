@@ -438,7 +438,7 @@ final class SendAmountViewModel {
             // is the single source for whether this reports as a tip, so the
             // wire `action` and the analytics event never drift apart.
             let chat = chatPaymentMetadata()
-            let transferEvent: Analytics.TransferEvent = (chat?.isTip ?? false) ? .sentTip : .sentCash
+            let isTip = chat?.isTip ?? false
 
             do {
                 try await sender.send(
@@ -447,10 +447,18 @@ final class SendAmountViewModel {
                     to: recipient,
                     chat: chat
                 )
-                Analytics.transfer(event: transferEvent, exchangedFiat: amountToSend, grabTime: nil, successful: true, error: nil)
+                if isTip {
+                    Analytics.transfer(event: .sentTip, exchangedFiat: amountToSend, grabTime: nil, successful: true, error: nil)
+                } else {
+                    Analytics.sentCash(exchangedFiat: amountToSend, context: .direct, error: nil)
+                }
                 return .success
             } catch {
-                Analytics.transfer(event: transferEvent, exchangedFiat: amountToSend, grabTime: nil, successful: false, error: error)
+                if isTip {
+                    Analytics.transfer(event: .sentTip, exchangedFiat: amountToSend, grabTime: nil, successful: false, error: error)
+                } else {
+                    Analytics.sentCash(exchangedFiat: amountToSend, context: .direct, error: error)
+                }
                 showSendError()
                 return .failed
             }
