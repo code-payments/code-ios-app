@@ -117,13 +117,21 @@ struct PinnedMessagesSheet: View {
         // Rows fade out under the bottom edge while there's more to scroll; the bar draws nothing.
         .scrollEdgeBar(.bottom) { Color.clear.frame(height: 0) }
         .scrollEdgeBar(.top) {
-            Text("Pinned Messages")
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 20)
-                .padding(.bottom, 4)
-                .accessibilityAddTraits(.isHeader)
+            // Laid out as ReactorsSheet's header: the title centred, the close on the trailing edge.
+            ZStack {
+                Text("Pinned Messages")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                    .accessibilityAddTraits(.isHeader)
+                HStack {
+                    Spacer()
+                    CloseButton(style: .glass) { dismiss() }
+                }
+                .padding(.horizontal, 20)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 20)
+            .padding(.bottom, 4)
         }
         .background(Color.backgroundMain)
         .presentationDetents([.medium, .large], selection: $detent)
