@@ -148,6 +148,7 @@ struct YouScreen: View {
                     title: editButton.title,
                     isAccented: editButton.isAccented
                 ) {
+                    Analytics.profileEditProfileViewed()
                     router.push(.editProfile)
                 }
                 .accessibilityIdentifier("you-edit-profile")
@@ -185,6 +186,7 @@ struct YouScreen: View {
 
     private var settingsGear: some View {
         Button {
+            Analytics.profileSettingsViewed()
             router.push(.settings)
         } label: {
             Image(systemName: "gearshape")

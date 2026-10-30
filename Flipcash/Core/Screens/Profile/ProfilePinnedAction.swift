@@ -36,3 +36,15 @@ nonisolated enum ProfilePinnedAction: Equatable {
         }
     }
 }
+
+extension ProfilePinnedAction {
+    /// The shared catalogue's action for this button, or nil when nothing is pinned.
+    var analyticsAction: SharedCoreKit.ProfilePinnedAction? {
+        switch self {
+        case .none:                             nil
+        case .unblock:                          .unblock
+        case .openChat:                         .openChat
+        case .startChatting, .startChattingUnpriced: .startChatting
+        }
+    }
+}

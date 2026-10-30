@@ -142,6 +142,7 @@ struct ProfileNameScreen: View {
                     owner: sessionContainer.session.ownerKeyPair
                 )
                 Analytics.displayNameSubmitted(source: source, hadPreviousName: hadPreviousName)
+                if source == .myAccount { Analytics.profileFieldSaved(.name) }
                 try await sessionContainer.session.updateProfile()
 
                 buttonState = .success

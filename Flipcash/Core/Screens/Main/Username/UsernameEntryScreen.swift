@@ -144,6 +144,7 @@ struct UsernameEntryScreen: View {
                     username,
                     owner: session.ownerKeyPair
                 )
+                Analytics.profileFieldSaved(.username)
                 try await session.updateProfile()
 
                 buttonState = .success
