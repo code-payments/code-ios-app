@@ -83,7 +83,8 @@ private struct InviteLinkCardSheet: View {
                 isCreating: links.isCreating,
                 isApproving: approvingBinding,
                 onShare: share,
-                onManageInvites: { choose(.manageInvites) }
+                onManageInvites: { choose(.manageInvites) },
+                onClose: { dismiss() }
             )
             // PartialSheet sizes to what it measures, so a card squeezed on first layout
             // would keep its truncated subtitles; take the card's full height instead.
@@ -142,6 +143,7 @@ struct InviteLinkCard: View {
     @Binding var isApproving: Bool
     let onShare: () -> Void
     let onManageInvites: () -> Void
+    let onClose: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -156,11 +158,7 @@ struct InviteLinkCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
-                .padding(.horizontal, 4)
+            header
                 .padding(.bottom, 8)
 
             linkCard
@@ -179,6 +177,24 @@ struct InviteLinkCard: View {
         .padding(.vertical, 20)
         // Approve New Members crossfades the pill, caption and subtitle; any height change rides along.
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: isApproving)
+    }
+
+    /// The title centred across the full sheet width, with the E2EE sheet's ✕ on the trailing edge.
+    private var header: some View {
+        ZStack {
+            Text(title)
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+                // Equal insets on both sides keep the title centred and clear of the ✕.
+                .padding(.horizontal, 56)
+                .frame(maxWidth: .infinity)
+
+            HStack {
+                Spacer()
+                CloseButton(style: .glass, action: onClose)
+            }
+        }
     }
 
     private var linkCard: some View {
@@ -370,7 +386,7 @@ private let previewPlainURL = URL(string: "https://app.flipcash.com/chat/52fba6a
                 caption: isApproving ? InviteLinkCopy.plainLinkCaption : "0 joined · Expires Nov 3",
                 isCreating: false,
                 isApproving: $isApproving,
-                onShare: {}, onManageInvites: {}
+                onShare: {}, onManageInvites: {}, onClose: {}
             )
             .background(Color.backgroundSecondary, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
             .padding(8)
@@ -388,7 +404,7 @@ private let previewPlainURL = URL(string: "https://app.flipcash.com/chat/52fba6a
                 caption: nil,
                 isCreating: true,
                 isApproving: .constant(false),
-                onShare: {}, onManageInvites: {}
+                onShare: {}, onManageInvites: {}, onClose: {}
             )
             .background(Color.backgroundSecondary, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
             .padding(8)
