@@ -340,6 +340,7 @@ nonisolated extension Database {
             let c = ConversationTable()
             let m = ConversationMemberTable()
             let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
             let ids = conversations.map(\.id.data)
             // IMMEDIATE: this transaction reads before it writes. A DEFERRED one that reads first fails
             // the write with SQLITE_BUSY at once when another writer holds the lock, without consulting
@@ -359,6 +360,7 @@ nonisolated extension Database {
                     try writer.run(c.table.filter(doomed.contains(c.id)).delete())
                     try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
                     try writer.run(k.table.filter(doomed.contains(k.conversationID)).delete())
+                    try writer.run(p.table.filter(doomed.contains(p.conversationID)).delete())
                 }
                 for conversation in conversations where conversation.type == type {
                     try writeConversation(conversation)
@@ -379,10 +381,12 @@ nonisolated extension Database {
             let m = ConversationMemberTable()
             let g = GroupMembershipTable()
             let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
             try writer.transaction(.immediate) {
                 let doomed = departed.map(\.data)
                 if !doomed.isEmpty {
                     try writer.run(k.table.filter(doomed.contains(k.conversationID)).delete())
+                    try writer.run(p.table.filter(doomed.contains(p.conversationID)).delete())
                     try writer.run(c.table.filter(doomed.contains(c.id)).delete())
                     try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
                     try writer.run(g.table.filter(doomed.contains(g.conversationId)).delete())
@@ -481,10 +485,12 @@ nonisolated extension Database {
             let c = ConversationTable()
             let m = ConversationMemberTable()
             let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
             try writer.transaction(.immediate) {
                 try writer.run(c.table.filter(c.id == conversationID.data).delete())
                 try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
                 try writer.run(k.table.filter(k.conversationID == conversationID.data).delete())
+                try writer.run(p.table.filter(p.conversationID == conversationID.data).delete())
             }
         }
     }

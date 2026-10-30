@@ -158,6 +158,14 @@ final class PaymentRequests {
         GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID }, viewer: viewer, at: now)
     }
 
+    /// Drops the held requests and chat seals of conversations the user has left, so a card for a
+    /// departed chat can't redraw. The database rows go with the conversation's own delete.
+    func forget(conversations departed: Set<ConversationID>) {
+        guard !departed.isEmpty else { return }
+        requests = requests.filter { entry in entry.value.chatID.map { !departed.contains($0) } ?? true }
+        for id in departed { seals[id] = nil }
+    }
+
     /// Merges fetched copies into the store and writes them through to the database.
     func ingest(_ incoming: [GroupPaymentRequest]) {
         merge(incoming)
