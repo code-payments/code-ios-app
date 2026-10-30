@@ -219,6 +219,11 @@ struct InviteLinkCard: View {
     let onRevoke: () -> Void
     let onManageInvites: () -> Void
 
+    /// Frame 1m's card fill (Link card, Approve new members, Manage Invites), white 8%.
+    private static let cardFill = Color.white.opacity(0.08)
+    /// Frame 1m's link pill fill, inside the link card, white 6%.
+    private static let pillFill = Color.white.opacity(0.06)
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
@@ -236,6 +241,7 @@ struct InviteLinkCard: View {
                 title: "Manage Invites",
                 subtitle: "Make more links with an expiry or a use limit",
                 identifier: "invite-people-manage",
+                fill: Self.cardFill,
                 action: onManageInvites
             )
         }
@@ -260,7 +266,7 @@ struct InviteLinkCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity)
-        .background(Color.white.opacity(0.1))
+        .background(Self.cardFill)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
@@ -293,7 +299,7 @@ struct InviteLinkCard: View {
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .frame(height: 48)
-        .background(Color.white.opacity(0.08), in: Capsule())
+        .background(Self.pillFill, in: Capsule())
     }
 
     @ViewBuilder
@@ -331,7 +337,7 @@ struct InviteLinkCard: View {
         }
         .tint(.success)
         .padding(20)
-        .background(Color.white.opacity(0.1))
+        .background(Self.cardFill)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .accessibilityIdentifier("invite-card-approve")
     }
