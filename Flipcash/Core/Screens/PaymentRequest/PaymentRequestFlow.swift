@@ -351,7 +351,7 @@ private struct PaymentRequestAmountScreen: View {
             .padding(20)
         }
         .ignoresSafeArea(.keyboard)
-        .navigationTitle("Amount Per Person")
+        .navigationTitle("Total Amount")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -377,7 +377,7 @@ private struct PaymentRequestSummaryScreen: View {
                             Text(viewModel.amount?.formatted() ?? "")
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
-                            Text("per person")
+                            Text("total")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                         }
@@ -813,7 +813,7 @@ private struct PaymentRequestSelectPeopleScreen: View {
                     .padding(20)
             }
         }
-        .navigationTitle("Select People")
+        .navigationTitle("Split Between")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()
