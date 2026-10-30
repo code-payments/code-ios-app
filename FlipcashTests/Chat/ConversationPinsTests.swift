@@ -252,3 +252,42 @@ struct PinBarTests {
         #expect(PaymentRequestPill.dockFraction(-PaymentRequestStripCollapse.distance / 2) == 0.5)
     }
 }
+
+@Suite("Pin bar segments")
+@MainActor
+struct PinBarSegmentsTests {
+
+    /// The window and lit pin at each tap, starting from the newest: (visible bottom-to-top, lit).
+    private func steps(count: Int) -> [PinBarSegments?] {
+        (0..<count).map { PinBarSegments(count: count, index: $0) }
+    }
+
+    @Test("One pin keeps a single rule, no segments")
+    func onePin() {
+        #expect(PinBarSegments(count: 1, index: 0) == nil)
+    }
+
+    @Test("Two pins show both segments from the start, newest at the bottom")
+    func twoPins() {
+        let s = steps(count: 2)
+        #expect(s[0]?.visible == [0, 1]); #expect(s[0]?.lit == 0)
+        #expect(s[1]?.visible == [0, 1]); #expect(s[1]?.lit == 1)
+    }
+
+    @Test("Three pins: the track scrolls to keep the lit segment in the two-segment window")
+    func threePins() {
+        let s = steps(count: 3)
+        #expect(s[0]?.visible == [0, 1]); #expect(s[0]?.lit == 0)
+        // Figma Cycling (13016:87): pin 2 of 3 lit, pin 3 scrolled out above.
+        #expect(s[1]?.visible == [0, 1]); #expect(s[1]?.lit == 1)
+        #expect(s[2]?.visible == [1, 2]); #expect(s[2]?.lit == 2)
+    }
+
+    @Test("Five pins: each tap moves the lit segment up and the window follows it")
+    func fivePins() {
+        let s = steps(count: 5)
+        #expect(s.map { $0?.visible } == [[0, 1], [0, 1], [1, 2], [2, 3], [3, 4]])
+        #expect(s.map { $0?.lit } == [0, 1, 2, 3, 4])
+        #expect(s.allSatisfy { $0.map { $0.visible.contains($0.lit) } ?? false })
+    }
+}
