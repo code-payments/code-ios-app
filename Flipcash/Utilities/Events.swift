@@ -426,6 +426,57 @@ extension Analytics.DisplayNameSource {
     }
 }
 
+// MARK: - Profile -
+
+extension Analytics {
+    /// The Settings screen was opened from the You tab.
+    static func profileSettingsViewed() {
+        track(ProfileEvents.shared.settingsViewed())
+    }
+
+    /// The Edit Profile screen was opened from the You tab.
+    static func profileEditProfileViewed() {
+        track(ProfileEvents.shared.editProfileViewed())
+    }
+
+    /// A profile field was saved on the server.
+    static func profileFieldSaved(_ field: SharedCoreKit.ProfileField) {
+        track(ProfileEvents.shared.fieldSaved(field: field))
+    }
+
+    /// The server refused a bio for moderation.
+    static func profileBioModerationFailed() {
+        track(ProfileEvents.shared.bioModerationFailed())
+    }
+
+    /// An entry was picked in another user's profile menu.
+    static func profileMenuAction(_ action: SharedCoreKit.ProfileMenuAction) {
+        track(ProfileEvents.shared.menuAction(action: action))
+    }
+
+    /// An entry was picked in another user's profile menu; entries outside the catalogue send nothing.
+    static func profileMenuAction(for item: ProfileMenuItem) {
+        guard let action = item.analyticsAction else { return }
+        profileMenuAction(action)
+    }
+
+    /// The pinned button under another user's profile was tapped.
+    static func profilePinnedButtonTapped(_ action: SharedCoreKit.ProfilePinnedAction) {
+        track(ProfileEvents.shared.pinnedButtonTapped(action: action))
+    }
+
+    /// The pinned button was tapped; an empty pin sends nothing.
+    static func profilePinnedButtonTapped(for action: ProfilePinnedAction) {
+        guard let shared = action.analyticsAction else { return }
+        profilePinnedButtonTapped(shared)
+    }
+
+    /// The profile card appeared.
+    static func profileCardShown() {
+        track(ProfileEvents.shared.cardShown())
+    }
+}
+
 // MARK: - Conversation -
 
 extension Analytics {

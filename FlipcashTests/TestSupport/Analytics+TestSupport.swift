@@ -25,6 +25,15 @@ extension Analytics {
         return sent
     }
 
+    /// `recordingSends` for a body that awaits, such as a model's async save.
+    static func recordingSendsAsync(_ body: () async -> Void) async -> [SentEvent] {
+        var sent: [SentEvent] = []
+        sendOverride = { name, properties in sent.append(SentEvent(name: name, properties: properties)) }
+        defer { sendOverride = nil }
+        await body()
+        return sent
+    }
+
     /// Runs `body` with the Mixpanel people increment replaced by a recorder and returns
     /// every increment it made, as property name and amount.
     static func recordingIncrements(_ body: () -> Void) -> [(property: String, amount: Double)] {

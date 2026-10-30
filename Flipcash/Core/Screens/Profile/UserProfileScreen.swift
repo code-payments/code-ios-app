@@ -353,6 +353,7 @@ private struct UserProfileContent: View {
     }
 
     private func perform(_ item: ProfileMenuItem) {
+        Analytics.profileMenuAction(for: item)
         switch item {
         case .mute:
             isPickingMuteDuration = true
@@ -402,6 +403,7 @@ private struct UserProfileContent: View {
     }
 
     private func tapPinned() {
+        Analytics.profilePinnedButtonTapped(for: pinnedAction)
         switch pinnedAction {
         case .none:
             break

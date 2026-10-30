@@ -37,10 +37,7 @@ public final class ChatNotificationClient: Sendable {
         // Messaging is served by the core host. The payments host (mint metadata) is reached by a
         // transient client in `fetchMintMetadata`, not a resident connection — a content extension's
         // memory budget can't carry a second connection open for its whole lifetime.
-        let coreClient = GRPCClient(
-            transport: try GRPCTransport.makeTransportServices(host: network.hostForCore, port: network.port),
-            interceptors: [UserAgentClientInterceptor()]
-        )
+        let coreClient = try GRPCTransport.makeClient(host: network.hostForCore, port: network.port)
         self.coreClient = coreClient
         self.coreConnectionTask = Task {
             do { try await coreClient.runConnections() }
@@ -276,10 +273,7 @@ public final class ChatNotificationClient: Sendable {
         guard !mints.isEmpty else { return [:] }
         // A transient payments connection: opened for this fetch and torn down after, so it never
         // sits resident alongside the core connection in the extension's memory budget.
-        let paymentsClient = GRPCClient(
-            transport: try GRPCTransport.makeTransportServices(host: paymentsHost, port: port),
-            interceptors: [UserAgentClientInterceptor()]
-        )
+        let paymentsClient = try GRPCTransport.makeClient(host: paymentsHost, port: port)
         let connectionTask = Task {
             do { try await paymentsClient.runConnections() }
             catch { logger.error("Payments connection loop terminated", metadata: ["error": "\(error)"]) }
