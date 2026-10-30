@@ -157,6 +157,7 @@ struct ProfilePhotoScreen: View {
                     slot: .avatar
                 )
             )
+            Analytics.profileFieldSaved(.photo)
 
             buttonState = .success
             // Same beat onboarding holds its checkmark for, so the confirmation

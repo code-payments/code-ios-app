@@ -3,6 +3,8 @@
 //  Flipcash
 //
 
+import FlipcashCore
+
 /// An entry in another user's overflow menu.
 nonisolated enum ProfileMenuItem: Equatable {
     case mute
@@ -67,5 +69,19 @@ nonisolated enum ProfileMenuItems {
         if canSilence { items.append(.silence) }
         if canBan { items.append(.removeFromGroup) }
         return items
+    }
+}
+
+extension ProfileMenuItem {
+    /// The shared catalogue's action for this entry, or nil for the group-moderation entries it doesn't cover.
+    var analyticsAction: SharedCoreKit.ProfileMenuAction? {
+        switch self {
+        case .mute:            .mute
+        case .report:          .report
+        case .block:           .block
+        case .unblock:         .unblock
+        case .silence:         nil
+        case .removeFromGroup: nil
+        }
     }
 }

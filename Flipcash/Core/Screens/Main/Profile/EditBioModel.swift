@@ -103,10 +103,12 @@ final class EditBioModel {
 
         do {
             try await saving(submission)
+            Analytics.profileFieldSaved(.bio)
             try await refresh()
             state = .saved
 
         } catch ErrorProfile.moderated(let category) {
+            Analytics.profileBioModerationFailed()
             state = .normal
             logger.info("Bio moderation denied", metadata: ["category": "\(category)"])
             fieldError = .moderated
