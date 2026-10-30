@@ -147,17 +147,10 @@ final class GroupSendViewModel {
         selection.append(userID)
     }
 
-    /// The entered total split between everyone checked, You included, or nil when it can't be.
-    private var fullSplit: GroupSendSplit? {
-        guard let enteredTotal else { return nil }
-        return try? GroupSendSplit.split(total: enteredTotal, participants: selection.count)
-    }
-
-    /// The parts that get paid, in payee order: the split without You's part.
+    /// The entered total split between everyone checked, You included; `parts` are the ones paid.
     var split: GroupSendSplit? {
-        guard let fullSplit else { return nil }
-        guard let youIndex = selection.firstIndex(of: session.userID) else { return fullSplit }
-        return fullSplit.removingPart(at: youIndex)
+        guard let enteredTotal else { return nil }
+        return try? GroupSendSplit.split(total: enteredTotal, recipients: payees.count, youAt: selection.firstIndex(of: session.userID))
     }
 
     /// The per-person line for the confirm sheet, from the parts paid: "$1.00 Each", or "~$0.33 Each" when uneven.
@@ -170,7 +163,7 @@ final class GroupSendViewModel {
     func confirmSelection() -> Bool {
         guard let enteredTotal, !payees.isEmpty else { return false }
         do {
-            _ = try GroupSendSplit.split(total: enteredTotal, participants: selection.count)
+            _ = try GroupSendSplit.split(total: enteredTotal, recipients: payees.count, youAt: selection.firstIndex(of: session.userID))
             return true
         } catch {
             switch error {

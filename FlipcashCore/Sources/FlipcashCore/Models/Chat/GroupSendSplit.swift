@@ -30,8 +30,16 @@ public struct GroupSendSplit: Hashable, Sendable {
         case partBelowMinimum
     }
 
-    /// Each recipient's part, in minor units, in selection order.
+    /// Each paid recipient's part, in minor units, in selection order.
     public let parts: [UInt64]
+
+    /// The sender's own part when they shared the total, which stays with them and is not paid.
+    public let youPart: UInt64?
+
+    init(parts: [UInt64], youPart: UInt64? = nil) {
+        self.parts = parts
+        self.youPart = youPart
+    }
 
     /// Whether every recipient gets the same part.
     public var isEven: Bool { parts.min() == parts.max() }
@@ -39,24 +47,28 @@ public struct GroupSendSplit: Hashable, Sendable {
     /// The smallest part, which the "~$X Each" label shows when the split is uneven.
     public var smallestPart: UInt64 { parts.min() ?? 0 }
 
-    /// Splits `totalUnits` between `recipients` members.
-    public static func split(totalUnits: UInt64, recipients: Int) throws(Rejection) -> GroupSendSplit {
-        guard recipients <= maxRecipients else { throw .tooManyRecipients }
-        return try divide(totalUnits: totalUnits, participants: recipients)
-    }
-
-    /// Splits `totalUnits` between `participants` people, which may be `maxRecipients` members and the sender.
-    static func divide(totalUnits: UInt64, participants recipients: Int) throws(Rejection) -> GroupSendSplit {
+    /// Splits `totalUnits` between `recipients` members, or between `youAt`'s position and the members
+    /// when the sender shares the total: the split is then `recipients + 1` ways and `parts` leaves
+    /// out the sender's, which `youPart` keeps. `maxRecipients` caps the paid members, not the sender.
+    public static func split(
+        totalUnits: UInt64,
+        recipients: Int,
+        youAt: Int? = nil,
+        maxRecipients: Int = GroupSendSplit.maxRecipients
+    ) throws(Rejection) -> GroupSendSplit {
         guard recipients > 0 else { throw .noRecipients }
-        guard recipients <= maxRecipients + 1 else { throw .tooManyRecipients }
+        guard recipients <= maxRecipients else { throw .tooManyRecipients }
 
-        let count = UInt64(recipients)
+        let people = recipients + (youAt == nil ? 0 : 1)
+        let count = UInt64(people)
         let base = totalUnits / count
         guard base >= minimumPartUnits else { throw .partBelowMinimum }
 
         let leftover = Int(totalUnits % count)
-        let parts = (0..<recipients).map { index in index < leftover ? base + 1 : base }
-        return GroupSendSplit(parts: parts)
+        var parts = (0..<people).map { index in index < leftover ? base + 1 : base }
+        guard let youAt else { return GroupSendSplit(parts: parts, youPart: nil) }
+        let youPart = parts.remove(at: youAt)
+        return GroupSendSplit(parts: parts, youPart: youPart)
     }
 }
 
@@ -65,20 +77,13 @@ public struct GroupSendSplit: Hashable, Sendable {
 extension GroupSendSplit {
 
     /// Splits an entered `total` between `recipients` members, in `total.currency`'s minor unit.
-    public static func split(total: FiatAmount, recipients: Int) throws(Rejection) -> GroupSendSplit {
-        try split(totalUnits: minorUnits(of: total), recipients: recipients)
-    }
-
-    /// Splits an entered `total` between `participants` people, one of whom may be the sender.
-    public static func split(total: FiatAmount, participants: Int) throws(Rejection) -> GroupSendSplit {
-        try divide(totalUnits: minorUnits(of: total), participants: participants)
-    }
-
-    /// The split without the part at `index`: the sender's, which is kept rather than paid.
-    public func removingPart(at index: Int) -> GroupSendSplit {
-        var parts = parts
-        parts.remove(at: index)
-        return GroupSendSplit(parts: parts)
+    public static func split(
+        total: FiatAmount,
+        recipients: Int,
+        youAt: Int? = nil,
+        maxRecipients: Int = GroupSendSplit.maxRecipients
+    ) throws(Rejection) -> GroupSendSplit {
+        try split(totalUnits: minorUnits(of: total), recipients: recipients, youAt: youAt, maxRecipients: maxRecipients)
     }
 
     /// Each part as an amount in `currency`, in selection order.
