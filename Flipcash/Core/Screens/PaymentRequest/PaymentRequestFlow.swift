@@ -51,6 +51,7 @@ struct ActionCardRow: View {
     let title: String
     let subtitle: String
     let identifier: String
+    var fill: Color = Color.white.opacity(0.1)
     let action: () -> Void
 
     var body: some View {
@@ -77,7 +78,7 @@ struct ActionCardRow: View {
             }
             .padding(20)
             .frame(maxWidth: .infinity)
-            .background(Color.white.opacity(0.1))
+            .background(fill)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(Rectangle())
         }
