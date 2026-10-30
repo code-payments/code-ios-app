@@ -1056,6 +1056,7 @@ struct ConversationScreen: View {
                 row: { message in
                     coordinator?.row(for: message).map { $0.pinnedListRow(author: pinnedListAuthor(of: message, in: $0)) }
                 },
+                quote: pinQuote,
                 name: pinnerName,
                 avatarData: pinnedSenderAvatars,
                 linkCardSource: sessionContainer.linkCardFeed,

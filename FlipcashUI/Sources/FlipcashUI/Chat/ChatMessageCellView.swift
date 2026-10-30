@@ -10,24 +10,34 @@ import UIKit
 import FlipcashCore
 
 /// One message drawn by the transcript's own cell, at the widths the transcript gives it, for lists
-/// outside the transcript such as the pinned messages. It takes no touches: the row around it does.
+/// outside the transcript such as the pinned messages. Nothing inside the cell takes touches; with
+/// `onSelect` set, the bubble as a whole is one button and the rest of the row ignores taps.
 public struct ChatMessageCellView: UIViewRepresentable {
 
     let message: ChatMessage
     let authorImageData: Data?
     let linkCardSource: (any LinkCardSource)?
     let mediaURLResolver: ChatMediaURLResolver?
+    let onSelect: (() -> Void)?
+    let selectLabel: String?
 
+    /// - Parameters:
+    ///   - onSelect: Called when the bubble is tapped or activated; nil leaves the cell inert.
+    ///   - selectLabel: What VoiceOver reads for the bubble's button.
     public init(
         message: ChatMessage,
         authorImageData: Data? = nil,
         linkCardSource: (any LinkCardSource)? = nil,
-        mediaURLResolver: ChatMediaURLResolver? = nil
+        mediaURLResolver: ChatMediaURLResolver? = nil,
+        onSelect: (() -> Void)? = nil,
+        selectLabel: String? = nil
     ) {
         self.message = message
         self.authorImageData = authorImageData
         self.linkCardSource = linkCardSource
         self.mediaURLResolver = mediaURLResolver
+        self.onSelect = onSelect
+        self.selectLabel = selectLabel
     }
 
     public func makeUIView(context: Context) -> Host {
@@ -41,6 +51,8 @@ public struct ChatMessageCellView: UIViewRepresentable {
             linkCardSource: linkCardSource,
             mediaURLResolver: mediaURLResolver
         ))
+        host.onSelect = onSelect
+        host.accessibilityLabel = selectLabel
     }
 
     public func sizeThatFits(_ proposal: ProposedViewSize, uiView host: Host, context: Context) -> CGSize? {
@@ -63,9 +75,20 @@ public struct ChatMessageCellView: UIViewRepresentable {
         private var content: Content?
         private var width: CGFloat = 0
 
+        /// Called when the bubble is tapped; while nil the host takes no touches.
+        var onSelect: (() -> Void)? {
+            didSet {
+                isUserInteractionEnabled = onSelect != nil
+                isAccessibilityElement = onSelect != nil
+            }
+        }
+
         init() {
             super.init(frame: .zero)
             isUserInteractionEnabled = false
+            accessibilityTraits = .button
+            accessibilityIdentifier = "chat-message-cell-bubble"
+            addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
         }
 
         required init?(coder: NSCoder) {
@@ -95,6 +118,34 @@ public struct ChatMessageCellView: UIViewRepresentable {
         public override func layoutSubviews() {
             super.layoutSubviews()
             cell?.frame = bounds
+        }
+
+        /// The bubble's frame in the host, or nil for a cell that doesn't draw one.
+        private var bubbleFrame: CGRect? {
+            guard let bubble = (cell as? BubbleCarrying)?.liftPreviewView else { return nil }
+            return bubble.convert(bubble.bounds, to: self)
+        }
+
+        // The bubble answers as one target, so nothing inside it (a link, a card's Pay) can fire,
+        // and the avatar, the name and the row's empty width pass the touch on.
+        public override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+            guard isUserInteractionEnabled, !isHidden, let bubbleFrame, bubbleFrame.contains(point) else { return nil }
+            return self
+        }
+
+        public override var accessibilityFrame: CGRect {
+            get { UIAccessibility.convertToScreenCoordinates(bubbleFrame ?? bounds, in: self) }
+            set { super.accessibilityFrame = newValue }
+        }
+
+        public override func accessibilityActivate() -> Bool {
+            guard let onSelect else { return false }
+            onSelect()
+            return true
+        }
+
+        @objc private func tapped() {
+            onSelect?()
         }
 
         private func configure() {

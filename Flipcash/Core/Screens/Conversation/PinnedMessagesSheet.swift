@@ -62,6 +62,8 @@ struct PinnedMessagesSheet: View {
     let waitingSnippet: String?
     let waiting: ConversationMessage?
     let row: (ConversationMessage) -> ChatMessage?
+    /// The message as the pin bar quotes it, for the bubble's spoken label.
+    let quote: (ConversationMessage) -> ChatQuote
     let name: (UserID) -> String
     let avatarData: [UserID: Data]
     let linkCardSource: any LinkCardSource
@@ -149,27 +151,33 @@ struct PinnedMessagesSheet: View {
         }
         return line
     }
+    /// "Jump to message from <author>: <snippet>", what VoiceOver reads for a row's bubble.
+    private func jumpLabel(_ pin: ConversationPin) -> String {
+        guard let message = pin.message else { return "Jump to message" }
+        let quote = quote(message)
+        return "Jump to message from \(quote.authorName): \(ChatQuoteContent.spokenSnippet(quote.snippet, kind: quote.kind))"
+    }
+
     private func item(_ pin: ConversationPin, _ message: ChatMessage) -> some View {
         let isMine = message.sender == .me
         // Under the bubble's edge: the transcript's row inset, past the avatar gutter in a group.
         let inset = ChatColumnCell.rowInset + (message.isAttributedTranscript && !isMine ? ChatColumnCell.authorGutterWidth : 0)
         return VStack(alignment: isMine ? .trailing : .leading, spacing: 4) {
-            Button {
-                dismiss()
-                onSelect(pin.messageID)
-            } label: {
-                ChatMessageCellView(
-                    message: message,
-                    authorImageData: message.author.flatMap { avatarData[$0.id] },
-                    linkCardSource: linkCardSource,
-                    mediaURLResolver: mediaURLResolver
-                )
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
+            // Only the bubble jumps; the avatar, the name and the row's empty width do nothing.
+            ChatMessageCellView(
+                message: message,
+                authorImageData: message.author.flatMap { avatarData[$0.id] },
+                linkCardSource: linkCardSource,
+                mediaURLResolver: mediaURLResolver,
+                onSelect: {
+                    dismiss()
+                    onSelect(pin.messageID)
+                },
+                selectLabel: jumpLabel(pin)
+            )
             .accessibilityHint("Shows the message in the chat")
 
-            HStack(spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(pinnedLine(pin))
                     .foregroundStyle(Color.textSecondary)
                 if canPin {
@@ -178,13 +186,16 @@ struct PinnedMessagesSheet: View {
                     } label: {
                         Text("Unpin")
                             .foregroundStyle(Color.textMain)
-                            // A 44pt target around the caption, without moving the line.
-                            .padding(.vertical, 14)
+                            // A 44pt target that grows down, not up into the bubble 4pt above. The
+                            // row keeps 12pt of it so it ends where the next row (16pt on) begins.
+                            .padding(.top, 2)
+                            .padding(.bottom, 28)
                             .padding(.horizontal, 10)
                             .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
-                    .padding(.vertical, -14)
+                    .padding(.top, -2)
+                    .padding(.bottom, -16)
                     .padding(.horizontal, -10)
                     .disabled(busy.contains(pin.messageID))
                 }
