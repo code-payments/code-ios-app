@@ -235,7 +235,7 @@ class ScanViewModel {
         switch outcome {
         case .code(let code, let match):
             Analytics.galleryScanFoundCode(
-                tier: match.tier.rawValue,
+                tier: match.tier,
                 zoom: Double(match.zoom),
                 elapsed: elapsed
             )

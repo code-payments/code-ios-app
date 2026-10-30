@@ -150,9 +150,12 @@ final class PaymentRequestCreateViewModel {
             do {
                 request = try await create(amount: amount, people: people, key: idempotencyKey, now: now)
                 created = request
+                Analytics.paymentRequestCreated(payerCount: people.askedCount, amount: amount, error: nil)
             } catch let error as ErrorCreatePaymentRequest {
+                Analytics.paymentRequestCreated(payerCount: people.askedCount, amount: amount, error: error)
                 return .failed(alert(for: error))
             } catch {
+                Analytics.paymentRequestCreated(payerCount: people.askedCount, amount: amount, error: error)
                 ErrorReporting.captureError(error, reason: "Failed to create payment request")
                 return .failed(Self.genericError)
             }

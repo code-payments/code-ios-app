@@ -126,7 +126,13 @@ struct GroupModeration {
     var didRemove: @MainActor (UserID) -> Void = { _ in }
 
     func silence(_ userID: UserID, firstName: String, duration: SilenceDuration, now: Date = .now) async throws {
-        try await moderation.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: duration.silence(from: now))
+        do {
+            try await moderation.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: duration.silence(from: now))
+        } catch {
+            Analytics.groupMemberSilenced(duration: duration, error: error)
+            throw error
+        }
+        Analytics.groupMemberSilenced(duration: duration, error: nil)
         announce(GroupModerationCopy.silencedToast(firstName: firstName, duration: duration))
     }
 
@@ -138,7 +144,13 @@ struct GroupModeration {
     /// Puts `userID` out of the group and bars them from rejoining. The roster drops them through
     /// the `MemberLeft` update the other members get, so nothing local needs to move.
     func remove(_ userID: UserID) async throws {
-        try await moderation.banUser(owner: owner, conversationID: conversationID, userID: userID)
+        do {
+            try await moderation.banUser(owner: owner, conversationID: conversationID, userID: userID)
+        } catch {
+            Analytics.groupMemberRemoved(error: error)
+            throw error
+        }
+        Analytics.groupMemberRemoved(error: nil)
         didRemove(userID)
     }
 

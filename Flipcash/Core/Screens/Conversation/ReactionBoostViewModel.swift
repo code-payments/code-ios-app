@@ -20,6 +20,8 @@ struct ReactionBoostTarget: Hashable, Identifiable {
     let messageID: MessageID
     let messageSender: UserID
     let chat: ReactionBoostSplit.Chat
+    /// The conversation's type, for analytics only. Nil when it isn't known locally.
+    var conversationType: ConversationType?
 
     var id: Self { self }
 }
@@ -241,6 +243,7 @@ final class ReactionBoostViewModel {
                 try await multiSender.sendMultiple(payments, verifiedState: pin, chat: chat)
             }
         } catch {
+            Analytics.sentBoost(chatType: target.conversationType, exchangedFiat: total, error: error)
             if !(error is CancellationError) {
                 showSendError()
             }
@@ -253,6 +256,7 @@ final class ReactionBoostViewModel {
             messageID: target.messageID,
             in: target.conversationID
         )
+        Analytics.sentBoost(chatType: target.conversationType, exchangedFiat: total, error: nil)
         return .success
     }
 

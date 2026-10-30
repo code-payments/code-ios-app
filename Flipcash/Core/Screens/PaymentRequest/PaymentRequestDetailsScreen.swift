@@ -265,7 +265,7 @@ struct PaymentRequestDetailsScreen: View {
             subtitle: "This will stop payments. Anyone who hasn't paid will be marked Didn't pay. Payments already made won't be affected."
         ) {
             DialogAction.destructive("Close Request") {
-                Task { await update { try await $0.close(requestID) } }
+                Task { await close() }
             }
             DialogAction.cancel()
         }
@@ -303,6 +303,18 @@ struct PaymentRequestDetailsScreen: View {
     }
 
     /// Runs a creator action; the store takes the server's response, and a failure refetches.
+    private func close() async {
+        await update { requests in
+            do {
+                try await requests.close(requestID)
+                Analytics.paymentRequestClosed(error: nil)
+            } catch {
+                Analytics.paymentRequestClosed(error: error)
+                throw error
+            }
+        }
+    }
+
     private func update(_ action: (PaymentRequests) async throws -> Void) async {
         isUpdating = true
         defer { isUpdating = false }
