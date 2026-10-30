@@ -183,7 +183,6 @@
       "name": "you and two even",
       "total": "30.00",
       "recipients": 2,
-      "youAt": 0,
       "intent": "SendPublicMultiPayment",
       "youPart": "10.00",
       "parts": [
@@ -191,27 +190,12 @@
         "10.00"
       ],
       "paidTotal": "20.00",
-      "eachLabel": "$10.00 Each"
+      "eachLabel": "$10.00 Each, including You"
     },
     {
-      "name": "you first takes the extra cent",
+      "name": "others take the extra cents",
       "total": "1.00",
       "recipients": 2,
-      "youAt": 0,
-      "intent": "SendPublicMultiPayment",
-      "youPart": "0.34",
-      "parts": [
-        "0.33",
-        "0.33"
-      ],
-      "paidTotal": "0.66",
-      "eachLabel": "$0.33 Each"
-    },
-    {
-      "name": "you last, others take the extra cents",
-      "total": "1.00",
-      "recipients": 2,
-      "youAt": 2,
       "intent": "SendPublicMultiPayment",
       "youPart": "0.33",
       "parts": [
@@ -219,39 +203,24 @@
         "0.33"
       ],
       "paidTotal": "0.67",
-      "eachLabel": "~$0.33 Each"
-    },
-    {
-      "name": "you in the middle",
-      "total": "1.00",
-      "recipients": 2,
-      "youAt": 1,
-      "intent": "SendPublicMultiPayment",
-      "youPart": "0.33",
-      "parts": [
-        "0.34",
-        "0.33"
-      ],
-      "paidTotal": "0.67",
-      "eachLabel": "~$0.33 Each"
+      "eachLabel": "~$0.33 Each, including You"
     },
     {
       "name": "you and one",
       "total": "5.01",
       "recipients": 1,
-      "youAt": 1,
       "intent": "SendPublicPayment",
       "youPart": "2.50",
       "parts": [
         "2.51"
       ],
-      "paidTotal": "2.51"
+      "paidTotal": "2.51",
+      "eachLabel": "~$2.51 Each, including You"
     },
     {
-      "name": "ten plus you",
-      "total": "11.00",
-      "recipients": 10,
-      "youAt": 0,
+      "name": "nine plus you",
+      "total": "10.00",
+      "recipients": 9,
       "intent": "SendPublicMultiPayment",
       "youPart": "1.00",
       "parts": [
@@ -263,39 +232,35 @@
         "1.00",
         "1.00",
         "1.00",
-        "1.00",
         "1.00"
       ],
-      "paidTotal": "10.00",
-      "eachLabel": "$1.00 Each"
+      "paidTotal": "9.00",
+      "eachLabel": "$1.00 Each, including You"
     },
     {
-      "name": "ten plus you uneven",
-      "total": "1.00",
-      "recipients": 10,
-      "youAt": 5,
+      "name": "nine plus you uneven",
+      "total": "1.01",
+      "recipients": 9,
       "intent": "SendPublicMultiPayment",
-      "youPart": "0.09",
+      "youPart": "0.10",
       "parts": [
+        "0.11",
         "0.10",
-        "0.09",
-        "0.09",
-        "0.09",
-        "0.09",
-        "0.09",
-        "0.09",
-        "0.09",
-        "0.09",
-        "0.09"
+        "0.10",
+        "0.10",
+        "0.10",
+        "0.10",
+        "0.10",
+        "0.10",
+        "0.10"
       ],
       "paidTotal": "0.91",
-      "eachLabel": "~$0.09 Each"
+      "eachLabel": "~$0.10 Each, including You"
     },
     {
       "name": "you exact minimum",
       "total": "0.03",
       "recipients": 2,
-      "youAt": 0,
       "intent": "SendPublicMultiPayment",
       "youPart": "0.01",
       "parts": [
@@ -303,27 +268,24 @@
         "0.01"
       ],
       "paidTotal": "0.02",
-      "eachLabel": "$0.01 Each"
+      "eachLabel": "$0.01 Each, including You"
     },
     {
       "name": "too small with you",
       "total": "0.02",
       "recipients": 2,
-      "youAt": 0,
       "expectedError": "part-below-minimum"
     },
     {
       "name": "only you",
       "total": "1.00",
       "recipients": 0,
-      "youAt": 0,
       "expectedError": "no-recipients"
     },
     {
-      "name": "eleven plus you",
-      "total": "12.00",
-      "recipients": 11,
-      "youAt": 0,
+      "name": "ten plus you",
+      "total": "11.00",
+      "recipients": 10,
       "expectedError": "too-many-recipients"
     }
   ]

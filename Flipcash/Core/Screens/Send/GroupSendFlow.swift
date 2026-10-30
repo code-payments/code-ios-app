@@ -258,7 +258,7 @@ private struct GroupSendConfirmSheet: View {
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
-                    if viewModel.payees.count > 1, let each = viewModel.eachLabel {
+                    if viewModel.payees.count > 1 || viewModel.includesYou, let each = viewModel.eachLabel {
                         Text(each)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)

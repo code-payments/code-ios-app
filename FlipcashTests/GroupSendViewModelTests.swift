@@ -80,7 +80,7 @@ struct GroupSendViewModelTests {
         [viewModel.session.userID, a, b].forEach(viewModel.toggle)
 
         #expect(viewModel.payees == [a, b])
-        #expect(viewModel.eachLabel == "$10.00 Each")
+        #expect(viewModel.eachLabel == "$10.00 Each, including You")
         #expect(await viewModel.submit() == .success)
 
         let multi = try #require(payments.multiSends.first)
@@ -88,8 +88,8 @@ struct GroupSendViewModelTests {
         #expect(multi.map(\.recipientOwner) == [a, b].map(payments.key(for:)))
     }
 
-    @Test("You checked first takes the first leftover cent, so the others get the smaller parts")
-    func youTakesFirstLeftoverUnit() async throws {
+    @Test("You's part is always last, so $1.00 between You, A and B pays A $0.34 and B $0.33")
+    func youTakesTheLastShare() async throws {
         let (viewModel, payments) = try await make(total: "1")
         let (a, b) = (UUID(), UUID())
         [viewModel.session.userID, a, b].forEach(viewModel.toggle)
@@ -97,7 +97,7 @@ struct GroupSendViewModelTests {
         #expect(await viewModel.submit() == .success)
 
         let multi = try #require(payments.multiSends.first)
-        #expect(multi.map(\.amount.nativeAmount.value) == [Decimal(string: "0.33"), Decimal(string: "0.33")])
+        #expect(multi.map(\.amount.nativeAmount.value) == [Decimal(string: "0.34"), Decimal(string: "0.33")])
     }
 
     @Test("You and one other is one single payment of half")
@@ -113,6 +113,24 @@ struct GroupSendViewModelTests {
         #expect(payments.singleSends.map(\.recipientOwner) == [payments.key(for: a)])
     }
 
+    @Test("With You in the split the each line says so, even for one paid member")
+    func eachLineSaysIncludingYou() async throws {
+        let (viewModel, _) = try await make(total: "10")
+        [viewModel.session.userID, UUID()].forEach(viewModel.toggle)
+
+        #expect(viewModel.includesYou)
+        #expect(viewModel.eachLabel == "$5.00 Each, including You")
+    }
+
+    @Test("Without You the each line is unchanged")
+    func eachLineWithoutYou() async throws {
+        let (viewModel, _) = try await make(total: "1")
+        [UUID(), UUID(), UUID()].forEach(viewModel.toggle)
+
+        #expect(viewModel.includesYou == false)
+        #expect(viewModel.eachLabel == "~$0.33 Each")
+    }
+
     @Test("Only You checked leaves nobody to pay")
     func onlyYouCannotContinue() async throws {
         let (viewModel, payments) = try await make(total: "10")
@@ -125,19 +143,19 @@ struct GroupSendViewModelTests {
         #expect(payments.multiSends.isEmpty)
     }
 
-    @Test("Ten others plus You is allowed; an eleventh other is refused")
-    func youDoesNotCountTowardTheCap() async throws {
+    @Test("The cap counts You: You plus 9 others is the most")
+    func capCountsYou() async throws {
         let (viewModel, _) = try await make(total: "20")
         viewModel.toggle(viewModel.session.userID)
-        (0..<10).forEach { _ in viewModel.toggle(UUID()) }
+        (0..<9).forEach { _ in viewModel.toggle(UUID()) }
 
-        #expect(viewModel.selection.count == 11)
+        #expect(viewModel.selection.count == 10)
         #expect(viewModel.session.dialogItem == nil)
         #expect(viewModel.confirmSelection())
 
         viewModel.toggle(UUID())
 
-        #expect(viewModel.selection.count == 11)
+        #expect(viewModel.selection.count == 10)
         #expect(viewModel.session.dialogItem?.title == "10 People Max")
     }
 

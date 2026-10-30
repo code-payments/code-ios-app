@@ -130,14 +130,13 @@ final class GroupSendViewModel {
         selection.contains(userID)
     }
 
-    /// Checks or unchecks a member or You. An eleventh member is refused with the "10 People Max" notice;
-    /// You is not a payment, so it never counts toward the ten.
+    /// Checks or unchecks a member or You. An eleventh person, You included, is refused with the "10 People Max" notice.
     func toggle(_ userID: UserID) {
         if let index = selection.firstIndex(of: userID) {
             selection.remove(at: index)
             return
         }
-        guard userID == session.userID || payees.count < GroupSendSplit.maxRecipients else {
+        guard selection.count < GroupSendSplit.maxRecipients else {
             session.dialogItem = .info(
                 title: "10 People Max",
                 subtitle: "The maximum number of people you can send to at once is 10 people"
@@ -150,10 +149,15 @@ final class GroupSendViewModel {
     /// The entered total split between everyone checked, You included; `parts` are the ones paid.
     var split: GroupSendSplit? {
         guard let enteredTotal else { return nil }
-        return try? GroupSendSplit.split(total: enteredTotal, recipients: payees.count, youAt: selection.firstIndex(of: session.userID))
+        return try? GroupSendSplit.split(total: enteredTotal, recipients: payees.count, includesYou: includesYou)
     }
 
-    /// The per-person line for the confirm sheet, from the parts paid: "$1.00 Each", or "~$0.33 Each" when uneven.
+    /// Whether the sender shares the total, which the confirm sheet says even for one paid member.
+    var includesYou: Bool {
+        selection.contains(session.userID)
+    }
+
+    /// The per-person line for the confirm sheet, from the parts paid: "$1.00 Each", or "~$0.33 Each" when uneven, ", including You" when You shares it.
     var eachLabel: String? {
         guard let split, let enteredTotal else { return nil }
         return split.eachLabel(in: enteredTotal.currency)
@@ -163,7 +167,7 @@ final class GroupSendViewModel {
     func confirmSelection() -> Bool {
         guard let enteredTotal, !payees.isEmpty else { return false }
         do {
-            _ = try GroupSendSplit.split(total: enteredTotal, recipients: payees.count, youAt: selection.firstIndex(of: session.userID))
+            _ = try GroupSendSplit.split(total: enteredTotal, recipients: payees.count, includesYou: includesYou)
             return true
         } catch {
             switch error {

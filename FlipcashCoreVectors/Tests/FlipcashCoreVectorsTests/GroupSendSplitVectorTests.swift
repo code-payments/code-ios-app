@@ -29,7 +29,6 @@ import Testing
         let name: String
         let total: String
         let recipients: Int
-        let youAt: Int
         let intent: String?
         let youPart: String?
         let parts: [String]?
@@ -83,7 +82,7 @@ import Testing
     func youSplitMatchesTheCrossPlatformVectors(vector: YouVector) throws {
         let total = FiatAmount(value: try #require(Decimal(string: vector.total)), currency: .usd)
         let result = Result { () throws(GroupSendSplit.Rejection) in
-            try GroupSendSplit.split(total: total, recipients: vector.recipients, youAt: vector.youAt)
+            try GroupSendSplit.split(total: total, recipients: vector.recipients, includesYou: true)
         }
 
         if let expectedError = vector.expectedError {
@@ -98,7 +97,7 @@ import Testing
         #expect(split.parts.reduce(0, +) == vector.paidTotal.map(Self.usd))
         #expect((split.youPart ?? 0) + split.parts.reduce(0, +) == Self.usd(vector.total))
         #expect((split.parts.count > 1 ? "SendPublicMultiPayment" : "SendPublicPayment") == vector.intent)
-        #expect(split.parts.count > 1 ? split.eachLabel(in: .usd) == vector.eachLabel : vector.eachLabel == nil)
+        #expect(vector.eachLabel == split.eachLabel(in: .usd))
     }
 
     static func rejection(_ name: String) -> GroupSendSplit.Rejection {
