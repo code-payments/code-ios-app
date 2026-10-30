@@ -1509,8 +1509,16 @@ public final class ChatViewController: UICollectionViewController {
         let wasAtTop = collectionView.contentOffset.y <= -collectionView.adjustedContentInset.top + 1
         collectionView.contentInset.top = inset
         collectionView.verticalScrollIndicatorInsets.top = inset
-        if wasAtTop {
-            collectionView.contentOffset.y = -collectionView.adjustedContentInset.top
+        guard wasAtTop else { return }
+        let target = -collectionView.adjustedContentInset.top
+        // On screen it glides with the surface coming in or going out, rather than jumping once
+        // the surface has finished moving.
+        guard view.window != nil else {
+            collectionView.contentOffset.y = target
+            return
+        }
+        UIView.animate(springDuration: 0.4, bounce: 0.12, options: [.allowUserInteraction, .beginFromCurrentState]) {
+            self.collectionView.contentOffset.y = target
         }
     }
 

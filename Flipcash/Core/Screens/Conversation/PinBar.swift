@@ -65,7 +65,8 @@ struct PinBar: View {
         .padding(.vertical, 8)
         .frame(minHeight: BarMetrics.contentHeight)
         .contentShape(.rect(cornerRadius: BarMetrics.cornerRadius))
-        .anchorGlass()
+        // Darker than the reply strip's glass: the transcript scrolls under it and washed its text out.
+        .overlayGlassBackground(in: .rect(cornerRadius: BarMetrics.cornerRadius))
     }
 }
 

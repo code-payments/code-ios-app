@@ -519,7 +519,7 @@ struct ConversationScreen: View {
             onMediaTap: openMediaViewer,
             // Each anchor shown takes its height and the stack's 8-point gap.
             // The pin bar shares the strip's slot, taking it once the strip has gone into the pill.
-            transcriptTopInset: [anchorHeight, max(stripHeight, pinBarHeight)].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
+            transcriptTopInset: [anchorHeight, max(stripHeight, showsPinBar ? pinBarHeight : 0)].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
             onDistanceFromNewestChange: { [stripCollapse] in stripCollapse.update(distanceFromNewest: $0) },
             // Released mid-way, the strip finishes the move it's nearer to rather than resting half-shrunk.
             snapDistanceFromNewest: viewerOwes && !stripCollapse.isPinned ? PaymentRequestStripCollapse.distance : nil,
@@ -955,6 +955,12 @@ struct ConversationScreen: View {
     /// Where the pins show beside the request deck.
     private var pinSlot: PinSlot {
         PinSlot.resolve(hasPins: !visiblePins.isEmpty, deckStyle: viewerOwes ? requestDeckStyle : nil)
+    }
+
+    /// Whether the bar is shown, read before its exit transition ends so the transcript moves
+    /// with it rather than after it.
+    private var showsPinBar: Bool {
+        pinSlot == .bar && conversationID.flatMap(conversationController.pins.barPin(in:)) != nil
     }
 
     /// Whether the viewer may pin and unpin here, as the server decides it.

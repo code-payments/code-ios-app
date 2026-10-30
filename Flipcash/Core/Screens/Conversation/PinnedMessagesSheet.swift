@@ -75,9 +75,12 @@ struct PinnedMessagesSheet: View {
     @State private var isWaiting = true
     /// Opens tall when asking for an unpin, so the whole list shows under the notice.
     @State private var detent: PresentationDetent = .medium
+    /// The rows last drawn, kept on screen while the sheet closes after its last unpin.
+    @State private var lastRows: [ConversationPin] = []
 
     var body: some View {
         let visible = pins.visible(in: conversationID)
+        let rows = visible.isEmpty ? lastRows : visible
         ScrollView {
             VStack(spacing: 12) {
                 Text("Pinned Messages")
@@ -99,12 +102,13 @@ struct PinnedMessagesSheet: View {
                         .padding(.horizontal, ChatColumnCell.rowInset)
                 }
                 VStack(spacing: 16) {
-                    ForEach(visible, id: \.messageID) { pin in
+                    ForEach(rows, id: \.messageID) { pin in
                         if let message = pin.message, let chatMessage = row(message) {
                             item(pin, chatMessage)
                         }
                     }
                 }
+                .animation(.default, value: rows.map(\.messageID))
             }
             .padding(.top, 20)
             .padding(.bottom, 16)
@@ -114,6 +118,11 @@ struct PinnedMessagesSheet: View {
         .presentationDetents([.medium, .large], selection: $detent)
         .onAppear { if waiting != nil { detent = .large } }
         .presentationDragIndicator(.visible)
+        // The system's glass lights up wherever it's touched at the medium detent.
+        .presentationBackground(Color.backgroundMain)
+        .onChange(of: visible, initial: true) { _, visible in
+            if !visible.isEmpty { lastRows = visible }
+        }
         .onChange(of: visible.isEmpty) { _, isEmpty in
             if isEmpty, waiting == nil || !isWaiting { dismiss() }
         }
@@ -155,9 +164,20 @@ struct PinnedMessagesSheet: View {
                 Text(pinnedLine(pin))
                     .foregroundStyle(Color.textSecondary)
                 if canPin {
-                    Button("Unpin") { unpin(pin.messageID) }
-                        .foregroundStyle(Color.textMain)
-                        .disabled(busy.contains(pin.messageID))
+                    Button {
+                        unpin(pin.messageID)
+                    } label: {
+                        Text("Unpin")
+                            .foregroundStyle(Color.textMain)
+                            // A 44pt target around the caption, without moving the line.
+                            .padding(.vertical, 14)
+                            .padding(.horizontal, 10)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, -14)
+                    .padding(.horizontal, -10)
+                    .disabled(busy.contains(pin.messageID))
                 }
             }
             .font(.appTextCaption)
