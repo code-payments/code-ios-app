@@ -238,6 +238,31 @@ public final class ChatNotificationClient: Sendable {
         }
     }
 
+    /// The messages changed since `afterSequence`, capped at about `limit` and at `deadline`; nil
+    /// when the deadline passes first.
+    ///
+    /// Unlike the app's catch-up, this one has a deadline: an extension has seconds, and a delta it
+    /// cannot finish is left to the app, which resumes from the cursor this one didn't advance.
+    public func getDelta(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        limit: Int,
+        deadline: Duration
+    ) async throws -> ChatDeltaPage? {
+        try await withThrowingTaskGroup(of: ChatDeltaPage?.self) { group in
+            group.addTask { [messagingService] in
+                try await messagingService.getDeltaPage(owner: owner, conversationID: conversationID, afterSequence: afterSequence, limit: limit)
+            }
+            group.addTask {
+                try await Task.sleep(for: deadline)
+                return nil
+            }
+            defer { group.cancelAll() }
+            return try await group.next() ?? nil
+        }
+    }
+
     /// Sends a text message, encrypted with `seal` when set, and returns the server-confirmed
     /// `ConversationMessage`. `clientMessageID` must stay stable across retries so the server dedups
     /// the send — generate it once at the call site.

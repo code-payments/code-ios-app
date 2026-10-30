@@ -157,6 +157,51 @@ final class ChatMessagingService: Sendable {
         }
     }
 
+    /// A capped catch-up for a notification extension: the messages changed since `afterSequence`,
+    /// collected until the stream ends or holds more than `limit`, at which point the stream is
+    /// closed and the page comes back incomplete. Throws `ErrorGetDelta` on `.resetRequired`, denied,
+    /// or a transport failure.
+    func getDeltaPage(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        limit: Int
+    ) async throws -> ChatDeltaPage {
+        let request = Flipcash_Messaging_V1_GetDeltaRequest.with {
+            $0.chatID = conversationID.proto
+            $0.afterSequence = afterSequence
+            $0.viewMode = ConversationViewMode.full.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        do {
+            return try await service.getDelta(request: .init(message: request), options: .defaults) { response in
+                var messages: [ConversationMessage] = []
+                var head: UInt64 = 0
+                for try await message in response.messages {
+                    head = max(head, message.latestSequence)
+                    let result = ErrorGetDelta(rawValue: message.result.rawValue) ?? .unknown
+                    switch result {
+                    case .ok:
+                        guard message.hasMessages else { continue }
+                        messages += message.messages.messages.compactMap(ConversationMessage.init)
+                        // Returning from the handler ends the RPC.
+                        if messages.count > limit {
+                            return ChatDeltaPage(messages: messages, head: head, isComplete: false)
+                        }
+                    case .denied, .resetRequired:
+                        throw result
+                    case .unknown, .transportFailure, .cancelled, .rejected:
+                        throw ErrorGetDelta.unknown
+                    }
+                }
+                return ChatDeltaPage(messages: messages, head: head, isComplete: true)
+            }
+        } catch let error as RPCError {
+            throw ErrorGetDelta.from(transportError: error)
+        }
+    }
+
     /// Sends `text` carrying `linkPreview`, as a reply to `repliedTo` when set. With a `seal` the
     /// text goes out as `EncryptedContent` and the server's copy comes back decrypted.
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, seal: ChatSeal?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {

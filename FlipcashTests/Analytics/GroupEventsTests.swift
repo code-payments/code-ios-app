@@ -25,10 +25,13 @@ struct GroupEventsTests {
 
     // MARK: - Group -
 
-    @Test("Group: New Opened has no properties")
-    func newOpened() throws {
-        let sent = Analytics.recordingSends { Analytics.groupNewOpened() }
-        try expectEvent(sent, "Group: New Opened", [:])
+    @Test("Group: New Opened carries the row that was tapped", arguments: [
+        (GroupType.private_, "Private"),
+        (GroupType.community, "Community"),
+    ])
+    func newOpened(_ type: GroupType, _ expected: String) throws {
+        let sent = Analytics.recordingSends { Analytics.groupNewOpened(type: type) }
+        try expectEvent(sent, "Group: New Opened", ["Type": .text(expected)])
     }
 
     @Test("Group: Created carries the gate mint and picture on success")
@@ -272,3 +275,4 @@ extension GroupInviteSource: @retroactive @unchecked Sendable {}
 extension GroupAccess: @retroactive @unchecked Sendable {}
 extension GroupGateFunding: @retroactive @unchecked Sendable {}
 extension MuteDuration: @retroactive @unchecked Sendable {}
+extension GroupType: @retroactive @unchecked Sendable {}

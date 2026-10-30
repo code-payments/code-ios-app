@@ -311,15 +311,15 @@ struct CurrencyInfoContentV2: View {
             ForEach(CurrencyInfoActions.tiles(isOwned: isOwned, isUSDF: isUSDF), id: \.self) { tile in
                 switch tile {
                 case .send:
-                    actionTile("Send", icon: .asset("IconTileSend"), action: onSend)
+                    actionTile("Send", tile: tile, icon: .asset("IconTileSend"), action: onSend)
                 case .buy:
-                    actionTile("Buy", icon: .asset("IconTileBuy"), action: onBuy)
+                    actionTile("Buy", tile: tile, icon: .asset("IconTileBuy"), action: onBuy)
                 case .buyIn:
-                    actionTile("Buy In", icon: .asset("IconTileBuy"), action: onBuy)
+                    actionTile("Buy In", tile: tile, icon: .asset("IconTileBuy"), action: onBuy)
                 case .transactions:
-                    actionTile("Transactions", icon: .system("clock.arrow.circlepath"), action: onShowTransactionHistory)
+                    actionTile("Transactions", tile: tile, icon: .system("clock.arrow.circlepath"), action: onShowTransactionHistory)
                 case .more:
-                    actionTile("More", icon: .system("ellipsis"), action: onMore)
+                    actionTile("More", tile: tile, icon: .system("ellipsis"), action: onMore)
                 }
             }
         }
@@ -327,11 +327,15 @@ struct CurrencyInfoContentV2: View {
 
     private func actionTile(
         _ title: String,
+        tile: CurrencyInfoActions.Tile,
         icon: TileIcon,
         isEnabled: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button {
+            Analytics.tokenInfoTileTapped(tile: tile, mint: metadata.mint)
+            action()
+        } label: {
             VStack(spacing: 8) {
                 tileIcon(icon)
                     .frame(height: 24)

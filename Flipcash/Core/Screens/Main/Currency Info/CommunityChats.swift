@@ -191,6 +191,7 @@ struct TopCommunityChatsDestination: View {
                     chats: viewModel.communityChats,
                     subtitle: viewModel.communitySubtitle(for:),
                     onSelect: { chat in
+                        Analytics.tokenInfoCommunityChatTapped(mint: mint)
                         conversationController.hold(chat)
                         router.push(.chatProfile(chat.id, origin: .featuredGroup))
                     }
