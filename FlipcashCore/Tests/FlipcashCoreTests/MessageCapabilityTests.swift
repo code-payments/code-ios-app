@@ -367,4 +367,66 @@ struct MessageCapabilityTests {
             among: [text("hi", from: me)], in: nil, as: me, policy: windows(edit: nil, delete: nil), now: now
         ) == nil)
     }
+
+    // MARK: - Pin / Unpin
+
+    private func pinning(_ message: ConversationMessage, canPin: Bool = true, isPinned: Bool = false) -> Set<MessageCapability> {
+        let conversation = Conversation(
+            id: ConversationID(data: Data(repeating: 1, count: 32)), members: [], lastMessage: nil,
+            lastActivity: now, viewerState: ConversationViewerState(canPin: canPin)
+        )
+        return MessageCapability.resolve(for: message, in: conversation, as: me, isMember: true, isPinned: isPinned, policy: .default, now: now)
+    }
+
+    @Test("A viewer who may pin gets Pin on any confirmed text, theirs or mine")
+    func canPinOffersPin() {
+        #expect(pinning(text("hi", from: them)).contains(.pin))
+        #expect(pinning(text("hi", from: me)).contains(.pin))
+        #expect(pinning(cash(from: them)).contains(.pin))
+        #expect(pinning(media(from: them)).contains(.pin))
+    }
+
+    @Test("Without can_pin there is neither Pin nor Unpin")
+    func cannotPinOffersNeither() {
+        let actions = pinning(text("hi", from: them), canPin: false, isPinned: true)
+        #expect(!actions.contains(.pin))
+        #expect(!actions.contains(.unpin))
+        #expect(!resolve(text("hi", from: them)).contains(.pin))
+    }
+
+    @Test("A pinned message offers Unpin instead of Pin")
+    func pinnedOffersUnpin() {
+        let actions = pinning(text("hi", from: them), isPinned: true)
+        #expect(actions.contains(.unpin))
+        #expect(!actions.contains(.pin))
+    }
+
+    @Test("System notices, tombstones, payment requests and undecrypted messages can't be pinned")
+    func unpinnableContentOffersNoPin() {
+        let notice = ConversationMessage(
+            id: MessageID(value: 7), senderID: nil,
+            content: .system(fallbackText: "Alex joined", event: nil), date: now, unreadSeq: 1, eventSequence: 2
+        )
+        let tombstone = ConversationMessage(
+            id: MessageID(value: 2), senderID: them,
+            content: .deleted(.init(deletedBy: them, deletedAt: now)), date: now, unreadSeq: 1, eventSequence: 3
+        )
+        let request = ConversationMessage(
+            id: MessageID(value: 8), senderID: them,
+            content: .widget(.paymentRequest(PaymentRequestID(data: Data(repeating: 7, count: 32)))),
+            date: now, unreadSeq: 1, eventSequence: 2
+        )
+        let encrypted = ConversationMessage(
+            id: MessageID(value: 6), senderID: them,
+            content: .encrypted(scheme: 1, nonce: Data(), ciphertext: Data()), date: now, unreadSeq: 1, eventSequence: 2
+        )
+        for message in [notice, tombstone, request, encrypted] {
+            #expect(!pinning(message).contains(.pin))
+        }
+    }
+
+    @Test("An unconfirmed message has no id to pin yet")
+    func unconfirmedOffersNoPin() {
+        #expect(!pinning(text("hi", from: me, eventSequence: 0)).contains(.pin))
+    }
 }

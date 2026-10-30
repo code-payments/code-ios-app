@@ -1018,6 +1018,11 @@ struct ConversationScreen: View {
             guard let id = groupConversation?.id else { return }
             await conversationController.refreshViewerPermissions(for: id)
         }
+        // Once per open; `PinsChanged` keeps the list current from there.
+        .task(id: conversationID) {
+            guard let conversationID else { return }
+            await conversationController.pins.load(conversationID)
+        }
         // Payment requests change with no event, so poll while the chat is on screen in the
         // foreground. A return to the foreground re-keys the task, which refetches at once.
         .task(id: PaymentRequestPoll(conversationID: groupConversation?.id, isActive: scenePhase == .active)) {
@@ -1344,6 +1349,10 @@ struct ConversationScreen: View {
         case .forward:
             guard let conversationID else { return }
             messageShare = MessageShareRequest(id: stableID, url: .messageLink(in: conversationID, messageID: message.id))
+        case .pin:
+            pin(message)
+        case .unpin:
+            unpin(message.id)
         case .silence:
             silenceTarget = moderationTarget(for: message)
         case .remove:
@@ -1354,6 +1363,34 @@ struct ConversationScreen: View {
                     subtitle: "We were unable to remove \(target.firstName). Please try again"
                 )
                 ErrorReporting.captureError(error, reason: "Failed to remove user")
+            }
+        }
+    }
+
+    /// Pins `message`. At the server's cap the viewer is asked to unpin one first.
+    private func pin(_ message: ConversationMessage) {
+        guard let conversationID else { return }
+        let pins = conversationController.pins
+        Task {
+            switch await pins.pin(message, in: conversationID) {
+            case .pinned:
+                break
+            case .full:
+                session.dialogItem = .info(title: "Too Many Pinned Messages", subtitle: "Unpin a message to pin this one.")
+            case .failed:
+                session.dialogItem = .error(title: "Couldn't Pin Message", subtitle: "Please try again.")
+            }
+        }
+    }
+
+    /// Unpins the message `messageID`.
+    private func unpin(_ messageID: MessageID) {
+        guard let conversationID else { return }
+        let pins = conversationController.pins
+        Task {
+            guard await pins.unpin(messageID, in: conversationID) else {
+                session.dialogItem = .error(title: "Couldn't Unpin Message", subtitle: "Please try again.")
+                return
             }
         }
     }

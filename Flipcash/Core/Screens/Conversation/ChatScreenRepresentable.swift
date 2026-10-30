@@ -339,7 +339,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 screen?.focusComposer()
             // Each raises a sheet over the transcript, so the keyboard goes down first.
             case .delete, .report, .forward, .silence, .remove: screen?.dismissKeyboard()
-            case .copy:               break
+            case .copy, .pin, .unpin: break
             }
         }
     }
