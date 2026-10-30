@@ -1638,7 +1638,8 @@ struct ConversationScreen: View {
             conversationID: conversationID,
             messageID: message.id,
             messageSender: sender,
-            chat: chat
+            chat: chat,
+            conversationType: conversationController.conversation(withID: conversationID)?.type
         )
     }
 

@@ -273,10 +273,10 @@ final class GroupSendViewModel {
             } else {
                 try await multiSender.sendMultiple(payments, verifiedState: pin, chat: chat)
             }
-            Analytics.transfer(event: .sentCash, exchangedFiat: total, grabTime: nil, successful: true, error: nil)
+            Analytics.sentCash(exchangedFiat: total, context: .groupSend, recipientCount: payments.count, error: nil)
             return .success
         } catch {
-            Analytics.transfer(event: .sentCash, exchangedFiat: total, grabTime: nil, successful: false, error: error)
+            Analytics.sentCash(exchangedFiat: total, context: .groupSend, recipientCount: payments.count, error: error)
             if !(error is CancellationError) {
                 showSendError()
             }

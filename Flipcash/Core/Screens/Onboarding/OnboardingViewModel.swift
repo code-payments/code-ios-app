@@ -251,9 +251,7 @@ class OnboardingViewModel {
     // MARK: - Registration -
 
     private func registerAccount(mnemonic: MnemonicPhrase) async throws {
-        let owner = mnemonic.solanaKeyPair()
-
-        Analytics.createAccount(owner: owner.publicKey)
+        Analytics.createAccount()
 
         let account = try await sessionAuthenticator.initialize(
             using: mnemonic,

@@ -132,7 +132,7 @@ final class SessionAuthenticator {
 
                 accountManager.set(keyAccount: description.account, userID: userID)
                 completeLogin(with: account)
-                Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
+                Analytics.autoLoginComplete()
 
                 Task { await self.refreshRecentAccount(description.account) }
                 return
@@ -145,7 +145,7 @@ final class SessionAuthenticator {
                 do {
                     let account = try await self.initialize(using: description.account.mnemonic, isRegistration: false, interactive: false)
                     self.completeLogin(with: account)
-                    Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
+                    Analytics.autoLoginComplete()
                 } catch {
                     self.logout()
                 }

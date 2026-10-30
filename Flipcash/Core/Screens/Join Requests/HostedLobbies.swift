@@ -107,16 +107,26 @@ final class HostedLobbies {
             let envelope = try await wrapKey(member.publicKey, conversationID)
             try await admitMember(conversationID, userID, envelope)
         } catch ErrorAdmitLobbyMember.notInLobby {
-            // Withdrawn, or settled on another device.
+            // Withdrawn, or settled on another device. Counts as admitted.
+        } catch {
+            Analytics.groupJoinRequestApproved(error: error)
+            throw error
         }
         remove(userID, from: conversationID)
+        Analytics.groupJoinRequestApproved(error: nil)
     }
 
     /// Turns `member` away. The requester isn't told.
     func deny(_ member: LobbyMember, in conversationID: ConversationID) async throws {
         guard let userID = member.userID else { return }
-        try await denyMember(conversationID, userID)
+        do {
+            try await denyMember(conversationID, userID)
+        } catch {
+            Analytics.groupJoinRequestDenied(error: error)
+            throw error
+        }
         remove(userID, from: conversationID)
+        Analytics.groupJoinRequestDenied(error: nil)
     }
 
     private func remove(_ userID: UserID, from conversationID: ConversationID) {

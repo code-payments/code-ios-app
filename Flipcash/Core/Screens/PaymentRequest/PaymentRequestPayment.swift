@@ -189,11 +189,11 @@ final class PaymentRequestPayment {
                 intentID: intentKey
             )
             self.intentID = nil
-            Analytics.transfer(event: .sentCash, exchangedFiat: amount, grabTime: nil, successful: true, error: nil)
+            Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: nil)
             try? await requests.refresh(requestID)
             return .success
         } catch {
-            Analytics.transfer(event: .sentCash, exchangedFiat: amount, grabTime: nil, successful: false, error: error)
+            Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: error)
             needsRefetch = true
             guard !(error is CancellationError) else { return .failed }
             // A refusal because the request ended reads as "Request Closed", not a send failure.
