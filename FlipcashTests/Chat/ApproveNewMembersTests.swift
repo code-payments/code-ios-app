@@ -29,6 +29,14 @@ struct ApproveNewMembersTests {
         #expect(!store.isOn(for: moony))
     }
 
+    @Test("Unreadable stored data reads as off")
+    func offWhenUnreadable() {
+        defaults.set(Data("not json".utf8), forKey: "flipcash-\(owner.base58)-approve-new-members")
+        let store = ApproveNewMembers(defaults: defaults, owner: owner)
+        #expect(!store.isOn(for: moony))
+        #expect(!store.isOn(for: owls))
+    }
+
     @Test("Each group keeps its own position, across a relaunch")
     func perGroup() {
         let store = ApproveNewMembers(defaults: defaults, owner: owner)
