@@ -1200,6 +1200,7 @@ final class ConversationController {
     private func applyGroupFeed(_ groups: [Conversation]) {
         let departed = store.setGroupFeed(groups)
         reconcileHidden()
+        paymentRequests?.forget(conversations: departed)
         persist(operation: "replace-group-feed") {
             try database.replaceGroupFeed(groups.map(withStoreMembers), departed: departed)
         }
