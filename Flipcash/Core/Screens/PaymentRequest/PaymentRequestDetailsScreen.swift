@@ -252,7 +252,7 @@ struct PaymentRequestDetailsScreen: View {
 
     private func presentCloseOptions() {
         present(.options {
-            DialogAction.destructive("Close Request") {
+            DialogAction.standard("Close Request") {
                 queuedDialog = closeConfirm()
             }
             DialogAction.cancel()
@@ -264,7 +264,7 @@ struct PaymentRequestDetailsScreen: View {
             title: "Close Request?",
             subtitle: "This will stop payments. Anyone who hasn't paid will be marked Didn't pay. Payments already made won't be affected."
         ) {
-            DialogAction.destructive("Close Request") {
+            DialogAction.standard("Close Request") {
                 Task { await close() }
             }
             DialogAction.cancel()
