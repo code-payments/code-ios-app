@@ -46,7 +46,7 @@ public final class ChatInviteCardCell: UICollectionViewCell {
 
     public override init(frame: CGRect) {
         content = UIHostingConfiguration {
-            InviteCardView(groupName: "", onInvite: {})
+            ShareProfileWidgetView(username: nil, state: nil, onShare: {})
         }
         .margins(.all, 0)
         .makeContentView()
@@ -114,7 +114,17 @@ public final class ChatInviteCardCell: UICollectionViewCell {
             identity: ChatItem.inviteCard(groupName: "", isLeaving: false).id
         )
         content.configuration = UIHostingConfiguration {
-            InviteCardView(groupName: groupName) { [weak self] in self?.onInvite?() }
+            ShareProfileWidgetView(
+                username: nil,
+                state: nil,
+                onShare: { [weak self] in self?.onInvite?() },
+                override: .init(
+                    title: Copy.title,
+                    subtitle: Copy.subtitle(groupName: groupName),
+                    buttonTitle: Copy.button,
+                    avatar: nil
+                )
+            )
         }
         .margins(.all, 0)
 
@@ -154,21 +164,7 @@ public final class ChatInviteCardCell: UICollectionViewCell {
     }
 }
 
-/// The card's body: title and subtitle, leading-aligned, above a full-width button.
-struct InviteCardView: View {
-
-    let groupName: String
-    let onInvite: () -> Void
-
-    /// Named so Android can copy them one for one.
-    enum Layout {
-        static let padding: CGFloat = 12
-        /// Between the text block and the button.
-        static let sectionGap: CGFloat = 12
-        /// Between the title and the subtitle.
-        static let lineGap: CGFloat = 4
-    }
-
+extension ChatInviteCardCell {
     enum Copy {
         static let title = "Your Group Is Ready"
         static let button = "Invite People"
@@ -177,38 +173,5 @@ struct InviteCardView: View {
             "Invite people to join \(groupName)"
         }
     }
-
-    var body: some View {
-        VStack(spacing: Layout.sectionGap) {
-            VStack(alignment: .leading, spacing: Layout.lineGap) {
-                Text(Copy.title)
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                Text(Copy.subtitle(groupName: groupName))
-                    .font(.appTextMessage)
-                    .foregroundStyle(Color.textMain)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .multilineTextAlignment(.leading)
-
-            Button(Copy.button, action: onInvite)
-                .buttonStyle(.filledCompact)
-                .accessibilityIdentifier("invite-card-button")
-        }
-        .padding(Layout.padding)
-        .frame(maxWidth: .infinity)
-    }
 }
-
-#if DEBUG
-#Preview("Invite card") {
-    InviteCardView(groupName: "Brothers", onInvite: {})
-        .frame(width: 290)
-        .background(Color.white.opacity(0.02))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.backgroundMain)
-}
-#endif
 #endif

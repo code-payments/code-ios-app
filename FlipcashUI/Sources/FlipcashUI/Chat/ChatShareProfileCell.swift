@@ -209,6 +209,17 @@ struct ShareProfileWidgetView: View {
     let state: LinkCard.User.State?
     let onShare: () -> Void
 
+    /// Text and chrome that replace the profile's, for a card that is not about a person. All nil
+    /// draws the Share Profile widget exactly as before.
+    struct Override {
+        var title: String
+        var subtitle: String?
+        var buttonTitle: String
+        /// Drawn at the top of the card in place of the profile avatar; nil draws no avatar.
+        var avatar: AnyView?
+    }
+    var override: Override?
+
     /// Named so Android can copy them one for one (node 10588:1979).
     enum Layout {
         static let padding: CGFloat = 12
@@ -229,16 +240,29 @@ struct ShareProfileWidgetView: View {
         static let share = "Share"
     }
 
+    /// A card that is not about a person and has no avatar reads as message text: leading-aligned.
+    private var isLeading: Bool { override != nil && override?.avatar == nil }
+
     var body: some View {
         VStack(spacing: Layout.sectionGap) {
             VStack(spacing: Layout.avatarGap) {
-                avatarView
-                VStack(spacing: Layout.lineGap) {
+                if let override {
+                    override.avatar
+                } else {
+                    avatarView
+                }
+                VStack(alignment: isLeading ? .leading : .center, spacing: Layout.lineGap) {
                     Text(name)
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(2)
-                    if let handle {
+                    if let override {
+                        if let subtitle = override.subtitle {
+                            Text(subtitle)
+                                .font(.appTextMessage)
+                                .foregroundStyle(Color.textMain)
+                        }
+                    } else if let handle {
                         Text(handle)
                             .font(.appTextCaption)
                             .foregroundStyle(Color.textMain)
@@ -246,14 +270,15 @@ struct ShareProfileWidgetView: View {
                             .lineLimit(1)
                     }
                 }
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(isLeading ? .leading : .center)
+                .frame(maxWidth: isLeading ? .infinity : nil, alignment: .leading)
             }
             .frame(maxWidth: .infinity)
 
             Button(action: onShare) {
                 HStack(spacing: Layout.iconGap) {
-                    Image(systemName: "square.and.arrow.up")
-                    Text(Copy.share)
+                    if override == nil { Image(systemName: "square.and.arrow.up") }
+                    Text(override?.buttonTitle ?? Copy.share)
                 }
             }
             .buttonStyle(.filledCompact)
@@ -266,7 +291,7 @@ struct ShareProfileWidgetView: View {
         if case .resolved(let user)? = state { user } else { nil }
     }
 
-    private var name: String { resolved?.displayName ?? username ?? "" }
+    private var name: String { override?.title ?? resolved?.displayName ?? username ?? "" }
 
     private var handle: String? { resolved?.handle }
 
