@@ -50,6 +50,10 @@ private struct InviteLinkCardSheet: View {
     @Environment(SessionContainer.self) private var sessionContainer
 
     @State private var dialogItem: DialogItem?
+    /// Set once this tap has made the link, while the new URL is held on screen.
+    @State private var showsSuccess = false
+    @State private var startTick = 0
+    @State private var successTick = 0
 
     private var conversation: Conversation? {
         conversationController.conversation(withID: conversationID)
@@ -88,7 +92,7 @@ private struct InviteLinkCardSheet: View {
                 title: InviteLinkCopy.sheetTitle(groupName: conversation?.title ?? ""),
                 pill: pill,
                 caption: caption,
-                isCreating: links.isCreating,
+                buttonState: showsSuccess ? .success : (links.isCreating ? .loading : .normal),
                 isApproving: approvingBinding,
                 onShare: share,
                 onManageInvites: { choose(.manageInvites) },
@@ -99,6 +103,8 @@ private struct InviteLinkCardSheet: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .dialog(item: $dialogItem)
+        .sensoryFeedback(.impact(weight: .light), trigger: startTick)
+        .sensoryFeedback(.success, trigger: successTick)
     }
 
     // MARK: - Actions -
@@ -109,10 +115,20 @@ private struct InviteLinkCardSheet: View {
             choose(.share(.plain))
             return
         }
-        guard !links.isCreating else { return }
+        guard !links.isCreating, !showsSuccess else { return }
         Task {
             do {
-                _ = try await links.currentLink()
+                if links.loadState != .loaded { try await links.load() }
+                // A link that already exists opens the full sheet at once; only a tap that makes
+                // one holds the new link on screen first.
+                let existed = links.current?.url != nil
+                if !existed {
+                    startTick += 1
+                    _ = try await links.currentLink()
+                    showsSuccess = true
+                    successTick += 1
+                    try? await Task.sleep(for: InlineCompletion.successHold)
+                }
                 choose(.share(.invite))
             } catch {
                 dialogItem = InviteLinkDialogs.cardCreateFailed(
@@ -127,6 +143,31 @@ private struct InviteLinkCardSheet: View {
     private func choose(_ choice: Choice) {
         dismiss()
         onChoose(choice)
+    }
+}
+
+/// A link-shaped stand-in for the pill until there is a link, in the app's redacted placeholder
+/// treatment; it pulses while the link is being made.
+private struct LinkPlaceholder: View {
+    let isPulsing: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var dim = false
+
+    var body: some View {
+        Text("https://app.flipcash.com/chat/invite")
+            .foregroundStyle(Color.textMain)
+            .redacted(reason: .placeholder)
+            .opacity(isPulsing && dim ? 0.4 : 1)
+            .onAppear { updatePulse() }
+            .onChange(of: isPulsing) { updatePulse() }
+    }
+
+    private func updatePulse() {
+        guard isPulsing, !reduceMotion else {
+            withAnimation(nil) { dim = false }
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) { dim = true }
     }
 }
 
@@ -146,7 +187,7 @@ struct InviteLinkCard: View {
     let title: String
     let pill: Pill
     let caption: String?
-    let isCreating: Bool
+    let buttonState: ButtonState
     @Binding var isApproving: Bool
     let onShare: () -> Void
     let onManageInvites: () -> Void
@@ -210,7 +251,7 @@ struct InviteLinkCard: View {
         VStack(spacing: 12) {
             pillView
 
-            CodeButton(isLoading: isCreating, style: .filled, title: "Share Link", action: onShare)
+            CodeButton(state: buttonState, style: .filled, title: "Share Link", action: onShare)
                 .accessibilityIdentifier("invite-card-share")
 
             if let caption {
@@ -248,11 +289,9 @@ struct InviteLinkCard: View {
             ProgressView()
                 .tint(Color.textMain)
         case .creating:
-            Text(InviteLinkCopy.creating)
-                .foregroundStyle(Color.textSecondary)
+            LinkPlaceholder(isPulsing: true)
         case .empty:
-            Text(InviteLinkCopy.noLinkYet)
-                .foregroundStyle(Color.textSecondary)
+            LinkPlaceholder(isPulsing: false)
         case .link(let url):
             Text(InviteLinkPanel.display(url))
                 .foregroundStyle(Color.textMain)
@@ -393,7 +432,7 @@ private let previewPlainURL = URL(string: "https://app.flipcash.com/chat/52fba6a
                 title: "Invite to Moony",
                 pill: .link(isApproving ? previewPlainURL : previewURL),
                 caption: isApproving ? InviteLinkCopy.plainLinkCaption : "0 joined · Expires Nov 3",
-                isCreating: false,
+                buttonState: .normal,
                 isApproving: $isApproving,
                 onShare: {}, onManageInvites: {}, onClose: {}
             )
@@ -411,7 +450,7 @@ private let previewPlainURL = URL(string: "https://app.flipcash.com/chat/52fba6a
                 title: "Invite to Moony",
                 pill: .creating,
                 caption: nil,
-                isCreating: true,
+                buttonState: .loading,
                 isApproving: .constant(false),
                 onShare: {}, onManageInvites: {}, onClose: {}
             )
