@@ -71,6 +71,53 @@ struct ResolveInitialBalanceTests {
         #expect(resolved?.stored.mint == .jeffy)
     }
 
+    @Test("A Dollars selection the user picked is honored")
+    func userPickedUSDF_resolvesToUSDF() throws {
+        let container = try makeMixedContainer()
+        defer { container.ratesController.selectedTokenMint = nil }
+        container.ratesController.selectToken(.usdf, source: .user)
+
+        let resolved = container.ratesController.resolveInitialBalance(
+            mint: nil,
+            session: container.session
+        )
+
+        #expect(resolved?.stored.mint == .usdf)
+    }
+
+    @Test("A Dollars selection made automatically still yields to a community currency")
+    func automaticUSDF_prefersCommunityCurrency() throws {
+        let container = try makeMixedContainer()
+        container.ratesController.selectToken(.usdf, source: .automatic)
+
+        let resolved = container.ratesController.resolveInitialBalance(
+            mint: nil,
+            session: container.session
+        )
+
+        #expect(resolved?.stored.mint == .jeffy)
+    }
+
+    @Test("An automatic selection replaces an earlier user pick's provenance")
+    func automaticAfterUserPick_clearsUserPicked() throws {
+        let container = try makeMixedContainer()
+        container.ratesController.selectToken(.usdf, source: .user)
+        container.ratesController.selectToken(.usdf, source: .automatic)
+
+        #expect(container.ratesController.isSelectedTokenUserPicked == false)
+    }
+
+    @Test("Logout clears the user-picked flag")
+    func logout_clearsUserPicked() throws {
+        let container = try makeMixedContainer()
+        container.ratesController.selectToken(.usdf, source: .user)
+
+        container.ratesController.prepareForLogout()
+
+        #expect(container.ratesController.isSelectedTokenUserPicked == false)
+        #expect(container.ratesController.selectedTokenMint == nil)
+    }
+
     @Test("An explicit mint wins over the auto-pick")
     func explicitMint_wins() throws {
         let container = try makeMixedContainer()

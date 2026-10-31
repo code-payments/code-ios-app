@@ -368,7 +368,7 @@ class Session {
 
         // No valid selection, default to highest balance (first in sorted list)
         if let highestBalance = currentBalances.first {
-            ratesController.selectToken(highestBalance.mint)
+            ratesController.selectToken(highestBalance.mint, source: .automatic)
         }
     }
 

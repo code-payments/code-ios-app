@@ -79,6 +79,7 @@ final class PaymentRequestPayment {
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
+        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
     }
 
     /// Refetches the request right before the swipe sheet shows, taking the intent ID from it.

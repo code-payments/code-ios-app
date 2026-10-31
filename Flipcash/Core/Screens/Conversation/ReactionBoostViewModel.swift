@@ -143,7 +143,7 @@ final class ReactionBoostViewModel {
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        ratesController.selectToken(exchangedBalance.stored.mint)
+        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
     }
 
     // MARK: - Submit -

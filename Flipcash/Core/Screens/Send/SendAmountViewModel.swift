@@ -280,7 +280,7 @@ final class SendAmountViewModel {
 
     private func syncGlobalTokenSelection(to balance: ExchangedBalance) {
         guard ratesController.selectedTokenMint != balance.stored.mint else { return }
-        ratesController.selectToken(balance.stored.mint)
+        ratesController.selectToken(balance.stored.mint, source: .automatic)
     }
 
     // MARK: - Action -
@@ -647,7 +647,7 @@ final class SendAmountViewModel {
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        ratesController.selectToken(exchangedBalance.stored.mint)
+        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
         enteredAmount = ""
         // The warmed proof was for the previous token (and a launchpad mint also
         // needs its own reserve proof) — drop it so submission re-warms/polls.
