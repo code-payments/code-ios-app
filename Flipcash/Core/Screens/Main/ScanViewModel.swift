@@ -160,7 +160,7 @@ class ScanViewModel {
         // An invite link opens its preview; a broken one opens the not-found notice.
         case .groupInvite, .invalidGroupInvite:
             return true
-        case .login, .verifyEmail, .chatSendCash, .give, .balance, .discover, .unknown:
+        case .login, .verifyEmail, .chatSendCash, .give, .balance, .discover, .tab, .unknown:
             return false
         }
     }
