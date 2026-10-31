@@ -1235,7 +1235,7 @@ struct ConversationComposer: View {
 
     var body: some View {
         let motion = AttachMotion(reduceMotion: reduceMotion)
-        let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
+        let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.fieldSelection, axis: .vertical)
             .font(.appTextMessage)
             .foregroundStyle(Color.textMain)
             .tint(.white)
