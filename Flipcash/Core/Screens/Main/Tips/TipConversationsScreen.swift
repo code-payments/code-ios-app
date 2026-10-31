@@ -418,8 +418,8 @@ struct TipConversationRow: View {
         return id
     }
 
-    /// The preview line: the last message, or an italic "Nothing yet" for a chat with no message
-    /// at all. A group is created empty, and a blank line there reads as a row still loading.
+    /// The preview line: the last message, or an italic placeholder for a chat with no message
+    /// at all ("Nothing yet", or an invitation for a group the viewer is alone in). A group is created empty, and a blank line there reads as a row still loading.
     /// Only a chat that never had a message gets the placeholder — a last message the preview
     /// declines to quote (a tombstone, an empty body) is not nothing, so it leaves the line off.
     private var subtitle: AttributedString? {
@@ -435,7 +435,7 @@ struct TipConversationRow: View {
             return AttributedString(preview)
         }
         guard conversation.lastMessage == nil else { return nil }
-        var placeholder = AttributedString("Nothing yet")
+        var placeholder = AttributedString(GroupReadyCard.emptyPreview(for: conversation))
         // Not an emphasis intent: the bundled Avenir has no italic, so asking for one renders upright.
         placeholder.font = .defaultOblique(size: 14, weight: .bold, dynamicTypeSize: dynamicTypeSize)
         return placeholder

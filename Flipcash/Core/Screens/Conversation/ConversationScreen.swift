@@ -82,6 +82,11 @@ struct ConversationScreen: View {
     @State private var isJoiningChat = false
     /// Whether the encryption explainer opened from the transcript's marker is showing.
     @State private var isShowingEncryptionInfo = false
+    /// Whether the group-ready card's Invite People sheet is up.
+    @State private var isInviting = false
+    /// Whether the group-ready card's row is held in the transcript. It is set while the card shows
+    /// and cleared once its exit has run, so the row is still there on the render where the card
+    /// stops showing and the exit plays; the plain delete follows.
     @State private var messageReport: MessageReportRequest?
     @State private var silenceTarget: ModerationTarget?
     /// The instant ``gate`` judges a timed silence against. A silence lapses with no event, so
@@ -364,6 +369,27 @@ struct ConversationScreen: View {
         groupConversation?.rosterSummary.peopleCount
     }
 
+    /// Whether the group-ready card belongs in the transcript right now.
+    private var showsInviteCard: Bool {
+        GroupReadyCard.isShown(groupConversation)
+    }
+
+    /// The loaded transcript with the group-ready card ahead of it, as the oldest row, while it
+    /// shows. When it stops, the row is deleted and the transcript plays the card's exit.
+    private var transcriptItems: [ChatItem] {
+        let items = coordinator?.items ?? []
+        guard showsInviteCard else { return items }
+        return [ChatItem.inviteCard(groupName: groupConversation?.title ?? "")] + items
+    }
+
+    private func openInvite() {
+        Analytics.groupInviteSheetOpened(
+            source: .chat,
+            memberCount: groupConversation?.rosterSummary.memberCount ?? 0
+        )
+        afterKeyboardLowered { isInviting = true }
+    }
+
     /// The group's own picture, fetched under the chat's access context rather than any member's.
     private var groupAvatarSubject: ProfileAvatarStore.AvatarSubject? {
         groupConversation.map { .chat($0.id) }
@@ -451,7 +477,7 @@ struct ConversationScreen: View {
         pagesHistory: Bool
     ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
-            items: coordinator?.items ?? [],
+            items: transcriptItems,
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
@@ -469,6 +495,7 @@ struct ConversationScreen: View {
             updateAction: updateAction,
             toasts: container.toasts,
             onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
+            onInviteCardTap: openInvite,
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
@@ -1263,6 +1290,7 @@ struct ConversationScreen: View {
     /// What this screen puts on top of itself, and the measurement the title bar needs.
     private func presentation(_ content: some View) -> some View {
         content
+        .groupReadyInvite(conversationID: conversationID, canInvite: groupConversation?.canInvite ?? false, isPresented: $isInviting, router: router)
         .sheet(item: $presentedCard) { card in
             ContactCardView(card: card)
                 .ignoresSafeArea()

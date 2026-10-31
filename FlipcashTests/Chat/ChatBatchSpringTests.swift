@@ -37,7 +37,7 @@ struct ChatBatchSpringTests {
     }
 
     private func spring(from before: [ChatItem], to after: [ChatItem]) -> ChatSpring {
-        ChatViewController.batchSpring(for: StagedChangeset(source: before, target: after))
+        ChatViewController.batchSpring(for: StagedChangeset(source: before, target: after), from: before)
     }
 
     @Test("A send, which inserts a row, rides the arrival spring")
@@ -82,5 +82,22 @@ struct ChatBatchSpringTests {
         let before = [message("a", receipt: .delivered)]
         let after = [message("a", receipt: .read(time: "3:42 PM"))]
         #expect(spring(from: before, to: after) == ChatMotion.reflow)
+    }
+
+    @Test("The group-ready card leaving on its own rides its own no-bounce spring, so the rows slide with the fade")
+    func inviteCardLeaving_ridesInviteCardExit() {
+        let card = ChatItem.inviteCard(groupName: "Cousins")
+        #expect(spring(from: [card, message("a")], to: [message("a")]) == ChatMotion.inviteCardExit)
+    }
+
+    @Test("The card leaving as a message arrives rides the arrival spring")
+    func inviteCardLeavingWithArrival_ridesInsertion() {
+        let card = ChatItem.inviteCard(groupName: "Cousins")
+        let before = [card, message("a", receipt: .delivered)]
+        let after = [
+            message("a", continuedByNext: true, receipt: .delivered),
+            message("b", continuationFromPrevious: true),
+        ]
+        #expect(spring(from: before, to: after) == ChatMotion.insertion)
     }
 }

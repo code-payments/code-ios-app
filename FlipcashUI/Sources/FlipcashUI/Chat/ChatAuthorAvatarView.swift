@@ -25,6 +25,8 @@ final class ChatAuthorAvatarView: UIView {
     private let imageView = UIImageView()
     private let monogram = UILabel()
     private let gradient = CAGradientLayer()
+    /// The Flipcash mark, shown instead of a face or monogram by ``configureAsFlipcash()``.
+    private let brandMark = UIImageView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -54,7 +56,18 @@ final class ChatAuthorAvatarView: UIView {
         imageView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(imageView)
 
+        brandMark.image = UIImage.asset(.flipcashLogo).withRenderingMode(.alwaysTemplate)
+        brandMark.tintColor = UIColor(Color.textMain)
+        brandMark.contentMode = .scaleAspectFit
+        brandMark.isHidden = true
+        brandMark.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(brandMark)
+
         NSLayoutConstraint.activate([
+            brandMark.centerXAnchor.constraint(equalTo: centerXAnchor),
+            brandMark.centerYAnchor.constraint(equalTo: centerYAnchor),
+            brandMark.widthAnchor.constraint(equalToConstant: Self.size * Self.brandMarkRatio),
+            brandMark.heightAnchor.constraint(equalToConstant: Self.size * Self.brandMarkRatio),
             widthAnchor.constraint(equalToConstant: Self.size),
             heightAnchor.constraint(equalToConstant: Self.size),
             monogram.centerXAnchor.constraint(equalTo: centerXAnchor),
@@ -101,8 +114,20 @@ final class ChatAuthorAvatarView: UIView {
         accessibilityLabel = author.name.isEmpty ? "Contact" : author.name
     }
 
+    /// The mark's share of the circle's width.
+    private static let brandMarkRatio: CGFloat = 0.58
+
+    /// Draws the Flipcash mark over the placeholder gradient, for a row the app itself sends.
+    func configureAsFlipcash() {
+        imageView.image = nil
+        monogram.text = nil
+        brandMark.isHidden = false
+        isAccessibilityElement = false
+    }
+
     /// Clears the image so a recycled row never shows the previous author's face.
     func reset() {
+        brandMark.isHidden = true
         imageView.image = nil
         monogram.text = nil
         accessibilityLabel = nil

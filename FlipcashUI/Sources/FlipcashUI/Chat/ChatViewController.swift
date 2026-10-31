@@ -106,6 +106,9 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the "Encrypted" marker is tapped; nil leaves it inert.
     public var onEncryptionMarkerTap: (() -> Void)?
 
+    /// Called when the group-ready card's Invite People button is tapped.
+    public var onInviteCardTap: (() -> Void)?
+
     /// Called when the user taps an author's face in the gutter, or the inviter's name in an invite
     /// join notice; the argument is that user's id. Never fires in a DM, where no row draws one.
     public var onAuthorTap: ((UserID) -> Void)?
@@ -183,7 +186,7 @@ public final class ChatViewController: UICollectionViewController {
                     configure(cell, with: message)
                 case .typingIndicator(let typists):
                     (cell as? ChatTypingIndicatorCell)?.configure(typists: typists, imageData: authorAvatars)
-                case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage:
+                case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard:
                     continue
                 }
             }
@@ -411,6 +414,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
         collectionView.register(ChatEncryptionMarkerCell.self, forCellWithReuseIdentifier: ChatEncryptionMarkerCell.reuseIdentifier)
         collectionView.register(ChatSystemMessageCell.self, forCellWithReuseIdentifier: ChatSystemMessageCell.reuseIdentifier)
+        collectionView.register(ChatInviteCardCell.self, forCellWithReuseIdentifier: ChatInviteCardCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
 
         swipeToReply.isBlocked = { [weak self] in
@@ -539,11 +543,13 @@ public final class ChatViewController: UICollectionViewController {
         appendedFrom = Self.appendStart(from: items, to: newItems)
         appendedRise = nil
         let handoff = handOffTypingBubble(from: items, to: newItems)
+        // The card fades on its own clock while the batch below slides the rows into its space.
+        fadeOutRemovedInviteCard(from: items, changeset: changeset)
         growingFromTyping = handoff?.row
         // `performBatchUpdates` inherits the enclosing animation's timing, which is the only way to
         // give ChatLayout's insertion a spring: the layout delegate below supplies the *starting*
         // state, this supplies the curve it travels on.
-        let spring = handoff == nil ? Self.batchSpring(for: changeset) : ChatMotion.fromTyping
+        let spring = handoff == nil ? Self.batchSpring(for: changeset, from: items) : ChatMotion.fromTyping
         spring.animate { [self] in
             collectionView.reload(
                 using: changeset,
@@ -612,7 +618,7 @@ public final class ChatViewController: UICollectionViewController {
         let arrivals = (start..<new.count).compactMap { row -> (row: Int, message: ChatMessage)? in
             switch new[row] {
             case .message(let message): (row, message)
-            case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage: nil
+            case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard: nil
             }
         }
         guard let taker = TypingDotsHandoff.takerIndex(
@@ -639,7 +645,7 @@ public final class ChatViewController: UICollectionViewController {
         switch item {
         case .typingIndicator(let typists):
             typists.isEmpty ? [.counterpart] : Set(typists.map { .member($0.id) })
-        case .message, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage:
+        case .message, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard:
             nil
         }
     }
@@ -655,7 +661,7 @@ public final class ChatViewController: UICollectionViewController {
         guard items.indices.contains(index) else { return nil }
         switch items[index] {
         case .message(let message): return message
-        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage: return nil
+        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard: return nil
         }
     }
 
@@ -664,7 +670,12 @@ public final class ChatViewController: UICollectionViewController {
     ///
     /// A reconfigure changes a row's height at most (a receipt moving, a status resolving, an
     /// edit), and the arrival spring's bounce would lurch the whole transcript for it.
-    static func batchSpring(for changeset: StagedChangeset<[ChatItem]>) -> ChatSpring {
+    ///
+    /// - Parameter old: the rows before the update. When the update only removes the group-ready
+    ///   card, the rows below slide into its space on `inviteCardExit`: an arrival's bounce would read
+    ///   as the conversation lurching rather than settling.
+    static func batchSpring(for changeset: StagedChangeset<[ChatItem]>, from old: [ChatItem] = []) -> ChatSpring {
+        if removesOnlyInviteCard(changeset, from: old) { return ChatMotion.inviteCardExit }
         let changesRows = changeset.contains { stage in
             !stage.elementInserted.isEmpty
                 || !stage.elementDeleted.isEmpty
@@ -672,6 +683,24 @@ public final class ChatViewController: UICollectionViewController {
                 || stage.sectionChangeCount > 0
         }
         return changesRows ? ChatMotion.insertion : ChatMotion.reflow
+    }
+
+    private func fadeOutRemovedInviteCard(from old: [ChatItem], changeset: StagedChangeset<[ChatItem]>) {
+        let removed = Set(changeset.flatMap(\.elementDeleted).map(\.element))
+        guard let row = old.indices.first(where: { removed.contains($0) && old[$0].isInviteCard }),
+              let cell = collectionView.cellForItem(at: IndexPath(item: row, section: 0)) as? ChatInviteCardCell
+        else { return }
+        cell.fadeOut()
+    }
+
+    private static func removesOnlyInviteCard(_ changeset: StagedChangeset<[ChatItem]>, from old: [ChatItem]) -> Bool {
+        guard changeset.count == 1, let stage = changeset.first,
+              !stage.elementDeleted.isEmpty,
+              stage.elementInserted.isEmpty, stage.elementMoved.isEmpty, stage.sectionChangeCount == 0
+        else { return false }
+        return stage.elementDeleted.allSatisfy { path in
+            old.indices.contains(path.element) && old[path.element].isInviteCard
+        }
     }
 
     // MARK: - Data source
@@ -700,6 +729,11 @@ public final class ChatViewController: UICollectionViewController {
         case .systemMessage(_, let text, _, let userLink):
             let tap: ((UserID) -> Void)? = onAuthorTap == nil ? nil : { [weak self] in self?.onAuthorTap?($0) }
             (cell as! ChatSystemMessageCell).configure(text: text, userLink: userLink, onUserTap: tap)
+        case .inviteCard(let groupName):
+            let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
+            let card = cell as! ChatInviteCardCell
+            card.onInvite = { [weak self] in self?.onInviteCardTap?() }
+            card.configure(groupName: groupName, maxWidth: width - ChatColumnCell.rowInset * 2)
         case .message(let message):
             configure(cell, with: message)
         }
@@ -1454,7 +1488,7 @@ public final class ChatViewController: UICollectionViewController {
             return ReadProgress.VisibleMessage(id: serverID, isFromSelf: isFromSelf)
         case .systemMessage(_, _, let serverID, _):
             return serverID.map { ReadProgress.VisibleMessage(id: $0, isFromSelf: false) }
-        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker:
+        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .inviteCard:
             return nil
         }
     }
@@ -1699,7 +1733,7 @@ extension ChatViewController: ChatLayoutDelegate {
         guard items.indices.contains(indexPath.item) else { return false }
         switch items[indexPath.item] {
         case .dateSeparator, .unreadDivider, .encryptionMarker: return true
-        case .message, .typingIndicator, .systemMessage: return false
+        case .message, .typingIndicator, .systemMessage, .inviteCard: return false
         }
     }
 
@@ -1716,7 +1750,7 @@ extension ChatViewController: ChatLayoutDelegate {
         switch items[indexPath.item] {
         case .message(let message): return message.sender
         case .typingIndicator: return .other
-        case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage: return nil
+        case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard: return nil
         }
     }
 }
