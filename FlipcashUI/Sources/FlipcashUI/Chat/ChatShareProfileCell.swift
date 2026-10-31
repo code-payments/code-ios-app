@@ -253,7 +253,7 @@ struct ShareProfileWidgetView: View {
                 }
                 VStack(alignment: isLeading ? .leading : .center, spacing: Layout.lineGap) {
                     Text(name)
-                        .font(.appTextLarge)
+                        .font(override == nil ? .appTextLarge : .appTextMedium)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(2)
                     if let override {
