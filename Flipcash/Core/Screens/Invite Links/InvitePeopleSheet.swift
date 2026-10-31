@@ -127,7 +127,7 @@ private struct InviteLinkCardSheet: View {
                     _ = try await links.currentLink()
                     showsSuccess = true
                     successTick += 1
-                    try? await Task.sleep(for: InlineCompletion.successHold)
+                    try? await Task.sleep(for: PaymentSuccess.hold)
                 }
                 choose(.share(.invite))
             } catch {

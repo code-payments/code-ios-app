@@ -406,7 +406,7 @@ struct ConversationScreen: View {
             source: .chat,
             memberCount: groupConversation?.rosterSummary.memberCount ?? 0
         )
-        isInviting = true
+        afterKeyboardLowered { isInviting = true }
     }
 
     /// The group's own picture, fetched under the chat's access context rather than any member's.
