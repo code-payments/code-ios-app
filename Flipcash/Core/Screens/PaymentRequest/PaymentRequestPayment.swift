@@ -77,8 +77,14 @@ final class PaymentRequestPayment {
         return own
     }
 
+    /// The balances the currency picker offers.
+    var paymentOptions: [ExchangedBalance] {
+        ratesController.paymentOptions(session: session)
+    }
+
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
+        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
     }
 
     /// Refetches the request right before the swipe sheet shows, taking the intent ID from it.

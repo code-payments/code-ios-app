@@ -110,7 +110,7 @@ struct SendAmountViewModelTests {
                 quarks: 1_000_000_000_000
             ),
         ])
-        container.ratesController.selectToken(.usdf)
+        container.ratesController.selectToken(.usdf, source: .automatic)
 
         let viewModel = SendAmountViewModel(sessionContainer: container, target: .contact(Self.makeContact()), mint: nil)
 

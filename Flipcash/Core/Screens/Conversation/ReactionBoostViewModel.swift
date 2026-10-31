@@ -138,12 +138,12 @@ final class ReactionBoostViewModel {
 
     /// The balances the "Pay with" picker offers.
     var paymentOptions: [ExchangedBalance] {
-        session.balances(for: ratesController.rateForBalanceCurrency()).giveable()
+        ratesController.paymentOptions(session: session)
     }
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        ratesController.selectToken(exchangedBalance.stored.mint)
+        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
     }
 
     // MARK: - Submit -

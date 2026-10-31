@@ -118,8 +118,8 @@ struct PaymentRequestDetailsScreen: View {
                 .padding(.vertical, 24)
             }
             .softScrollEdge(for: [.top, .bottom])
-            if let sendTitle = content.sendTitle {
-                CodeButton(isLoading: payFlow.isPreparing, style: .filled, title: sendTitle) {
+            if let payTitle = content.payTitle {
+                CodeButton(isLoading: payFlow.isPreparing, style: .filled, title: payTitle) {
                     pay()
                 }
                 .padding(.horizontal, 20)
@@ -486,7 +486,7 @@ private struct PaymentRequestPaySheet: View {
                     .background(Capsule().fill(Color.white.opacity(0.1)))
                     .padding(.top, 4)
                 }
-                SwipeControl(text: "Swipe to Send") {
+                SwipeControl(text: "Swipe to Pay") {
                     switch await payment.submit() {
                     case .success:
                         didSucceed = true
@@ -507,9 +507,17 @@ private struct PaymentRequestPaySheet: View {
             dismiss()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
-                payment.selectCurrencyAction(exchangedBalance: balance)
-            }
+            let options = payment.paymentOptions
+            CurrencyPickerSheet(
+                options: options,
+                selectedMint: payment.selectedBalance?.stored.mint ?? .usdf,
+                onSelect: { mint in
+                    if let balance = options.first(where: { $0.stored.mint == mint }) {
+                        payment.selectCurrencyAction(exchangedBalance: balance)
+                    }
+                    isShowingTokenSelection = false
+                }
+            )
         }
     }
 

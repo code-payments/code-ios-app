@@ -487,8 +487,8 @@ struct PaymentRequestSpecTests {
     func noIntentNoSend() throws {
         let r = request()
         let debtor = try #require(r.split?.shares[1].userID)
-        #expect(details(r, viewer: debtor, intent: false).sendTitle == nil)
-        #expect(details(r, viewer: debtor, intent: true).sendTitle == "Send $10")
+        #expect(details(r, viewer: debtor, intent: false).payTitle == nil)
+        #expect(details(r, viewer: debtor, intent: true).payTitle == "Pay $10")
     }
 
     @Test("Details rows: You, Paid, and the creator's mark-paid action only while OPEN")
