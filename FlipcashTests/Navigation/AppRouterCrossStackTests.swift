@@ -19,7 +19,7 @@ struct AppRouterCrossStackTests {
         let router = AppRouter()
         router.navigate(to: .currencyInfo(.usdc))
         #expect(router.presentedSheets.isEmpty, "a tab stack is reached by bringing its tab forward")
-        #expect(router.requestedTabStack == .balance)
+        #expect(router.requestedTab == .wallet)
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
     }
 
@@ -32,7 +32,7 @@ struct AppRouterCrossStackTests {
         router.navigate(to: .currencyInfo(.usdc))
 
         #expect(router.presentedSheets.isEmpty)
-        #expect(router.requestedTabStack == .balance)
+        #expect(router.requestedTab == .wallet)
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
     }
 
@@ -44,13 +44,40 @@ struct AppRouterCrossStackTests {
 
         router.navigate(to: .tipcard)
 
-        #expect(router.requestedTabStack == .tips, "the Chat tab hosts the tips stack")
+        #expect(router.requestedTab == .chat, "the Chat tab hosts the tips stack")
         #expect(router.presentedSheets.isEmpty, "the tips sheet is for surfaces that have no tab bar")
         #expect(router[.tips] == AppRouter.navigationPath(.tipcard))
         #expect(
             router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc), .transactionHistory(.usdc)),
             "the wallet tab is untouched behind the tab switch"
         )
+    }
+
+    @Test("showTab can request Scan, which owns no stack, and clears sheets and the tab's own stack")
+    func showTab_scan_requestsScan() {
+        let router = AppRouter()
+        router.activeTabStack = .balance
+        router.present(.give)
+
+        router.showTab(.scan)
+
+        #expect(router.requestedTab == .scan)
+        #expect(router.presentedSheets.isEmpty)
+    }
+
+    @Test("showTab resets the requested tab's stack to its root", arguments: [
+        (HomeTab.wallet, AppRouter.Stack.balance),
+        (HomeTab.chat, AppRouter.Stack.tips),
+        (HomeTab.tipCard, AppRouter.Stack.you),
+    ])
+    func showTab_resetsStack(tab: HomeTab, stack: AppRouter.Stack) {
+        let router = AppRouter()
+        router.setPath([.discoverCurrencies], on: stack)
+
+        router.showTab(tab)
+
+        #expect(router.requestedTab == tab)
+        #expect(router[stack].isEmpty)
     }
 
     @Test("navigateOver pushes onto the owning stack when its tab is already up")
@@ -95,7 +122,7 @@ struct AppRouterCrossStackTests {
 
         router.navigateOver(profile)
 
-        #expect(router.requestedTabStack == .tips)
+        #expect(router.requestedTab == .chat)
         #expect(router[.tips] == AppRouter.navigationPath(profile))
     }
 
@@ -133,7 +160,7 @@ struct AppRouterCrossStackTests {
         router.navigate(to: .settingsApplicationLogs)
 
         #expect(router.presentedSheets.isEmpty, "the You tab hosts the settings list — there is no sheet")
-        #expect(router.requestedTabStack == .you)
+        #expect(router.requestedTab == .tipCard)
         #expect(router[.you] == AppRouter.navigationPath(.settingsApplicationLogs))
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)),
                 "the wallet tab is preserved underneath")
@@ -147,11 +174,11 @@ struct AppRouterCrossStackTests {
         // Stand in for HomeTabView consuming the request and reporting the
         // selection back; without it the router can't know the tab is already up.
         router.activeTabStack = .balance
-        router.requestedTabStack = nil
+        router.requestedTab = nil
 
         router.navigate(to: .currencyInfo(.usdc))
 
-        #expect(router.requestedTabStack == nil, "a redundant navigate must not re-request the tab")
+        #expect(router.requestedTab == nil, "a redundant navigate must not re-request the tab")
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
     }
 

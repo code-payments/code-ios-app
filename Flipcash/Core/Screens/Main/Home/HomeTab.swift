@@ -20,6 +20,18 @@ enum HomeTab: Int, CaseIterable, Identifiable, Hashable {
 
     var id: Int { rawValue }
 
+    /// The tab a `/tab/<name>` link names: `scan`, `chats`, `wallet` or `you`,
+    /// in any case. Shared with Android's tab links.
+    nonisolated init?(linkName: String) {
+        switch linkName.lowercased() {
+        case "scan":   self = .scan
+        case "chats":  self = .chat
+        case "wallet": self = .wallet
+        case "you":    self = .tipCard
+        default:       return nil
+        }
+    }
+
     /// The tab selected on cold launch, after signing in to an existing
     /// account, and when onboarding finishes creating a new one.
     static let initial: HomeTab = .chat

@@ -36,7 +36,7 @@ struct YouTabRoutingTests {
 
         router.showOwnTipCard()
 
-        #expect(router.requestedTabStack == .you)
+        #expect(router.requestedTab == .tipCard)
         #expect(router.presentedSheet == nil)
         #expect(router[.you].isEmpty) // the card itself, not a pushed screen
     }
@@ -45,15 +45,15 @@ struct YouTabRoutingTests {
     func showOwnTipCard_whileRequestPending_doesNotRefire() {
         let router = AppRouter()
         router.showOwnTipCard()
-        #expect(router.requestedTabStack == .you)
+        #expect(router.requestedTab == .tipCard)
 
         // What HomeTabView does on selecting the tab.
-        router.requestedTabStack = nil
+        router.requestedTab = nil
         router.activeTabStack = .you
 
         // The scanner keeps decoding the same tipcode until the camera tears down.
         router.showOwnTipCard()
-        #expect(router.requestedTabStack == nil, "arriving must not re-request the tab")
+        #expect(router.requestedTab == nil, "arriving must not re-request the tab")
     }
 
     @Test("a self scan from a pushed You-tab screen returns to the card")
@@ -65,7 +65,7 @@ struct YouTabRoutingTests {
         router.showOwnTipCard()
 
         #expect(router[.you].isEmpty)
-        #expect(router.requestedTabStack == .you)
+        #expect(router.requestedTab == .tipCard)
     }
 
     @Test("changing the display name pushes onto the You tab, and saving pops back")
