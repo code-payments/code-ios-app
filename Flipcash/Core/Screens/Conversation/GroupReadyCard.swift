@@ -7,15 +7,9 @@
 
 import SwiftUI
 import FlipcashCore
-import FlipcashUI
 
 /// When the "Your Group Is Ready" card shows at the head of a group's transcript.
 enum GroupReadyCard {
-
-    /// How long the card's fade takes, which is how long its row stays in the transcript after the
-    /// predicate turns false. The row is deleted after it, and the conversation slides up into the
-    /// space.
-    static let exitDuration: Duration = .seconds(ChatInviteCardCell.Fade.duration)
 
     /// The card shows while the viewer is alone in a group they may invite people to.
     ///

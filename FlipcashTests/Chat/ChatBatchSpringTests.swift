@@ -84,15 +84,15 @@ struct ChatBatchSpringTests {
         #expect(spring(from: before, to: after) == ChatMotion.reflow)
     }
 
-    @Test("The group-ready card leaving on its own rides the reflow spring, so the rows slide without a bounce")
-    func inviteCardLeaving_ridesReflow() {
-        let card = ChatItem.inviteCard(groupName: "Cousins", isLeaving: true)
-        #expect(spring(from: [card, message("a")], to: [message("a")]) == ChatMotion.reflow)
+    @Test("The group-ready card leaving on its own rides its own no-bounce spring, so the rows slide with the fade")
+    func inviteCardLeaving_ridesInviteCardExit() {
+        let card = ChatItem.inviteCard(groupName: "Cousins")
+        #expect(spring(from: [card, message("a")], to: [message("a")]) == ChatMotion.inviteCardExit)
     }
 
     @Test("The card leaving as a message arrives rides the arrival spring")
     func inviteCardLeavingWithArrival_ridesInsertion() {
-        let card = ChatItem.inviteCard(groupName: "Cousins", isLeaving: true)
+        let card = ChatItem.inviteCard(groupName: "Cousins")
         let before = [card, message("a", receipt: .delivered)]
         let after = [
             message("a", continuedByNext: true, receipt: .delivered),

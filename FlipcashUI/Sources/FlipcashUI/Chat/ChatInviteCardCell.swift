@@ -14,9 +14,8 @@ import FlipcashCore
 /// card with a title, a line naming the group and a full-width Invite People button. Not a message,
 /// so it has no sender, receipt or reactions.
 ///
-/// When `isLeaving` arrives the card fades out in place (``Fade``). The owner keeps the row in the
-/// transcript for that long and deletes it afterwards, so the delete removes a card that is already
-/// gone and the rows below slide up into its space on the batch update's spring.
+/// When the row is deleted the controller calls ``fadeOut()`` on the cell as the batch starts, so the
+/// card fades (``Fade``) while the rows below slide up into its space on the batch update's spring.
 public final class ChatInviteCardCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatInviteCardCell"
@@ -103,12 +102,12 @@ public final class ChatInviteCardCell: UICollectionViewCell {
     }
 
     /// - Parameter maxWidth: the widest the card may be; the Share Profile widget's width caps it.
-    func configure(groupName: String, isLeaving: Bool, maxWidth: CGFloat) {
+    func configure(groupName: String, maxWidth: CGFloat) {
         widthConstraint.constant = min(ChatShareProfileCell.designedWidth, maxWidth - ChatColumnCell.authorGutterWidth)
         card.apply(
             fill: UIColor.white.withAlphaComponent(0.02),
             radii: BubbleBackgroundView.radii(isFromSelf: false, groupedAbove: false, groupedBelow: false),
-            identity: ChatItem.inviteCard(groupName: "", isLeaving: false).id
+            identity: ChatItem.inviteCard(groupName: "").id
         )
         content.configuration = UIHostingConfiguration {
             ShareProfileWidgetView(
@@ -124,15 +123,9 @@ public final class ChatInviteCardCell: UICollectionViewCell {
             )
         }
         .margins(.all, 0)
-
-        if isLeaving {
-            fadeOut()
-        } else {
-            resetFade()
-        }
     }
 
-    private func fadeOut() {
+    func fadeOut() {
         guard !isFading else { return }
         isFading = true
         isUserInteractionEnabled = false

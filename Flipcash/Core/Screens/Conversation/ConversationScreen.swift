@@ -87,8 +87,6 @@ struct ConversationScreen: View {
     /// Whether the group-ready card's row is held in the transcript. It is set while the card shows
     /// and cleared once its exit has run, so the row is still there on the render where the card
     /// stops showing and the exit plays; the plain delete follows.
-    @State private var isInviteCardRowHeld = false
-    @State private var inviteCardExit: Task<Void, Never>?
     @State private var messageReport: MessageReportRequest?
     @State private var silenceTarget: ModerationTarget?
     /// The instant ``gate`` judges a timed silence against. A silence lapses with no event, so
@@ -377,28 +375,11 @@ struct ConversationScreen: View {
     }
 
     /// The loaded transcript with the group-ready card ahead of it, as the oldest row, while it
-    /// shows or is playing its exit.
+    /// shows. When it stops, the row is deleted and the transcript plays the card's exit.
     private var transcriptItems: [ChatItem] {
         let items = coordinator?.items ?? []
-        guard showsInviteCard || isInviteCardRowHeld else { return items }
-        let card = ChatItem.inviteCard(groupName: groupConversation?.title ?? "", isLeaving: !showsInviteCard)
-        return [card] + items
-    }
-
-    /// Runs the card's exit when the predicate turns false while it is up, then drops the row. A
-    /// screen that opens with the card already hidden never plays one.
-    private func inviteCardVisibilityChanged(from wasShowing: Bool, to isShowing: Bool) {
-        inviteCardExit?.cancel()
-        inviteCardExit = nil
-        if isShowing {
-            isInviteCardRowHeld = true
-        } else if wasShowing {
-            inviteCardExit = Task {
-                try? await Task.sleep(for: GroupReadyCard.exitDuration)
-                guard !Task.isCancelled else { return }
-                isInviteCardRowHeld = false
-            }
-        }
+        guard showsInviteCard else { return items }
+        return [ChatItem.inviteCard(groupName: groupConversation?.title ?? "")] + items
     }
 
     private func openInvite() {
@@ -1309,7 +1290,6 @@ struct ConversationScreen: View {
     /// What this screen puts on top of itself, and the measurement the title bar needs.
     private func presentation(_ content: some View) -> some View {
         content
-        .onChange(of: showsInviteCard, initial: true) { inviteCardVisibilityChanged(from: $0, to: $1) }
         .groupReadyInvite(conversationID: conversationID, canInvite: groupConversation?.canInvite ?? false, isPresented: $isInviting, router: router)
         .sheet(item: $presentedCard) { card in
             ContactCardView(card: card)

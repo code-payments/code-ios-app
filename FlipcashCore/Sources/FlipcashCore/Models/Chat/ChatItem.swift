@@ -30,9 +30,12 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     /// moves past like any inbound message's. `userLink` is the name in `text` that opens a profile.
     case systemMessage(id: String, text: String, serverID: MessageID?, userLink: SystemNoticeUserLink? = nil)
     /// The "Your Group Is Ready" card at the head of a group the viewer is alone in. Client-only: it
-    /// is never a message, so nothing stores or syncs it. `isLeaving` plays its exit while the card
-    /// is still in the transcript; the owner removes it once that has run.
-    case inviteCard(groupName: String, isLeaving: Bool)
+    /// is never a message, so nothing stores or syncs it.
+    case inviteCard(groupName: String)
+
+    public var isInviteCard: Bool {
+        if case .inviteCard = self { true } else { false }
+    }
 
     public var id: String {
         switch self {

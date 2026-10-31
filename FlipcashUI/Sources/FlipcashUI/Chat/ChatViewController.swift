@@ -543,6 +543,8 @@ public final class ChatViewController: UICollectionViewController {
         appendedFrom = Self.appendStart(from: items, to: newItems)
         appendedRise = nil
         let handoff = handOffTypingBubble(from: items, to: newItems)
+        // The card fades on its own clock while the batch below slides the rows into its space.
+        fadeOutRemovedInviteCard(from: items, changeset: changeset)
         growingFromTyping = handoff?.row
         // `performBatchUpdates` inherits the enclosing animation's timing, which is the only way to
         // give ChatLayout's insertion a spring: the layout delegate below supplies the *starting*
@@ -670,10 +672,10 @@ public final class ChatViewController: UICollectionViewController {
     /// edit), and the arrival spring's bounce would lurch the whole transcript for it.
     ///
     /// - Parameter old: the rows before the update. When the update only removes the group-ready
-    ///   card, the rows below slide into its space on `reflow`: an arrival's bounce would read as the
-    ///   conversation lurching rather than settling.
+    ///   card, the rows below slide into its space on `inviteCardExit`: an arrival's bounce would read
+    ///   as the conversation lurching rather than settling.
     static func batchSpring(for changeset: StagedChangeset<[ChatItem]>, from old: [ChatItem] = []) -> ChatSpring {
-        if removesOnlyInviteCard(changeset, from: old) { return ChatMotion.reflow }
+        if removesOnlyInviteCard(changeset, from: old) { return ChatMotion.inviteCardExit }
         let changesRows = changeset.contains { stage in
             !stage.elementInserted.isEmpty
                 || !stage.elementDeleted.isEmpty
@@ -683,14 +685,21 @@ public final class ChatViewController: UICollectionViewController {
         return changesRows ? ChatMotion.insertion : ChatMotion.reflow
     }
 
+    private func fadeOutRemovedInviteCard(from old: [ChatItem], changeset: StagedChangeset<[ChatItem]>) {
+        let removed = Set(changeset.flatMap(\.elementDeleted).map(\.element))
+        guard let row = old.indices.first(where: { removed.contains($0) && old[$0].isInviteCard }),
+              let cell = collectionView.cellForItem(at: IndexPath(item: row, section: 0)) as? ChatInviteCardCell
+        else { return }
+        cell.fadeOut()
+    }
+
     private static func removesOnlyInviteCard(_ changeset: StagedChangeset<[ChatItem]>, from old: [ChatItem]) -> Bool {
         guard changeset.count == 1, let stage = changeset.first,
               !stage.elementDeleted.isEmpty,
               stage.elementInserted.isEmpty, stage.elementMoved.isEmpty, stage.sectionChangeCount == 0
         else { return false }
         return stage.elementDeleted.allSatisfy { path in
-            guard old.indices.contains(path.element), case .inviteCard = old[path.element] else { return false }
-            return true
+            old.indices.contains(path.element) && old[path.element].isInviteCard
         }
     }
 
@@ -720,11 +729,11 @@ public final class ChatViewController: UICollectionViewController {
         case .systemMessage(_, let text, _, let userLink):
             let tap: ((UserID) -> Void)? = onAuthorTap == nil ? nil : { [weak self] in self?.onAuthorTap?($0) }
             (cell as! ChatSystemMessageCell).configure(text: text, userLink: userLink, onUserTap: tap)
-        case .inviteCard(let groupName, let isLeaving):
+        case .inviteCard(let groupName):
             let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
             let card = cell as! ChatInviteCardCell
             card.onInvite = { [weak self] in self?.onInviteCardTap?() }
-            card.configure(groupName: groupName, isLeaving: isLeaving, maxWidth: width - ChatColumnCell.rowInset * 2)
+            card.configure(groupName: groupName, maxWidth: width - ChatColumnCell.rowInset * 2)
         case .message(let message):
             configure(cell, with: message)
         }
