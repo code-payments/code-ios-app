@@ -7,13 +7,15 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashUI
 
 /// When the "Your Group Is Ready" card shows at the head of a group's transcript.
 enum GroupReadyCard {
 
-    /// How long the card's pop takes, which is how long its row stays in the transcript after the
-    /// predicate turns false.
-    static let exitDuration: Duration = .milliseconds(280)
+    /// How long the card's fade takes, which is how long its row stays in the transcript after the
+    /// predicate turns false. The row is deleted after it, and the conversation slides up into the
+    /// space.
+    static let exitDuration: Duration = .seconds(ChatInviteCardCell.Fade.duration)
 
     /// The card shows while the viewer is alone in a group they may invite people to.
     ///
@@ -34,6 +36,15 @@ enum GroupReadyCard {
             // without can-invite, so only a private group gates the card on it.
             viewerCanInvite: conversation.canInvite || !conversation.isPrivate
         )
+    }
+
+    /// The chat-list line for a conversation that has no message at all: an invitation while the
+    /// group-ready card would show, "Nothing yet" otherwise. Client-only, so it follows the card
+    /// leaving once someone joins.
+    static func emptyPreview(for conversation: Conversation) -> String {
+        isShown(conversation)
+            ? String(localized: "Invite people to get started", comment: "Chat list preview of a group the viewer is alone in and has not messaged")
+            : String(localized: "Nothing yet", comment: "Chat list preview of a chat with no messages")
     }
 }
 

@@ -14,19 +14,16 @@ import FlipcashCore
 /// card with a title, a line naming the group and a full-width Invite People button. Not a message,
 /// so it has no sender, receipt or reactions.
 ///
-/// When `isLeaving` arrives the card plays its pop (``Pop``) in place. The owner keeps the row in
-/// the transcript for that long and deletes it afterwards, so the plain `deleteItems` removes a
-/// card that is already gone.
+/// When `isLeaving` arrives the card fades out in place (``Fade``). The owner keeps the row in the
+/// transcript for that long and deletes it afterwards, so the delete removes a card that is already
+/// gone and the rows below slide up into its space on the batch update's spring.
 public final class ChatInviteCardCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatInviteCardCell"
 
-    /// The card's exit: grows to `peak`, then shrinks to nothing while fading out.
-    public enum Pop {
-        public static let peak: CGFloat = 1.08
-        public static let duration: TimeInterval = 0.28
-        /// Where in the duration the card is at its peak.
-        static let peakFraction: Double = 0.4
+    /// The card's exit: a fade, with no scale.
+    public enum Fade {
+        public static let duration: TimeInterval = 0.2
     }
 
     /// Who the card is from. No shared constant names the app as a sender, so this is the one place.
@@ -35,14 +32,14 @@ public final class ChatInviteCardCell: UICollectionViewCell {
     /// Called when the Invite People button is tapped.
     var onInvite: (() -> Void)?
 
-    /// Everything the pop scales: the sender's face and name travel with the bubble.
-    private let popHost = UIView()
+    /// Everything the fade covers: the sender's face and name travel with the bubble.
+    private let fadeHost = UIView()
     private let card = BubbleBackgroundView()
     private let senderName = UILabel()
     private let senderAvatar = ChatAuthorAvatarView()
     private let content: any UIView & UIContentView
     private var widthConstraint: NSLayoutConstraint!
-    private var isPopping = false
+    private var isFading = false
 
     public override init(frame: CGRect) {
         content = UIHostingConfiguration {
@@ -52,12 +49,12 @@ public final class ChatInviteCardCell: UICollectionViewCell {
         .makeContentView()
         super.init(frame: frame)
 
-        popHost.translatesAutoresizingMaskIntoConstraints = false
+        fadeHost.translatesAutoresizingMaskIntoConstraints = false
         card.translatesAutoresizingMaskIntoConstraints = false
         content.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(content)
-        contentView.addSubview(popHost)
-        popHost.addSubview(card)
+        contentView.addSubview(fadeHost)
+        fadeHost.addSubview(card)
 
         // The sender line is laid out as the transcript lays out an incoming group message: the
         // name 4pt above the bubble, the face in the leading gutter beside the bubble's top.
@@ -65,25 +62,25 @@ public final class ChatInviteCardCell: UICollectionViewCell {
         senderName.font = .default(size: 12, weight: .medium)
         senderName.textColor = UIColor(Color.textMain.opacity(0.5))
         senderName.text = Self.senderName
-        popHost.addSubview(senderName)
+        fadeHost.addSubview(senderName)
         senderAvatar.translatesAutoresizingMaskIntoConstraints = false
         senderAvatar.configureAsFlipcash()
-        popHost.addSubview(senderAvatar)
+        fadeHost.addSubview(senderAvatar)
         let bubbleLeading = ChatColumnCell.rowInset + ChatColumnCell.authorGutterWidth
 
         widthConstraint = card.widthAnchor.constraint(equalToConstant: ChatShareProfileCell.designedWidth)
         NSLayoutConstraint.activate([
             widthConstraint,
-            popHost.topAnchor.constraint(equalTo: contentView.topAnchor),
-            popHost.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            popHost.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            popHost.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            senderName.topAnchor.constraint(equalTo: popHost.topAnchor),
-            senderName.leadingAnchor.constraint(equalTo: popHost.leadingAnchor, constant: bubbleLeading),
+            fadeHost.topAnchor.constraint(equalTo: contentView.topAnchor),
+            fadeHost.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            fadeHost.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            fadeHost.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            senderName.topAnchor.constraint(equalTo: fadeHost.topAnchor),
+            senderName.leadingAnchor.constraint(equalTo: fadeHost.leadingAnchor, constant: bubbleLeading),
             card.topAnchor.constraint(equalTo: senderName.bottomAnchor, constant: 4),
-            card.bottomAnchor.constraint(equalTo: popHost.bottomAnchor),
-            card.leadingAnchor.constraint(equalTo: popHost.leadingAnchor, constant: bubbleLeading),
-            senderAvatar.leadingAnchor.constraint(equalTo: popHost.leadingAnchor, constant: ChatColumnCell.rowInset),
+            card.bottomAnchor.constraint(equalTo: fadeHost.bottomAnchor),
+            card.leadingAnchor.constraint(equalTo: fadeHost.leadingAnchor, constant: bubbleLeading),
+            senderAvatar.leadingAnchor.constraint(equalTo: fadeHost.leadingAnchor, constant: ChatColumnCell.rowInset),
             senderAvatar.topAnchor.constraint(equalTo: card.topAnchor),
             content.topAnchor.constraint(equalTo: card.topAnchor),
             content.bottomAnchor.constraint(equalTo: card.bottomAnchor),
@@ -102,7 +99,7 @@ public final class ChatInviteCardCell: UICollectionViewCell {
 
     public override func prepareForReuse() {
         super.prepareForReuse()
-        resetPop()
+        resetFade()
     }
 
     /// - Parameter maxWidth: the widest the card may be; the Share Profile widget's width caps it.
@@ -129,38 +126,27 @@ public final class ChatInviteCardCell: UICollectionViewCell {
         .margins(.all, 0)
 
         if isLeaving {
-            pop()
+            fadeOut()
         } else {
-            resetPop()
+            resetFade()
         }
     }
 
-    private func pop() {
-        guard !isPopping else { return }
-        isPopping = true
+    private func fadeOut() {
+        guard !isFading else { return }
+        isFading = true
         isUserInteractionEnabled = false
-        let reduceMotion = UIAccessibility.isReduceMotionEnabled
-        UIView.animateKeyframes(withDuration: Pop.duration, delay: 0, options: [.calculationModeLinear]) {
-            if !reduceMotion {
-                UIView.addKeyframe(withRelativeStartTime: 0, relativeDuration: Pop.peakFraction) {
-                    self.popHost.transform = CGAffineTransform(scaleX: Pop.peak, y: Pop.peak)
-                }
-            }
-            UIView.addKeyframe(withRelativeStartTime: reduceMotion ? 0 : Pop.peakFraction, relativeDuration: reduceMotion ? 1 : 1 - Pop.peakFraction) {
-                // Not exactly zero: a singular transform is dropped by Core Animation.
-                if !reduceMotion { self.popHost.transform = CGAffineTransform(scaleX: 0.001, y: 0.001) }
-                self.popHost.alpha = 0
-            }
+        UIView.animate(withDuration: Fade.duration, delay: 0, options: [.curveEaseOut]) {
+            self.fadeHost.alpha = 0
         }
     }
 
-    private func resetPop() {
-        guard isPopping else { return }
-        isPopping = false
+    private func resetFade() {
+        guard isFading else { return }
+        isFading = false
         isUserInteractionEnabled = true
-        popHost.layer.removeAllAnimations()
-        popHost.transform = .identity
-        popHost.alpha = 1
+        fadeHost.layer.removeAllAnimations()
+        fadeHost.alpha = 1
     }
 }
 

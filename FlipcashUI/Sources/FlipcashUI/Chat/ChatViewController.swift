@@ -547,7 +547,7 @@ public final class ChatViewController: UICollectionViewController {
         // `performBatchUpdates` inherits the enclosing animation's timing, which is the only way to
         // give ChatLayout's insertion a spring: the layout delegate below supplies the *starting*
         // state, this supplies the curve it travels on.
-        let spring = handoff == nil ? Self.batchSpring(for: changeset) : ChatMotion.fromTyping
+        let spring = handoff == nil ? Self.batchSpring(for: changeset, from: items) : ChatMotion.fromTyping
         spring.animate { [self] in
             collectionView.reload(
                 using: changeset,
@@ -668,7 +668,12 @@ public final class ChatViewController: UICollectionViewController {
     ///
     /// A reconfigure changes a row's height at most (a receipt moving, a status resolving, an
     /// edit), and the arrival spring's bounce would lurch the whole transcript for it.
-    static func batchSpring(for changeset: StagedChangeset<[ChatItem]>) -> ChatSpring {
+    ///
+    /// - Parameter old: the rows before the update. When the update only removes the group-ready
+    ///   card, the rows below slide into its space on `reflow`: an arrival's bounce would read as the
+    ///   conversation lurching rather than settling.
+    static func batchSpring(for changeset: StagedChangeset<[ChatItem]>, from old: [ChatItem] = []) -> ChatSpring {
+        if removesOnlyInviteCard(changeset, from: old) { return ChatMotion.reflow }
         let changesRows = changeset.contains { stage in
             !stage.elementInserted.isEmpty
                 || !stage.elementDeleted.isEmpty
@@ -676,6 +681,17 @@ public final class ChatViewController: UICollectionViewController {
                 || stage.sectionChangeCount > 0
         }
         return changesRows ? ChatMotion.insertion : ChatMotion.reflow
+    }
+
+    private static func removesOnlyInviteCard(_ changeset: StagedChangeset<[ChatItem]>, from old: [ChatItem]) -> Bool {
+        guard changeset.count == 1, let stage = changeset.first,
+              !stage.elementDeleted.isEmpty,
+              stage.elementInserted.isEmpty, stage.elementMoved.isEmpty, stage.sectionChangeCount == 0
+        else { return false }
+        return stage.elementDeleted.allSatisfy { path in
+            guard old.indices.contains(path.element), case .inviteCard = old[path.element] else { return false }
+            return true
+        }
     }
 
     // MARK: - Data source
