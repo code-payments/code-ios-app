@@ -62,7 +62,7 @@ final class GiveViewModel {
         self.selectedBalance  = resolved
 
         if let resolved, ratesController.selectedTokenMint != resolved.stored.mint {
-            ratesController.selectToken(resolved.stored.mint)
+            ratesController.selectToken(resolved.stored.mint, source: .automatic)
         }
     }
 
@@ -166,7 +166,7 @@ final class GiveViewModel {
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        ratesController.selectToken(exchangedBalance.stored.mint)
+        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
         enteredAmount = ""
     }
 

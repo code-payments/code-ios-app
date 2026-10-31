@@ -356,7 +356,7 @@ struct GiveViewModelTests {
                 quarks: 1_000_000_000_000
             ),
         ])
-        container.ratesController.selectToken(.jeffy)
+        container.ratesController.selectToken(.jeffy, source: .user)
 
         let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
 
@@ -407,7 +407,7 @@ struct GiveViewModelTests {
             staleHolding,
             displayableHolding,
         ])
-        container.ratesController.selectToken(.jeffy)
+        container.ratesController.selectToken(.jeffy, source: .user)
 
         let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
 
@@ -427,7 +427,7 @@ struct GiveViewModelTests {
                 quarks: 1_000_000_000_000
             ),
         ])
-        container.ratesController.selectToken(.usdcAuthority)
+        container.ratesController.selectToken(.usdcAuthority, source: .user)
 
         let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: .jeffy)
 
@@ -461,7 +461,7 @@ struct GiveViewModelTests {
                 quarks: 1_000_000_000_000
             ),
         ])
-        container.ratesController.selectToken(.usdf)
+        container.ratesController.selectToken(.usdf, source: .automatic)
 
         let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
 
@@ -482,7 +482,7 @@ struct GiveViewModelTests {
                 quarks: 10 * 10_000_000_000
             ),
         ])
-        container.ratesController.selectToken(.jeffy)
+        container.ratesController.selectToken(.jeffy, source: .user)
         let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
 
         let balance = try #require(viewModel.selectedBalance)

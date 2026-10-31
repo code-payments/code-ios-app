@@ -48,6 +48,17 @@ class RatesController {
             if let mint = selectedTokenMint {
                 LocalDefaults.storedTokenMint = mint.base58
             }
+            // Only `selectToken(_:source: .user)` vouches for a pick; any other write is automatic.
+            isSelectedTokenUserPicked = false
+        }
+    }
+
+    /// Whether ``selectedTokenMint`` came from the user picking a currency in a send flow, rather
+    /// than an automatic selection such as `Session.ensureValidTokenSelection` parking it on the
+    /// highest balance. Persisted alongside the mint.
+    private(set) var isSelectedTokenUserPicked: Bool = false {
+        didSet {
+            LocalDefaults.storedTokenMintUserPicked = isSelectedTokenUserPicked
         }
     }
 
@@ -97,7 +108,9 @@ class RatesController {
 
         balanceCurrency = LocalDefaults.balanceCurrency!
         DisplayCurrency.sharedSelection = balanceCurrency
+        let storedUserPicked = LocalDefaults.storedTokenMintUserPicked ?? false
         selectedTokenMint = loadSelectedToken()
+        isSelectedTokenUserPicked = storedUserPicked
 
         // Rehydrate last-known display rates from the database so screens
         // that read rateForBalanceCurrency render in the user's selected
@@ -352,10 +365,24 @@ class RatesController {
         return mint
     }
     
-    /// Select a new mint and persist it
-    /// - Parameter token: The token to save
-    func selectToken(_ mint: PublicKey) {
+    /// Who chose a token selection.
+    enum TokenSelectionSource {
+        /// The user picked the currency in a send flow.
+        case user
+        /// The app chose it: a fallback to the highest balance, or a flow syncing its resolved
+        /// balance back.
+        case automatic
+    }
+
+    /// Selects `mint` and persists it along with whether the user picked it.
+    func selectToken(_ mint: PublicKey, source: TokenSelectionSource) {
         selectedTokenMint = mint
+        switch source {
+        case .user:
+            isSelectedTokenUserPicked = true
+        case .automatic:
+            isSelectedTokenUserPicked = false
+        }
     }
     
     /// Check if a given mint is currently selected
@@ -365,15 +392,21 @@ class RatesController {
         selectedTokenMint == mint
     }
 
+    /// The balances a send or pay currency picker offers: the giveable ones, priced in the balance currency.
+    func paymentOptions(session: Session) -> [ExchangedBalance] {
+        session.balances(for: rateForBalanceCurrency()).giveable()
+    }
+
     /// The balance an amount-entry flow (Send, Give, Tip) should open with. An
     /// explicit `mint` wins; otherwise the current selection when it's giveable,
     /// else the highest-value giveable balance — the fallback covers a stale
     /// selection.
     ///
-    /// The auto-pick prefers a community currency and only lands on Dollars when
-    /// there's nothing else: `Session.ensureValidTokenSelection` parks the global
-    /// selection on the highest balance, which is routinely USDF, so treating it
-    /// as an intentional Dollars choice would open every flow in Dollars. Where
+    /// A Dollars selection is honored only when the user picked it. The auto-pick
+    /// prefers a community currency and only lands on Dollars when there's nothing
+    /// else: `Session.ensureValidTokenSelection` parks the global selection on the
+    /// highest balance, which is routinely USDF, so treating that as an intentional
+    /// Dollars choice would open every flow in Dollars. Where
     /// Dollars isn't giveable at all it can't be auto-picked either, so a
     /// Dollars-only account resolves to nothing.
     func resolveInitialBalance(mint: PublicKey?, session: Session) -> ExchangedBalance? {
@@ -383,9 +416,9 @@ class RatesController {
             return stored.exchanged(with: rate)
         }
 
-        let giveable = session.balances(for: rate).giveable()
+        let giveable = paymentOptions(session: session)
 
-        if let stored = selectedTokenMint, stored != .usdf,
+        if let stored = selectedTokenMint, stored != .usdf || isSelectedTokenUserPicked,
            let match = giveable.first(where: { $0.stored.mint == stored }) {
             return match
         }
@@ -396,6 +429,7 @@ class RatesController {
     /// Prepare for logout of current user
     func prepareForLogout() {
         selectedTokenMint = nil
+        isSelectedTokenUserPicked = false
         pendingMints.removeAll()
         stopStreaming()
         Task {
@@ -427,5 +461,8 @@ private enum LocalDefaults {
 
     @Defaults(.storedTokenMint)
     static var storedTokenMint: String?
+
+    @Defaults(.storedTokenMintUserPicked)
+    static var storedTokenMintUserPicked: Bool?
 }
 
