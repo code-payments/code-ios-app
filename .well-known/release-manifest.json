@@ -1,10 +1,10 @@
 {
-  "updated": "2026-10-31T17:52:16Z",
+  "updated": "2026-10-31T23:08:52Z",
   "production": {
     "version": "2026.10.4",
     "priority": 0
   },
   "testflight": {
-    "build": 599
+    "build": 600
   }
 }
