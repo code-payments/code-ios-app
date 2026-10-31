@@ -22,7 +22,7 @@ struct WalletTabRoutingTests {
 
         router.showWallet()
 
-        #expect(router.requestedTabStack == .balance)
+        #expect(router.requestedTab == .wallet)
         #expect(router.presentedSheet == nil)
         #expect(router[.balance].isEmpty)
     }
@@ -41,14 +41,14 @@ struct WalletTabRoutingTests {
     func showWallet_whileRequestPending_doesNotRefire() {
         let router = AppRouter()
         router.showWallet()
-        #expect(router.requestedTabStack == .balance)
+        #expect(router.requestedTab == .wallet)
 
         // What HomeTabView does on selecting the tab.
-        router.requestedTabStack = nil
+        router.requestedTab = nil
         router.activeTabStack = .balance
 
         router.showWallet()
-        #expect(router.requestedTabStack == nil, "arriving must not re-request the tab")
+        #expect(router.requestedTab == nil, "arriving must not re-request the tab")
     }
 
     @Test("a deposit grabbed from a pushed wallet screen returns to the wallet root")
@@ -60,7 +60,7 @@ struct WalletTabRoutingTests {
         router.showWallet()
 
         #expect(router[.balance].isEmpty)
-        #expect(router.requestedTabStack == .balance)
+        #expect(router.requestedTab == .wallet)
     }
 
     private static func path(_ destination: AppRouter.Destination) -> NavigationPath {
@@ -80,7 +80,7 @@ struct WalletTabRoutingTests {
         router.navigate(to: .currencyInfo(.usdc))
 
         #expect(router[.tips].isEmpty, "Search must not stay on the Chat stack")
-        #expect(router.requestedTabStack == .balance)
+        #expect(router.requestedTab == .wallet)
         #expect(router[.balance] == Self.path(.currencyInfo(.usdc)))
     }
 
@@ -92,7 +92,7 @@ struct WalletTabRoutingTests {
 
         router.navigate(to: .currencyInfo(.usdc))
 
-        #expect(router.requestedTabStack == .balance)
+        #expect(router.requestedTab == .wallet)
         #expect(router[.balance] == Self.path(.currencyInfo(.usdc)))
     }
 }

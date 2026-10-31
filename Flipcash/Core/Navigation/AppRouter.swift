@@ -89,10 +89,10 @@ final class AppRouter {
         requestedCardDismiss &+= 1
     }
 
-    /// A tab the router wants brought forward, named by the stack it owns.
-    /// `HomeTabView` selects it and clears this. Deep-link routing only; nothing
-    /// else drives tab selection.
-    var requestedTabStack: Stack?
+    /// A tab the router wants brought forward. `HomeTabView` selects it and
+    /// clears this. Deep-link routing only; nothing else drives tab selection.
+    /// Named by tab rather than stack so Scan, which owns no stack, can be asked for.
+    var requestedTab: HomeTab?
 
     /// The stack that `push`/`pop`-style calls target: the presented sheet's
     /// stack, or — when no sheet is up and a tab is the active surface — the
@@ -568,7 +568,7 @@ final class AppRouter {
             guard !alreadyThere else { return }
 
             while !presentedSheets.isEmpty { dismissSheet() }
-            requestedTabStack = targetStack
+            requestedTab = HomeTab(hosting: targetStack)
             setPath([destination], on: targetStack)
             logger.info("Routed to tab stack", metadata: [
                 "stack": "\(targetStack)",
@@ -613,6 +613,15 @@ final class AppRouter {
         presentedSheets.isEmpty && activeTabStack == destination.owningStack
     }
 
+    /// Brings `tab` forward at its root: dismisses presented sheets and clears the
+    /// tab's own stack. What a tab deep link does.
+    func showTab(_ tab: HomeTab) {
+        while !presentedSheets.isEmpty { dismissSheet() }
+        if let stack = tab.pushStack { setPath([], on: stack) }
+        requestedTab = tab
+        logger.info("Routed to tab", metadata: ["tab": "\(tab)"])
+    }
+
     /// Surfaces the wallet at its root — where a grabbed deposit lands after
     /// "Put in Wallet".
     ///
@@ -622,17 +631,17 @@ final class AppRouter {
     func showWallet() {
         dismissExpandedCard()
 
-        // `requestedTabStack` covers the gap before `HomeTabView` selects the
+        // `requestedTab` covers the gap before `HomeTabView` selects the
         // tab and publishes `activeTabStack` — until then the request is in
         // flight, not yet arrived.
         let alreadyThere = presentedSheets.isEmpty
                         && activeTabStack == .balance
                         && self[.balance].isEmpty
-        guard !alreadyThere, requestedTabStack != .balance else { return }
+        guard !alreadyThere, requestedTab != .wallet else { return }
 
         while !presentedSheets.isEmpty { dismissSheet() }
         setPath([], on: .balance)
-        requestedTabStack = .balance
+        requestedTab = .wallet
         logger.info("Routed to wallet", metadata: ["stack": "\(Stack.balance)"])
     }
 
@@ -645,17 +654,17 @@ final class AppRouter {
     /// frame until its camera tears down, so arriving is not allowed to re-fire
     /// the tab request.
     func showOwnTipCard() {
-        // `requestedTabStack` covers the gap before `HomeTabView` selects the tab
+        // `requestedTab` covers the gap before `HomeTabView` selects the tab
         // and publishes `activeTabStack` — until then the request is in flight,
         // not yet arrived.
         let alreadyThere = presentedSheets.isEmpty
                         && activeTabStack == .you
                         && self[.you].isEmpty
-        guard !alreadyThere, requestedTabStack != .you else { return }
+        guard !alreadyThere, requestedTab != .tipCard else { return }
 
         while !presentedSheets.isEmpty { dismissSheet() }
         setPath([], on: .you)
-        requestedTabStack = .you
+        requestedTab = .tipCard
         logger.info("Routed to own tip card", metadata: ["stack": "\(Stack.you)"])
     }
 }

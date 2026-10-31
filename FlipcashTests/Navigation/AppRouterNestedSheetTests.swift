@@ -252,7 +252,7 @@ struct AppRouterNestedSheetTests {
         router.navigate(to: .settingsApplicationLogs)
 
         #expect(router.presentedSheets.isEmpty, "the You tab hosts the settings list — there is no sheet")
-        #expect(router.requestedTabStack == .you)
+        #expect(router.requestedTab == .tipCard)
         #expect(router[.you] == AppRouter.navigationPath(.settingsApplicationLogs))
     }
 
@@ -265,7 +265,7 @@ struct AppRouterNestedSheetTests {
         router.navigate(to: .currencyInfo(Self.mintB))
 
         #expect(router.presentedSheets.isEmpty, "a tab stack is reached by bringing its tab forward")
-        #expect(router.requestedTabStack == .balance)
+        #expect(router.requestedTab == .wallet)
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(Self.mintB)))
     }
 
