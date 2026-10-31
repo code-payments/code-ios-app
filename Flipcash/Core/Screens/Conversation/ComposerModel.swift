@@ -49,7 +49,25 @@ final class ComposerModel {
     ///
     /// Cleared wherever the draft is replaced wholesale: its indices belong to the text it was
     /// taken from.
-    var selection: TextSelection?
+    var selection: TextSelection? {
+        didSet { selectionDraft = draft }
+    }
+
+    /// `selection` for the field to apply, or `nil` while `draft` differs from the text the
+    /// selection was taken against.
+    ///
+    /// iOS 18's SwiftUI traps converting a selection that lies past the end of the field's text
+    /// (Bugsnag 6ac83e3), and a selection can outlive its text: the field keeps it through a blur,
+    /// and a write to `draft` alone leaves it behind. Matched by content, not by checking the
+    /// indices, since the field hands back UTF-16 indices and comparing them against a native
+    /// string's gives wrong answers.
+    var fieldSelection: TextSelection? {
+        get { draft == selectionDraft ? selection : nil }
+        set { selection = newValue }
+    }
+
+    /// The draft as it was when `selection` was last written.
+    @ObservationIgnored private var selectionDraft = ""
 
     /// Photos staged for the next send, in the order they were added.
     private(set) var chips: [ComposerChip] = []
