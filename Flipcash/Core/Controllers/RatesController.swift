@@ -392,6 +392,11 @@ class RatesController {
         selectedTokenMint == mint
     }
 
+    /// The balances a send or pay currency picker offers: the giveable ones, priced in the balance currency.
+    func paymentOptions(session: Session) -> [ExchangedBalance] {
+        session.balances(for: rateForBalanceCurrency()).giveable()
+    }
+
     /// The balance an amount-entry flow (Send, Give, Tip) should open with. An
     /// explicit `mint` wins; otherwise the current selection when it's giveable,
     /// else the highest-value giveable balance — the fallback covers a stale
@@ -411,7 +416,7 @@ class RatesController {
             return stored.exchanged(with: rate)
         }
 
-        let giveable = session.balances(for: rate).giveable()
+        let giveable = paymentOptions(session: session)
 
         if let stored = selectedTokenMint, stored != .usdf || isSelectedTokenUserPicked,
            let match = giveable.first(where: { $0.stored.mint == stored }) {

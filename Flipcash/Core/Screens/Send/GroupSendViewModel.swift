@@ -86,7 +86,7 @@ final class GroupSendViewModel {
 
     /// The balances the currency picker offers.
     var paymentOptions: [ExchangedBalance] {
-        session.balances(for: ratesController.rateForBalanceCurrency()).giveable()
+        ratesController.paymentOptions(session: session)
     }
 
     /// Pays from `exchangedBalance` and makes it the wallet's selected token.

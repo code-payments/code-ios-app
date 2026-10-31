@@ -507,13 +507,17 @@ private struct PaymentRequestPaySheet: View {
             dismiss()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(
-                isPresented: $isShowingTokenSelection,
-                // The check follows the pill, which can differ from an automatically parked selection.
-                isSelected: { $0.stored.mint == payment.selectedBalance?.stored.mint }
-            ) { balance in
-                payment.selectCurrencyAction(exchangedBalance: balance)
-            }
+            let options = payment.paymentOptions
+            CurrencyPickerSheet(
+                options: options,
+                selectedMint: payment.selectedBalance?.stored.mint ?? .usdf,
+                onSelect: { mint in
+                    if let balance = options.first(where: { $0.stored.mint == mint }) {
+                        payment.selectCurrencyAction(exchangedBalance: balance)
+                    }
+                    isShowingTokenSelection = false
+                }
+            )
         }
     }
 
