@@ -1857,14 +1857,28 @@ class Session {
                 )
 
                 // Deposit the gift card
-                try await client.receiveCashLink(
-                    usdf: exchangedFiat.onChainAmount,
-                    ownerCluster: owner.use(
-                        mint: vmMint,
-                        timeAuthority: vmAuthority
-                    ),
-                    giftCard: giftCard
-                )
+                do {
+                    try await client.receiveCashLink(
+                        usdf: exchangedFiat.onChainAmount,
+                        ownerCluster: owner.use(
+                            mint: vmMint,
+                            timeAuthority: vmAuthority
+                        ),
+                        giftCard: giftCard
+                    )
+                } catch let error as ErrorSubmitIntent {
+                    // The losing claim of a simultaneous pair fails in the server's commit as
+                    // INTERNAL, not staleState. Route it to the already-claimed catch below.
+                    if await CashLinkClaimRace.lostClaim(
+                        error,
+                        giftCard: giftCardKeyPair,
+                        requestingOwner: ownerKeyPair,
+                        reader: client
+                    ) {
+                        throw ErrorSubmitIntent.staleState([], kinds: [.alreadyClaimed])
+                    }
+                    throw error
+                }
 
                 // Wait for verified state — the stream was subscribed
                 // above, so data should arrive during the blocking calls.
