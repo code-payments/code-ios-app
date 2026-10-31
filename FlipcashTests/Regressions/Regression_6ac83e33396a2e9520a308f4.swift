@@ -127,7 +127,7 @@ struct Regression_6ac83e33396a2e9520a308f4 {
         window.rootViewController = UIHostingController(rootView: Field(composer: composer))
         window.makeKeyAndVisible()
         try await settle(window)
-        let textView = try #require(textView(in: window))
+        let textView = try #require(Self.textView(in: window))
         textView.becomeFirstResponder()
         try await settle(window)
         return (window, textView)
