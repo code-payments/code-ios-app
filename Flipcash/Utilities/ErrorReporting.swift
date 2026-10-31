@@ -133,6 +133,7 @@ enum ErrorReporting {
     ///     and `NSLocalizedFailureReasonErrorKey` in the event's user info.
     ///   - id: An optional identifier appended to the grouping hash. Use this when a
     ///     single function contains multiple catch sites that should group separately.
+    ///     When omitted, the error's type and value are used instead.
     ///   - metadata: Key-value pairs attached to the Bugsnag event's user info for
     ///     debugging context (e.g. mint, amount, swap ID).
     ///   - userFacing: Pass `true` when this error was surfaced to the user as a hard
@@ -147,6 +148,19 @@ enum ErrorReporting {
         }
     }
     
+    /// The Bugsnag grouping hash for a capture. Line numbers are left out so groups
+    /// survive edits. Without an explicit `id`, the error's type and value are
+    /// appended so one catch-all site doesn't merge unrelated errors into one group.
+    /// Associated values split groups (`grpcStatus(13)` vs `grpcStatus(14)`),
+    /// matching the event title.
+    nonisolated static func groupingHash(fileName: String, function: String, id: String?, error: Swift.Error) -> String {
+        let base = "\(fileName):\(function)"
+        if let id {
+            return "\(base):\(id)"
+        }
+        return "\(base):\(type(of: error)).\(error)"
+    }
+
     private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, userFacing: Bool = false, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
         guard isEnabled else { return }
 
@@ -204,11 +218,7 @@ enum ErrorReporting {
 
             // Skip the line numbers to maintain grouping
             // even when files and line numbers change.
-            var hash = "\(fileName):\(function)"
-            if let id {
-                hash = "\(hash):\(id)"
-            }
-            event.groupingHash = hash
+            event.groupingHash = groupingHash(fileName: fileName, function: function, id: id, error: error)
 
             return true
         }
