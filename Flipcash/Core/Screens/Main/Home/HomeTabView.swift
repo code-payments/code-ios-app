@@ -123,7 +123,7 @@ struct HomeTabView: View {
                 // consume it here so it isn't dropped.
                 selectRequestedTab()
             }
-            .onChange(of: router.requestedTabStack) { _, _ in selectRequestedTab() }
+            .onChange(of: router.requestedTab) { _, _ in selectRequestedTab() }
             .onChange(of: selection) { _, tab in
                 router.activeTabStack = isSearchSelected ? nil : tab.pushStack
                 if tab == .chat { hasOpenedChat = true }
@@ -225,12 +225,10 @@ struct HomeTabView: View {
 
     /// Brings the tab the router asked for forward and clears the request.
     private func selectRequestedTab() {
-        guard let requested = router.requestedTabStack,
-              let tab = HomeTab.allCases.first(where: { $0.pushStack == requested })
-        else { return }
+        guard let tab = router.requestedTab else { return }
         selection = tab
         isSearchSelected = false
-        router.requestedTabStack = nil
+        router.requestedTab = nil
     }
 
     @ViewBuilder private var tabs: some View {
@@ -436,6 +434,12 @@ extension HomeTab {
     ///
     /// Must agree with `AppRouter.Stack.isTabHosted`, which is what the router
     /// routes on; `AppRouterCrossStackTests` pins the two together.
+    /// The tab that hosts `stack`, or nil for a stack no tab hosts.
+    init?(hosting stack: AppRouter.Stack) {
+        guard let tab = HomeTab.allCases.first(where: { $0.pushStack == stack }) else { return nil }
+        self = tab
+    }
+
     var pushStack: AppRouter.Stack? {
         switch self {
         case .wallet:  return .balance
