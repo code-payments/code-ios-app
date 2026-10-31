@@ -5,14 +5,14 @@
 
 import UIKit
 
-/// Runs `resign` and returns once the keyboard is out of sight. `keyboardDidHide` lands well after
-/// that, since the hide is a spring whose tail runs on unseen below the screen, so this waits on
-/// `keyboardWillHide` plus part of its animation instead. A hardware keyboard posts neither, so it
-/// gives up after `timeout`.
+/// Runs `resign` and returns once the keyboard has finished leaving, so nothing presented next
+/// rises while a keyboard is still on screen. It waits on `keyboardWillHide` plus its whole
+/// animation rather than `keyboardDidHide`, which lands later still. A hardware keyboard posts
+/// neither, so it gives up after `timeout`.
 @MainActor
 final class KeyboardHideWaiter {
-    /// The share of the hide animation after which the keyboard is visually gone.
-    private static let visibleShare = 0.6
+    /// The share of the hide animation to wait out: all of it, so no keyboard pixels remain.
+    private static let visibleShare = 1.0
 
     private var continuation: CheckedContinuation<Void, Never>?
     private var observer: NSObjectProtocol?
