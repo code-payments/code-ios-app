@@ -118,6 +118,11 @@ The `AllTargets` test plan already includes UI tests. Do NOT run UI tests separa
 
 **Any `AllTargets` failure → STOP.** This is the release gate.
 
+The gate is xcodebuild's exit status, not xcsift's summary. The
+plan retries a failing test up to three times, and xcsift's `status` and `failed_tests` count first
+attempts: a test listed under both `failed_tests` and `flaky_tests` passed on retry, and xcodebuild
+exits 0. Report those as flaky, not as a stop.
+
 ### 6a. Thread Sanitizer
 
 ```bash
