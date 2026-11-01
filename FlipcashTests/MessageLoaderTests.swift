@@ -81,8 +81,8 @@ struct MessageLoaderTests {
 
         // A message arrives while the reader is scrolled up. It lands through the controller, the way
         // a streamed message does — a bare database write would leave the window's cache unbumped.
-        controller.persist(operation: "apply-chat-events") {
-            try database.upsertConversationMessages([message(201)], conversationID: id)
+        controller.persistChanges(operation: "apply-chat-events") {
+            try database.persistMessages([message(201)], cursor: 0, conversationID: id)
         }
         let grown = loader.messages
         #expect(grown.first?.id.value == 101)   // the revealed history is intact
