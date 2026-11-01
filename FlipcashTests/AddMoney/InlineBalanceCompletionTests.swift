@@ -137,15 +137,17 @@ struct InlineBalanceCompletionTests {
     func processingTimeoutDeductsElapsed() async throws {
         let settling = try Self.settling(risesAfter: .max)
         let input = AddMoneyProcessingInput(
-            amount: Self.tenDollars, method: .phantom, depositRef: nil, elapsed: .milliseconds(9_950)
+            amount: Self.tenDollars, method: .phantom, depositRef: nil, elapsed: .milliseconds(119_950)
         )
-        let viewModel = AddMoneyProcessingViewModel(input: input, pollInterval: .milliseconds(1), timeout: .seconds(10))
+        // 50 ms left of a two-minute budget. The bound sits halfway, so a loaded runner's stalls (20 s
+        // under the Thread Sanitizer) don't read as the full budget being spent.
+        let viewModel = AddMoneyProcessingViewModel(input: input, pollInterval: .milliseconds(1), timeout: .seconds(120))
 
         let started = ContinuousClock.now
         await viewModel.run(settlement: settling, performSweep: { true })
 
         #expect(viewModel.displayState == .failed)
-        #expect(ContinuousClock.now - started < .seconds(5))
+        #expect(ContinuousClock.now - started < .seconds(60))
     }
 
     // MARK: - Card timing
