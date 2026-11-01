@@ -1,5 +1,35 @@
 What to test in this build
 
+New in this release:
+• Create invite links for your group, with usage limits from 1 to No limit, and open group invite links in the app.
+• Pin and unpin messages, and see pinned messages at the top of the chat.
+• Group hosts can restrict and remove members.
+• Edit a group's join and chat balance requirements from Edit Group.
+• Get an in-app alert when someone reacts to or boosts your message.
+• Ask a private group for money and pay your share, or send cash to picked members.
+• Enter a total on a payment request and split it between people.
+• Payment requests stay available offline.
+• Check your notification status from a new page in Settings.
+• Resume onboarding if the app closes partway through, or when you log back in.
+• Currency pages show the community leader and let you send, open community chats, and share to chats.
+• Tap a photo to show controls for reacting, replying, saving, and forwarding.
+• See when a message was sent by dragging it or from the message menu.
+• Every amount appears in your display currency.
+• Boosted payments are titled in your history and link to the boosted message.
+• Chat date separators appear after a one-hour pause.
+• The chat list loads and resumes more smoothly.
+• The home tab is named Wallet again.
+• Usernames can be up to 30 characters.
+• Fixed a crash on iOS 18 when editing an older draft.
+• A Cash Link claim that loses the race now shows as already collected.
+• Photo captions render like text messages.
+• The paid-reaction pill shows gold only when you reacted.
+• Jumping to a message now centers it on screen.
+• The keyboard closes before opening join requests.
+• Chat search starts fresh each time you open it.
+• The share extension can open private group keys.
+• The app recovers when a server connection reset leaves requests stuck.
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
