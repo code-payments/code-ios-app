@@ -1098,6 +1098,9 @@ struct ConversationControllerTests {
         // Prime the transcript's cached window at revision 0, the way the running app would have it
         // before backgrounding.
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1])
+        // The launch load can still be backfilling here; without the background hook the foreground
+        // would join it and never fetch the updated feed below.
+        controller.handleBackground()
 
         // While suspended, the notification extension wrote the pushed message straight into the
         // shared SQLite store with `cursor: 0` (deliberately not advancing the catch-up cursor - see

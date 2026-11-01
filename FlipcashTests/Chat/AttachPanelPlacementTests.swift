@@ -156,11 +156,14 @@ struct AttachPanelPlacementTests {
         await host.settle()
 
         // Inside the panel's rows, above the bar: before the fix the panel hung down from `+`'s top
-        // and nothing of the bar reached here.
+        // and nothing of the bar reached here. Polled, since the open animation can outlast `settle()`
+        // on a loaded machine.
         let point = host.pointAboveBar(by: 40)
         let transcript = host.renderedColor(at: CGPoint(x: point.x, y: 100), backdrop: .black)
-        let probe = host.renderedColor(at: point, backdrop: .black)
-        #expect(!probe.isClose(to: transcript), "Panel is not drawn above the bar")
+        try await waitUntil {
+            host.window.layoutIfNeeded()
+            return !host.renderedColor(at: point, backdrop: .black).isClose(to: transcript)
+        }
 
         // The screen lifts its clip for the panel, so taps there reach the bar rather than the transcript.
         let hit = try #require(host.window.hitTest(point, with: nil))
