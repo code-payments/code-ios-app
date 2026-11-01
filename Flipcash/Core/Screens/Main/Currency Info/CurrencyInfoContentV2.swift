@@ -353,6 +353,7 @@ struct CurrencyInfoContentV2: View {
         .buttonStyle(.plain)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
+        .accessibilityIdentifier("currency-tile-\(tile)")
     }
 
     @ViewBuilder private func tileIcon(_ icon: TileIcon) -> some View {

@@ -39,7 +39,7 @@ final class ConvertBetweenTokensRegressionTests: BaseUITestCase {
         wallet.selectFirstCurrency()
         currencyInfo.assertHeldTokenReached()
 
-        waitAndTap(currencyInfo.convertButton)
+        currencyInfo.tapConvert(from: self)
         convert.assertAmountStepReached()
 
         // Override the Dollars default with a token. The source is filtered out

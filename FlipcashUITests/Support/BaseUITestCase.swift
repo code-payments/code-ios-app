@@ -172,19 +172,17 @@ class BaseUITestCase: XCTestCase {
         )
     }
 
-    /// Navigates into the Give flow through a held currency's Give tile — the
-    /// tab-bar UI's only entry, now that the scanner's Cash button went with the
-    /// bottom bar. Returns an `AmountEntryScreen` ready for amount entry.
+    /// Navigates into the Give flow through a held currency's Send tile. Returns
+    /// an `AmountEntryScreen` ready for amount entry; after Next, call
+    /// `tapGiveAsCash()` to skip the recipient and show the bill.
     ///
-    /// Picks the first non-USDF card, so the flow runs on a community currency
-    /// the way the Cash button's default did. No balance retry: the Give tile is
-    /// only drawn for a currency the account holds, so there is no "No Balance
-    /// Yet" gate on this path — an unloaded balance shows up as a missing card,
-    /// which `selectFirstCurrency` already waits out.
+    /// Picks the first non-USDF card, so the flow runs on a community currency.
+    /// No balance retry: the Send tile is only drawn for a currency the account
+    /// holds, so an unloaded balance shows up as a missing card, which
+    /// `selectFirstCurrency` already waits out.
     ///
-    /// The keypad is pushed over the currency's info screen and pops itself as
-    /// the bill appears, so the flow ends up back on `CurrencyInfoScreen` rather
-    /// than on a tab root.
+    /// The bill leaves the send screens pushed; `backOutOfGiveToCurrencyInfo()`
+    /// returns to `CurrencyInfoScreen`.
     @discardableResult
     func navigateToGiveAmount() -> AmountEntryScreen {
         let wallet = WalletScreen(app: app)
@@ -194,14 +192,30 @@ class BaseUITestCase: XCTestCase {
         wallet.open(from: self)
         wallet.selectFirstCurrency()
         currencyInfo.assertHeldTokenReached(timeout: 30)
-        waitAndTap(currencyInfo.giveButton)
+        waitAndTap(currencyInfo.sendButton)
 
         XCTAssertTrue(
             amountEntry.keypadZero.waitForExistence(timeout: 30),
-            "Expected the give keypad after tapping the currency's Give tile"
+            "Expected the send keypad after tapping the currency's Send tile"
         )
 
         return amountEntry
+    }
+
+    /// Taps Or Give As Cash on Select Recipient, which turns the entered amount
+    /// into a bill instead of a send to a chat.
+    func tapGiveAsCash() {
+        waitAndTap(app.buttons["Or Give As Cash"], timeout: 30, "Expected Or Give As Cash on Select Recipient")
+    }
+
+    /// Backs out of Select Recipient and the keypad to the currency's info
+    /// screen. The bill leaves both pushed, so dismissing it reveals Select
+    /// Recipient rather than `CurrencyInfoScreen`.
+    func backOutOfGiveToCurrencyInfo() {
+        let currencyInfo = CurrencyInfoUIScreen(app: app)
+        for _ in 0..<2 where !currencyInfo.sendButton.waitForExistence(timeout: 3) {
+            waitAndTap(app.buttons["BackButton"].firstMatch, timeout: 10, "Expected Back while leaving the give flow")
+        }
     }
 
     /// Enters a display name on the onboarding name step — the mandatory step

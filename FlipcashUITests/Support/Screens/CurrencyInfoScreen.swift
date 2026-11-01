@@ -8,9 +8,10 @@ import XCTest
 /// Page object for `CurrencyInfoScreen`'s action tiles.
 ///
 /// The tab-bar UI renders `CurrencyInfoContentV2`, which gates the tiles on
-/// whether the account holds the currency: Give / Buy More / Convert when it
-/// does, a lone Buy In when it doesn't. Dollars keeps its own held row —
-/// Give / Convert / Withdraw — since it is the currency others are bought with.
+/// whether the account holds the currency: Send / Buy / Transactions / More
+/// when it does, a lone Buy In when it doesn't. Dollars drops Buy, since it is
+/// the currency others are bought with. Convert and Withdraw live in the More
+/// sheet.
 @MainActor
 struct CurrencyInfoUIScreen {
 
@@ -23,33 +24,33 @@ struct CurrencyInfoUIScreen {
     // MARK: - Elements
 
     /// Tiles shown for a currency the account holds.
-    var giveButton: XCUIElement { app.buttons["Cash"] }
-    var buyMoreButton: XCUIElement { app.buttons["Buy More"] }
-    var convertButton: XCUIElement { app.buttons["Convert"] }
+    var sendButton: XCUIElement { app.buttons["currency-tile-send"] }
+    var transactionsButton: XCUIElement { app.buttons["currency-tile-transactions"] }
+    var moreButton: XCUIElement { app.buttons["currency-tile-more"] }
 
-    /// Shown in place of Buy More on Dollars.
-    var withdrawButton: XCUIElement { app.buttons["Withdraw"] }
+    /// Shown for a held token; Dollars has no Buy tile.
+    var buyButton: XCUIElement { app.buttons["currency-tile-buy"] }
 
     /// The only tile shown for a currency the account doesn't hold.
-    var buyInButton: XCUIElement { app.buttons["Buy In"] }
+    var buyInButton: XCUIElement { app.buttons["currency-tile-buyIn"] }
+
+    /// Rows in the More sheet.
+    var convertRow: XCUIElement { app.buttons["currency-more-convert"] }
+    var withdrawRow: XCUIElement { app.buttons["currency-more-withdraw"] }
 
     /// The currency's scrolling content, the container the lower sections are
     /// scrolled in.
     var scrollView: XCUIElement { app.scrollViews.firstMatch }
 
-    /// Opens the per-token transaction history. In the tab-bar UI that is the
-    /// "Recent" section header (`RecentActivitySection.onShowAll`) — the rows
-    /// under it are a non-interactive preview, and the v1 "Transaction History"
-    /// button went with the old footer.
-    var recentActivityHeader: XCUIElement { app.buttons["Recent"] }
+    /// Opens the per-token transaction history from its Transactions tile.
+    func tapTransactions(from testCase: BaseUITestCase) {
+        testCase.waitAndTap(transactionsButton)
+    }
 
-    // MARK: - Actions
-
-    /// Scrolls the "Recent" header into view and taps it, opening the full
-    /// per-token history. It sits below the hero card and the action tiles, so
-    /// it starts off-screen.
-    func tapRecentActivityHeader(from testCase: BaseUITestCase) {
-        testCase.scrollUpToAndTap(recentActivityHeader, in: scrollView)
+    /// Opens the More sheet and picks Convert.
+    func tapConvert(from testCase: BaseUITestCase) {
+        testCase.waitAndTap(moreButton)
+        testCase.waitAndTap(convertRow, timeout: 10, "Expected Convert in the currency's More sheet")
     }
 
     // MARK: - Assertions
@@ -57,29 +58,32 @@ struct CurrencyInfoUIScreen {
     /// Asserts the page for a currency the account holds.
     func assertHeldCurrencyReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            convertButton.waitForExistence(timeout: timeout),
-            "Expected CurrencyInfoScreen for a held currency, with a Convert tile"
+            sendButton.waitForExistence(timeout: timeout),
+            "Expected CurrencyInfoScreen for a held currency, with a Send tile"
         )
     }
 
     /// Asserts the page for a held currency that is *not* Dollars.
     ///
-    /// Give and Convert are on both held layouts, so a test that only checks
-    /// those cannot tell a token's page from the Dollars page — which is how a
-    /// wallet tap that opened the wrong card used to pass. Buy More is the tile
-    /// only a token has.
+    /// Send is on both held layouts, so a test that only checks it cannot tell
+    /// a token's page from the Dollars page — which is how a wallet tap that
+    /// opened the wrong card used to pass. Buy is the tile only a token has.
     func assertHeldTokenReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            buyMoreButton.waitForExistence(timeout: timeout),
-            "Expected a held token's CurrencyInfoScreen, with a Buy More tile — Dollars shows Withdraw there"
+            buyButton.waitForExistence(timeout: timeout),
+            "Expected a held token's CurrencyInfoScreen, with a Buy tile — Dollars has none"
         )
     }
 
-    /// Asserts the Dollars page, which swaps Buy More for Withdraw.
+    /// Asserts the Dollars page, which has Send but no Buy tile.
     func assertDollarsReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            withdrawButton.waitForExistence(timeout: timeout),
-            "Expected the Dollars CurrencyInfoScreen, with a Withdraw tile — a token shows Buy More there"
+            sendButton.waitForExistence(timeout: timeout),
+            "Expected the Dollars CurrencyInfoScreen, with a Send tile"
+        )
+        XCTAssertFalse(
+            buyButton.exists,
+            "Expected the Dollars CurrencyInfoScreen — a token shows a Buy tile there"
         )
     }
 
