@@ -51,7 +51,9 @@ final class PinnedListSmokeTests: BaseUITestCase {
             ("avatar", CGVector(dx: -24, dy: frame.height - 12)),
             ("name", CGVector(dx: 8, dy: -8)),
             ("pinned line", CGVector(dx: 8, dy: frame.height + 10)),
-            ("empty row space", CGVector(dx: frame.width + 24, dy: frame.height / 2)),
+            // The pinned message is our own, so the row's empty width is left of the bubble; right
+            // of it there is only the 12pt row inset, and 24pt past the edge lands off the sheet.
+            ("empty row space", CGVector(dx: -frame.minX / 2, dy: frame.height / 2)),
         ]
         for (name, offset) in inert {
             origin.withOffset(offset).tap()

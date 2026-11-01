@@ -62,10 +62,13 @@ extension SessionContainer {
             try database.insertLimits(limits)
         }
 
+        // One history controller on this database, as production wires it. Each `HistoryController.mock`
+        // opens another SQLite file, and suites running in parallel exhaust the host's file descriptors.
         let ratesController = RatesController(container: .mock, database: database)
+        let historyController = HistoryController(container: .mock, database: database, owner: .mock)
         let session = Session(
             container: .mock,
-            historyController: .mock,
+            historyController: historyController,
             ratesController: ratesController,
             database: database,
             keyAccount: .mock,
@@ -83,7 +86,7 @@ extension SessionContainer {
             client: Container.mock.client,
             walletConnection: .mock,
             ratesController: ratesController,
-            historyController: .mock,
+            historyController: historyController,
             pushController: .mock,
             contactSyncController: ContactSyncController(client: Container.mock.flipClient, database: database, owner: .mock),
             flipClient: Container.mock.flipClient
