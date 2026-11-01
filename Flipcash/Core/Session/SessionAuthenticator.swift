@@ -168,6 +168,7 @@ final class SessionAuthenticator {
             logger.info("Resuming onboarding", metadata: ["owner": "\(account.keyAccount.ownerPublicKey)"])
             pendingOnboarding = account
             state = .loggedOut
+            Task { await checkForUnusableAccount() }
         }
     }
 
@@ -176,6 +177,7 @@ final class SessionAuthenticator {
     func beginOnboarding(with initializedAccount: InitializedAccount) {
         pendingOnboarding = initializedAccount
         state = .loggedOut
+        Task { await checkForUnusableAccount() }
     }
 
     private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (AccountDescription) -> Void) {
@@ -240,7 +242,7 @@ final class SessionAuthenticator {
     /// Polls server-driven state that gates app use. Fires immediately and
     /// then every 30s for the lifetime of the authenticator, covering both
     /// ``requiresUpgrade`` (always) and ``requiresForceLogout`` (once
-    /// logged in).
+    /// logged in or held in onboarding).
     private func startPolling() {
         poller = Poller(seconds: 30, fireImmediately: true) { [weak self] in
             await self?.fetchUnauthenticatedUserFlags()
@@ -259,13 +261,20 @@ final class SessionAuthenticator {
 
     /// Checks whether any of the user's primary accounts is in an unusable
     /// management state and, if so, latches ``requiresForceLogout`` to
-    /// `true`. No-op if not logged in or if already latched. Failures are
+    /// `true`. Covers an account held in onboarding as well as a logged-in
+    /// one. No-op if there is neither or if already latched. Failures are
     /// logged but leave the cached value unchanged so transient errors
     /// don't flip the user into the force-logout modal.
     private func checkForUnusableAccount() async {
-        guard case .loggedIn(let sessionContainer) = state else { return }
         guard !requiresForceLogout else { return }
-        let owner = sessionContainer.session.ownerKeyPair
+        let owner: KeyPair
+        if case .loggedIn(let sessionContainer) = state {
+            owner = sessionContainer.session.ownerKeyPair
+        } else if let pendingOnboarding {
+            owner = pendingOnboarding.owner.authority.keyPair
+        } else {
+            return
+        }
 
         do {
             let accounts = try await client.fetchPrimaryAccounts(owner: owner)
