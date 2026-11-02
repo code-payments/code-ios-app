@@ -11,7 +11,7 @@ import FlipcashUI
 
 private let logger = Logger(label: "flipcash.payment-request-create")
 
-/// A new request in a private group: the total amount, its name, who is asked and when it
+/// A new request in a private group: the amount per person, its name, who is asked and when it
 /// closes, then the create call and the widget that puts it in the chat.
 @MainActor
 @Observable
@@ -75,7 +75,7 @@ final class PaymentRequestCreateViewModel {
 
     // MARK: - Amount -
 
-    /// The total in the display currency, split between the selected people; nil at zero.
+    /// The amount each selected person is asked for, in the display currency; nil at zero.
     var amount: FiatAmount? {
         guard let value = amountValidator.validate(enteredAmount), value > 0 else { return nil }
         return FiatAmount(value: value, currency: ratesController.balanceCurrency)
@@ -123,15 +123,15 @@ final class PaymentRequestCreateViewModel {
     var hasValidPeople: Bool { people?.isValid ?? false }
     var canSend: Bool { shares != nil && hasValidPeople && !isSending }
 
-    /// The amount split between the selected people, or nil while it can't be split.
+    /// One share of the amount per selected person, or nil while there is no amount or nobody to ask.
     private var shares: [GroupPaymentRequest.Share]? {
-        guard let amount else { return nil }
-        return people?.shares(total: amount)
+        guard let amount, let people, people.isValid else { return nil }
+        return people.shares(perPerson: amount)
     }
 
     var sendButtonTitle: String {
         guard let amount else { return "Request" }
-        return people?.buttonTitle(total: amount) ?? "Request"
+        return people?.buttonTitle(perPerson: amount) ?? "Request"
     }
 
     // MARK: - Send -
@@ -144,7 +144,8 @@ final class PaymentRequestCreateViewModel {
     }
 
     func send(now: Date = .now) async -> Outcome {
-        guard let amount, let people, people.isValid, let shares = people.shares(total: amount) else { return .failed(Self.genericError) }
+        guard let amount, let people, people.isValid else { return .failed(Self.genericError) }
+        let shares = people.shares(perPerson: amount)
         prepareConfirm()
         guard let idempotencyKey else { return .failed(Self.genericError) }
         isSending = true
