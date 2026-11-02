@@ -70,17 +70,17 @@ private struct RecipientRowSelectCircle: View {
     let isSelected: Bool
 
     var body: some View {
-        if isSelected {
+        // One image whose symbol swaps, so a tap changes the circle in place. Two images in an
+        // if/else would each take the row's slide-in transition and the circle would slide.
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.system(size: 22))
             // A white check on the unread blue, the selection colour the design uses.
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 22))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(Color.textMain, Color.unreadIndicator)
-        } else {
-            Image(systemName: "circle")
-                .font(.system(size: 22))
-                .foregroundStyle(Color.textSecondary)
-        }
+            .symbolRenderingMode(isSelected ? .palette : .monochrome)
+            .foregroundStyle(
+                isSelected ? Color.textMain : Color.textSecondary,
+                Color.unreadIndicator
+            )
+            .contentTransition(.symbolEffect(.replace))
     }
 }
 
