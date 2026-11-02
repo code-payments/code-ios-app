@@ -36,7 +36,9 @@ struct ConversationQuoteAuthorTests {
     /// counterpart reads "Carol". `persisted` is written to the store before the coordinator opens.
     private func make(
         persisted: [ConversationMessage],
-        database: Database
+        database: Database,
+        type: ConversationType = .group,
+        known: [UserID: ConversationMember] = [:]
     ) async throws -> (ConversationController, ConversationLoadCoordinator) {
         let group = Conversation(
             id: .test(1),
@@ -48,11 +50,11 @@ struct ConversationQuoteAuthorTests {
             ],
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 100),
-            type: .group,
-            title: "Group"
+            type: type,
+            title: type == .group ? "Group" : nil
         )
         let mock = MockConversations()
-        mock.groupFeed = [group]
+        if type == .group { mock.groupFeed = [group] } else { mock.feed = [group] }
         let controller = ConversationController(
             fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
             contactNaming: MockDMContactNaming(),
@@ -62,12 +64,14 @@ struct ConversationQuoteAuthorTests {
         controller.start()
         try await waitUntil { mock.streamOpened && controller.conversation(withID: .test(1)) != nil }
         try database.upsertConversationMessages(persisted, conversationID: .test(1))
+        let directory = KnownAuthorDirectory(read: { known }, fetch: { _ in throw CancellationError() }, cache: { _, _ in })
+        await directory.reload()
 
         let coordinator = ConversationLoadCoordinator(
             conversationID: .test(1),
             controller: controller,
             session: .mock,
-            knownAuthors: KnownAuthorDirectory(read: { [:] }, fetch: { _ in throw CancellationError() }, cache: { _, _ in })
+            knownAuthors: directory
         )
         return (controller, coordinator)
     }
@@ -114,5 +118,37 @@ struct ConversationQuoteAuthorTests {
         let replyRow = try #require(rows.first { $0.quote != nil })
         #expect(!rows.contains { $0.author?.id == bob })
         #expect(replyRow.quote?.authorName == "Bob")
+    }
+
+    @Test("A group sender the roster omits is named from the known authors, not the counterpart")
+    func senderName_groupSenderOutsideRoster_usesKnownAuthors() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let moony = UUID()
+        let (_, coordinator) = try await make(
+            persisted: [],
+            database: database,
+            known: [moony: ConversationMember(userID: moony, displayName: "Moonyversal")]
+        )
+
+        #expect(coordinator.senderName(for: moony) == "Moonyversal")
+    }
+
+    @Test("A group sender nothing can name yet reads as nil, never as the counterpart")
+    func senderName_groupUnknownSender_isNil() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let (_, coordinator) = try await make(persisted: [], database: database)
+
+        #expect(coordinator.senderName(for: UUID()) == nil)
+    }
+
+    @Test("A DM names its other party as the counterpart")
+    func senderName_dm_usesCounterpart() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let (_, coordinator) = try await make(persisted: [], database: database, type: .contactDm)
+
+        #expect(coordinator.senderName(for: carol) == "Carol")
     }
 }

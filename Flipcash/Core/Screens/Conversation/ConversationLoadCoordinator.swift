@@ -132,6 +132,27 @@ final class ConversationLoadCoordinator {
         attributedMembers.first { $0.userID == senderID }.map(Self.attributionName(for:))
     }
 
+    /// The name to show for any user in this chat, whether or not they have a row in the loaded
+    /// window: the transcript's attribution, then the chat's roster, then the device's cache of
+    /// authors. A DM names its one other party. Nil while a group member nothing can name yet; that
+    /// starts their profile fetch, and the read of the directory's snapshot makes a calling view
+    /// redraw when it lands.
+    func senderName(for userID: UserID) -> String? {
+        if let name = attributedName(for: userID) { return name }
+        guard lastInputs?.namesAuthors ?? (controller.conversation(withID: conversationID)?.type == .group) else {
+            return counterpartName.isEmpty ? nil : counterpartName
+        }
+        let rostered = controller.conversation(withID: conversationID)?.members
+            .first { $0.userID == userID && !$0.displayName.isEmpty }
+        if let rostered { return Self.attributionName(for: rostered) }
+        if let known = knownAuthors.snapshot.membersByUserID[userID], !known.displayName.isEmpty {
+            return Self.attributionName(for: known)
+        }
+        let directory = knownAuthors
+        Task { await directory.resolve([userID]) }
+        return nil
+    }
+
     /// The name a sender's rows carry: their display name, else their handle, else the generic
     /// fallback. Accounts that onboarded before the name step have neither, and a blank here draws
     /// a row with no name above an avatar with no initials.
