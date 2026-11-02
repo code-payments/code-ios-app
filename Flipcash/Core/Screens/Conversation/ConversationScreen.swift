@@ -1287,6 +1287,8 @@ struct ConversationScreen: View {
         content
         .task(id: conversationID) {
             guard let conversationID else { return }
+            // Opening a chat is reading it, so a mark from the list goes, whatever the gate says.
+            conversationController.chatOpened(conversationID)
             // Ensure the conversation metadata is in the store before the title, tip styling, and Send
             // Cash target rely on it. The post-tip open (and any push/link that lands here before the
             // feed or stream has the freshly-created chat) would otherwise render the unresolved

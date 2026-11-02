@@ -28,6 +28,12 @@ struct TipConversationsScreen: View {
     /// The hidden chips' fade, set per frame by the scroll view. Only the chip row reads it, so a
     /// pull doesn't re-render the whole list every frame.
     @State private var chipFade = ChipFade()
+    /// Select mode, owned by the tab view so it can swap the tab bar for the action capsules. Where no
+    /// tab view provides one (the `.tips` sheet), the screen keeps its own.
+    @Environment(ChatSelection.self) private var sharedSelection: ChatSelection?
+    @State private var localSelection = ChatSelection()
+
+    private var selection: ChatSelection { sharedSelection ?? localSelection }
 
     /// The projection once per body pass: rows, chips, the Archived row and the badge agree.
     private var projection: ChatListProjection<ConversationID> {
@@ -90,17 +96,52 @@ struct TipConversationsScreen: View {
                             .listRowBackground(Color.clear)
                         }
                         ForEach(Array(conversations.enumerated()), id: \.element.id) { index, conversation in
-                            TipConversationRow(conversation: conversation) {
-                                router.push(.tipConversation(conversation.id))
+                            TipConversationRow(
+                                conversation: conversation,
+                                selection: isSelecting ? selection.selected.contains(conversation.id) : nil
+                            ) {
+                                if isSelecting {
+                                    selection.toggle(conversation.id)
+                                } else {
+                                    router.push(.tipConversation(conversation.id))
+                                }
                             }
                             // Separators divide rows from each other; the first
                             // row's leading one just draws a line under the bar.
                             .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
                             // Mute first: the first button is the outer, full-swipe action.
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                muteAction(for: conversation)
-                                archiveAction(for: conversation)
+                                if !isSelecting {
+                                    muteAction(for: conversation)
+                                    archiveAction(for: conversation)
+                                }
                             }
+                            .chatRowActions(
+                                for: conversation,
+                                in: .main,
+                                isEnabled: !isSelecting,
+                                onMute: { muteTarget = MuteTarget(ids: [conversation.id]) },
+                                onArchive: { archive([conversation.id]) }
+                            )
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: isSelecting)
+                    .safeAreaInset(edge: .bottom) {
+                        if isSelecting {
+                            ChatSelectionActions(
+                                selected: selectedIDs(in: conversations),
+                                onReadAll: confirmReadAll,
+                                onMute: { ids in
+                                    muteTarget = MuteTarget(ids: ids)
+                                    selection.end()
+                                },
+                                onArchive: { ids in
+                                    archive(ids)
+                                    selection.end()
+                                },
+                                onDone: selection.end
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
                     .listStyle(.plain)
@@ -127,24 +168,33 @@ struct TipConversationsScreen: View {
             }
         }
         .sheet(item: $muteTarget) { target in
-            MuteChatSheet(conversationID: target.id, isPresented: isPickingMuteDuration)
+            MuteChatSheet(conversationIDs: target.ids, isPresented: isPickingMuteDuration)
         }
-        .navigationTitle("Chat")
+        .navigationTitle(isSelecting ? "\(selection.selected.count) Selected" : "Chat")
         .toolbarTitleDisplayMode(.inline)
+        // An archived or left chat drops out of the picks, so no action reaches a chat no longer listed.
+        .onChange(of: conversationController.chatListProjection.main) { _, ids in
+            selection.retain(Set(ids))
+        }
+        // Select mode belongs to the visible list; leaving the screen leaves it.
+        .onDisappear { selection.end() }
         .toolbar {
-            if showsSearchButton {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        router.push(.chatSearch)
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                    }
-                    .accessibilityLabel("Search")
-                    .accessibilityIdentifier("chat-search-button")
+            if isSelecting {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done", action: selection.end)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .accessibilityIdentifier("chat-select-done")
                 }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                NewChatButton()
+            } else {
+                ToolbarItem(placement: .topBarLeading) {
+                    ChatListMoreMenu(
+                        canReadAll: conversationController.hasUnreadInChatList,
+                        onSelect: selection.begin,
+                        onReadAll: confirmReadAll
+                    )
+                }
+                toolbarTrailingItems
             }
         }
         // Search filters currencies by name over what Discover returned; fetched here so the
@@ -204,6 +254,45 @@ struct TipConversationsScreen: View {
         }
     }
 
+    private var isSelecting: Bool { selection.isActive }
+
+    @ToolbarContentBuilder private var toolbarTrailingItems: some ToolbarContent {
+        if showsSearchButton {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    router.push(.chatSearch)
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .accessibilityLabel("Search")
+                .accessibilityIdentifier("chat-search-button")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            NewChatButton()
+        }
+    }
+
+    /// The picks, in list order, limited to rows still listed.
+    private func selectedIDs(in conversations: [Conversation]) -> [ConversationID] {
+        conversations.map(\.id).filter(selection.selected.contains)
+    }
+
+    /// Archives `ids` with one toast whose Undo restores all of them.
+    private func archive(_ ids: [ConversationID]) {
+        guard !ids.isEmpty else { return }
+        conversationController.archive(ids)
+        toasts.show(.archivedChats(count: ids.count) { conversationController.unarchive(ids) })
+    }
+
+    /// Read All asks first: it sends read receipts to every unread chat.
+    private func confirmReadAll() {
+        sessionContainer.session.dialogItem = .markAllChatsRead {
+            conversationController.readAllChats()
+            selection.end()
+        }
+    }
+
     /// Group senders of the listed rows' last messages that nothing on the device can name yet.
     private var unnamedSenders: [UserID] {
         conversationController.unnamedLastMessageSenders(
@@ -218,7 +307,7 @@ struct TipConversationsScreen: View {
         let isMuted = conversation.isMuted(at: .now)
         let symbol: SystemSymbol = isMuted ? .bell : .bellSlash
         return Button {
-            muteTarget = MuteTarget(id: conversation.id)
+            muteTarget = MuteTarget(ids: [conversation.id])
         } label: {
             // A swipe action draws its label white whatever the style says, so the amber has to be
             // baked into the image.
@@ -234,8 +323,7 @@ struct TipConversationsScreen: View {
     /// partial swipe and a tap.
     private func archiveAction(for conversation: Conversation) -> some View {
         Button {
-            conversationController.archive(conversation.id)
-            toasts.show(.archivedChat { conversationController.unarchive(conversation.id) })
+            archive([conversation.id])
         } label: {
             // Swipe actions fill symbols by default; the shared design uses the outline.
             Image(systemName: "archivebox")
@@ -259,7 +347,8 @@ struct TipConversationsScreen: View {
 /// and `.sheet(item:)` keeps the item through the dismissal animation where an optional-backed
 /// `isPresented` would blank the sheet's content on the way out.
 private struct MuteTarget: Identifiable {
-    let id: ConversationID
+    let ids: [ConversationID]
+    var id: [ConversationID] { ids }
 }
 
 // MARK: - NewChatButton -
@@ -331,6 +420,8 @@ private struct NoChatsView: View {
 struct TipConversationRow: View {
 
     let conversation: Conversation
+    /// Select mode: nil outside it; otherwise whether the row is picked.
+    var selection: Bool? = nil
     let onTap: () -> Void
 
     @Environment(ConversationController.self) private var conversationController
@@ -361,7 +452,9 @@ struct TipConversationRow: View {
         let hasUnreadMessages = conversation.hasUnread(for: conversationController.selfUserID)
         let unreadMessageCount = hasUnreadMessages ? conversationController.unreadCount(for: conversation) : nil
         let subtitle = joinRequests.subtitle(preview: self.subtitle, hasUnreadMessages: hasUnreadMessages)
-        let hasUnread = hasUnreadMessages || joinRequests.count > 0
+        // Marked unread with nothing unread draws the no-count state; a known count still wins.
+        let isMarkedUnread = !hasUnreadMessages && conversationController.isMarkedUnread(conversation.id)
+        let hasUnread = hasUnreadMessages || joinRequests.count > 0 || isMarkedUnread
         let unreadCount = joinRequests.pillCount(hasUnreadMessages: hasUnreadMessages, unreadMessageCount: unreadMessageCount)
         // A pending request moves the row up, so the time shown is the one it sorts by.
         let timestamp = conversationController.chatListJoinRequests(for: conversation.id)
@@ -381,10 +474,11 @@ struct TipConversationRow: View {
             blurhash: avatarPicture?.thumbnailBlurhash,
             accessoryPlacement: .titleLine,
             mute: conversation.viewerState?.mute,
+            selection: selection,
             accessibilityLabel: accessibilityLabel(
                 title: title,
                 joinRequests: joinRequests.line,
-                hasUnreadMessages: hasUnreadMessages,
+                hasUnreadMessages: hasUnreadMessages || isMarkedUnread,
                 unreadMessageCount: unreadMessageCount,
                 isMuted: isMuted
             ),
@@ -394,7 +488,8 @@ struct TipConversationRow: View {
                 timestamp: timestamp,
                 isUnknown: false,
                 hasUnread: hasUnread,
-                unreadCount: unreadCount
+                unreadCount: unreadCount,
+                showsChevron: selection == nil
             )
         }
         .accessibilityIdentifier(chatTypeIdentifier)

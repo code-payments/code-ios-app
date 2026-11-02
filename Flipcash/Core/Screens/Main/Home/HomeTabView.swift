@@ -36,6 +36,8 @@ struct HomeTabView: View {
     /// The You tab's icon, once the profile has a picture. Owned here rather
     /// than by either bar, because both bars want the same download.
     @State private var profilePhoto = TabBarProfilePhoto()
+    /// The Chats list's select mode. Held here because its capsules take the tab bar's place.
+    @State private var chatSelection = ChatSelection()
 
     init() {
         _selection = State(initialValue: HomeTab.initial)
@@ -98,6 +100,7 @@ struct HomeTabView: View {
 
     private var isTabBarHidden: Bool {
         if isSearchSelected { return sessionContainer.session.isShowingBill }
+        if selection == .chat, chatSelection.isActive { return true }
         return selection.hidesTabBar(
             isWalletCardExpanded: cardExpansion.isExpanded,
             isShowingBill: sessionContainer.session.isShowingBill,
@@ -412,6 +415,7 @@ struct HomeTabView: View {
             // would discard.
             if selection == .chat || hasOpenedChat {
                 ChatTab()
+                    .environment(chatSelection)
             } else {
                 Color.backgroundMain
             }
