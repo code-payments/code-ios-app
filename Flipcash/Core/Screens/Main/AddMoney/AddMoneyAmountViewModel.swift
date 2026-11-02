@@ -122,6 +122,7 @@ final class AddMoneyAmountViewModel {
         verificationCoordinator: VerificationCoordinator,
         onProceed: @escaping (AddMoneyProcessingInput) -> Void
     ) {
+        Analytics.buttonTapped(name: .buyWithCoinbase)
         Analytics.addMoneyAmountConfirmed(method: .coinbase, exchangedFiat: amount)
         verificationCoordinator.runGated(
             for: session,
@@ -172,6 +173,7 @@ final class AddMoneyAmountViewModel {
         dismiss: @escaping () -> Void,
         onProceed: @escaping (AddMoneyProcessingInput) -> Void
     ) {
+        Analytics.buttonTapped(name: .buyWithPhantom)
         Analytics.addMoneyAmountConfirmed(method: .phantom, exchangedFiat: amount)
         let operation = PhantomDepositOperation(walletConnection: walletConnection)
         depositTask = Task { [weak self, operation] in

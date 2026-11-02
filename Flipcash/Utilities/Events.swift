@@ -21,6 +21,8 @@ extension Analytics {
         case skipPush
         case buyWithReserves
         case buyWithCurrency
+        case buyWithCoinbase
+        case buyWithPhantom
         case give
         case shareTokenInfo
     }
@@ -36,6 +38,7 @@ extension Analytics {
 
     /// An onramp verification screen, sent as `Onramp: Show <step>`.
     enum OnrampStep {
+        case showInfo
         case enterPhone
         case confirmPhone
         case enterEmail
@@ -44,6 +47,7 @@ extension Analytics {
         /// The shared contract's step for this screen.
         var shared: SharedCoreKit.OnrampStep {
             switch self {
+            case .showInfo:     .showInfo
             case .enterPhone:   .enterPhone
             case .confirmPhone: .confirmPhone
             case .enterEmail:   .enterEmail
@@ -158,6 +162,8 @@ extension Analytics {
         case .buyWithReserves: track(ButtonEvents.shared.tapped(button: .buyWithReserves))
         case .shareTokenInfo:  track(ButtonEvents.shared.tapped(button: .shareTokenInfo))
         case .buyWithCurrency: track(ButtonEvents.shared.tapped(button: .buyWithCurrency))
+        case .buyWithCoinbase: track(ButtonEvents.shared.tapped(button: .buyWithCoinbase))
+        case .buyWithPhantom:  track(ButtonEvents.shared.tapped(button: .buyWithPhantom))
         case .give:            track(ButtonEvents.shared.tapped(button: .give))
         }
     }
@@ -968,6 +974,16 @@ extension Analytics {
         track(event: method, properties: properties, error: error)
     }
 
+    /// A buy submitted, sent as `Token Purchase With {method}`. `mint` is the token bought and
+    /// `amount` the net purchase in the user's currency, as Android sends it. `error` is nil
+    /// when the submit succeeded.
+    static func tokenPurchase(method: SharedCoreKit.PurchaseMethod, mint: PublicKey, amount: FiatAmount, error: Error?) {
+        track(
+            SwapEvents.shared.purchase(method: method, mint: mint.base58, amount: amount.analyticsAmount, error: nil),
+            error: error
+        )
+    }
+
     static func tokenSell(exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
         let properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
@@ -1018,6 +1034,12 @@ extension Analytics {
         }
 
         track(event: DeeplinkEvent.parse, properties: properties)
+    }
+
+    /// A scanned QR code that isn't a Flipcash link, as Android's scanner reports it. Query and
+    /// fragment are stripped, so no token or key in them reaches analytics.
+    static func deeplinkParseFailed(url: URL) {
+        track(DeeplinkEvents.shared.parseFailed(url: url.sanitizedForAnalytics))
     }
 
     static func deeplinkRouted(kind: DeepLinkAction.Kind, error: Error? = nil) {
