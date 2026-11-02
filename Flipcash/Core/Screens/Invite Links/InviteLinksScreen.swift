@@ -47,7 +47,7 @@ struct InviteLinksScreen: View {
         .navigationTitle("Invite Links")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: conversationID) {
-            let links = links ?? GroupInviteLinks(conversationID: conversationID, service: sessionContainer.inviteLinks)
+            let links = links ?? sessionContainer.groupInviteLinks.links(for: conversationID)
             self.links = links
             do {
                 try await links.load()

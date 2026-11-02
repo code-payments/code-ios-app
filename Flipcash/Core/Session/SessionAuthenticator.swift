@@ -708,6 +708,8 @@ final class SessionContainer {
 
     /// Reads, makes and revokes a hosted private group's invite links, for ``GroupInviteLinks``.
     let inviteLinks: GroupInviteLinks.Service
+    /// The one ``GroupInviteLinks`` per hosted group, shared by the create flow, the group-ready card and Manage Invites.
+    let groupInviteLinks: GroupInviteLinksRegistry
     /// Which hosted groups' link cards show the plain link (Approve New Members), on this device.
     let approveNewMembers: ApproveNewMembers
     let inviteLanding: GroupInviteLanding
@@ -1025,6 +1027,7 @@ final class SessionContainer {
                 inviteSealer.newSecret()
             }
         )
+        self.groupInviteLinks = GroupInviteLinksRegistry(service: self.inviteLinks)
         self.paymentRequests = PaymentRequests(
             getChatPage: { [flipClient, owner = session.ownerKeyPair] conversationID, section, pageSize in
                 try await flipClient.getChatPaymentRequestsPage(

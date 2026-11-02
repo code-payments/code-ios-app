@@ -130,6 +130,8 @@ final class GroupInviteLinks {
     @ObservationIgnored private var pendingSecret: Data?
     /// The load in flight, which a second caller joins.
     @ObservationIgnored private var loading: Task<Void, Error>?
+    /// The current-link create in flight, which a second caller joins.
+    @ObservationIgnored private var creatingCurrent: Task<Entry, Error>?
     @ObservationIgnored private let service: Service
     @ObservationIgnored private let now: () -> Date
 
@@ -206,8 +208,10 @@ final class GroupInviteLinks {
 
     // MARK: - Current link -
 
-    /// The current link, making one (7 days, no use limit) when there is no active one. A first
-    /// load runs here if the sheet's own load hasn't finished or failed.
+    /// The current link, making one (never expires, no use limit) when there is no active one. A
+    /// first load runs here if the sheet's own load hasn't finished or failed.
+    ///
+    /// A call while the first link is being made waits for that request rather than making a second.
     func currentLink() async throws -> URL {
         if loadState != .loaded {
             try await load()
@@ -215,15 +219,34 @@ final class GroupInviteLinks {
         if let url = current?.url {
             return url
         }
-        let entry: Entry
-        do {
-            entry = try await create(expiry: .sevenDays, limit: .unlimited)
-        } catch is CreatedUnusable {
-            // Only a retry can come back non-ACTIVE; that secret is spent, so start over once.
-            entry = try await create(expiry: .sevenDays, limit: .unlimited)
-        }
+        let entry = try await makeCurrent()
         guard let url = entry.url else { throw CreatedUnusable() }
         return url
+    }
+
+    /// Makes the group's first link as soon as the group exists, without reading the list first.
+    /// Joins a request already in flight.
+    @discardableResult
+    func createFirstLink() async throws -> Entry {
+        try await makeCurrent()
+    }
+
+    /// The request that makes the current link, shared by everyone who asks while it runs.
+    private func makeCurrent() async throws -> Entry {
+        if let creatingCurrent {
+            return try await creatingCurrent.value
+        }
+        let task = Task { [self] in
+            do {
+                return try await create(expiry: .never, limit: .unlimited)
+            } catch is CreatedUnusable {
+                // Only a retry can come back non-ACTIVE; that secret is spent, so start over once.
+                return try await create(expiry: .never, limit: .unlimited)
+            }
+        }
+        creatingCurrent = task
+        defer { creatingCurrent = nil }
+        return try await task.value
     }
 
     // MARK: - Create -
