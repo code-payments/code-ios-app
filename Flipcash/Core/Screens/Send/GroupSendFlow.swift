@@ -245,12 +245,6 @@ private struct GroupSendConfirmSheet: View {
         }
     }
 
-    /// The large line: the amount each person gets, "$1.00 Each" for two or more.
-    private var eachTitle: String {
-        let each = viewModel.enteredAmountEach?.formatted() ?? ""
-        return viewModel.selection.count > 1 ? "\(each) Each" : each
-    }
-
     var body: some View {
         PartialSheet(background: .clear) {
             VStack(spacing: 25) {
@@ -262,13 +256,13 @@ private struct GroupSendConfirmSheet: View {
                         .lineLimit(1)
                 }
                 VStack(spacing: 8) {
-                    Text(eachTitle)
+                    Text(viewModel.eachLabel ?? "")
                         .font(.appDisplayLarge)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
-                    if viewModel.selection.count > 1, let total = viewModel.enteredTotal {
-                        Text(total.formatted())
+                    if let total = viewModel.totalLabel {
+                        Text(total)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
                     }
