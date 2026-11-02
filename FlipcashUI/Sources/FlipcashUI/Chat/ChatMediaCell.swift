@@ -406,6 +406,9 @@ public final class ChatMediaCell: ChatColumnCell {
         let isSameRow = drawnRowID == rowID
         drawnRowID = rowID
         if !isSameRow { showUnavailable(false) }
+        // The upload is flattened onto white (`ChatMediaEncoder.render`); a local image keeps its
+        // alpha, so it needs the same white under it to match what everyone else sees.
+        imageView.backgroundColor = localImage == nil ? nil : .white
 
         if let localImage {
             imageView.kf.cancelDownloadTask()

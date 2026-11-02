@@ -50,6 +50,27 @@ struct ChatMediaCellTests {
         ChatMessage(id: id, content: .media(media()), sender: .me, receipt: receipt)
     }
 
+    // MARK: - Local image -
+
+    @Test("A staged image draws over white, so its transparency matches the flattened upload")
+    func localImageDrawsOverWhite() {
+        let cell = configuredCell(media(), localImage: UIImage(systemName: "photo"))
+        #expect(cell.imageView.backgroundColor == .white)
+    }
+
+    @Test("A downloaded photo draws over nothing, so its BlurHash shows while it loads")
+    func remoteImageDrawsOverNothing() {
+        let cell = configuredCell(media(), localImage: UIImage(systemName: "photo"))
+        cell.prepareForReuse()
+        cell.configure(
+            with: ChatMessage(id: "2", content: .media(media()), sender: .other, canReact: true),
+            maxWidth: 240,
+            localImage: nil,
+            remote: ChatMediaLocation(url: Self.remoteURL)
+        )
+        #expect(cell.imageView.backgroundColor == nil)
+    }
+
     // MARK: - Send progress -
 
     @Test("A row with no send progress draws no overlay")
