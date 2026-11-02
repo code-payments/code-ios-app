@@ -243,7 +243,7 @@ struct MemberSheet: View {
                 ChatActionRow(
                     icon: .system(.clock),
                     title: "Restrict",
-                    tint: .textError,
+                    tint: .warning,
                     accessibilityIdentifier: "member-sheet-restrict"
                 ) {
                     close(with: .restrict(moderationTarget))
