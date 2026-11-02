@@ -353,7 +353,7 @@ private struct PaymentRequestAmountScreen: View {
             .padding(20)
         }
         .ignoresSafeArea(.keyboard)
-        .navigationTitle("Total Amount")
+        .navigationTitle("Amount Per Person")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -375,11 +375,11 @@ private struct PaymentRequestSummaryScreen: View {
             VStack(alignment: .leading, spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(viewModel.amount?.formattedDroppingZeroFraction() ?? "")
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
-                            Text("Total")
+                            Text("each")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                         }

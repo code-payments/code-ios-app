@@ -134,46 +134,21 @@ struct PaymentRequestPeople: Hashable, Sendable {
         return includesCreator ? [creator] + others : others
     }
 
-    /// `total` split between the selected members in ``orderedSelection`` order, or nil when the
-    /// total is less than one smallest unit per member, or nobody is selected.
-    func shareAmounts(total: FiatAmount) -> [FiatAmount]? {
-        let digits = total.currency.maximumFractionDigits
-        let scale = pow(Decimal(10), digits)
-        let units = Self.splitUnits(
-            total: Int(truncating: (total.value * scale) as NSDecimalNumber),
-            count: orderedSelection.count,
-            creatorIndex: includesCreator ? 0 : nil
-        )
-        return units?.map { FiatAmount(value: Decimal($0) / scale, currency: total.currency) }
+    /// One unpaid share of `perPerson` for each selected member, in ``orderedSelection`` order.
+    func shares(perPerson: FiatAmount) -> [GroupPaymentRequest.Share] {
+        orderedSelection.map { GroupPaymentRequest.Share(userID: $0, nativeAmount: perPerson.doubleValue) }
     }
 
-    /// One unpaid share per selected member, together making up `total`, or nil when the total
-    /// can't be split (see ``shareAmounts(total:)``).
-    func shares(total: FiatAmount) -> [GroupPaymentRequest.Share]? {
-        shareAmounts(total: total).map { amounts in
-            zip(orderedSelection, amounts).map { GroupPaymentRequest.Share(userID: $0, nativeAmount: $1.doubleValue) }
-        }
+    /// `perPerson` times the number of shares, or nil when nobody is selected.
+    func total(perPerson: FiatAmount) -> FiatAmount? {
+        let count = orderedSelection.count
+        guard count > 0 else { return nil }
+        return FiatAmount(value: perPerson.value * Decimal(count), currency: perPerson.currency)
     }
 
-    /// "Request $20 Each" when `total` splits evenly, "Request ~$33.33 Each" (the smallest share)
-    /// when it doesn't; nil when the total can't be split.
-    func buttonTitle(total: FiatAmount) -> String? {
-        guard let amounts = shareAmounts(total: total), let smallest = amounts.min() else { return nil }
-        let share = smallest.formattedDroppingZeroFraction()
-        return amounts.max() == smallest ? "Request \(share) Each" : "Request ~\(share) Each"
-    }
-
-    /// Splits `total` smallest units into `count` shares: each gets the total divided by the count,
-    /// rounded down, and the remainder goes one unit each to the first shares that aren't the
-    /// creator's. Nil when any share would be zero.
-    static func splitUnits(total: Int, count: Int, creatorIndex: Int?) -> [Int]? {
-        guard count > 0, total >= count else { return nil }
-        var shares = Array(repeating: total / count, count: count)
-        let remainderOrder = shares.indices.filter { $0 != creatorIndex } + [creatorIndex].compactMap { $0 }
-        for index in remainderOrder.prefix(total % count) {
-            shares[index] += 1
-        }
-        return shares
+    /// "Request $520 Total", or nil when nobody is selected.
+    func buttonTitle(perPerson: FiatAmount) -> String? {
+        total(perPerson: perPerson).map { "Request \($0.formattedDroppingZeroFraction()) Total" }
     }
 
     private static func people(_ count: Int) -> String {
