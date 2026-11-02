@@ -285,6 +285,65 @@ struct UsdcSweepOperationTests {
         #expect(await fetcher.callCount == 2)
         #expect(await swapper.callCount == 1)
     }
+
+    // MARK: - Add Money timer moments
+
+    @Test("A retrying sweep marks USDC seen and swapped once the payment has completed")
+    func retryingSweepMarks() async {
+        let clock = ManualInstantClock()
+        let timer = AddMoneyTimer(now: clock.now)
+        timer.start()
+        timer.mark(.paymentCompleted)
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+        await fetcher.setImmediateHandler { try AccountInfo(.usdcAtaInfo(quarks: 10_000)) }
+        let sweep = UsdcSweepOperation(
+            accountFetcher: fetcher, swapper: swapper, ownerKeyPair: .mock, timer: timer, onSweepCompleted: {}
+        )
+
+        _ = await sweep.sweepUntilConverted(maxAttempts: 1, backoff: .zero)
+
+        let phases = timer.finish()
+        #expect(phases?.deposit == 0)
+        #expect(phases?.swap == 0)
+    }
+
+    @Test("The session's single-shot sweep marks the same moments")
+    func singleShotSweepMarks() async {
+        let clock = ManualInstantClock()
+        let timer = AddMoneyTimer(now: clock.now)
+        timer.start()
+        timer.mark(.paymentCompleted)
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+        await fetcher.setImmediateHandler { try AccountInfo(.usdcAtaInfo(quarks: 10_000)) }
+        let sweep = UsdcSweepOperation(
+            accountFetcher: fetcher, swapper: swapper, ownerKeyPair: .mock, timer: timer, onSweepCompleted: {}
+        )
+
+        await sweep.start().value
+
+        let phases = timer.finish()
+        #expect(phases?.deposit == 0)
+        #expect(phases?.swap == 0)
+    }
+
+    @Test("A sweep with no balance marks nothing")
+    func emptySweepMarksNothing() async {
+        let clock = ManualInstantClock()
+        let timer = AddMoneyTimer(now: clock.now)
+        timer.start()
+        timer.mark(.paymentCompleted)
+        let fetcher = MockAccountFetcher()
+        await fetcher.setImmediateHandler { try AccountInfo(.usdcAtaInfo(quarks: 0)) }
+        let sweep = UsdcSweepOperation(
+            accountFetcher: fetcher, swapper: MockSwapper(), ownerKeyPair: .mock, timer: timer, onSweepCompleted: {}
+        )
+
+        await sweep.start().value
+
+        #expect(timer.finish()?.deposit == nil)
+    }
 }
 
 // MARK: - Mocks

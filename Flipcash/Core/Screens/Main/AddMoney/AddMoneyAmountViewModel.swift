@@ -129,7 +129,10 @@ final class AddMoneyAmountViewModel {
             bind: { [weak self] vm in self?.verificationViewModel = vm }
         ) { [weak self] in
             guard let self else { return }
-            let operation = CoinbaseDepositOperation(coinbaseService: coinbaseService, session: session)
+            // Starts here, not at confirm: a verification detour restarts the clocks.
+            let timer = session.addMoneyTimer
+            timer.start()
+            let operation = CoinbaseDepositOperation(coinbaseService: coinbaseService, session: session, timer: timer)
             depositTask = Task { [weak self, operation] in
                 self?.actionButtonState = .loading
                 defer { self?.actionButtonState = .normal }
@@ -150,7 +153,8 @@ final class AddMoneyAmountViewModel {
                         method: .coinbase,
                         exchangedFiat: amount,
                         successful: false,
-                        error: DepositError.externalRejected(title: title, subtitle: subtitle)
+                        error: DepositError.externalRejected(title: title, subtitle: subtitle),
+                        phases: timer.finish(for: .coinbase)
                     )
                     self?.dialogItem = .error(title: title, subtitle: subtitle)
                 } catch {
@@ -160,7 +164,13 @@ final class AddMoneyAmountViewModel {
                         "orderId": "\(operation.orderId ?? "nil")",
                     ])
                     ErrorReporting.captureError(error)
-                    Analytics.addMoney(method: .coinbase, exchangedFiat: amount, successful: false, error: error)
+                    Analytics.addMoney(
+                        method: .coinbase,
+                        exchangedFiat: amount,
+                        successful: false,
+                        error: error,
+                        phases: timer.finish(for: .coinbase)
+                    )
                     self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                 }
             }

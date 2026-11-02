@@ -30,16 +30,19 @@ final class CoinbaseDepositOperation {
     @ObservationIgnored private let coinbaseService: CoinbaseService
     @ObservationIgnored private let session: any (AccountProviding & ProfileProviding)
     @ObservationIgnored private let idleTimer: ApplePayIdleTimer
+    @ObservationIgnored private let timer: AddMoneyTimer
 
     @ObservationIgnored private var runTask: Task<Void, Error>?
 
     init(
         coinbaseService: CoinbaseService,
         session: any (AccountProviding & ProfileProviding),
+        timer: AddMoneyTimer = AddMoneyTimer(),
         applePayIdleTimeout: Duration = .seconds(60)
     ) {
         self.coinbaseService = coinbaseService
         self.session = session
+        self.timer = timer
         self.idleTimer = ApplePayIdleTimer(timeout: applePayIdleTimeout)
     }
 
@@ -85,6 +88,7 @@ final class CoinbaseDepositOperation {
             throw error
         }
         orderId = order.id
+        timer.mark(.orderPlaced)
         Self.trackPurchase(amount, error: nil)
         Analytics.addMoneyPaymentInvoked(method: .coinbase, exchangedFiat: amount)
 
@@ -194,6 +198,7 @@ final class CoinbaseDepositOperation {
             try Task.checkCancellation()
             switch event.event {
             case .pollingSuccess:
+                timer.mark(.paymentCompleted)
                 logger.info("Apple Pay onramp completed", metadata: [
                     "orderId": "\(orderId)",
                 ])
@@ -229,7 +234,15 @@ final class CoinbaseDepositOperation {
                     self?.runTask?.cancel()
                 }
 
-            case .paymentAuthorized, .commitSuccess, .pollingStart:
+            case .paymentAuthorized:
+                timer.mark(.paymentAuthorized)
+                logger.info("Apple Pay onramp progressed", metadata: [
+                    "orderId": "\(orderId)",
+                    "event": "\(event.name)",
+                ])
+                idleTimer.disarm()
+
+            case .commitSuccess, .pollingStart:
                 logger.info("Apple Pay onramp progressed", metadata: [
                     "orderId": "\(orderId)",
                     "event": "\(event.name)",

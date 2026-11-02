@@ -88,10 +88,11 @@ struct AddMoneyProcessingScreen: View {
                 accountFetcher: client,
                 swapper: client,
                 ownerKeyPair: session.ownerKeyPair,
+                timer: session.addMoneyTimer,
                 onSweepCompleted: {}
             )
 
-            await viewModel.run(settlement: session) {
+            await viewModel.run(settlement: session, timer: session.addMoneyTimer) {
                 await sweeper.sweepUntilConverted(
                     maxAttempts: AddMoneyTiming.sweepMaxAttempts,
                     backoff: AddMoneyTiming.sweepBackoff
