@@ -121,6 +121,32 @@ struct GroupSendViewModelTests {
         #expect(viewModel.session.dialogItem?.title == "10 People Max")
     }
 
+    @Test("An amount too small to price in the picked currency shows the insufficient balance alert, not Couldn't Send")
+    func belowMinimumShowsInsufficientBalance() async throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 100_000_000),
+            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000), quarks: 1_000_000_000_000),
+        ])
+        container.ratesController.configureTestRates(balanceCurrency: .usd, rates: [Rate(fx: 1.0, currency: .usd)])
+        await container.ratesController.verifiedProtoService.saveRates([.freshRate(currencyCode: "USD", rate: 1.0)])
+        let payments = FakeGroupPayments()
+        let viewModel = GroupSendViewModel(
+            sessionContainer: container,
+            conversationID: Self.groupID,
+            sender: payments,
+            multiSender: payments,
+            resolver: payments
+        )
+        viewModel.selectCurrencyAction(exchangedBalance: .makeTest(mint: .jeffy, quarks: 1_000_000_000_000, supplyQuarks: 10_000 * 10_000_000_000))
+        viewModel.enteredAmount = "0.0001"
+        viewModel.toggle(UUID())
+
+        #expect(await viewModel.submit() == .failed)
+
+        #expect(viewModel.session.dialogItem?.title == "Insufficient Balance")
+        #expect(payments.singleSends.isEmpty)
+    }
+
     @Test("Nobody checked sends nothing")
     func nobodyCheckedFails() async throws {
         let (viewModel, payments) = try await make(total: "10")

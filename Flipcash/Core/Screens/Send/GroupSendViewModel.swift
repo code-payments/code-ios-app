@@ -196,8 +196,9 @@ final class GroupSendViewModel {
         }
 
         let each = FiatAmount(value: enteredAmountEach.value, currency: pin.rate.currency)
+        // Below the currency's minimum transfer value the amount prices to nothing; that reads as insufficient.
         guard let priced = session.price(each, mint: mint, at: pin) else {
-            showSendError()
+            showInsufficientBalanceError()
             return .failed
         }
         let amounts = Array(repeating: priced, count: selection.count)
@@ -205,7 +206,7 @@ final class GroupSendViewModel {
         // The sender pays the sum of the payments.
         let paidFiat = FiatAmount(value: each.value * Decimal(selection.count), currency: each.currency)
         guard let paid = session.price(paidFiat, mint: mint, at: pin) else {
-            showSendError()
+            showInsufficientBalanceError()
             return .failed
         }
         switch session.hasSufficientFunds(for: paid) {

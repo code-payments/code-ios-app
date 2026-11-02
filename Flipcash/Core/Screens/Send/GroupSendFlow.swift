@@ -182,6 +182,11 @@ struct SelectPeopleList: View {
             Section {
                 ForEach(members, id: \.userID) { portrait in
                     row(portrait)
+                        // With no header the first row would draw a divider where the header sat.
+                        .listRowSeparator(
+                            header == nil && portrait.userID == members.first?.userID ? .hidden : .automatic,
+                            edges: .top
+                        )
                 }
             } header: {
                 if let header {
