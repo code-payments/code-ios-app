@@ -234,4 +234,54 @@ struct CatalogueParityEventsTests {
         }
         #expect(sent.isEmpty)
     }
+
+    // MARK: - Wallet -
+
+    @Test("Wallet events carry Provider Phantom")
+    func walletProvider() throws {
+        let sent = Analytics.recordingSends {
+            Analytics.walletConnected()
+            Analytics.walletCancelled()
+            Analytics.walletTransactionsFailed()
+        }
+        #expect(sent.map(\.name) == ["Wallet: Connect", "Wallet: Cancel", "Wallet: Transactions Failed"])
+        #expect(sent.allSatisfy { $0.properties["Provider"] as? String == "Phantom" })
+    }
+
+    @Test("Request Amount sends the USDC amount's group in USD")
+    func walletRequestAmount() throws {
+        let sent = try Analytics.recordingSends {
+            Analytics.walletRequestAmount(amount: WalletConnection.usdValue(of: TokenAmount(quarks: 5_000_000, mint: .usdc)))
+        }.single
+        #expect(sent.name == "Wallet: Request Amount")
+        #expect(sent.properties["Provider"] as? String == "Phantom")
+        #expect(sent.properties["Fiat"] as? Double == 5)
+        #expect(sent.properties["Currency"] as? String == "usd")
+        #expect(sent.properties["USDC"] as? Double == 5)
+        #expect(sent.properties["Quarks"] as? Double == 5_000_000)
+    }
+
+    @Test("Only Phantom's user reject (4001) is Wallet: Cancel", arguments: [
+        ("4001", true),
+        ("-32603", false),
+        ("4100", false),
+    ])
+    func walletCancel(_ code: String, _ isCancel: Bool) {
+        defer { Keychain.connectedWalletSession = nil }
+        let connection = WalletConnection(owner: .mock, rpc: MockSolanaRPC(), preferredLiquidityPool: { .unknown })
+        let sent = Analytics.recordingSends {
+            connection.didReceiveURL(url: URL(string: "https://app.flipcash.com/wallet/transactionSigned?errorCode=\(code)")!)
+        }
+        #expect(sent.map(\.name) == (isCancel ? ["Wallet: Cancel"] : []))
+    }
+
+    @Test("An expired blockhash is not a failed wallet transaction", arguments: [
+        ("Transaction simulation failed: Blockhash not found", true),
+        ("BlockhashNotFound", true),
+        ("Transaction simulation failed: Error processing Instruction 2", false),
+        (nil, false),
+    ] as [(String?, Bool)])
+    func blockhashNotFound(_ message: String?, _ expected: Bool) {
+        #expect(PhantomDepositOperation.isBlockhashNotFound(message: message) == expected)
+    }
 }

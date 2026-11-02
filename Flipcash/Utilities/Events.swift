@@ -82,12 +82,6 @@ extension Analytics {
         var stoppedEarly: Bool { self == .cancelled }
     }
 
-    enum WalletEvent: String, AnalyticsEvent {
-        case connect               = "Wallet: Connect"
-        case requestAmount         = "Wallet: Request Amount"
-        case cancel                = "Wallet: Cancel"
-    }
-
     /// Where Token Info was opened from, built by the shared contract.
     enum TokenInfoEvent {
         case openedFromDeeplink
@@ -814,13 +808,25 @@ extension DepositMethod {
 // MARK: - Wallet -
 
 extension Analytics {
+    /// Phantom returned a connected session. Phantom is the only wallet iOS connects.
+    static func walletConnected() {
+        track(WalletEvents.shared.connect(provider: .phantom))
+    }
+
+    /// The user rejected a Phantom request (code 4001). Other wallet errors are not a cancel.
+    static func walletCancelled() {
+        track(WalletEvents.shared.cancel(provider: .phantom))
+    }
+
+    /// A transaction Phantom signed was refused when sent to the chain. An expired blockhash
+    /// is not counted, as on Android.
+    static func walletTransactionsFailed() {
+        track(WalletEvents.shared.transactionsFailed(provider: .phantom))
+    }
+
+    /// A deposit sent to Phantom for signing. `amount` is the USDC being swapped, in USD.
     static func walletRequestAmount(amount: FiatAmount) {
-        var properties: [Property: AnalyticsValue] = [:]
-
-        properties[.fiat]     = amount.doubleValue
-        properties[.currency] = amount.currency.rawValue
-
-        track(event: WalletEvent.requestAmount, properties: properties)
+        track(WalletEvents.shared.requestAmount(provider: .phantom, amount: amount.analyticsAmount))
     }
 }
 
