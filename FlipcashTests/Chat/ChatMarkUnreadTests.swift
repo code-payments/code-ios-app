@@ -337,11 +337,33 @@ struct ChatMarkUnreadTests {
         try f.database.upsertConversationMessages((1...5).map(message), conversationID: .test(1))
         let conversation = try #require(f.controller.conversation(withID: .test(1)))
 
-        #expect(f.controller.previewMessages(for: conversation).map(\.id.value) == [1, 2, 3, 4, 5])
-        // Render the preview as the menu would, then let it go without a tap.
-        let host = UIHostingController(rootView: ChatPreview(conversation: conversation).environment(f.controller))
-        host.view.frame = CGRect(x: 0, y: 0, width: 340, height: 430)
-        host.view.layoutIfNeeded()
+        // The preview loads its rows as the chat screen does and draws them with the screen's
+        // transcript, read-only. Show it in a window, as the menu would, then let it go untapped.
+        let authors = KnownAuthorDirectory(read: { [:] }, fetch: { _ in throw CancellationError() }, cache: { _, _ in })
+        let coordinator = ConversationLoadCoordinator(
+            conversationID: .test(1),
+            controller: f.controller,
+            session: .mock,
+            knownAuthors: authors,
+            openingLoadLanded: true
+        )
+        let rows = coordinator.items.filter { if case .message = $0 { true } else { false } }
+        #expect(rows.count == 5)
+        let preview = ChatPreview(
+            coordinator: coordinator,
+            conversationController: f.controller,
+            linkCardSource: NoLinkCards(),
+            knownAuthors: authors,
+            avatarData: { _ in nil },
+            loadAvatars: { _ in },
+            toasts: ToastController()
+        )
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 340, height: 430))
+        window.rootViewController = UIHostingController(rootView: preview)
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(300))
+        window.isHidden = true
 
         #expect(pointer(f.controller, 1) == MessageID(value: 2))
         #expect(f.controller.conversation(withID: .test(1))?.hasUnread(for: me) == true)
@@ -358,5 +380,11 @@ struct ChatMarkUnreadTests {
         #expect(f.controller.readAction(for: requested) == nil)
         f.controller.markUnread(requested.id, source: .swipe)
         #expect(f.marks.markedIDs.isEmpty)
+    }
+
+    /// A link-card source that knows nothing; the preview's chat has no links.
+    private final class NoLinkCards: LinkCardSource {
+        func known(_ card: LinkCard) -> LinkCard.State? { nil }
+        func states(for card: LinkCard) -> AsyncStream<LinkCard.State> { AsyncStream { $0.finish() } }
     }
 }

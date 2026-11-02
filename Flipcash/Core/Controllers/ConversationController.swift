@@ -273,15 +273,6 @@ final class ConversationController {
         chatMarkedUnread?.clear(id)
     }
 
-    /// Up to `limit` of the newest messages stored locally, oldest first, for the long-press preview.
-    /// Read straight from the database: no network, no read pointer, and the open chat's window
-    /// cache is left alone. Falls back to the feed's last message when the transcript isn't stored.
-    func previewMessages(for conversation: Conversation, limit: Int = 10) -> [ConversationMessage] {
-        let stored = (try? database.messagesWindow(conversationID: conversation.id, before: nil, limit: limit)) ?? []
-        if !stored.isEmpty { return stored }
-        return conversation.lastMessage.map { [$0] } ?? []
-    }
-
     /// The unread count a conversation row shows; nil when the chat is unread but its READ
     /// watermark's message is neither stored nor fetched yet. See
     /// ``Conversation/unreadCount(for:unreadSeqAt:)`` and ``resolveUnreadCount(for:)``.

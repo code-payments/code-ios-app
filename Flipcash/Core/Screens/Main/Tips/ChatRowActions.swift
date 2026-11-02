@@ -90,15 +90,31 @@ private struct ChatRowContextMenu: ViewModifier {
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(Session.self) private var session
+    @Environment(Container.self) private var container
 
     func body(content: Content) -> some View {
         if conversation.lastMessage != nil {
             content.contextMenu {
                 items
             } preview: {
-                ChatPreview(conversation: conversation, knownAuthors: sessionContainer.knownAuthors.snapshot)
-                    // The preview is hosted outside this view's tree, so the controller is handed on.
-                    .environment(conversationController)
+                // Hosted outside this view's tree, so its dependencies are handed on.
+                ChatPreview(
+                    coordinator: ConversationLoadCoordinator(
+                        conversationID: conversation.id,
+                        controller: conversationController,
+                        session: session,
+                        knownAuthors: sessionContainer.knownAuthors,
+                        paymentRequests: sessionContainer.paymentRequests,
+                        openingLoadLanded: true
+                    ),
+                    conversationController: conversationController,
+                    linkCardSource: sessionContainer.linkCardFeed,
+                    knownAuthors: sessionContainer.knownAuthors,
+                    avatarData: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.data(for: $0) },
+                    loadAvatars: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.preload($0) },
+                    toasts: container.toasts
+                )
             }
         } else {
             content.contextMenu { items }
@@ -127,86 +143,133 @@ private struct ChatRowContextMenu: ViewModifier {
 
 // MARK: - Preview -
 
-/// The long-press preview: the chat's last messages from the local store, read-only, with no input
-/// bar. Nothing here touches the read pointer: it is not `ConversationScreen`, which marks messages
-/// seen as they appear, so looking leaves the chat as unread as it was.
+/// The long-press preview: the chat's own transcript (the same cells, background, date separators,
+/// sender names and reactions), read-only, with no input bar, opened at the newest message.
+///
+/// It is not `ConversationScreen`, which marks messages seen as they appear. Here read reporting is
+/// off and every action is a no-op, so looking leaves the chat as unread as it was. The rows come
+/// from the local store through the same ``ConversationLoadCoordinator`` the screen uses; paging
+/// older history, the one path that fetches, is off too.
 struct ChatPreview: View {
 
-    let conversation: Conversation
-    var knownAuthors: KnownAuthorDirectory.Snapshot = .empty
+    let conversationController: ConversationController
+    let linkCardSource: any LinkCardSource
+    let knownAuthors: KnownAuthorDirectory
+    let avatarData: (UserID) -> Data?
+    let loadAvatars: ([(userID: UserID?, picture: ProfilePicture?)]) -> Void
+    let toasts: ToastController
 
-    @Environment(ConversationController.self) private var conversationController
+    @State private var coordinator: ConversationLoadCoordinator
+    @State private var barModel = ConversationBarModel()
+    @State private var composer = ComposerModel()
 
-    var body: some View {
-        let messages = conversationController.previewMessages(for: conversation)
-        let selfUserID = conversationController.selfUserID
-
-        // Newest at the bottom, as the transcript lands; older messages clip off the top. A fixed
-        // frame alone centres an overflowing stack, so a bottom-anchored, unscrollable scroll view
-        // keeps the latest message in view.
-        ScrollView {
-            VStack(spacing: 6) {
-                ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-                    if let text = conversationController.messagePreview(
-                        message,
-                        in: conversation,
-                        knownAuthors: knownAuthors,
-                        attributed: false,
-                        currencyName: { _ in nil }
-                    ) {
-                        let isFromSelf = message.isFromSelf(selfUserID)
-                        let startsRun = index == 0 || messages[index - 1].senderID != message.senderID
-                        ChatPreviewBubble(
-                            text: text,
-                            senderName: startsRun
-                                ? conversationController.groupSenderName(
-                                    for: message,
-                                    in: conversation,
-                                    isFromSelf: isFromSelf,
-                                    knownAuthors: knownAuthors
-                                )
-                                : nil,
-                            isFromSelf: isFromSelf
-                        )
-                    }
-                }
-            }
-            .padding(12)
-        }
-        .defaultScrollAnchor(.bottom)
-        .scrollDisabled(true)
-        .scrollIndicators(.hidden)
-        .frame(width: 340, height: 430)
-        .background(Color.backgroundMain)
+    /// - Parameter coordinator: loads the chat's rows from the local store, as it does for the
+    ///   screen; pass one built with `openingLoadLanded: true` so it doesn't wait on a fetch.
+    init(
+        coordinator: ConversationLoadCoordinator,
+        conversationController: ConversationController,
+        linkCardSource: any LinkCardSource,
+        knownAuthors: KnownAuthorDirectory,
+        avatarData: @escaping (UserID) -> Data?,
+        loadAvatars: @escaping ([(userID: UserID?, picture: ProfilePicture?)]) -> Void,
+        toasts: ToastController
+    ) {
+        self.conversationController = conversationController
+        self.linkCardSource = linkCardSource
+        self.knownAuthors = knownAuthors
+        self.avatarData = avatarData
+        self.loadAvatars = loadAvatars
+        self.toasts = toasts
+        _coordinator = State(initialValue: coordinator)
     }
-}
-
-/// One message in the preview: the transcript's sides, without its cells.
-private struct ChatPreviewBubble: View {
-
-    let text: String
-    let senderName: String?
-    let isFromSelf: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let senderName {
-                Text(senderName)
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .lineLimit(1)
-                    .padding(.horizontal, 4)
+        transcript
+            .frame(width: 340, height: 430)
+            .background(Color.backgroundMain)
+            // The screen's own lookups for who wrote each row, so names and pictures match the
+            // chat. All three only read: the local author cache, profiles by user id, and pictures.
+            .task(id: isGroup) {
+                guard isGroup else { return }
+                await knownAuthors.reload()
             }
-            Text(text)
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(4)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(isFromSelf ? Color.backgroundSecondary : Color.backgroundRow, in: .rect(cornerRadius: 16))
+            .task(id: coordinator.unattributedSenders) {
+                guard !coordinator.unattributedSenders.isEmpty else { return }
+                await knownAuthors.resolve(coordinator.unattributedSenders)
+            }
+            .task(id: coordinator.attributedMembers.compactMap(\.userID)) {
+                loadAvatars(coordinator.attributedMembers.map { (userID: $0.userID, picture: $0.profilePicture) })
+            }
+    }
+
+    private var isGroup: Bool {
+        conversationController.conversation(withID: coordinator.conversationID)?.type == .group
+    }
+
+    /// The screen's transcript in its read-only mode.
+    private var transcript: ChatScreenRepresentable {
+        ChatScreenRepresentable(
+            items: coordinator.items,
+            onReachTop: {},
+            onRetry: { _ in },
+            onCashCardTap: { _ in },
+            onOpenURL: { _ in },
+            onMentionTap: { _ in },
+            onShareProfile: { _, _ in },
+            ownProfile: nil,
+            onLinkCardTap: { _, _ in },
+            linkCardSource: linkCardSource,
+            updateAction: nil,
+            toasts: toasts,
+            onEncryptionMarkerTap: {},
+            onInviteCardTap: {},
+            onAuthorTap: { _ in },
+            onMessageAction: { _, _ in },
+            onQuoteTap: { _ in },
+            onMessagesSeen: { _ in },
+            reportsReads: false,
+            unreadBelowCount: 0,
+            onUserScrollBegan: {},
+            onReactionTap: { _, _ in },
+            onReactionLongPress: { _, _ in },
+            onReactionAdd: { _ in },
+            onReactionBoost: { _ in },
+            reactionStripEntries: { _ in [] },
+            onReactionStripSelect: { _, _ in },
+            onReactionStripAdd: { _ in },
+            showsSendCash: false,
+            conversationID: coordinator.conversationID,
+            symbol: "",
+            onSendCash: {},
+            conversationController: conversationController,
+            barModel: barModel,
+            composer: composer,
+            editingStableID: nil,
+            focusOnAppear: false,
+            gate: .open,
+            showsGatePlaceholder: false,
+            gateMintName: nil,
+            gateShortfall: nil,
+            // The gate is open and its placeholder hidden, so no amount is ever drawn in it.
+            gateDisplayCurrency: DisplayCurrency(currency: .usd, rates: [Rate]()),
+            onGateAddFunds: {},
+            onGateJoin: {},
+            isJoiningChat: false,
+            mentions: nil,
+            authorAvatars: authorAvatars,
+            isReadOnlyPreview: true
+        )
+    }
+
+    /// Avatar bytes for the transcript's senders, read as the screen reads them.
+    private var authorAvatars: [UserID: Data] {
+        var avatars: [UserID: Data] = [:]
+        for member in coordinator.attributedMembers {
+            guard let userID = member.userID,
+                  let data = avatarData(userID) else { continue }
+            avatars[userID] = data
         }
-        .frame(maxWidth: 260, alignment: isFromSelf ? .trailing : .leading)
-        .frame(maxWidth: .infinity, alignment: isFromSelf ? .trailing : .leading)
+        return avatars
     }
 }
 

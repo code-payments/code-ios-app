@@ -235,6 +235,9 @@ public final class ChatViewController: UICollectionViewController {
     /// open (a non-animated update) goes to the bottom as before, rather than back to the divider
     /// the reader may already have scrolled past.
     private var hasPlacedUnreadDivider = false
+    /// Whether the first open lands on the unread divider rather than the newest message. Off for a
+    /// read-only preview of the chat, which shows the divider where it falls but opens at the bottom.
+    public var opensAtUnreadDivider = true
 
     /// Set once the opening scroll has landed. Until then the transcript sits wherever the first
     /// layout put it — at the bottom, for a chat that is about to move up to its unread divider —
@@ -1043,7 +1046,7 @@ public final class ChatViewController: UICollectionViewController {
         needsInitialScroll = false
         scrollToBottom(animated: false)
         armReadReportingOnceLanded()
-        guard !hasPlacedUnreadDivider,
+        guard opensAtUnreadDivider, !hasPlacedUnreadDivider,
               let divider = items.firstIndex(where: { if case .unreadDivider = $0 { true } else { false } })
         else { return }
         hasPlacedUnreadDivider = true
