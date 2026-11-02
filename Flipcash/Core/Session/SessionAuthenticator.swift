@@ -780,6 +780,7 @@ final class SessionContainer {
             accountFetcher: client,
             swapper: client,
             ownerKeyPair: owner,
+            timer: session.addMoneyTimer,
             onSweepCompleted: { [weak session] in
                 await session?.updatePostTransaction()
             }

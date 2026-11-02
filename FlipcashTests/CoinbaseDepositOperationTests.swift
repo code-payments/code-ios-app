@@ -27,6 +27,38 @@ struct CoinbaseDepositOperationTests {
         #expect(env.op.state == .idle)
     }
 
+    @Test("The order, payment authorization and payment completion each mark the timer")
+    func marksTimer() async throws {
+        let timer = AddMoneyTimer()
+        let phases = try await runPurchase(timer: timer, events: [.paymentAuthorized, .pollingSuccess])
+
+        #expect(phases.order != nil)
+        #expect(phases.payment != nil)
+        #expect(phases.coinbase != nil)
+    }
+
+    @Test("commitSuccess and pollingStart are not payment_authorized")
+    func otherProgressEventsDoNotMarkPayment() async throws {
+        let timer = AddMoneyTimer()
+        let phases = try await runPurchase(timer: timer, events: [.commitSuccess, .pollingStart, .pollingSuccess])
+
+        #expect(phases.order != nil)
+        #expect(phases.payment == nil)
+        #expect(phases.coinbase == nil)
+    }
+
+    private func runPurchase(timer: AddMoneyTimer, events: [ApplePayEvent.Event]) async throws -> AddMoneyPhases {
+        timer.start()
+        let service = CoinbaseService(coinbase: MockOnrampOrdering())
+        let op = CoinbaseDepositOperation(coinbaseService: service, session: MockSession(profile: .verifiedFixture), timer: timer)
+        let task = Task { try await op.start(amount: .tenUSDF) }
+
+        try await waitUntil(op) { $0.state == .awaitingExternal(.applePay) }
+        for event in events { service.receiveApplePayEvent(.fixture(event)) }
+        try await task.value
+        return try #require(timer.finish())
+    }
+
     @Test("Amount below the $5 minimum is rejected before any order is created")
     func belowMinimum_rejected() async {
         let env = Env()

@@ -15,6 +15,7 @@ actor UsdcSweepOperation {
     private let accountFetcher: any AssociatedTokenAccountFetching
     private let swapper: any StatelessSwapping
     private let ownerKeyPair: KeyPair
+    private let timer: AddMoneyTimer?
     private let onSweepCompleted: @Sendable () async -> Void
     private let cancellation = SweepCancellation()
 
@@ -24,11 +25,13 @@ actor UsdcSweepOperation {
         accountFetcher: any AssociatedTokenAccountFetching,
         swapper: any StatelessSwapping,
         ownerKeyPair: KeyPair,
+        timer: AddMoneyTimer? = nil,
         onSweepCompleted: @escaping @Sendable () async -> Void
     ) {
         self.accountFetcher = accountFetcher
         self.swapper = swapper
         self.ownerKeyPair = ownerKeyPair
+        self.timer = timer
         self.onSweepCompleted = onSweepCompleted
     }
 
@@ -73,12 +76,15 @@ actor UsdcSweepOperation {
                 return
             }
 
+            timer?.mark(.usdcSeen)
+
             logger.info("Sweeping USDC balance", metadata: [
                 "quarks": "\(account.quarks)",
                 "owner": "\(ownerKeyPair.publicKey.base58)",
             ])
 
             let result = try await swap(quarks: account.quarks)
+            timer?.mark(.swapped)
 
             logger.info("USDC sweep completed", metadata: [
                 "signature": "\(result.signature.base58)",
@@ -133,6 +139,7 @@ actor UsdcSweepOperation {
                 let available = account?.quarks ?? 0
 
                 if available >= required {
+                    timer?.mark(.usdcSeen)
                     logger.info("Retrying USDC sweep found balance, converting", metadata: [
                         "attempt": "\(attempt)",
                         "quarks": "\(available)",
@@ -140,6 +147,7 @@ actor UsdcSweepOperation {
                     ])
 
                     let result = try await swap(quarks: available)
+                    timer?.mark(.swapped)
 
                     logger.info("Retrying USDC sweep completed", metadata: [
                         "signature": "\(result.signature.base58)",

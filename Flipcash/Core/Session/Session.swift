@@ -50,6 +50,10 @@ class Session {
     /// received bill is shown until the wallet has played its arrival.
     let walletDeposit = WalletDeposit()
 
+    /// Times a Coinbase add-money purchase across the amount screen, the Coinbase webview and
+    /// both USDC sweeps, which outlive any one screen.
+    let addMoneyTimer = AddMoneyTimer()
+
     /// The currently visible balance-change toast, or `nil` when none is shown.
     /// Set by ``consumeToast()`` and cleared after a 3-second display window.
     var toast: Toast? = nil

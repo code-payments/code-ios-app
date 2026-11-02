@@ -781,13 +781,27 @@ extension Analytics {
 
     /// The Add Money outcome. A nil `exchangedFiat` sends no amount, as Android does for a
     /// Phantom failure.
-    static func addMoney(method: DepositMethod, exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
+    /// `phases` carries the Coinbase purchase's phase durations and is nil for every other method.
+    static func addMoney(
+        method: DepositMethod,
+        exchangedFiat: ExchangedFiat?,
+        successful: Bool,
+        error: Error?,
+        phases: AddMoneyPhases? = nil
+    ) {
         track(
             AddMoneyEvents.shared.result(
                 method: method.shared,
                 state: successful ? .success : .failure,
                 amount: exchangedFiat?.analyticsAmount,
-                error: nil
+                error: nil,
+                orderTimeMillis: phases?.order.map(KotlinLong.init(longLong:)),
+                paymentTimeMillis: phases?.payment.map(KotlinLong.init(longLong:)),
+                coinbaseTimeMillis: phases?.coinbase.map(KotlinLong.init(longLong:)),
+                depositTimeMillis: phases?.deposit.map(KotlinLong.init(longLong:)),
+                swapTimeMillis: phases?.swap.map(KotlinLong.init(longLong:)),
+                creditTimeMillis: phases?.credit.map(KotlinLong.init(longLong:)),
+                totalTimeMillis: phases.map { KotlinLong(longLong: $0.total) }
             ),
             error: error
         )
