@@ -123,9 +123,11 @@ struct GroupSendViewModelTests {
 
     @Test("An amount too small to price in the picked currency shows the insufficient balance alert, not Couldn't Send")
     func belowMinimumShowsInsufficientBalance() async throws {
+        let supply: UInt64 = 10_000 * 10_000_000_000
+        let jeffy = MintMetadata.makeLaunchpad(address: .jeffy, supplyFromBonding: supply)
         let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 100_000_000),
-            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000), quarks: 1_000_000_000_000),
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000),
+            SessionContainer.Holding(mint: jeffy, quarks: 1_000_000_000_000),
         ])
         container.ratesController.configureTestRates(balanceCurrency: .usd, rates: [Rate(fx: 1.0, currency: .usd)])
         await container.ratesController.verifiedProtoService.saveRates([.freshRate(currencyCode: "USD", rate: 1.0)])
@@ -137,7 +139,7 @@ struct GroupSendViewModelTests {
             multiSender: payments,
             resolver: payments
         )
-        viewModel.selectCurrencyAction(exchangedBalance: .makeTest(mint: .jeffy, quarks: 1_000_000_000_000, supplyQuarks: 10_000 * 10_000_000_000))
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest(mint: jeffy.address, quarks: 1_000_000_000_000, supplyQuarks: supply))
         viewModel.enteredAmount = "0.0001"
         viewModel.toggle(UUID())
 
