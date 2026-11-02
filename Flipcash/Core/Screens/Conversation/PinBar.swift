@@ -66,8 +66,11 @@ struct PinBar: View {
         .padding(.vertical, 8)
         .frame(minHeight: BarMetrics.contentHeight)
         .contentShape(.rect(cornerRadius: BarMetrics.cornerRadius))
-        // Darker than the reply strip's glass: the transcript scrolls under it and washed its text out.
-        .overlayGlassBackground(in: .rect(cornerRadius: BarMetrics.cornerRadius))
+        // A light dark tint, lighter than the overlay glass so it sits closer to the nav and reply
+        // glass. Untinted, the sender label of a message scrolled behind the bar ghosted through
+        // under the pin's author name. The transcript's soft top scroll-edge effect handles the
+        // rest of the fade.
+        .pinBarGlass(in: .rect(cornerRadius: BarMetrics.cornerRadius))
     }
 }
 
@@ -153,5 +156,20 @@ struct PinToolbarButton: View {
         }
         .accessibilityLabel("Pinned Messages")
         .accessibilityIdentifier("pin-toolbar-button")
+    }
+}
+
+private extension View {
+
+    /// The pin bar's ground: Liquid Glass with a 20% black tint, or the same tint over an
+    /// ultra-thin material before iOS 26.
+    @ViewBuilder
+    func pinBarGlass(in shape: some Shape) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.regular.tint(.black.opacity(0.2)).interactive(), in: shape)
+        } else {
+            background(Color.black.opacity(0.2), in: shape)
+                .background(.ultraThinMaterial, in: shape)
+        }
     }
 }
