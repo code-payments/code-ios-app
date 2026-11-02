@@ -86,13 +86,14 @@ private struct ChatRowContextMenu: ViewModifier {
     let onArchive: () -> Void
 
     @Environment(ConversationController.self) private var conversationController
+    @Environment(SessionContainer.self) private var sessionContainer
 
     func body(content: Content) -> some View {
         if conversation.lastMessage != nil {
             content.contextMenu {
                 items
             } preview: {
-                ChatPreview(conversation: conversation)
+                ChatPreview(conversation: conversation, knownAuthors: sessionContainer.knownAuthors.snapshot)
                     // The preview is hosted outside this view's tree, so the controller is handed on.
                     .environment(conversationController)
             }
@@ -129,6 +130,7 @@ private struct ChatRowContextMenu: ViewModifier {
 struct ChatPreview: View {
 
     let conversation: Conversation
+    var knownAuthors: KnownAuthorDirectory.Snapshot = .empty
 
     @Environment(ConversationController.self) private var conversationController
 
@@ -136,28 +138,41 @@ struct ChatPreview: View {
         let messages = conversationController.previewMessages(for: conversation)
         let selfUserID = conversationController.selfUserID
 
-        VStack(alignment: .leading, spacing: 0) {
-            Text(conversationController.displayName(for: conversation))
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-            Divider().overlay(Color.rowSeparator)
+        // Newest at the bottom, as the transcript lands; older messages clip off the top. A fixed
+        // frame alone centres an overflowing stack, so a bottom-anchored, unscrollable scroll view
+        // keeps the latest message in view.
+        ScrollView {
             VStack(spacing: 6) {
-                Spacer(minLength: 0)
-                ForEach(messages, id: \.id) { message in
+                ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                     if let text = conversationController.messagePreview(
                         message,
                         in: conversation,
+                        knownAuthors: knownAuthors,
+                        attributed: false,
                         currencyName: { _ in nil }
                     ) {
-                        ChatPreviewBubble(text: text, isFromSelf: message.isFromSelf(selfUserID))
+                        let isFromSelf = message.isFromSelf(selfUserID)
+                        let startsRun = index == 0 || messages[index - 1].senderID != message.senderID
+                        ChatPreviewBubble(
+                            text: text,
+                            senderName: startsRun
+                                ? conversationController.groupSenderName(
+                                    for: message,
+                                    in: conversation,
+                                    isFromSelf: isFromSelf,
+                                    knownAuthors: knownAuthors
+                                )
+                                : nil,
+                            isFromSelf: isFromSelf
+                        )
                     }
                 }
             }
             .padding(12)
         }
+        .defaultScrollAnchor(.bottom)
+        .scrollDisabled(true)
+        .scrollIndicators(.hidden)
         .frame(width: 340, height: 430)
         .background(Color.backgroundMain)
     }
@@ -167,18 +182,28 @@ struct ChatPreview: View {
 private struct ChatPreviewBubble: View {
 
     let text: String
+    let senderName: String?
     let isFromSelf: Bool
 
     var body: some View {
-        Text(text)
-            .font(.appTextMedium)
-            .foregroundStyle(Color.textMain)
-            .lineLimit(4)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(isFromSelf ? Color.backgroundSecondary : Color.backgroundRow, in: .rect(cornerRadius: 16))
-            .frame(maxWidth: 260, alignment: isFromSelf ? .trailing : .leading)
-            .frame(maxWidth: .infinity, alignment: isFromSelf ? .trailing : .leading)
+        VStack(alignment: .leading, spacing: 4) {
+            if let senderName {
+                Text(senderName)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .lineLimit(1)
+                    .padding(.horizontal, 4)
+            }
+            Text(text)
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(4)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(isFromSelf ? Color.backgroundSecondary : Color.backgroundRow, in: .rect(cornerRadius: 16))
+        }
+        .frame(maxWidth: 260, alignment: isFromSelf ? .trailing : .leading)
+        .frame(maxWidth: .infinity, alignment: isFromSelf ? .trailing : .leading)
     }
 }
 
@@ -211,7 +236,7 @@ struct ChatListMoreMenu: View {
     var body: some View {
         Menu {
             Button("Select Chats", systemImage: "checkmark.circle", action: onSelect)
-            Button("Read All", systemImage: "message", action: onReadAll)
+            Button("Read All", systemImage: "checkmark.message", action: onReadAll)
                 .disabled(!canReadAll)
         } label: {
             // Bar items get their glass from the system on iOS 26, as `+` does.
@@ -293,9 +318,11 @@ private struct ChatSelectionCapsule: View {
                 .foregroundStyle(isEnabled ? Color.textMain : Color.textSecondary)
                 .padding(.horizontal, 20)
                 .frame(height: 44)
-                .selectionCapsuleGlass()
+                .contentShape(.capsule)
         }
         .buttonStyle(.plain)
+        // Outside the button: a disabled plain button fades its label, and the glass would fade with it.
+        .selectionCapsuleGlass()
         .accessibilityIdentifier(identifier)
     }
 }

@@ -1953,17 +1953,22 @@ final class ConversationController {
         knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
         viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
         requestTitle: (PaymentRequestID) -> String? = { _ in nil },
+        attributed: Bool = true,
         currencyName: (PublicKey) -> String?
     ) -> String? {
         let isFromSelf = message.isFromSelf(selfUserID)
-        let senderName = groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf, knownAuthors: knownAuthors)
+        // Unattributed lines drop the "You:" / "Name:" prefix: the preview's bubble side and sender
+        // label already say who wrote them.
+        let senderName = attributed
+            ? groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf, knownAuthors: knownAuthors)
+            : nil
 
         switch message.content {
         case .text(let text):
             // A bare prefix says less than no line at all, so an empty body previews as nothing.
             guard !text.isEmpty else { return nil }
             let text = InviteLinkText.redacting(text)
-            if isFromSelf { return "You: \(text)" }
+            if isFromSelf && attributed { return "You: \(text)" }
             guard let senderName else { return text }
             return "\(senderName): \(text)"
 
@@ -1992,7 +1997,7 @@ final class ConversationController {
 
         case .media(_, let caption):
             let body = ChatMediaStrings.listPreview(caption: caption)
-            if isFromSelf { return "You: \(body)" }
+            if isFromSelf && attributed { return "You: \(body)" }
             guard let senderName else { return body }
             return "\(senderName): \(body)"
 
@@ -2082,7 +2087,7 @@ final class ConversationController {
     /// attribution: the viewer's own message is covered by "You", and a DM's other party is what
     /// the row is already titled after. A sender the chat's roster subset omits is named from
     /// `knownAuthors`, and left unattributed until the directory has a name for them.
-    private func groupSenderName(
+    func groupSenderName(
         for message: ConversationMessage,
         in conversation: Conversation,
         isFromSelf: Bool,

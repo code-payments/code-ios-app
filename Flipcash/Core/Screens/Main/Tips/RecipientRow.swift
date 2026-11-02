@@ -70,9 +70,17 @@ private struct RecipientRowSelectCircle: View {
     let isSelected: Bool
 
     var body: some View {
-        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-            .font(.system(size: 22))
-            .foregroundStyle(isSelected ? Color.textMain : Color.textSecondary)
+        if isSelected {
+            // A white check on the unread blue, the selection colour the design uses.
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 22))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(Color.textMain, Color.unreadIndicator)
+        } else {
+            Image(systemName: "circle")
+                .font(.system(size: 22))
+                .foregroundStyle(Color.textSecondary)
+        }
     }
 }
 
