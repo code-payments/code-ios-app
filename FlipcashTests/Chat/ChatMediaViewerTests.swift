@@ -22,7 +22,17 @@ struct ChatMediaViewerTests {
 
     private static let blobID = BlobID(data: Data([1]))
     private static let remoteURL = URL(string: "https://example.com/a.jpg")!
-    private static let localImage = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30)).image { context in
+    private static let opaqueFormat: UIGraphicsImageRendererFormat = {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        return format
+    }()
+    /// A staged image with a transparent left half, like a screenshot exported with alpha.
+    private static let transparentImage = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30)).image { context in
+        UIColor.red.setFill()
+        context.fill(CGRect(x: 20, y: 0, width: 20, height: 30))
+    }
+    private static let localImage = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30), format: opaqueFormat).image { context in
         UIColor.red.setFill()
         context.fill(CGRect(x: 0, y: 0, width: 40, height: 30))
     }
@@ -187,6 +197,27 @@ struct ChatMediaViewerTests {
         #expect(!viewer.saveButton.isEnabled)
         viewer.saveButton.sendActions(for: .touchUpInside)
         #expect(saved == nil)
+    }
+
+    @Test("A staged image with transparency shows over white, as the upload does")
+    func stagedTransparencyShowsOverWhite() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.transparentImage)))
+        let shown = try #require(viewer.imageView.image?.cgImage)
+        // The left half was transparent; it must now be opaque white.
+        #expect(try Self.rgba(of: shown, x: 0, y: 0) == [255, 255, 255, 255])
+        #expect(viewer.imageView.backgroundColor == nil)
+    }
+
+    /// The 8-bit RGBA of one pixel, read by drawing `image` into a known format.
+    private static func rgba(of image: CGImage, x: Int, y: Int) throws -> [UInt8] {
+        var pixel = [UInt8](repeating: 0, count: 4)
+        let context = try #require(CGContext(
+            data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.draw(image, in: CGRect(x: -x, y: -(image.height - 1 - y), width: image.width, height: image.height))
+        return pixel
     }
 
     @Test("Save is enabled once the photo is loaded, and writes it")

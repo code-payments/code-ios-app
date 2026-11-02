@@ -299,8 +299,27 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     /// Draws the staged image, or the placeholder under the download. The transcript caches only its
     /// downsampled copy, so the full-size photo downloads here, over the copy the cell already drew.
+    static func flattenedOntoWhite(_ image: UIImage) -> UIImage {
+        switch image.cgImage?.alphaInfo {
+        case .none?, .noneSkipFirst?, .noneSkipLast?: return image
+        default: break
+        }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: image.size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: image.size))
+            image.draw(at: .zero)
+        }
+    }
+
     private func loadImage() {
-        if let localImage = request.localImage {
+        if let staged = request.localImage {
+            // Flattened onto white like the upload (`ChatMediaEncoder.render`), so transparent
+            // pixels don't show the viewer's black ground. A background colour would also fill
+            // the aspect-fit letterbox.
+            let localImage = Self.flattenedOntoWhite(staged)
             imageView.image = localImage
             loadedImage = localImage
             return
