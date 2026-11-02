@@ -11,9 +11,10 @@ import FlipcashCore
 
 // MARK: - Money actions -
 
-/// The sheet a private group's send-cash button opens: send money as today, or request it.
+/// The sheet a private group's send-cash button opens: request money, listed first, or send it.
 ///
-/// Two cards like the Add Money sheet's and nothing else, matching Android (node 12243:1009).
+/// Two cards like the Add Money sheet's and nothing else, matching Android. Request Money comes
+/// first, reversing the order in design frame 02 (node 12243:1009) by product decision.
 struct MoneyActionsSheet: View {
 
     @Environment(\.dismiss) private var dismiss
@@ -24,13 +25,13 @@ struct MoneyActionsSheet: View {
     var body: some View {
         PartialSheet {
             VStack(spacing: 12) {
-                row(icon: .withdraw, title: "Send Money", subtitle: "Send money to someone in the group, or multiple people", identifier: "money-action-send") {
-                    dismiss()
-                    sendMoney()
-                }
                 row(icon: .deposit, title: "Request Money", subtitle: "Collect money from people in the group", identifier: "money-action-request") {
                     dismiss()
                     requestMoney()
+                }
+                row(icon: .withdraw, title: "Send Money", subtitle: "Send money to someone in the group, or multiple people", identifier: "money-action-send") {
+                    dismiss()
+                    sendMoney()
                 }
             }
             .padding(.horizontal)
