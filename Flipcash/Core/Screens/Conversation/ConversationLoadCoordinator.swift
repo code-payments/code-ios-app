@@ -132,6 +132,27 @@ final class ConversationLoadCoordinator {
         attributedMembers.first { $0.userID == senderID }.map(Self.attributionName(for:))
     }
 
+    /// The name to show for any user in this chat, whether or not they have a row in the loaded
+    /// window: the transcript's attribution, then the chat's roster, then the device's cache of
+    /// authors. A DM names its one other party. Nil while a group member nothing can name yet; that
+    /// starts their profile fetch, and the read of the directory's snapshot makes a calling view
+    /// redraw when it lands.
+    func senderName(for userID: UserID) -> String? {
+        if let name = attributedName(for: userID) { return name }
+        guard lastInputs?.namesAuthors ?? (controller.conversation(withID: conversationID)?.type == .group) else {
+            return counterpartName.isEmpty ? nil : counterpartName
+        }
+        let rostered = controller.conversation(withID: conversationID)?.members
+            .first { $0.userID == userID && !$0.displayName.isEmpty }
+        if let rostered { return Self.attributionName(for: rostered) }
+        if let known = knownAuthors.snapshot.membersByUserID[userID], !known.displayName.isEmpty {
+            return Self.attributionName(for: known)
+        }
+        let directory = knownAuthors
+        Task { await directory.resolve([userID]) }
+        return nil
+    }
+
     /// The name a sender's rows carry: their display name, else their handle, else the generic
     /// fallback. Accounts that onboarded before the name step have neither, and a blank here draws
     /// a row with no name above an avatar with no initials.
@@ -206,6 +227,13 @@ final class ConversationLoadCoordinator {
             inputs.quotedMessages[repliedTo.value] = controller.persistedMessage(repliedTo, in: conversationID)
         }
         let attribution = Self.attribution(in: inputs)
+        if !attribution.unnamed.isEmpty {
+            // The transcript hands these to its view to fetch; a sheet has no such hook, and the
+            // directory asks once per sender per launch, so asking on every call is cheap.
+            let directory = knownAuthors
+            let unnamed = attribution.unnamed
+            Task { await directory.resolve(unnamed) }
+        }
         for item in Self.map(inputs, authors: Self.authors(from: attribution.members)) {
             guard case .message(let row) = item else { continue }
             return row
@@ -419,6 +447,7 @@ final class ConversationLoadCoordinator {
     /// what the transcript is attributing. Everyone it leaves out — the subset a large group embeds
     /// leaves plenty — falls through to whatever the device knows about them from elsewhere. The
     /// senders neither source covers come back in `unnamed`, for the view to fetch.
+    /// The senders of quoted originals follow the window's, so a quote names its writer too.
     /// The group's typists follow the window's senders, so their pictures are fetched too.
     /// Both are empty for every transcript that does not attribute its rows.
     nonisolated private static func attribution(in inputs: Inputs) -> (members: [ConversationMember], unnamed: [UserID]) {
@@ -435,7 +464,10 @@ final class ConversationLoadCoordinator {
         var unnamed: [UserID] = []
         // A system notice has no sender but names the users it is about, so those need profiles too.
         let noticeIDs = inputs.messages.flatMap { $0.systemNoticeUserIDs(excluding: inputs.selfUserID) }
-        for senderID in inputs.messages.compactMap(\.senderID) + noticeIDs + inputs.typists {
+        // A quote names its original's writer, who may have no other message in the window (or, for
+        // a lone pinned row, no message at all), so the quoted senders are attributed too.
+        let quotedIDs = inputs.quotedMessages.keys.sorted().compactMap { inputs.quotedMessages[$0]?.senderID }
+        for senderID in inputs.messages.compactMap(\.senderID) + noticeIDs + quotedIDs + inputs.typists {
             guard seen.insert(senderID).inserted else { continue }
             // The viewer's own rows are never attributed, so their id is not worth a round trip.
             guard senderID != inputs.selfUserID else { continue }
