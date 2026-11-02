@@ -39,6 +39,7 @@ struct ChatProfileScreen: View {
     @State private var hostName: String?
     @State private var dialogItem: DialogItem?
     @State private var chatters: [SampledChatter] = []
+    @State private var memberSheetTarget: MemberSheetTarget?
     @State private var senders: [UserID] = []
     @State private var mintMetadata: [PublicKey: StoredMintMetadata] = [:]
     @State private var mintNamesTimedOut = false
@@ -187,14 +188,14 @@ struct ChatProfileScreen: View {
                             count: conversation?.rosterSummary.memberCount,
                             onCount: rosterPortraits.isEmpty ? nil : { router.push(.groupMembers(conversationID)) }
                         ) { userID in
-                            router.push(.userProfile(userID, origin: .groupMember(conversationID)))
+                            openMember(userID, portrait: memberPortraits.first { $0.userID == userID })
                         }
                         .padding(.top, 24)
                     }
 
                     if GroupChattingGrid.isVisible(isPrivate: isPrivate, chatters: chatters) {
                         GroupChattingGrid(chatters: chatters) { userID in
-                            router.push(.userProfile(userID, origin: .groupMember(conversationID)))
+                            openMember(userID, portrait: chatters.first { $0.userID == userID }.map(GroupPortrait.init))
                         }
                         .padding(.top, 24)
                     }
@@ -234,6 +235,7 @@ struct ChatProfileScreen: View {
             }
         }
         .dialog(item: $dialogItem)
+        .memberSheet($memberSheetTarget)
         .invitePeople(
             conversationID,
             canInvite: conversation?.canInvite ?? false,
@@ -636,6 +638,15 @@ struct ChatProfileScreen: View {
             memberCount: conversation?.rosterSummary.memberCount ?? 0
         )
         isInviting = true
+    }
+
+    /// A portrait opens the member sheet; the viewer's own still opens their profile.
+    private func openMember(_ userID: UserID, portrait: GroupPortrait?) {
+        if userID == conversationController.selfUserID {
+            router.push(.userProfile(userID, origin: .groupMember(conversationID)))
+        } else {
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID, portrait: portrait)
+        }
     }
 
     // MARK: - Overflow -

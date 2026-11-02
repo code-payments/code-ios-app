@@ -89,6 +89,7 @@ struct ConversationScreen: View {
     /// stops showing and the exit plays; the plain delete follows.
     @State private var messageReport: MessageReportRequest?
     @State private var silenceTarget: ModerationTarget?
+    @State private var memberSheetTarget: MemberSheetTarget?
     /// The instant ``gate`` judges a timed silence against. A silence lapses with no event, so
     /// ``silenceExpiry`` moves this to the end and the composer returns without reopening the chat.
     @State private var silenceClock = Date.now
@@ -229,10 +230,14 @@ struct ConversationScreen: View {
         return { router.push(.userProfile(userID, origin: .directMessage)) }
     }
 
-    /// Tapping a face in the gutter opens that person's profile — the same screen the counterpart's
-    /// own card opens in a DM.
+    /// Tapping a face in the gutter opens the member sheet in a group, and the profile otherwise —
+    /// the same screen the counterpart's own card opens in a DM.
     private func openAuthorProfile(_ userID: UserID) {
-        router.push(.userProfile(userID, origin: groupMemberOrigin))
+        if groupConversation != nil, let conversationID, userID != session.userID {
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID)
+        } else {
+            router.push(.userProfile(userID, origin: groupMemberOrigin))
+        }
     }
 
     /// Where a profile opened from this transcript says it came from. Only a group has members.
@@ -1308,6 +1313,7 @@ struct ConversationScreen: View {
             }
         }
         .silenceUserSheet($silenceTarget)
+        .memberSheet($memberSheetTarget)
         .fullScreenCover(item: $messageReport) { report in
             NavigationStack {
                 ReportFlowScreen(

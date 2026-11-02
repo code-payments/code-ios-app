@@ -43,7 +43,10 @@ struct RestrictedUsersScreen: View {
                     moderation: container.flipClient,
                     owner: sessionContainer.session.ownerKeyPair,
                     conversationID: conversationID,
-                    announce: { toasts.show(.init($0, systemImage: "speaker.wave.2", duration: .seconds(3))) }
+                    announce: { toasts.show(.init($0, systemImage: "speaker.wave.2", duration: .seconds(3))) },
+                    didChangeSilence: { [restrictions = sessionContainer.groupRestrictions, conversationID] in
+                        restrictions.record($1, for: $0, in: conversationID)
+                    }
                 )
             )
             self.model = model
