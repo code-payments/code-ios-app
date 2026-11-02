@@ -65,6 +65,9 @@ struct SilenceUserSheet: View {
                     try? await Task.sleep(for: .milliseconds(600))
                     toasts.show(.init(message, systemImage: "speaker.slash", duration: .seconds(3)))
                 }
+            },
+            didChangeSilence: { [restrictions = sessionContainer.groupRestrictions, conversationID = target.conversationID] in
+                restrictions.record($1, for: $0, in: conversationID)
             }
         )
         do {

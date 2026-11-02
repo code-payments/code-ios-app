@@ -703,6 +703,9 @@ final class SessionContainer {
     /// The members of the private groups the signed-in user has opened, kept live from the stream.
     let groupRosters: GroupRosters
 
+    /// Who is restricted in the groups the signed-in user moderates, for the Members swipe and member sheet.
+    let groupRestrictions: GroupRestrictions
+
     /// Reads, makes and revokes a hosted private group's invite links, for ``GroupInviteLinks``.
     let inviteLinks: GroupInviteLinks.Service
     /// Which hosted groups' link cards show the plain link (Approve New Members), on this device.
@@ -966,6 +969,12 @@ final class SessionContainer {
         )
         conversationController.groupRosters = groupRosters
         self.groupRosters = groupRosters
+
+        self.groupRestrictions = GroupRestrictions(
+            getRestrictedUsers: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getRestrictedUsers(owner: owner, conversationID: conversationID)
+            }
+        )
 
         self.inviteLanding = GroupInviteLanding(service: .init(
             owner: session.ownerKeyPair,

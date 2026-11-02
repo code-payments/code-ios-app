@@ -118,6 +118,29 @@ struct GroupModerationTests {
         await #expect(throws: (any Error).self) { try await moderation.unsilence(UUID(), firstName: "McAnsh") }
         #expect(announced.count == 2)
     }
+
+    @Test("A silence change is recorded only after the server call succeeds, and a lift records nil")
+    func silenceChangeRecordedOnSuccess() async throws {
+        let server = FakeModeration()
+        var changes: [(UserID, ConversationSilenceState?)] = []
+        let moderation = GroupModeration(
+            moderation: server,
+            owner: .mock,
+            conversationID: ConversationID(data: Data(repeating: 1, count: 32)),
+            didChangeSilence: { changes.append(($0, $1)) }
+        )
+        let member = UUID()
+
+        try await moderation.silence(member, firstName: "McAnsh", duration: .oneHour, now: now)
+        try await moderation.unsilence(member, firstName: "McAnsh")
+        #expect(changes.map(\.0) == [member, member])
+        #expect(changes.map(\.1) == [.until(now.addingTimeInterval(3600)), nil])
+
+        server.fails = true
+        await #expect(throws: (any Error).self) { try await moderation.silence(member, firstName: "McAnsh", duration: .forever) }
+        await #expect(throws: (any Error).self) { try await moderation.unsilence(member, firstName: "McAnsh") }
+        #expect(changes.count == 2)
+    }
 }
 
 private final class FakeModeration: ConversationModeration, @unchecked Sendable {

@@ -104,8 +104,8 @@ enum GroupModerationCopy {
 
     static let noSilenced = "No One Restricted"
     static let noRemoved = "No One Removed"
-    static let noSilencedBody = "Stop someone from sending messages in this group by tapping their profile and selecting Restrict"
-    static let noRemovedBody = "Remove someone from this group by tapping their profile and selecting Remove from Group"
+    static let noSilencedBody = "Stop someone from sending messages in this group by tapping their picture and choosing Restrict"
+    static let noRemovedBody = "Remove someone from this group by tapping their picture and choosing Remove from Group"
 
     /// The first word of a display name, which is how the host's prompts address the member.
     static func firstName(of name: String) -> String {
@@ -124,20 +124,25 @@ struct GroupModeration {
     var announce: @MainActor (String) -> Void = { _ in }
     /// Told the member once a removal has succeeded, so the roster can drop them with the count.
     var didRemove: @MainActor (UserID) -> Void = { _ in }
+    /// Told the member and their new silence once a silence or lift has succeeded; nil is a lift.
+    var didChangeSilence: @MainActor (UserID, ConversationSilenceState?) -> Void = { _, _ in }
 
     func silence(_ userID: UserID, firstName: String, duration: SilenceDuration, now: Date = .now) async throws {
+        let silence = duration.silence(from: now)
         do {
-            try await moderation.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: duration.silence(from: now))
+            try await moderation.silenceUser(owner: owner, conversationID: conversationID, userID: userID, silence: silence)
         } catch {
             Analytics.groupMemberSilenced(duration: duration, error: error)
             throw error
         }
         Analytics.groupMemberSilenced(duration: duration, error: nil)
+        didChangeSilence(userID, silence)
         announce(GroupModerationCopy.silencedToast(firstName: firstName, duration: duration))
     }
 
     func unsilence(_ userID: UserID, firstName: String) async throws {
         try await moderation.unsilenceUser(owner: owner, conversationID: conversationID, userID: userID)
+        didChangeSilence(userID, nil)
         announce(GroupModerationCopy.unsilencedToast(firstName: firstName))
     }
 
