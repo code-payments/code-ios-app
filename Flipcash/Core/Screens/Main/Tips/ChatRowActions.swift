@@ -127,7 +127,7 @@ private struct ChatRowContextMenu: ViewModifier {
         }
         if conversationController.isMuted(conversationID: conversation.id) {
             Button("Unmute", systemImage: SystemSymbol.bell.rawValue) {
-                Task { try? await conversationController.unmute(conversationID: conversation.id) }
+                Task { await conversationController.unmuteReporting([conversation.id], session: session) }
             }
         } else {
             Button("Mute", systemImage: SystemSymbol.bellSlash.rawValue, action: onMute)
@@ -315,6 +315,30 @@ struct ChatListMoreMenu: View {
     }
 }
 
+// MARK: - Unmute -
+
+extension ConversationController {
+
+    /// Unmutes `ids` the way the Mute sheet's Unmute row does: a `chatUnmuted` event per chat, and
+    /// on failure the same error dialog and captured error. For the paths that skip the sheet.
+    func unmuteReporting(_ ids: [ConversationID], session: Session) async {
+        let chatTypes = ids.map { conversation(withID: $0)?.type }
+        do {
+            try await unmute(ids)
+            chatTypes.forEach { Analytics.chatUnmuted(chatType: $0, error: nil) }
+        } catch {
+            Analytics.chatUnmuted(chatType: chatTypes.first ?? nil, error: error)
+            session.dialogItem = .error(
+                title: "Something Went Wrong",
+                subtitle: ids.count == 1
+                    ? "We were unable to unmute this chat. Please try again"
+                    : "We were unable to unmute these chats. Please try again"
+            )
+            ErrorReporting.captureError(error, reason: "Failed to unmute chat")
+        }
+    }
+}
+
 // MARK: - Select mode actions -
 
 /// Select mode's three floating capsules, in place of the tab bar: the read toggle, Archive, Mute.
@@ -330,6 +354,7 @@ struct ChatSelectionActions: View {
     let onDone: () -> Void
 
     @Environment(ConversationController.self) private var conversationController
+    @Environment(Session.self) private var session
 
     var body: some View {
         let toggle = conversationController.readToggle(for: selected)
@@ -357,7 +382,7 @@ struct ChatSelectionActions: View {
                     onMute(selected)
                 case .unmute:
                     let ids = selected
-                    Task { try? await conversationController.unmute(ids) }
+                    Task { await conversationController.unmuteReporting(ids, session: session) }
                     onDone()
                 }
             }
