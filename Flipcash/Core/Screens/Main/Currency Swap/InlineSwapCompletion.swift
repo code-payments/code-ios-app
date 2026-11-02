@@ -45,20 +45,21 @@ typealias SwapPoller = (_ maxAttempts: Int, _ interval: Duration) async throws -
 struct SwapCompletionReporter {
     let swapId: SwapId
     let swapType: SwapType
-    /// The token being bought, or a convert's destination.
-    let targetMint: PublicKey?
     let amount: ExchangedFiat
 
-    func trackTransaction(successful: Bool) {
+    /// `Token Purchase` or `Token Sell` for a submitted swap, sent once per submit as Android
+    /// sends it, not when the swap finishes. A convert is a sell of its source in every
+    /// direction. `mint` is the token bought, or a convert's source; `amount` and `fee` are the
+    /// net amount and the fee. A cancelled submit sends nothing.
+    static func trackSubmit(swapType: SwapType, mint: PublicKey, amount: ExchangedFiat, fee: ExchangedFiat, error: Error?) {
+        if error is CancellationError { return }
         switch swapType {
         case .buyWithReserves:
-            Analytics.tokenPurchase(method: .purchaseWithReserves, targetMint: targetMint, exchangedFiat: amount, successful: successful)
+            Analytics.tokenPurchase(method: .reserves, mint: mint, amount: amount.nativeAmount, error: error)
         case .buyWithCurrency:
-            Analytics.tokenPurchase(method: .purchaseWithCurrency, targetMint: targetMint, exchangedFiat: amount, successful: successful)
+            Analytics.tokenPurchase(method: .currency, mint: mint, amount: amount.nativeAmount, error: error)
         case .convert:
-            // A convert always disposes of the source token; record it as a
-            // sell of the amount that left the wallet.
-            Analytics.tokenSell(exchangedFiat: amount, successful: successful)
+            Analytics.tokenSell(mint: mint, amount: amount.nativeAmount, fee: fee.nativeAmount, error: error)
         }
     }
 
@@ -125,11 +126,9 @@ struct InlineSwapCompletion {
             let metadata = try await poll(InlineCompletion.maxAttempts, InlineCompletion.pollInterval)
             switch metadata.state {
             case .finalized:
-                reporter.trackTransaction(successful: true)
                 return .succeeded
             case .failed, .cancelled:
                 reporter.reportSwapFailure(state: metadata.state, reason: "Swap completed with failure state")
-                reporter.trackTransaction(successful: false)
                 return .failed
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
                 return .pending
@@ -143,11 +142,9 @@ struct InlineSwapCompletion {
             return .pending
         } catch let error as ClientError where error.isSwapPollRefusal {
             reporter.reportPollRefusal(error)
-            reporter.trackTransaction(successful: false)
             return .failed
         } catch {
             logger.error("Swap polling failed", metadata: ["error": "\(error)"])
-            reporter.trackTransaction(successful: false)
             return .failed
         }
     }

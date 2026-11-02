@@ -97,4 +97,141 @@ struct CatalogueParityEventsTests {
     func unparseable(_ string: String, _ expected: Bool) {
         #expect(ScanViewModel.isUnparseableQR(url: URL(string: string)!) == expected)
     }
+
+    // MARK: - Amount block -
+
+    /// The catalogue's `amount` group for `fiat`: Fiat, Currency, USDC, Quarks, Exchange Rate, Mint.
+    private func expectAmount(_ event: SentEvent, sourceLocation: SourceLocation = #_sourceLocation) {
+        #expect(event.properties["Fiat"] as? Double == 5, sourceLocation: sourceLocation)
+        #expect(event.properties["Currency"] as? String == "usd", sourceLocation: sourceLocation)
+        #expect(event.properties["USDC"] as? Double == 5, sourceLocation: sourceLocation)
+        #expect(event.properties["Quarks"] as? Double == 5_000_000, sourceLocation: sourceLocation)
+        #expect(event.properties["Exchange Rate"] as? Double == 1, sourceLocation: sourceLocation)
+        #expect(event.properties["Mint"] as? String == PublicKey.usdf.base58, sourceLocation: sourceLocation)
+    }
+
+    @Test("Transfer outcomes carry State and the amount group", arguments: [
+        (Analytics.TransferEvent.withdrawal, "Withdrawal"),
+        (.sentTip, "Sent Tip"),
+        (.sendCashLink, "Send Cash Link"),
+        (.receiveCashLink, "Receive Cash Link"),
+        (.grabBill, "Grab Bill"),
+        (.giveBill, "Give Bill"),
+    ])
+    func transferAmount(_ event: Analytics.TransferEvent, _ expected: String) throws {
+        let sent = try Analytics.recordingSends {
+            Analytics.transfer(event: event, exchangedFiat: Self.fiat, grabTime: nil, successful: true, error: nil)
+        }.single
+        #expect(sent.name == expected)
+        #expect(sent.properties["State"] as? String == "Success")
+        expectAmount(sent)
+    }
+
+    @Test("Withdrawal carries the amount group")
+    func withdrawal() throws {
+        let sent = try Analytics.recordingSends {
+            Analytics.withdrawal(exchangedFiat: Self.fiat, successful: true, error: nil)
+        }.single
+        #expect(sent.name == "Withdrawal")
+        expectAmount(sent)
+    }
+
+    @Test("Grab Bill sends Grab Time in ms")
+    func grabTime() throws {
+        let sent = try Analytics.recordingSends {
+            Analytics.transfer(event: .grabBill, exchangedFiat: Self.fiat, grabTime: 1.25, successful: true, error: nil)
+        }.single
+        #expect(sent.properties["Grab Time"] as? Double == 1250)
+    }
+
+    @Test("A failed grab with only the fiat sends Fiat, Currency, USDC and Quarks")
+    func grabFailedFiatOnly() throws {
+        let sent = try Analytics.recordingSends {
+            Analytics.transfer(event: .grabBill, fiat: Self.fiat.nativeAmount, successful: false, error: NSError(domain: "D", code: 1))
+        }.single
+        #expect(sent.properties["State"] as? String == "Failure")
+        #expect(sent.properties["Fiat"] as? Double == 5)
+        #expect(sent.properties["USDC"] as? Double == 5)
+        #expect(sent.properties["Quarks"] as? Double == 5_000_000)
+        #expect(sent.properties["Exchange Rate"] == nil)
+        #expect(sent.properties["Error"] != nil)
+    }
+
+    @Test("A failed Receive Cash Link with no amount sends none")
+    func receiveCashLinkFailed() throws {
+        let sent = try Analytics.recordingSends {
+            Analytics.transfer(event: .receiveCashLink, exchangedFiat: nil, grabTime: nil, successful: false, error: NSError(domain: "D", code: 1))
+        }.single
+        #expect(sent.properties["State"] as? String == "Failure")
+        #expect(sent.properties["Fiat"] == nil)
+        #expect(sent.properties["USDC"] == nil)
+    }
+
+    @Test("Tip Received carries the chat type and the amount group")
+    func tipReceived() throws {
+        let sent = try Analytics.recordingSends { Analytics.tipReceived(chatType: .tipDm, exchangedFiat: Self.fiat) }.single
+        #expect(sent.name == "Tip Received")
+        #expect(sent.properties["Chat Type"] as? String == "Tip")
+        expectAmount(sent)
+    }
+
+    @Test("Add Money steps carry the method and the amount group")
+    func addMoneyAmount() throws {
+        let confirmed = try Analytics.recordingSends { Analytics.addMoneyAmountConfirmed(method: .coinbase, exchangedFiat: Self.fiat) }.single
+        #expect(confirmed.name == "Add Money: Amount Confirmed")
+        #expect(confirmed.properties["Method"] as? String == "Coinbase")
+        expectAmount(confirmed)
+
+        let invoked = try Analytics.recordingSends { Analytics.addMoneyPaymentInvoked(method: .phantom, exchangedFiat: Self.fiat) }.single
+        #expect(invoked.name == "Add Money: Payment Invoked")
+        expectAmount(invoked)
+
+        let result = try Analytics.recordingSends { Analytics.addMoney(method: .coinbase, exchangedFiat: Self.fiat, successful: true, error: nil) }.single
+        #expect(result.name == "Add Money")
+        #expect(result.properties["State"] as? String == "Success")
+        expectAmount(result)
+
+        let phantomFailed = try Analytics.recordingSends {
+            Analytics.addMoney(method: .phantom, exchangedFiat: nil, successful: false, error: NSError(domain: "D", code: 1))
+        }.single
+        #expect(phantomFailed.properties["State"] as? String == "Failure")
+        #expect(phantomFailed.properties["Fiat"] == nil)
+    }
+
+    // MARK: - Swap submit -
+
+    @Test("A submitted buy is Token Purchase With its method, with the bought mint", arguments: [
+        (SwapType.buyWithReserves, "Token Purchase With Reserves"),
+        (.buyWithCurrency, "Token Purchase With Currency"),
+    ])
+    func buySubmit(_ swapType: SwapType, _ expected: String) throws {
+        let sent = try Analytics.recordingSends {
+            SwapCompletionReporter.trackSubmit(swapType: swapType, mint: .jeffy, amount: Self.fiat, fee: Self.fiat, error: nil)
+        }.single
+        #expect(sent.name == expected)
+        #expect(sent.properties["Mint"] as? String == PublicKey.jeffy.base58)
+        #expect(sent.properties["Fiat"] as? Double == 5)
+        #expect(sent.properties["USDC"] as? Double == 5)
+        #expect(sent.properties["State"] == nil)
+        #expect(sent.properties["Payment Mint"] == nil)
+    }
+
+    @Test("A submitted convert is Token Sell of the source, with the fee")
+    func convertSubmit() throws {
+        let sent = try Analytics.recordingSends {
+            SwapCompletionReporter.trackSubmit(swapType: .convert, mint: .jeffy, amount: Self.fiat, fee: Self.fiat, error: NSError(domain: "D", code: 1))
+        }.single
+        #expect(sent.name == "Token Sell")
+        #expect(sent.properties["Mint"] as? String == PublicKey.jeffy.base58)
+        #expect(sent.properties["Fee"] as? Double == 5)
+        #expect(sent.properties["Error"] != nil)
+    }
+
+    @Test("A cancelled submit sends nothing")
+    func cancelledSubmit() {
+        let sent = Analytics.recordingSends {
+            SwapCompletionReporter.trackSubmit(swapType: .buyWithReserves, mint: .jeffy, amount: Self.fiat, fee: Self.fiat, error: CancellationError())
+        }
+        #expect(sent.isEmpty)
+    }
 }

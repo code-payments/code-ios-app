@@ -56,10 +56,6 @@ extension Analytics {
         }
     }
 
-    enum ConversationEvent: String, AnalyticsEvent {
-        case tipReceived = "Tip Received"
-    }
-
     /// The display name a user is known by. `Set` is a first name, `Updated` a
     /// replacement — decided by whether a name already existed, not by the screen.
     enum DisplayNameEvent {
@@ -103,25 +99,9 @@ extension Analytics {
         case openedFromSend
     }
 
-    enum TokenTransactionEvent: String, AnalyticsEvent {
-        case purchaseWithReserves = "Token Purchase With Reserves"
-        case purchaseWithCurrency = "Token Purchase With Currency"
-        case sell                 = "Token Sell"
-    }
-
     enum DeeplinkEvent: String, AnalyticsEvent {
         case parse  = "Deeplink: Parse"
         case routed = "Deeplink: Routed"
-    }
-
-    /// The Add Money funnel, modeled after the transfer pattern — a single
-    /// terminal event with State/Error properties. Names are shared verbatim
-    /// with Android.
-    enum AddMoneyEvent: String, AnalyticsEvent {
-        case methodSelected  = "Add Money: Method Selected"
-        case amountConfirmed = "Add Money: Amount Confirmed"
-        case paymentInvoked  = "Add Money: Payment Invoked"
-        case terminal        = "Add Money"
     }
 
     /// Where the user entered the Add Money flow, sent as the `Source` of Add Money: Opened.
@@ -271,22 +251,6 @@ extension Analytics {
     }
 }
 
-// MARK: - Shared property builders -
-
-private extension Analytics {
-    /// The standard money-amount property block — mint, quarks, native fiat,
-    /// exchange rate, and currency. Shared by the transfer and Add Money events.
-    static func amountProperties(_ exchangedFiat: ExchangedFiat) -> [Property: AnalyticsValue] {
-        [
-            .mint:     exchangedFiat.mint.base58,
-            .quarks:   exchangedFiat.onChainAmount.quarks.analyticsValue,
-            .fiat:     exchangedFiat.nativeAmount.doubleValue,
-            .fx:       exchangedFiat.currencyRate.fx.analyticsValue,
-            .currency: exchangedFiat.currencyRate.currency.rawValue,
-        ]
-    }
-}
-
 extension ExchangedFiat {
     /// The shared contract's amount block. USDC is the USDF value, which Android always sends.
     var analyticsAmount: AnalyticsAmount {
@@ -359,46 +323,50 @@ extension Analytics {
     }
 
     static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
-        properties[.state] = successful ? String.success : String.failure
-
         track(
-            event: TransferEvent.withdrawal,
-            properties: properties,
+            TransferEvents.shared.withdrawal(
+                state: successful ? .success : .failure,
+                amount: exchangedFiat?.analyticsAmount,
+                error: nil
+            ),
             error: error
         )
     }
 
-    static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
-        properties[.state] = successful ? String.success : String.failure
-
-        if let grabTime {
-            properties[.grabTime] = grabTime
-        }
-
-        track(
-            event: event,
-            properties: properties,
-            error: error
-        )
+    /// A transfer's outcome. `grabTime` is in seconds; Grab Bill sends it as `Grab Time` in ms,
+    /// as Android does, and the other events ignore it.
+    static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: TimeInterval?, successful: Bool, error: Error?) {
+        transfer(event: event, amount: exchangedFiat?.analyticsAmount, grabTime: grabTime, successful: successful, error: error)
     }
 
+    /// A transfer's outcome when only the fiat amount is known, as for a grab that failed before
+    /// its metadata arrived.
     static func transfer(event: TransferEvent, fiat: FiatAmount?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-        ]
+        transfer(event: event, amount: fiat?.analyticsAmount, grabTime: nil, successful: successful, error: error)
+    }
 
-        if let fiat {
-            properties[.fiat]     = fiat.doubleValue
-            properties[.currency] = fiat.currency.rawValue
+    private static func transfer(event: TransferEvent, amount: AnalyticsAmount?, grabTime: TimeInterval?, successful: Bool, error: Error?) {
+        let state: EventState = successful ? .success : .failure
+        let built: TrackedEvent = switch event {
+        case .withdrawal:
+            TransferEvents.shared.withdrawal(state: state, amount: amount, error: nil)
+        case .sentTip:
+            TransferEvents.shared.sentTip(state: state, amount: amount, error: nil)
+        case .sendCashLink:
+            TransferEvents.shared.sendCashLink(state: state, amount: amount, choice: nil, app: nil, error: nil)
+        case .receiveCashLink:
+            TransferEvents.shared.receiveCashLink(state: state, amount: amount, error: nil)
+        case .grabBill:
+            TransferEvents.shared.grabBill(
+                state: state,
+                amount: amount,
+                grabTimeMillis: grabTime.map { KotlinLong(longLong: Int64(($0 * 1000).rounded())) },
+                error: nil
+            )
+        case .giveBill:
+            TransferEvents.shared.giveBill(state: state, amount: amount, error: nil)
         }
-
-        track(
-            event: event,
-            properties: properties,
-            error: error
-        )
+        track(built, error: error)
     }
 }
 
@@ -495,9 +463,7 @@ extension Analytics {
     /// An inbound tipped Cash message the user has now read. Mutually exclusive with
     /// `messageReceived` — a tip reports only as a tip.
     static func tipReceived(chatType: ConversationType?, exchangedFiat: ExchangedFiat) {
-        var properties = amountProperties(exchangedFiat)
-        properties[.chatType] = chatType.analyticsValue
-        track(event: ConversationEvent.tipReceived, properties: properties)
+        track(ChatEvents.shared.tipReceived(chatType: chatType.sharedChatType, amount: exchangedFiat.analyticsAmount))
     }
 
     /// An inbound non-tip message the user has now read.
@@ -804,40 +770,43 @@ extension Analytics {
     }
 
     static func addMoneyMethodSelected(method: DepositMethod) {
-        track(event: AddMoneyEvent.methodSelected, properties: [.method: method.analyticsValue])
+        track(AddMoneyEvents.shared.methodSelected(method: method.shared))
     }
 
     static func addMoneyAmountConfirmed(method: DepositMethod, exchangedFiat: ExchangedFiat) {
-        var properties = amountProperties(exchangedFiat)
-        properties[.method] = method.analyticsValue
-        track(event: AddMoneyEvent.amountConfirmed, properties: properties)
+        track(AddMoneyEvents.shared.amountConfirmed(method: method.shared, amount: exchangedFiat.analyticsAmount))
     }
 
     static func addMoneyPaymentInvoked(method: DepositMethod, exchangedFiat: ExchangedFiat) {
-        var properties = amountProperties(exchangedFiat)
-        properties[.method] = method.analyticsValue
-        track(event: AddMoneyEvent.paymentInvoked, properties: properties)
+        track(AddMoneyEvents.shared.paymentInvoked(method: method.shared, amount: exchangedFiat.analyticsAmount))
     }
 
     static func addMoneyAddressCopied(mint: PublicKey) {
         track(AddMoneyEvents.shared.addressCopied(mint: mint.base58))
     }
 
+    /// The Add Money outcome. A nil `exchangedFiat` sends no amount, as Android does for a
+    /// Phantom failure.
     static func addMoney(method: DepositMethod, exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
-        properties[.method] = method.analyticsValue
-        properties[.state] = successful ? String.success : String.failure
-        track(event: AddMoneyEvent.terminal, properties: properties, error: error)
+        track(
+            AddMoneyEvents.shared.result(
+                method: method.shared,
+                state: successful ? .success : .failure,
+                amount: exchangedFiat?.analyticsAmount,
+                error: nil
+            ),
+            error: error
+        )
     }
 }
 
 extension DepositMethod {
-    /// The `Method` property value, shared verbatim with Android.
-    var analyticsValue: String {
+    /// The shared contract's method.
+    var shared: SharedCoreKit.AddMoneyMethod {
         switch self {
-        case .coinbase:    "Coinbase"
-        case .phantom:     "Phantom"
-        case .otherWallet: "Other Wallet"
+        case .coinbase:    .coinbase
+        case .phantom:     .phantom
+        case .otherWallet: .otherWallet
         }
     }
 }
@@ -957,23 +926,6 @@ extension Analytics {
 // MARK: - Token Transactions -
 
 extension Analytics {
-    /// `Mint` is the token being purchased; `Payment Mint` is the token the
-    /// buyer spent (USDF for reserves buys), taken from `exchangedFiat`.
-    /// A nil `targetMint` omits `Mint` — `exchangedFiat` is payment-denominated,
-    /// so no truthful substitute exists.
-    static func tokenPurchase(method: TokenTransactionEvent, targetMint: PublicKey?, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-            .paymentMint: exchangedFiat.mint.base58,
-            .fiat: exchangedFiat.nativeAmount.doubleValue,
-            .currency: exchangedFiat.currencyRate.currency.rawValue,
-        ]
-        if let targetMint {
-            properties[.mint] = targetMint.base58
-        }
-        track(event: method, properties: properties, error: error)
-    }
-
     /// A buy submitted, sent as `Token Purchase With {method}`. `mint` is the token bought and
     /// `amount` the net purchase in the user's currency, as Android sends it. `error` is nil
     /// when the submit succeeded.
@@ -984,14 +936,13 @@ extension Analytics {
         )
     }
 
-    static func tokenSell(exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
-        let properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-            .mint: exchangedFiat.mint.base58,
-            .fiat: exchangedFiat.nativeAmount.doubleValue,
-            .currency: exchangedFiat.currencyRate.currency.rawValue,
-        ]
-        track(event: TokenTransactionEvent.sell, properties: properties, error: error)
+    /// A sell or convert submitted, sent as `Token Sell`. `mint` is the token sold, `amount` the
+    /// net amount and `fee` the fee, both in the user's currency, as Android sends them.
+    static func tokenSell(mint: PublicKey, amount: FiatAmount, fee: FiatAmount, error: Error?) {
+        track(
+            SwapEvents.shared.sell(mint: mint.base58, amount: amount.analyticsAmount, fee: fee.doubleValue, error: nil),
+            error: error
+        )
     }
 
 }

@@ -196,9 +196,10 @@ final class AddMoneyAmountViewModel {
             } catch DepositError.userCancelled {
                 // User rejected the transaction in Phantom — silent.
             } catch let DepositError.externalRejected(title, subtitle) {
+                // Android sends a Phantom failure with no amount.
                 Analytics.addMoney(
                     method: .phantom,
-                    exchangedFiat: amount,
+                    exchangedFiat: nil,
                     successful: false,
                     error: DepositError.externalRejected(title: title, subtitle: subtitle)
                 )
@@ -209,7 +210,7 @@ final class AddMoneyAmountViewModel {
                     "amount": "\(amount.nativeAmount.formatted())",
                 ])
                 ErrorReporting.captureError(error)
-                Analytics.addMoney(method: .phantom, exchangedFiat: amount, successful: false, error: error)
+                Analytics.addMoney(method: .phantom, exchangedFiat: nil, successful: false, error: error)
                 self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
             }
         }

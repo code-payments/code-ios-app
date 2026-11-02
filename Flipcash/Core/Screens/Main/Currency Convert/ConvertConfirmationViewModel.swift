@@ -97,18 +97,24 @@ final class ConvertConfirmationViewModel {
         Task {
             do {
                 let swapId: SwapId
-                if isToDollars {
-                    // Token → Dollars is the sell path.
-                    swapId = try await session.sell(amount: amount, verifiedState: pinnedState, in: sourceMint)
-                } else if isFromDollars {
-                    // Dollars → a token is a buy paid from reserves. `amount` is
-                    // the net purchase; any Dollars fee is added on top and split off
-                    // on-chain, so the debit is `amount + fee`.
-                    swapId = try await session.buy(amount: amount, feeAmount: fee, verifiedState: pinnedState, of: destinationMint)
-                } else {
-                    // Token → token is buy-with-currency.
-                    swapId = try await session.buy(amount: amount, with: sourceMint, verifiedState: pinnedState, of: destinationMint)
+                do {
+                    if isToDollars {
+                        // Token → Dollars is the sell path.
+                        swapId = try await session.sell(amount: amount, verifiedState: pinnedState, in: sourceMint)
+                    } else if isFromDollars {
+                        // Dollars → a token is a buy paid from reserves. `amount` is
+                        // the net purchase; any Dollars fee is added on top and split off
+                        // on-chain, so the debit is `amount + fee`.
+                        swapId = try await session.buy(amount: amount, feeAmount: fee, verifiedState: pinnedState, of: destinationMint)
+                    } else {
+                        // Token → token is buy-with-currency.
+                        swapId = try await session.buy(amount: amount, with: sourceMint, verifiedState: pinnedState, of: destinationMint)
+                    }
+                } catch {
+                    SwapCompletionReporter.trackSubmit(swapType: .convert, mint: sourceMint, amount: amountAfterFee, fee: fee, error: error)
+                    throw error
                 }
+                SwapCompletionReporter.trackSubmit(swapType: .convert, mint: sourceMint, amount: amountAfterFee, fee: fee, error: nil)
                 await completeInline(swapId: swapId, session: session, router: router, dismiss: dismiss)
             } catch Session.Error.verifiedStateStale {
                 // Session.assertFresh already logged this. The pin can't refresh
@@ -156,7 +162,7 @@ final class ConvertConfirmationViewModel {
             try await session.pollSwapState(swapId: swapId, maxAttempts: attempts, interval: interval)
         }
         let completion = InlineSwapCompletion(
-            reporter: SwapCompletionReporter(swapId: swapId, swapType: .convert, targetMint: destinationMint, amount: amountAfterFee),
+            reporter: SwapCompletionReporter(swapId: swapId, swapType: .convert, amount: amountAfterFee),
             poll: poller
         )
         switch await completion.awaitOutcome() {
