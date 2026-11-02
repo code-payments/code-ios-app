@@ -26,13 +26,10 @@ protocol ChatMarkedUnreadStore: AnyObject {
 
     /// Clears the mark on each of `ids`.
     func clear(_ ids: Set<ConversationID>)
-
-    /// Clears every mark.
-    func clearAll()
 }
 
 /// The device-only ``ChatMarkedUnreadStore``: a JSON file beside the drafts in Application Support,
-/// owner-scoped like ``ChatArchiveStore``. Outside `FlipcashStore`, whose version bump deletes the
+/// owner-scoped like ``ChatArchiveStore``, so each account keeps its own marks across logout. Outside `FlipcashStore`, whose version bump deletes the
 /// database, because nothing can re-fetch a mark until the server stores it.
 @MainActor
 @Observable
@@ -64,12 +61,6 @@ final class LocalChatMarkedUnreadStore: ChatMarkedUnreadStore {
     func clear(_ ids: Set<ConversationID>) {
         guard !markedIDs.isDisjoint(with: ids) else { return }
         markedIDs.subtract(ids)
-        write()
-    }
-
-    func clearAll() {
-        guard !markedIDs.isEmpty else { return }
-        markedIDs = []
         write()
     }
 

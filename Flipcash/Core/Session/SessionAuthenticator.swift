@@ -572,7 +572,6 @@ final class SessionAuthenticator {
             container.pushController.prepareForLogout()
             container.usdcSweepOperation.cancel()
             container.conversationController.stop()
-            container.conversationController.prepareForLogout()
             container.chatSpotlightIndexer.stop()
             QuickActionsController.clear()
         }
@@ -694,7 +693,8 @@ final class SessionContainer {
     /// NotificationService extension reads it to decide whether a push may interrupt.
     let chatArchive: ChatArchiveStore
 
-    /// The chats the user has marked unread, on this device only. Cleared at logout.
+    /// The chats the user has marked unread, on this device only. Kept per account: logout leaves
+    /// the file, so signing back in to the same account shows its marks again.
     let chatMarkedUnread: any ChatMarkedUnreadStore
 
     /// The signed-in user's private-group chat keys, in memory and reopened from the stored envelope or the server.

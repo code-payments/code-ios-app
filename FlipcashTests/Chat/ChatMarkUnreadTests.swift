@@ -189,21 +189,19 @@ struct ChatMarkUnreadTests {
         #expect(f.marks.markedIDs.isEmpty)
     }
 
-    @Test("8: logout empties the marked set, on disk too")
-    func logoutClearsMarks() async throws {
-        let f = try await fixture(feed: [chat(1, pointer: 5), chat(2, pointer: 5)])
-        f.marks.mark(.test(1))
-        f.marks.mark(.test(2))
-
-        f.controller.prepareForLogout()
-
-        #expect(f.marks.markedIDs.isEmpty)
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("marks-reload-\(UUID().uuidString)")
+    @Test("8: marks are kept per account: another account sees none, and the same account sees its own again")
+    func marksArePerAccount() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("marks-accounts-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let owner = try PublicKey(Data(repeating: 8, count: 32))
-        let reloaded = LocalChatMarkedUnreadStore(directory: directory, owner: owner)
-        reloaded.mark(.test(3))
-        #expect(LocalChatMarkedUnreadStore(directory: directory, owner: owner).markedIDs == [.test(3)])
+        let accountX = try PublicKey(Data(repeating: 8, count: 32))
+        let accountY = try PublicKey(Data(repeating: 9, count: 32))
+
+        LocalChatMarkedUnreadStore(directory: directory, owner: accountX).mark(.test(1))
+
+        // Account switch: a store for Y over the same directory.
+        #expect(LocalChatMarkedUnreadStore(directory: directory, owner: accountY).markedIDs.isEmpty)
+        // Signing back in to X: a fresh store reads X's file.
+        #expect(LocalChatMarkedUnreadStore(directory: directory, owner: accountX).markedIDs == [.test(1)])
     }
 
     @Test("9: Read All reads A, clears B, leaves C, keeps archived D marked, and counts 2")

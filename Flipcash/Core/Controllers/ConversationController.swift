@@ -268,11 +268,6 @@ final class ConversationController {
         chatListConversations.contains(where: isUnread)
     }
 
-    /// Called at logout: marks are the signed-in account's alone, so the next sign-in starts with none.
-    func prepareForLogout() {
-        chatMarkedUnread?.clearAll()
-    }
-
     /// Called as a chat opens: opening it is reading it, so the mark goes.
     func chatOpened(_ id: ConversationID) {
         chatMarkedUnread?.clear(id)
