@@ -8,9 +8,9 @@
 import Foundation
 import FlipcashCore
 
-/// Sends cash into a private group: the sender enters a total, picks up to ten members, and the total
-/// is split between them in the order they were picked. One recipient is a single payment; two or more
-/// are one multi-recipient intent, every part priced at one verified state.
+/// Sends cash into a private group: the sender enters an amount, picks up to ten members, and every
+/// one of them is paid that amount, in the order they were picked. One recipient is a single payment;
+/// two or more are one multi-recipient intent, every payment priced at one verified state.
 @Observable
 final class GroupSendViewModel {
 
@@ -31,8 +31,10 @@ final class GroupSendViewModel {
 
     private(set) var selectedBalance: ExchangedBalance?
 
-    /// Who is checked, in the order they were checked; that order decides who gets a leftover unit.
-    /// Holds `session.userID` when You is checked: You shares the total but is never paid.
+    /// The most people one send can pay.
+    static let maxRecipients = 10
+
+    /// Who is checked, in the order they were checked; that is the order of the payments.
     private(set) var selection: [UserID] = []
 
     let conversationID: ConversationID
@@ -74,8 +76,8 @@ final class GroupSendViewModel {
         return amount
     }
 
-    /// The entered total, in the currency it was typed in.
-    var enteredTotal: FiatAmount? {
+    /// The amount each person gets, in the currency it was typed in.
+    var enteredAmountEach: FiatAmount? {
         validatedEntered.map { FiatAmount(value: $0, currency: ratesController.balanceCurrency) }
     }
 
@@ -96,16 +98,6 @@ final class GroupSendViewModel {
     }
 
     // MARK: - People -
-
-    /// The "You" row Split Between lists before the members.
-    var youRow: GroupPortrait {
-        GroupPortrait(userID: session.userID, name: "You", picture: nil, isHost: false)
-    }
-
-    /// The members checked, You left out, in check order: the people who get paid.
-    var payees: [UserID] {
-        selection.filter { $0 != session.userID }
-    }
 
     /// The group's members the sender can pay, the sender left out, host first.
     var members: [GroupPortrait] {
@@ -130,13 +122,13 @@ final class GroupSendViewModel {
         selection.contains(userID)
     }
 
-    /// Checks or unchecks a member or You. An eleventh person, You included, is refused with the "10 People Max" notice.
+    /// Checks or unchecks a member. An eleventh is refused with the "10 People Max" notice.
     func toggle(_ userID: UserID) {
         if let index = selection.firstIndex(of: userID) {
             selection.remove(at: index)
             return
         }
-        guard selection.count < GroupSendSplit.maxRecipients else {
+        guard selection.count < Self.maxRecipients else {
             session.dialogItem = .info(
                 title: "10 People Max",
                 subtitle: "The maximum number of people you can send to at once is 10 people"
@@ -146,45 +138,35 @@ final class GroupSendViewModel {
         selection.append(userID)
     }
 
-    /// The entered total split between everyone checked, You included; `parts` are the ones paid.
-    var split: GroupSendSplit? {
-        guard let enteredTotal else { return nil }
-        return try? GroupSendSplit.split(total: enteredTotal, recipients: payees.count, includesYou: includesYou)
+    /// The amount each person gets times the people checked, in the entered currency.
+    var enteredTotal: FiatAmount? {
+        guard let each = enteredAmountEach, !selection.isEmpty else { return nil }
+        return FiatAmount(value: each.value * Decimal(selection.count), currency: each.currency)
     }
 
-    /// Whether the sender shares the total, which the confirm sheet says even for one paid member.
-    var includesYou: Bool {
-        selection.contains(session.userID)
-    }
-
-    /// The per-person line for the confirm sheet, from the parts paid: "$1.00 Each", or "~$0.33 Each" when uneven, ", including You" when You shares it.
+    /// The confirm sheet's large line: "$1.00 each" for two or more people, just the amount for one.
     var eachLabel: String? {
-        guard let split, let enteredTotal else { return nil }
-        return split.eachLabel(in: enteredTotal.currency)
+        guard let each = enteredAmountEach, !selection.isEmpty else { return nil }
+        return selection.count > 1 ? "\(each.formatted()) each" : each.formatted()
     }
 
-    /// Whether the selection can go on to confirm; a total too small to split shows the alert instead.
-    func confirmSelection() -> Bool {
-        guard let enteredTotal, !payees.isEmpty else { return false }
-        do {
-            _ = try GroupSendSplit.split(total: enteredTotal, recipients: payees.count, includesYou: includesYou)
-            return true
-        } catch {
-            switch error {
-            case .noRecipients, .tooManyRecipients:
-                return false
-            case .partBelowMinimum:
-                showTooSmallToSplitError(total: enteredTotal)
-                return false
-            }
-        }
+    /// The confirm sheet's smaller line, "$3.00 total"; nil for one person, who gets only the amount.
+    var totalLabel: String? {
+        guard selection.count > 1, let total = enteredTotal else { return nil }
+        return "\(total.formatted()) total"
+    }
+
+    /// The Send To button title: "Send $X" with X the total, or "Send" until someone is checked.
+    var sendTitle: String {
+        guard let total = enteredTotal else { return "Send" }
+        return "Send \(total.formatted())"
     }
 
     // MARK: - Submit -
 
-    /// Splits the total, prices every part at one verified state, and pays the members checked.
+    /// Prices the amount for every member checked at one verified state, and pays them.
     func submit() async -> Outcome {
-        guard let enteredTotal, let split else { return .failed }
+        guard let enteredAmountEach, !selection.isEmpty else { return .failed }
 
         guard let selectedBalance else {
             ErrorReporting.captureError(
@@ -200,7 +182,7 @@ final class GroupSendViewModel {
         }
 
         let mint = selectedBalance.stored.mint
-        guard let pin = await ratesController.currentPinnedState(for: enteredTotal.currency, mint: mint) else {
+        guard let pin = await ratesController.currentPinnedState(for: enteredAmountEach.currency, mint: mint) else {
             ErrorReporting.captureError(
                 RatesController.Error.exchangeRateUnavailable,
                 reason: "No fresh rate at group send submission",
@@ -213,20 +195,18 @@ final class GroupSendViewModel {
             return .failed
         }
 
-        let parts = split.amounts(in: pin.rate.currency).map { session.price($0, mint: mint, at: pin) }
-        let amounts = parts.compactMap { $0 }
-        guard amounts.count == parts.count else {
-            showTooSmallToSplitError(total: enteredTotal)
+        let each = FiatAmount(value: enteredAmountEach.value, currency: pin.rate.currency)
+        // Below the currency's minimum transfer value the amount prices to nothing; that reads as insufficient.
+        guard let priced = session.price(each, mint: mint, at: pin) else {
+            showInsufficientBalanceError()
             return .failed
         }
+        let amounts = Array(repeating: priced, count: selection.count)
 
-        // What the sender pays is the parts of everyone but You, not the entered total.
-        let paidFiat = FiatAmount(
-            value: split.amounts(in: pin.rate.currency).reduce(Decimal(0)) { $0 + $1.value },
-            currency: pin.rate.currency
-        )
+        // The sender pays the sum of the payments.
+        let paidFiat = FiatAmount(value: each.value * Decimal(selection.count), currency: each.currency)
         guard let paid = session.price(paidFiat, mint: mint, at: pin) else {
-            showSendError()
+            showInsufficientBalanceError()
             return .failed
         }
         switch session.hasSufficientFunds(for: paid) {
@@ -236,7 +216,7 @@ final class GroupSendViewModel {
         case .sufficient:
             break
         }
-        // On a bonding curve the parts can price to more quarks than the whole; the sender pays the parts.
+        // On a bonding curve the payments can price to more quarks than the whole; the sender pays the payments.
         let spentQuarks = amounts.reduce(UInt64(0)) { $0 + $1.onChainAmount.quarks }
         guard spentQuarks <= session.balance(for: mint)?.quarks ?? 0 else {
             showInsufficientBalanceError()
@@ -250,7 +230,7 @@ final class GroupSendViewModel {
         }
 
         var payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)] = []
-        for (userID, amount) in zip(payees, amounts) {
+        for (userID, amount) in zip(selection, amounts) {
             do {
                 payments.append((amount, try await resolver.resolveUserID(userID)))
             } catch {
@@ -281,14 +261,6 @@ final class GroupSendViewModel {
 
     private func presentDeposit() {
         depositMint = selectedBalance?.stored.mint
-    }
-
-    // Placeholder copy: the design has no frame for this alert yet.
-    private func showTooSmallToSplitError(total: FiatAmount) {
-        session.dialogItem = .error(
-            title: "Amount Too Small",
-            subtitle: "\(total.formatted()) is too small to split between \(selection.count) people. Pick fewer people or enter a higher amount"
-        )
     }
 
     // Matches Android's StartChattingPayer.presentInsufficientBalance.

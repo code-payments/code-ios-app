@@ -12,7 +12,7 @@ import FlipcashCore
 /// Thrown to reset the SwipeControl knob without its success checkmark when a send doesn't complete.
 private struct GroupSendDismissed: Error {}
 
-/// Send Cash in a private group: the total, then the members it's split between, then the swipe
+/// Send Cash in a private group: the amount each person gets, then the members who get it, then the swipe
 /// in a sheet over that list.
 struct GroupSendFlow: View {
 
@@ -99,7 +99,7 @@ private struct GroupSendAmountScreen: View {
             .padding(20)
         }
         .ignoresSafeArea(.keyboard)
-        .navigationTitle("Total Amount To Send")
+        .navigationTitle("Amount to Send")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -120,25 +120,24 @@ private struct GroupSendSelectPeopleScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 SelectPeopleList(
-                    members: [viewModel.youRow] + viewModel.members,
+                    members: viewModel.members,
                     isSelected: viewModel.isSelected,
                     toggle: viewModel.toggle,
-                    rowIdentifier: "group-send-member-row"
+                    rowIdentifier: "group-send-member-row",
+                    header: nil
                 )
 
                 CodeButton(
                     style: .filled,
-                    title: "Next",
-                    disabled: viewModel.payees.isEmpty
+                    title: viewModel.sendTitle,
+                    disabled: viewModel.selection.isEmpty
                 ) {
-                    if viewModel.confirmSelection() {
-                        isConfirming = true
-                    }
+                    isConfirming = true
                 }
                 .padding(20)
             }
         }
-        .navigationTitle("Split Between")
+        .navigationTitle("Send To")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()
@@ -175,18 +174,27 @@ struct SelectPeopleList: View {
     let isSelected: (UserID) -> Bool
     let toggle: (UserID) -> Void
     let rowIdentifier: String
+    /// The section header above the members, or nil for none.
+    var header: String? = "Members"
 
     var body: some View {
         List {
             Section {
                 ForEach(members, id: \.userID) { portrait in
                     row(portrait)
+                        // With no header the first row would draw a divider where the header sat.
+                        .listRowSeparator(
+                            header == nil && portrait.userID == members.first?.userID ? .hidden : .automatic,
+                            edges: .top
+                        )
                 }
             } header: {
-                Text("Members")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .textCase(nil)
+                if let header {
+                    Text(header)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .textCase(nil)
+                }
             }
         }
         .listStyle(.plain)
@@ -231,14 +239,14 @@ private struct GroupSendConfirmSheet: View {
     /// Faces drawn before the rest collapse into a "+N" badge.
     private static let maxFaces = 4
 
-    /// "Alex Morgan and 5 Others", or just "Alex Morgan" for one.
+    /// "Alex Morgan and 5 others", or just "Alex Morgan" for one.
     private var recipientsTitle: String {
         let picked = viewModel.selectedMembers
         guard let first = picked.first else { return "" }
         switch picked.count {
         case 1:  return first.name
-        case 2:  return "\(first.name) and 1 Other"
-        default: return "\(first.name) and \(picked.count - 1) Others"
+        case 2:  return "\(first.name) and 1 other"
+        default: return "\(first.name) and \(picked.count - 1) others"
         }
     }
 
@@ -253,13 +261,13 @@ private struct GroupSendConfirmSheet: View {
                         .lineLimit(1)
                 }
                 VStack(spacing: 8) {
-                    Text(viewModel.enteredTotal?.formatted() ?? "")
+                    Text(viewModel.eachLabel ?? "")
                         .font(.appDisplayLarge)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
-                    if viewModel.payees.count > 1 || viewModel.includesYou, let each = viewModel.eachLabel {
-                        Text(each)
+                    if let total = viewModel.totalLabel {
+                        Text(total)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
                     }
