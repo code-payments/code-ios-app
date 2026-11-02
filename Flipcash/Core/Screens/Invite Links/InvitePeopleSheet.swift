@@ -347,10 +347,13 @@ private struct InvitePeoplePresenter: ViewModifier {
     @State private var share: Share?
 
     func body(content: Content) -> some View {
-        content
+        // Read here, not only in the sheet's closure: a value only a closure reads doesn't
+        // re-render this body when the task sets it, and the sheet would open on a stale nil.
+        let links = self.links
+        return content
             .task(id: canInvite) {
-                guard canInvite, links == nil else { return }
-                links = GroupInviteLinks(conversationID: conversationID, service: sessionContainer.inviteLinks)
+                guard canInvite, self.links == nil else { return }
+                self.links = GroupInviteLinks(conversationID: conversationID, service: sessionContainer.inviteLinks)
             }
             .sheet(isPresented: canInvite ? $isPresented : .constant(false), onDismiss: runPendingChoice) {
                 if let links {
