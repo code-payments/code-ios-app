@@ -165,6 +165,18 @@ class ScanViewModel {
         }
     }
 
+    /// Whether `url` is no Flipcash link at all, which Android's scanner reports as
+    /// `Deeplink: Parse` with an Error. A recognised route that `canScanQR` refuses is not one.
+    nonisolated static func isUnparseableQR(url: URL) -> Bool {
+        guard Route.isFlipcashLink(url), let route = Route(url: url) else {
+            return true
+        }
+        if case .unknown = route.path {
+            return true
+        }
+        return false
+    }
+
     private func didScanQR(_ string: String) {
         guard !session.isShowingBill else {
             return
@@ -183,6 +195,12 @@ class ScanViewModel {
         }
 
         guard Self.canScanQR(url: url) else {
+            if Self.isUnparseableQR(url: url) {
+                // Held in the dedup set like a scanned link, so a code in frame reports once
+                // per cooldown rather than once per frame.
+                rememberScannedQR(string)
+                Analytics.deeplinkParseFailed(url: url)
+            }
             return
         }
 
@@ -190,12 +208,7 @@ class ScanViewModel {
             Haptics.tap()
         }
 
-        scannedQRCodes.insert(string)
-
-        // Remove from dedup set after cooldown to allow re-scanning
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.qrCooldownInterval) { [weak self] in
-            self?.scannedQRCodes.remove(string)
-        }
+        rememberScannedQR(string)
 
         logger.debug("QR code scanned", metadata: ["url": "\(url.sanitizedForAnalytics)"])
 
@@ -205,6 +218,16 @@ class ScanViewModel {
             userInfo: ["url": url]
         )
     }
+
+    private func rememberScannedQR(_ string: String) {
+        scannedQRCodes.insert(string)
+
+        // Remove from dedup set after cooldown to allow re-scanning
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.qrCooldownInterval) { [weak self] in
+            self?.scannedQRCodes.remove(string)
+        }
+    }
+
     // MARK: - Still Images -
 
     /// What a still-image scan ended up doing, for the UI to report.
@@ -243,6 +266,9 @@ class ScanViewModel {
 
         case .url(let url):
             guard Self.canScanQR(url: url) else {
+                if Self.isUnparseableQR(url: url) {
+                    Analytics.deeplinkParseFailed(url: url)
+                }
                 Analytics.galleryScanFoundNothing(reason: .routeRefused, elapsed: elapsed)
                 // Deliberately indistinguishable from "nothing found". Someone who has been
                 // sent a login QR learns nothing about why it was refused.

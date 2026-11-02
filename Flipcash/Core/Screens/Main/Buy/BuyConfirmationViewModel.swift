@@ -130,23 +130,27 @@ final class BuyConfirmationViewModel {
         actionButtonState = .loading
         do {
             let swapId: SwapId
-            let swapType: SwapType
-            if isUSDF {
-                Analytics.buttonTapped(name: .buyWithReserves)
-                // `paymentAmount` is the net purchase; the fee is added on top
-                // and split off on-chain, so the debit is `paymentAmount + fee`.
-                swapId = try await session.buy(
-                    amount: paymentAmount,
-                    feeAmount: fee,
-                    verifiedState: pinnedState,
-                    of: targetMint
-                )
-                swapType = .buyWithReserves
-            } else {
-                Analytics.buttonTapped(name: .buyWithCurrency)
-                swapId = try await session.buy(amount: paymentAmount, with: payment.mint, verifiedState: pinnedState, of: targetMint)
-                swapType = .buyWithCurrency
+            let swapType: SwapType = isUSDF ? .buyWithReserves : .buyWithCurrency
+            do {
+                if isUSDF {
+                    Analytics.buttonTapped(name: .buyWithReserves)
+                    // `paymentAmount` is the net purchase; the fee is added on top
+                    // and split off on-chain, so the debit is `paymentAmount + fee`.
+                    swapId = try await session.buy(
+                        amount: paymentAmount,
+                        feeAmount: fee,
+                        verifiedState: pinnedState,
+                        of: targetMint
+                    )
+                } else {
+                    Analytics.buttonTapped(name: .buyWithCurrency)
+                    swapId = try await session.buy(amount: paymentAmount, with: payment.mint, verifiedState: pinnedState, of: targetMint)
+                }
+            } catch {
+                SwapCompletionReporter.trackSubmit(swapType: swapType, mint: targetMint, amount: amountToBuy, fee: fee, error: error)
+                throw error
             }
+            SwapCompletionReporter.trackSubmit(swapType: swapType, mint: targetMint, amount: amountToBuy, fee: fee, error: nil)
             await completeInline(swapId: swapId, swapType: swapType, session: session, router: router, dismiss: dismiss)
         } catch Session.Error.insufficientBalance {
             // Race: the balance gate said OK but the reserves buy disagreed.
@@ -191,7 +195,7 @@ final class BuyConfirmationViewModel {
             try await session.pollSwapState(swapId: swapId, maxAttempts: attempts, interval: interval)
         }
         let completion = InlineSwapCompletion(
-            reporter: SwapCompletionReporter(swapId: swapId, swapType: swapType, targetMint: targetMint, amount: amountToBuy),
+            reporter: SwapCompletionReporter(swapId: swapId, swapType: swapType, amount: amountToBuy),
             poll: poller
         )
         switch await completion.awaitOutcome() {

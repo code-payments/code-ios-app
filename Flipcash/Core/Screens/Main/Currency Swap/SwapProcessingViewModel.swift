@@ -110,7 +110,7 @@ class SwapProcessingViewModel {
 
     init(swapId: SwapId, swapType: SwapType, targetMint: PublicKey? = nil, currencyName: String, amount: ExchangedFiat, attemptsUsed: Int = 0) {
         self.attemptsUsed = attemptsUsed
-        self.reporter = SwapCompletionReporter(swapId: swapId, swapType: swapType, targetMint: targetMint, amount: amount)
+        self.reporter = SwapCompletionReporter(swapId: swapId, swapType: swapType, amount: amount)
         self.swapId = swapId
         self.swapType = swapType
         self.targetMint = targetMint
@@ -144,15 +144,12 @@ class SwapProcessingViewModel {
             switch metadata.state {
             case .finalized:
                 setSwapDetails()
-                reporter.trackTransaction(successful: true)
                 displayState = .success
             case .failed, .cancelled:
                 reporter.reportSwapFailure(state: metadata.state, reason: "Swap completed with failure state")
-                reporter.trackTransaction(successful: false)
                 displayState = .failed
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
                 reporter.reportSwapFailure(state: metadata.state, reason: "Swap timed out in intermediate state")
-                reporter.trackTransaction(successful: false)
                 displayState = .failed
             }
         } catch is CancellationError {
@@ -161,12 +158,10 @@ class SwapProcessingViewModel {
             // will restart the task if still visible.
         } catch let error as ClientError where error.isSwapPollRefusal {
             reporter.reportPollRefusal(error)
-            reporter.trackTransaction(successful: false)
             displayState = .failed
         } catch {
             // No swap state was ever fetched within the poll budget
             logger.error("Swap polling failed", metadata: ["error": "\(error)"])
-            reporter.trackTransaction(successful: false)
             displayState = .failed
         }
 

@@ -77,8 +77,15 @@ final class CoinbaseDepositOperation {
         try checkMinimum(amount)
 
         state = .working
-        let order = try await createOrder(for: amount)
+        let order: OnrampOrderResponse
+        do {
+            order = try await createOrder(for: amount)
+        } catch {
+            Self.trackPurchase(amount, error: error)
+            throw error
+        }
         orderId = order.id
+        Self.trackPurchase(amount, error: nil)
         Analytics.addMoneyPaymentInvoked(method: .coinbase, exchangedFiat: amount)
 
         coinbaseService.setOrder(order)
@@ -86,6 +93,17 @@ final class CoinbaseDepositOperation {
 
         state = .awaitingExternal(.applePay)
         try await awaitApplePayCompletion(orderId: order.id, rate: amount.currencyRate)
+    }
+
+    /// `Token Purchase With Coinbase` at the order's outcome, as Android sends it once the order is
+    /// placed. A missing contact or a cancel sends nothing: Android's flow routes to verification
+    /// there instead of failing the purchase.
+    static func trackPurchase(_ amount: ExchangedFiat, error: Error?) {
+        if let error {
+            if error is CancellationError { return }
+            if case DepositError.requirementUnsatisfied = error { return }
+        }
+        Analytics.tokenPurchase(method: .coinbase, mint: amount.mint, amount: amount.nativeAmount, error: error)
     }
 
     private func checkRequirements() throws {

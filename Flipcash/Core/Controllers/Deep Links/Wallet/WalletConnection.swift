@@ -116,10 +116,10 @@ public final class WalletConnection {
         }
 
         if let code = url.queryItemValue(for: "errorCode") {
-            Analytics.track(event: Analytics.WalletEvent.cancel)
-
             let isUserCancel = code == "4001"
-            if !isUserCancel {
+            if isUserCancel {
+                Analytics.walletCancelled()
+            } else {
                 logger.error("Wallet returned error", metadata: [
                     "code": "\(code)",
                     "url": "\(url.sanitizedForAnalytics)",
@@ -238,6 +238,7 @@ public final class WalletConnection {
 
         Keychain.connectedWalletSession = session
         self.session = session
+        Analytics.walletConnected()
 
         if let continuation = pendingConnect {
             pendingConnect = nil
@@ -322,8 +323,13 @@ public final class WalletConnection {
             URLQueryItem(name: "nonce",                      value: nonce)
         ]
 
-        Analytics.track(event: Analytics.WalletEvent.connect)
         openExternalWallet(c.url!)
+    }
+
+    /// The USD value of a USDC amount, which is 1:1. Neither `ExchangedFiat.compute` (no bonding
+    /// supply) nor `TokenAmount.decimalValue` (10 decimals for any non-USDF mint) values USDC.
+    nonisolated static func usdValue(of usdc: FlipcashCore.TokenAmount) -> FiatAmount {
+        .usd(usdc.quarks.scaleDown(MintMetadata.usdc.decimals))
     }
 
     /// Builds + sends a USDC→USDF swap to Phantom for signing, crediting the
@@ -338,11 +344,7 @@ public final class WalletConnection {
             throw Error.noSession
         }
 
-        let amount = ExchangedFiat.compute(
-            onChainAmount: usdc,
-            rate: .oneToOne,
-            supplyQuarks: nil
-        )
+        let amount = Self.usdValue(of: usdc)
 
         let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
         let flipcashOwner = owner.authorityPublicKey
@@ -399,10 +401,10 @@ public final class WalletConnection {
         case .coinbaseStableSwapper: "coinbaseStableSwapper"
         }
 
-        Analytics.walletRequestAmount(amount: amount.nativeAmount)
+        Analytics.walletRequestAmount(amount: amount)
         openExternalWallet(url)
         logger.info("Requested USDC→USDF deposit swap", metadata: [
-            "amount": "\(amount.nativeAmount.formatted())",
+            "amount": "\(amount.formatted())",
             "swapId": "\(swapId.publicKey.base58)",
             "pool": "\(poolLabel)",
         ])

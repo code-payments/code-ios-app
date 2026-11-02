@@ -42,5 +42,8 @@ struct OnrampVerificationIntroScreen: View {
             .padding(.horizontal, 40)
             .padding(.bottom, 20)
         }
+        .task {
+            Analytics.onrampStep(.showInfo)
+        }
     }
 }
