@@ -1008,9 +1008,8 @@ struct ConversationScreen: View {
         ChatItem.pinQuote(
             of: message,
             selfUserID: session.userID,
-            authorName: message.senderID.flatMap { coordinator?.attributedName(for: $0) }
-                ?? coordinator?.counterpartName
-                ?? "",
+            authorName: message.senderID.flatMap { coordinator?.senderName(for: $0) }
+                ?? ConversationController.fallbackCounterpartName,
             cashBranding: { fiat in
                 guard let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
                 return (balance.name, balance.imageURL)
@@ -1062,11 +1061,7 @@ struct ConversationScreen: View {
     /// The name "Pinned by" gives `userID`: "you", else their name in this chat.
     private func pinnerName(_ userID: UserID) -> String {
         if userID == session.userID { return "you" }
-        if let name = coordinator?.attributedName(for: userID), !name.isEmpty { return name }
-        let member = conversationID
-            .flatMap(conversationController.conversation(withID:))?
-            .members.first { $0.userID == userID }
-        if let name = member?.displayName, !name.isEmpty { return name }
+        if let name = coordinator?.senderName(for: userID), !name.isEmpty { return name }
         return "Member"
     }
 
