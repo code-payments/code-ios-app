@@ -92,6 +92,12 @@ struct NewPublicGroupScreen: View {
             }
         }
         .dialog(item: $dialog)
+        .task {
+            // A focus set before the push transition finishes is dropped, so wait it out.
+            guard model.privacy == .private else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            isTitleFocused = true
+        }
         .fullScreenCover(isPresented: $isPickingPhoto) {
             ImagePickerWithEditor(
                 onImagePicked: model.select(picture:),
@@ -288,6 +294,10 @@ struct NewPublicGroupScreen: View {
                 // Seated before the push so the screen it lands on reads the chat out of the store
                 // rather than refetching what `StartChat` already returned.
                 conversationController.seatCreatedGroup(conversation)
+
+                // Not awaited: the chat opens without waiting on the link. A failure falls back to
+                // the first share making it.
+                sessionContainer.groupInviteLinks.autoCreateFirstLink(for: conversation)
 
                 buttonState = .success
                 // Same beat the rest of the app holds its checkmark for.

@@ -29,6 +29,8 @@ struct GroupInviteLinksTests {
         var listError: Error?
         var revoked: [InviteID] = []
         var secretCounter: UInt8 = 0
+        /// While true, a create waits before answering, so a test can ask again mid-flight.
+        var holdCreate = false
     }
 
     private func invite(_ id: UInt8, status: Invite.Status = .active, createdBy: UserID? = nil, daysAgo: Double = 0, expiresAt: Date? = nil) -> Invite {
@@ -45,8 +47,8 @@ struct GroupInviteLinksTests {
         )
     }
 
-    private func makeLinks(_ server: Server, unopenable: Set<InviteID> = []) -> GroupInviteLinks {
-        let service = GroupInviteLinks.Service(
+    private func makeService(_ server: Server, unopenable: Set<InviteID> = []) -> GroupInviteLinks.Service {
+        GroupInviteLinks.Service(
             selfUserID: me,
             list: { _ in
                 if let error = server.listError { throw error }
@@ -54,6 +56,7 @@ struct GroupInviteLinksTests {
             },
             create: { _, secret, maxUses, expiresAt in
                 server.createdSecrets.append(secret)
+                while server.holdCreate { await Task.yield() }
                 server.createdMaxUses.append(maxUses)
                 server.createdExpiries.append(expiresAt)
                 let status = try server.createResults.removeFirst().get()
@@ -77,7 +80,10 @@ struct GroupInviteLinksTests {
                 return Data(repeating: server.secretCounter, count: 32)
             }
         )
-        return GroupInviteLinks(conversationID: group, service: service, now: { now })
+    }
+
+    private func makeLinks(_ server: Server, unopenable: Set<InviteID> = []) -> GroupInviteLinks {
+        GroupInviteLinks(conversationID: group, service: makeService(server, unopenable: unopenable), now: { now })
     }
 
     @Test("Current is the newest active link the viewer made whose secret opens here")
@@ -113,7 +119,7 @@ struct GroupInviteLinksTests {
         #expect(links.inactive.map(\.id.data.first) == [4, 1])
     }
 
-    @Test("With no active link, the first share makes one for 7 days with no use limit")
+    @Test("With no active link, the first share makes one that never expires, with no use limit")
     func firstShareCreates() async throws {
         let server = Server()
         server.createResults = [.success(.active)]
@@ -123,7 +129,7 @@ struct GroupInviteLinksTests {
 
         #expect(server.createdSecrets.count == 1)
         #expect(server.createdMaxUses == [0])
-        #expect(server.createdExpiries == [now.addingTimeInterval(7 * 86_400)])
+        #expect(server.createdExpiries == [nil])
         #expect(links.current?.url == url)
     }
 
@@ -307,5 +313,104 @@ struct GroupInviteLinksTests {
             secretEnvelope: nil
         )
         #expect(InviteLinkCopy.sheetMeta(limited) == "Never expires · 3 of 10 joined")
+    }
+
+    // MARK: - First link and the group-ready card -
+
+    private func privateGroup() -> Conversation {
+        Conversation(id: group, members: [], lastMessage: nil, lastActivity: now, type: .group, isPrivate: true)
+    }
+
+    @Test("Auto-create fires for a private group only")
+    func autoCreateIsPrivateOnly() async {
+        let server = Server()
+        server.createResults = [.success(.active)]
+        let registry = GroupInviteLinksRegistry(service: makeService(server))
+        let publicGroup = Conversation(id: group, members: [], lastMessage: nil, lastActivity: now, type: .group, isPrivate: false)
+
+        #expect(registry.autoCreateFirstLink(for: publicGroup) == nil)
+        #expect(server.createdSecrets.isEmpty)
+
+        await registry.autoCreateFirstLink(for: privateGroup())?.value
+        #expect(server.createdSecrets.count == 1)
+    }
+
+    @Test("Auto-create makes one link, with no expiry and no use limit, and only once")
+    func autoCreateOnce() async {
+        let server = Server()
+        server.createResults = [.success(.active), .success(.active)]
+        let registry = GroupInviteLinksRegistry(service: makeService(server))
+
+        await registry.autoCreateFirstLink(for: privateGroup())?.value
+        #expect(registry.autoCreateFirstLink(for: privateGroup()) == nil)
+
+        #expect(server.createdExpiries == [nil])
+        #expect(server.createdMaxUses == [0])
+        #expect(registry.links(for: group).current != nil)
+    }
+
+    @Test("A failed auto-create is swallowed and the first share makes the link")
+    func autoCreateFailureFallsBack() async throws {
+        let server = Server()
+        server.createResults = [.failure(.denied), .success(.active)]
+        let registry = GroupInviteLinksRegistry(service: makeService(server))
+
+        await registry.autoCreateFirstLink(for: privateGroup())?.value
+        #expect(registry.links(for: group).current == nil)
+
+        _ = try await registry.links(for: group).currentLink()
+        #expect(server.createdSecrets.count == 2)
+        #expect(server.createdExpiries.last == .some(nil))
+    }
+
+    @Test("The card's tap during the auto-create waits on it instead of making a second link")
+    func cardTapJoinsInFlightCreate() async throws {
+        let server = Server()
+        server.createResults = [.success(.active), .success(.active)]
+        server.holdCreate = true
+        let registry = GroupInviteLinksRegistry(service: makeService(server))
+
+        let auto = registry.autoCreateFirstLink(for: privateGroup())
+        while server.createdSecrets.isEmpty { await Task.yield() }
+        let links = registry.links(for: group)
+        #expect(links.isCreating)
+
+        let tap = Task { try await links.currentLink() }
+        for _ in 0..<20 { await Task.yield() }
+        server.holdCreate = false
+        let url = try await tap.value
+        await auto?.value
+
+        #expect(server.createdSecrets.count == 1)
+        #expect(links.current?.url == url)
+    }
+
+    @Test("The card's tap with a link present shares it without a create")
+    func cardTapWithLink() async throws {
+        let server = Server()
+        server.invites = [invite(1)]
+        let links = makeLinks(server)
+
+        _ = try await links.currentLink()
+        #expect(server.createdSecrets.isEmpty)
+    }
+
+    @Test("The card's tap with no active link makes one that never expires")
+    func cardTapWithoutLink() async throws {
+        let server = Server()
+        server.invites = [invite(1, status: .revoked)]
+        server.createResults = [.success(.active)]
+        let links = makeLinks(server)
+
+        _ = try await links.currentLink()
+
+        #expect(server.createdExpiries == [nil])
+        #expect(server.createdMaxUses == [0])
+    }
+
+    @Test("With Approve New Members on, the card shares the plain link")
+    func cardTargetFollowsApprove() {
+        #expect(GroupReadyInvite.target(isApproving: true) == .plainLink)
+        #expect(GroupReadyInvite.target(isApproving: false) == .currentLink)
     }
 }

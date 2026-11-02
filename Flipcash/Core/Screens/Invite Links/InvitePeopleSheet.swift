@@ -353,7 +353,7 @@ private struct InvitePeoplePresenter: ViewModifier {
         return content
             .task(id: canInvite) {
                 guard canInvite, self.links == nil else { return }
-                self.links = GroupInviteLinks(conversationID: conversationID, service: sessionContainer.inviteLinks)
+                self.links = sessionContainer.groupInviteLinks.links(for: conversationID)
             }
             .sheet(isPresented: canInvite ? $isPresented : .constant(false), onDismiss: runPendingChoice) {
                 if let links {

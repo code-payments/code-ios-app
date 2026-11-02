@@ -1285,7 +1285,7 @@ struct ConversationScreen: View {
     /// What this screen puts on top of itself, and the measurement the title bar needs.
     private func presentation(_ content: some View) -> some View {
         content
-        .groupReadyInvite(conversationID: conversationID, canInvite: groupConversation?.canInvite ?? false, isPresented: $isInviting, router: router)
+        .groupReadyInvite(conversationID: conversationID, canInvite: groupConversation?.canInvite ?? false, isPrivate: groupConversation?.isPrivate ?? false, isPresented: $isInviting, router: router)
         .sheet(item: $presentedCard) { card in
             ContactCardView(card: card)
                 .ignoresSafeArea()
