@@ -112,8 +112,10 @@ struct TipConversationsScreen: View {
                             // Mute first: the first button is the outer, full-swipe action.
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 if !isSelecting {
-                                    muteAction(for: conversation)
+                                    // First is outermost and takes the full swipe: Archive, the
+                                    // action that takes the row out of the list.
                                     archiveAction(for: conversation)
+                                    muteAction(for: conversation)
                                 }
                             }
                             .chatRowActions(
