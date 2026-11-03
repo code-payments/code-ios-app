@@ -113,10 +113,23 @@ struct GroupMembersScreen: View {
 
     // MARK: - Swipe -
 
-    /// Restrict or Lift outermost, then Remove, in the chat list's tonal style. No full swipe: each
+    /// Remove outermost, then Restrict or Lift, matching Android, in the chat list's tonal style. No full swipe: each
     /// one needs a choice or a confirm.
     @ViewBuilder
     private func swipeActions(for portrait: GroupPortrait, options: MemberModerationOptions) -> some View {
+        if options.canRemove {
+            Button {
+                moderator.confirmRemove(moderationTarget(for: portrait))
+            } label: {
+                SwipeActionLabel(
+                    title: "Remove",
+                    systemImage: SystemSymbol.personBadgeMinus.rawValue,
+                    glyphColor: Color.Sentiment.negative
+                )
+            }
+            .tint(Color.Sentiment.negativeSecondary)
+            .accessibilityLabel("Remove from group")
+        }
         switch options.silence {
         case .restrict:
             Button {
@@ -136,19 +149,6 @@ struct GroupMembersScreen: View {
             .accessibilityLabel("Lift restriction")
         case nil:
             EmptyView()
-        }
-        if options.canRemove {
-            Button {
-                moderator.confirmRemove(moderationTarget(for: portrait))
-            } label: {
-                SwipeActionLabel(
-                    title: "Remove",
-                    systemImage: SystemSymbol.personBadgeMinus.rawValue,
-                    glyphColor: Color.Sentiment.negative
-                )
-            }
-            .tint(Color.Sentiment.negativeSecondary)
-            .accessibilityLabel("Remove from group")
         }
     }
 
