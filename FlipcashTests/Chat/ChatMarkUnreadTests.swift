@@ -383,6 +383,14 @@ struct ChatMarkUnreadTests {
     }
 
     /// A link-card source that knows nothing; the preview's chat has no links.
+    @Test("Swipe titles are the short form; the menu and VoiceOver keep \"Mark as …\"")
+    func swipeTitlesAreShort() {
+        #expect(ChatReadAction.markUnread.swipeTitle == "Unread")
+        #expect(ChatReadAction.markRead.swipeTitle == "Read")
+        #expect(ChatReadAction.markUnread.title == "Mark as Unread")
+        #expect(ChatReadAction.markRead.title == "Mark as Read")
+    }
+
     private final class NoLinkCards: LinkCardSource {
         func known(_ card: LinkCard) -> LinkCard.State? { nil }
         func states(for card: LinkCard) -> AsyncStream<LinkCard.State> { AsyncStream { $0.finish() } }
