@@ -106,21 +106,6 @@ struct ChatCashCardCellTests {
         #expect(amount.numberOfLines == 1 && amount.adjustsFontSizeToFitWidth)
     }
 
-    /// The empty space between the bottom of one label's glyphs and the top of the next's: frame
-    /// gap plus the space under the baseline and over the cap height. Digits and these captions
-    /// have no descenders, so this is what reads as the gap.
-    private func visibleGap(_ upper: UILabel, _ lower: UIView, in root: UIView) -> CGFloat {
-        let upperFrame = upper.convert(upper.bounds, to: root)
-        let lowerFrame = lower.convert(lower.bounds, to: root)
-        let upperFont = upper.attributedText?.attribute(.font, at: 0, effectiveRange: nil) as? UIFont ?? upper.font!
-        let below = -upperFont.descender + (upper.bounds.height - upperFont.lineHeight) / 2
-        var above: CGFloat = 0
-        if let lower = lower as? UILabel {
-            above = lower.font.ascender - lower.font.capHeight + (lower.bounds.height - lower.font.lineHeight) / 2
-        }
-        return lowerFrame.minY + above - (upperFrame.maxY - below)
-    }
-
     private func laidOut(_ message: ChatMessage) -> (cell: ChatCashCardCell, labels: [UILabel]) {
         let cell = ChatCashCardCell(frame: CGRect(x: 0, y: 0, width: Self.width, height: 400))
         cell.frame.size.height = measure(message, in: cell)
@@ -128,34 +113,34 @@ struct ChatCashCardCellTests {
         return (cell, labels(in: cell.contentView))
     }
 
-    @Test("The total sits closer under the amount than any other pair of lines, and the token row farther")
-    func moneyReadsAsOneBlock() throws {
-        let (cell, all) = laidOut(group)
-        let root = cell.contentView
-        let caption = try #require(all.first { $0.text == "You and 2 others received" })
-        let amount = try #require(all.first { $0.attributedText?.string == "$1.00 each" })
-        let total = try #require(all.first { $0.text == "$3.00 total" })
-        let token = try #require(all.first { $0.text == "Jeffy" })
-        let footer = try #require(all.first { $0.text == "from Fred Wilson" })
-        let tokenRow = try #require(token.superview)
-
-        let amountToTotal = visibleGap(amount, total, in: root)
-        let totalToToken = visibleGap(total, tokenRow, in: root)
-        #expect(amountToTotal < totalToToken)
-        #expect(amountToTotal < visibleGap(caption, amount, in: root))
-        #expect(amountToTotal < footer.convert(footer.bounds, to: root).minY - tokenRow.convert(tokenRow.bounds, to: root).maxY)
+    /// The card's lines top to bottom, each as a frame in the card's coordinates, with the card's
+    /// own bounds: the edges the spec's spacing values run between.
+    private func lineFrames(_ message: ChatMessage, texts: [String]) throws -> (card: CGRect, lines: [CGRect]) {
+        let (cell, all) = laidOut(message)
+        let views: [UIView] = try texts.map { text in
+            let label = try #require(all.first { ($0.text ?? $0.attributedText?.string) == text })
+            // The token's name sits in a row with its icon; the row is the line.
+            return label.superview is UIStackView && label.superview?.superview is UIStackView ? label.superview! : label
+        }
+        let card = try #require(views.first?.superview?.superview)
+        return (card.bounds, views.map { $0.convert($0.bounds, to: card) })
     }
 
-    @Test("With no total, the token row sits as far under the amount as it does under a total")
-    func noTotal_tokenGapMatchesGroup() throws {
-        let (groupCell, groupLabels) = laidOut(group)
-        let (dmCell, dmLabels) = laidOut(dm)
-        let total = try #require(groupLabels.first { $0.text == "$3.00 total" })
-        let groupToken = try #require(groupLabels.first { $0.text == "Jeffy" }?.superview)
-        let dmAmount = try #require(dmLabels.first { $0.attributedText?.string == "$5.00" })
-        let dmToken = try #require(dmLabels.first { $0.text == "Cash" }?.superview)
-        let groupGap = visibleGap(total, groupToken, in: groupCell.contentView)
-        let dmGap = visibleGap(dmAmount, dmToken, in: dmCell.contentView)
-        #expect(abs(groupGap - dmGap) <= 1.5, "group \(groupGap) vs no-total \(dmGap)")
+    /// The gaps from the card's top, between each pair of lines, and to the card's bottom.
+    private func gaps(_ layout: (card: CGRect, lines: [CGRect])) -> [CGFloat] {
+        let edges = [layout.card.minY] + layout.lines.flatMap { [$0.minY, $0.maxY] } + [layout.card.maxY]
+        return stride(from: 0, to: edges.count, by: 2).map { (edges[$0 + 1] - edges[$0]).rounded() }
+    }
+
+    @Test("A group card spaces its lines 16 / 12 / 0 / 6 / 12 / 16, so its height is its lines plus those gaps")
+    func groupCard_spacing() throws {
+        let layout = try lineFrames(group, texts: ["You and 2 others received", "$1.00 each", "$3.00 total", "Jeffy", "from Fred Wilson"])
+        #expect(gaps(layout) == [16, 12, 0, 6, 12, 16])
+    }
+
+    @Test("A card with no total spaces its lines 16 / 12 / 6 / 12 / 16")
+    func dmCard_spacing() throws {
+        let layout = try lineFrames(dm, texts: ["You sent", "$5.00", "Cash", "to Noah Parker"])
+        #expect(gaps(layout) == [16, 12, 6, 12, 16])
     }
 }
