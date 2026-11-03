@@ -107,14 +107,11 @@ struct ConversationScreen: View {
     @State private var paymentRequestDetails: PaymentRequestSelection?
     @State private var paymentRequestDeck = PaymentRequestDeckState()
     @State private var deckWindow = PaymentRequestDeckWindow()
-    @State private var requestPillPresence = PaymentRequestPillPresence()
-    /// Paying a share from the owed strip's Pay button.
+    @State private var requestDeckPresence = PaymentRequestDeckPresence()
+    /// Paying a share from the request stack's Pay button.
     @State private var requestPayFlow = PaymentRequestPayFlow()
-    /// How far the reader's scroll away from the newest messages has shrunk the owed strip into
-    /// the app-bar pill.
-    @State private var stripCollapse = PaymentRequestStripCollapse()
-    /// The owed strip's measured height, reserved at the transcript's top; 0 while hidden.
-    @State private var stripHeight: CGFloat = 0
+    /// The request stack's measured height, reserved at the transcript's top; 0 while hidden.
+    @State private var stackHeight: CGFloat = 0
     /// The pin bar's measured height, reserved at the transcript's top; 0 while hidden.
     @State private var pinBarHeight: CGFloat = 0
     /// The pinned list sheet and the jump a row asks for.
@@ -170,8 +167,6 @@ struct ConversationScreen: View {
     private static let titleLeadingInset: CGFloat = 72
     /// Where the title ends: the bar's trailing margin, since nothing sits on that side.
     private static let titleTrailingInset: CGFloat = 16
-    /// Room the request pill takes at the bar's trailing edge.
-    private static let requestPillWidth: CGFloat = 150
 
     /// The synced contact for the counterpart, resolved live from the directory
     /// so a `dmChatID` stored after the first payment flows in. Falls back to
@@ -549,12 +544,7 @@ struct ConversationScreen: View {
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
-            // Each anchor shown takes its height and the stack's 8-point gap.
-            // The pin bar shares the strip's slot, taking it once the strip has gone into the pill.
-            transcriptTopInset: [anchorHeight, max(stripHeight, showsPinBar ? pinBarHeight : 0)].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
-            onDistanceFromNewestChange: { [stripCollapse] in stripCollapse.update(distanceFromNewest: $0) },
-            // Released mid-way, the strip finishes the move it's nearer to rather than resting half-shrunk.
-            snapDistanceFromNewest: viewerOwes && !stripCollapse.isPinned ? PaymentRequestStripCollapse.distance : nil,
+            transcriptTopInset: Self.transcriptTopInset(slots: [anchorHeight, stackHeight, showsPinBar ? pinBarHeight : 0]),
             messageJump: messageJump
         )
     }
@@ -688,7 +678,7 @@ struct ConversationScreen: View {
             Task { await sessionContainer.hostedLobbies.refresh(hostedConversationID) }
         }
         .onChange(of: requestDeckItems, initial: true) { _, items in
-            requestPillPresence.update(items)
+            requestDeckPresence.update(items)
         }
         .onChange(of: conversationController.reactions.error) { _, _ in
             scheduleReactionErrorDismissal()
@@ -811,16 +801,9 @@ struct ConversationScreen: View {
                 }
             }
             .padding(.top, 8)
-            .animation(Self.deckStyleMotion, value: viewerOwes)
-            .animation(Self.deckStyleMotion, value: pinSlot)
+            .animation(Self.slotMotion, value: showsPinBar)
         }
         .paymentRequestPaySheet(requestPayFlow)
-        .onChange(of: requestDeckStyle, initial: true) { _, style in
-            paymentRequestDeck.source = style
-        }
-        .onChange(of: owedRequestIDs) { owed, owing in
-            if !owing.isSubset(of: owed) { stripCollapse.unpin() }
-        }
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
@@ -870,19 +853,20 @@ struct ConversationScreen: View {
                             ?? tipCounterpart?.profilePicture?.thumbnailBlurhash,
                         // Too wide to centre, the bar lays the item out from just past the back
                         // button, so the width alone sets where it ends; no offset is needed.
-                        width: max(navBarWidth - Self.titleLeadingInset - titleTrailingInset, 0),
+                        width: max(navBarWidth - Self.titleLeadingInset - Self.titleTrailingInset, 0),
                         mute: viewerMute,
                         onTap: titleTapAction,
                         opensProfile: profileTapAction != nil
                     )
                 }
-                if requestPillPresence.isInBar {
-                    // The pill draws its own capsule, so the iOS 26 platter stays off.
+                if paymentRequestDeck.phase != .collapsed {
+                    // The expanded deck's window draws its close button here, over the backdrop
+                    // that frosts the bar; the item only holds the slot, so the platter stays off.
                     if #available(iOS 26.0, *) {
-                        ToolbarItem(placement: .topBarTrailing) { trailingBarItem }
+                        ToolbarItem(placement: .topBarTrailing) { closeSlot }
                             .sharedBackgroundVisibility(.hidden)
                     } else {
-                        ToolbarItem(placement: .topBarTrailing) { trailingBarItem }
+                        ToolbarItem(placement: .topBarTrailing) { closeSlot }
                     }
                 }
             }
@@ -922,46 +906,30 @@ struct ConversationScreen: View {
         )
     }
 
-    private static let deckStyleMotion = Animation.spring(duration: 0.4, bounce: 0.12)
+    private static let slotMotion = Animation.spring(duration: 0.4, bounce: 0.12)
 
-    /// Where the collapsed deck sits: the strip under the bar while the viewer owes and reads the
-    /// newest messages, otherwise the app-bar pill.
-    private var requestDeckStyle: PaymentRequestDeckStyle {
-        .collapsed(owes: viewerOwes, isScrolledAway: stripCollapse.isScrolledAway)
+    /// The transcript's top inset for the slots stacked under the bar (the join-requests anchor, the
+    /// request stack, the pin bar): each one showing takes its height and the stack's 8-point gap.
+    static func transcriptTopInset(slots: [CGFloat]) -> CGFloat {
+        slots.filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 }
     }
 
-    private var viewerOwes: Bool {
-        requestDeckItems.contains { $0.owedShare != nil }
-    }
-
-    private var owedRequestIDs: Set<PaymentRequestID> {
-        Set(requestDeckItems.filter { $0.owedShare != nil }.map(\.id))
-    }
-
-    /// The strip and the pin bar share one slot: the bar takes it once the strip has gone
-    /// into the pill, and steps aside to the toolbar button while the strip is out.
+    /// The request stack, then the pin bar directly below it. Neither moves the other.
     private var requestAndPinSlot: some View {
-        ZStack(alignment: .top) {
-            // Mounted for as long as the viewer owes, so scrolling only moves it: its slot at the
-            // transcript's top stays put, and the strip shrinks into the pill in step with the scroll.
-            if viewerOwes {
-                PaymentRequestPill(
-                    items: requestDeckItems,
-                    style: .strip,
+        VStack(spacing: 8) {
+            if requestDeckPresence.isMounted {
+                PaymentRequestStack(
+                    items: requestDeckPresence.items(requestDeckItems),
                     accessibilityLabel: requestDeckAccessibilityLabel,
                     state: paymentRequestDeck,
-                    pay: payRequest,
-                    dock: stripCollapse
+                    pay: payRequest
                 )
-                .modifier(PaymentRequestStripCollapseEffect(collapse: stripCollapse))
-                // The slot, not the moving strip: the collapse's transforms leave it alone.
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.stripFrame = $0 }
+                .modifier(PaymentRequestDeckAppearance(presence: requestDeckPresence))
                 .padding(.horizontal, BarMetrics.edgeInset)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stripHeight = $0 }
-                .onDisappear { stripHeight = 0 }
-                .transition(.scale(scale: 0.3, anchor: .topTrailing).combined(with: .opacity))
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stackHeight = $0 }
+                .onDisappear { stackHeight = 0 }
             }
-            if pinSlot == .bar, let conversationID, let pin = conversationController.pins.barPin(in: conversationID) {
+            if let conversationID, let pin = conversationController.pins.barPin(in: conversationID) {
                 PinBar(
                     quote: pinQuote(pin),
                     count: visiblePins.count,
@@ -985,15 +953,10 @@ struct ConversationScreen: View {
         conversationID.map(conversationController.pins.visible(in:)) ?? []
     }
 
-    /// Where the pins show beside the request deck.
-    private var pinSlot: PinSlot {
-        PinSlot.resolve(hasPins: !visiblePins.isEmpty, deckStyle: viewerOwes ? requestDeckStyle : nil)
-    }
-
     /// Whether the bar is shown, read before its exit transition ends so the transcript moves
     /// with it rather than after it.
     private var showsPinBar: Bool {
-        pinSlot == .bar && conversationID.flatMap(conversationController.pins.barPin(in:)) != nil
+        conversationID.flatMap(conversationController.pins.barPin(in:)) != nil
     }
 
     /// Whether the viewer may pin and unpin here, as the server decides it.
@@ -1093,40 +1056,18 @@ struct ConversationScreen: View {
         }
     }
 
-    /// The bar's trailing slot: the request pill, with the pin button over it while the strip
-    /// holds the slot under the bar and the pill is hidden behind it.
-    private var trailingBarItem: some View {
-        ZStack(alignment: .trailing) {
-            requestPill
-            if pinSlot == .toolbarButton {
-                PinToolbarButton { openPinnedList(waiting: nil) }
-                    .transition(.opacity)
-            }
-        }
-        .animation(Self.deckStyleMotion, value: pinSlot)
-    }
-
-    /// Kept in the bar under the strip, hidden, so the bar never rebuilds its item as the strip comes
-    /// and goes. Hidden, it still marks the bar's slot for the expanded deck's close button.
-    private var requestPill: some View {
-        let style = requestDeckStyle
-        return PaymentRequestPill(
-            items: requestPillPresence.items(requestDeckItems),
-            style: .pill,
-            accessibilityLabel: requestDeckAccessibilityLabel,
-            state: paymentRequestDeck
-        )
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.pillFrame = $0 }
-        .modifier(PaymentRequestPillRevealEffect(collapse: stripCollapse, isBehindStrip: viewerOwes))
-        .allowsHitTesting(style != .strip)
-        .accessibilityHidden(style == .strip)
-        .animation(Self.deckStyleMotion, value: viewerOwes)
-        .modifier(PaymentRequestPillAppearance(presence: requestPillPresence))
+    /// Holds the bar's trailing slot while the deck is expanded and reports where it is, so the
+    /// deck's window can put its close button there.
+    private var closeSlot: some View {
+        Color.clear
+            .frame(width: 44, height: 44)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { paymentRequestDeck.closeSlot = $0 }
+            .accessibilityHidden(true)
     }
 
     private var requestDeckAccessibilityLabel: String {
         guard let front = requestDeckItems.first else { return "" }
-        if requestDeckStyle == .strip, let share = front.owedShare {
+        if let share = front.owedShare {
             return PaymentRequestCopy.owedAccessibilityLabel(
                 share: share,
                 title: front.card.title,
@@ -1136,12 +1077,6 @@ struct ConversationScreen: View {
         }
         return PaymentRequestCopy(session.displayCurrency)
             .deckAccessibilityLabel(front: front.request, title: front.card.title, viewerStatus: front.viewerStatus, count: requestDeckItems.count, now: .now)
-    }
-
-    /// The title's right margin, widened to clear the request pill while one shows in the bar.
-    private var titleTrailingInset: CGFloat {
-        // Behind the strip the pill is only transparent, so it still takes its slot in the bar.
-        Self.titleTrailingInset + (requestPillPresence.isVisible ? Self.requestPillWidth : 0)
     }
 
     private func payRequest(_ id: PaymentRequestID) {

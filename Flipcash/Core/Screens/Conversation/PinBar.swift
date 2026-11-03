@@ -140,25 +140,6 @@ private struct PinBarRule: View {
     }
 }
 
-/// The pin button in the navigation bar's trailing slot while the request strip holds the slot
-/// under the bar. Opens every pin.
-struct PinToolbarButton: View {
-
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image.asset(.listBulletPin)
-                .foregroundStyle(Color.textMain)
-                .frame(width: Metrics.buttonHeightThin, height: Metrics.buttonHeightThin)
-                .overlayGlassBackground(in: Circle())
-                .contentShape(Circle())
-        }
-        .accessibilityLabel("Pinned Messages")
-        .accessibilityIdentifier("pin-toolbar-button")
-    }
-}
-
 private extension View {
 
     /// The pin bar's ground: Liquid Glass with a 20% black tint, or the same tint over an

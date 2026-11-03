@@ -178,81 +178,18 @@ struct PaymentRequestSpecTests {
         #expect(!paid.isOwed(by: viewer, at: now))
     }
 
-    @Test("26: viewer owes and scrolls away, so the strip shrinks into the pill")
-    func stripShrinksWhenScrolledAway() {
-        #expect(PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: false) == .strip)
-        #expect(PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: true) == .pill)
-        #expect(PaymentRequestDeckStyle.collapsed(owes: false, isScrolledAway: false) == .pill)
-    }
-
-    @Test("26: the strip shrinks in step with the scroll, not at a single point")
+    @Test("27: dragging the stack up only pulls the front card a few points")
     @MainActor
-    func stripTracksScroll() {
-        let collapse = PaymentRequestStripCollapse()
-        let distance = PaymentRequestStripCollapse.distance
+    func upwardDragIsElastic() {
+        let cap = PaymentRequestStack.maxUpwardPull
 
-        collapse.update(distanceFromNewest: distance / 4)
-        #expect(collapse.progress == 0.25)
-        collapse.update(distanceFromNewest: distance / 2)
-        #expect(collapse.progress == 0.5)
-        collapse.update(distanceFromNewest: -20)
-        #expect(collapse.progress == 0)
-        #expect(!collapse.isPinned)
-    }
-
-    @Test("26: once fully shrunk, scrolling back to the newest messages leaves the strip in the pill")
-    @MainActor
-    func stripStaysPinned() {
-        let collapse = PaymentRequestStripCollapse()
-        let distance = PaymentRequestStripCollapse.distance
-
-        collapse.update(distanceFromNewest: distance * 3)
-        #expect(collapse.isPinned)
-        collapse.update(distanceFromNewest: 0)
-        #expect(collapse.progress == 1)
-        #expect(collapse.isScrolledAway)
-    }
-
-    @Test("27: reopening the chat while still owing shows the strip again")
-    @MainActor
-    func reopenShowsStrip() {
-        let pinned = PaymentRequestStripCollapse()
-        pinned.update(distanceFromNewest: PaymentRequestStripCollapse.distance)
-        #expect(pinned.isPinned)
-
-        // A visit owns its collapse, so a reopened chat starts from a fresh one.
-        let reopened = PaymentRequestStripCollapse()
-        #expect(reopened.progress == 0)
-        #expect(!reopened.isScrolledAway)
-    }
-
-    @Test("28: a new owed request while the chat is open brings the strip back")
-    @MainActor
-    func newOwedRequestUnpins() {
-        let collapse = PaymentRequestStripCollapse()
-        collapse.update(distanceFromNewest: PaymentRequestStripCollapse.distance)
-        collapse.unpin()
-        #expect(!collapse.isPinned)
-        #expect(!collapse.isScrolledAway)
-        #expect(collapse.progress == 0)
-        collapse.update(distanceFromNewest: PaymentRequestStripCollapse.distance / 2)
-        #expect(collapse.progress == 0.5)
-    }
-
-    @Test("26: a small scroll back and forth past the middle never flaps the style")
-    @MainActor
-    func stripStyleHasHysteresis() {
-        let collapse = PaymentRequestStripCollapse()
-        let distance = PaymentRequestStripCollapse.distance
-
-        collapse.update(distanceFromNewest: distance * 0.55)
-        #expect(!collapse.isScrolledAway)
-        collapse.update(distanceFromNewest: distance * 0.7)
-        #expect(collapse.isScrolledAway)
-        collapse.update(distanceFromNewest: distance * 0.45)
-        #expect(collapse.isScrolledAway)
-        collapse.update(distanceFromNewest: distance * 0.3)
-        #expect(!collapse.isScrolledAway)
+        #expect(PaymentRequestStack.upwardPull(40) == 0)
+        #expect(PaymentRequestStack.upwardPull(0) == 0)
+        let short = PaymentRequestStack.upwardPull(-10)
+        let long = PaymentRequestStack.upwardPull(-400)
+        #expect(short < 0 && short > -10)
+        #expect(long < short)
+        #expect(long > -cap)
     }
 
     // MARK: - Viewer status -
