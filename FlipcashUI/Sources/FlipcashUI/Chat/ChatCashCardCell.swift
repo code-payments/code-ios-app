@@ -21,8 +21,8 @@ public final class ChatCashCardCell: ChatColumnCell {
     public static let reuseIdentifier = "ChatCashCardCell"
 
     private static let amountFont = UIFont.default(size: 38, weight: .bold)
-    // Regular weight at half the amount's size, in the caption's colour, on the amount's line.
-    private static let eachFont = UIFont.default(size: amountFont.pointSize / 2, weight: .regular)
+    // Medium weight at half the amount's size, in the caption's colour, on the amount's line.
+    private static let eachFont = UIFont.default(size: amountFont.pointSize / 2, weight: .medium)
     // The "~" before the smallest of uneven parts: the amount's weight at 70% of its size.
     private static let approximateFont = UIFont.default(size: (amountFont.pointSize * 0.7).rounded(), weight: .bold)
     private static let secondaryColor = UIColor.white.withAlphaComponent(0.5)

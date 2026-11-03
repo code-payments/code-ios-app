@@ -69,7 +69,7 @@ struct ChatCashCardCellTests {
         #expect(amount.numberOfLines == 1)
     }
 
-    @Test("The smallest of uneven parts leads with a '~' at 70% of the amount's size and keeps a lighter 'each'")
+    @Test("The smallest of uneven parts leads with a '~' at 70% of the amount's size and keeps a half-size Medium 'each'")
     func approximateEach_styles() throws {
         let uneven = ChatMessage(id: "4", content: .cash(ChatCashContent(
             amount: "$0.33", token: "Jeffy",
@@ -86,7 +86,8 @@ struct ChatCashCardCellTests {
         #expect(tilde.fontName == amount.fontName)
         #expect(text.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? UIColor == text.attribute(.foregroundColor, at: 1, effectiveRange: nil) as? UIColor)
         #expect(text.attribute(.baselineOffset, at: 0, effectiveRange: nil) == nil)
-        #expect(each.pointSize < amount.pointSize && each.fontName != amount.fontName)
+        #expect(each.pointSize == amount.pointSize / 2)
+        #expect(each.fontName == UIFont.default(size: each.pointSize, weight: .medium).fontName)
     }
 
     @Test("A long uneven amount shrinks its '~' with the rest of the line to fit the card")
