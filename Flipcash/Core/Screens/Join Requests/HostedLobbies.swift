@@ -62,8 +62,8 @@ final class HostedLobbies {
     func refresh(hosted: [ConversationID]) async {
         let hostedSet = Set(hosted)
         lobbies = lobbies.filter { hostedSet.contains($0.key) }
-        for conversationID in hosted {
-            await refresh(conversationID)
+        await hosted.concurrentForEach { @MainActor [self] conversationID in
+            await self.refresh(conversationID)
         }
     }
 

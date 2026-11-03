@@ -167,9 +167,10 @@ struct TipConversationsScreen: View {
         // No push says a join request was decided, so the list asks after each one it opens on;
         // an admission seats the group and puts it in the list.
         .task {
-            for conversationID in sessionContainer.lobbyRequests.conversationIDs {
+            let lobbyRequests = sessionContainer.lobbyRequests
+            await lobbyRequests.conversationIDs.concurrentForEach { @MainActor [conversationController] conversationID in
                 if let fresh = await conversationController.refreshRequestedGroup(conversationID) {
-                    sessionContainer.lobbyRequests.reconcile(with: fresh)
+                    lobbyRequests.reconcile(with: fresh)
                 }
             }
         }

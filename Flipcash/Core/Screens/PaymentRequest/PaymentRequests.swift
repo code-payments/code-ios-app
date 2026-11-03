@@ -248,9 +248,9 @@ final class PaymentRequests {
     /// Reads each of `ids` to reconcile a live update that couldn't be applied. A failed read keeps the
     /// held copy; the next poll retries.
     func refetch(_ ids: [PaymentRequestID]) async {
-        for id in ids {
+        await ids.concurrentForEach { @MainActor [self] id in
             do {
-                try await refresh(id)
+                try await self.refresh(id)
             } catch {
                 logger.warning("Failed to refetch a payment request after a live update", metadata: ["error": "\(error)"])
             }
@@ -276,8 +276,8 @@ final class PaymentRequests {
             ])
         }
         await sealed
-        for id in failedReads {
-            await fetchIfMissing(id)
+        await failedReads.concurrentForEach { @MainActor [self] id in
+            await self.fetchIfMissing(id)
         }
     }
 
