@@ -148,6 +148,8 @@ protocol ConversationMessaging: AnyObject, Sendable {
     func getReactors(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, pageSize: Int, pagingToken: Data?) async throws -> ReactorPage
     /// The current reactions on up to 100 messages, keyed by message; a message with none is absent.
     func getReactionSummaries(owner: KeyPair, conversationID: ConversationID, messageIDs: [MessageID]) async throws -> [MessageID: ReactionState]
+    /// Where the return of a DM cash message stands, with the server-issued intent id a return must be submitted under.
+    func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus
     /// Pins a message, returning the chat's new pin summary. Throws `ErrorPinMessage.tooManyPins`
     /// at the server's cap.
     func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary

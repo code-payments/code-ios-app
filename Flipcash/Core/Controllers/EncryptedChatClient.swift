@@ -215,6 +215,10 @@ extension EncryptedChatClient: ConversationMessaging {
         try await client.getReactionSummaries(owner: owner, conversationID: conversationID, messageIDs: messageIDs)
     }
 
+    func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus {
+        try await client.getCashMessageReturnStatus(owner: owner, conversationID: conversationID, messageID: messageID)
+    }
+
     func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
         let summary = try await client.pinMessage(owner: owner, conversationID: conversationID, messageID: messageID)
         guard summary.latest?.message?.isAwaitingDecryption == true else { return summary }

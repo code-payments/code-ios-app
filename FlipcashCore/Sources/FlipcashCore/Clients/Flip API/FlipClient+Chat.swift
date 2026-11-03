@@ -389,6 +389,14 @@ extension FlipClient {
         }
     }
 
+    /// Where the return of a DM cash message stands. The status carries the server-issued intent id
+    /// the return must be submitted under, for the message's single receiver only.
+    public func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.getCashMessageReturnStatus(owner: owner, conversationID: conversationID, messageID: messageID) { c.resume(with: $0) }
+        }
+    }
+
     public func deleteMessage(
         owner: KeyPair,
         conversationID: ConversationID,

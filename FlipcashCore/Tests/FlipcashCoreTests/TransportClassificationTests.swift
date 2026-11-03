@@ -75,6 +75,7 @@ struct TransportClassificationTests {
     @Test func errorGetMessages() { assertClassifies(ErrorGetMessages.self) }
     @Test func errorSendMessage() { assertClassifies(ErrorSendMessage.self) }
     @Test func errorGetDelta() { assertClassifies(ErrorGetDelta.self) }
+    @Test func errorGetCashMessageReturnStatus() { assertClassifies(ErrorGetCashMessageReturnStatus.self) }
     @Test func errorAdvancePointer() { assertClassifies(ErrorAdvancePointer.self) }
     @Test func errorNotifyIsTyping() { assertClassifies(ErrorNotifyIsTyping.self) }
     @Test("ENCRYPTION_REQUIRED maps positionally onto encryptionRequired for send and edit")
