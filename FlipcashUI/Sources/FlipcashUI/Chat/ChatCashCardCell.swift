@@ -27,6 +27,15 @@ public final class ChatCashCardCell: ChatColumnCell {
     private static let approximateFont = UIFont.default(size: (amountFont.pointSize * 0.7).rounded(), weight: .bold)
     private static let secondaryColor = UIColor.white.withAlphaComponent(0.5)
 
+    // Vertical spacing, per "Spacing values" in docs/specs/cash-bubbles.md. Frame gaps, so both
+    // apps give the same content the same card height.
+    /// Above the caption and below the counterpart.
+    private static let verticalInset: CGFloat = 16
+    /// Between the caption, the money block, and the counterpart.
+    private static let blockSpacing: CGFloat = 12
+    /// From the amount, or the total when there is one, down to the token row.
+    private static let tokenSpacing: CGFloat = 6
+
     private let card = BubbleBackgroundView()
     private let reactionRow = ReactionPillRowView()
     private let captionLabel = UILabel()
@@ -87,9 +96,8 @@ public final class ChatCashCardCell: ChatColumnCell {
         centerStack.axis = .vertical
         centerStack.spacing = 4
         centerStack.alignment = .center
-        centerStack.setCustomSpacing(12, after: captionLabel)
-        // The amount and total read as one block, set apart from the token row.
-        centerStack.setCustomSpacing(12, after: totalLabel)
+        centerStack.setCustomSpacing(Self.blockSpacing, after: captionLabel)
+        centerStack.setCustomSpacing(Self.tokenSpacing, after: totalLabel)
         centerStack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(centerStack)
 
@@ -106,14 +114,14 @@ public final class ChatCashCardCell: ChatColumnCell {
             cardWidthConstraint,
             reactionRowWidthConstraint,
 
-            centerStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 24),
+            centerStack.topAnchor.constraint(equalTo: card.topAnchor, constant: Self.verticalInset),
             centerStack.centerXAnchor.constraint(equalTo: card.centerXAnchor),
             centerStack.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
             centerStack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
 
-            counterpartLabel.topAnchor.constraint(equalTo: centerStack.bottomAnchor, constant: 24),
+            counterpartLabel.topAnchor.constraint(equalTo: centerStack.bottomAnchor, constant: Self.blockSpacing),
             counterpartLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            counterpartLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
+            counterpartLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -Self.verticalInset),
             counterpartLabel.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
             counterpartLabel.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
         ])
@@ -170,10 +178,8 @@ public final class ChatCashCardCell: ChatColumnCell {
         amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
         totalLabel.text = total
         totalLabel.isHidden = total == nil
-        // The total sits tight under the amount, the closest pair of lines on the card. With no
-        // total, 6 under the amount reads as the same gap as 12 under the total: the 38pt amount
-        // leaves about 6pt more empty line below its digits than the 12pt total does.
-        centerStack.setCustomSpacing(total == nil ? 6 : 0, after: amountLabel)
+        // The total sits tight under the amount, the closest pair of lines on the card.
+        centerStack.setCustomSpacing(total == nil ? Self.tokenSpacing : 0, after: amountLabel)
 
         tokenLabel.text = cash.token
         coinIcon.isHidden = cash.iconURL == nil
