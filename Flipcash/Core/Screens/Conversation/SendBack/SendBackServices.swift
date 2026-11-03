@@ -107,10 +107,21 @@ final class LiveSendBackPresenter: SendBackPresenting {
     }
 }
 
-/// Send Back's analytics. The `Send Back` context and `Send Back: Tapped` exist only in a
-/// shared-core release that carries them, so this sends nothing until that release is pinned.
+/// Send Back's analytics: `Send Back: Tapped`, and `Sent Cash` with the `Send Back` context.
 @MainActor
 final class LiveSendBackAnalytics: SendBackAnalytics {
-    func tapped(hasBalance: Bool) {}
-    func sent(_ outcome: SendBackOutcome, amount: ExchangedFiat) {}
+    func tapped(hasBalance: Bool) {
+        Analytics.sendBackTapped(hasBalance: hasBalance)
+    }
+
+    func sent(_ outcome: SendBackOutcome, amount: ExchangedFiat) {
+        switch outcome {
+        case .success:
+            Analytics.sentCashBack(exchangedFiat: amount, error: nil)
+        case .alreadyReturned:
+            Analytics.sentCashBack(exchangedFiat: amount, error: nil, alreadyReturned: true)
+        case .failed(let error):
+            Analytics.sentCashBack(exchangedFiat: amount, error: error)
+        }
+    }
 }
