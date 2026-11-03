@@ -136,62 +136,24 @@ struct ConversationPinsTests {
 }
 
 @MainActor
-@Suite("Pin slot")
-struct PinSlotTests {
+@Suite("Slots under the bar")
+struct ConversationTopSlotsTests {
 
-    @Test("Without pins nothing shows")
-    func noPins() {
-        #expect(PinSlot.resolve(hasPins: false, deckStyle: .strip) == .none)
-        #expect(PinSlot.resolve(hasPins: false, deckStyle: nil) == .none)
+    @Test("28: anchor, request stack and pin bar all add to the transcript's top inset")
+    func insetSumsEverySlot() {
+        // Each slot showing adds its height and an 8-point gap: 52 + 60 + 48 + 3 × 8.
+        #expect(ConversationScreen.transcriptTopInset(slots: [52, 60, 48]) == 184)
     }
 
-    @Test("Without requests the pins take the bar")
-    func noRequests() {
-        #expect(PinSlot.resolve(hasPins: true, deckStyle: nil) == .bar)
+    @Test("A request stack and a pin bar both count, without the anchor")
+    func insetStackAndPinBar() {
+        #expect(ConversationScreen.transcriptTopInset(slots: [0, 60, 48]) == 124)
     }
 
-    @Test("C6: while the owed strip is out, the pins are a toolbar button")
-    func stripOut() {
-        #expect(PinSlot.resolve(hasPins: true, deckStyle: .strip) == .toolbarButton)
-    }
-
-    @Test("C6b: once the strip is the pill, the pins take the bar")
-    func stripCollapsed() {
-        #expect(PinSlot.resolve(hasPins: true, deckStyle: .pill) == .bar)
-    }
-
-    @Test("C7: a swipe past halfway docks the strip, and the pins take the bar")
-    func dockPastHalfway() {
-        let collapse = PaymentRequestStripCollapse()
-        collapse.dock(following: 0.3)
-        #expect(collapse.progress == 0.3)
-        collapse.endDock(at: 0.6)
-        #expect(collapse.isPinned)
-        let style = PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: collapse.isScrolledAway)
-        #expect(PinSlot.resolve(hasPins: true, deckStyle: style) == .bar)
-    }
-
-    @Test("C7: a swipe short of halfway snaps the strip back")
-    func dockSnapsBack() {
-        let collapse = PaymentRequestStripCollapse()
-        collapse.dock(following: 0.45)
-        collapse.endDock(at: 0.45)
-        #expect(collapse.progress == 0)
-        #expect(!collapse.isPinned)
-        let style = PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: collapse.isScrolledAway)
-        #expect(PinSlot.resolve(hasPins: true, deckStyle: style) == .toolbarButton)
-    }
-
-    @Test("C7: the dock outlasts scrolling back to the newest; a new request brings the strip back")
-    func dockLastsUntilNewRequest() {
-        let collapse = PaymentRequestStripCollapse()
-        collapse.endDock(at: 0.8)
-        collapse.update(distanceFromNewest: 0)
-        #expect(collapse.isScrolledAway)
-        collapse.unpin()
-        #expect(!collapse.isScrolledAway)
-        let style = PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: collapse.isScrolledAway)
-        #expect(PinSlot.resolve(hasPins: true, deckStyle: style) == .toolbarButton)
+    @Test("A slot that isn't showing takes no room")
+    func insetSkipsHiddenSlots() {
+        #expect(ConversationScreen.transcriptTopInset(slots: [0, 0, 48]) == 56)
+        #expect(ConversationScreen.transcriptTopInset(slots: [0, 0, 0]) == 0)
     }
 }
 
@@ -244,12 +206,6 @@ struct PinBarTests {
         let blobID = BlobID(data: Data([9, 8, 7]))
         let attachment = MediaAttachment(blobID: blobID, width: 300, height: 400, blurhash: "LEHV6nWB2yk8")
         #expect(quote(.media([attachment], caption: nil)).kind == .media(thumbnailBlobID: blobID, sealed: nil))
-    }
-
-    @Test("Only an upward drag on the strip carries it toward the pill")
-    func dockFollowsUpwardDragOnly() {
-        #expect(PaymentRequestPill.dockFraction(40) == 0)
-        #expect(PaymentRequestPill.dockFraction(-PaymentRequestStripCollapse.distance / 2) == 0.5)
     }
 }
 

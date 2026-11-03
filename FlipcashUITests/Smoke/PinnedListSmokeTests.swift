@@ -73,13 +73,7 @@ final class PinnedListSmokeTests: BaseUITestCase {
     // MARK: - Helpers
 
     private func openList() {
-        let barButton = app.buttons["pin-bar-list"]
-        let toolbarButton = app.buttons["pin-toolbar-button"]
-        if barButton.waitForExistence(timeout: 15) {
-            barButton.tap()
-        } else {
-            waitAndTap(toolbarButton, timeout: 15, "Expected a way to open the pinned list")
-        }
+        waitAndTap(app.buttons["pin-bar-list"], timeout: 15, "Expected the pin bar's list button")
         XCTAssertTrue(sheetTitle.waitForExistence(timeout: 10), "Expected the pinned list. On screen: [\(visibleText())]")
     }
 
