@@ -482,3 +482,50 @@ struct SendBackPrivacyTests {
         #expect(Session.serverIssuedFailureReason(.returnPayment(chatID: chat, messageID: MessageID(value: 1))) == "Send back failed")
     }
 }
+
+// MARK: - Analytics -
+
+@MainActor
+@Suite("Send Back analytics")
+struct SendBackAnalyticsTests {
+
+    private let analytics = LiveSendBackAnalytics()
+
+    @Test("10/11: a tap reports Send Back: Tapped with Has Balance")
+    func tapped() {
+        let sent = Analytics.recordingSends {
+            analytics.tapped(hasBalance: true)
+            analytics.tapped(hasBalance: false)
+        }
+        #expect(sent.map(\.name) == ["Send Back: Tapped", "Send Back: Tapped"])
+        #expect(sent.map { $0.properties["Has Balance"] as? Bool } == [true, false])
+    }
+
+    @Test("13/14/15: Sent Cash reports the Send Back context, its State and Error, and no Recipient Count")
+    func sentCash() throws {
+        let sent = Analytics.recordingSends {
+            analytics.sent(.success, amount: five)
+            analytics.sent(.alreadyReturned, amount: five)
+            analytics.sent(.failed(Boom()), amount: five)
+        }
+        #expect(sent.map(\.name) == ["Sent Cash", "Sent Cash", "Sent Cash"])
+        #expect(sent.allSatisfy { $0.properties["Context"] as? String == "Send Back" })
+        #expect(sent.allSatisfy { $0.properties["Recipient Count"] == nil })
+        #expect(sent.map { $0.properties["State"] as? String } == ["Success", "Failure", "Failure"])
+        #expect(sent[0].properties["Error"] == nil)
+        #expect(sent[1].properties["Error"] as? String == "Already Returned")
+        let error = try #require(sent[2].properties["Error"] as? String)
+        #expect(error.contains("Boom"))
+    }
+
+    @Test("18: no Send Back event carries an intent, chat or message id")
+    func noIDs() {
+        let sent = Analytics.recordingSends {
+            analytics.tapped(hasBalance: true)
+            analytics.sent(.success, amount: five)
+        }
+        let values = sent.flatMap(\.properties.values).map { "\($0)" }
+        #expect(!values.contains { $0.contains(FakeServices.intent.base58) })
+        #expect(!values.contains { $0.contains(chat.description) })
+    }
+}
