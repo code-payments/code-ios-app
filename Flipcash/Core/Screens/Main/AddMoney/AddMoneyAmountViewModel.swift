@@ -34,6 +34,7 @@ final class AddMoneyAmountViewModel {
     @ObservationIgnored var successHold: Duration = InlineCompletion.successHold
     @ObservationIgnored var inlineWindow: Duration = InlineCompletion.window
     @ObservationIgnored var inlineInterval: Duration = InlineCompletion.pollInterval
+    @ObservationIgnored var inlineClock: any Clock<Duration> = ContinuousClock()
 
     var screenTitle: String { "Amount to Add" }
 
@@ -240,7 +241,8 @@ final class AddMoneyAmountViewModel {
             settlement: settlement,
             target: AddMoneyBalanceTarget.target(baseline: baseline, amount: amount),
             window: inlineWindow,
-            interval: inlineInterval
+            interval: inlineInterval,
+            clock: inlineClock
         )
         switch await completion.awaitOutcome() {
         case .succeeded:

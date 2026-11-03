@@ -169,9 +169,10 @@ struct Regression_native_amount_mismatch {
         vm.enteredAmount = "1"
         vm.primaryAction(router: router)
 
-        // primaryAction resolves its pin lookup on a detached MainActor task;
-        // yield until it settles (bounded so a regression can't hang the suite).
-        for _ in 0..<200 where vm.dialogItem == nil { await Task.yield() }
+        // primaryAction resolves its pin lookup on an unstructured task that hops to the
+        // verified proto service, so a fixed number of main-actor yields can run out before the
+        // pool schedules that hop. Wait for the dialog itself.
+        try await waitUntil(vm) { $0.dialogItem != nil }
 
         #expect(vm.dialogItem?.title == "Rate Unavailable")
         #expect(router[.buy].isEmpty, "A pinless selection must not push the summary")
