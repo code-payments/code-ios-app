@@ -381,6 +381,52 @@ struct ChatMessageMappingTests {
         #expect(ChatCashContent.caption(isFromSelf: false, isTip: cash.isTip) == "You received")
     }
 
+    @Test("A DM cash message names the other member at the card's foot")
+    func cash_dmNamesCounterpart() throws {
+        let fiat = ExchangedFiat(nativeAmount: FiatAmount(value: 5, currency: .usd), rate: Rate(fx: 1, currency: .usd))
+        let rows = messageRows(ChatItem.from(
+            [ConversationMessage(id: MessageID(value: 1), senderID: them, content: .cash(fiat), date: base, unreadSeq: 1)],
+            selfUserID: me,
+            counterpartName: "Noah Parker"
+        ))
+        guard case .cash(let cash) = rows.first?.content else {
+            Issue.record("expected cash content")
+            return
+        }
+        #expect(cash.lines == ChatCashContent.Lines(caption: "You received", counterpart: "from Noah Parker"))
+    }
+
+    @Test("A group send to two or more draws each person's part, the total, and its sender")
+    func cash_groupSendToViewer() throws {
+        let fiat = ExchangedFiat(nativeAmount: FiatAmount(value: 2, currency: .usd), rate: Rate(fx: 1, currency: .usd))
+        let alex = UserID()
+        let message = ConversationMessage(
+            id: MessageID(value: 1), senderID: them, content: .cash(fiat),
+            cashPayments: [
+                CashPayment(receiverID: alex, nativeAmount: 1, quarks: 1_000_000),
+                CashPayment(receiverID: me, nativeAmount: 1, quarks: 1_000_000),
+            ],
+            date: base, unreadSeq: 1
+        )
+        let rows = messageRows(ChatItem.from(
+            [message],
+            selfUserID: me,
+            author: { _ in ChatAuthor(id: them, name: "Fred Wilson") },
+            namesAuthors: true
+        ))
+        guard case .cash(let cash) = rows.first?.content else {
+            Issue.record("expected cash content")
+            return
+        }
+        #expect(cash.amount == FiatAmount(value: 1, currency: .usd).formatted())
+        #expect(cash.lines == ChatCashContent.Lines(
+            caption: "You and 1 other received",
+            total: FiatAmount(value: 2, currency: .usd).formatted() + " total",
+            part: .each,
+            counterpart: "from Fred Wilson"
+        ))
+    }
+
     @Test("A cash message shows the amount restated in the display currency")
     func cash_restatedInDisplayCurrency() {
         let fiat = ExchangedFiat(
@@ -471,7 +517,7 @@ struct ChatMessageMappingTests {
             return
         }
         #expect(cash.isTip)
-        #expect(ChatCashContent.caption(isFromSelf: false, isTip: cash.isTip) == "You received a tip")
+        #expect(ChatCashContent.caption(isFromSelf: false, isTip: cash.isTip) == "You received")
     }
 
     @Test("The latest sent message reads Delivered until the read pointer reaches it")

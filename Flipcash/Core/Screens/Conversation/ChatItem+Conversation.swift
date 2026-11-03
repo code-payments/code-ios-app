@@ -291,20 +291,26 @@ extension ChatItem {
                 content = .text(text)
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
+                let isTip = message.cashAction == .tipped
+                let card = cashCard(
+                    message.cashPayments,
+                    receiver: message.cashReceiverID,
+                    isFromSelf: isFromSelf,
+                    isTip: isTip,
+                    inGroup: namesAuthors,
+                    total: fiat.nativeAmount,
+                    shownAs: viewerAmount(fiat),
+                    sender: author(message)?.name,
+                    counterpartName: counterpartName,
+                    selfUserID: selfUserID,
+                    nameOf: nameOf
+                )
                 content = .cash(ChatCashContent(
-                    amount: viewerAmount(fiat).formatted(),
+                    amount: card.amount,
                     token: branding.token,
                     iconURL: branding.iconURL,
-                    isTip: message.cashAction == .tipped,
-                    group: namesAuthors ? groupSend(
-                        message.cashPayments,
-                        receiver: message.cashReceiverID,
-                        total: fiat.nativeAmount,
-                        shownAs: viewerAmount(fiat),
-                        sender: isFromSelf ? "You" : author(message)?.name,
-                        selfUserID: selfUserID,
-                        nameOf: nameOf
-                    ) : nil
+                    isTip: isTip,
+                    lines: card.lines
                 ))
             case .deleted(let deletion):
                 content = .deleted(
@@ -711,42 +717,83 @@ extension ChatItem {
         [.copy, .reply, .forward, .pin, .unpin, .edit, .delete, .report, .silence, .remove].filter(capabilities.contains)
     }
 
-    /// The group lines for a payment in a group chat, or nil when its receiver isn't known; a
-    /// payment to the viewer alone reads "to You". A split between two or more
-    /// members restates each part by its share of `total`, so the parts and the card's `shownAs`
-    /// total use one conversion. `sender` is "You" for the viewer's own send.
-    nonisolated static func groupSend(
+    /// The large line and the lines around it for a cash card in the transcript. A group send to
+    /// two or more draws the part each got with the total under it, or "~" the smallest part when
+    /// the parts differ; a DM and a group send
+    /// to one person draw the amount alone. Every card names the other side at its foot. `sender`
+    /// is the author's name and `counterpartName` a DM's other member; either reads "Someone" when
+    /// nil or empty.
+    nonisolated static func cashCard(
         _ payments: [CashPayment],
         receiver: UserID?,
+        isFromSelf: Bool,
+        isTip: Bool,
+        inGroup: Bool,
         total: FiatAmount,
         shownAs shown: FiatAmount,
         sender: String?,
+        counterpartName: String,
         selfUserID: UserID,
         nameOf: (UserID) -> String?
-    ) -> ChatCashContent.GroupSend? {
-        let sender = sender.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone"
-        func name(_ id: UserID) -> String? {
-            id == selfUserID ? "You" : nameOf(id).flatMap { $0.isEmpty ? nil : $0 }
+    ) -> (amount: String, lines: ChatCashContent.Lines) {
+        func named(_ name: String?) -> String { name.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone" }
+        let plainCaption = ChatCashContent.caption(isFromSelf: isFromSelf, isTip: isTip)
+        guard inGroup else {
+            let other = named(counterpartName)
+            return (shown.formatted(), .init(caption: plainCaption, counterpart: isFromSelf ? "to \(other)" : "from \(other)"))
         }
-        guard payments.count >= 2, total.value > 0 else {
-            guard let receiver, let receiverName = name(receiver) else { return nil }
-            return ChatCashContent.GroupSend(caption: "\(sender) sent", each: nil, recipients: "to \(receiverName)")
+        let senderName = named(sender)
+
+        guard payments.count >= 2 else {
+            // A receiver nobody can name, or none at all, is "Someone": the viewer is never told
+            // they were paid unless the payment names them.
+            let receiver = receiver ?? payments.first?.receiverID
+            let receiverName = named(receiver.flatMap(nameOf))
+            let lines: ChatCashContent.Lines = if isFromSelf {
+                .init(caption: plainCaption, counterpart: "to \(receiverName)")
+            } else if receiver == selfUserID {
+                .init(caption: plainCaption, counterpart: "from \(senderName)")
+            } else {
+                .init(caption: "\(senderName) sent", counterpart: "to \(receiverName)")
+            }
+            return (shown.formatted(), lines)
         }
-        func formatted(_ payment: CashPayment) -> String {
-            FiatAmount(value: shown.value * Decimal(payment.nativeAmount) / total.value, currency: shown.currency).formatted()
+
+        // A part is restated by its share of `total`, so the part and the card's `shownAs` total
+        // use one conversion.
+        func restated(_ part: CashPayment) -> FiatAmount {
+            total.value > 0
+                ? FiatAmount(value: shown.value * Decimal(part.nativeAmount) / total.value, currency: shown.currency)
+                : FiatAmount(value: shown.value / Decimal(payments.count), currency: shown.currency)
         }
+        // Decided by the parts themselves, not the send's date: sends before every member got the
+        // amount entered split a total, and a later send may split again.
+        let isEven = payments.allSatisfy { $0.nativeAmount == payments[0].nativeAmount }
         let smallest = payments.min { $0.nativeAmount < $1.nativeAmount } ?? payments[0]
-        let isEven = Set(payments.map(\.nativeAmount)).count == 1
-        let others = payments.count - 1
-        // A paid viewer leads the list; otherwise it is named by the first recipient in selection order.
-        let first = payments.contains { $0.receiverID == selfUserID } ? selfUserID : payments[0].receiverID
-        let recipients = first.flatMap(name).map { "to \($0) and \(others) \(others == 1 ? "Other" : "Others")" }
-            ?? "to \(payments.count) people"
-        return ChatCashContent.GroupSend(
-            caption: "\(sender) sent",
-            each: isEven ? "\(formatted(smallest)) each" : "~\(formatted(smallest)) each",
-            recipients: recipients
-        )
+        let part: ChatCashContent.Lines.Part = isEven ? .each : .approximateEach
+        let totalLine = "\(shown.formatted()) total"
+        func others(_ count: Int) -> String { "\(count) \(count == 1 ? "other" : "others")" }
+
+        let lines: ChatCashContent.Lines
+        if !isFromSelf, payments.contains(where: { $0.receiverID == selfUserID }) {
+            lines = .init(
+                caption: "You and \(others(payments.count - 1)) received",
+                total: totalLine,
+                part: part,
+                counterpart: "from \(senderName)"
+            )
+        } else {
+            // Named by the first recipient in selection order.
+            let lead = payments[0].receiverID.flatMap { $0 == selfUserID ? "You" : nameOf($0).flatMap { $0.isEmpty ? nil : $0 } }
+            lines = .init(
+                caption: isFromSelf ? plainCaption : "\(senderName) sent",
+                total: totalLine,
+                part: part,
+                counterpart: lead.map { "to \($0) and \(others(payments.count - 1))" } ?? "to \(payments.count) people"
+            )
+        }
+        // Every viewer, paid or not, sees the same part: the one each got, or "~" the smallest.
+        return (restated(smallest).formatted(), lines)
     }
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's

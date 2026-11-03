@@ -10,39 +10,34 @@ import UIKit
 import FlipcashCore
 import Kingfisher
 
-/// A recycled cell for a cash payment row: a card (shared `BubbleBackgroundView` chrome) with the
-/// token name + optional coin icon in the top-left and a centered "You sent / You received" caption
-/// above the amount, hosted in a `ChatColumnCell`. The card's width is supplied by
-/// the owner, as `ChatMessageCell`/`ChatLinkMessageCell` take theirs, so it tracks the transcript
-/// width instead of a fixed footprint. `configure(with:maxWidth:)` is the only input; the strings,
-/// and icon URL all arrive on the `ChatMessage`.
+/// A recycled cell for a cash payment row: a card (shared `BubbleBackgroundView` chrome) with its
+/// lines centred top to bottom — caption, amount, the total on a group send to two or more, the
+/// token's icon and name, and who was on the other side — hosted in a `ChatColumnCell`. The card's
+/// width is supplied by the owner, as `ChatMessageCell`/`ChatLinkMessageCell` take theirs, so it
+/// tracks the transcript width; its height follows its lines. `configure(with:maxWidth:)` is the
+/// only input; the strings and icon URL all arrive on the `ChatMessage`.
 public final class ChatCashCardCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
 
-    /// A cash card's fixed height; a group card sizes to its lines instead. Width tracks `maxWidth`.
-    static let cardHeight: CGFloat = 170
+    private static let amountFont = UIFont.default(size: 38, weight: .bold)
+    // Medium weight at half the amount's size, in the caption's colour, on the amount's line.
+    private static let eachFont = UIFont.default(size: amountFont.pointSize / 2, weight: .medium)
+    // The "~" before the smallest of uneven parts: the amount's weight at 70% of its size.
+    private static let approximateFont = UIFont.default(size: (amountFont.pointSize * 0.7).rounded(), weight: .bold)
+    private static let secondaryColor = UIColor.white.withAlphaComponent(0.5)
 
     private let card = BubbleBackgroundView()
     private let reactionRow = ReactionPillRowView()
-    private let coinIcon = UIImageView()
-    private let tokenLabel = UILabel()
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
-    private let eachLabel = UILabel()
-    // A card in a group carries its token under the amount and who was paid at its foot, instead
-    // of the token in the top-left corner.
+    private let totalLabel = UILabel()
+    private let coinIcon = UIImageView()
+    private let tokenLabel = UILabel()
     private let tokenRow = UIStackView()
-    private let centerCoinIcon = UIImageView()
-    private let centerTokenLabel = UILabel()
-    private let centerTokenRow = UIStackView()
-    private let recipientsLabel = UILabel()
+    private let counterpartLabel = UILabel()
     private let centerStack = UIStackView()
     private var cardWidthConstraint: NSLayoutConstraint!
-    // A cash card is a fixed height with its lines centred; a group card's four or five lines size
-    // it instead, so each set is active for one kind only.
-    private var cashCardConstraints: [NSLayoutConstraint] = []
-    private var groupCardConstraints: [NSLayoutConstraint] = []
     private var reactionRowWidthConstraint: NSLayoutConstraint!
 
     /// Dim the card while pressed so the tap-to-open-currency-info affordance reads as a button.
@@ -61,48 +56,40 @@ public final class ChatCashCardCell: ChatColumnCell {
 
         card.translatesAutoresizingMaskIntoConstraints = false
 
-        configureCircle(coinIcon, diameter: 13)
-        tokenLabel.font = .default(size: 12, weight: .bold)
-        tokenLabel.textColor = UIColor.white.withAlphaComponent(0.5)
-
-        tokenRow.addArrangedSubview(coinIcon)
-        tokenRow.addArrangedSubview(tokenLabel)
-        tokenRow.spacing = 4
-        tokenRow.alignment = .center
-        tokenRow.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(tokenRow)
-
         captionLabel.font = .default(size: 12, weight: .bold)
-        captionLabel.textColor = UIColor.white.withAlphaComponent(0.5)
+        captionLabel.textColor = Self.secondaryColor
 
-        amountLabel.font = .default(size: 38, weight: .bold)
+        amountLabel.font = Self.amountFont
         amountLabel.textColor = .white
         amountLabel.numberOfLines = 1
         amountLabel.adjustsFontSizeToFitWidth = true
         amountLabel.minimumScaleFactor = 0.5
         amountLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        eachLabel.font = .default(size: 12, weight: .bold)
-        eachLabel.textColor = UIColor.white.withAlphaComponent(0.5)
+        totalLabel.font = .default(size: 12, weight: .bold)
+        totalLabel.textColor = Self.secondaryColor
 
-        configureCircle(centerCoinIcon, diameter: 20)
-        centerTokenLabel.font = .default(size: 12, weight: .bold)
-        centerTokenLabel.textColor = .white
-        centerTokenRow.addArrangedSubview(centerCoinIcon)
-        centerTokenRow.addArrangedSubview(centerTokenLabel)
-        centerTokenRow.spacing = 6
-        centerTokenRow.alignment = .center
+        configureCircle(coinIcon, diameter: 20)
+        tokenLabel.font = .default(size: 12, weight: .bold)
+        tokenLabel.textColor = .white
+        tokenRow.addArrangedSubview(coinIcon)
+        tokenRow.addArrangedSubview(tokenLabel)
+        tokenRow.spacing = 6
+        tokenRow.alignment = .center
 
-        recipientsLabel.font = .default(size: 12, weight: .bold)
-        recipientsLabel.textColor = UIColor.white.withAlphaComponent(0.5)
-        recipientsLabel.lineBreakMode = .byTruncatingMiddle
-        recipientsLabel.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(recipientsLabel)
+        counterpartLabel.font = .default(size: 12, weight: .bold)
+        counterpartLabel.textColor = Self.secondaryColor
+        counterpartLabel.lineBreakMode = .byTruncatingMiddle
+        counterpartLabel.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(counterpartLabel)
 
-        [captionLabel, amountLabel, eachLabel, centerTokenRow].forEach(centerStack.addArrangedSubview)
+        [captionLabel, amountLabel, totalLabel, tokenRow].forEach(centerStack.addArrangedSubview)
         centerStack.axis = .vertical
         centerStack.spacing = 4
         centerStack.alignment = .center
+        centerStack.setCustomSpacing(12, after: captionLabel)
+        // The amount and total read as one block, set apart from the token row.
+        centerStack.setCustomSpacing(12, after: totalLabel)
         centerStack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(centerStack)
 
@@ -112,19 +99,6 @@ public final class ChatCashCardCell: ChatColumnCell {
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
         reactionRow.onBoost = { [weak self] in self?.onReactionBoost?() }
 
-        // Below required so the card height yields to the cell's self-sizing height instead of fighting it.
-        let cardHeight = card.heightAnchor.constraint(equalToConstant: Self.cardHeight)
-        cardHeight.priority = UILayoutPriority(999)
-
-        cashCardConstraints = [
-            cardHeight,
-            centerStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-        ]
-        groupCardConstraints = [
-            centerStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 24),
-            recipientsLabel.topAnchor.constraint(equalTo: centerStack.bottomAnchor, constant: 24),
-        ]
-
         cardWidthConstraint = card.widthAnchor.constraint(equalToConstant: 232)
         reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 232)
 
@@ -132,20 +106,17 @@ public final class ChatCashCardCell: ChatColumnCell {
             cardWidthConstraint,
             reactionRowWidthConstraint,
 
-            tokenRow.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 11),
-            tokenRow.topAnchor.constraint(equalTo: card.topAnchor, constant: 8),
-
+            centerStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 24),
             centerStack.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            centerStack.topAnchor.constraint(greaterThanOrEqualTo: card.topAnchor, constant: 8),
-
-            recipientsLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            recipientsLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-            recipientsLabel.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
-            recipientsLabel.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
             centerStack.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
             centerStack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
+
+            counterpartLabel.topAnchor.constraint(equalTo: centerStack.bottomAnchor, constant: 24),
+            counterpartLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+            counterpartLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
+            counterpartLabel.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
+            counterpartLabel.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
         ])
-        NSLayoutConstraint.activate(cashCardConstraints)
     }
 
     @available(*, unavailable)
@@ -183,8 +154,6 @@ public final class ChatCashCardCell: ChatColumnCell {
         super.prepareForReuse()
         coinIcon.kf.cancelDownloadTask()
         coinIcon.image = nil
-        centerCoinIcon.kf.cancelDownloadTask()
-        centerCoinIcon.image = nil
         reactionRow.prepareForReuse()
     }
 
@@ -194,27 +163,23 @@ public final class ChatCashCardCell: ChatColumnCell {
         guard case .cash(let cash) = message.content else { return }
         cardWidthConstraint.constant = maxWidth
         reactionRowWidthConstraint.constant = maxWidth
-        tokenLabel.text = cash.token
-        captionLabel.text = cash.group?.caption ?? ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
-        amountLabel.text = cash.amount
-        eachLabel.text = cash.group?.each
-        eachLabel.isHidden = cash.group?.each == nil
-        amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
+        captionLabel.text = cash.lines?.caption ?? ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
 
+        let total = cash.lines?.total
+        amountLabel.attributedText = Self.amountLine(cash.amount, part: cash.lines?.part)
+        amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
+        totalLabel.text = total
+        totalLabel.isHidden = total == nil
+        // The total sits tight under the amount, the closest pair of lines on the card. With no
+        // total, 6 under the amount reads as the same gap as 12 under the total: the 38pt amount
+        // leaves about 6pt more empty line below its digits than the 12pt total does.
+        centerStack.setCustomSpacing(total == nil ? 6 : 0, after: amountLabel)
+
+        tokenLabel.text = cash.token
         coinIcon.isHidden = cash.iconURL == nil
         coinIcon.kf.setImage(with: cash.iconURL)
-        let isGroup = cash.group != nil
-        tokenRow.isHidden = isGroup
-        centerTokenRow.isHidden = !isGroup
-        centerTokenLabel.text = cash.token
-        centerCoinIcon.isHidden = cash.iconURL == nil
-        if isGroup { centerCoinIcon.kf.setImage(with: cash.iconURL) }
-        recipientsLabel.text = cash.group?.recipients
-        recipientsLabel.isHidden = !isGroup
-        NSLayoutConstraint.deactivate(isGroup ? cashCardConstraints : groupCardConstraints)
-        NSLayoutConstraint.activate(isGroup ? groupCardConstraints : cashCardConstraints)
-        centerStack.setCustomSpacing(isGroup ? 12 : 4, after: captionLabel)
-        centerStack.setCustomSpacing(8, after: eachLabel)
+        counterpartLabel.text = cash.lines?.counterpart
+        counterpartLabel.isHidden = cash.lines == nil
 
         card.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
@@ -235,6 +200,21 @@ public final class ChatCashCardCell: ChatColumnCell {
         // the single place that restores the press dim to match the current highlight state.
         card.alpha = isHighlighted ? 0.6 : 1
     }
+
+    /// The amount, followed by a smaller " each" when it is one person's part of a group send, and
+    /// led by a smaller "~" when it is the smallest of uneven parts. One string, so the runs share
+    /// a baseline and the label's auto-size shrinks them together, and "each" never wraps.
+    private static func amountLine(_ amount: String, part: ChatCashContent.Lines.Part?) -> NSAttributedString {
+        let line = NSMutableAttributedString()
+        if part == .approximateEach {
+            line.append(NSAttributedString(string: "~", attributes: [.font: approximateFont, .foregroundColor: UIColor.white]))
+        }
+        line.append(NSAttributedString(string: amount, attributes: [.font: amountFont, .foregroundColor: UIColor.white]))
+        if part != nil {
+            line.append(NSAttributedString(string: " each", attributes: [.font: eachFont, .foregroundColor: secondaryColor]))
+        }
+        return line
+    }
 }
 
 extension ChatCashCardCell: BubbleCarrying {
@@ -252,15 +232,21 @@ extension ChatCashCardCell: BubbleCarrying {
     layout.minimumLineSpacing = 4
 
     let samples: [ChatMessage] = [
-        ChatMessage(id: "1", content: .cash(ChatCashContent(amount: "$5.00", token: "Cash")), sender: .me),
-        ChatMessage(id: "2", content: .cash(ChatCashContent(amount: "$12.50", token: "Cash")), sender: .other),
+        ChatMessage(id: "1", content: .cash(ChatCashContent(
+            amount: "$5.00", token: "Cash",
+            lines: .init(caption: "You sent", counterpart: "to Noah Parker")
+        )), sender: .me),
+        ChatMessage(id: "2", content: .cash(ChatCashContent(
+            amount: "$12.50", token: "Cash",
+            lines: .init(caption: "You received", counterpart: "from Noah Parker")
+        )), sender: .other),
         ChatMessage(id: "3", content: .cash(ChatCashContent(
             amount: "$1.00", token: "Cash",
-            group: .init(caption: "You sent", each: "~$0.33 each", recipients: "to Alex Morgan and 2 Others")
+            lines: .init(caption: "You sent", total: "$3.00 total", part: .each, counterpart: "to Alex Morgan and 2 others")
         )), sender: .me),
         ChatMessage(id: "4", content: .cash(ChatCashContent(
-            amount: "$6.00", token: "Cash",
-            group: .init(caption: "Alex sent", each: "$1.00 each", recipients: "to You and 5 Others")
+            amount: "$1.00", token: "Cash",
+            lines: .init(caption: "You and 5 others received", total: "$6.00 total", part: .each, counterpart: "from Alex")
         )), sender: .other),
     ]
 
