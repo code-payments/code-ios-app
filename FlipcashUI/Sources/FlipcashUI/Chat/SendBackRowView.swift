@@ -15,8 +15,14 @@ import FlipcashCore
 /// card's shape mask rounds its lower corners.
 final class SendBackRowView: UIControl {
 
-    /// The row's height in every state (design node 13296:491).
-    static let height: CGFloat = 48
+    /// The action row's height, Available and Sending (spec: 44).
+    static let actionHeight: CGFloat = 44
+    /// The Sent Back footer's height. It takes the place of the card's bottom padding (spec: 36).
+    static let footerHeight: CGFloat = 36
+
+    static func height(for state: ChatCashContent.SendBack) -> CGFloat {
+        state == .sentBack ? footerHeight : actionHeight
+    }
 
     private static let actionFill = UIColor(Color.textMain)
     private static let actionText = UIColor(Color.backgroundMain)
@@ -26,6 +32,7 @@ final class SendBackRowView: UIControl {
 
     private let label = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
+    private var heightConstraint: NSLayoutConstraint!
     /// The state last applied; read by tests.
     private(set) var displayedState: ChatCashContent.SendBack = .available
 
@@ -39,8 +46,9 @@ final class SendBackRowView: UIControl {
         [label, spinner].forEach(addSubview)
         isAccessibilityElement = true
 
+        heightConstraint = heightAnchor.constraint(equalToConstant: Self.actionHeight)
         NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: Self.height),
+            heightConstraint,
             label.centerXAnchor.constraint(equalTo: centerXAnchor),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
             label.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 16),
@@ -60,6 +68,7 @@ final class SendBackRowView: UIControl {
 
     func apply(_ state: ChatCashContent.SendBack) {
         displayedState = state
+        heightConstraint.constant = Self.height(for: state)
         switch state {
         case .available:
             backgroundColor = Self.actionFill

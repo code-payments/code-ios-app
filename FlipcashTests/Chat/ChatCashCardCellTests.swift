@@ -61,6 +61,15 @@ struct ChatCashCardCellTests {
         }
     }
 
+    @Test("The Send Back row is 44 tall under the card's padding; the Sent Back footer is 36 in place of it")
+    func sendBackRow_sizes() {
+        let plain = measure(offered(nil))
+        #expect((measure(offered(.available)) - plain).rounded() == 44)
+        #expect((measure(offered(.sending)) - plain).rounded() == 44)
+        // 36 for the footer, less the 16 bottom padding it replaces.
+        #expect((measure(offered(.sentBack)) - plain).rounded() == 20)
+    }
+
     @Test("A cell recycled from an offered card to a plain one drops the row")
     func reusedCell_sendBackToPlain_measuresFresh() {
         let cell = ChatCashCardCell(frame: .zero)

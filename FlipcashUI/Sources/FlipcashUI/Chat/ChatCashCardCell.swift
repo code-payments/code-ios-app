@@ -234,6 +234,8 @@ public final class ChatCashCardCell: ChatColumnCell {
     private func applySendBack(_ state: ChatCashContent.SendBack?) {
         sendBackRow.isHidden = state == nil
         if let state { sendBackRow.apply(state) }
+        // The Sent Back footer replaces the card's bottom padding; the action row sits under it.
+        counterpartToSendBackRow.constant = state == .sentBack ? 0 : -Self.verticalInset
         // Deactivate before activating, so the two never hold the label at once.
         counterpartToCardBottom.isActive = false
         counterpartToSendBackRow.isActive = false

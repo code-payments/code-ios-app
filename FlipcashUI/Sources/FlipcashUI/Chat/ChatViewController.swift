@@ -537,6 +537,13 @@ public final class ChatViewController: UICollectionViewController {
             return
         }
 
+        // A Send Back row or footer appears without animating its bubble (send-back spec): those
+        // cards change first, in a pass of their own with animation off, and anything else in this
+        // push (the return message arriving, say) then rides the spring as usual.
+        if let staged = Self.sendBackStage(from: items, to: newItems) {
+            applyWithoutAnimation(staged)
+        }
+
         let changeset = StagedChangeset(source: items, target: newItems)
         guard !changeset.isEmpty else {
             items = newItems
@@ -677,6 +684,38 @@ public final class ChatViewController: UICollectionViewController {
     /// - Parameter old: the rows before the update. When the update only removes the group-ready
     ///   card, the rows below slide into its space on `inviteCardExit`: an arrival's bounce would read
     ///   as the conversation lurching rather than settling.
+    /// `old` with every cash card whose Send Back state differs in `new` swapped for its `new`
+    /// version, or `nil` when no card's Send Back state changed. Same rows in the same order as
+    /// `old`, so applying it is an in-place reconfigure only.
+    static func sendBackStage(from old: [ChatItem], to new: [ChatItem]) -> [ChatItem]? {
+        guard !old.isEmpty else { return nil }
+        let newByID = Dictionary(new.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var changed = false
+        let staged = old.map { item -> ChatItem in
+            guard case .message(let before) = item, case .cash(let beforeCash) = before.content,
+                  let next = newByID[item.id], case .message(let after) = next, case .cash(let afterCash) = after.content,
+                  beforeCash.sendBack != afterCash.sendBack
+            else { return item }
+            changed = true
+            return next
+        }
+        return changed ? staged : nil
+    }
+
+    /// Reconfigures rows in place with UIKit animation off, so a resized card snaps to its new height.
+    private func applyWithoutAnimation(_ staged: [ChatItem]) {
+        let changeset = StagedChangeset(source: items, target: staged)
+        guard !changeset.isEmpty else { return }
+        UIView.performWithoutAnimation {
+            collectionView.reload(
+                using: changeset,
+                reconfiguring: { [weak self] in self?.isReconfiguring = $0 },
+                setData: { [weak self] data in self?.items = data }
+            )
+            collectionView.layoutIfNeeded()
+        }
+    }
+
     static func batchSpring(for changeset: StagedChangeset<[ChatItem]>, from old: [ChatItem] = []) -> ChatSpring {
         if removesOnlyInviteCard(changeset, from: old) { return ChatMotion.inviteCardExit }
         let changesRows = changeset.contains { stage in
