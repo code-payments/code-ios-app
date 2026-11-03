@@ -257,10 +257,12 @@ struct ChatProfileScreen: View {
         }
         .task {
             // A favorite group can be one the user isn't in, which the feed doesn't hold.
+            // Hydration goes first: the cover and permission refreshes skip a chat that isn't stored.
             let conversation = await conversationController.hydratedConversation(withID: conversationID)
-            await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
-            await conversationController.fillCoverPicture(for: conversationID)
-            await conversationController.refreshViewerPermissions(for: conversationID)
+            async let avatar: Void = sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
+            async let cover: Void = conversationController.fillCoverPicture(for: conversationID)
+            async let permissions: Void = conversationController.refreshViewerPermissions(for: conversationID)
+            _ = await (avatar, cover, permissions)
         }
         // No push says a request was decided, so every visit asks. Keyed on membership so an
         // admission that lands while the profile is open stops the asking.
