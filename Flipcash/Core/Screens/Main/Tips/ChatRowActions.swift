@@ -103,20 +103,11 @@ private struct ChatRowContextMenu: ViewModifier {
                 items
             } preview: {
                 // Hosted outside this view's tree, so its dependencies are handed on.
-                ChatPreview(
-                    coordinator: ConversationLoadCoordinator(
-                        conversationID: conversation.id,
-                        controller: conversationController,
-                        session: session,
-                        knownAuthors: sessionContainer.knownAuthors,
-                        paymentRequests: sessionContainer.paymentRequests,
-                        openingLoadLanded: true
-                    ),
+                ChatRowPreview(
+                    conversationID: conversation.id,
                     conversationController: conversationController,
-                    linkCardSource: sessionContainer.linkCardFeed,
-                    knownAuthors: sessionContainer.knownAuthors,
-                    avatarData: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.data(for: $0) },
-                    loadAvatars: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.preload($0) },
+                    session: session,
+                    sessionContainer: sessionContainer,
                     toasts: container.toasts
                 )
             }
@@ -148,6 +139,39 @@ private struct ChatRowContextMenu: ViewModifier {
 }
 
 // MARK: - Preview -
+
+/// Builds ``ChatPreview`` in `body`, which runs only once the preview shows.
+///
+/// `contextMenu` evaluates its preview closure every time the row updates, and every row updates
+/// together when select mode starts or the "…" menu opens. Building the coordinator there read and
+/// mapped each listed chat's messages on the main thread, stalling the first frames of both.
+private struct ChatRowPreview: View {
+
+    let conversationID: ConversationID
+    let conversationController: ConversationController
+    let session: Session
+    let sessionContainer: SessionContainer
+    let toasts: ToastController
+
+    var body: some View {
+        ChatPreview(
+            coordinator: ConversationLoadCoordinator(
+                conversationID: conversationID,
+                controller: conversationController,
+                session: session,
+                knownAuthors: sessionContainer.knownAuthors,
+                paymentRequests: sessionContainer.paymentRequests,
+                openingLoadLanded: true
+            ),
+            conversationController: conversationController,
+            linkCardSource: sessionContainer.linkCardFeed,
+            knownAuthors: sessionContainer.knownAuthors,
+            avatarData: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.data(for: $0) },
+            loadAvatars: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.preload($0) },
+            toasts: toasts
+        )
+    }
+}
 
 /// The long-press preview: the chat's own transcript (the same cells, background, date separators,
 /// sender names and reactions), read-only, with no input bar, opened at the newest message.
