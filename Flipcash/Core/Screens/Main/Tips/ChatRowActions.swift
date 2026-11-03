@@ -188,17 +188,28 @@ private enum ChatListBackdrop {
 
     private static let backdrop = MessageBackdrop()
 
+    /// Whether the menu is still up, so a present that runs after its dismiss does nothing.
+    private static var isWanted = false
+
     /// Covers the window's root view, which takes in the navigation and tab bars. The menu sits in
     /// its own container above the root view, so it stays sharp.
+    ///
+    /// The preview appears inside UIKit's `performWithoutAnimation` while the menu presents, which
+    /// would apply the fade at once, so the frost starts on the next turn of the main queue.
     static func present() {
-        let window = UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-            .first
-        guard let host = window?.rootViewController?.view else { return }
-        backdrop.present(over: host)
+        isWanted = true
+        DispatchQueue.main.async {
+            guard isWanted else { return }
+            let window = UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+                .first
+            guard let host = window?.rootViewController?.view else { return }
+            backdrop.present(over: host)
+        }
     }
 
     static func dismiss() {
+        isWanted = false
         backdrop.dismiss()
     }
 }
