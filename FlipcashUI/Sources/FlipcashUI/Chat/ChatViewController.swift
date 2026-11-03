@@ -55,6 +55,9 @@ public final class ChatViewController: UICollectionViewController {
     /// owner opens the request's details.
     public var onPaymentRequestTap: ((Data) -> Void)?
 
+    /// Called when the receiver taps Send Back on a cash card; the argument is the message's id.
+    public var onSendBack: ((String) -> Void)?
+
     /// Called when the user taps a URL in a text bubble; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
     /// Fired when a shared-profile widget's Share button is tapped, with the person's display name
@@ -822,6 +825,7 @@ public final class ChatViewController: UICollectionViewController {
             // Every cash card is one width, so an incoming card in a group doesn't give up the avatar
             // gutter the way a bubble does.
             cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
+            cell.onSendBack = { [weak self] in self?.onSendBack?(message.messageID) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }

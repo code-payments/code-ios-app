@@ -46,6 +46,10 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let tokenRow = UIStackView()
     private let counterpartLabel = UILabel()
     private let centerStack = UIStackView()
+    private let sendBackRow = SendBackRowView()
+    /// The counterpart line's gap to the card's foot, or to the Send Back row when one is drawn.
+    private var counterpartToCardBottom: NSLayoutConstraint!
+    private var counterpartToSendBackRow: NSLayoutConstraint!
     private var cardWidthConstraint: NSLayoutConstraint!
     private var reactionRowWidthConstraint: NSLayoutConstraint!
 
@@ -101,6 +105,10 @@ public final class ChatCashCardCell: ChatColumnCell {
         centerStack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(centerStack)
 
+        sendBackRow.translatesAutoresizingMaskIntoConstraints = false
+        sendBackRow.addTarget(self, action: #selector(sendBackTapped), for: .touchUpInside)
+        card.addSubview(sendBackRow)
+
         installColumn(content: card, accessory: reactionRow)
         reactionRow.onToggle = { [weak self] emoji in self?.onReactionTap?(emoji) }
         reactionRow.onLongPress = { [weak self] emoji in self?.onReactionLongPress?(emoji) }
@@ -121,10 +129,20 @@ public final class ChatCashCardCell: ChatColumnCell {
 
             counterpartLabel.topAnchor.constraint(equalTo: centerStack.bottomAnchor, constant: Self.blockSpacing),
             counterpartLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            counterpartLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -Self.verticalInset),
             counterpartLabel.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
             counterpartLabel.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
+
+            sendBackRow.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            sendBackRow.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            sendBackRow.bottomAnchor.constraint(equalTo: card.bottomAnchor),
         ])
+        counterpartToCardBottom = counterpartLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -Self.verticalInset)
+        counterpartToSendBackRow = counterpartLabel.bottomAnchor.constraint(equalTo: sendBackRow.topAnchor, constant: -Self.verticalInset)
+        counterpartToCardBottom.isActive = true
+    }
+
+    @objc private func sendBackTapped() {
+        onSendBack?()
     }
 
     @available(*, unavailable)
@@ -146,6 +164,8 @@ public final class ChatCashCardCell: ChatColumnCell {
     var onReactionAdd: (() -> Void)?
     /// Called when the viewer taps the leading "$" to pay for a reaction.
     var onReactionBoost: (() -> Void)?
+    /// Called when the receiver taps Send Back on a DM's opening payment.
+    var onSendBack: (() -> Void)?
 
     private func configureCircle(_ imageView: UIImageView, diameter: CGFloat) {
         imageView.contentMode = .scaleAspectFill
@@ -186,6 +206,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         coinIcon.kf.setImage(with: cash.iconURL)
         counterpartLabel.text = cash.lines?.counterpart
         counterpartLabel.isHidden = cash.lines == nil
+        applySendBack(cash.sendBack)
 
         card.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
@@ -205,6 +226,17 @@ public final class ChatCashCardCell: ChatColumnCell {
         // message flipping this row's grouping) re-runs configure without prepareForReuse, so this is
         // the single place that restores the press dim to match the current highlight state.
         card.alpha = isHighlighted ? 0.6 : 1
+    }
+
+    /// Shows the Send Back row for `state`, or none. Read from the message on every configure, so a
+    /// reused cell never keeps another row's spinner.
+    private func applySendBack(_ state: ChatCashContent.SendBack?) {
+        sendBackRow.isHidden = state == nil
+        if let state { sendBackRow.apply(state) }
+        // Deactivate before activating, so the two never hold the label at once.
+        counterpartToCardBottom.isActive = false
+        counterpartToSendBackRow.isActive = false
+        (state == nil ? counterpartToCardBottom : counterpartToSendBackRow).isActive = true
     }
 
     /// The amount, followed by a smaller " each" when it is one person's part of a group send, and
