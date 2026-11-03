@@ -169,6 +169,14 @@ private struct ChatRowPreview: View {
             knownAuthors: sessionContainer.knownAuthors,
             avatarData: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.data(for: $0) },
             loadAvatars: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.preload($0) },
+            // The chat's own photo lookups, as `ConversationScreen` passes them, so a photo row
+            // downloads its image instead of staying an empty placeholder.
+            mintMediaURL: { [flipClient = sessionContainer.flipClient, owner = session.ownerKeyPair, conversationID] blobID in
+                try await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+            },
+            mediaBlobDecrypt: { [conversationController, conversationID] in
+                await conversationController.mediaBlobDecrypt(for: conversationID)
+            },
             toasts: toasts
         )
         // Mounted only while the menu is up, so it brackets the presentation.
@@ -228,6 +236,8 @@ struct ChatPreview: View {
     let knownAuthors: KnownAuthorDirectory
     let avatarData: (UserID) -> Data?
     let loadAvatars: ([(userID: UserID?, picture: ProfilePicture?)]) -> Void
+    let mintMediaURL: (BlobID) async throws -> URL?
+    let mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt?
     let toasts: ToastController
 
     @State private var coordinator: ConversationLoadCoordinator
@@ -243,6 +253,8 @@ struct ChatPreview: View {
         knownAuthors: KnownAuthorDirectory,
         avatarData: @escaping (UserID) -> Data?,
         loadAvatars: @escaping ([(userID: UserID?, picture: ProfilePicture?)]) -> Void,
+        mintMediaURL: @escaping (BlobID) async throws -> URL?,
+        mediaBlobDecrypt: @escaping () async -> ChatMediaURLResolver.BlobDecrypt?,
         toasts: ToastController
     ) {
         self.conversationController = conversationController
@@ -250,6 +262,8 @@ struct ChatPreview: View {
         self.knownAuthors = knownAuthors
         self.avatarData = avatarData
         self.loadAvatars = loadAvatars
+        self.mintMediaURL = mintMediaURL
+        self.mediaBlobDecrypt = mediaBlobDecrypt
         self.toasts = toasts
         _coordinator = State(initialValue: coordinator)
     }
@@ -328,6 +342,8 @@ struct ChatPreview: View {
             isJoiningChat: false,
             mentions: nil,
             authorAvatars: authorAvatars,
+            mintMediaURL: mintMediaURL,
+            mediaBlobDecrypt: mediaBlobDecrypt,
             isReadOnlyPreview: true
         )
     }

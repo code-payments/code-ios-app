@@ -356,6 +356,8 @@ struct ChatMarkUnreadTests {
             knownAuthors: authors,
             avatarData: { _ in nil },
             loadAvatars: { _ in },
+            mintMediaURL: { _ in nil },
+            mediaBlobDecrypt: { nil },
             toasts: ToastController()
         )
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 340, height: 430))
