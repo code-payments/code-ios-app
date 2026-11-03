@@ -109,7 +109,6 @@ struct TipConversationsScreen: View {
                             // Separators divide rows from each other; the first
                             // row's leading one just draws a line under the bar.
                             .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
-                            // Mute first: the first button is the outer, full-swipe action.
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 if !isSelecting {
                                     // First is outermost and takes the full swipe: Archive, the

@@ -39,13 +39,21 @@ struct RecipientRowScaffold<Trailing: View>: View {
     let onTap: () -> Void
     @ViewBuilder let trailing: Trailing
 
+    /// The circle plus the gap after it: the width the row's content moves right by.
+    private static var selectSlot: CGFloat { 22 + 12 }
+
     var body: some View {
+        let isSelecting = selection != nil
         Button(action: onTap) {
-            HStack(spacing: 12) {
-                if let selection {
-                    RecipientRowSelectCircle(isSelected: selection)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-                }
+            HStack(spacing: 0) {
+                // Always laid out, never inserted. The slot grows from zero while the circle rides in
+                // from just off its leading edge, so circle and content move as one. An inserted
+                // circle with a move transition slid on its own while the content beside it jumped.
+                RecipientRowSelectCircle(isSelected: selection == true)
+                    .offset(x: isSelecting ? 0 : -Self.selectSlot)
+                    .opacity(isSelecting ? 1 : 0)
+                    .frame(width: isSelecting ? Self.selectSlot : 0, alignment: .leading)
+                    .accessibilityHidden(!isSelecting)
                 RecipientRowBody(
                 avatarID: avatarID,
                 title: title,
@@ -58,6 +66,8 @@ struct RecipientRowScaffold<Trailing: View>: View {
                     trailing
                 }
             }
+            // Inside the row: a List cell doesn't reliably pick up an animation set on the List.
+            .animation(.smooth(duration: 0.3), value: isSelecting)
         }
         .recipientRowChrome(accessibilityLabel: accessibilityLabel, isSelected: selection == true)
         .accessibilityAddTraits(selection == true ? .isSelected : [])
@@ -71,7 +81,7 @@ private struct RecipientRowSelectCircle: View {
 
     var body: some View {
         // One image whose symbol swaps, so a tap changes the circle in place. Two images in an
-        // if/else would each take the row's slide-in transition and the circle would slide.
+        // if/else would be two views, and the tap would swap one for the other instead of the symbol.
         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
             .font(.system(size: 22))
             // A white check on the unread blue, the selection colour the design uses.
