@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
 
 # Only PR runs are superseded by a newer push. A push to main that cancelled its
-# predecessor would also cancel the run that seeds the SwiftPM cache (caches
+# predecessor would also cancel the run that seeds the DerivedData cache (caches
 # saved on main are the only ones other branches can read).
 concurrency:
   group: vectors-${{ github.head_ref || github.ref }}
@@ -111,27 +111,32 @@ jobs:
           fi
           xcodebuild -version
 
-      # Only the SwiftPM clones are cached. A cached DerivedData (3.5 GB) restored
-      # fine but the build still took clean-build time, because checkout gives
-      # every source a new mtime and Xcode rebuilds all of it. The key is the one
-      # workspace Package.resolved, which pins every package the app resolves.
-      - name: SwiftPM cache
-        uses: actions/cache@v4
-        with:
-          path: .spm
-          key: app-spm-${{ runner.os }}-${{ hashFiles('Code.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: |
-            app-spm-${{ runner.os }}-
+      # Hashed before the build: afterwards .derived/ holds the SwiftPM checkouts,
+      # whose Package.swift files would change the hash.
+      - name: Cache key
+        id: key
+        run: echo "dd=app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}" >> "$GITHUB_OUTPUT"
 
-      # Booted here so the boot overlaps the build; `simctl boot` returns before
-      # the device has finished booting.
-      - name: Pick and boot a simulator
+      # Restored everywhere, saved only off pull_request: a multi-GB cache per PR
+      # push would evict the main-branch seed that every PR starts from. Checkout
+      # gives every source a new mtime, so the app and test targets rebuild anyway;
+      # what the cache saves is the built SwiftPM packages. Without it, the build
+      # reached FlipcashCore after 16.6 minutes instead of 1.3.
+      - name: Restore app DerivedData
+        uses: actions/cache/restore@v4
+        with:
+          path: .derived/app
+          key: ${{ steps.key.outputs.dd }}-${{ github.sha }}
+          restore-keys: |
+            ${{ steps.key.outputs.dd }}-
+            app-dd-${{ runner.os }}-
+
+      - name: Pick a simulator
         id: sim
         run: |
           set -euo pipefail
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r in sorted(d, reverse=True) for x in d[r] if x['name'].startswith('iPhone')))")
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-          xcrun simctl boot "$UDID" || true
 
       # Builds both test targets (FlipcashTests and FlipcashUITests) once for the
       # test steps below. The build runs -quiet (unquieted it prints every compile
@@ -143,10 +148,23 @@ jobs:
           xcodebuild build-for-testing -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
-            -clonedSourcePackagesDirPath "$GITHUB_WORKSPACE/.spm" \
             -skipMacroValidation \
             -quiet \
             COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Save app DerivedData
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          path: .derived/app
+          key: ${{ steps.key.outputs.dd }}-${{ github.sha }}
+
+      # Booted after the build, not during it: on the 3-core runner, runs that
+      # booted during the build compiled every phase 1.7-2.7x slower.
+      - name: Boot the simulator
+        run: |
+          xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
+          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
 
       # All of FlipcashTests, and any failure fails the job. That includes the
       # app target's own vector suites -- chat drafts, link detection, and chat
@@ -156,11 +174,9 @@ jobs:
       # between the platforms.
       - name: App tests
         run: |
-          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
           xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
-            -clonedSourcePackagesDirPath "$GITHUB_WORKSPACE/.spm" \
             -only-testing:FlipcashTests \
             -resultBundlePath "${{ runner.temp }}/AppTests.xcresult"
 
@@ -181,7 +197,6 @@ jobs:
           xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
-            -clonedSourcePackagesDirPath "$GITHUB_WORKSPACE/.spm" \
             -only-testing:FlipcashUITests/MnemonicEntrySmokeTests \
             -resultBundlePath "${{ runner.temp }}/UISmoke.xcresult"
 
