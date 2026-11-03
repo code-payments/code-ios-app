@@ -39,20 +39,14 @@ struct RecipientRowScaffold<Trailing: View>: View {
     let onTap: () -> Void
     @ViewBuilder let trailing: Trailing
 
-    /// The circle plus the gap after it: the width the row's content moves right by.
-    private static var selectSlot: CGFloat { 22 + 12 }
-
     var body: some View {
         let isSelecting = selection != nil
         Button(action: onTap) {
-            HStack(spacing: 0) {
-                // Always laid out, never inserted. The slot grows from zero while the circle rides in
-                // from just off its leading edge, so circle and content move as one. An inserted
-                // circle with a move transition slid on its own while the content beside it jumped.
+            // Always laid out, never inserted: an inserted circle with a move transition slid on its
+            // own while the content beside it jumped.
+            RecipientRowSelectReveal(progress: isSelecting ? 1 : 0) {
                 RecipientRowSelectCircle(isSelected: selection == true)
-                    .offset(x: isSelecting ? 0 : -Self.selectSlot)
                     .opacity(isSelecting ? 1 : 0)
-                    .frame(width: isSelecting ? Self.selectSlot : 0, alignment: .leading)
                     .accessibilityHidden(!isSelecting)
                 RecipientRowBody(
                 avatarID: avatarID,
@@ -71,6 +65,48 @@ struct RecipientRowScaffold<Trailing: View>: View {
         }
         .recipientRowChrome(accessibilityLabel: accessibilityLabel, isSelected: selection == true)
         .accessibilityAddTraits(selection == true ? .isSelected : [])
+    }
+}
+
+/// Lays out select mode's circle and the row content beside it from one `progress`: 0 outside
+/// select mode, 1 in it. Takes exactly two subviews, the circle then the content.
+///
+/// Animating `progress` lays the whole row out again on every frame, so avatar, title, subtitle,
+/// and trailing content move as one block, the circle sliding in from off the leading edge with
+/// them. Animating a slot's width instead let each `Text` re-truncate and cross-fade on its own.
+private struct RecipientRowSelectReveal: Layout {
+
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    /// The circle plus the gap after it: the width the row's content moves right by.
+    private static let slot: CGFloat = 22 + 12
+
+    private var offset: CGFloat { Self.slot * progress }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let content = subviews[1].sizeThatFits(
+            ProposedViewSize(width: proposal.width.map { max(0, $0 - offset) }, height: proposal.height)
+        )
+        let circle = subviews[0].sizeThatFits(.unspecified)
+        return CGSize(width: offset + content.width, height: max(content.height, circle.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews[0].place(
+            at: CGPoint(x: bounds.minX + offset - Self.slot, y: bounds.midY),
+            anchor: .leading,
+            proposal: .unspecified
+        )
+        subviews[1].place(
+            at: CGPoint(x: bounds.minX + offset, y: bounds.minY),
+            anchor: .topLeading,
+            proposal: ProposedViewSize(width: max(0, bounds.width - offset), height: bounds.height)
+        )
     }
 }
 
