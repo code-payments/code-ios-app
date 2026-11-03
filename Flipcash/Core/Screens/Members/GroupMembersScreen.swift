@@ -135,7 +135,7 @@ struct GroupMembersScreen: View {
             Button {
                 silenceTarget = moderationTarget(for: portrait)
             } label: {
-                SwipeActionLabel(title: "Restrict", systemImage: SystemSymbol.clock.rawValue, glyphColor: .warning)
+                SwipeActionLabel(title: "Restrict", systemImage: "speaker.slash", glyphColor: .warning)
             }
             .tint(.warningSecondary)
             .accessibilityLabel("Restrict")
