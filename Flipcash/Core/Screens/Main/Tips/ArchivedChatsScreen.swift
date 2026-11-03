@@ -36,9 +36,7 @@ struct ArchivedChatsScreen: View {
                             Button {
                                 conversationController.unarchive(conversation.id)
                             } label: {
-                                // Swipe actions fill symbols by default; the shared design uses the outline.
-                                Image(systemName: "tray.and.arrow.up")
-                                    .environment(\.symbolVariants, .none)
+                                SwipeActionLabel(title: "Unarchive", systemImage: "tray.and.arrow.up")
                             }
                             .tint(.backgroundRow)
                             .accessibilityLabel("Unarchive chat")

@@ -56,10 +56,11 @@ private struct ChatRowActionsModifier: ViewModifier {
                     Button {
                         conversationController.perform(action, on: conversation.id, source: .swipe)
                     } label: {
-                        // A swipe action draws its label white whatever the style says, so the
-                        // blue has to be baked into the image, as the Mute action does its amber.
-                        Image(uiImage: UIImage(systemName: action.systemImage)!
-                            .withTintColor(UIColor(Color.unreadIndicator), renderingMode: .alwaysOriginal))
+                        SwipeActionLabel(
+                            title: action.swipeTitle,
+                            systemImage: action.systemImage,
+                            glyphColor: .unreadIndicator
+                        )
                     }
                     // Mute's tonal style in blue: the glyph on its own colour at low strength.
                     .tint(.unreadIndicatorSecondary)

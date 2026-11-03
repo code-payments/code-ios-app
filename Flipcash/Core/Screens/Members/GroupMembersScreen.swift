@@ -122,10 +122,7 @@ struct GroupMembersScreen: View {
             Button {
                 silenceTarget = moderationTarget(for: portrait)
             } label: {
-                // A swipe action draws its label white whatever the style says, so the colour is
-                // baked into the image, as the chat list's Mute does.
-                Image(uiImage: UIImage(systemName: SystemSymbol.clock.rawValue)!
-                    .withTintColor(UIColor(Color.warning), renderingMode: .alwaysOriginal))
+                SwipeActionLabel(title: "Restrict", systemImage: SystemSymbol.clock.rawValue, glyphColor: .warning)
             }
             .tint(.warningSecondary)
             .accessibilityLabel("Restrict")
@@ -133,8 +130,7 @@ struct GroupMembersScreen: View {
             Button {
                 Task { await moderator.lift(portrait.userID, firstName: GroupModerationCopy.firstName(of: portrait.name)) }
             } label: {
-                Image(systemName: "lock.open")
-                    .environment(\.symbolVariants, .none)
+                SwipeActionLabel(title: "Lift Restriction", systemImage: "lock.open")
             }
             .tint(.backgroundRow)
             .accessibilityLabel("Lift restriction")
@@ -145,8 +141,11 @@ struct GroupMembersScreen: View {
             Button {
                 moderator.confirmRemove(moderationTarget(for: portrait))
             } label: {
-                Image(uiImage: UIImage(systemName: SystemSymbol.personBadgeMinus.rawValue)!
-                    .withTintColor(UIColor(Color.Sentiment.negative), renderingMode: .alwaysOriginal))
+                SwipeActionLabel(
+                    title: "Remove from Group",
+                    systemImage: SystemSymbol.personBadgeMinus.rawValue,
+                    glyphColor: Color.Sentiment.negative
+                )
             }
             .tint(Color.Sentiment.negativeSecondary)
             .accessibilityLabel("Remove from group")

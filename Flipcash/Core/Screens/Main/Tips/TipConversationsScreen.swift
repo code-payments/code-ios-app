@@ -309,10 +309,7 @@ struct TipConversationsScreen: View {
         return Button {
             muteTarget = MuteTarget(ids: [conversation.id])
         } label: {
-            // A swipe action draws its label white whatever the style says, so the amber has to be
-            // baked into the image.
-            Image(uiImage: UIImage(systemName: symbol.rawValue)!
-                .withTintColor(UIColor(Color.warning), renderingMode: .alwaysOriginal))
+            SwipeActionLabel(title: isMuted ? "Unmute" : "Mute", systemImage: symbol.rawValue, glyphColor: .warning)
         }
         // The mute chip's amber-on-amber, not the delete red: nothing is lost by it.
         .tint(.warningSecondary)
@@ -325,9 +322,7 @@ struct TipConversationsScreen: View {
         Button {
             archive([conversation.id])
         } label: {
-            // Swipe actions fill symbols by default; the shared design uses the outline.
-            Image(systemName: "archivebox")
-                .environment(\.symbolVariants, .none)
+            SwipeActionLabel(title: "Archive", systemImage: "archivebox")
         }
         .tint(.backgroundRow)
         // A swipe action is also a VoiceOver custom action, next to the mute one.

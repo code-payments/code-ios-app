@@ -21,6 +21,14 @@ enum ChatReadAction: Equatable {
     }
 
     /// The SF Symbol the swipe and menu draw.
+    /// The shorter title drawn under the swipe action's circle, as the select-mode capsule reads.
+    var swipeTitle: String {
+        switch self {
+        case .markRead:   "Read"
+        case .markUnread: "Unread"
+        }
+    }
+
     var systemImage: String {
         switch self {
         case .markRead:   "message"
