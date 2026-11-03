@@ -27,7 +27,7 @@ extension Analytics {
     /// recorded, so tests running in parallel can't leak into each other's recordings.
     static func recordingSends(_ body: () -> Void) -> [SentEvent] {
         let recorder = AnalyticsRecorder()
-        $sendOverride.withValue({ name, properties in
+        sendOverrideLocal.withValue({ name, properties in
             recorder.sent.append(SentEvent(name: name, properties: properties))
         }) {
             body()
@@ -38,7 +38,7 @@ extension Analytics {
     /// `recordingSends` for a body that awaits, such as a model's async save.
     static func recordingSendsAsync(_ body: () async -> Void) async -> [SentEvent] {
         let recorder = AnalyticsRecorder()
-        await $sendOverride.withValue({ name, properties in
+        await sendOverrideLocal.withValue({ name, properties in
             recorder.sent.append(SentEvent(name: name, properties: properties))
         }) {
             await body()
@@ -50,7 +50,7 @@ extension Analytics {
     /// every increment it made, as property name and amount.
     static func recordingIncrements(_ body: () -> Void) -> [(property: String, amount: Double)] {
         let recorder = AnalyticsRecorder()
-        $incrementOverride.withValue({ property, amount in
+        incrementOverrideLocal.withValue({ property, amount in
             recorder.increments.append((property, amount))
         }) {
             body()
