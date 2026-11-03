@@ -221,3 +221,43 @@ extension Activity.RequestedPayment {
         }
     }
 }
+
+extension Activity {
+    /// The DM cash message whose payment a payment returned: for a send, the viewer returned it to
+    /// the recipient; for a receive, the payer returned it to the viewer. Not kept up to date: the
+    /// message may since have been deleted.
+    public struct ReturnedPayment: Sendable, Equatable, Hashable {
+        public let conversationID: ConversationID
+        public let messageID: MessageID
+
+        public init(conversationID: ConversationID, messageID: MessageID) {
+            self.conversationID = conversationID
+            self.messageID = messageID
+        }
+    }
+}
+
+extension Activity.ReturnedPayment {
+    init(_ proto: Flipcash_Activity_V1_ReturnedPayment) {
+        self.init(
+            conversationID: ConversationID(proto.chatID),
+            messageID: MessageID(proto.messageID)
+        )
+    }
+
+    /// The returned payment a send or receive notification carries; `nil` for other kinds and for
+    /// payments that returned nothing.
+    init?(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
+        switch proto {
+        case .directlySentCrypto(let metadata):
+            guard case .returnedPayment(let payment)? = metadata.context else { return nil }
+            self.init(payment)
+        case .receivedCrypto(let metadata):
+            guard case .returnedPayment(let payment)? = metadata.context else { return nil }
+            self.init(payment)
+        case .withdrewCrypto, .indirectlySentCrypto,
+             .depositedCrypto, .boughtCrypto, .soldCrypto, .swappedCrypto, .none:
+            return nil
+        }
+    }
+}

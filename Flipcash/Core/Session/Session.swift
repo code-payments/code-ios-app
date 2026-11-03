@@ -1120,6 +1120,19 @@ class Session {
         )
     }
 
+    /// Returns the payment of cash message `messageID` in DM `chatID` to its sender, `senderOwner`, under
+    /// the server-issued `intentID` from `getCashMessageReturnStatus`; never generate one for this flow.
+    /// It is never logged or reported: anyone holding it before the return settles can use it up.
+    func returnPayment(amount: ExchangedFiat, verifiedState: VerifiedState, to senderOwner: PublicKey, chatID: ConversationID, messageID: MessageID, intentID: PublicKey) async throws {
+        try await submitDirect(
+            amount: amount,
+            verifiedState: verifiedState,
+            to: senderOwner,
+            chat: .returnPayment(chatID: chatID, messageID: messageID),
+            intentID: intentID
+        )
+    }
+
     private func submitDirect(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?, intentID: PublicKey?) async throws {
         try assertFresh(verifiedState, operation: "send", currency: amount.nativeAmount.currency, mint: amount.mint)
 

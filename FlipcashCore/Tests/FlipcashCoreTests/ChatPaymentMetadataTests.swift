@@ -97,4 +97,19 @@ struct ChatPaymentMetadataTests {
         }
         #expect(payment.action != .default)
     }
+
+    @Test("Return payments carry the chat id and the returned message, and never tip")
+    func returnPaymentSerialization() throws {
+        let metadata = ChatPaymentMetadata.returnPayment(chatID: chatID, messageID: MessageID(value: 42))
+
+        let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.serializedAppMetadata())
+
+        guard case .returnPayment(let payment) = decoded.chat.type else {
+            Issue.record("Expected returnPayment, got \(String(describing: decoded.chat.type))")
+            return
+        }
+        #expect(decoded.chat.chatID.value == chatID.data)
+        #expect(payment.messageID.value == 42)
+        #expect(!metadata.isTip)
+    }
 }

@@ -537,6 +537,52 @@ final class ChatMessagingService: Sendable {
         }
     }
 
+    /// Where the return of a DM cash message stands. `paymentIntentID` is set only for the message's
+    /// single receiver.
+    func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, completion: @Sendable @escaping (Result<CashReturnStatus, ErrorGetCashMessageReturnStatus>) -> Void) {
+        let request = Flipcash_Messaging_V1_GetCashMessageReturnStatusRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getCashMessageReturnStatus(request, options: .unaryDefault)
+                let result = Self.cashMessageReturnStatusResult(response)
+                if case .failure(let error) = result {
+                    logger.error("Failed to get cash message return status", metadata: ["error": "\(error)"])
+                }
+                await MainActor.run { completion(result) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    // MARK: - Cash return response mapping
+
+    /// The return status, or the failure reported. The intent id is read only on OK.
+    static func cashMessageReturnStatusResult(_ response: Flipcash_Messaging_V1_GetCashMessageReturnStatusResponse) -> Result<CashReturnStatus, ErrorGetCashMessageReturnStatus> {
+        let error = ErrorGetCashMessageReturnStatus(rawValue: response.result.rawValue) ?? .unknown
+        switch error {
+        case .ok:
+            let state: CashReturnStatus.State = switch response.status {
+            case .available: .available
+            case .returned: .returned
+            case .unknown, .UNRECOGNIZED: .unknown
+            }
+            return .success(CashReturnStatus(
+                state: state,
+                paymentIntentID: response.hasPaymentIntentID ? response.paymentIntentID.value : nil
+            ))
+        case .denied, .notFound, .unknown, .transportFailure, .cancelled, .rejected:
+            return .failure(error)
+        }
+    }
+
     // MARK: - Reaction response mapping
 
     /// The reaction an add answered with, or the failure it reported; an OK without a reaction is
@@ -896,6 +942,29 @@ extension ErrorGetReactors: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .messageNotFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+public enum ErrorGetCashMessageReturnStatus: Int, Error {
+    case ok
+    /// The caller is not a member of the chat.
+    case denied
+    /// The chat has no such message, or the message offers no return.
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorGetCashMessageReturnStatus: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
         case .unknown, .rejected: .error
         }
     }

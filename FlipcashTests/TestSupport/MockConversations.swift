@@ -518,6 +518,10 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         }
     }
 
+    func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus {
+        throw ErrorGetCashMessageReturnStatus.transportFailure
+    }
+
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation {
         lock.withLock {
             _deleted.append(Deleted(conversationID: conversationID, messageID: messageID, expectedEventSequence: expectedEventSequence))
