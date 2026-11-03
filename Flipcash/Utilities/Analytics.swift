@@ -56,13 +56,19 @@ enum Analytics {
         }
     }
 
-    /// Test-only replacement for the Mixpanel event call; while set, events are handed to it
-    /// even though Mixpanel was never initialized.
-    static var sendOverride: ((String, [String: AnalyticsValue]) -> Void)?
+    // Declared by hand, not with `@TaskLocal`: Xcode 26's macro gives the `$` peer the type's
+    // default main-actor isolation, which `withValue` can't reach from a nonisolated context.
+    /// Test-only replacement for the Mixpanel event call; while bound, events from the binding
+    /// task and its child tasks are handed to it even though Mixpanel was never initialized.
+    nonisolated static let sendOverrideLocal = TaskLocal<(@MainActor (String, [String: AnalyticsValue]) -> Void)?>(wrappedValue: nil)
+    /// Read side of `sendOverrideLocal`.
+    nonisolated static var sendOverride: (@MainActor (String, [String: AnalyticsValue]) -> Void)? { sendOverrideLocal.get() }
 
     /// Test-only replacement for the Mixpanel people increment, with the same rules as
     /// `sendOverride`.
-    static var incrementOverride: ((String, Double) -> Void)?
+    nonisolated static let incrementOverrideLocal = TaskLocal<(@MainActor (String, Double) -> Void)?>(wrappedValue: nil)
+    /// Read side of `incrementOverrideLocal`.
+    nonisolated static var incrementOverride: (@MainActor (String, Double) -> Void)? { incrementOverrideLocal.get() }
 
     static func track(event: some AnalyticsEvent, properties: [Property: AnalyticsValue]? = nil, error: Error? = nil) {
         guard canSend else { return }
