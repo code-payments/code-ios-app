@@ -1,5 +1,18 @@
 What to test in this build
 
+New in this release:
+• Request money from a group with a different amount for each person
+• Create a private group and share its invite link right away
+• As a host, restrict or remove a member from the Members list
+• Send money to a group: every member receives the amount you entered
+• Cash messages in chat all show the same details
+• Payment requests sit under the top bar, with pinned messages below them
+• Request Money is listed above Send Money in the group money sheet
+• System messages in chat show no info icon; the pinned message bar has a lighter tint
+• Invite People opens with your invite link, not a blank sheet
+• A pinned reply shows the name of the person it quotes
+• Send a photo with transparency: the transparent parts show white, matching the upload
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
