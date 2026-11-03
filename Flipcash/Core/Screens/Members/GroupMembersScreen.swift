@@ -142,7 +142,7 @@ struct GroupMembersScreen: View {
                 moderator.confirmRemove(moderationTarget(for: portrait))
             } label: {
                 SwipeActionLabel(
-                    title: "Remove from Group",
+                    title: "Remove",
                     systemImage: SystemSymbol.personBadgeMinus.rawValue,
                     glyphColor: Color.Sentiment.negative
                 )
