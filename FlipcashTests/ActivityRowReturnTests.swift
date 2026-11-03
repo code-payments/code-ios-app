@@ -33,15 +33,15 @@ struct ActivityRowReturnTests {
     }
 
     @Test("16: the side that sent it back reads 'Sent back to <Name>' and opens the DM")
-    func sentSide() {
+    func sentSide() async {
         #expect(title(.gave, name: "Alex Morgan") == "Sent back to Alex Morgan")
-        #expect(ActivityRow.destination(for: activity(.gave, returned: true), dmExists: true) == .tipConversation(dm))
+        #expect(await ActivityRow.destination(for: activity(.gave, returned: true)) { _ in true } == .tipConversation(dm))
     }
 
     @Test("17: the side it was returned to reads '<Name> sent back' and opens the DM")
-    func receivedSide() {
+    func receivedSide() async {
         #expect(title(.received, name: "Alex Morgan") == "Alex Morgan sent back")
-        #expect(ActivityRow.destination(for: activity(.received, returned: true), dmExists: true) == .tipConversation(dm))
+        #expect(await ActivityRow.destination(for: activity(.received, returned: true)) { _ in true } == .tipConversation(dm))
     }
 
     @Test("An unresolved name falls back to the server's title")
@@ -50,11 +50,22 @@ struct ActivityRowReturnTests {
         #expect(title(.received, name: "") == nil)
     }
 
-    @Test("A return whose DM is gone, and any other row, opens the details screen")
-    func detailsFallback() {
+    @Test("16/17: the DM is looked up by the return's chat id, so one not stored yet is fetched before falling back")
+    func looksUpTheReturnsDM() async {
+        var asked: [ConversationID] = []
+        let destination = await ActivityRow.destination(for: activity(.received, returned: true)) {
+            asked.append($0)
+            return true
+        }
+        #expect(asked == [dm])
+        #expect(destination == .tipConversation(dm))
+    }
+
+    @Test("A return whose DM is gone or can't be fetched, and any other row, opens the details screen")
+    func detailsFallback() async {
         let gone = activity(.gave, returned: true)
-        #expect(ActivityRow.destination(for: gone, dmExists: false) == .transactionDetails(gone))
+        #expect(await ActivityRow.destination(for: gone) { _ in false } == .transactionDetails(gone))
         let plain = activity(.gave, returned: false)
-        #expect(ActivityRow.destination(for: plain, dmExists: true) == .transactionDetails(plain))
+        #expect(await ActivityRow.destination(for: plain) { _ in true } == .transactionDetails(plain))
     }
 }

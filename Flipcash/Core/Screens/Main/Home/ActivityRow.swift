@@ -31,10 +31,17 @@ struct ActivityRow: View {
 
     var body: some View {
         Button {
-            let dmExists = activity.returnedPayment.map {
-                sessionContainer.conversationController.conversation(withID: $0.conversationID) != nil
-            } ?? false
-            router.push(Self.destination(for: activity, dmExists: dmExists))
+            guard activity.returnedPayment != nil else {
+                router.push(.transactionDetails(activity))
+                return
+            }
+            let conversations = sessionContainer.conversationController
+            Task {
+                let destination = await Self.destination(for: activity) {
+                    await conversations.hydratedConversation(withID: $0) != nil
+                }
+                router.push(destination)
+            }
         } label: {
             content
         }
@@ -152,9 +159,13 @@ struct ActivityRow: View {
     }
 
     /// Where a tap on the row goes: a payment that sent back a DM's opening payment opens that DM
-    /// while it still exists; every other row, and one whose DM is gone, opens its details.
-    static func destination(for activity: Activity, dmExists: Bool) -> AppRouter.Destination {
-        if let returned = activity.returnedPayment, dmExists {
+    /// when `dmExists` finds it, stored or fetched from the server; every other row, and one whose
+    /// DM is gone or can't be fetched, opens its details.
+    static func destination(
+        for activity: Activity,
+        dmExists: (ConversationID) async -> Bool
+    ) async -> AppRouter.Destination {
+        if let returned = activity.returnedPayment, await dmExists(returned.conversationID) {
             return .tipConversation(returned.conversationID)
         }
         return .transactionDetails(activity)
