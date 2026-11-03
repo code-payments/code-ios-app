@@ -153,6 +153,8 @@ account belongs to public groups, so a send there posts to real people.
 - ❌ Host-only filesystem access
 - ✅ `UIPasteboard`, `XCUIApplication`, `XCUIElement` — standard XCUITest APIs
 
+**CI runs FlipcashTests serially** (`-parallel-testing-enabled NO` in the "App tests" step of `vectors.yml`, matching `Scripts/test.sh`). In parallel, every case starts at once in one test host, and on the 3-core runner a case can wait 60 s+ for the main actor or the cooperative pool. That wait counts against `.timeLimit` and any elapsed-time check. Don't turn parallel testing back on there. Instead of a wall-clock bound in a new test, assert the order of events (hold the operation on a gate the test opens) or inject a clock (`ImmediateClock`, `ManualInstantClock`).
+
 ## Regression Tests
 
 **Every crash fixed from Bugsnag (or similar) gets a dedicated regression test** in `FlipcashTests/Regressions/`, reproducing the crash path and **observed failing on the unfixed code first**. Naming, suite conventions, and the false-green traps (windowing, live-cell reads) live in [`.claude/skills/triage/references/regression-tests.md`](../skills/triage/references/regression-tests.md).
