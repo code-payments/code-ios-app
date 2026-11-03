@@ -224,14 +224,15 @@ final class ReactionBoostViewModel {
             return .failed
         }
 
-        var payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)] = []
-        for share in shares {
-            do {
-                payments.append((share.amount, try await resolver.resolveUserID(share.share.userID)))
-            } catch {
-                showSendError()
-                return .failed
+        let payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)]
+        do {
+            let owners = try await RecipientBatch.resolveOwners(shares.map(\.share.userID)) { @MainActor [self] in
+                try await self.resolver.resolveUserID($0)
             }
+            payments = zip(shares, owners).map { (amount: $0.amount, recipientOwner: $1) }
+        } catch {
+            showSendError()
+            return .failed
         }
 
         let previousCents = reactions.selfBoostCents(emoji, messageID: target.messageID, in: target.conversationID)

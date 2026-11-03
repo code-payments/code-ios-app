@@ -625,10 +625,13 @@ class Session {
 
     private func registerPoller() {
         poller = Poller(seconds: 10, fireImmediately: true) { [weak self] in
-            // Each fetch is independent — a failure must not block the ones after it.
-            try? await self?.fetchUserFlagsIfNeeded()
-            try? await self?.fetchLimitsIfNeeded()
-            try? await self?.fetchBalance()
+            guard let self else { return }
+            // Each fetch is independent, so they run together and a failure doesn't hold up the
+            // others. All three finish before the tick does, which `drainPoller()` relies on.
+            async let flags: Void? = try? fetchUserFlagsIfNeeded()
+            async let limits: Void? = try? fetchLimitsIfNeeded()
+            async let balance: Void? = try? fetchBalance()
+            _ = await (flags, limits, balance)
         }
     }
 

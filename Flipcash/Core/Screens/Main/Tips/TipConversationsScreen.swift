@@ -167,9 +167,10 @@ struct TipConversationsScreen: View {
         // No push says a join request was decided, so the list asks after each one it opens on;
         // an admission seats the group and puts it in the list.
         .task {
-            for conversationID in sessionContainer.lobbyRequests.conversationIDs {
+            let lobbyRequests = sessionContainer.lobbyRequests
+            await lobbyRequests.conversationIDs.concurrentForEach { @MainActor [conversationController] conversationID in
                 if let fresh = await conversationController.refreshRequestedGroup(conversationID) {
-                    sessionContainer.lobbyRequests.reconcile(with: fresh)
+                    lobbyRequests.reconcile(with: fresh)
                 }
             }
         }
@@ -408,8 +409,9 @@ struct TipConversationRow: View {
         // A request's preview names its title, which only the request itself carries, sealed to the chat.
         .task(id: lastRequestID) {
             guard let lastRequestID else { return }
-            await sessionContainer.paymentRequests.fetchIfMissing(lastRequestID)
-            await sessionContainer.paymentRequests.loadSeal(for: conversation.id)
+            async let request: Void = sessionContainer.paymentRequests.fetchIfMissing(lastRequestID)
+            async let seal: Void = sessionContainer.paymentRequests.loadSeal(for: conversation.id)
+            _ = await (request, seal)
         }
     }
 

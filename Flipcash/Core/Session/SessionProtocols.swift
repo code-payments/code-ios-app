@@ -93,6 +93,39 @@ protocol RecipientResolving: AnyObject {
     func resolveUserID(_ userID: UserID) async throws -> PublicKey
 }
 
+/// Resolves several recipients at once for a multi-recipient send.
+enum RecipientBatch {
+
+    /// Resolves each user id to its owner, returned in input order; throws the first failure.
+    static func resolveOwners(
+        _ userIDs: [UserID],
+        concurrency: Int = 4,
+        resolve: @escaping @Sendable (UserID) async throws -> PublicKey
+    ) async throws -> [PublicKey] {
+        var owners = [PublicKey?](repeating: nil, count: userIDs.count)
+        // A throw out of the group cancels the lookups still in flight, so the first failure
+        // ends the batch as a sequential loop would.
+        try await withThrowingTaskGroup(of: (index: Int, owner: PublicKey).self) { group in
+            var next = 0
+            func addTask(at index: Int) {
+                let userID = userIDs[index]
+                group.addTask { (index, try await resolve(userID)) }
+            }
+            while next < min(concurrency, userIDs.count) {
+                addTask(at: next)
+                next += 1
+            }
+            while let result = try await group.next() {
+                owners[result.index] = result.owner
+                guard next < userIDs.count else { continue }
+                addTask(at: next)
+                next += 1
+            }
+        }
+        return owners.compactMap { $0 }
+    }
+}
+
 // MARK: - Direct send
 
 /// Direct on-chain payment to a resolved recipient owner.

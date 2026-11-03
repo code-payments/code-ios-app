@@ -208,8 +208,9 @@ struct TopCommunityChatsDestination: View {
                 ratesController: sessionContainer.ratesController
             )
             viewModel = model
-            await model.loadMintMetadata()
-            await model.loadCommunityChats()
+            async let metadata: Void = model.loadMintMetadata()
+            async let chats: Void = model.loadCommunityChats()
+            _ = await (metadata, chats)
         }
     }
 }

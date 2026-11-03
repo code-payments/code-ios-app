@@ -253,7 +253,8 @@ public struct ChatMediaUploader {
 
         let uploaded: UploadedPhoto
         if let chatSeal {
-            let blurhash = await Self.blurhash(of: data)
+            // The blurhash reads only the plaintext, so it encodes while the ciphertext uploads.
+            async let blurhash = Self.blurhash(of: data)
             let stored = try await store(progress: progress) { try await blob.storeEncryptedBlob(data, seal: chatSeal, onProgress: onBytes) }
             uploaded = .sealed(SealedPhoto(
                 blobID: stored.blobID,
@@ -261,7 +262,7 @@ public struct ChatMediaUploader {
                 sizeBytes: stored.plaintextSize,
                 width: width,
                 height: height,
-                blurhash: blurhash
+                blurhash: await blurhash
             ))
         } else {
             uploaded = .plain(try await store(progress: progress) { try await blob.storeBlob(data, mimeType: ChatMediaEncoder.mimeType, onProgress: onBytes) })

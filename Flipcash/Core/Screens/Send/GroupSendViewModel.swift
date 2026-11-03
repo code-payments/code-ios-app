@@ -229,14 +229,15 @@ final class GroupSendViewModel {
             return .failed
         }
 
-        var payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)] = []
-        for (userID, amount) in zip(selection, amounts) {
-            do {
-                payments.append((amount, try await resolver.resolveUserID(userID)))
-            } catch {
-                showSendError()
-                return .failed
+        let payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)]
+        do {
+            let owners = try await RecipientBatch.resolveOwners(selection) { @MainActor [self] in
+                try await self.resolver.resolveUserID($0)
             }
+            payments = zip(amounts, owners).map { (amount: $0, recipientOwner: $1) }
+        } catch {
+            showSendError()
+            return .failed
         }
 
         let chat = ChatPaymentMetadata.groupPayment(chatID: conversationID)
