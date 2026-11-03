@@ -101,6 +101,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Select the newest installed Xcode
         run: |
@@ -116,6 +118,27 @@ jobs:
       - name: Cache key
         id: key
         run: echo "dd=app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}" >> "$GITHUB_OUTPUT"
+
+      # Checkout stamps every file with the clone time, so a restored DerivedData
+      # sees every source as newer than its build products and recompiles the app
+      # and test targets. Setting each tracked file's mtime to the time of the last
+      # commit that touched it gives unchanged files the same mtime on every run of
+      # this commit's history. Needs full history (fetch-depth: 0 above).
+      - name: Restore source mtimes
+        run: |
+          set -euo pipefail
+          git -c core.quotepath=off log --pretty=format:'%x00%ct' --name-only --no-renames | python3 -c '
+          import os, subprocess, sys
+          tracked = set(subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")) - {""}
+          done, t = set(), None
+          for line in sys.stdin.read().split("\n"):
+              if line.startswith("\0"):
+                  t = int(line[1:])
+              elif line and line in tracked and line not in done:
+                  done.add(line)
+                  os.utime(line, (t, t), follow_symlinks=False)
+          print(f"set {len(done)} of {len(tracked)} tracked files")
+          '
 
       # Restored everywhere, saved only off pull_request: a multi-GB cache per PR
       # push would evict the main-branch seed that every PR starts from. Checkout
@@ -149,8 +172,25 @@ jobs:
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -skipMacroValidation \
-            -quiet \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            -showBuildTimingSummary \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            > "${{ runner.temp }}/build.log" 2>&1 || { tail -200 "${{ runner.temp }}/build.log"; exit 1; }
+          echo "Swift compile commands per target:"
+          grep -E '^(SwiftCompile|CompileSwift) ' "${{ runner.temp }}/build.log" \
+            | sed -E "s/.*in target '([^']+)'.*/\\1/" | sort | uniq -c | sort -rn || true
+          echo "Other compile commands per target:"
+          grep -E '^(CompileC|CompileAssetCatalog|CompileStoryboard|PhaseScriptExecution|Ld|CompileSwiftSources) ' "${{ runner.temp }}/build.log" \
+            | sed -E "s/^([A-Za-z]+) .*in target '([^']+)'.*/\\1 \\2/" | sort | uniq -c | sort -rn || true
+          sed -n '/Build Timing Summary/,$p' "${{ runner.temp }}/build.log" | head -60
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build-log
+          path: ${{ runner.temp }}/build.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Save app DerivedData
         if: github.event_name != 'pull_request'
