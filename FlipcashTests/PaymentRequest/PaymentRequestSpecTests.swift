@@ -178,6 +178,36 @@ struct PaymentRequestSpecTests {
         #expect(!paid.isOwed(by: viewer, at: now))
     }
 
+    @Test("24–25: every viewer gets the stack, and only a viewer who owes gets You owe and Pay")
+    @MainActor
+    func stackForEveryViewer() {
+        let store = PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in throw ErrorGetPaymentRequest.unknown })
+        store.ingest([request(id: 1, paid: 1)])
+        func front(for viewer: UUID) -> PaymentRequestDeckItem? {
+            store.deckItems(for: chat, viewer: viewer, order: PaymentRequestDeckOrder(), copy: copy, now: now).first
+        }
+
+        let owing = front(for: viewer)
+        #expect(owing?.owedShare != nil)
+        if case .owes = owing?.viewerStatus {} else { Issue.record("expected .owes, got \(String(describing: owing?.viewerStatus))") }
+
+        let asCreator = front(for: creator)
+        #expect(asCreator != nil)
+        #expect(asCreator?.owedShare == nil)
+        #expect(asCreator?.viewerStatus == .creator)
+
+        let outsider = front(for: UUID())
+        #expect(outsider != nil)
+        #expect(outsider?.owedShare == nil)
+        #expect(outsider?.viewerStatus == .noShare)
+
+        store.ingest([request(id: 1, paid: 2, version: 2)])
+        let paid = front(for: viewer)
+        #expect(paid != nil)
+        #expect(paid?.owedShare == nil)
+        if case .paid = paid?.viewerStatus {} else { Issue.record("expected .paid, got \(String(describing: paid?.viewerStatus))") }
+    }
+
     @Test("27: dragging the stack up only pulls the front card a few points")
     @MainActor
     func upwardDragIsElastic() {
