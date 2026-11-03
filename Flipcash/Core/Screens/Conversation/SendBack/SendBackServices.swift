@@ -34,8 +34,17 @@ final class LiveSendBackServices: SendBackServicing {
         return (amount, pin)
     }
 
+    func heldQuarks(of mint: PublicKey) -> UInt64 {
+        session.balance(for: mint)?.quarks ?? 0
+    }
+
     func hasSufficientFunds(for amount: ExchangedFiat) -> Session.SufficientFundsResult {
         session.hasSufficientFunds(for: amount)
+    }
+
+    func tokenLabel(for mint: PublicKey) async -> (name: String, iconURL: URL?)? {
+        guard let metadata = try? await session.fetchMintMetadata(mint: mint) else { return nil }
+        return (metadata.name, metadata.imageURL)
     }
 
     func resolveUserID(_ userID: UserID) async throws -> PublicKey {

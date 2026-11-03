@@ -16,8 +16,12 @@ protocol SendBackServicing: AnyObject {
     /// `original` re-priced in its own currency and mint at today's rate, with the proof it was
     /// priced at; nil when no fresh rate is available.
     func priceReturn(of original: ExchangedFiat) async -> (amount: ExchangedFiat, pin: VerifiedState)?
-    /// Whether the viewer's balance of `amount`'s mint covers it.
+    /// The quarks of `mint` the viewer holds; 0 with no balance.
+    func heldQuarks(of mint: PublicKey) -> UInt64
+    /// The shortfall to show in the insufficient-balance modal, when the session can name it.
     func hasSufficientFunds(for amount: ExchangedFiat) -> Session.SufficientFundsResult
+    /// The token's name and icon from its mint metadata; nil when the metadata can't be loaded.
+    func tokenLabel(for mint: PublicKey) async -> (name: String, iconURL: URL?)?
     /// The owner account of `userID`, where the return is paid.
     func resolveUserID(_ userID: UserID) async throws -> PublicKey
     func returnPayment(amount: ExchangedFiat, verifiedState: VerifiedState, to senderOwner: PublicKey, chatID: ConversationID, messageID: MessageID, intentID: PublicKey) async throws
@@ -62,8 +66,8 @@ struct SendBackOffer: Identifiable, Equatable {
     let original: ExchangedFiat
     /// The DM peer's display name, as the chat title shows it.
     let recipientName: String
-    let token: String
-    let iconURL: URL?
+    var token: String
+    var iconURL: URL?
 
     var id: MessageID { messageID }
 }
@@ -144,15 +148,26 @@ final class SendBackController {
     /// The tap on Send Back. Returns the offer to confirm, or nil when the balance is short (the
     /// modal is up instead) or the return could not be priced.
     func tap(_ offer: SendBackOffer) async -> SendBackOffer? {
-        guard local(for: offer.messageID) == .available else { return nil }
+        // One tap at a time: a double tap would report Send Back: Tapped twice and open the sheet twice.
+        guard !tapInFlight, local(for: offer.messageID) == .available else { return nil }
+        tapInFlight = true
+        defer { tapInFlight = false }
         guard let priced = await services.priceReturn(of: offer.original) else {
             presenter.showRateUnavailable()
             return nil
         }
         let hasBalance = checkBalance(priced.amount)
         analytics.tapped(hasBalance: hasBalance)
-        return hasBalance ? offer : nil
+        guard hasBalance else { return nil }
+        var confirmed = offer
+        if let token = await services.tokenLabel(for: offer.original.mint) {
+            confirmed.token = token.name
+            confirmed.iconURL = token.iconURL
+        }
+        return confirmed
     }
+
+    private var tapInFlight = false
 
     // MARK: - Swipe -
 
@@ -177,15 +192,23 @@ final class SendBackController {
         return .submitted
     }
 
-    /// Whether the balance covers `amount`; when it doesn't, shows the insufficient-balance modal.
+    /// Whether the held quarks cover `amount`'s quarks; when they don't, shows the
+    /// insufficient-balance modal.
+    ///
+    /// Strict on purpose: the return pays exactly `amount`. `Session.hasSufficientFunds` forgives a
+    /// shortfall under half a denomination because its callers send its `amountToSend` instead;
+    /// this one can't, so a balance a fraction of a cent short would fail on chain.
     private func checkBalance(_ amount: ExchangedFiat) -> Bool {
-        switch services.hasSufficientFunds(for: amount) {
-        case .sufficient:
+        let needed = amount.onChainAmount.quarks
+        if needed > 0, services.heldQuarks(of: amount.mint) >= needed {
             return true
-        case .insufficient(let shortfall):
-            presenter.showInsufficientBalance(shortfall: shortfall, mint: amount.mint)
-            return false
         }
+        var shortfall: ExchangedFiat?
+        if case .insufficient(let known) = services.hasSufficientFunds(for: amount) {
+            shortfall = known
+        }
+        presenter.showInsufficientBalance(shortfall: shortfall, mint: amount.mint)
+        return false
     }
 
     private func submit(_ offer: SendBackOffer, amount: ExchangedFiat, pin: VerifiedState) async {

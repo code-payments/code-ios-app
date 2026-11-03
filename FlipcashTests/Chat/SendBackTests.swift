@@ -168,14 +168,34 @@ private final class FakeServices: SendBackServicing {
         return CashReturnStatus(state: state, paymentIntentID: state == .available && !withholdIntent ? Self.intent.data : nil)
     }
 
+    /// Quarks held; when unset, enough unless `shortfall` is set.
+    var held: UInt64?
+    /// What the session's tolerant check answers; when unset, it follows `shortfall`.
+    var sessionCheck: Session.SufficientFundsResult?
+    var token: (name: String, iconURL: URL?)? = ("USDF", URL(string: "https://example.com/usdf.png"))
+    var priceCalls = 0
+    var holdPrice = false
+    private var priceRelease: CheckedContinuation<Void, Never>?
+
+    func releasePrice() { priceRelease?.resume(); priceRelease = nil }
+
     func priceReturn(of original: ExchangedFiat) async -> (amount: ExchangedFiat, pin: VerifiedState)? {
-        (original, .stale(bonded: false))
+        priceCalls += 1
+        if holdPrice { await withCheckedContinuation { priceRelease = $0 } }
+        return (original, .stale(bonded: false))
+    }
+
+    func heldQuarks(of mint: PublicKey) -> UInt64 {
+        held ?? (shortfall == nil ? 10_000_000 : 0)
     }
 
     func hasSufficientFunds(for amount: ExchangedFiat) -> Session.SufficientFundsResult {
+        if let sessionCheck { return sessionCheck }
         if let shortfall { return .insufficient(shortfall: shortfall) }
         return .sufficient(amountToSend: amount)
     }
+
+    func tokenLabel(for mint: PublicKey) async -> (name: String, iconURL: URL?)? { token }
 
     func resolveUserID(_ userID: UserID) async throws -> PublicKey { owner }
 
@@ -275,6 +295,56 @@ struct SendBackControllerTests {
         #expect(analytics.taps == [false])
     }
 
+    @Test("11: a balance a fraction of a cent short is short, even where the session's tolerance would let it through")
+    func tapShortByAFraction() async {
+        let controller = await opened()
+        services.held = five.onChainAmount.quarks - 1
+        services.sessionCheck = .sufficient(amountToSend: five)
+        #expect(await controller.tap(sendBackOffer) == nil)
+        #expect(presenter.shown == ["insufficient"])
+        #expect(analytics.taps == [false])
+    }
+
+    @Test("11: a balance of exactly the needed quarks is enough")
+    func tapExactBalance() async {
+        let controller = await opened()
+        services.held = five.onChainAmount.quarks
+        #expect(await controller.tap(sendBackOffer) != nil)
+        #expect(analytics.taps == [true])
+    }
+
+    @Test("10: a second tap while the first is in flight does nothing: one Tapped event, one sheet")
+    func doubleTap() async {
+        let controller = await opened()
+        services.holdPrice = true
+        let first = Task { await controller.tap(sendBackOffer) }
+        while services.priceCalls == 0 { await Task.yield() }
+        #expect(await controller.tap(sendBackOffer) == nil)
+        services.releasePrice()
+        #expect(await first.value != nil)
+        #expect(analytics.taps == [true])
+        #expect(services.priceCalls == 1)
+        // The guard clears once the tap resolves.
+        services.holdPrice = false
+        #expect(await controller.tap(sendBackOffer) != nil)
+    }
+
+    @Test("10: the sheet names the token and shows its icon from the mint's metadata, not the balance")
+    func tokenFromMetadata() async {
+        let controller = await opened()
+        let confirmed = await controller.tap(sendBackOffer)
+        #expect(confirmed?.token == "USDF")
+        #expect(confirmed?.iconURL == URL(string: "https://example.com/usdf.png"))
+    }
+
+    @Test("10: without mint metadata, the sheet keeps the name it was given")
+    func tokenWithoutMetadata() async {
+        let controller = await opened()
+        services.token = nil
+        let confirmed = await controller.tap(sendBackOffer)
+        #expect(confirmed?.token == "USD Coin")
+    }
+
     @Test("12: the return pays the original's amount to the sender's owner, in the DM, under the server's intent id")
     func returnIntent() async throws {
         let controller = await opened()
@@ -342,6 +412,19 @@ struct SendBackControllerTests {
         let controller = await opened()
         #expect(await controller.tap(sendBackOffer) != nil)
         services.shortfall = .some(nil)
+        #expect(await controller.confirm(sendBackOffer) == .blocked)
+        #expect(controller.local(for: messageID) == .available)
+        #expect(presenter.shown == ["insufficient"])
+        #expect(services.payments.isEmpty)
+        #expect(controller.submitTask == nil)
+    }
+
+    @Test("19: a balance that drops a fraction of a cent short while the sheet is open still blocks the swipe")
+    func balanceDropsByAFractionBeforeSwipe() async {
+        let controller = await opened()
+        #expect(await controller.tap(sendBackOffer) != nil)
+        services.held = five.onChainAmount.quarks - 1
+        services.sessionCheck = .sufficient(amountToSend: five)
         #expect(await controller.confirm(sendBackOffer) == .blocked)
         #expect(controller.local(for: messageID) == .available)
         #expect(presenter.shown == ["insufficient"])
