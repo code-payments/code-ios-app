@@ -78,6 +78,10 @@ class BaseUITestCase: XCTestCase {
 
         let loginURL = URL(string: "flipcash://login#e=\(accessKey.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? accessKey)")!
         app.open(loginURL)
+
+        // Re-login resumes onboarding, which asks for push permission when it is
+        // still undetermined on this simulator.
+        allowPushNotificationsIfNeeded()
     }
 
     /// Registers a new account via the write-down branch — the fastest path,
