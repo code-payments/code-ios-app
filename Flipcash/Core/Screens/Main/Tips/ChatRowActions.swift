@@ -50,9 +50,13 @@ private struct ChatRowActionsModifier: ViewModifier {
     @Environment(ConversationController.self) private var conversationController
 
     func body(content: Content) -> some View {
-        if isEnabled, let action = conversationController.readAction(for: conversation) {
-            content
-                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+        // One modifier chain whether or not the actions are on; only what's inside empties. Branching
+        // on `isEnabled` gave select mode a different view, so the List swapped the row for a new one
+        // and cross-faded the two while the select circle slid in.
+        let action = isEnabled ? conversationController.readAction(for: conversation) : nil
+        content
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                if let action {
                     Button {
                         conversationController.perform(action, on: conversation.id, source: .swipe)
                     } label: {
@@ -66,25 +70,24 @@ private struct ChatRowActionsModifier: ViewModifier {
                     .tint(.unreadIndicatorSecondary)
                     .accessibilityLabel(action.title)
                 }
-                .modifier(ChatRowContextMenu(
-                    conversation: conversation,
-                    action: action,
-                    list: list,
-                    onMute: onMute,
-                    onArchive: onArchive
-                ))
-        } else {
-            content
-        }
+            }
+            .modifier(ChatRowContextMenu(
+                conversation: conversation,
+                action: action,
+                list: list,
+                onMute: onMute,
+                onArchive: onArchive
+            ))
     }
 }
 
 /// The long-press menu. A chat with a message in the local store previews its transcript above the
-/// menu; one with none shows the menu alone.
+/// menu; one with none shows the menu alone. With no `action` the menu has no items, which turns the
+/// long press off.
 private struct ChatRowContextMenu: ViewModifier {
 
     let conversation: Conversation
-    let action: ChatReadAction
+    let action: ChatReadAction?
     let list: ChatRowList
     let onMute: () -> Void
     let onArchive: () -> Void
@@ -123,21 +126,23 @@ private struct ChatRowContextMenu: ViewModifier {
     }
 
     @ViewBuilder private var items: some View {
-        Button(action.title, systemImage: action.systemImage) {
-            conversationController.perform(action, on: conversation.id, source: .menu)
-        }
-        if conversationController.isMuted(conversationID: conversation.id) {
-            Button("Unmute", systemImage: SystemSymbol.bell.rawValue) {
-                Task { await conversationController.unmuteReporting([conversation.id], session: session) }
+        if let action {
+            Button(action.title, systemImage: action.systemImage) {
+                conversationController.perform(action, on: conversation.id, source: .menu)
             }
-        } else {
-            Button("Mute", systemImage: SystemSymbol.bellSlash.rawValue, action: onMute)
-        }
-        switch list {
-        case .main:
-            Button("Archive", systemImage: "archivebox", action: onArchive)
-        case .archived:
-            Button("Unarchive", systemImage: "tray.and.arrow.up", action: onArchive)
+            if conversationController.isMuted(conversationID: conversation.id) {
+                Button("Unmute", systemImage: SystemSymbol.bell.rawValue) {
+                    Task { await conversationController.unmuteReporting([conversation.id], session: session) }
+                }
+            } else {
+                Button("Mute", systemImage: SystemSymbol.bellSlash.rawValue, action: onMute)
+            }
+            switch list {
+            case .main:
+                Button("Archive", systemImage: "archivebox", action: onArchive)
+            case .archived:
+                Button("Unarchive", systemImage: "tray.and.arrow.up", action: onArchive)
+            }
         }
     }
 }
