@@ -20,14 +20,12 @@ final class SendBackRowView: UIControl {
 
     private static let actionFill = UIColor(Color.textMain)
     private static let actionText = UIColor(Color.backgroundMain)
-    private static let dividerColor = UIColor.white.withAlphaComponent(0.08)
     /// The card's caption style, so "Sent Back" reads as one of the card's lines.
     private static let footerFont = UIFont.appTextHeading
-    private static let footerColor = UIColor.white.withAlphaComponent(0.5)
+    private static let footerColor = ChatCashCardCell.secondaryColor
 
     private let label = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
-    private let divider = UIView()
     /// The state last applied; read by tests.
     private(set) var displayedState: ChatCashContent.SendBack = .available
 
@@ -38,10 +36,7 @@ final class SendBackRowView: UIControl {
         spinner.color = Self.actionText
         spinner.hidesWhenStopped = true
         spinner.translatesAutoresizingMaskIntoConstraints = false
-        divider.backgroundColor = Self.dividerColor
-        divider.isUserInteractionEnabled = false
-        divider.translatesAutoresizingMaskIntoConstraints = false
-        [label, spinner, divider].forEach(addSubview)
+        [label, spinner].forEach(addSubview)
         isAccessibilityElement = true
 
         NSLayoutConstraint.activate([
@@ -52,10 +47,6 @@ final class SendBackRowView: UIControl {
             label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -16),
             spinner.centerXAnchor.constraint(equalTo: centerXAnchor),
             spinner.centerYAnchor.constraint(equalTo: centerYAnchor),
-            divider.topAnchor.constraint(equalTo: topAnchor),
-            divider.leadingAnchor.constraint(equalTo: leadingAnchor),
-            divider.trailingAnchor.constraint(equalTo: trailingAnchor),
-            divider.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale),
         ])
     }
 
@@ -72,7 +63,6 @@ final class SendBackRowView: UIControl {
         switch state {
         case .available:
             backgroundColor = Self.actionFill
-            divider.isHidden = false
             label.isHidden = false
             label.text = "Send Back"
             label.font = .appTextSmall
@@ -83,7 +73,6 @@ final class SendBackRowView: UIControl {
             accessibilityTraits = .button
         case .sending:
             backgroundColor = Self.actionFill
-            divider.isHidden = false
             label.isHidden = true
             spinner.startAnimating()
             isEnabled = false
@@ -91,7 +80,6 @@ final class SendBackRowView: UIControl {
             accessibilityTraits = [.button, .notEnabled]
         case .sentBack:
             backgroundColor = .clear
-            divider.isHidden = true
             label.isHidden = false
             label.text = "Sent Back"
             label.font = Self.footerFont

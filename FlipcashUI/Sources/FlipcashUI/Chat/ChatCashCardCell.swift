@@ -25,7 +25,8 @@ public final class ChatCashCardCell: ChatColumnCell {
     private static let eachFont = UIFont.default(size: amountFont.pointSize / 2, weight: .medium)
     // The "~" before the smallest of uneven parts: the amount's weight at 70% of its size.
     private static let approximateFont = UIFont.default(size: (amountFont.pointSize * 0.7).rounded(), weight: .bold)
-    private static let secondaryColor = UIColor.white.withAlphaComponent(0.5)
+    /// The card's secondary lines; the Send Back footer uses it too.
+    static let secondaryColor = UIColor.white.withAlphaComponent(0.5)
 
     // Vertical spacing, per "Spacing values" in docs/specs/cash-bubbles.md. Frame gaps, so both
     // apps give the same content the same card height.
