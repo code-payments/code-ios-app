@@ -149,10 +149,10 @@ jobs:
           '
 
       # Restored everywhere, saved only off pull_request: a multi-GB cache per PR
-      # push would evict the main-branch seed that every PR starts from. Checkout
-      # gives every source a new mtime, so the app and test targets rebuild anyway;
-      # what the cache saves is the built SwiftPM packages. Without it, the build
-      # reached FlipcashCore after 16.6 minutes instead of 1.3.
+      # push would evict the main-branch seed that every PR starts from. With the
+      # mtimes above, a warm build compiles only the files that changed since the
+      # seed's commit. Without the cache, the build reached FlipcashCore after 16.6
+      # minutes instead of 1.3.
       - name: Restore app DerivedData
         uses: actions/cache/restore@v4
         with:
@@ -170,10 +170,12 @@ jobs:
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
       # Builds both test targets (FlipcashTests and FlipcashUITests) once for the
-      # test steps below. The build runs -quiet (unquieted it prints every compile
-      # command, which on its own pushed this job past its timeout), while the test
-      # runs do not, because -quiet there reduces a failure to "Test case ... failed"
-      # with no assertion text to act on. CI never reads the index store.
+      # test steps below. The full log goes to a file, uploaded as app-build-log:
+      # printed to the job log, every compile command on its own pushed this job
+      # past its timeout. The step prints SwiftCompile counts per target instead,
+      # so a run shows whether the cache was warm. The test runs stay unquieted,
+      # because -quiet there reduces a failure to "Test case ... failed" with no
+      # assertion text to act on. CI never reads the index store.
       - name: App build
         run: |
           xcodebuild build-for-testing -scheme Flipcash \
