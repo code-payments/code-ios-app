@@ -101,6 +101,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Select the newest installed Xcode
         run: |
@@ -117,11 +119,40 @@ jobs:
         id: key
         run: echo "dd=app-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}" >> "$GITHUB_OUTPUT"
 
+      # Checkout stamps every file with the clone time, so a restored DerivedData
+      # sees every source as changed and recompiles the app and test targets. Each
+      # tracked file gets the time of the last commit that touched it, and each
+      # directory the newest time beneath it, so an unchanged input has the same
+      # mtime on every run. Directories count: an .xcassets catalog is a directory
+      # input, and recompiling it regenerates GeneratedAssetSymbols.swift, which
+      # re-emits the app and FlipcashUI modules. Needs full history (fetch-depth: 0).
+      - name: Restore source mtimes
+        run: |
+          set -euo pipefail
+          git -c core.quotepath=off log --pretty=format:'%x00%ct' --name-only --no-renames | python3 -c '
+          import os, subprocess, sys
+          tracked = set(subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")) - {""}
+          times, dirs, t = {}, {}, None
+          for line in sys.stdin.read().split("\n"):
+              if line.startswith("\0"):
+                  t = int(line[1:])
+              elif line and line in tracked and line not in times:
+                  times[line] = t
+                  os.utime(line, (t, t), follow_symlinks=False)
+                  d = os.path.dirname(line)
+                  while d:
+                      dirs[d] = max(dirs.get(d, 0), t)
+                      d = os.path.dirname(d)
+          for d, t in dirs.items():
+              os.utime(d, (t, t))
+          print(f"set {len(times)} of {len(tracked)} tracked files and {len(dirs)} directories")
+          '
+
       # Restored everywhere, saved only off pull_request: a multi-GB cache per PR
-      # push would evict the main-branch seed that every PR starts from. Checkout
-      # gives every source a new mtime, so the app and test targets rebuild anyway;
-      # what the cache saves is the built SwiftPM packages. Without it, the build
-      # reached FlipcashCore after 16.6 minutes instead of 1.3.
+      # push would evict the main-branch seed that every PR starts from. With the
+      # mtimes above, a warm build compiles only the files that changed since the
+      # seed's commit. Without the cache, the build reached FlipcashCore after 16.6
+      # minutes instead of 1.3.
       - name: Restore app DerivedData
         uses: actions/cache/restore@v4
         with:
@@ -139,18 +170,34 @@ jobs:
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
       # Builds both test targets (FlipcashTests and FlipcashUITests) once for the
-      # test steps below. The build runs -quiet (unquieted it prints every compile
-      # command, which on its own pushed this job past its timeout), while the test
-      # runs do not, because -quiet there reduces a failure to "Test case ... failed"
-      # with no assertion text to act on. CI never reads the index store.
+      # test steps below. The full log goes to a file, uploaded as app-build-log:
+      # printed to the job log, every compile command on its own pushed this job
+      # past its timeout. The step prints SwiftCompile counts per target instead,
+      # so a run shows whether the cache was warm. The test runs stay unquieted,
+      # because -quiet there reduces a failure to "Test case ... failed" with no
+      # assertion text to act on. CI never reads the index store.
       - name: App build
         run: |
           xcodebuild build-for-testing -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -skipMacroValidation \
-            -quiet \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            -showBuildTimingSummary \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            > "${{ runner.temp }}/build.log" 2>&1 || { tail -200 "${{ runner.temp }}/build.log"; exit 1; }
+          echo "SwiftCompile tasks per target (both build variants):"
+          grep -E '^SwiftCompile .*\(in target' "${{ runner.temp }}/build.log" \
+            | grep -oE "in target '[^']+'" | sort | uniq -c | sort -rn || true
+          sed -n '/Build Timing Summary/,/^Build /p' "${{ runner.temp }}/build.log" | grep -v '^$' || true
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build-log
+          path: ${{ runner.temp }}/build.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Save app DerivedData
         if: github.event_name != 'pull_request'
