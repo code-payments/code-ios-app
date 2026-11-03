@@ -99,6 +99,10 @@ jobs:
     # The app build and its 1664 tests took 22 of the previous 30 on a quiet
     # run, which leaves nothing for a slow runner.
     timeout-minutes: 60
+    # Without it xcodebuild block-buffers its output into the log, so timestamps
+    # land minutes after the lines they mark and a slow phase cannot be told apart.
+    env:
+      NSUnbufferedIO: "YES"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -112,6 +116,10 @@ jobs:
             sudo xcode-select -s "$XCODE"
           fi
           xcodebuild -version
+          # Starts CoreSimulator while the cache restores, so "Pick a simulator"
+          # does not wait out its cold start. Only the service: booting a device
+          # this early slows the build that follows it.
+          nohup xcrun simctl list devices > /dev/null 2>&1 &
 
       # Hashed before the build: afterwards .derived/ holds the SwiftPM checkouts,
       # whose Package.swift files would change the hash.
@@ -176,19 +184,23 @@ jobs:
       # so a run shows whether the cache was warm. The test runs stay unquieted,
       # because -quiet there reduces a failure to "Test case ... failed" with no
       # assertion text to act on. CI never reads the index store.
+      # -testPlan names the .xctestrun the test step runs. Each log line carries the
+      # time it was written, so the uploaded log shows where a slow build went.
       - name: App build
         run: |
-          xcodebuild build-for-testing -scheme Flipcash \
+          set -o pipefail
+          xcodebuild build-for-testing -scheme Flipcash -testPlan AllTargets \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -skipMacroValidation \
             -showBuildTimingSummary \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            > "${{ runner.temp }}/build.log" 2>&1 || { tail -200 "${{ runner.temp }}/build.log"; exit 1; }
-          echo "SwiftCompile tasks per target (both build variants):"
-          grep -E '^SwiftCompile .*\(in target' "${{ runner.temp }}/build.log" \
+            COMPILER_INDEX_STORE_ENABLE=NO 2>&1 \
+            | python3 -u -c 'import sys,time; [print(time.strftime("%H:%M:%S"), l, end="") for l in sys.stdin]' \
+            > "${{ runner.temp }}/build.log" || { tail -200 "${{ runner.temp }}/build.log"; exit 1; }
+          echo "SwiftCompile tasks per target:"
+          grep -E '^[0-9:]+ SwiftCompile .*\(in target' "${{ runner.temp }}/build.log" \
             | grep -oE "in target '[^']+'" | sort | uniq -c | sort -rn || true
-          sed -n '/Build Timing Summary/,/^Build /p' "${{ runner.temp }}/build.log" | grep -v '^$' || true
+          sed -n '/Build Timing Summary/,/^[0-9:]* Build /p' "${{ runner.temp }}/build.log" | grep -v '^$' || true
 
       - name: Upload build log
         if: always()
@@ -206,24 +218,28 @@ jobs:
           path: .derived/app
           key: ${{ steps.key.outputs.dd }}-${{ github.sha }}
 
-      # Booted after the build, not during it: on the 3-core runner, runs that
-      # booted during the build compiled every phase 1.7-2.7x slower.
-      - name: Boot the simulator
-        run: |
-          xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
-          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
-
       # All of FlipcashTests, and any failure fails the job. That includes the
       # app target's own vector suites -- chat drafts, link detection, and chat
       # media -- which assert against types only the app has, so they cannot move
       # into either package. Their fixtures are canonical and code-android-app
       # asserts against the same ones, so a failure there is contract drift
       # between the platforms.
+      #
+      # Run from the .xctestrun rather than the scheme: xcodebuild then skips
+      # loading the project and resolving packages again, which the build step
+      # has just done.
+      # Parallel testing stays on, so xcodebuild clones the simulator and boots the
+      # clone itself; nothing boots the picked device beforehand. With it off, the
+      # plan's retry-on-failure reruns the whole suite instead of the failed tests.
       - name: App tests
         run: |
-          xcodebuild test-without-building -scheme Flipcash \
+          set -euo pipefail
+          XCTESTRUN=(.derived/app/Build/Products/Flipcash_AllTargets_iphonesimulator*.xctestrun)
+          if [ "${#XCTESTRUN[@]}" -ne 1 ] || [ ! -f "${XCTESTRUN[0]}" ]; then
+            echo "Expected one AllTargets .xctestrun, found: ${XCTESTRUN[*]}"; exit 1
+          fi
+          xcodebuild test-without-building -xctestrun "${XCTESTRUN[0]}" \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
-            -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -only-testing:FlipcashTests \
             -resultBundlePath "${{ runner.temp }}/AppTests.xcresult"
 
