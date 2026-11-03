@@ -16,8 +16,8 @@ protocol SendBackServicing: AnyObject {
     /// `original` re-priced in its own currency and mint at today's rate, with the proof it was
     /// priced at; nil when no fresh rate is available.
     func priceReturn(of original: ExchangedFiat) async -> (amount: ExchangedFiat, pin: VerifiedState)?
-    /// The quarks of `mint` the viewer holds; 0 with no balance.
-    func heldQuarks(of mint: PublicKey) -> UInt64
+    /// The quarks of `mint` the viewer holds; nil when no balance of `mint` is loaded.
+    func heldQuarks(of mint: PublicKey) -> UInt64?
     /// The shortfall to show in the insufficient-balance modal, when the session can name it.
     func hasSufficientFunds(for amount: ExchangedFiat) -> Session.SufficientFundsResult
     /// The token's name and icon from its mint metadata; nil when the metadata can't be loaded.
@@ -156,7 +156,12 @@ final class SendBackController {
             presenter.showRateUnavailable()
             return nil
         }
-        let hasBalance = checkBalance(priced.amount)
+        // A tap whose balance can't be determined reaches neither the sheet nor the modal, so the
+        // funnel doesn't count it.
+        guard let hasBalance = checkBalance(priced.amount) else {
+            presenter.showRateUnavailable()
+            return nil
+        }
         analytics.tapped(hasBalance: hasBalance)
         guard hasBalance else { return nil }
         var confirmed = offer
@@ -186,21 +191,28 @@ final class SendBackController {
             presenter.showRateUnavailable()
             return .blocked
         }
-        guard checkBalance(priced.amount) else { return .blocked }
+        switch checkBalance(priced.amount) {
+        case true?: break
+        case false?: return .blocked
+        case nil:
+            presenter.showRateUnavailable()
+            return .blocked
+        }
         states[offer.messageID] = .sending
         submitTask = Task { await self.submit(offer, amount: priced.amount, pin: priced.pin) }
         return .submitted
     }
 
     /// Whether the held quarks cover `amount`'s quarks; when they don't, shows the
-    /// insufficient-balance modal.
+    /// insufficient-balance modal. Nil, with nothing shown, when no balance of the mint is loaded.
     ///
     /// Strict on purpose: the return pays exactly `amount`. `Session.hasSufficientFunds` forgives a
     /// shortfall under half a denomination because its callers send its `amountToSend` instead;
     /// this one can't, so a balance a fraction of a cent short would fail on chain.
-    private func checkBalance(_ amount: ExchangedFiat) -> Bool {
+    private func checkBalance(_ amount: ExchangedFiat) -> Bool? {
+        guard let held = services.heldQuarks(of: amount.mint) else { return nil }
         let needed = amount.onChainAmount.quarks
-        if needed > 0, services.heldQuarks(of: amount.mint) >= needed {
+        if needed > 0, held >= needed {
             return true
         }
         var shortfall: ExchangedFiat?

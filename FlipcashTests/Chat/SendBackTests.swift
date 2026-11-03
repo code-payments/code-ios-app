@@ -175,6 +175,10 @@ private final class FakeServices: SendBackServicing {
     var token: (name: String, iconURL: URL?)? = ("USDF", URL(string: "https://example.com/usdf.png"))
     var priceCalls = 0
     var holdPrice = false
+    /// No fresh rate: `priceReturn` answers nil.
+    var noRate = false
+    /// No balance of the mint is loaded: `heldQuarks` answers nil.
+    var balanceUnloaded = false
     private var priceRelease: CheckedContinuation<Void, Never>?
 
     func releasePrice() { priceRelease?.resume(); priceRelease = nil }
@@ -182,11 +186,13 @@ private final class FakeServices: SendBackServicing {
     func priceReturn(of original: ExchangedFiat) async -> (amount: ExchangedFiat, pin: VerifiedState)? {
         priceCalls += 1
         if holdPrice { await withCheckedContinuation { priceRelease = $0 } }
+        if noRate { return nil }
         return (original, .stale(bonded: false))
     }
 
-    func heldQuarks(of mint: PublicKey) -> UInt64 {
-        held ?? (shortfall == nil ? 10_000_000 : 0)
+    func heldQuarks(of mint: PublicKey) -> UInt64? {
+        if balanceUnloaded { return nil }
+        return held ?? (shortfall == nil ? 10_000_000 : 0)
     }
 
     func hasSufficientFunds(for amount: ExchangedFiat) -> Session.SufficientFundsResult {
@@ -405,6 +411,35 @@ struct SendBackControllerTests {
         #expect(services.payments.isEmpty)
         #expect(analytics.sent == ["alreadyReturned"])
         #expect(presenter.shown.isEmpty)
+    }
+
+    @Test("10/11: a tap with no fresh rate shows Rate Unavailable, opens no sheet, and reports no Tapped event")
+    func tapWithoutRate_reportsNothing() async {
+        let controller = await opened()
+        services.noRate = true
+        #expect(await controller.tap(sendBackOffer) == nil)
+        #expect(presenter.shown == ["rate"])
+        #expect(analytics.taps.isEmpty)
+    }
+
+    @Test("10/11: a tap whose balance isn't loaded shows Rate Unavailable, opens no sheet, and reports no Tapped event")
+    func tapWithBalanceUnloaded_reportsNothing() async {
+        let controller = await opened()
+        services.balanceUnloaded = true
+        #expect(await controller.tap(sendBackOffer) == nil)
+        #expect(presenter.shown == ["rate"])
+        #expect(analytics.taps.isEmpty)
+    }
+
+    @Test("19: a swipe whose balance isn't loaded submits nothing and shows Rate Unavailable")
+    func swipeWithBalanceUnloaded_blocks() async {
+        let controller = await opened()
+        #expect(await controller.tap(sendBackOffer) != nil)
+        services.balanceUnloaded = true
+        #expect(await controller.confirm(sendBackOffer) == .blocked)
+        #expect(controller.local(for: messageID) == .available)
+        #expect(presenter.shown == ["rate"])
+        #expect(services.payments.isEmpty)
     }
 
     @Test("19: the balance dropping while the sheet is open blocks the swipe: no submit, row Available, modal")

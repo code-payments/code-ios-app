@@ -34,8 +34,8 @@ final class LiveSendBackServices: SendBackServicing {
         return (amount, pin)
     }
 
-    func heldQuarks(of mint: PublicKey) -> UInt64 {
-        session.balance(for: mint)?.quarks ?? 0
+    func heldQuarks(of mint: PublicKey) -> UInt64? {
+        session.balance(for: mint)?.quarks
     }
 
     func hasSufficientFunds(for amount: ExchangedFiat) -> Session.SufficientFundsResult {
