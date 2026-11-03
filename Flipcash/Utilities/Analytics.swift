@@ -56,13 +56,13 @@ enum Analytics {
         }
     }
 
-    /// Test-only replacement for the Mixpanel event call; while set, events are handed to it
-    /// even though Mixpanel was never initialized.
-    static var sendOverride: ((String, [String: AnalyticsValue]) -> Void)?
+    /// Test-only replacement for the Mixpanel event call; while bound, events from the binding
+    /// task and its child tasks are handed to it even though Mixpanel was never initialized.
+    @TaskLocal nonisolated static var sendOverride: (@MainActor (String, [String: AnalyticsValue]) -> Void)?
 
     /// Test-only replacement for the Mixpanel people increment, with the same rules as
     /// `sendOverride`.
-    static var incrementOverride: ((String, Double) -> Void)?
+    @TaskLocal nonisolated static var incrementOverride: (@MainActor (String, Double) -> Void)?
 
     static func track(event: some AnalyticsEvent, properties: [Property: AnalyticsValue]? = nil, error: Error? = nil) {
         guard canSend else { return }
