@@ -42,6 +42,8 @@ platform :ios do
   desc "       fastlane release version:1.2.3 review_notes:'Fixes a production bug…'"
   desc "       fastlane release version:1.2.3 phased:false   # release to everyone at once"
   desc "       fastlane release version:1.2.3 dry_run:true   # report what would be submitted, change nothing"
+  desc "       fastlane release version:1.2.3 review:false   # attach build + notes, don't submit for review"
+  desc "       fastlane release version:1.2.3 manual:true    # hold the release after approval until released by hand"
   lane :release do |options|
     version = options[:version] || version_from_tag
     build_number = options[:build] # Optional: specific build number
@@ -53,15 +55,19 @@ platform :ios do
     # review wants every user on it the day it clears — not 1% of them.
     phased = options.key?(:phased) ? options[:phased].to_s == "true" : true
     dry_run = options[:dry_run].to_s == "true"
+    # review:false stages the version — build, notes and release settings — and
+    # leaves submitting to App Store Connect.
+    submit = options.key?(:review) ? options[:review].to_s == "true" : true
+    manual = options[:manual].to_s == "true"
 
     UI.user_error!("Version required. Usage: fastlane release version:1.2.3") unless version
 
     if dry_run
-      preview_app_review_submission(version, build_number, release_notes, phased)
+      preview_app_review_submission(version, build_number, release_notes, phased, submit, manual)
       next
     end
 
-    UI.message("Submitting version #{version} to App Store Review...")
+    UI.message(submit ? "Submitting version #{version} to App Store Review..." : "Staging version #{version} without submitting it for review...")
 
     api_key = app_store_connect_api_key(
       key_id: ENV["ASC_KEY_ID"],
@@ -89,8 +95,8 @@ platform :ios do
     set_whats_new(version, release_notes)
     set_review_notes(review_notes) if review_notes
 
-    submit_to_app_review(version, build_number, phased)
-    record_release_in_manifest(version)
+    submit_to_app_review(version, build_number, phased, submit, manual)
+    record_release_in_manifest(version) if submit
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -382,7 +388,7 @@ platform :ios do
   # submitted. The lane drives this itself rather than through deliver's
   # submit_for_review so the in-flight guard and the release settings are stated
   # here, where a failed release is read.
-  def submit_to_app_review(version, build_number, phased)
+  def submit_to_app_review(version, build_number, phased, submit, manual)
     app = asc_app
     edit_version = app.get_edit_app_store_version(platform: "IOS")
     UI.user_error!("No editable App Store version to submit") unless edit_version
@@ -399,7 +405,12 @@ platform :ios do
     edit_version.select_build(build_id: build.id)
     UI.success("Attached build #{build.version} to #{version}")
 
-    set_release_behavior(edit_version, phased)
+    set_release_behavior(edit_version, phased, manual)
+
+    unless submit
+      UI.success("Staged #{version} (build #{build.version}) — not submitted. Add it for review in App Store Connect when ready.")
+      return
+    end
 
     submission = app.get_ready_review_submission(platform: "IOS")
     attached = submission ? review_item_version_ids(submission) : []
@@ -424,7 +435,7 @@ platform :ios do
   # Reports what a real run would submit, against App Store Connect as it stands.
   # Every call here is a read, so it is safe while a submission is in flight —
   # and it is the way to exercise the submission path without using up a version.
-  def preview_app_review_submission(version, build_number, notes, phased)
+  def preview_app_review_submission(version, build_number, notes, phased, submit, manual)
     app = asc_app
 
     in_progress = app.get_in_progress_review_submission(platform: "IOS")
@@ -444,12 +455,12 @@ platform :ios do
     UI.message("Would submit:      #{build ? "build #{build.version} (#{build.processing_state})" : "nothing — no build#{build_number ? " #{build_number}" : ''} uploaded for #{version}"}")
 
     ready = app.get_ready_review_submission(platform: "IOS")
-    UI.message("Review submission: #{review_submission_plan(in_progress, ready)}")
+    UI.message("Review submission: #{submit ? review_submission_plan(in_progress, ready) : '(none) — review:false stages only'}")
 
     if in_progress
       UI.important("Dry run — nothing changed. A real run would refuse until #{in_progress.id} clears review.")
     else
-      UI.success("Dry run — nothing changed. Would release after approval, #{phased ? 'phased' : 'to everyone at once'}.")
+      UI.success("Dry run — nothing changed. #{submit ? 'Would submit' : 'Would stage without submitting'}; #{release_plan(phased, manual)}.")
     end
   end
 
@@ -472,10 +483,9 @@ platform :ios do
   # deliver nominally carried these as automatic_release:/phased_release:, but it
   # applies both from upload_metadata, which returns immediately under
   # skip_metadata — so neither ever reached App Store Connect from this lane.
-  def set_release_behavior(edit_version, phased)
-    edit_version.update(attributes: {
-      releaseType: Spaceship::ConnectAPI::AppStoreVersion::ReleaseType::AFTER_APPROVAL
-    })
+  def set_release_behavior(edit_version, phased, manual)
+    release_type = manual ? Spaceship::ConnectAPI::AppStoreVersion::ReleaseType::MANUAL : Spaceship::ConnectAPI::AppStoreVersion::ReleaseType::AFTER_APPROVAL
+    edit_version.update(attributes: { releaseType: release_type })
 
     # The relationship 404s rather than coming back empty when there is none.
     current = begin
@@ -492,7 +502,11 @@ platform :ios do
       current.delete!
     end
 
-    UI.success("#{edit_version.version_string} will release after approval, #{phased ? 'phased' : 'to everyone at once'}")
+    UI.success("#{edit_version.version_string} #{release_plan(phased, manual)}")
+  end
+
+  def release_plan(phased, manual)
+    "#{manual ? 'releases by hand after approval' : 'releases after approval'}, #{phased ? 'phased' : 'to everyone at once'}"
   end
 
   # The build to submit: the one pinned by build:, else the newest uploaded for
