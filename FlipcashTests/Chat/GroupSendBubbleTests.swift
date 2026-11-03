@@ -28,6 +28,7 @@ struct CashCardLinesTests {
         let amount: String
         let total: String?
         let counterpart: String
+        var part: ChatCashContent.Lines.Part? = nil
     }
 
     private func card(
@@ -46,7 +47,7 @@ struct CashCardLinesTests {
             total: usd(total), shownAs: shownAs ?? usd(total), sender: sender,
             counterpartName: counterpart, selfUserID: me, nameOf: { names[$0] }
         )
-        return Card(caption: result.lines.caption, amount: result.amount, total: result.lines.total, counterpart: result.lines.counterpart)
+        return Card(caption: result.lines.caption, amount: result.amount, total: result.lines.total, counterpart: result.lines.counterpart, part: result.lines.part)
     }
 
     private var three: [CashPayment] { [payment(alex, 1), payment(sam, 1), payment(kim, 1)] }
@@ -56,7 +57,7 @@ struct CashCardLinesTests {
     @Test("the sender sees the part each got, the total, and the first recipient")
     func groupSender() {
         #expect(card(three, fromSelf: true, total: 3, sender: nil)
-            == Card(caption: "You sent", amount: "$1.00", total: "$3.00 total", counterpart: "to Alex Morgan and 2 others"))
+            == Card(caption: "You sent", amount: "$1.00", total: "$3.00 total", counterpart: "to Alex Morgan and 2 others", part: .each))
     }
 
     @Test("one other recipient reads 'other'")
@@ -67,14 +68,14 @@ struct CashCardLinesTests {
     @Test("a paid viewer is named in the caption and the sender in the footer")
     func groupRecipient() {
         #expect(card([payment(alex, 1), payment(me, 1), payment(kim, 1)], fromSelf: false, total: 3)
-            == Card(caption: "You and 2 others received", amount: "$1.00", total: "$3.00 total", counterpart: "from Fred Wilson"))
+            == Card(caption: "You and 2 others received", amount: "$1.00", total: "$3.00 total", counterpart: "from Fred Wilson", part: .each))
         #expect(card([payment(me, 1), payment(kim, 1)], fromSelf: false, total: 2).caption == "You and 1 other received")
     }
 
     @Test("a member who wasn't paid sees who sent it and the first recipient")
     func groupMemberNotPaid() {
         #expect(card(three, fromSelf: false, total: 3)
-            == Card(caption: "Fred Wilson sent", amount: "$1.00", total: "$3.00 total", counterpart: "to Alex Morgan and 2 others"))
+            == Card(caption: "Fred Wilson sent", amount: "$1.00", total: "$3.00 total", counterpart: "to Alex Morgan and 2 others", part: .each))
     }
 
     @Test("an unnamed first recipient falls back to a count")
@@ -94,6 +95,48 @@ struct CashCardLinesTests {
         let result = card([payment(alex, 1), payment(me, 1)], fromSelf: false, total: 2, shownAs: FiatAmount(value: 3, currency: .cad))
         #expect(result.amount == FiatAmount(value: 1.5, currency: .cad).formatted())
         #expect(result.total == FiatAmount(value: 3, currency: .cad).formatted() + " total")
+    }
+
+    // MARK: Uneven parts
+
+    /// $1.00 split three ways, the way group sends were made before every member got the amount
+    /// entered. The odd cent is listed last so a viewer can't be shown the first part by accident.
+    private func uneven(first: UserID, second: UserID, third: UserID) -> [CashPayment] {
+        [payment(first, 0.33), payment(second, 0.33), payment(third, 0.34)]
+    }
+
+    @Test("with uneven parts the sender sees '~' the smallest part each")
+    func uneven_sender() {
+        #expect(card(uneven(first: alex, second: sam, third: kim), fromSelf: true, total: 1, sender: nil)
+            == Card(caption: "You sent", amount: "$0.33", total: "$1.00 total", counterpart: "to Alex Morgan and 2 others", part: .approximateEach))
+    }
+
+    @Test("with uneven parts a paid viewer also sees '~' the smallest part each, not their own")
+    func uneven_recipient() {
+        // The viewer got the odd cent; the card still reads the smallest part.
+        #expect(card(uneven(first: alex, second: sam, third: me), fromSelf: false, total: 1)
+            == Card(caption: "You and 2 others received", amount: "$0.33", total: "$1.00 total", counterpart: "from Fred Wilson", part: .approximateEach))
+        #expect(card(uneven(first: me, second: sam, third: kim), fromSelf: false, total: 1).amount == "$0.33")
+    }
+
+    @Test("with uneven parts a member who wasn't paid sees '~' the smallest part each")
+    func uneven_memberNotPaid() {
+        #expect(card([payment(alex, 0.34), payment(sam, 0.33), payment(kim, 0.33)], fromSelf: false, total: 1)
+            == Card(caption: "Fred Wilson sent", amount: "$0.33", total: "$1.00 total", counterpart: "to Alex Morgan and 2 others", part: .approximateEach))
+    }
+
+    @Test("equal parts read 'each' with no '~' for every viewer")
+    func even_allViewers() {
+        #expect(card(three, fromSelf: true, total: 3).part == .each)
+        #expect(card([payment(alex, 1), payment(me, 1), payment(kim, 1)], fromSelf: false, total: 3).part == .each)
+        #expect(card(three, fromSelf: false, total: 3).part == .each)
+    }
+
+    @Test("the smallest uneven part is restated in the viewer's currency by its share of the total")
+    func uneven_restatedPart() {
+        let result = card([payment(alex, 0.5), payment(me, 1.5)], fromSelf: false, total: 2, shownAs: FiatAmount(value: 4, currency: .cad))
+        #expect(result.amount == FiatAmount(value: 1, currency: .cad).formatted())
+        #expect(result.part == .approximateEach)
     }
 
     // MARK: Group send to one person

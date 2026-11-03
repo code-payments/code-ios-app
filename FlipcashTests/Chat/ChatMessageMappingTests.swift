@@ -422,6 +422,7 @@ struct ChatMessageMappingTests {
         #expect(cash.lines == ChatCashContent.Lines(
             caption: "You and 1 other received",
             total: FiatAmount(value: 2, currency: .usd).formatted() + " total",
+            part: .each,
             counterpart: "from Fred Wilson"
         ))
     }

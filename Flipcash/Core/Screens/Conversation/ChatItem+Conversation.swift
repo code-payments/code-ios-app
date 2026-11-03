@@ -718,7 +718,8 @@ extension ChatItem {
     }
 
     /// The large line and the lines around it for a cash card in the transcript. A group send to
-    /// two or more draws the part each person got, with the total under it; a DM and a group send
+    /// two or more draws the part each got with the total under it, or "~" the smallest part when
+    /// the parts differ; a DM and a group send
     /// to one person draw the amount alone. Every card names the other side at its foot. `sender`
     /// is the author's name and `counterpartName` a DM's other member; either reads "Someone" when
     /// nil or empty.
@@ -758,11 +759,18 @@ extension ChatItem {
             return (shown.formatted(), lines)
         }
 
-        // Every recipient gets the same part, restated by its share of `total` so the part and the
-        // card's `shownAs` total use one conversion.
-        let each = total.value > 0
-            ? FiatAmount(value: shown.value * Decimal(payments[0].nativeAmount) / total.value, currency: shown.currency)
-            : FiatAmount(value: shown.value / Decimal(payments.count), currency: shown.currency)
+        // A part is restated by its share of `total`, so the part and the card's `shownAs` total
+        // use one conversion.
+        func restated(_ part: CashPayment) -> FiatAmount {
+            total.value > 0
+                ? FiatAmount(value: shown.value * Decimal(part.nativeAmount) / total.value, currency: shown.currency)
+                : FiatAmount(value: shown.value / Decimal(payments.count), currency: shown.currency)
+        }
+        // Decided by the parts themselves, not the send's date: sends before every member got the
+        // amount entered split a total, and a later send may split again.
+        let isEven = payments.allSatisfy { $0.nativeAmount == payments[0].nativeAmount }
+        let smallest = payments.min { $0.nativeAmount < $1.nativeAmount } ?? payments[0]
+        let part: ChatCashContent.Lines.Part = isEven ? .each : .approximateEach
         let totalLine = "\(shown.formatted()) total"
         func others(_ count: Int) -> String { "\(count) \(count == 1 ? "other" : "others")" }
 
@@ -771,6 +779,7 @@ extension ChatItem {
             lines = .init(
                 caption: "You and \(others(payments.count - 1)) received",
                 total: totalLine,
+                part: part,
                 counterpart: "from \(senderName)"
             )
         } else {
@@ -779,10 +788,12 @@ extension ChatItem {
             lines = .init(
                 caption: isFromSelf ? plainCaption : "\(senderName) sent",
                 total: totalLine,
+                part: part,
                 counterpart: lead.map { "to \($0) and \(others(payments.count - 1))" } ?? "to \(payments.count) people"
             )
         }
-        return (each.formatted(), lines)
+        // Every viewer, paid or not, sees the same part: the one each got, or "~" the smallest.
+        return (restated(smallest).formatted(), lines)
     }
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's

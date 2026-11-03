@@ -23,6 +23,8 @@ public final class ChatCashCardCell: ChatColumnCell {
     private static let amountFont = UIFont.default(size: 38, weight: .bold)
     // Regular weight at half the amount's size, in the caption's colour, on the amount's line.
     private static let eachFont = UIFont.default(size: amountFont.pointSize / 2, weight: .regular)
+    // The "~" before the smallest of uneven parts: the amount's weight at 70% of its size.
+    private static let approximateFont = UIFont.default(size: (amountFont.pointSize * 0.7).rounded(), weight: .bold)
     private static let secondaryColor = UIColor.white.withAlphaComponent(0.5)
 
     private let card = BubbleBackgroundView()
@@ -86,7 +88,8 @@ public final class ChatCashCardCell: ChatColumnCell {
         centerStack.spacing = 4
         centerStack.alignment = .center
         centerStack.setCustomSpacing(12, after: captionLabel)
-        centerStack.setCustomSpacing(8, after: totalLabel)
+        // The amount and total read as one block, set apart from the token row.
+        centerStack.setCustomSpacing(12, after: totalLabel)
         centerStack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(centerStack)
 
@@ -163,12 +166,14 @@ public final class ChatCashCardCell: ChatColumnCell {
         captionLabel.text = cash.lines?.caption ?? ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
 
         let total = cash.lines?.total
-        amountLabel.attributedText = Self.amountLine(cash.amount, each: total != nil)
+        amountLabel.attributedText = Self.amountLine(cash.amount, part: cash.lines?.part)
         amountLabel.accessibilityValue = message.sentAt?.formattedChatMessageTime()
         totalLabel.text = total
         totalLabel.isHidden = total == nil
-        // The token row sits as far under the last amount line as it does under the total.
-        centerStack.setCustomSpacing(total == nil ? 8 : 4, after: amountLabel)
+        // The total sits tight under the amount, the closest pair of lines on the card. With no
+        // total, 6 under the amount reads as the same gap as 12 under the total: the 38pt amount
+        // leaves about 6pt more empty line below its digits than the 12pt total does.
+        centerStack.setCustomSpacing(total == nil ? 6 : 0, after: amountLabel)
 
         tokenLabel.text = cash.token
         coinIcon.isHidden = cash.iconURL == nil
@@ -196,11 +201,16 @@ public final class ChatCashCardCell: ChatColumnCell {
         card.alpha = isHighlighted ? 0.6 : 1
     }
 
-    /// The amount, followed by a smaller " each" when it is one person's part of a group send. One
-    /// string, so the label's auto-size shrinks both together and "each" never wraps.
-    private static func amountLine(_ amount: String, each: Bool) -> NSAttributedString {
-        let line = NSMutableAttributedString(string: amount, attributes: [.font: amountFont, .foregroundColor: UIColor.white])
-        if each {
+    /// The amount, followed by a smaller " each" when it is one person's part of a group send, and
+    /// led by a smaller "~" when it is the smallest of uneven parts. One string, so the runs share
+    /// a baseline and the label's auto-size shrinks them together, and "each" never wraps.
+    private static func amountLine(_ amount: String, part: ChatCashContent.Lines.Part?) -> NSAttributedString {
+        let line = NSMutableAttributedString()
+        if part == .approximateEach {
+            line.append(NSAttributedString(string: "~", attributes: [.font: approximateFont, .foregroundColor: UIColor.white]))
+        }
+        line.append(NSAttributedString(string: amount, attributes: [.font: amountFont, .foregroundColor: UIColor.white]))
+        if part != nil {
             line.append(NSAttributedString(string: " each", attributes: [.font: eachFont, .foregroundColor: secondaryColor]))
         }
         return line
@@ -232,11 +242,11 @@ extension ChatCashCardCell: BubbleCarrying {
         )), sender: .other),
         ChatMessage(id: "3", content: .cash(ChatCashContent(
             amount: "$1.00", token: "Cash",
-            lines: .init(caption: "You sent", total: "$3.00 total", counterpart: "to Alex Morgan and 2 others")
+            lines: .init(caption: "You sent", total: "$3.00 total", part: .each, counterpart: "to Alex Morgan and 2 others")
         )), sender: .me),
         ChatMessage(id: "4", content: .cash(ChatCashContent(
             amount: "$1.00", token: "Cash",
-            lines: .init(caption: "You and 5 others received", total: "$6.00 total", counterpart: "from Alex")
+            lines: .init(caption: "You and 5 others received", total: "$6.00 total", part: .each, counterpart: "from Alex")
         )), sender: .other),
     ]
 

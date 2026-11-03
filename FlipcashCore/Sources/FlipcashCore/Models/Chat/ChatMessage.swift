@@ -500,16 +500,27 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
     public struct Lines: Hashable, Sendable, Codable {
         /// Who did what: "You sent", "You received", "You and 2 others received", "Alex sent".
         public let caption: String
-        /// "$3.00 total" on a group send to two or more, whose amount then reads "each"; nil
-        /// otherwise.
+        /// "$3.00 total" on a group send to two or more; nil otherwise.
         public let total: String?
+        /// How the amount reads as one person's part of a group send to two or more; nil when it
+        /// is the whole payment.
+        public let part: Part?
         /// The other side of the payment, at the foot of the card: "to Alex Morgan and 2 others",
         /// "from Fred Wilson".
         public let counterpart: String
 
-        public init(caption: String, total: String? = nil, counterpart: String) {
+        /// A group send's amount as one person's part.
+        public enum Part: String, Hashable, Sendable, Codable {
+            /// Every part is the same: "$1.00 each".
+            case each
+            /// The parts differ and the amount is the smallest: "~$0.33 each".
+            case approximateEach
+        }
+
+        public init(caption: String, total: String? = nil, part: Part? = nil, counterpart: String) {
             self.caption = caption
             self.total = total
+            self.part = part
             self.counterpart = counterpart
         }
     }
