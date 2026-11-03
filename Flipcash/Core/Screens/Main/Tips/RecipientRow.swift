@@ -72,8 +72,9 @@ struct RecipientRowScaffold<Trailing: View>: View {
 /// select mode, 1 in it. Takes exactly two subviews, the circle then the content.
 ///
 /// Animating `progress` lays the whole row out again on every frame, so avatar, title, subtitle,
-/// and trailing content move as one block, the circle sliding in from off the leading edge with
-/// them. Animating a slot's width instead let each `Text` re-truncate and cross-fade on its own.
+/// and trailing content slide right as one block. The circle stays at the leading edge and fades
+/// in with the same animation. Animating a slot's width instead let each `Text` re-truncate and
+/// cross-fade on its own.
 private struct RecipientRowSelectReveal: Layout {
 
     var progress: CGFloat
@@ -98,7 +99,7 @@ private struct RecipientRowSelectReveal: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         subviews[0].place(
-            at: CGPoint(x: bounds.minX + offset - Self.slot, y: bounds.midY),
+            at: CGPoint(x: bounds.minX, y: bounds.midY),
             anchor: .leading,
             proposal: .unspecified
         )
