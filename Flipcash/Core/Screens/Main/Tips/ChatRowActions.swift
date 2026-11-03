@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 import FlipcashCore
 import FlipcashUI
 
@@ -170,6 +171,35 @@ private struct ChatRowPreview: View {
             loadAvatars: { [profileAvatars = sessionContainer.profileAvatars] in profileAvatars.preload($0) },
             toasts: toasts
         )
+        // Mounted only while the menu is up, so it brackets the presentation.
+        .onAppear { ChatListBackdrop.present() }
+        .onDisappear { ChatListBackdrop.dismiss() }
+    }
+}
+
+/// Frosts the screen behind a chat row's long-press preview with the blur a chat puts behind a
+/// long-pressed message: the same ``MessageBackdrop``, so the material, strength, and fade match.
+///
+/// The system menu adds its own dimming above it, which SwiftUI's `contextMenu` offers no way to
+/// turn off, so the frost reads darker here than in a chat. One shared backdrop, since only one
+/// menu can be up at a time.
+@MainActor
+private enum ChatListBackdrop {
+
+    private static let backdrop = MessageBackdrop()
+
+    /// Covers the window's root view, which takes in the navigation and tab bars. The menu sits in
+    /// its own container above the root view, so it stays sharp.
+    static func present() {
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first
+        guard let host = window?.rootViewController?.view else { return }
+        backdrop.present(over: host)
+    }
+
+    static func dismiss() {
+        backdrop.dismiss()
     }
 }
 
