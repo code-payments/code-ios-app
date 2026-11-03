@@ -2065,7 +2065,7 @@ extension MessageCapability {
         case .forward: .forwardArrow
         case .pin:    .pinFill
         case .unpin:  .pinSlash
-        case .silence: .speakerSlash
+        case .silence: .micSlash
         case .remove: .personBadgeMinus
         }
     }

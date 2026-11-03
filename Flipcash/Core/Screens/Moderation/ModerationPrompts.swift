@@ -63,7 +63,7 @@ struct SilenceUserSheet: View {
                 // The sheet is still on its way out, and a toast shown over it is dropped.
                 Task {
                     try? await Task.sleep(for: .milliseconds(600))
-                    toasts.show(.init(message, systemImage: "speaker.slash", duration: .seconds(3)))
+                    toasts.show(.init(message, systemImage: "mic.slash", duration: .seconds(3)))
                 }
             },
             didChangeSilence: { [restrictions = sessionContainer.groupRestrictions, conversationID = target.conversationID] in
