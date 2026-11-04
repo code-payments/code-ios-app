@@ -160,6 +160,9 @@ extension GroupPaymentRequest {
 
     /// The status line's state as of `now`. More than 24 hours left reads in days rounded up, so
     /// "1 day" never appears; 1–24 hours in hours rounded up; under an hour in minutes rounded up.
+    /// The days and hours bands forgive a 5-minute grace before rounding up: `endsAt` is the creator's
+    /// device clock plus the preset, so a viewer whose clock runs behind (or a screen that is a minute
+    /// stale) would otherwise read a fresh 7-day request as "8 days". Minutes get no grace.
     public func deadline(at now: Date) -> Deadline {
         switch effectiveStatus(at: now) {
         case .completed:          return .paidInFull
@@ -170,11 +173,12 @@ extension GroupPaymentRequest {
             let remaining = endsAt.timeIntervalSince(now)
             let hour: TimeInterval = 60 * 60
             let day: TimeInterval = 24 * hour
-            if remaining > day {
-                return .daysLeft(Int((remaining / day).rounded(.up)))
+            let grace: TimeInterval = 5 * 60
+            if remaining > day + grace {
+                return .daysLeft(Int(((remaining - grace) / day).rounded(.up)))
             }
             if remaining >= hour {
-                return .hoursLeft(Int((remaining / hour).rounded(.up)))
+                return .hoursLeft(min(24, max(1, Int(((remaining - grace) / hour).rounded(.up)))))
             }
             return .minutesLeft(max(1, Int((remaining / 60).rounded(.up))))
         }
