@@ -45,6 +45,38 @@ struct ChatCashCardCellTests {
         #expect(measure(group) > measure(dm))
     }
 
+    private func offered(_ state: ChatCashContent.SendBack?) -> ChatMessage {
+        ChatMessage(id: "3", content: .cash(ChatCashContent(
+            amount: "$5.00", token: "Cash",
+            lines: .init(caption: "Noah Parker sent", counterpart: "to you"),
+            sendBack: state
+        )), sender: .other)
+    }
+
+    @Test("A Send Back row adds to the card's height in every state")
+    func sendBackRow_growsCard() {
+        let plain = measure(offered(nil))
+        for state in [ChatCashContent.SendBack.available, .sending, .sentBack] {
+            #expect(measure(offered(state)) > plain)
+        }
+    }
+
+    @Test("The Send Back row is 44 tall under the card's padding; the Sent Back footer is 36 in place of it")
+    func sendBackRow_sizes() {
+        let plain = measure(offered(nil))
+        #expect((measure(offered(.available)) - plain).rounded() == 44)
+        #expect((measure(offered(.sending)) - plain).rounded() == 44)
+        // 36 for the footer, less the 16 bottom padding it replaces.
+        #expect((measure(offered(.sentBack)) - plain).rounded() == 20)
+    }
+
+    @Test("A cell recycled from an offered card to a plain one drops the row")
+    func reusedCell_sendBackToPlain_measuresFresh() {
+        let cell = ChatCashCardCell(frame: .zero)
+        _ = measure(offered(.sending), in: cell)
+        #expect(measure(offered(nil), in: cell) == measure(offered(nil)))
+    }
+
     @Test("A cell recycled from a group card to a DM card measures as a fresh one")
     func reusedCell_groupToDM_measuresFresh() {
         let cell = ChatCashCardCell(frame: .zero)

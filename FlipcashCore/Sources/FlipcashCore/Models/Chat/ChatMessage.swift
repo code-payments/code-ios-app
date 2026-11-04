@@ -495,6 +495,19 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
     /// The caption, total and counterpart lines a transcript card draws around the amount; nil
     /// where only the plain caption is wanted.
     public let lines: Lines?
+    /// The Send Back row attached to the card's bottom edge; nil draws the card without one.
+    public let sendBack: SendBack?
+
+    /// The row under a DM's opening payment that returns it. The receiver sees every state; the
+    /// original sender sees only ``sentBack``.
+    public enum SendBack: String, Hashable, Sendable, Codable {
+        /// The receiver can tap to send the payment back.
+        case available
+        /// The return was swiped and its intent has not resolved.
+        case sending
+        /// The payment was sent back. Not tappable.
+        case sentBack
+    }
 
     /// The lines a transcript cash card draws around its amount.
     public struct Lines: Hashable, Sendable, Codable {
@@ -523,14 +536,24 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
             self.part = part
             self.counterpart = counterpart
         }
+
+        /// A return of a DM's opening payment: "You sent back" / "to Alex" to its sender, "Alex sent
+        /// back" / "to you" to its receiver. An unknown name reads "Someone".
+        public static func sentBack(isFromSelf: Bool, counterpartName: String) -> Lines {
+            let name = counterpartName.isEmpty ? "Someone" : counterpartName
+            return isFromSelf
+                ? .init(caption: "You sent back", counterpart: "to \(name)")
+                : .init(caption: "\(name) sent back", counterpart: "to you")
+        }
     }
 
-    public init(amount: String, token: String, iconURL: URL? = nil, isTip: Bool = false, lines: Lines? = nil) {
+    public init(amount: String, token: String, iconURL: URL? = nil, isTip: Bool = false, lines: Lines? = nil, sendBack: SendBack? = nil) {
         self.amount = amount
         self.token = token
         self.iconURL = iconURL
         self.isTip = isTip
         self.lines = lines
+        self.sendBack = sendBack
     }
 
     /// The caption shown above the amount on a cash card, selected by side and tip vs. plain send.

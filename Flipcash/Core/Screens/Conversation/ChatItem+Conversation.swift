@@ -111,6 +111,8 @@ extension ChatItem {
         /// How a payment-request widget draws; resolved by the caller from the request store so
         /// the mapper stays pure. Defaults to the loading card.
         paymentRequest: (ConversationMessage) -> PaymentRequestCardState = { _ in .loading },
+        /// The Send Back row under a cash message; nil draws none. See ``SendBackRow/resolve``.
+        sendBack: (ConversationMessage) -> ChatCashContent.SendBack? = { _ in nil },
         /// Where the viewer's unread messages began at open; the divider heads the first message
         /// after it that someone else sent.
         unreadBoundary: UnreadBoundary = .none,
@@ -292,7 +294,7 @@ extension ChatItem {
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
                 let isTip = message.cashAction == .tipped
-                let card = cashCard(
+                var card = cashCard(
                     message.cashPayments,
                     receiver: message.cashReceiverID,
                     isFromSelf: isFromSelf,
@@ -305,12 +307,17 @@ extension ChatItem {
                     selfUserID: selfUserID,
                     nameOf: nameOf
                 )
+                // A return is only ever posted into a DM, so it is named for the DM's two people.
+                if message.cashReturn?.returnOf != nil, !namesAuthors {
+                    card.lines = ChatCashContent.Lines.sentBack(isFromSelf: isFromSelf, counterpartName: counterpartName)
+                }
                 content = .cash(ChatCashContent(
                     amount: card.amount,
                     token: branding.token,
                     iconURL: branding.iconURL,
                     isTip: isTip,
-                    lines: card.lines
+                    lines: card.lines,
+                    sendBack: sendBack(message)
                 ))
             case .deleted(let deletion):
                 content = .deleted(

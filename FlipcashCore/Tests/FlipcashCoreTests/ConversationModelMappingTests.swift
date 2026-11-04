@@ -268,6 +268,33 @@ struct ConversationModelMappingTests {
         #expect(message.paymentRequestID?.data == Data(repeating: 0x07, count: 32))
     }
 
+    @Test("Cash message maps its single receiver and its return offer and returned message")
+    func cashMessageMapsReturn() throws {
+        let receiver = Data(repeating: 0x05, count: 16)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 15 }
+            $0.content = [.with {
+                $0.cash = .with {
+                    $0.totalAmount = .with {
+                        $0.currency = "usd"
+                        $0.nativeAmount = 1.0
+                        $0.quarks = 1_000_000
+                        $0.mint = .with { $0.value = Data(repeating: 0x02, count: 32) }
+                    }
+                    $0.singleReceiver = .with { $0.value = receiver }
+                    $0.paymentReturn = .with {
+                        $0.offer = .init()
+                        $0.returnOf = .with { $0.messageID = .with { $0.value = 9 } }
+                    }
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.cashReceiverID == (try UUID(data: receiver)))
+        #expect(message.cashReturn == CashReturn(hasOffer: true, returnOf: .init(messageID: MessageID(value: 9))))
+    }
+
     @Test("Viewer state maps silence and moderation permissions")
     func viewerStateMapsModeration() {
         let proto = Flipcash_Chat_V1_ViewerState.with {
