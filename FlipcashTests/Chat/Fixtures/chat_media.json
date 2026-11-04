@@ -3,7 +3,7 @@
   "note": "Behavior fixture for docs/superpowers/specs/2026-09-28-chat-media-photos-design.md. Heights are points or dp as floats; compare with a 0.001 tolerance.",
   "maxAttachments": 10,
   "minAspect": 0.5,
-  "maxAspect": 2.0,
+  "maxAspect": 1.3333333333333333,
   "jpegQualityLadder": [
     0.9,
     0.8,
@@ -362,15 +362,27 @@
     },
     {
       "name": "tall-at-limit",
+      "imageWidth": 3000,
+      "imageHeight": 4000,
+      "maxWidth": 240,
+      "expected": {
+        "width": 240,
+        "height": 320.0,
+        "cropped": false
+      },
+      "note": "Exactly 4:3 tall is not cropped. Compare with maxAspect as the double 4.0/3.0."
+    },
+    {
+      "name": "tall-2-1",
       "imageWidth": 1000,
       "imageHeight": 2000,
       "maxWidth": 240,
       "expected": {
         "width": 240,
-        "height": 480.0,
-        "cropped": false
+        "height": 320.0,
+        "cropped": true
       },
-      "note": "Exactly 2:1 is not cropped."
+      "note": "2:1 is taller than 4:3, clamps to 4:3 and crops."
     },
     {
       "name": "screenshot",
@@ -379,10 +391,10 @@
       "maxWidth": 240,
       "expected": {
         "width": 240,
-        "height": 480.0,
+        "height": 320.0,
         "cropped": true
       },
-      "note": "An iPhone screenshot is taller than 2:1 and crops."
+      "note": "An iPhone screenshot is taller than 4:3 and crops."
     },
     {
       "name": "tiny-upscaled",
