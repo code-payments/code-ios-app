@@ -31,7 +31,7 @@ enum ChatReadAction: Equatable {
 
     var systemImage: String {
         switch self {
-        case .markRead:   "message"
+        case .markRead:   "checkmark.message"
         case .markUnread: "message.badge"
         }
     }
