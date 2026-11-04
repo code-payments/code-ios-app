@@ -61,13 +61,79 @@ struct ChatCashCardCellTests {
         }
     }
 
-    @Test("The Send Back row is 44 tall under the card's padding; the Sent Back footer is 36 in place of it")
+    @Test("The Send Back row is 44 and the Sent Back footer 36, both under the card's bottom padding")
     func sendBackRow_sizes() {
         let plain = measure(offered(nil))
         #expect((measure(offered(.available)) - plain).rounded() == 44)
         #expect((measure(offered(.sending)) - plain).rounded() == 44)
-        // 36 for the footer, less the 16 bottom padding it replaces.
-        #expect((measure(offered(.sentBack)) - plain).rounded() == 20)
+        #expect((measure(offered(.sentBack)) - plain).rounded() == 36)
+    }
+
+    @Test("Only the Sent Back footer draws its top divider")
+    func sendBackRow_dividerOnFooterOnly() {
+        let row = SendBackRowView()
+        row.apply(.available)
+        #expect(!row.isDividerVisible)
+        row.apply(.sending)
+        #expect(!row.isDividerVisible)
+        row.apply(.sentBack)
+        #expect(row.isDividerVisible)
+        row.apply(.available)
+        #expect(!row.isDividerVisible)
+    }
+
+    /// The card's laid-out width at `maxWidth`, as the transcript sizes it.
+    private func cardWidth(_ message: ChatMessage, maxWidth: CGFloat) throws -> CGFloat {
+        let cell = ChatCashCardCell(frame: CGRect(x: 0, y: 0, width: Self.width, height: 400))
+        cell.frame.size.height = measure(message, in: cell, maxWidth: maxWidth)
+        cell.layoutIfNeeded()
+        let amount = try #require(labels(in: cell.contentView).first { $0.attributedText?.string == "$5.00" })
+        let card = try #require(amount.superview?.superview)
+        // The row spans the card edge to edge, never past it.
+        if let row = card.subviews.first(where: { $0 is SendBackRowView }), !row.isHidden {
+            #expect(row.frame.minX == 0 && row.frame.width == card.bounds.width)
+        }
+        return card.bounds.width
+    }
+
+    @Test("The Send Back row and footer never widen the card past its width", arguments: [189.44, 250.0])
+    func sendBackRow_keepsCardWidth(maxWidth: CGFloat) throws {
+        let plain = try cardWidth(offered(nil), maxWidth: maxWidth)
+        // Layout snaps the card to the screen's pixel grid, so 189.44 lays out as 189.33 on 3x.
+        #expect(abs(plain - maxWidth) <= 1 / UIScreen.main.scale)
+        for state in [ChatCashContent.SendBack.available, .sending, .sentBack] {
+            #expect(try cardWidth(offered(state), maxWidth: maxWidth) == plain)
+        }
+    }
+
+    @Test("A row that arrives on a drawn card animates in; one known at first draw does not")
+    func sendBackRow_animatesOnlyLateArrivals() {
+        let cell = ChatCashCardCell(frame: .zero)
+        cell.configure(with: offered(.sentBack), maxWidth: 250)
+        #expect(!cell.didAnimateSendBackIn, "first draw")
+        cell.configure(with: offered(.sentBack), maxWidth: 250)
+        #expect(!cell.didAnimateSendBackIn, "same state redrawn")
+
+        let late = ChatCashCardCell(frame: .zero)
+        late.configure(with: offered(nil), maxWidth: 250)
+        late.configure(with: offered(.available), maxWidth: 250)
+        #expect(late.didAnimateSendBackIn, "row arrives after the status check")
+        late.configure(with: offered(.sentBack), maxWidth: 250)
+        #expect(late.didAnimateSendBackIn, "footer replaces the row")
+
+        late.prepareForReuse()
+        late.configure(with: offered(.available), maxWidth: 250)
+        #expect(!late.didAnimateSendBackIn, "reused cell draws fresh")
+    }
+
+    @Test("Only the same message gaining a different, shown state counts as a late arrival")
+    func sendBackArrivesLate_rules() {
+        #expect(!ChatCashCardCell.sendBackArrivesLate(drawn: nil, id: "3", state: .available))
+        #expect(!ChatCashCardCell.sendBackArrivesLate(drawn: ("2", nil), id: "3", state: .available))
+        #expect(!ChatCashCardCell.sendBackArrivesLate(drawn: ("3", .available), id: "3", state: nil))
+        #expect(!ChatCashCardCell.sendBackArrivesLate(drawn: ("3", .available), id: "3", state: .available))
+        #expect(ChatCashCardCell.sendBackArrivesLate(drawn: ("3", nil), id: "3", state: .available))
+        #expect(ChatCashCardCell.sendBackArrivesLate(drawn: ("3", .sending), id: "3", state: .sentBack))
     }
 
     @Test("A cell recycled from an offered card to a plain one drops the row")

@@ -538,12 +538,12 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
         }
 
         /// A return of a DM's opening payment: "You sent back" / "to Alex" to its sender, "Alex sent
-        /// back" / "to you" to its receiver. An unknown name reads "Someone".
+        /// back" / "to You" to its receiver. An unknown name reads "Someone".
         public static func sentBack(isFromSelf: Bool, counterpartName: String) -> Lines {
             let name = counterpartName.isEmpty ? "Someone" : counterpartName
             return isFromSelf
                 ? .init(caption: "You sent back", counterpart: "to \(name)")
-                : .init(caption: "\(name) sent back", counterpart: "to you")
+                : .init(caption: "\(name) sent back", counterpart: "to You")
         }
     }
 
