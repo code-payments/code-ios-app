@@ -128,12 +128,12 @@ struct TipConversationsScreen: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.2), value: isSelecting)
-                    // A bar, not a plain inset: hiding the tab bar takes its scroll edge blur with
-                    // it, and only a bar puts one back behind the capsules.
-                    .scrollEdgeBar(.bottom) {
-                        // Inserted with the tab bar's instant hide and holding the capsules from
-                        // the first frame, so the edge blur never lapses; only their opacity and
-                        // scale animate, once select mode begins.
+                    // A plain inset, not a bar: the capsules float on their own glass over the
+                    // list, with no scroll edge effect behind them. The inset still lets the last
+                    // row scroll clear of them.
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        // Inserted at zero opacity in the frame the tab bar goes; only their opacity
+                        // and scale animate, once select mode begins.
                         if selection.hidesTabBar {
                             ChatSelectionActions(
                                 selected: selectedIDs(in: conversations),
@@ -273,7 +273,7 @@ struct TipConversationsScreen: View {
         }
         // The system bar's animated hide drops its icons at once and leaves its empty glass behind,
         // so it goes in one frame, alone: sharing an update with the animated `begin()` leaves it
-        // on screen. The capsules fade in on the next turn, over the bar's edge blur.
+        // on screen. The capsules fade in on the next turn.
         var instant = Transaction()
         instant.disablesAnimations = true
         withTransaction(instant) { selection.hideTabBar() }
