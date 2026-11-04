@@ -179,6 +179,13 @@ public struct ConversationStore: Sendable {
             case .edited(let text):
                 // The stamp only drives the "Edited" marker, so the message's own date stands in for
                 // the server's — using a live clock here would make the store's output time-dependent.
+                // A photo's edit is its caption: the photo stays.
+                if case .media(let attachments, _) = message.content {
+                    return message.replacingContent(
+                        .media(attachments, caption: text),
+                        lastEditedTs: message.lastEditedTs ?? message.date
+                    )
+                }
                 return message.replacingContent(
                     .text(text),
                     lastEditedTs: message.lastEditedTs ?? message.date,

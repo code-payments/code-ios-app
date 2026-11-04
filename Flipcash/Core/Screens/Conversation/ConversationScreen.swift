@@ -1483,8 +1483,15 @@ struct ConversationScreen: View {
                 kind: preview.kind
             ))
         case .edit:
-            guard case .text(let text) = message.content else { return }
-            composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
+            // A photo's edit is its caption; the photo itself can't change.
+            switch message.content {
+            case .text(let text):
+                composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
+            case .media(_, let caption?) where !caption.isEmpty:
+                composer.beginEditing(messageID: message.id, stableID: stableID, currentText: caption)
+            case .media, .cash, .deleted, .encrypted, .widget, .system:
+                return
+            }
         case .delete:
             confirmDelete(message.id)
         case .report:

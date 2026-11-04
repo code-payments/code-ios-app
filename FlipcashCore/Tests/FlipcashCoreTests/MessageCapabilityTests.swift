@@ -112,18 +112,25 @@ struct MessageCapabilityTests {
         #expect(resolve(cash(from: them), isMember: false) == [.report, .forward])
     }
 
-    @Test("My own photo with a caption can be copied, replied to, saved and deleted, but not edited")
-    func ownMediaOffersCopyButNotEdit() {
-        #expect(resolve(media(from: me)) == [.copy, .reply, .savePhoto, .delete, .forward])
+    @Test("My own photo with a caption can be copied, replied to, saved, edited and deleted")
+    func ownCaptionedMediaIsEditable() {
+        #expect(resolve(media(from: me)) == [.copy, .reply, .savePhoto, .edit, .delete, .forward])
     }
 
-    @Test("My own photo with no caption has no text to copy")
+    @Test("My own captioned photo loses Edit outside the edit window, as text does")
+    func ownCaptionedMediaFollowsTheEditWindow() {
+        let policy = windows(edit: 900, delete: 172_800)
+        #expect(!resolve(media(from: me, sentAgo: 1_000), policy: policy).contains(.edit))
+        #expect(resolve(media(from: me, sentAgo: 600), policy: policy).contains(.edit))
+    }
+
+    @Test("A photo sent without a caption can't be edited: there is no caption to change")
     func ownCaptionlessMediaOffersNoCopy() {
         #expect(resolve(media(from: me, caption: nil)) == [.reply, .savePhoto, .delete, .forward])
         #expect(resolve(media(from: me, caption: "")) == [.reply, .savePhoto, .delete, .forward])
     }
 
-    @Test("Someone else's captioned photo can be copied, replied to and reported")
+    @Test("Someone else's captioned photo can be copied, replied to and reported, but not edited")
     func otherPersonsMediaIsCopyableAndReportable() {
         #expect(resolve(media(from: them)) == [.copy, .reply, .savePhoto, .report, .forward])
     }
@@ -154,11 +161,11 @@ struct MessageCapabilityTests {
         #expect(MessagePolicy.default.window(for: .savePhoto) == nil)
     }
 
-    private func media(from sender: UUID, caption: String? = "hi") -> ConversationMessage {
+    private func media(from sender: UUID, caption: String? = "hi", sentAgo: TimeInterval = 0) -> ConversationMessage {
         ConversationMessage(
             id: MessageID(value: 4), senderID: sender,
             content: .media([MediaAttachment(blobID: BlobID(data: Data([1])), width: 1, height: 1, blurhash: nil)], caption: caption),
-            date: now, unreadSeq: 1, eventSequence: 2
+            date: now.addingTimeInterval(-sentAgo), unreadSeq: 1, eventSequence: 2
         )
     }
 

@@ -171,8 +171,8 @@ extension MessageCapability {
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
-        // `isEditable` gates Edit, which only a text body has. `hasCopyableText` gates Copy, which a
-        // photo's caption also offers: it copies the caption. Matching Android's resolver.
+        // `isEditable` gates Edit: a text body, or a photo's caption. `hasCopyableText` gates Copy,
+        // which a photo's caption also offers: it copies the caption. Matching Android's resolver.
         let isEditable: Bool
         let hasCopyableText: Bool
         let isPhoto: Bool
@@ -204,8 +204,9 @@ extension MessageCapability {
             hasCopyableText = true
             isPhoto = false
         case .media(_, let caption):
-            isEditable = false
-            hasCopyableText = !(caption?.isEmpty ?? true)
+            // Editing a photo changes its caption only, so one sent without a caption can't gain one.
+            isEditable = !(caption?.isEmpty ?? true)
+            hasCopyableText = isEditable
             isPhoto = true
         }
 

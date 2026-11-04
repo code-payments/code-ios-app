@@ -375,7 +375,8 @@ public final class ChatMediaCell: ChatColumnCell {
                     sender: message.sender,
                     joinsBubbleAbove: true,
                     joinsBubbleBelow: isLast ? message.joinsBubbleBelow : true,
-                    linkPreview: row.preview
+                    linkPreview: row.preview,
+                    isEdited: isLast && message.isEdited
                 )
                 let bubble: LinkableBubbleView
                 switch row.kind {
@@ -404,7 +405,8 @@ public final class ChatMediaCell: ChatColumnCell {
                 joinsBubbleAbove: !emojiCaption,
                 joinsBubbleBelow: message.joinsBubbleBelow,
                 isEmojiOnly: emojiCaption,
-                linkPreview: emojiCaption ? nil : media.captionPreview
+                linkPreview: emojiCaption ? nil : media.captionPreview,
+                isEdited: message.isEdited
             )
             captionMessage = captionRow
             if emojiCaption {

@@ -23,8 +23,9 @@ enum MutationOutcome: Equatable {
 @MainActor
 extension ConversationController {
 
-    /// Replaces a message's text. The transcript updates immediately from an overlay; the server's
-    /// answer then replaces it, whether that answer is the edit or somebody else's.
+    /// Replaces a message's text, or a photo's caption. The transcript updates immediately from an
+    /// overlay; the server's answer then replaces it, whether that answer is the edit or somebody
+    /// else's.
     @discardableResult
     func edit(messageID: MessageID, in conversationID: ConversationID, to text: String) async -> MutationOutcome {
         guard let current = confirmedMessage(messageID, in: conversationID), current.eventSequence > 0 else {
@@ -42,17 +43,29 @@ extension ConversationController {
         bumpMessageRevision()
 
         do {
-            let outcome = try await messaging.editMessage(
-                owner: owner,
-                conversationID: conversationID,
-                messageID: messageID,
-                text: text,
-                repliedTo: current.repliedTo,
-                // An edit sends no fresh fetch: the preview built at send time stays only while
-                // its link is still whole in the new text.
-                linkPreview: current.linkPreview?.kept(for: text),
-                expectedEventSequence: current.eventSequence
-            )
+            let outcome: MessageMutation
+            switch current.content {
+            case .media:
+                outcome = try await messaging.editCaption(
+                    owner: owner,
+                    conversationID: conversationID,
+                    photo: current,
+                    caption: text,
+                    expectedEventSequence: current.eventSequence
+                )
+            case .text, .cash, .deleted, .encrypted, .widget, .system:
+                outcome = try await messaging.editMessage(
+                    owner: owner,
+                    conversationID: conversationID,
+                    messageID: messageID,
+                    text: text,
+                    repliedTo: current.repliedTo,
+                    // An edit sends no fresh fetch: the preview built at send time stays only while
+                    // its link is still whole in the new text.
+                    linkPreview: current.linkPreview?.kept(for: text),
+                    expectedEventSequence: current.eventSequence
+                )
+            }
             settle(outcome, messageID: messageID, in: conversationID, operation: "edit-message")
             if outcome.isConflict {
                 mutationAlert = MutationAlert(action: .edit, kind: .conflict)

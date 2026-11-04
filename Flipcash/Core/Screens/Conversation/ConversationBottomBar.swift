@@ -1525,13 +1525,12 @@ private struct CancelEditButton: View {
                 .foregroundStyle(Color.textMain)
                 .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
                 // The glyph is the only drawn content, so without a shape the taps that land on the
-                // glass around it miss the button — the platter lights up (it is `.interactive`) and
-                // the edit stays open. The shape makes the whole pill the target.
-                .contentShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+                // rim around it miss the button and the edit stays open. The shape makes the whole
+                // circle the target.
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .glassBackground(cornerRadius: BarMetrics.cornerRadius)
-        .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+        .composerRim(in: Circle())
         .accessibilityLabel("Cancel editing")
         .accessibilityIdentifier("cancel-edit-button")
     }

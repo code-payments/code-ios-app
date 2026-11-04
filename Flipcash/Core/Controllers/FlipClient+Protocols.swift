@@ -138,6 +138,9 @@ protocol ConversationMessaging: AnyObject, Sendable {
     /// server applies the edit only if the message still carries that sequence, and reports a
     /// conflict with the winning state otherwise.
     func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, expectedEventSequence: UInt64) async throws -> MessageMutation
+    /// Replaces the caption of `photo`, the owner's captioned photo, keeping its photo and reply as
+    /// sent, guarded by `expectedEventSequence` the same way as `editMessage`.
+    func editCaption(owner: KeyPair, conversationID: ConversationID, photo: ConversationMessage, caption: String, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Tombstones a message, guarded by `expectedEventSequence` the same way as `editMessage`.
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Adds the owner's reaction with `emoji`, returning the emoji's new aggregate.

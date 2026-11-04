@@ -110,4 +110,24 @@ struct ChatMediaStackMappingTests {
         #expect(actions.last?.contains(.saveAllPhotos) == false)
         #expect(actions.last?.contains(.savePhoto) == true)
     }
+
+    @Test("An edited caption under a stack shows the Edited marker on its row")
+    func stackCaptionCarriesEdited() {
+        func photo(_ seq: UInt64, caption: String?, edited: Bool) -> ConversationMessage {
+            ConversationMessage(
+                id: MessageID(value: seq),
+                senderID: me,
+                content: .media([MediaAttachment(blobID: BlobID(data: Data([UInt8(seq)])), width: 300, height: 400, blurhash: nil)], caption: caption),
+                date: base.addingTimeInterval(Double(seq) * 0.5),
+                unreadSeq: seq,
+                lastEditedTs: edited ? base : nil
+            )
+        }
+        let items = ChatItem.from([photo(1, caption: nil, edited: false), photo(2, caption: "sunrise", edited: true)], selfUserID: me)
+        let captionRow = items.compactMap { item -> ChatMessage? in
+            guard case .message(let row) = item, case .text(let text) = row.content, text == "sunrise" else { return nil }
+            return row
+        }.first
+        #expect(captionRow?.isEdited == true)
+    }
 }

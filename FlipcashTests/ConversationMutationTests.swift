@@ -87,6 +87,36 @@ struct ConversationMutationTests {
         #expect(harness.messaging.edited.first?.repliedTo == MessageID(value: 1))
     }
 
+    @Test("Editing a photo sends its caption edit and keeps the photo in the transcript")
+    func editPhotoSendsCaptionEdit() async throws {
+        let harness = try makeHarness()
+        let conversationID = harness.conversationID
+        let attachment = MediaAttachment(blobID: BlobID(data: Data([1])), width: 640, height: 480, blurhash: nil)
+        let photo = ConversationMessage(
+            id: MessageID(value: 1), senderID: harness.controller.selfUserID,
+            content: .media([attachment], caption: "before"),
+            date: Date(timeIntervalSince1970: 1), unreadSeq: 1, eventSequence: 4
+        )
+        try harness.database.upsertConversationMessages([photo], conversationID: conversationID)
+        harness.messaging.editResult = MessageMutation(
+            message: ConversationMessage(
+                id: MessageID(value: 1), senderID: harness.controller.selfUserID,
+                content: .media([attachment], caption: "after"),
+                date: Date(timeIntervalSince1970: 1), unreadSeq: 1, eventSequence: 5,
+                lastEditedTs: Date(timeIntervalSince1970: 2)
+            ),
+            isConflict: false
+        )
+
+        let outcome = await harness.controller.edit(messageID: MessageID(value: 1), in: conversationID, to: "after")
+
+        #expect(outcome == .applied)
+        #expect(harness.messaging.edited.first?.isCaption == true)
+        #expect(harness.messaging.edited.first?.text == "after")
+        let persisted = try #require(try harness.database.message(id: MessageID(value: 1), conversationID: conversationID))
+        #expect(persisted.content == .media([attachment], caption: "after"))
+    }
+
     @Test("A successful edit persists the server's copy")
     func editPersistsServerCopy() async throws {
         let harness = try makeHarness()

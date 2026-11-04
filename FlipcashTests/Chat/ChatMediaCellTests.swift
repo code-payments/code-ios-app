@@ -182,6 +182,23 @@ struct ChatMediaCellTests {
         #expect(captionText(cell)?.text == "hi")
     }
 
+    @Test("An edited caption shows the text bubble's Edited marker; an unedited one does not", arguments: [true, false])
+    func editedCaptionShowsMarker(isEdited: Bool) {
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(
+            with: ChatMessage(id: "1", content: .media(media(caption: "hi")), sender: .me, isEdited: isEdited),
+            maxWidth: 240,
+            localImage: nil,
+            remote: nil
+        )
+        let marker = Self.labels(in: cell.captionBubble).first { $0.text == "Edited" }
+        #expect(marker?.isHidden == !isEdited)
+    }
+
+    private static func labels(in view: UIView) -> [UILabel] {
+        view.subviews.flatMap { ($0 as? UILabel).map { [$0] } ?? [] + labels(in: $0) }
+    }
+
     @Test("A caption's mentions are drawn as pills on the caption's pill layer")
     func captionDrawsMentionPills() throws {
         let caption = "Any idea @jeff @mcansh?"
