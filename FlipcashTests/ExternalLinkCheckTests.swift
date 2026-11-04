@@ -111,9 +111,13 @@ import FlipcashUI
 
     private let defaults = UserDefaults(suiteName: "trusted-websites-\(UUID())")!
 
-    private func dialog(host: String = "x.com", opened: @escaping () -> Void = {}) -> (DialogItem, TrustedWebsites) {
+    private func dialog(
+        host: String = "x.com",
+        label: String? = nil,
+        opened: @escaping () -> Void = {}
+    ) -> (DialogItem, TrustedWebsites) {
         let store = TrustedWebsites(defaults: defaults)
-        return (DialogItem.leavingFlipcash(host: host, trustedWebsites: store, open: opened), store)
+        return (DialogItem.leavingFlipcash(host: host, label: label, trustedWebsites: store, open: opened), store)
     }
 
     @Test func warningNamesTheHost() {
@@ -123,6 +127,13 @@ import FlipcashUI
         #expect(item.subtitle == "This will open x.com. Never share your Access Key with a website")
         #expect(item.actions.map(\.title) == ["Open Website", "Cancel"])
         #expect(item.actions.map(\.kind) == [.standard, .subtle])
+        #expect(item.checkbox == DialogCheckbox(label: "Don't ask again for x.com"))
+    }
+
+    @Test func maskedLinkQuotesItsLabelBesideTheHost() {
+        let (item, _) = dialog(label: "my site")
+        #expect(item.title == "You're Leaving Flipcash")
+        #expect(item.subtitle == "“my site” will open x.com. Never share your Access Key with a website.")
         #expect(item.checkbox == DialogCheckbox(label: "Don't ask again for x.com"))
     }
 
