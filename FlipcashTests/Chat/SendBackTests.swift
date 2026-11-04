@@ -132,11 +132,17 @@ struct SendBackCaptionTests {
         #expect(line?.counterpart == "to Alex Morgan")
     }
 
-    @Test("9: the receiver of a return reads '<Name> sent back' / 'to you'")
+    @Test("9: the receiver of a return reads '<Name> sent back' / 'to You'")
     func returnReceiver() {
         let line = lines(cash(2, from: alex, to: me, returning(1)))
         #expect(line?.caption == "Alex Morgan sent back")
-        #expect(line?.counterpart == "to you")
+        #expect(line?.counterpart == "to You")
+    }
+
+    @Test("Ordinary received cash keeps its own counterpart, not the return's 'to You'")
+    func ordinaryReceived_unchanged() {
+        let line = lines(cash(1, from: alex, to: me))
+        #expect(line?.counterpart == "from Alex Morgan")
     }
 
     @Test("A return draws no Send Back row of its own")
