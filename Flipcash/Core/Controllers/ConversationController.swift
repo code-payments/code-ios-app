@@ -207,8 +207,14 @@ final class ConversationController {
         return isUnread(conversation) ? .markRead : .markUnread
     }
 
-    /// Runs `action` on one chat.
+    /// Runs `action` on one chat, and reports it when it is the action the chat offers.
     func perform(_ action: ChatReadAction, on id: ConversationID, source: ChatReadSource) {
+        if let conversation = conversation(withID: id), readAction(for: conversation) == action {
+            switch action {
+            case .markRead:   Analytics.chatMarkedRead(chatType: conversation.type, source: source)
+            case .markUnread: Analytics.chatMarkedUnread(chatType: conversation.type, source: source)
+            }
+        }
         switch action {
         case .markRead:   markRead(id, source: source)
         case .markUnread: markUnread(id, source: source)
@@ -240,16 +246,24 @@ final class ConversationController {
         for conversation in unread {
             markRead(conversation.id, source: .menu)
         }
+        Analytics.chatsReadAll(count: unread.count)
         return unread.count
     }
 
     /// The select-mode read capsule: reads every chat in `ids`, or marks them all, per `toggle`.
     /// Read All with nothing selected goes through ``readAllChats()`` after its confirmation instead.
+    /// Sends one read event per selected chat, whatever that chat's own state was.
     func apply(_ toggle: ChatSelectionReadToggle, to ids: [ConversationID]) {
+        let types = ids.compactMap(conversation(withID:)).map(\.type)
         switch toggle {
-        case .readAll: return
-        case .read:    ids.forEach { markRead($0, source: .selection) }
-        case .unread:  ids.forEach { markUnread($0, source: .selection) }
+        case .readAll:
+            return
+        case .read:
+            types.forEach { Analytics.chatMarkedRead(chatType: $0, source: .selection) }
+            ids.forEach { markRead($0, source: .selection) }
+        case .unread:
+            types.forEach { Analytics.chatMarkedUnread(chatType: $0, source: .selection) }
+            ids.forEach { markUnread($0, source: .selection) }
         }
     }
 
