@@ -136,6 +136,87 @@ struct ChatCashCardCellTests {
         #expect(ChatCashCardCell.sendBackArrivesLate(drawn: ("3", .sending), id: "3", state: .sentBack))
     }
 
+    // MARK: - Lines that arrive after the card is drawn (send-back spec, orchestrator #117)
+
+    private func card(id: String = "5", counterpart: String?, iconURL: URL? = nil, sendBack: ChatCashContent.SendBack? = nil) -> ChatMessage {
+        ChatMessage(id: id, content: .cash(ChatCashContent(
+            amount: "$5.00", token: "Cash", iconURL: iconURL,
+            lines: counterpart.map { .init(caption: "Noah Parker sent", counterpart: $0) },
+            sendBack: sendBack
+        )), sender: .other)
+    }
+
+    private static let icon = URL(fileURLWithPath: "/nonexistent/icon.png")
+
+    private func counterpartLabel(in cell: ChatCashCardCell) throws -> UILabel {
+        try #require(labels(in: cell.contentView).first { $0.text?.hasPrefix("from") == true || $0.text?.hasPrefix("to ") == true })
+    }
+
+    private func coinIcon(in cell: ChatCashCardCell) throws -> UIImageView {
+        func images(in view: UIView) -> [UIImageView] {
+            view.subviews.flatMap { ($0 as? UIImageView).map { [$0] } ?? images(in: $0) }
+        }
+        return try #require(images(in: cell.contentView).first { $0.layer.cornerRadius == 10 })
+    }
+
+    private func fades(_ view: UIView) -> Bool {
+        view.layer.animation(forKey: ChatCashCardCell.lateArrivalKey) != nil
+    }
+
+    @Test("A counterpart line known at first draw draws without animating")
+    func counterpart_firstDraw_doesNotAnimate() throws {
+        let cell = ChatCashCardCell(frame: .zero)
+        cell.configure(with: card(counterpart: "from Noah Parker"), maxWidth: 250)
+        #expect(!fades(try counterpartLabel(in: cell)))
+    }
+
+    @Test("A counterpart line that arrives on a drawn card fades in", arguments: [nil, "from Someone"])
+    func counterpart_lateArrival_animates(before: String?) throws {
+        let cell = ChatCashCardCell(frame: .zero)
+        cell.configure(with: card(counterpart: before), maxWidth: 250)
+        cell.configure(with: card(counterpart: "from Noah Parker"), maxWidth: 250)
+        #expect(fades(try counterpartLabel(in: cell)))
+    }
+
+    @Test("A counterpart line that arrives on a drawn card grows its height")
+    func counterpart_lateArrival_growsCard() {
+        let cell = ChatCashCardCell(frame: .zero)
+        let before = measure(card(counterpart: nil), in: cell)
+        #expect(measure(card(counterpart: "from Noah Parker"), in: cell) > before)
+    }
+
+    @Test("A token icon known at first draw draws without animating")
+    func icon_firstDraw_doesNotAnimate() throws {
+        let cell = ChatCashCardCell(frame: .zero)
+        cell.configure(with: card(counterpart: "from Noah Parker", iconURL: Self.icon), maxWidth: 250)
+        #expect(!fades(try coinIcon(in: cell)))
+    }
+
+    @Test("A token icon that arrives on a drawn card fades in")
+    func icon_lateArrival_animates() throws {
+        let cell = ChatCashCardCell(frame: .zero)
+        cell.configure(with: card(counterpart: "from Noah Parker"), maxWidth: 250)
+        cell.configure(with: card(counterpart: "from Noah Parker", iconURL: Self.icon), maxWidth: 250)
+        #expect(fades(try coinIcon(in: cell)))
+    }
+
+    @Test("A redraw with nothing new, or a recycled cell, animates nothing")
+    func unchangedOrReused_doesNotAnimate() throws {
+        let cell = ChatCashCardCell(frame: .zero)
+        let full = card(counterpart: "from Noah Parker", iconURL: Self.icon)
+        cell.configure(with: full, maxWidth: 250)
+        cell.configure(with: full, maxWidth: 250)
+        #expect(!fades(try counterpartLabel(in: cell)))
+        #expect(!fades(try coinIcon(in: cell)))
+
+        let reused = ChatCashCardCell(frame: .zero)
+        reused.configure(with: card(id: "6", counterpart: nil), maxWidth: 250)
+        reused.prepareForReuse()
+        reused.configure(with: full, maxWidth: 250)
+        #expect(!fades(try counterpartLabel(in: reused)))
+        #expect(!fades(try coinIcon(in: reused)))
+    }
+
     @Test("A cell recycled from an offered card to a plain one drops the row")
     func reusedCell_sendBackToPlain_measuresFresh() {
         let cell = ChatCashCardCell(frame: .zero)

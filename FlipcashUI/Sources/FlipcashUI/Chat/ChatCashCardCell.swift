@@ -48,9 +48,17 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let counterpartLabel = UILabel()
     private let centerStack = UIStackView()
     private let sendBackRow = SendBackRowView()
-    /// The message and Send Back state this cell last drew, so a row that arrives on a card already
-    /// on screen can animate in while one known at first draw does not.
-    private var drawnSendBack: (id: String, state: ChatCashContent.SendBack?)?
+    /// What this cell last drew, so a line that arrives on a card already on screen (the Send Back
+    /// row, the counterpart, the token icon) can animate in while one known at first draw does not.
+    private var drawn: Drawn?
+    private struct Drawn {
+        let id: String
+        let sendBack: ChatCashContent.SendBack?
+        let counterpart: String?
+        let iconURL: URL?
+    }
+    /// The layer animation key a late-arriving line's fade runs under; read by tests.
+    static let lateArrivalKey = "cashCardLateArrival"
     /// Whether the last configure faded the Send Back row in; read by tests.
     private(set) var didAnimateSendBackIn = false
     /// The counterpart line's gap to the card's foot, or to the Send Back row when one is drawn.
@@ -189,7 +197,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         coinIcon.kf.cancelDownloadTask()
         coinIcon.image = nil
         reactionRow.prepareForReuse()
-        drawnSendBack = nil
+        drawn = nil
     }
 
     /// - Parameter maxWidth: the card's width, in points. The owner derives it from the collection
@@ -208,12 +216,21 @@ public final class ChatCashCardCell: ChatColumnCell {
         // The total sits tight under the amount, the closest pair of lines on the card.
         centerStack.setCustomSpacing(total == nil ? Self.tokenSpacing : 0, after: amountLabel)
 
+        // A line that arrives on a card already drawn fades in while the transcript's reflow spring
+        // grows the card to fit it (send-back spec); one known at first draw appears as is.
+        let previous = drawn?.id == message.id ? drawn : nil
+        drawn = Drawn(id: message.id, sendBack: cash.sendBack, counterpart: cash.lines?.counterpart, iconURL: cash.iconURL)
+
         tokenLabel.text = cash.token
         coinIcon.isHidden = cash.iconURL == nil
         coinIcon.kf.setImage(with: cash.iconURL)
+        if let previous, previous.iconURL == nil, cash.iconURL != nil { Self.fadeIn(coinIcon) }
         counterpartLabel.text = cash.lines?.counterpart
         counterpartLabel.isHidden = cash.lines == nil
-        applySendBack(cash.sendBack, id: message.id)
+        if let previous, let counterpart = cash.lines?.counterpart, previous.counterpart != counterpart {
+            Self.fadeIn(counterpartLabel)
+        }
+        applySendBack(cash.sendBack, previous: previous)
 
         card.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
@@ -235,6 +252,17 @@ public final class ChatCashCardCell: ChatColumnCell {
         card.alpha = isHighlighted ? 0.6 : 1
     }
 
+    /// Fades `view`'s new content in over the reflow spring's duration, under `lateArrivalKey`.
+    private static func fadeIn(_ view: UIView) {
+        // An opacity animation, not a CATransition: Core Animation files a transition under its own
+        // `transition` key, whatever key it is given.
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 0
+        fade.toValue = 1
+        fade.duration = ChatMotion.reflow.duration
+        view.layer.add(fade, forKey: lateArrivalKey)
+    }
+
     /// Whether `state` arrives on a card this cell has already drawn for message `id`: the same
     /// message, a different Send Back state, and a row to show. A first draw, or a cell reused for
     /// another message, has nothing to animate from.
@@ -253,9 +281,10 @@ public final class ChatCashCardCell: ChatColumnCell {
     /// A row or footer that arrives on a card already drawn (the status check resolving, a return
     /// landing) fades in while the transcript's reflow spring grows the card to fit it. One known
     /// when the card is first drawn appears with no animation.
-    private func applySendBack(_ state: ChatCashContent.SendBack?, id: String) {
-        let arrivesLate = Self.sendBackArrivesLate(drawn: drawnSendBack, id: id, state: state)
-        drawnSendBack = (id, state)
+    private func applySendBack(_ state: ChatCashContent.SendBack?, previous: Drawn?) {
+        let arrivesLate = previous.map { previous in
+            Self.sendBackArrivesLate(drawn: (previous.id, previous.sendBack), id: previous.id, state: state)
+        } ?? false
         didAnimateSendBackIn = arrivesLate
         sendBackRow.isHidden = state == nil
         if let state { sendBackRow.apply(state) }
