@@ -362,6 +362,11 @@ public final class ChatScreenViewController: UIViewController {
         get { transcript.reportsReads }
         set { transcript.reportsReads = newValue }
     }
+    /// Whether the first open lands on the unread divider — see ``ChatViewController/opensAtUnreadDivider``.
+    public var opensAtUnreadDivider: Bool {
+        get { transcript.opensAtUnreadDivider }
+        set { transcript.opensAtUnreadDivider = newValue }
+    }
 
     /// Forwards a reaction-pill tap from the transcript, with the row's id and the toggled emoji.
     public var onReactionTap: ((String, String) -> Void)? {

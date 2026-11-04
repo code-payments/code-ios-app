@@ -34,7 +34,7 @@ nonisolated enum ProfileMenuItem: Equatable {
         case .report:  return "exclamationmark.bubble"
         case .block:   return "nosign"
         case .unblock: return "checkmark.circle"
-        case .silence: return "speaker.slash"
+        case .silence: return "mic.slash"
         case .removeFromGroup: return "person.badge.minus"
         }
     }

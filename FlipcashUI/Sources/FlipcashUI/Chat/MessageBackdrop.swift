@@ -23,7 +23,9 @@ import UIKit
 /// sharp — draw over it; and it carries a detached copy of the edited bubble above itself and takes
 /// the taps that land outside it.
 @MainActor
-final class MessageBackdrop {
+public final class MessageBackdrop {
+
+    public init() {}
 
     /// How long the blur takes to fade in or out.
     private static let fadeDuration: TimeInterval = 0.2
@@ -51,7 +53,7 @@ final class MessageBackdrop {
     private weak var clearance: UIView?
 
     /// Fades the blur in over `host`. Presenting twice is a no-op.
-    func present(over host: UIView) {
+    public func present(over host: UIView) {
         guard effectView == nil else { return }
 
         let blur = UIVisualEffectView(effect: nil)
@@ -177,7 +179,7 @@ final class MessageBackdrop {
     /// Fades the blur out and takes it off screen once it has gone, keeping a hole over `revealing`
     /// as it moves so a copy landing underneath stays sharp. A held blur ignores this: the edit it
     /// belongs to outlives the lift, and ends it with `release`.
-    func dismiss(revealing view: UIView? = nil) {
+    public func dismiss(revealing view: UIView? = nil) {
         guard !isHeld, let blur = effectView else { return }
         effectView = nil
         let strength = blurStrength

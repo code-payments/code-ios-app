@@ -36,6 +36,8 @@ struct HomeTabView: View {
     /// The You tab's icon, once the profile has a picture. Owned here rather
     /// than by either bar, because both bars want the same download.
     @State private var profilePhoto = TabBarProfilePhoto()
+    /// The Chats list's select mode. Held here because its capsules take the tab bar's place.
+    @State private var chatSelection = ChatSelection()
 
     init() {
         _selection = State(initialValue: HomeTab.initial)
@@ -98,11 +100,18 @@ struct HomeTabView: View {
 
     private var isTabBarHidden: Bool {
         if isSearchSelected { return sessionContainer.session.isShowingBill }
+        // The system bar fades out for select mode instead (see `nativeTabs`).
+        if #unavailable(iOS 26), isChatSelecting { return true }
         return selection.hidesTabBar(
             isWalletCardExpanded: cardExpansion.isExpanded,
             isShowingBill: sessionContainer.session.isShowingBill,
             hasPushedScreen: hasPushedScreen
         )
+    }
+
+    /// Whether the Chat list is in select mode, where its capsules take the tab bar's place.
+    private var isChatSelecting: Bool {
+        selection == .chat && !isSearchSelected && chatSelection.isActive
     }
 
     /// Unread chats among the ones the Chat tab lists, surfaced as a badge on the tab.
@@ -284,6 +293,10 @@ struct HomeTabView: View {
             chatBadgeCount: chatBadgeCount,
             onLongPress: handleLongPress(on:)
         ))
+        // Faded rather than hidden for select mode: a hidden bar takes its inset with it, and the
+        // list's bottom scroll edge effect is drawn over that inset, so the blur behind the
+        // capsules would go too.
+        .background(TabBarFade(isFaded: isChatSelecting))
     }
 
     /// A tab in the iOS 26 bar: one of the shared tabs, or the search tab that sits apart from them.
@@ -412,6 +425,7 @@ struct HomeTabView: View {
             // would discard.
             if selection == .chat || hasOpenedChat {
                 ChatTab()
+                    .environment(chatSelection)
             } else {
                 Color.backgroundMain
             }
@@ -668,22 +682,58 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
                 self?.apply()
             }
         }
+    }
+}
 
-        /// This controller is attached alongside the `TabView` rather than inside
-        /// a tab, so `tabBarController` is nil — the bar has to be found from the
-        /// window instead.
-        private var resolvedTabBar: UITabBar? {
-            if let bar = tabBarController?.tabBar { return bar }
-            guard let root = view.window?.rootViewController else { return nil }
+/// Fades the system tab bar out and back in, with the animation of the SwiftUI update that changed
+/// `isFaded`. The bar keeps its place and its inset; it only stops drawing and taking touches.
+@available(iOS 26, *)
+private struct TabBarFade: UIViewControllerRepresentable {
+    let isFaded: Bool
 
-            var queue: [UIViewController] = [root]
-            while let next = queue.first {
-                queue.removeFirst()
-                if let tabs = next as? UITabBarController { return tabs.tabBar }
-                queue.append(contentsOf: next.children)
-                if let presented = next.presentedViewController { queue.append(presented) }
-            }
-            return nil
+    func makeUIViewController(context: Context) -> Probe {
+        Probe()
+    }
+
+    /// Re-applies on every update, not only on a change: SwiftUI can rebuild the bar mid-fade.
+    func updateUIViewController(_ probe: Probe, context: Context) {
+        guard probe.isFaded != isFaded else {
+            probe.apply()
+            return
         }
+        probe.isFaded = isFaded
+        context.animate { probe.apply() }
+    }
+
+    final class Probe: UIViewController {
+        var isFaded = false
+
+        func apply() {
+            guard let bar = resolvedTabBar else { return }
+            bar.alpha = isFaded ? 0 : 1
+            // A view mid-fade still takes touches, and the bar sits above the SwiftUI content.
+            bar.isUserInteractionEnabled = !isFaded
+            bar.accessibilityElementsHidden = isFaded
+        }
+    }
+}
+
+private extension UIViewController {
+
+    /// This controller is attached alongside the `TabView` rather than inside
+    /// a tab, so `tabBarController` is nil — the bar has to be found from the
+    /// window instead.
+    var resolvedTabBar: UITabBar? {
+        if let bar = tabBarController?.tabBar { return bar }
+        guard let root = view.window?.rootViewController else { return nil }
+
+        var queue: [UIViewController] = [root]
+        while let next = queue.first {
+            queue.removeFirst()
+            if let tabs = next as? UITabBarController { return tabs.tabBar }
+            queue.append(contentsOf: next.children)
+            if let presented = next.presentedViewController { queue.append(presented) }
+        }
+        return nil
     }
 }

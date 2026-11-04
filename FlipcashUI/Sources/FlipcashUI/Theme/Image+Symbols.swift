@@ -90,7 +90,7 @@ public enum SystemSymbol: String {
     /// The bare glyph, for a confirm affordance that carries its own backing shape.
     case checkmark = "checkmark"
     
-    case speakerSlash = "speaker.slash.fill"
+    case micSlash = "mic.slash.fill"
     /// A person with a minus, for taking someone out of a group.
     case personBadgeMinus = "person.badge.minus"
     

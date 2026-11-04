@@ -38,7 +38,7 @@ enum SilenceDuration: CaseIterable, Hashable {
     var systemSymbol: SystemSymbol {
         switch self {
         case .oneHour, .eightHours, .oneWeek: .clock
-        case .forever:                        .speakerSlash
+        case .forever:                        .micSlash
         }
     }
 

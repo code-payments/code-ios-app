@@ -693,6 +693,10 @@ final class SessionContainer {
     /// NotificationService extension reads it to decide whether a push may interrupt.
     let chatArchive: ChatArchiveStore
 
+    /// The chats the user has marked unread, on this device only. Kept per account: logout leaves
+    /// the file, so signing back in to the same account shows its marks again.
+    let chatMarkedUnread: any ChatMarkedUnreadStore
+
     /// The signed-in user's private-group chat keys, in memory and reopened from the stored envelope or the server.
     let groupKeys: GroupKeyEnvelopes
 
@@ -805,6 +809,12 @@ final class SessionContainer {
         )
         self.chatArchive = chatArchive
 
+        let chatMarkedUnread = LocalChatMarkedUnreadStore(
+            directory: .applicationSupportDirectory,
+            owner: owner.publicKey
+        )
+        self.chatMarkedUnread = chatMarkedUnread
+
         let groupKeys = GroupKeyEnvelopes(
             sealer: SharedCoreGroupKeySealer(),
             owner: session.ownerKeyPair,
@@ -881,6 +891,7 @@ final class SessionContainer {
         // puts its text back — none of which the controller can do before it has the store.
         conversationController.chatDrafts = chatDrafts
         conversationController.chatArchive = chatArchive
+        conversationController.chatMarkedUnread = chatMarkedUnread
         // Same owner-scoped placement as the drafts; a photo whose send a kill interrupted comes back
         // through `start()`, which needs the uploader to finish it.
         conversationController.pendingMedia = PendingMediaStore(
