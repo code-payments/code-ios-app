@@ -85,7 +85,7 @@ on next login (`SessionAuthenticator.initializeDatabase`). This means:
 
 The version lives in code, not `Info.plist`. It moved because the notification service extension needs
 the same number to decide whether the store on disk is one it understands, and an extension cannot read
-the app's `Info.plist`. Both targets link `FlipcashStore`, so they cannot disagree.
+the app's `Info.plist`. Both targets load the same `FlipcashStore` module from the shared `FlipcashCore` framework, so they cannot disagree.
 
 Resist making a decoder tolerate the older shape (`decodeIfPresent`, a default value, a custom
 `init(from:)`). It preserves a stale value where the bump would fetch the correct one, and it is a

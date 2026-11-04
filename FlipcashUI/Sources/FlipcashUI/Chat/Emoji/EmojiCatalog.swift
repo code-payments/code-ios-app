@@ -64,9 +64,10 @@ public actor EmojiCatalog {
     /// The catalog, decoded on first call and kept for the rest of the process.
     public func load() async throws -> EmojiCatalogContents {
         if let contents { return contents }
-        // Xcode 26's SwiftPM gives `Bundle.module` this package's default MainActor isolation.
+        // Xcode 26's SwiftPM gives `Bundle.module`, and so `Bundle.flipcashUI`, this package's
+        // default MainActor isolation.
         let url = await MainActor.run {
-            Bundle.module.url(forResource: "emoji_catalog", withExtension: "json")
+            Bundle.flipcashUI.url(forResource: "emoji_catalog", withExtension: "json")
         }
         guard let url else {
             throw CatalogError.missingResource

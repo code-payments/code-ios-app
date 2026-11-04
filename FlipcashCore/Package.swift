@@ -76,13 +76,15 @@ let package = Package(
         .macOS(.v15),
     ],
     products: [
+        // Dynamic so the app and its three extensions share one copy; static, each appex carried
+        // its own ~30 MB of gRPC/NIO/BoringSSL and the download size crossed 200 MB. FlipcashStore
+        // rides in this product because a second dynamic product holding a target that depends on
+        // the FlipcashCore target fails to build ("linked as a static library by ... cannot be
+        // built dynamically"). Targets link this product and `import FlipcashStore` still works.
         .library(
             name: "FlipcashCore",
-            targets: ["FlipcashCore"]
-        ),
-        .library(
-            name: "FlipcashStore",
-            targets: ["FlipcashStore"]
+            type: .dynamic,
+            targets: ["FlipcashCore", "FlipcashStore"]
         ),
     ],
     dependencies: [

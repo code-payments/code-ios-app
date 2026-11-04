@@ -7,16 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4CE0B0102FD10010000BB010 /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
+		4CE0B0112FD10011000BB011 /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9AC011172DA4320F0030298E /* FlipcashUI */; };
+		4CE0B0122FD10012000BB012 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9AD1265D2DA98ADC0048141F /* SQLite */; };
+		4CE0B0132FD10013000BB013 /* BigDecimal in Frameworks */ = {isa = PBXBuildFile; productRef = 9A444EE62E8C414D002B1E39 /* BigDecimal */; };
+		4CE0B0142FD10014000BB014 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 9A017D682EAC1DE200216925 /* Kingfisher */; };
 		47DDE1F353D72DB6C899D6E0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC0A077F6E7EE1EB0853134B /* Foundation.framework */; };
+		4CE0B0022FD10002000BB002 /* FlipcashCore in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		4CE0B0032FD10003000BB003 /* FlipcashUI in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 9AC011172DA4320F0030298E /* FlipcashUI */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		4C7D70012FC8892D0091C7A4 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B526B7F9A40A479F80FDC7FE /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 923C43E939D4451BA943F715 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8D1766162CE94018B6DE106B /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 358ED8813F044795BC79ADAE /* FlipcashCore */; };
-		46809829231644E8A501AA4F /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 31E89F3BEC50418CAE99662C /* FlipcashStore */; };
 		E20CC3E1194146BCA8F87888 /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 13ACBA3BA12440C8B3036028 /* Bugsnag */; };
 		4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
-		4CA1B0022FD00002000AA002 /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CA1B0012FD00001000AA001 /* FlipcashStore */; };
-		4CA1B0032FD00003000AA003 /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CA1B0012FD00001000AA001 /* FlipcashStore */; };
-		4CA1B0042FD00004000AA004 /* FlipcashStore in Frameworks */ = {isa = PBXBuildFile; productRef = 4CA1B0012FD00001000AA001 /* FlipcashStore */; };
 		08B8484332ED78035E9D399B /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D62DD627C0001B260A /* Bugsnag */; };
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
@@ -96,6 +99,18 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4CE0B0012FD10001000BB001 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				4CE0B0022FD10002000BB002 /* FlipcashCore in Embed Frameworks */,
+				4CE0B0032FD10003000BB003 /* FlipcashUI in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -172,7 +187,6 @@
 				47DDE1F353D72DB6C899D6E0 /* Foundation.framework in Frameworks */,
 				56BF88A54E7F0C5DAB42710A /* FlipcashCore in Frameworks */,
 				A3BE11B009F4E2EF7ED93F05 /* FlipcashUI in Frameworks */,
-				4CA1B0042FD00004000AA004 /* FlipcashStore in Frameworks */,
 				8778E6B10D2DD83ABE8E2969 /* UserNotificationsUI.framework in Frameworks */,
 				B4D66444ACFD12F6C0FE8FA2 /* UserNotifications.framework in Frameworks */,
 			);
@@ -183,7 +197,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */,
-				4CA1B0022FD00002000AA002 /* FlipcashStore in Frameworks */,
 				08B8484332ED78035E9D399B /* Bugsnag in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -193,7 +206,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				8D1766162CE94018B6DE106B /* FlipcashCore in Frameworks */,
-				46809829231644E8A501AA4F /* FlipcashStore in Frameworks */,
 				E20CC3E1194146BCA8F87888 /* Bugsnag in Frameworks */,
 				5A0E1F2B3C4D4E5F8A9B0C1D /* FlipcashUI in Frameworks */,
 			);
@@ -214,7 +226,6 @@
 				508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */,
 				9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */,
 				9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */,
-				4CA1B0032FD00003000AA003 /* FlipcashStore in Frameworks */,
 				9ADEF1D92DD627C6001B260A /* Mixpanel in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -223,6 +234,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4CE0B0102FD10010000BB010 /* FlipcashCore in Frameworks */,
+				4CE0B0112FD10011000BB011 /* FlipcashUI in Frameworks */,
+				4CE0B0122FD10012000BB012 /* SQLite in Frameworks */,
+				4CE0B0132FD10013000BB013 /* BigDecimal in Frameworks */,
+				4CE0B0142FD10014000BB014 /* Kingfisher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -351,6 +367,7 @@
 				4C7D6FF62FC8892D0091C7A4 /* Sources */,
 				4C7D6FF72FC8892D0091C7A4 /* Frameworks */,
 				4C7D6FF82FC8892D0091C7A4 /* Resources */,
+				4CE0B0102FD10001000BB001 /* Strip Shared Package Resources */,
 			);
 			buildRules = (
 			);
@@ -362,7 +379,6 @@
 			name = NotificationService;
 			packageProductDependencies = (
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
-				4CA1B0012FD00001000AA001 /* FlipcashStore */,
 				9ADEF1D62DD627C0001B260A /* Bugsnag */,
 			);
 			productName = NotificationService;
@@ -376,6 +392,7 @@
 				A066C4948A074790B85E52C4 /* Sources */,
 				154D22319D5941AC84B73BFB /* Frameworks */,
 				4A85FC8082954409BC3DD1D8 /* Resources */,
+				4CE0B0112FD10001000BB001 /* Strip Shared Package Resources */,
 			);
 			buildRules = (
 			);
@@ -387,7 +404,6 @@
 			name = ShareExtension;
 			packageProductDependencies = (
 				358ED8813F044795BC79ADAE /* FlipcashCore */,
-				31E89F3BEC50418CAE99662C /* FlipcashStore */,
 				13ACBA3BA12440C8B3036028 /* Bugsnag */,
 				EFFC929EC8849F357BE7F997 /* FlipcashUI */,
 			);
@@ -402,6 +418,7 @@
 				19FA9A33BC65E07F1E0C744A /* Sources */,
 				1B6F963A954302E324130214 /* Frameworks */,
 				0D1BAC92A8904A35DE905ADA /* Resources */,
+				4CE0B0122FD10001000BB001 /* Strip Shared Package Resources */,
 			);
 			buildRules = (
 			);
@@ -411,7 +428,6 @@
 			packageProductDependencies = (
 				8DFC9D975C89EBB9B4E50C4D /* FlipcashCore */,
 				EFFC929EC8849F357BE7F997 /* FlipcashUI */,
-				4CA1B0012FD00001000AA001 /* FlipcashStore */,
 			);
 			productName = NotificationContent;
 			productReference = C402C27F9E020E000EBA2936 /* NotificationContent.appex */;
@@ -426,6 +442,7 @@
 				9A516F782D9B12E800AF478B /* Resources */,
 				9ADEF1CD2DD516A5001B260A /* Generate Google */,
 				4C7D70022FC8892D0091C7A4 /* Embed Foundation Extensions */,
+				4CE0B0012FD10001000BB001 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -440,7 +457,6 @@
 			name = Flipcash;
 			packageProductDependencies = (
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
-				4CA1B0012FD00001000AA001 /* FlipcashStore */,
 				9AC011172DA4320F0030298E /* FlipcashUI */,
 				9AD1265D2DA98ADC0048141F /* SQLite */,
 				9ADEF1D62DD627C0001B260A /* Bugsnag */,
@@ -473,6 +489,13 @@
 				9A516F8C2D9B12EA00AF478B /* FlipcashTests */,
 			);
 			name = FlipcashTests;
+			packageProductDependencies = (
+				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
+				9AC011172DA4320F0030298E /* FlipcashUI */,
+				9AD1265D2DA98ADC0048141F /* SQLite */,
+				9A444EE62E8C414D002B1E39 /* BigDecimal */,
+				9A017D682EAC1DE200216925 /* Kingfisher */,
+			);
 			productName = FlipcashTests;
 			productReference = 9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -666,6 +689,71 @@
 			shellPath = /bin/sh;
 			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/GoogleService-Info.plist\" \"FG_\"\n";
 		};
+		4CE0B0102FD10001000BB001 /* Strip Shared Package Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Scripts/strip-appex-package-resources.sh",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/FlipcashCore_FlipcashCore.bundle",
+			);
+			name = "Strip Shared Package Resources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/bash \"$SRCROOT/Scripts/strip-appex-package-resources.sh\"\n";
+		};
+		4CE0B0112FD10001000BB001 /* Strip Shared Package Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Scripts/strip-appex-package-resources.sh",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/FlipcashCore_FlipcashCore.bundle",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/FlipcashUI_FlipcashUI.bundle",
+			);
+			name = "Strip Shared Package Resources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/bash \"$SRCROOT/Scripts/strip-appex-package-resources.sh\"\n";
+		};
+		4CE0B0122FD10001000BB001 /* Strip Shared Package Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Scripts/strip-appex-package-resources.sh",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/FlipcashCore_FlipcashCore.bundle",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/FlipcashUI_FlipcashUI.bundle",
+			);
+			name = "Strip Shared Package Resources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/bash \"$SRCROOT/Scripts/strip-appex-package-resources.sh\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -755,7 +843,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -796,7 +884,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -837,7 +925,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -878,7 +966,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -919,7 +1007,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationService/Info.plist;
@@ -955,7 +1043,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
@@ -991,7 +1079,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationService/Info.plist;
@@ -1027,7 +1115,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
@@ -1063,7 +1151,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -1776,7 +1864,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -1817,7 +1905,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationContent/Info.plist;
@@ -1853,7 +1941,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
 				DEVELOPMENT_TEAM = SC677X4LH6;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationContent/Info.plist;
@@ -2065,10 +2153,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = FlipcashCore;
 		};
-		4CA1B0012FD00001000AA001 /* FlipcashStore */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = FlipcashStore;
-		};
 		9AC011172DA4320F0030298E /* FlipcashUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlipcashUI;
@@ -2095,10 +2179,6 @@
 		358ED8813F044795BC79ADAE /* FlipcashCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlipcashCore;
-		};
-		31E89F3BEC50418CAE99662C /* FlipcashStore */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = FlipcashStore;
 		};
 		13ACBA3BA12440C8B3036028 /* Bugsnag */ = {
 			isa = XCSwiftPackageProductDependency;
