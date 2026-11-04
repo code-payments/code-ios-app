@@ -145,8 +145,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public let content: Content
     /// How a `.cash` message was delivered (sent vs. tipped); `nil` for non-cash content.
     public let cashAction: CashAction?
-    /// The member a group-chat `.cash` payment was sent to; `nil` for DM cash (the counterpart is
-    /// implicit) and for non-cash content. Persisted, so it survives a relaunch.
+    /// The member a single-receiver `.cash` payment was sent to (the wire's `single_receiver`), in a
+    /// DM as in a group; `nil` for a multi-receiver payment and for non-cash content. Persisted, so
+    /// it survives a relaunch.
     public let cashReceiverID: UserID?
     /// The per-receiver parts of a group-chat `.cash` payment sent to several members at once (the
     /// `.cash` amount is their total); empty for a single-receiver payment and for non-cash content.
@@ -155,6 +156,10 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// The payment request whose share this `.cash` message paid; `nil` for any other cash message and
     /// for non-cash content. Not persisted, so a message read back from the local store has `nil`.
     public let paymentRequestID: PaymentRequestID?
+    /// A `.cash` message's part in a return: whether its receiver is offered one, and the message it
+    /// returns, if any. `nil` for a cash message that is neither and for non-cash content. Persisted,
+    /// so a reopened DM knows a payment was returned without asking the server.
+    public let cashReturn: CashReturn?
     public let date: Date
     public let unreadSeq: UInt64
     /// The event-log version at which this message reached its current state,
@@ -204,6 +209,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         cashReceiverID: UserID? = nil,
         cashPayments: [CashPayment] = [],
         paymentRequestID: PaymentRequestID? = nil,
+        cashReturn: CashReturn? = nil,
         date: Date,
         unreadSeq: UInt64,
         eventSequence: UInt64 = 0,
@@ -224,6 +230,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.cashReceiverID = cashReceiverID
         self.cashPayments = cashPayments
         self.paymentRequestID = paymentRequestID
+        self.cashReturn = cashReturn
         self.date = date
         self.unreadSeq = unreadSeq
         self.eventSequence = eventSequence
@@ -269,6 +276,7 @@ extension ConversationMessage {
             cashReceiverID: cashReceiverID,
             cashPayments: cashPayments,
             paymentRequestID: paymentRequestID,
+            cashReturn: cashReturn,
             date: date,
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
@@ -337,6 +345,7 @@ extension ConversationMessage {
             cashReceiverID: cashReceiverID,
             cashPayments: cashPayments,
             paymentRequestID: paymentRequestID,
+            cashReturn: cashReturn,
             date: date,
             unreadSeq: unreadSeq,
             eventSequence: eventSequence,
@@ -402,6 +411,7 @@ extension ConversationMessage {
         var cashReceiverID: UserID?
         var cashPayments: [CashPayment] = []
         var paymentRequestID: PaymentRequestID?
+        var cashReturn: CashReturn?
         switch proto.content.first?.type {
         case .text(let textContent):
             self.content = .text(textContent.text)
@@ -430,6 +440,7 @@ extension ConversationMessage {
                 break
             }
             paymentRequestID = cashContent.hasPaymentRequestID ? PaymentRequestID(cashContent.paymentRequestID) : nil
+            cashReturn = CashReturn(cashContent)
             repliedTo = nil
         case .deleted(let deletedContent):
             self.content = .deleted(
@@ -497,6 +508,7 @@ extension ConversationMessage {
         self.cashReceiverID = cashReceiverID
         self.cashPayments = cashPayments
         self.paymentRequestID = paymentRequestID
+        self.cashReturn = cashReturn
         self.senderID = try? UUID(data: proto.senderID.value)
         self.date = proto.hasTs ? proto.ts.date : .now
         self.unreadSeq = proto.unreadSeq

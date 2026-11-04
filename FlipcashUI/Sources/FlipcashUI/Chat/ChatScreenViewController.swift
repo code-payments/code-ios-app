@@ -204,6 +204,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onPaymentRequestTap = newValue }
     }
 
+    /// Called with a cash message's id when its receiver taps Send Back.
+    public var onSendBack: ((String) -> Void)? {
+        get { transcript.onSendBack }
+        set { transcript.onSendBack = newValue }
+    }
+
     public var onOpenURL: ((URL) -> Void)? {
         get { transcript.onOpenURL }
         set { transcript.onOpenURL = newValue }

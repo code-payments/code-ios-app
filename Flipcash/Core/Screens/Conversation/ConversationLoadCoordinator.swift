@@ -63,6 +63,8 @@ final class ConversationLoadCoordinator {
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
     /// Where request widgets read their cards; nil draws them loading.
     @ObservationIgnored private let paymentRequests: PaymentRequests?
+    /// Send Back for this open: the status check, the row state and the submit. Nil draws no row.
+    @ObservationIgnored let sendBack: SendBackController?
     /// When this transcript opened; paid-share messages after it refetch their request once.
     @ObservationIgnored private let openedAt: Date = .now
     @ObservationIgnored private var refetchedPayments: Set<UInt64> = []
@@ -87,9 +89,11 @@ final class ConversationLoadCoordinator {
         session: Session,
         knownAuthors: KnownAuthorDirectory,
         paymentRequests: PaymentRequests? = nil,
+        sendBack: SendBackController? = nil,
         openingLoadLanded: Bool = false
     ) {
         self.paymentRequests = paymentRequests
+        self.sendBack = sendBack
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
@@ -329,6 +333,19 @@ final class ConversationLoadCoordinator {
                 }
             }
         }
+        // Read inside the observation scope, so a status answer or a submit re-maps the row.
+        var sendBackRows: [UInt64: ChatCashContent.SendBack] = [:]
+        if let sendBack {
+            let returned = SendBackRow.returnedIDs(in: window)
+            for message in window {
+                guard case .cash = message.content else { continue }
+                if SendBackRow.needsStatus(message, selfUserID: controller.selfUserID, returnedIDs: returned) {
+                    sendBack.checkStatusIfNeeded(message.id)
+                }
+                let row = SendBackRow.resolve(message, selfUserID: controller.selfUserID, returnedIDs: returned, local: sendBack.local(for: message.id))
+                if let row { sendBackRows[message.id.value] = row }
+            }
+        }
         return Inputs(
             messages: window,
             selfUserID: controller.selfUserID,
@@ -358,6 +375,7 @@ final class ConversationLoadCoordinator {
             headsHistory: headsHistory,
             unreadBoundary: unreadBoundary(in: window),
             paymentRequestCards: paymentRequestCards,
+            sendBackRows: sendBackRows,
             // Read inside the observation scope, so a pin or unpin re-maps the menus.
             pinnedIDs: controller.pins.pinnedIDs(in: conversationID)
         )
@@ -426,6 +444,7 @@ final class ConversationLoadCoordinator {
             // here touches the network, and an answer landing cannot re-diff this window.
             linkCard: { links in classifier.firstCard(in: links) },
             paymentRequest: { inputs.paymentRequestCards[$0.id.value] ?? .loading },
+            sendBack: { inputs.sendBackRows[$0.id.value] },
             unreadBoundary: inputs.unreadBoundary,
             headsHistory: inputs.headsHistory
         )
@@ -543,6 +562,8 @@ final class ConversationLoadCoordinator {
         var unreadBoundary: UnreadBoundary
         /// Each request widget's card in the window, keyed by raw message id.
         var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
+        /// Each cash message's Send Back row, keyed by raw message id; absent draws none.
+        var sendBackRows: [UInt64: ChatCashContent.SendBack] = [:]
         /// The chat's pinned messages, which decide Pin or Unpin on each row's menu.
         var pinnedIDs: Set<MessageID> = []
 

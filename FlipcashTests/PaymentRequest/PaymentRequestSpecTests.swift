@@ -59,6 +59,10 @@ struct PaymentRequestSpecTests {
         PaymentRequestCopy.statusLine(request(endsAt: now.addingTimeInterval(seconds)).deadline(at: now))
     }
 
+    private func deadline(endingIn seconds: TimeInterval) -> GroupPaymentRequest.Deadline {
+        request(endsAt: now.addingTimeInterval(seconds)).deadline(at: now)
+    }
+
     // MARK: - Amounts -
 
     @Test("1: 26 shares of $20 with only the creator's paid")
@@ -94,6 +98,13 @@ struct PaymentRequestSpecTests {
     @Test("22: exactly 24 hours reads in hours") func exactlyADay() { #expect(status(endingIn: 24 * 3_600) == "24 hours left to pay") }
     @Test("7: exactly 1 hour") func oneHour() { #expect(status(endingIn: 3_600) == "1 hour left to pay") }
     @Test("8: 30 s reads 1 minute") func thirtySeconds() { #expect(status(endingIn: 30) == "1 minute left to pay") }
+
+    @Test("52: 7 d 59 s reads 7 days, not 8") func sevenDaysPlusSeconds() { #expect(deadline(endingIn: 7 * 86_400 + 59) == .daysLeft(7)) }
+    @Test("53: 7 d 4 min still reads 7 days") func sevenDaysPlusFourMinutes() { #expect(deadline(endingIn: 7 * 86_400 + 4 * 60) == .daysLeft(7)) }
+    @Test("54: 7 d 6 min reads 8 days") func sevenDaysPlusSixMinutes() { #expect(deadline(endingIn: 7 * 86_400 + 6 * 60) == .daysLeft(8)) }
+    @Test("55: 24 h 30 s reads 24 hours") func dayPlusSeconds() { #expect(deadline(endingIn: 24 * 3_600 + 30) == .hoursLeft(24)) }
+    @Test("56: 24 h 6 min reads 2 days") func dayPlusSixMinutes() { #expect(deadline(endingIn: 24 * 3_600 + 6 * 60) == .daysLeft(2)) }
+    @Test("57: 1 h 2 min reads 1 hour") func hourPlusTwoMinutes() { #expect(deadline(endingIn: 3_600 + 2 * 60) == .hoursLeft(1)) }
 
     @Test("9: OPEN past its deadline reads as EXPIRED at ends_at")
     func pastDeadline() {

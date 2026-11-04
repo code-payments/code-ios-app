@@ -29,6 +29,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onCashCardTap: (String) -> Void
     /// Fired with a payment request's id bytes when its card is tapped. The owner opens Request details.
     var onPaymentRequestTap: (Data) -> Void = { _ in }
+    /// Fired with a cash message's id when its receiver taps Send Back.
+    var onSendBack: (String) -> Void = { _ in }
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
@@ -188,6 +190,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onPaymentRequestTap = onPaymentRequestTap
+        screen.onSendBack = onSendBack
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile
@@ -284,6 +287,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onPaymentRequestTap = onPaymentRequestTap
+        screen.onSendBack = onSendBack
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile

@@ -142,6 +142,20 @@ nonisolated public struct RequestedPaymentTable: Sendable {
     public let paymentRequestID = Expression <Data>      ("paymentRequestID")
 }
 
+// Side table for payments that returned a DM's opening payment: the DM and the cash message returned.
+// Joined 1:1 to `activity` by id; a row exists only for such a payment. A snapshot from payment time,
+// so the message may since have been deleted.
+nonisolated public struct ReturnedPaymentTable: Sendable {
+    public static let name = "returnedPayment"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let id             = Expression <PublicKey> ("id")
+    public let conversationID = Expression <Data>      ("conversationID")
+    public let messageID      = Expression <UInt64>    ("messageID")
+}
+
 // One row per payment request, kept so a chat's request cards and details draw offline. The whole
 // `PaymentRequestMetadata` is stored serialized (private-chat text still sealed); `version`, `status`
 // and `conversationID` sit beside it as columns for the merge rule and the per-chat read. A request
@@ -462,8 +476,13 @@ nonisolated public struct ConversationMessageTable: Sendable {
     public let systemInvitedBy = Expression <UUID?>        ("systemInvitedBy")
     // JSON-encoded `[CashPayment]` of a multi-receiver cash row; nil for every other row.
     public let cashPaymentsJson = Expression <Data?>       ("cashPaymentsJson")
-    // The member a single-receiver group cash row paid; nil for DM cash and every other row.
+    // The member a single-receiver cash row paid (its `single_receiver`); nil for a multi-receiver
+    // row and every other row.
     public let cashReceiverId = Expression <UUID?>         ("cashReceiverId")
+    // A cash row's `CashReturn`: whether its receiver is offered a return, and the message it
+    // returns. Both nil for a cash row that is neither, and for every other row.
+    public let cashReturnOffer = Expression <Bool?>        ("cashReturnOffer")
+    public let cashReturnOfId = Expression <UInt64?>       ("cashReturnOfId")
 }
 
 
@@ -587,6 +606,18 @@ nonisolated extension Database {
                     t.column(requestedPaymentTable.paymentRequestID)
 
                     t.foreignKey(requestedPaymentTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let returnedPaymentTable = ReturnedPaymentTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(returnedPaymentTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(returnedPaymentTable.id, primaryKey: true)
+                    t.column(returnedPaymentTable.conversationID)
+                    t.column(returnedPaymentTable.messageID)
+
+                    t.foreignKey(returnedPaymentTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
                 })
             }
 
@@ -806,6 +837,8 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.systemInvitedBy)
                     t.column(conversationMessageTable.cashPaymentsJson)
                     t.column(conversationMessageTable.cashReceiverId)
+                    t.column(conversationMessageTable.cashReturnOffer)
+                    t.column(conversationMessageTable.cashReturnOfId)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
                 })
             }
