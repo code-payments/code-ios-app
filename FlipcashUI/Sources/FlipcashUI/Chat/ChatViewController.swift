@@ -1841,8 +1841,9 @@ extension ChatViewController {
                 switch action {
                 case .copy:
                     if let body { UIPasteboard.general.string = body }
-                // The link rows need the chat's id, which this module never holds.
-                case .reply, .edit, .delete, .report, .forward, .pin, .unpin, .silence, .remove:
+                // The link rows need the chat's id, and Save Photo needs the app's photo library,
+                // neither of which this module holds.
+                case .reply, .edit, .delete, .report, .forward, .savePhoto, .pin, .unpin, .silence, .remove:
                     handler?(rowID, action)
                 }
             }
@@ -2067,6 +2068,7 @@ extension MessageCapability {
         case .delete: .trash
         case .report: .exclamationBubble
         case .forward: .forwardArrow
+        case .savePhoto: .saveToPhotos
         case .pin:    .pinFill
         case .unpin:  .pinSlash
         case .silence: .micSlash
@@ -2077,7 +2079,7 @@ extension MessageCapability {
     var isModeration: Bool {
         switch self {
         case .silence, .remove: true
-        case .copy, .reply, .edit, .delete, .report, .forward, .pin, .unpin: false
+        case .copy, .reply, .edit, .delete, .report, .forward, .savePhoto, .pin, .unpin: false
         }
     }
 
@@ -2088,7 +2090,7 @@ extension MessageCapability {
         case .silence, .remove:
             guard let senderName else { return title }
             return "\(title) \(senderName)"
-        case .copy, .reply, .edit, .delete, .report, .forward, .pin, .unpin:
+        case .copy, .reply, .edit, .delete, .report, .forward, .savePhoto, .pin, .unpin:
             return title
         }
     }

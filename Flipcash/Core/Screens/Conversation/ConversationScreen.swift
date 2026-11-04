@@ -1497,6 +1497,8 @@ struct ConversationScreen: View {
         case .forward:
             guard let conversationID else { return }
             messageShare = MessageShareRequest(id: stableID, url: .messageLink(in: conversationID, messageID: message.id))
+        case .savePhoto:
+            savePhoto(message, stableID: stableID)
         case .pin:
             pin(message)
         case .unpin:
@@ -1511,6 +1513,36 @@ struct ConversationScreen: View {
                     subtitle: "We were unable to remove \(target.firstName). Please try again"
                 )
                 ErrorReporting.captureError(error, reason: "Failed to remove user")
+            }
+        }
+    }
+
+    /// Saves the photo in `message` to the library the way the full-screen viewer does: its original
+    /// bytes when held, otherwise the image this device already drew. Nothing is downloaded here.
+    private func savePhoto(_ message: ConversationMessage, stableID: String) {
+        guard case .media(let attachments, _) = message.content, let attachment = attachments.first else { return }
+        let original = ChatMediaImageSource.originalData(blobID: attachment.blobID)
+        let image = conversationController.pendingMediaImage(forMessageID: stableID)
+            ?? attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))
+            ?? original.flatMap(UIImage.init(data:))
+        guard let image else {
+            session.dialogItem = .error(title: "Couldn't Save Photo", subtitle: "Please try again.")
+            return
+        }
+        Task {
+            do {
+                try await PhotoLibrary.save(image: image, original: original)
+                container.toasts.show(.init("Saved to Photos", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
+            } catch {
+                session.dialogItem = .error(
+                    title: "Failed to Save",
+                    subtitle: "Please allow Flipcash access to Photos in Settings in order to save this photo."
+                ) {
+                    .destructive("Open Settings") {
+                        URL.openSettings()
+                    };
+                    .notNow()
+                }
             }
         }
     }

@@ -112,25 +112,46 @@ struct MessageCapabilityTests {
         #expect(resolve(cash(from: them), isMember: false) == [.report, .forward])
     }
 
-    @Test("My own photo with a caption can be copied, replied to and deleted, but not edited")
+    @Test("My own photo with a caption can be copied, replied to, saved and deleted, but not edited")
     func ownMediaOffersCopyButNotEdit() {
-        #expect(resolve(media(from: me)) == [.copy, .reply, .delete, .forward])
+        #expect(resolve(media(from: me)) == [.copy, .reply, .savePhoto, .delete, .forward])
     }
 
     @Test("My own photo with no caption has no text to copy")
     func ownCaptionlessMediaOffersNoCopy() {
-        #expect(resolve(media(from: me, caption: nil)) == [.reply, .delete, .forward])
-        #expect(resolve(media(from: me, caption: "")) == [.reply, .delete, .forward])
+        #expect(resolve(media(from: me, caption: nil)) == [.reply, .savePhoto, .delete, .forward])
+        #expect(resolve(media(from: me, caption: "")) == [.reply, .savePhoto, .delete, .forward])
     }
 
     @Test("Someone else's captioned photo can be copied, replied to and reported")
     func otherPersonsMediaIsCopyableAndReportable() {
-        #expect(resolve(media(from: them)) == [.copy, .reply, .report, .forward])
+        #expect(resolve(media(from: them)) == [.copy, .reply, .savePhoto, .report, .forward])
     }
 
     @Test("Someone else's photo with no caption can be replied to and reported, but not copied")
     func otherPersonsCaptionlessMediaIsNotCopyable() {
-        #expect(resolve(media(from: them, caption: nil)) == [.reply, .report, .forward])
+        #expect(resolve(media(from: them, caption: nil)) == [.reply, .savePhoto, .report, .forward])
+    }
+
+    @Test("Save Photo is offered on photo messages only")
+    func savePhotoOnPhotosOnly() {
+        #expect(resolve(media(from: them)).contains(.savePhoto))
+        #expect(resolve(media(from: me)).contains(.savePhoto))
+        #expect(!resolve(text("hi", from: them)).contains(.savePhoto))
+        #expect(!resolve(text("hi", from: me)).contains(.savePhoto))
+        #expect(!resolve(cash(from: them)).contains(.savePhoto))
+        #expect(!resolve(cash(from: me)).contains(.savePhoto))
+    }
+
+    @Test("Save Photo survives the speaker rule and membership: saving posts nothing")
+    func savePhotoSurvivesSpeakerRule() {
+        #expect(resolve(media(from: them), canPost: false).contains(.savePhoto))
+        #expect(resolve(media(from: them), isMember: false).contains(.savePhoto))
+    }
+
+    @Test("Save Photo has no window")
+    func savePhotoHasNoWindow() {
+        #expect(MessagePolicy.default.window(for: .savePhoto) == nil)
     }
 
     private func media(from sender: UUID, caption: String? = "hi") -> ConversationMessage {
