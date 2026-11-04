@@ -815,7 +815,7 @@ private struct PaymentRequestSelectPeopleScreen: View {
                     .padding(20)
             }
         }
-        .navigationTitle("Split Between")
+        .navigationTitle("Request From")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()
