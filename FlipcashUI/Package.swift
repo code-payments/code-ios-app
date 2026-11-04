@@ -46,8 +46,10 @@ let package = Package(
         .iOS(.v18),
     ],
     products: [
+        // Dynamic for the same reason as FlipcashCore: one copy shared by the app and extensions.
         .library(
             name: "FlipcashUI",
+            type: .dynamic,
             targets: ["FlipcashUI"]
         ),
     ],
@@ -66,7 +68,8 @@ let package = Package(
                 .product(name: "ChatLayout", package: "ChatLayout", condition: .when(platforms: [.iOS])),
                 .product(name: "DifferenceKit", package: "DifferenceKit"),
                 .product(name: "Kingfisher", package: "Kingfisher"),
-                .product(name: "SharedCoreKit", package: sharedCorePackage),
+                // No direct `SharedCoreKit` edge: FlipcashCore re-exports it, and linking it here
+                // too would statically copy SharedCore into this dynamic framework as well.
             ],
             resources: [
                 .process("Assets"),

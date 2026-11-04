@@ -15,21 +15,21 @@ extension Image {
     }
     
     public static func asset(_ name: Asset) -> Image  {
-        Image(name.rawValue, bundle: Bundle.module)
+        Image(name.rawValue, bundle: Bundle.flipcashUI)
     }
     
     public static func regionFlag(_ region: Region) -> Image  {
-        Image(region.rawValue, bundle: Bundle.module)
+        Image(region.rawValue, bundle: Bundle.flipcashUI)
     }
     
     public static func cryptoFlag(_ currency: CurrencyCode) -> Image  {
-        Image(currency.rawValue.uppercased(), bundle: Bundle.module)
+        Image(currency.rawValue.uppercased(), bundle: Bundle.flipcashUI)
     }
 }
 
 extension UIImage {
     public static func asset(_ name: Asset) -> UIImage  {
-        UIImage(named: name.rawValue, in: Bundle.module, compatibleWith: nil)!
+        UIImage(named: name.rawValue, in: Bundle.flipcashUI, compatibleWith: nil)!
     }
 }
 
