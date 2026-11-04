@@ -16,6 +16,23 @@ let sharedCorePackage = sharedCoreLocalRoot == nil ? "flipcash-shared-core-spm" 
 
 let sharedCore: Package.Dependency = {
     if let sharedCoreLocalRoot {
+        // A slice binary truncated to 0 bytes otherwise fails much later, as a link or resolve
+        // error that points at SwiftPM caches rather than the file. Every slice directory has to
+        // hold a non-empty binary; the macOS one is a symlink, so it is resolved before sizing.
+        let xcframework = "\(sharedCoreLocalRoot)/kmp/shared-core/build/XCFrameworks/release/SharedCore.xcframework"
+        let fileManager = FileManager.default
+        let slices = ((try? fileManager.contentsOfDirectory(atPath: xcframework)) ?? []).filter {
+            var isDirectory: ObjCBool = false
+            return fileManager.fileExists(atPath: "\(xcframework)/\($0)", isDirectory: &isDirectory) && isDirectory.boolValue
+        }
+        let binaries = slices.isEmpty ? [xcframework] : slices.map { "\(xcframework)/\($0)/SharedCore.framework/SharedCore" }
+        for binary in binaries {
+            let resolved = (binary as NSString).resolvingSymlinksInPath
+            let size = ((try? fileManager.attributesOfItem(atPath: resolved))?[.size] as? NSNumber)?.int64Value ?? 0
+            if slices.isEmpty || size == 0 {
+                fatalError("SharedCore slice is empty: \(binary). Reassemble with ./gradlew :kmp:shared-core:assembleSharedCoreReleaseXCFramework")
+            }
+        }
         return .package(path: "\(sharedCoreLocalRoot)/kmp/shared-core/spm")
     }
     return .package(url: "https://github.com/code-payments/flipcash-shared-core-spm", .upToNextMinor(from: "0.19.0"))
