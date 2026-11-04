@@ -18,7 +18,7 @@ final class SendBackRowView: UIControl {
 
     /// The action row's height, Available and Sending (spec: 44).
     static let actionHeight: CGFloat = 44
-    /// The Sent Back footer's height. It takes the place of the card's bottom padding (spec: 36).
+    /// The Sent Back footer's height, under the card's bottom padding like the action row (spec: 36).
     static let footerHeight: CGFloat = 36
 
     static func height(for state: ChatCashContent.SendBack) -> CGFloat {

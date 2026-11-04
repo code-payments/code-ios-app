@@ -61,13 +61,12 @@ struct ChatCashCardCellTests {
         }
     }
 
-    @Test("The Send Back row is 44 tall under the card's padding; the Sent Back footer is 36 in place of it")
+    @Test("The Send Back row is 44 and the Sent Back footer 36, both under the card's bottom padding")
     func sendBackRow_sizes() {
         let plain = measure(offered(nil))
         #expect((measure(offered(.available)) - plain).rounded() == 44)
         #expect((measure(offered(.sending)) - plain).rounded() == 44)
-        // 36 for the footer, less the 16 bottom padding it replaces.
-        #expect((measure(offered(.sentBack)) - plain).rounded() == 20)
+        #expect((measure(offered(.sentBack)) - plain).rounded() == 36)
     }
 
     @Test("Only the Sent Back footer draws its top divider")
