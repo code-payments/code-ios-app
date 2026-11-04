@@ -21,6 +21,7 @@ struct TipConversationsScreen: View {
     @State private var filter: ChatListFilter = .all
     @Environment(ToastController.self) private var toasts
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.floatingTabBar) private var floatingTabBar
     /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
     @State private var chipsRevealed = false
     @State private var isTabBarOnSide = false
@@ -128,28 +129,14 @@ struct TipConversationsScreen: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.2), value: isSelecting)
-                    // A plain inset, not a bar: the capsules float on their own glass over the
-                    // list, with no scroll edge effect behind them. The inset still lets the last
-                    // row scroll clear of them.
+                    // With no tab bar below to stand in for (the `.tips` sheet, the pre-iOS 26
+                    // pill, which hides for select mode, or a bar on a side edge), the capsules
+                    // take an inset of their own so the last row scrolls clear of them.
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        // Inserted at zero opacity in the frame the tab bar goes; only their opacity
-                        // and scale animate, once select mode begins.
-                        if selection.hidesTabBar {
-                            ChatSelectionActions(
-                                selected: selectedIDs(in: conversations),
-                                onReadAll: confirmReadAll,
-                                onMute: { ids in
-                                    muteTarget = MuteTarget(ids: ids)
-                                    setSelecting(false)
-                                },
-                                onArchive: { ids in
-                                    archive(ids)
-                                    setSelecting(false)
-                                },
-                                onDone: { setSelecting(false) }
-                            )
-                            .opacity(isSelecting ? 1 : 0)
-                            .scaleEffect(isSelecting || reduceMotion ? 1 : 0.9, anchor: .bottom)
+                        if isSelecting, !capsulesTakeTabBarSlot {
+                            selectionActions(for: conversations)
+                                .padding(.bottom, 8)
+                                .transition(capsuleTransition)
                         }
                     }
                     .listStyle(.plain)
@@ -163,6 +150,17 @@ struct TipConversationsScreen: View {
                         let insets = proxy.safeAreaInsets
                         return max(insets.leading, insets.trailing) > insets.bottom
                     } action: { isTabBarOnSide = $0 }
+                    // Over the faded system tab bar, in its pill's slot just below the list's
+                    // safe area: the bar keeps its inset, so the list's bottom blur stays exactly
+                    // as it is behind the tab bar.
+                    .overlay(alignment: .bottom) {
+                        if isSelecting, capsulesTakeTabBarSlot {
+                            selectionActions(for: conversations)
+                                .frame(height: Self.tabBarPillHeight)
+                                .offset(y: Self.tabBarPillHeight)
+                                .transition(capsuleTransition)
+                        }
+                    }
                     .overlay {
                         // Over the List rather than a row in it, so it centres in the whole
                         // screen and the List keeps the pull that reveals the chips.
@@ -264,21 +262,40 @@ struct TipConversationsScreen: View {
 
     private var isSelecting: Bool { selection.isActive }
 
-    /// Enters or leaves select mode. Leaving cross-fades the tab bar back over the capsules.
+    /// The height of the iOS 26 system tab bar's pill, measured on a 402pt-wide iPhone.
+    private static let tabBarPillHeight: CGFloat = 62
+
+    /// Whether a system tab bar sits below the list, faded out for select mode, so the capsules can
+    /// take its pill's slot. The legacy pill hides instead, which clears `floatingTabBar`.
+    private var capsulesTakeTabBarSlot: Bool {
+        floatingTabBar != nil && !isTabBarOnSide
+    }
+
+    private var capsuleTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9, anchor: .bottom))
+    }
+
+    private func selectionActions(for conversations: [Conversation]) -> some View {
+        ChatSelectionActions(
+            selected: selectedIDs(in: conversations),
+            onReadAll: confirmReadAll,
+            onMute: { ids in
+                muteTarget = MuteTarget(ids: ids)
+                setSelecting(false)
+            },
+            onArchive: { ids in
+                archive(ids)
+                setSelecting(false)
+            },
+            onDone: { setSelecting(false) }
+        )
+    }
+
+    /// Enters or leaves select mode, cross-fading the tab bar and the capsules in one animation.
     private func setSelecting(_ isOn: Bool) {
         let animation: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.15)
-        guard isOn else {
-            withAnimation(animation) { selection.end() }
-            return
-        }
-        // The system bar's animated hide drops its icons at once and leaves its empty glass behind,
-        // so it goes in one frame, alone: sharing an update with the animated `begin()` leaves it
-        // on screen. The capsules fade in on the next turn.
-        var instant = Transaction()
-        instant.disablesAnimations = true
-        withTransaction(instant) { selection.hideTabBar() }
-        Task { @MainActor in
-            withAnimation(animation) { selection.begin() }
+        withAnimation(animation) {
+            if isOn { selection.begin() } else { selection.end() }
         }
     }
 

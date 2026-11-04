@@ -47,16 +47,13 @@ enum ChatReadSource: Equatable {
 
 /// The Chats list's select mode: whether it is on, and which chats are picked.
 ///
-/// Owned by the tab view, which hides the tab bar while it is on, and handed to the list through the
-/// environment.
+/// Owned by the tab view, which fades the tab bar out while it is on, and handed to the list through
+/// the environment.
 @MainActor
 @Observable
 final class ChatSelection {
 
     private(set) var isActive = false
-    /// Whether the tab bar is hidden for select mode. Set apart from `isActive` so the list can hide
-    /// the bar without animation before the capsules animate in.
-    private(set) var hidesTabBar = false
     private(set) var selected: Set<ConversationID> = []
 
     /// Enters select mode with nothing selected.
@@ -65,15 +62,9 @@ final class ChatSelection {
         isActive = true
     }
 
-    /// Hides the tab bar ahead of `begin()`.
-    func hideTabBar() {
-        hidesTabBar = true
-    }
-
     /// Leaves select mode.
     func end() {
         isActive = false
-        hidesTabBar = false
         selected = []
     }
 

@@ -393,18 +393,19 @@ struct ChatMarkUnreadTests {
         #expect(ChatReadAction.markRead.title == "Mark as Read")
     }
 
-    @Test("Leaving select mode brings the tab bar back")
-    func endingSelectionShowsTabBar() {
+    @Test("Leaving select mode drops the picks")
+    func endingSelectionClearsPicks() {
         let selection = ChatSelection()
-        selection.hideTabBar()
+        let id = ConversationID.test(1)
         selection.begin()
-        #expect(selection.hidesTabBar)
+        selection.toggle(id)
         #expect(selection.isActive)
+        #expect(selection.selected == [id])
 
         selection.end()
 
-        #expect(!selection.hidesTabBar)
         #expect(!selection.isActive)
+        #expect(selection.selected.isEmpty)
     }
 
     private final class NoLinkCards: LinkCardSource {

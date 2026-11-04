@@ -476,7 +476,6 @@ struct ChatSelectionActions: View {
             .disabled(!hasSelection)
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 8)
     }
 }
 
