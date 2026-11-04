@@ -505,6 +505,21 @@ extension Analytics {
             error: error.map(chatResult)
         ))
     }
+
+    /// A chat was marked unread from the chat list.
+    static func chatMarkedUnread(chatType: ConversationType?, source: ChatReadSource) {
+        track(ChatEvents.shared.markedUnread(chatType: chatType.sharedChatType, source: source.shared))
+    }
+
+    /// A chat was marked read from the chat list.
+    static func chatMarkedRead(chatType: ConversationType?, source: ChatReadSource) {
+        track(ChatEvents.shared.markedRead(chatType: chatType.sharedChatType, source: source.shared))
+    }
+
+    /// Read All ran over the chat list; `count` is how many chats it read or unmarked.
+    static func chatsReadAll(count: Int) {
+        track(ChatEvents.shared.readAll(count: Int32(count)))
+    }
 }
 
 // MARK: - Group -

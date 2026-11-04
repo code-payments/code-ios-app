@@ -408,6 +408,129 @@ struct ChatMarkUnreadTests {
         #expect(selection.selected.isEmpty)
     }
 
+    // MARK: - Analytics
+
+    /// The read-action events among `sent`. Reading a chat also sends `Message Received` for what it read.
+    private func readEvents(_ sent: [SentEvent]) -> [SentEvent] {
+        sent.filter { ["Chat Marked Unread", "Chat Marked Read", "Chats Read All"].contains($0.name) }
+    }
+
+    private func expectEvents(
+        _ all: [SentEvent],
+        _ expected: [(name: String, properties: [String: String])],
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        let sent = readEvents(all)
+        #expect(sent.map(\.name) == expected.map(\.name), sourceLocation: sourceLocation)
+        for (event, want) in zip(sent, expected) {
+            #expect(event.properties.keys.sorted() == want.properties.keys.sorted(), sourceLocation: sourceLocation)
+            for (key, value) in want.properties {
+                #expect(event.properties[key] as? String == value, "\(event.name) \(key)", sourceLocation: sourceLocation)
+            }
+        }
+    }
+
+    @Test("A swipe sends Chat Marked Unread or Chat Marked Read with the chat type and Swipe")
+    func swipeSendsReadEvents() async throws {
+        let f = try await fixture(feed: [chat(1, pointer: 5)], groups: [chat(9, pointer: 2, type: .group)])
+
+        let unread = Analytics.recordingSends {
+            f.controller.perform(.markUnread, on: .test(1), source: .swipe)
+        }
+        expectEvents(unread, [("Chat Marked Unread", ["Chat Type": "Tip", "Source": "Swipe"])])
+
+        let read = Analytics.recordingSends {
+            f.controller.perform(.markRead, on: .test(9), source: .swipe)
+        }
+        expectEvents(read, [("Chat Marked Read", ["Chat Type": "Group", "Source": "Swipe"])])
+        try await settle(f.controller)
+    }
+
+    @Test("The context menu sends its read events with Menu")
+    func menuSendsReadEvents() async throws {
+        let f = try await fixture(feed: [chat(1, pointer: 5)])
+
+        let unread = Analytics.recordingSends {
+            f.controller.perform(.markUnread, on: .test(1), source: .menu)
+        }
+        expectEvents(unread, [("Chat Marked Unread", ["Chat Type": "Tip", "Source": "Menu"])])
+
+        // Marked with nothing unread: Mark as Read only clears the mark, and still sends the event.
+        let read = Analytics.recordingSends {
+            f.controller.perform(.markRead, on: .test(1), source: .menu)
+        }
+        expectEvents(read, [("Chat Marked Read", ["Chat Type": "Tip", "Source": "Menu"])])
+    }
+
+    @Test("Select mode's Read sends one Chat Marked Read per selected chat, read ones included")
+    func selectionReadSendsOnePerChat() async throws {
+        let f = try await fixture(feed: [chat(1, pointer: 2, last: 5)], groups: [chat(9, pointer: 5, type: .group)])
+        let ids: [ConversationID] = [.test(1), .test(9)]
+
+        let sent = Analytics.recordingSends {
+            f.controller.apply(f.controller.readToggle(for: ids), to: ids)
+        }
+
+        expectEvents(sent, [
+            ("Chat Marked Read", ["Chat Type": "Tip", "Source": "Selection"]),
+            ("Chat Marked Read", ["Chat Type": "Group", "Source": "Selection"]),
+        ])
+        try await settle(f.controller)
+    }
+
+    @Test("Select mode's Unread sends one Chat Marked Unread per selected chat")
+    func selectionUnreadSendsOnePerChat() async throws {
+        let f = try await fixture(feed: [chat(3, pointer: 5)], groups: [chat(9, pointer: 5, type: .group)])
+        let ids: [ConversationID] = [.test(3), .test(9)]
+
+        let sent = Analytics.recordingSends {
+            f.controller.apply(f.controller.readToggle(for: ids), to: ids)
+        }
+
+        expectEvents(sent, [
+            ("Chat Marked Unread", ["Chat Type": "Tip", "Source": "Selection"]),
+            ("Chat Marked Unread", ["Chat Type": "Group", "Source": "Selection"]),
+        ])
+    }
+
+    @Test("Read All sends one Chats Read All counting each chat read or unmarked once, and no per-chat events")
+    func readAllSendsCount() async throws {
+        let f = try await fixture(feed: [
+            chat(1, pointer: 2, last: 5),               // unread
+            chat(2, pointer: 5),                        // marked only
+            chat(3, pointer: 2, last: 5),               // unread and marked: counted once
+            chat(4, pointer: 5),                        // read
+            chat(5, pointer: 2, last: 5, muted: true),  // muted and unread
+            chat(6, pointer: 5),                        // archived, marked: not in the main list
+        ])
+        f.marks.mark(.test(2))
+        f.marks.mark(.test(3))
+        f.marks.mark(.test(6))
+        f.controller.archive(.test(6))
+
+        let sent = Analytics.recordingSends { _ = f.controller.readAllChats() }
+
+        let event = try readEvents(sent).single
+        #expect(event.name == "Chats Read All")
+        #expect(event.properties.keys.sorted() == ["Count"])
+        #expect(event.properties["Count"] as? Double == 4)
+        try await settle(f.controller)
+    }
+
+    @Test("Nothing is sent for a chat that can't take the action")
+    func noEventWithoutAnAction() async throws {
+        let f = try await fixture(feed: [chat(1, pointer: 5)])
+        // A group the user hasn't joined, and a stale Mark as Read on a chat that is already read.
+        let requested = chat(7, pointer: 5, type: .group)
+
+        let sent = Analytics.recordingSends {
+            f.controller.perform(.markUnread, on: requested.id, source: .swipe)
+            f.controller.perform(.markRead, on: .test(1), source: .swipe)
+        }
+
+        #expect(readEvents(sent).isEmpty)
+    }
+
     private final class NoLinkCards: LinkCardSource {
         func known(_ card: LinkCard) -> LinkCard.State? { nil }
         func states(for card: LinkCard) -> AsyncStream<LinkCard.State> { AsyncStream { $0.finish() } }

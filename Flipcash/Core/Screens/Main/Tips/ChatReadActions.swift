@@ -37,12 +37,20 @@ enum ChatReadAction: Equatable {
     }
 }
 
-/// Where a read action came from. The `Chat Marked Unread` and `Chat Marked Read` events carry it
-/// once the shared analytics catalogue that defines them is pinned.
+/// Where a read action came from, as the `Chat Marked Unread` and `Chat Marked Read` events report it.
 enum ChatReadSource: Equatable {
     case swipe
     case menu
     case selection
+
+    /// The shared catalogue's `Source`. The context menu is `Menu`, a value Android never sends.
+    var shared: SharedCoreKit.ChatReadSource {
+        switch self {
+        case .swipe:     .swipe
+        case .menu:      .menu
+        case .selection: .selection
+        }
+    }
 }
 
 /// The Chats list's select mode: whether it is on, and which chats are picked.
