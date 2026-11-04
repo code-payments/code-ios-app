@@ -393,6 +393,20 @@ struct ChatMarkUnreadTests {
         #expect(ChatReadAction.markRead.title == "Mark as Read")
     }
 
+    @Test("Leaving select mode brings the tab bar back")
+    func endingSelectionShowsTabBar() {
+        let selection = ChatSelection()
+        selection.hideTabBar()
+        selection.begin()
+        #expect(selection.hidesTabBar)
+        #expect(selection.isActive)
+
+        selection.end()
+
+        #expect(!selection.hidesTabBar)
+        #expect(!selection.isActive)
+    }
+
     private final class NoLinkCards: LinkCardSource {
         func known(_ card: LinkCard) -> LinkCard.State? { nil }
         func states(for card: LinkCard) -> AsyncStream<LinkCard.State> { AsyncStream { $0.finish() } }

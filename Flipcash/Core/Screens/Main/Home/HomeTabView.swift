@@ -100,7 +100,7 @@ struct HomeTabView: View {
 
     private var isTabBarHidden: Bool {
         if isSearchSelected { return sessionContainer.session.isShowingBill }
-        if selection == .chat, chatSelection.isActive { return true }
+        if selection == .chat, chatSelection.hidesTabBar { return true }
         return selection.hidesTabBar(
             isWalletCardExpanded: cardExpansion.isExpanded,
             isShowingBill: sessionContainer.session.isShowingBill,

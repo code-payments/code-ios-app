@@ -131,7 +131,10 @@ struct TipConversationsScreen: View {
                     // A bar, not a plain inset: hiding the tab bar takes its scroll edge blur with
                     // it, and only a bar puts one back behind the capsules.
                     .scrollEdgeBar(.bottom) {
-                        if isSelecting {
+                        // Inserted with the tab bar's instant hide and holding the capsules from
+                        // the first frame, so the edge blur never lapses; only their opacity and
+                        // scale animate, once select mode begins.
+                        if selection.hidesTabBar {
                             ChatSelectionActions(
                                 selected: selectedIDs(in: conversations),
                                 onReadAll: confirmReadAll,
@@ -145,7 +148,8 @@ struct TipConversationsScreen: View {
                                 },
                                 onDone: { setSelecting(false) }
                             )
-                            .transition(selectionBarTransition)
+                            .opacity(isSelecting ? 1 : 0)
+                            .scaleEffect(isSelecting || reduceMotion ? 1 : 0.9, anchor: .bottom)
                         }
                     }
                     .listStyle(.plain)
@@ -260,16 +264,22 @@ struct TipConversationsScreen: View {
 
     private var isSelecting: Bool { selection.isActive }
 
-    /// Enters or leaves select mode on one animation, so the tab bar and the capsules swap together.
+    /// Enters or leaves select mode. Leaving cross-fades the tab bar back over the capsules.
     private func setSelecting(_ isOn: Bool) {
         let animation: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.15)
-        withAnimation(animation) {
-            if isOn { selection.begin() } else { selection.end() }
+        guard isOn else {
+            withAnimation(animation) { selection.end() }
+            return
         }
-    }
-
-    private var selectionBarTransition: AnyTransition {
-        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9, anchor: .bottom))
+        // The system bar's animated hide drops its icons at once and leaves its empty glass behind,
+        // so it goes in one frame, alone: sharing an update with the animated `begin()` leaves it
+        // on screen. The capsules fade in on the next turn, over the bar's edge blur.
+        var instant = Transaction()
+        instant.disablesAnimations = true
+        withTransaction(instant) { selection.hideTabBar() }
+        Task { @MainActor in
+            withAnimation(animation) { selection.begin() }
+        }
     }
 
     @ToolbarContentBuilder private var toolbarTrailingItems: some ToolbarContent {
