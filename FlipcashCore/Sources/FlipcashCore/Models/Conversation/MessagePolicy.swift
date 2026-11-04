@@ -93,7 +93,7 @@ public struct MessagePolicy: Hashable, Sendable {
         switch capability {
         case .edit:                  editWindow
         case .delete:                deleteWindow
-        case .copy, .reply, .report, .forward, .savePhoto, .pin, .unpin, .silence, .remove: nil
+        case .copy, .reply, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin, .silence, .remove: nil
         }
     }
 

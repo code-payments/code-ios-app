@@ -130,15 +130,15 @@ struct ChatMediaViewerTests {
 
     private func makeViewer(
         _ request: ChatMediaViewerRequest,
-        onReply: @escaping () -> Void = {},
-        onForward: @escaping () -> Void = {},
+        onReply: @escaping (String) -> Void = { _ in },
+        onForward: @escaping (String) -> Void = { _ in },
         onSave: @escaping (UIImage, Data?) async throws -> Void = { _, _ in },
-        onReact: @escaping (String) -> Void = { _ in },
-        entries: @escaping () -> [ReactionStrip.Entry] = { [ReactionStrip.Entry(emoji: "👍", highlighted: false), ReactionStrip.Entry(emoji: "❤️", highlighted: false)] }
+        onReact: @escaping (String, String) -> Void = { _, _ in },
+        entries: @escaping (String) -> [ReactionStrip.Entry] = { _ in [ReactionStrip.Entry(emoji: "👍", highlighted: false), ReactionStrip.Entry(emoji: "❤️", highlighted: false)] }
     ) -> ChatMediaViewerController {
         let viewer = ChatMediaViewerController(
             request: request, onReply: onReply, onForward: onForward, onSave: onSave,
-            onReact: onReact, onMoreReactions: {}, reactionEntries: entries
+            onReact: onReact, onMoreReactions: { _ in }, reactionEntries: entries
         )
         viewer.view.frame = CGRect(x: 0, y: 0, width: 400, height: 800)
         viewer.view.layoutIfNeeded()
@@ -277,7 +277,7 @@ struct ChatMediaViewerTests {
     @Test("React opens the strip, a pick calls the handler and dismisses it, and the viewer stays")
     func reactStripPick() throws {
         var picked: String?
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { picked = $0 })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { _, emoji in picked = emoji })
         viewer.setControlsHidden(false, animated: false)
 
         viewer.reactButton.sendActions(for: .touchUpInside)
@@ -292,7 +292,7 @@ struct ChatMediaViewerTests {
     @Test("Hiding the chrome dismisses the strip without reacting")
     func hidingChromeDismissesStrip() throws {
         var picked: String?
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { picked = $0 })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { _, emoji in picked = emoji })
         viewer.setControlsHidden(false, animated: false)
         viewer.reactButton.sendActions(for: .touchUpInside)
         #expect(viewer.reactionStrip != nil)
@@ -306,7 +306,7 @@ struct ChatMediaViewerTests {
     func stripFollowsLiveReactions() async throws {
         let model = ReactionsModel()
         var reads = 0
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in
             reads += 1
             return [ReactionStrip.Entry(emoji: "👍", highlighted: model.liked)]
         })
@@ -331,7 +331,7 @@ struct ChatMediaViewerTests {
 
     @Test("With no reactions of its own the React button keeps the face icon")
     func reactButtonNoOwnReactions() throws {
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries([]) })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in self.ownEntries([]) })
         #expect(viewer.reactButton.configuration?.image != nil)
         #expect(titleText(viewer) == nil)
         #expect(viewer.reactButton.accessibilityLabel == "React")
@@ -339,21 +339,21 @@ struct ChatMediaViewerTests {
 
     @Test("One own reaction replaces the icon with that emoji")
     func reactButtonOneReaction() throws {
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["❤️"]) })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in self.ownEntries(["❤️"]) })
         #expect(titleText(viewer) == "❤️")
         #expect(viewer.reactButton.accessibilityLabel == "React, you reacted ❤️")
     }
 
     @Test("Three own reactions show all three, in strip order")
     func reactButtonThreeReactions() throws {
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["🔥", "👍", "😂"]) })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in self.ownEntries(["🔥", "👍", "😂"]) })
         #expect(titleText(viewer) == "👍😂🔥")
         #expect(viewer.reactButton.accessibilityLabel == "React, you reacted 👍, 😂 and 🔥")
     }
 
     @Test("More than three own reactions show the first two and a +N count")
     func reactButtonOverflow() throws {
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["👍", "❤️", "😂", "🔥", "😮"]) })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in self.ownEntries(["👍", "❤️", "😂", "🔥", "😮"]) })
         #expect(titleText(viewer) == "👍❤️+3")
         #expect(viewer.reactButton.accessibilityLabel?.hasPrefix("React, you reacted 👍") == true)
     }
@@ -371,7 +371,7 @@ struct ChatMediaViewerTests {
     @Test("The React button follows a pick or unpick while the viewer is open")
     func reactButtonFollowsLiveReactions() async throws {
         let model = ReactionsModel()
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in
             [ReactionStrip.Entry(emoji: "👍", highlighted: model.liked)]
         })
         #expect(titleText(viewer) == nil)

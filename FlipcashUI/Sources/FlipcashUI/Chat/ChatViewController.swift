@@ -870,13 +870,14 @@ public final class ChatViewController: UICollectionViewController {
             )
             cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onImageTap = { [weak self, weak cell] in
-                guard let self, let request = ChatMediaViewerRequest(
+                guard let self, var request = ChatMediaViewerRequest(
                     message: message,
                     localImage: localImage,
                     remote: remote,
                     placeholder: cell?.imageView.image,
                     sourceView: { [weak self] in self?.mediaSourceView(forMessageID: message.id) }
                 ) else { return }
+                request.stackPages = stackPages(for: media, front: request, canReact: message.canReact)
                 onMediaTap?(request)
             }
             cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
@@ -889,6 +890,28 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         default:
             assertionFailure("Unhandled chat cell class for message row")
+        }
+    }
+
+    /// The viewer's pages for a card stack fronted by `front`, or none for a photo drawn alone. The
+    /// photos behind the front one resolve their download when paged to.
+    private func stackPages(for media: ChatMediaContent, front: ChatMediaViewerRequest, canReact: Bool) -> [ChatMediaViewerRequest.Page] {
+        guard media.stackPhotos.count > 1 else { return [] }
+        return media.stackPhotos.enumerated().map { position, photo in
+            if position == 0 { return front.pages[0] }
+            let content = photo.content
+            return ChatMediaViewerRequest.Page(
+                messageID: photo.messageID,
+                blobID: photo.blobID,
+                localImage: nil,
+                placeholder: (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
+                    ?? BlurHashCache.shared.image(for: photo.blurhash),
+                canReply: photo.canReply,
+                canForward: photo.canForward,
+                remote: { [weak resolver = mediaURLResolver] in
+                    await resolver?.location(for: content, canReact: canReact)
+                }
+            )
         }
     }
 
@@ -1843,7 +1866,7 @@ extension ChatViewController {
                     if let body { UIPasteboard.general.string = body }
                 // The link rows need the chat's id, and Save Photo needs the app's photo library,
                 // neither of which this module holds.
-                case .reply, .edit, .delete, .report, .forward, .savePhoto, .pin, .unpin, .silence, .remove:
+                case .reply, .edit, .delete, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin, .silence, .remove:
                     handler?(rowID, action)
                 }
             }
@@ -2069,6 +2092,7 @@ extension MessageCapability {
         case .report: .exclamationBubble
         case .forward: .forwardArrow
         case .savePhoto: .saveToPhotos
+        case .saveAllPhotos: .saveAllToPhotos
         case .pin:    .pinFill
         case .unpin:  .pinSlash
         case .silence: .micSlash
@@ -2079,7 +2103,7 @@ extension MessageCapability {
     var isModeration: Bool {
         switch self {
         case .silence, .remove: true
-        case .copy, .reply, .edit, .delete, .report, .forward, .savePhoto, .pin, .unpin: false
+        case .copy, .reply, .edit, .delete, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin: false
         }
     }
 
@@ -2090,7 +2114,7 @@ extension MessageCapability {
         case .silence, .remove:
             guard let senderName else { return title }
             return "\(title) \(senderName)"
-        case .copy, .reply, .edit, .delete, .report, .forward, .savePhoto, .pin, .unpin:
+        case .copy, .reply, .edit, .delete, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin:
             return title
         }
     }

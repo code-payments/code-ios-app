@@ -19,6 +19,9 @@ public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable
     case forward
     /// Write the photo to the device's photo library, the way the full-screen viewer's save does.
     case savePhoto
+    /// Write every photo of a card stack to the device's photo library, oldest first. Offered on a
+    /// stack's front photo only, by the transcript, since a message alone can't tell it is in one.
+    case saveAllPhotos
     /// Pin the message to the top of the chat.
     case pin
     /// Take the message off the chat's pins.
@@ -42,6 +45,7 @@ extension MessageCapability {
         case .forward: "Forward"
         // Not "Save": the composer's edit button already carries that accessibility label.
         case .savePhoto: "Save Photo"
+        case .saveAllPhotos: "Save All"
         case .pin:    "Pin"
         case .unpin:  "Unpin"
         // The transcript menu adds the sender's first name; this is the fallback when none is known.
@@ -54,7 +58,7 @@ extension MessageCapability {
     public var isDestructive: Bool {
         switch self {
         // Report is red to match Report on the profile menus, though nothing is destroyed.
-        case .copy, .reply, .edit, .forward, .savePhoto, .pin, .unpin: false
+        case .copy, .reply, .edit, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin: false
         case .delete, .report, .silence, .remove: true
         }
     }

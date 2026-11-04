@@ -58,26 +58,81 @@ public struct ChatMediaViewerRequest {
         self.canReact = message.canReact
         self.canReply = message.actions.contains(.reply)
         self.canForward = message.actions.contains(.forward)
+        self.stackPages = []
+    }
+
+    /// One photo the viewer pages to: the photo itself and what its own message offers.
+    public struct Page {
+        /// The photo message's stable id, which every button on the page acts on.
+        public let messageID: String
+        public let blobID: BlobID?
+        public let localImage: UIImage?
+        /// Shown while the photo loads.
+        public let placeholder: UIImage?
+        public let canReply: Bool
+        public let canForward: Bool
+        /// Where the photo downloads from, waiting for the fetch when it isn't resolved yet.
+        public let remote: () async -> ChatMediaLocation?
+
+        public init(messageID: String, blobID: BlobID?, localImage: UIImage?, placeholder: UIImage?, canReply: Bool, canForward: Bool, remote: @escaping () async -> ChatMediaLocation?) {
+            self.messageID = messageID
+            self.blobID = blobID
+            self.localImage = localImage
+            self.placeholder = placeholder
+            self.canReply = canReply
+            self.canForward = canForward
+            self.remote = remote
+        }
+    }
+
+    /// The photos of the card stack the tapped row fronts, the tapped one first; empty for a photo
+    /// drawn alone.
+    public var stackPages: [Page]
+
+    /// What the viewer pages through: the stack, or the tapped photo alone.
+    var pages: [Page] {
+        guard stackPages.isEmpty else { return stackPages }
+        return [Page(
+            messageID: messageID,
+            blobID: blobID,
+            localImage: localImage,
+            placeholder: placeholder,
+            canReply: canReply,
+            canForward: canForward,
+            remote: { [remote] in remote }
+        )]
     }
 }
 
 /// A full-screen photo, zoomed in from the tapped transcript row: pinch or double-tap to zoom, swipe
 /// down or close to put it back. It opens with no buttons; a tap shows or hides them. The buttons react,
-/// reply, save to Photos and forward, with save waiting for the photo itself to load.
+/// reply, save to Photos and forward, with save waiting for the photo itself to load. A card stack
+/// opens on its front photo and swipes sideways through the rest under a "2 of 5" counter, each page
+/// acting on its own message.
 public final class ChatMediaViewerController: UIViewController, UIScrollViewDelegate {
 
     private static let maximumZoomScale: CGFloat = 4
     private static let doubleTapZoomScale: CGFloat = 2.5
 
     private let request: ChatMediaViewerRequest
-    private let onReply: () -> Void
-    private let onForward: () -> Void
+    private let pages: [ChatMediaViewerRequest.Page]
+    /// Which of `pages` is showing.
+    private(set) var pageIndex = 0
+    private var page: ChatMediaViewerRequest.Page { pages[pageIndex] }
+    private let onReply: (String) -> Void
+    private let onForward: (String) -> Void
     private let onSave: (UIImage, Data?) async throws -> Void
-    /// The photo's bytes as sent, read at save time; nil falls back to the drawn image.
+    /// The showing photo's bytes as sent, read at save time; nil falls back to the drawn image.
     var originalData: () -> Data?
-    private let onReact: (String) -> Void
-    private let onMoreReactions: () -> Void
-    private let reactionEntries: () -> [ReactionStrip.Entry]
+    private let onReact: (String, String) -> Void
+    private let onMoreReactions: (String) -> Void
+    private let entriesForMessage: (String) -> [ReactionStrip.Entry]
+    private var reactionEntries: () -> [ReactionStrip.Entry] {
+        { [entriesForMessage, messageID = page.messageID] in entriesForMessage(messageID) }
+    }
+    /// A stack's "2 of 5", hidden for a photo alone.
+    let pageCounter = UILabel()
+    private var loadTask: Task<Void, Never>?
     /// The user's own reaction emoji the React button currently shows, in strip order.
     private var ownReactionEmoji: [String] = []
     /// What the React button's chip stack currently draws; empty while it shows the face icon.
@@ -118,6 +173,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     }
 
     /// - Parameters:
+    ///   Every per-message callback gets the stable id of the photo showing.
     ///   - onReply: puts the composer into reply mode for the photo's message. Runs after the viewer dismisses.
     ///   - onForward: opens the message-link share for the photo's message. Runs after the viewer dismisses.
     ///   - onSave: writes the photo to the library, throwing when it can't. Gets the original bytes when held.
@@ -126,22 +182,24 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     ///   - reactionEntries: the emoji the strip offers; empty means there is no strip.
     public init(
         request: ChatMediaViewerRequest,
-        onReply: @escaping () -> Void,
-        onForward: @escaping () -> Void,
+        onReply: @escaping (String) -> Void,
+        onForward: @escaping (String) -> Void,
         onSave: @escaping (UIImage, Data?) async throws -> Void,
-        onReact: @escaping (String) -> Void,
-        onMoreReactions: @escaping () -> Void,
-        reactionEntries: @escaping () -> [ReactionStrip.Entry]
+        onReact: @escaping (_ messageID: String, _ emoji: String) -> Void,
+        onMoreReactions: @escaping (String) -> Void,
+        reactionEntries: @escaping (String) -> [ReactionStrip.Entry]
     ) {
         self.request = request
+        self.pages = request.pages
         self.onReply = onReply
         self.onForward = onForward
         self.onSave = onSave
-        self.originalData = { [blobID = request.blobID] in ChatMediaImageSource.originalData(blobID: blobID) }
+        self.originalData = { nil }
         self.onReact = onReact
         self.onMoreReactions = onMoreReactions
-        self.reactionEntries = reactionEntries
+        self.entriesForMessage = reactionEntries
         super.init(nibName: nil, bundle: nil)
+        originalData = { [weak self] in self.flatMap { ChatMediaImageSource.originalData(blobID: $0.page.blobID) } }
 
         let zoom = UIViewController.Transition.ZoomOptions()
         // A zoomed-in photo pans instead; the swipe down only dismisses at the fitted size.
@@ -206,13 +264,22 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
         // A system symbol, not the strip's "+" asset: that SVG carries a 0.5 group opacity and read dimmer than its neighbours.
         reactButton.isHidden = !request.canReact
-        replyButton.isHidden = !request.canReply
-        forwardButton.isHidden = !request.canForward
         install(leadingPill, buttons: [reactButton, replyButton])
         install(trailingPill, buttons: [saveButton, forwardButton])
-        // A pill with no buttons left would be an empty capsule.
-        leadingPill.isHidden = [reactButton, replyButton].allSatisfy(\.isHidden)
-        trailingPill.isHidden = [saveButton, forwardButton].allSatisfy(\.isHidden)
+        applyPageButtons()
+
+        pageCounter.font = .default(size: 15, weight: .semibold)
+        pageCounter.textColor = .white
+        pageCounter.isHidden = pages.count < 2
+        pageCounter.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(pageCounter)
+        if pages.count > 1 {
+            for direction in [UISwipeGestureRecognizer.Direction.left, .right] {
+                let swipe = UISwipeGestureRecognizer(target: self, action: #selector(swiped(_:)))
+                swipe.direction = direction
+                scrollView.addGestureRecognizer(swipe)
+            }
+        }
 
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -232,6 +299,8 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
             closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             closeButton.widthAnchor.constraint(equalToConstant: 44),
             closeButton.heightAnchor.constraint(equalToConstant: 44),
+            pageCounter.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            pageCounter.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
 
             leadingPill.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             leadingPill.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
@@ -314,8 +383,39 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         }
     }
 
+    /// Shows Reply and Forward when the showing photo's message offers them, and drops a pill left empty.
+    private func applyPageButtons() {
+        replyButton.isHidden = !page.canReply
+        forwardButton.isHidden = !page.canForward
+        leadingPill.isHidden = [reactButton, replyButton].allSatisfy(\.isHidden)
+        trailingPill.isHidden = [saveButton, forwardButton].allSatisfy(\.isHidden)
+        pageCounter.text = ChatMediaStrings.pageCounter(index: pageIndex, count: pages.count)
+        imageView.accessibilityValue = pages.count < 2 ? nil : pageCounter.text
+    }
+
+    @objc private func swiped(_ recognizer: UISwipeGestureRecognizer) {
+        // A zoomed-in photo pans instead.
+        guard scrollView.zoomScale <= scrollView.minimumZoomScale else { return }
+        showPage(pageIndex + (recognizer.direction == .left ? 1 : -1))
+    }
+
+    /// Moves to the photo at `index` of the stack, ignoring an index past either end.
+    func showPage(_ index: Int) {
+        guard pages.indices.contains(index), index != pageIndex else { return }
+        pageIndex = index
+        dismissReactionStrip(animated: false)
+        scrollView.setZoomScale(scrollView.minimumZoomScale, animated: false)
+        applyPageButtons()
+        refreshReactionChrome()
+        loadImage()
+        UIAccessibility.post(notification: .layoutChanged, argument: imageView)
+    }
+
     private func loadImage() {
-        if let staged = request.localImage {
+        loadTask?.cancel()
+        imageView.kf.cancelDownloadTask()
+        let page = page
+        if let staged = page.localImage {
             // Flattened onto white like the upload (`ChatMediaEncoder.render`), so transparent
             // pixels don't show the viewer's black ground. A background colour would also fill
             // the aspect-fit letterbox.
@@ -324,12 +424,19 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
             loadedImage = localImage
             return
         }
-        imageView.image = request.placeholder
+        imageView.image = page.placeholder
         loadedImage = nil
-        guard let remote = request.remote else { return }
+        loadTask = Task { [weak self] in
+            guard let remote = await page.remote(), !Task.isCancelled else { return }
+            self?.setImage(page, from: remote)
+        }
+    }
+
+    private func setImage(_ page: ChatMediaViewerRequest.Page, from remote: ChatMediaLocation) {
+        guard page.messageID == self.page.messageID else { return }
         imageView.kf.setImage(
-            with: ChatMediaImageSource.source(blobID: request.blobID, location: remote),
-            placeholder: request.placeholder,
+            with: ChatMediaImageSource.source(blobID: page.blobID, location: remote),
+            placeholder: page.placeholder,
             options: ChatMediaImageSource.options()
         ) { [weak self] result in
             ChatMediaImageSource.persist(result)
@@ -435,11 +542,14 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         strip.translatesAutoresizingMaskIntoConstraints = false
         strip.onSelect = { [weak self] emoji in
             self?.dismissReactionStrip(animated: true)
-            self?.onReact(emoji)
+            guard let self else { return }
+            onReact(page.messageID, emoji)
         }
         strip.onAdd = { [weak self] in
-            self?.dismissReactionStrip(animated: false)
-            self?.dismiss(animated: true) { self?.onMoreReactions() }
+            guard let self else { return }
+            dismissReactionStrip(animated: false)
+            let messageID = page.messageID
+            dismiss(animated: true) { [onMoreReactions] in onMoreReactions(messageID) }
         }
         view.addSubview(strip)
         NSLayoutConstraint.activate([
@@ -461,14 +571,20 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     /// Re-reads the entries whenever what `reactionEntries` reads changes, so the React button's emoji
     /// and, while it is open, the strip's highlights follow the message's live reactions.
     private func observeReactionEntries() {
+        // Paging re-observes; a change to the page left behind must not start a second chain.
+        observationGeneration += 1
+        let generation = observationGeneration
         _ = withObservationTracking {
             reactionEntries()
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
-                self?.refreshReactionChrome()
+                guard let self, generation == observationGeneration else { return }
+                refreshReactionChrome()
             }
         }
     }
+
+    private var observationGeneration = 0
 
     private func refreshReactionChrome() {
         observeReactionEntries()
@@ -568,11 +684,11 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     }
 
     @objc private func replyTapped() {
-        dismiss(animated: true) { [onReply] in onReply() }
+        dismiss(animated: true) { [onReply, messageID = page.messageID] in onReply(messageID) }
     }
 
     @objc private func forwardTapped() {
-        dismiss(animated: true) { [onForward] in onForward() }
+        dismiss(animated: true) { [onForward, messageID = page.messageID] in onForward(messageID) }
     }
 
     @objc private func saveTapped() {

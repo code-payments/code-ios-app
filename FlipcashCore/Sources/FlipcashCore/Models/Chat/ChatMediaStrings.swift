@@ -15,6 +15,16 @@ public enum ChatMediaStrings {
     /// Android doesn't decrypt photos.
     public static let undecryptable = "This photo can\u{2019}t be displayed"
 
+    /// A card stack's count pill: "5 photos".
+    public static func stackCount(_ count: Int) -> String {
+        "\(count) photos"
+    }
+
+    /// The viewer's place in a card stack: "2 of 5", from a zero-based `index`.
+    public static func pageCounter(index: Int, count: Int) -> String {
+        "\(index + 1) of \(count)"
+    }
+
     /// A quote's snippet for a photo: its caption, or "Photo" when it has none.
     public static func quoteSnippet(caption: String?) -> String {
         nonEmpty(caption).map { InviteLinkText.redacting($0) } ?? "Photo"

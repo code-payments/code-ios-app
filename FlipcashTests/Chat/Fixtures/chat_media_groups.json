@@ -1,0 +1,522 @@
+{
+  "algorithm": "chat-media-groups",
+  "note": "Client-side card-stack grouping for docs/superpowers/specs/2026-11-04-chat-media-design.md (C2). Input is one chat's messages in seq order. A stack is a maximal run of 2 or more messages where every message is a photo from the same sender, each seq is the previous seq + 1, each ts is within windowSeconds of the previous (inclusive), only the first may be a reply, and only the last may have a caption. Messages not listed in a stack draw as today. Group greedily from the oldest message.",
+  "windowSeconds": 2.0,
+  "cases": [
+    {
+      "name": "clean-set",
+      "note": "Five photos sent together, caption on the last.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.4,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 3,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.8,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 4,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.2,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 5,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.6,
+          "hasCaption": true,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      ]
+    },
+    {
+      "name": "single-photo",
+      "note": "One photo is never a stack.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.0,
+          "hasCaption": true,
+          "isReply": false
+        }
+      ],
+      "stacks": []
+    },
+    {
+      "name": "reply-starts-set",
+      "note": "The reply rides on the first photo, so it can start a set.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.0,
+          "hasCaption": false,
+          "isReply": true
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.5,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 3,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.0,
+          "hasCaption": true,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2,
+          3
+        ]
+      ]
+    },
+    {
+      "name": "reply-mid-run",
+      "note": "A reply photo can only start a set, so it splits the run.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.5,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 3,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.0,
+          "hasCaption": false,
+          "isReply": true
+        },
+        {
+          "seq": 4,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.5,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "caption-mid-run",
+      "note": "A captioned photo ends a set; the next photo starts a new one.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.5,
+          "hasCaption": true,
+          "isReply": false
+        },
+        {
+          "seq": 3,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 4,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.5,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "other-sender-between",
+      "note": "Another sender's message breaks the run.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.5,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 3,
+          "sender": "b",
+          "kind": "text",
+          "ts": 0.7,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 4,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 5,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.4,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ],
+        [
+          4,
+          5
+        ]
+      ]
+    },
+    {
+      "name": "other-sender-photo-adjacent",
+      "note": "Photos from different senders never share a stack.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.5,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 3,
+          "sender": "b",
+          "kind": "photo",
+          "ts": 0.9,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 4,
+          "sender": "b",
+          "kind": "photo",
+          "ts": 1.3,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "text-between",
+      "note": "A text message from the same sender breaks the run.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.5,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 3,
+          "sender": "a",
+          "kind": "text",
+          "ts": 0.8,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 4,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 5,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.2,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ],
+        [
+          4,
+          5
+        ]
+      ]
+    },
+    {
+      "name": "gap-at-window",
+      "note": "A gap of exactly windowSeconds still joins.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 10.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 12.0,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "gap-over-window",
+      "note": "A gap longer than windowSeconds splits the run.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 10.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 11.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 3,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 13.5,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 4,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 14.0,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "seq-gap",
+      "note": "Non-consecutive seq (a message not loaded or deleted between) splits the run.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0.5,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 4,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 5,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.5,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ],
+        [
+          4,
+          5
+        ]
+      ]
+    },
+    {
+      "name": "quick-separate-sends",
+      "note": "Two separate uncaptioned sends inside the window merge. Accepted, as in WhatsApp.",
+      "messages": [
+        {
+          "seq": 1,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 0,
+          "hasCaption": false,
+          "isReply": false
+        },
+        {
+          "seq": 2,
+          "sender": "a",
+          "kind": "photo",
+          "ts": 1.5,
+          "hasCaption": false,
+          "isReply": false
+        }
+      ],
+      "stacks": [
+        [
+          1,
+          2
+        ]
+      ]
+    }
+  ]
+}
