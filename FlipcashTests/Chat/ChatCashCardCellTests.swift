@@ -70,6 +70,19 @@ struct ChatCashCardCellTests {
         #expect((measure(offered(.sentBack)) - plain).rounded() == 20)
     }
 
+    @Test("Only the Sent Back footer draws its top divider")
+    func sendBackRow_dividerOnFooterOnly() {
+        let row = SendBackRowView()
+        row.apply(.available)
+        #expect(!row.isDividerVisible)
+        row.apply(.sending)
+        #expect(!row.isDividerVisible)
+        row.apply(.sentBack)
+        #expect(row.isDividerVisible)
+        row.apply(.available)
+        #expect(!row.isDividerVisible)
+    }
+
     @Test("A cell recycled from an offered card to a plain one drops the row")
     func reusedCell_sendBackToPlain_measuresFresh() {
         let cell = ChatCashCardCell(frame: .zero)

@@ -132,11 +132,11 @@ struct SendBackCaptionTests {
         #expect(line?.counterpart == "to Alex Morgan")
     }
 
-    @Test("9: the receiver of a return reads '<Name> sent back' / 'to you'")
+    @Test("9: the receiver of a return reads '<Name> sent back' / 'to You'")
     func returnReceiver() {
         let line = lines(cash(2, from: alex, to: me, returning(1)))
         #expect(line?.caption == "Alex Morgan sent back")
-        #expect(line?.counterpart == "to you")
+        #expect(line?.counterpart == "to You")
     }
 
     @Test("A return draws no Send Back row of its own")
