@@ -48,6 +48,11 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let counterpartLabel = UILabel()
     private let centerStack = UIStackView()
     private let sendBackRow = SendBackRowView()
+    /// The message and Send Back state this cell last drew, so a row that arrives on a card already
+    /// on screen can animate in while one known at first draw does not.
+    private var drawnSendBack: (id: String, state: ChatCashContent.SendBack?)?
+    /// Whether the last configure faded the Send Back row in; read by tests.
+    private(set) var didAnimateSendBackIn = false
     /// The counterpart line's gap to the card's foot, or to the Send Back row when one is drawn.
     private var counterpartToCardBottom: NSLayoutConstraint!
     private var counterpartToSendBackRow: NSLayoutConstraint!
@@ -184,6 +189,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         coinIcon.kf.cancelDownloadTask()
         coinIcon.image = nil
         reactionRow.prepareForReuse()
+        drawnSendBack = nil
     }
 
     /// - Parameter maxWidth: the card's width, in points. The owner derives it from the collection
@@ -207,7 +213,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         coinIcon.kf.setImage(with: cash.iconURL)
         counterpartLabel.text = cash.lines?.counterpart
         counterpartLabel.isHidden = cash.lines == nil
-        applySendBack(cash.sendBack)
+        applySendBack(cash.sendBack, id: message.id)
 
         card.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
@@ -229,11 +235,34 @@ public final class ChatCashCardCell: ChatColumnCell {
         card.alpha = isHighlighted ? 0.6 : 1
     }
 
+    /// Whether `state` arrives on a card this cell has already drawn for message `id`: the same
+    /// message, a different Send Back state, and a row to show. A first draw, or a cell reused for
+    /// another message, has nothing to animate from.
+    static func sendBackArrivesLate(
+        drawn: (id: String, state: ChatCashContent.SendBack?)?,
+        id: String,
+        state: ChatCashContent.SendBack?
+    ) -> Bool {
+        guard let drawn, drawn.id == id, let state else { return false }
+        return drawn.state != state
+    }
+
     /// Shows the Send Back row for `state`, or none. Read from the message on every configure, so a
     /// reused cell never keeps another row's spinner.
-    private func applySendBack(_ state: ChatCashContent.SendBack?) {
+    ///
+    /// A row or footer that arrives on a card already drawn (the status check resolving, a return
+    /// landing) fades in while the transcript's reflow spring grows the card to fit it. One known
+    /// when the card is first drawn appears with no animation.
+    private func applySendBack(_ state: ChatCashContent.SendBack?, id: String) {
+        let arrivesLate = Self.sendBackArrivesLate(drawn: drawnSendBack, id: id, state: state)
+        drawnSendBack = (id, state)
+        didAnimateSendBackIn = arrivesLate
         sendBackRow.isHidden = state == nil
         if let state { sendBackRow.apply(state) }
+        if arrivesLate {
+            UIView.performWithoutAnimation { sendBackRow.alpha = 0 }
+            ChatMotion.reflow.animate { [sendBackRow] in sendBackRow.alpha = 1 }
+        }
         // Deactivate before activating, so the two never hold the label at once.
         counterpartToCardBottom.isActive = false
         counterpartToSendBackRow.isActive = false
