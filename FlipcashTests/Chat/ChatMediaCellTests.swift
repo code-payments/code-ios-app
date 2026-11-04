@@ -182,6 +182,63 @@ struct ChatMediaCellTests {
         #expect(captionText(cell)?.text == "hi")
     }
 
+    // MARK: - Card stack -
+
+    private func stack(_ count: Int) -> ChatMediaContent {
+        let photos = (0..<count).map {
+            ChatMediaStackPhoto(
+                messageID: "\($0)", blobID: BlobID(data: Data([UInt8($0)])), width: 1179, height: 2556,
+                blurhash: Self.blurhash, isRedacted: false, sealed: nil, canReply: true, canForward: true
+            )
+        }
+        return ChatMediaContent(
+            blobID: BlobID(data: Data([0])), width: 1179, height: 2556, blurhash: Self.blurhash,
+            caption: nil, isRedacted: false, stackPhotos: count > 1 ? photos : []
+        )
+    }
+
+    private func stackCell(_ count: Int) -> ChatMediaCell {
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(with: ChatMessage(id: "0", content: .media(stack(count)), sender: .other), maxWidth: 240, localImage: nil, remote: nil)
+        cell.layoutIfNeeded()
+        return cell
+    }
+
+    @Test("A stack draws one back card per extra photo, two at most", arguments: [(1, 0), (2, 1), (3, 2), (5, 2)])
+    func backCardsPerPhoto(photos: Int, cards: Int) {
+        #expect(stackCell(photos).stackCards.filter { !$0.isHidden }.count == cards)
+    }
+
+    @Test("Two photos draw a single back card, never more cards than photos")
+    func twoPhotosDrawOneBackCard() {
+        let cell = stackCell(2)
+        #expect(cell.stackCards.filter { !$0.isHidden }.count == 1)
+        #expect(cell.stackCountLabel.text == "2 photos")
+    }
+
+    @Test("A stack's fanned cards stay inside the frame a single photo takes", arguments: [2, 3])
+    func fanStaysInsidePhotoFrame(photos: Int) throws {
+        let cell = stackCell(photos)
+        let single = stackCell(1)
+        let photoFrame = try #require(cell.stackCards.first?.superview).bounds
+        let singleFrame = try #require(single.stackCards.first?.superview).bounds
+        #expect(photoFrame.size == singleFrame.size, "\(photoFrame) vs \(singleFrame)")
+        for card in cell.stackCards where !card.isHidden {
+            #expect(photoFrame.insetBy(dx: -0.5, dy: -0.5).contains(card.frame), "\(card.frame) in \(photoFrame)")
+        }
+    }
+
+    @Test("The fit scale is 1 unturned and keeps a turned card's bounds inside its frame")
+    func stackFitScale() {
+        let size = CGSize(width: 240, height: 320)
+        #expect(ChatMediaCell.stackFitScale(for: size, angle: 0) == 1)
+        let scale = ChatMediaCell.stackFitScale(for: size, angle: ChatMediaCell.stackFanAngle)
+        let turned = CGRect(origin: .zero, size: size)
+            .applying(CGAffineTransform(rotationAngle: ChatMediaCell.stackFanAngle).scaledBy(x: scale, y: scale))
+        #expect(scale < 1)
+        #expect(turned.width <= size.width + 0.001 && turned.height <= size.height + 0.001)
+    }
+
     @Test("An edited caption shows the text bubble's Edited marker; an unedited one does not", arguments: [true, false])
     func editedCaptionShowsMarker(isEdited: Bool) {
         let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))

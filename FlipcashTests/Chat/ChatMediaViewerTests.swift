@@ -155,6 +155,25 @@ struct ChatMediaViewerTests {
         #expect(viewer.closeButton.accessibilityElementsHidden)
     }
 
+    @Test("A stack opens with its counter showing on a dark pill, over the hidden controls")
+    func stackOpensWithCounterPill() throws {
+        var stack = try #require(request(message(media()), localImage: Self.localImage))
+        stack.stackPages = Array(repeating: stack.pages[0], count: 3)
+        let viewer = makeViewer(stack)
+
+        #expect(viewer.areControlsHidden)
+        #expect(!viewer.pageCounterPill.isHidden)
+        #expect(viewer.pageCounterPill.alpha == 1)
+        #expect(viewer.pageCounter.text == "1 of 3")
+        #expect(viewer.pageCounter.isDescendant(of: viewer.pageCounterPill))
+    }
+
+    @Test("A single photo shows no counter")
+    func singlePhotoHasNoCounter() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        #expect(viewer.pageCounterPill.isHidden)
+    }
+
     @Test("A tap shows the buttons, and a second tap hides them again")
     func tapTogglesControls() throws {
         let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))

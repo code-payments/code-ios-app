@@ -167,7 +167,6 @@ public final class ChatMediaCell: ChatColumnCell {
             card.isHidden = true
             card.isAccessibilityElement = false
             card.translatesAutoresizingMaskIntoConstraints = false
-            card.transform = CGAffineTransform(rotationAngle: position == 0 ? -Self.stackFanAngle : Self.stackFanAngle)
         }
         stackCountLabel.font = .default(size: 13, weight: .semibold)
         stackCountLabel.textColor = .white
@@ -473,6 +472,7 @@ public final class ChatMediaCell: ChatColumnCell {
             card.isHidden = false
         }
         stackCountPill.isHidden = photos.count < 2
+        setNeedsLayout()
         stackCountLabel.text = photos.count < 2 ? nil : ChatMediaStrings.stackCount(photos.count)
         imageBubble.accessibilityLabel = photos.count < 2 ? "Photo" : ChatMediaStrings.stackCount(photos.count)
     }
@@ -480,6 +480,32 @@ public final class ChatMediaCell: ChatColumnCell {
     public override func layoutSubviews() {
         super.layoutSubviews()
         stackCountPill.layer.cornerRadius = stackCountPill.bounds.height / 2
+        layOutStackFan()
+    }
+
+    /// Shrinks a stack's front photo and the cards behind it so the fan fits the frame a single
+    /// photo takes: rows keep their usual gaps, and the timestamp reveal and avatar gutter stay clear.
+    private func layOutStackFan() {
+        // The photo sits a few views down; size it now, or the first pass fans at full size.
+        stack.layoutIfNeeded()
+        let isStack = stackCards.contains { !$0.isHidden }
+        let scale = isStack ? Self.stackFitScale(for: imageBubble.bounds.size, angle: Self.stackFanAngle) : 1
+        imageBubble.transform = scale == 1 ? .identity : CGAffineTransform(scaleX: scale, y: scale)
+        for (position, card) in stackCards.enumerated() {
+            card.transform = CGAffineTransform(rotationAngle: position == 0 ? -Self.stackFanAngle : Self.stackFanAngle)
+                .scaledBy(x: scale, y: scale)
+        }
+    }
+
+    /// The scale at which a `size` card turned by `angle` about its center fits inside `size`.
+    static func stackFitScale(for size: CGSize, angle: CGFloat) -> CGFloat {
+        guard size.width > 0, size.height > 0 else { return 1 }
+        let cosine = cos(angle), sine = abs(sin(angle))
+        return min(
+            1,
+            size.width / (size.width * cosine + size.height * sine),
+            size.height / (size.width * sine + size.height * cosine)
+        )
     }
 
     private func drawImage(for rowID: String, blobID: BlobID?, blurhash: String?, localImage: UIImage?, remote: ChatMediaLocation?, size: CGSize) {
@@ -541,8 +567,11 @@ extension ChatMediaCell: BubbleCarrying {
 
     var liftPreviewMaskingPath: UIBezierPath? {
         let path = UIBezierPath()
+        // A stack's front photo is drawn scaled down (`layOutStackFan`); its frame already is.
+        let photoShape = imageBubble.maskingPath
+        photoShape.apply(imageBubble.transform)
         let bubbles: [(frame: CGRect, shape: UIBezierPath)] = [
-            (imageBubble.frame, imageBubble.maskingPath),
+            (imageBubble.frame, photoShape),
             (captionBubble.frame, captionBubble.maskingPath),
             (captionCardBubble.frame, captionCardBubble.maskingPath),
             (captionTrailingBubble.frame, captionTrailingBubble.maskingPath),

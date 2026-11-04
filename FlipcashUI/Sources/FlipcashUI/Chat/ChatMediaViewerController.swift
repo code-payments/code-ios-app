@@ -132,6 +132,11 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     }
     /// A stack's "2 of 5", hidden for a photo alone.
     let pageCounter = UILabel()
+    /// The dark pill behind the counter, so it reads over any photo, a white screenshot included.
+    let pageCounterPill = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+    /// Darkens the photo under the top and bottom controls while they show.
+    private let topScrim = ChromeScrimView(fadingDown: true)
+    private let bottomScrim = ChromeScrimView(fadingDown: false)
     private var loadTask: Task<Void, Never>?
     /// The user's own reaction emoji the React button currently shows, in strip order.
     private var ownReactionEmoji: [String] = []
@@ -150,7 +155,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     let trailingPill = ChatMediaViewerController.makePill()
 
     /// The views a tap shows and hides.
-    private var chrome: [UIView] { [closeButton, leadingPill, trailingPill] }
+    private var chrome: [UIView] { [closeButton, leadingPill, trailingPill, topScrim, bottomScrim] }
 
     /// Whether Reduce Motion is on. Settable so tests can drive both modes.
     var reducesMotion: () -> Bool = { UIAccessibility.isReduceMotionEnabled }
@@ -268,11 +273,22 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         install(trailingPill, buttons: [saveButton, forwardButton])
         applyPageButtons()
 
+        for scrim in [topScrim, bottomScrim] {
+            scrim.isUserInteractionEnabled = false
+            scrim.translatesAutoresizingMaskIntoConstraints = false
+            view.insertSubview(scrim, aboveSubview: scrollView)
+        }
+
         pageCounter.font = .default(size: 15, weight: .semibold)
         pageCounter.textColor = .white
-        pageCounter.isHidden = pages.count < 2
         pageCounter.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(pageCounter)
+        pageCounterPill.contentView.addSubview(pageCounter)
+        pageCounterPill.clipsToBounds = true
+        pageCounterPill.layer.cornerCurve = .continuous
+        pageCounterPill.isUserInteractionEnabled = false
+        pageCounterPill.isHidden = pages.count < 2
+        pageCounterPill.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(pageCounterPill)
         if pages.count > 1 {
             for direction in [UISwipeGestureRecognizer.Direction.left, .right] {
                 let swipe = UISwipeGestureRecognizer(target: self, action: #selector(swiped(_:)))
@@ -299,8 +315,21 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
             closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             closeButton.widthAnchor.constraint(equalToConstant: 44),
             closeButton.heightAnchor.constraint(equalToConstant: 44),
-            pageCounter.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            pageCounter.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
+            pageCounter.topAnchor.constraint(equalTo: pageCounterPill.contentView.topAnchor, constant: 6),
+            pageCounter.bottomAnchor.constraint(equalTo: pageCounterPill.contentView.bottomAnchor, constant: -6),
+            pageCounter.leadingAnchor.constraint(equalTo: pageCounterPill.contentView.leadingAnchor, constant: 12),
+            pageCounter.trailingAnchor.constraint(equalTo: pageCounterPill.contentView.trailingAnchor, constant: -12),
+            pageCounterPill.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            pageCounterPill.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
+
+            topScrim.topAnchor.constraint(equalTo: view.topAnchor),
+            topScrim.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            topScrim.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            topScrim.bottomAnchor.constraint(equalTo: closeButton.bottomAnchor, constant: 32),
+            bottomScrim.topAnchor.constraint(equalTo: leadingPill.topAnchor, constant: -32),
+            bottomScrim.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bottomScrim.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bottomScrim.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
             leadingPill.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             leadingPill.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
@@ -317,6 +346,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        pageCounterPill.layer.cornerRadius = pageCounterPill.bounds.height / 2
         guard #unavailable(iOS 26) else { return }
         closeButton.layer.cornerRadius = closeButton.bounds.height / 2
         for pill in [leadingPill, trailingPill] {
@@ -736,3 +766,19 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     }
 }
 #endif
+
+/// A black-to-clear gradient that keeps the viewer's white controls legible over a bright photo.
+private final class ChromeScrimView: UIView {
+
+    override static var layerClass: AnyClass { CAGradientLayer.self }
+
+    init(fadingDown: Bool) {
+        super.init(frame: .zero)
+        let gradient = layer as! CAGradientLayer
+        let colors = [UIColor.black.withAlphaComponent(0.45).cgColor, UIColor.clear.cgColor]
+        gradient.colors = fadingDown ? colors : colors.reversed()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+}
