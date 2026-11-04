@@ -204,6 +204,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onPaymentRequestTap = newValue }
     }
 
+    /// Called with a cash message's id when its receiver taps Send Back.
+    public var onSendBack: ((String) -> Void)? {
+        get { transcript.onSendBack }
+        set { transcript.onSendBack = newValue }
+    }
+
     public var onOpenURL: ((URL) -> Void)? {
         get { transcript.onOpenURL }
         set { transcript.onOpenURL = newValue }
@@ -355,6 +361,11 @@ public final class ChatScreenViewController: UIViewController {
     public var reportsReads: Bool {
         get { transcript.reportsReads }
         set { transcript.reportsReads = newValue }
+    }
+    /// Whether the first open lands on the unread divider — see ``ChatViewController/opensAtUnreadDivider``.
+    public var opensAtUnreadDivider: Bool {
+        get { transcript.opensAtUnreadDivider }
+        set { transcript.opensAtUnreadDivider = newValue }
     }
 
     /// Forwards a reaction-pill tap from the transcript, with the row's id and the toggled emoji.

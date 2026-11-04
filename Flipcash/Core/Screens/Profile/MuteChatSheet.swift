@@ -20,9 +20,19 @@ import FlipcashUI
 /// and it appears only once there is a mute to clear.
 struct MuteChatSheet: View {
 
-    let conversationID: ConversationID
+    /// The chats a choice applies to: one from a row or the chat's settings, several from select mode.
+    let conversationIDs: [ConversationID]
 
     @Binding var isPresented: Bool
+
+    init(conversationID: ConversationID, isPresented: Binding<Bool>) {
+        self.init(conversationIDs: [conversationID], isPresented: isPresented)
+    }
+
+    init(conversationIDs: [ConversationID], isPresented: Binding<Bool>) {
+        self.conversationIDs = conversationIDs
+        self._isPresented = isPresented
+    }
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
@@ -58,8 +68,9 @@ struct MuteChatSheet: View {
     /// away: read live, the list gained or lost its first row on the way out.
     @State private var pinnedOffersUnmute: Bool?
 
+    /// Every chat muted; with any audible one the choice mutes, so "Never" would do nothing to it.
     private var isMuted: Bool {
-        conversationController.conversation(withID: conversationID)?.isMuted(at: .now) ?? false
+        !conversationIDs.isEmpty && conversationIDs.allSatisfy { conversationController.isMuted(conversationID: $0) }
     }
 
     /// Whether to offer the unmute at all — on an audible chat it is a row that would do nothing.
@@ -117,20 +128,20 @@ struct MuteChatSheet: View {
         pinnedOffersUnmute = offersUnmute
         isWorking = true
         defer { isWorking = false }
-        let chatType = conversationController.conversation(withID: conversationID)?.type
+        let chatTypes = conversationIDs.map { conversationController.conversation(withID: $0)?.type }
         do {
             switch option {
             case .until(let offset, _):
-                try await conversationController.mute(conversationID: conversationID, .until(.now.addingTimeInterval(offset)))
+                try await conversationController.mute(conversationIDs, .until(.now.addingTimeInterval(offset)))
             case .forever:
-                try await conversationController.mute(conversationID: conversationID, .forever)
+                try await conversationController.mute(conversationIDs, .forever)
             case .never:
-                try await conversationController.unmute(conversationID: conversationID)
+                try await conversationController.unmute(conversationIDs)
             }
-            track(option, chatType: chatType, error: nil)
+            chatTypes.forEach { track(option, chatType: $0, error: nil) }
             isPresented = false
         } catch {
-            track(option, chatType: chatType, error: error)
+            track(option, chatType: chatTypes.first ?? nil, error: error)
             isPresented = false
             let unmuting = option == .never
             sessionContainer.session.dialogItem = .error(

@@ -681,7 +681,7 @@ struct ChatProfileScreen: View {
                     Button {
                         router.push(.silencedMembers(conversationID))
                     } label: {
-                        Label("Restricted", systemImage: "speaker.slash")
+                        Label("Restricted", systemImage: "mic.slash")
                     }
                     Button {
                         router.push(.removedMembers(conversationID))

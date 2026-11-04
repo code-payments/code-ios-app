@@ -1133,6 +1133,12 @@ class Session {
         )
     }
 
+    /// Whether cash message `messageID` in `conversationID` can still be sent back, and the intent id
+    /// to send it under. The intent id is never logged or reported.
+    func cashMessageReturnStatus(conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus {
+        try await flipClient.getCashMessageReturnStatus(owner: ownerKeyPair, conversationID: conversationID, messageID: messageID)
+    }
+
     private func submitDirect(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?, intentID: PublicKey?) async throws {
         try assertFresh(verifiedState, operation: "send", currency: amount.nativeAmount.currency, mint: amount.mint)
 
@@ -1155,7 +1161,7 @@ class Session {
             "mint": "\(mint.base58)",
             "recipientOwner": "\(recipientOwner.base58)",
             "recipientVault": "\(recipientVault.base58)",
-            "rendezvous": "\(tracesRendezvous ? rendezvous.base58 : "server-issued")",
+            "rendezvous": "\(Self.rendezvousLogValue(rendezvous, serverIssued: !tracesRendezvous))",
             "hasChatMetadata": "\(chat != nil)",
         ])
 
@@ -1176,7 +1182,7 @@ class Session {
             guard !(error is CancellationError) else { throw error }
             logger.error("Send failed", metadata: [
                 "recipientOwner": "\(recipientOwner.base58)",
-                "rendezvous": "\(tracesRendezvous ? rendezvous.base58 : "server-issued")",
+                "rendezvous": "\(Self.rendezvousLogValue(rendezvous, serverIssued: !tracesRendezvous))",
                 "amount": "\(amount.nativeAmount.formatted())",
                 "error": "\(error)",
             ])
@@ -1188,10 +1194,23 @@ class Session {
                     userFacing: true
                 )
             } else {
-                ErrorReporting.captureError(error, reason: "Requested payment failed", userFacing: true)
+                ErrorReporting.captureError(error, reason: Self.serverIssuedFailureReason(chat), userFacing: true)
             }
             throw error
         }
+    }
+
+    /// What the payment logs show for its rendezvous. A server-issued intent id is private to the
+    /// payment, so it is never written out.
+    nonisolated static func rendezvousLogValue(_ rendezvous: PublicKey, serverIssued: Bool) -> String {
+        serverIssued ? "server-issued" : rendezvous.base58
+    }
+
+    /// What a failed payment under a server-issued intent id is reported as: a return of a DM's
+    /// opening payment, or a payment request share.
+    nonisolated static func serverIssuedFailureReason(_ chat: ChatPaymentMetadata?) -> String {
+        if case .returnPayment = chat { return "Send back failed" }
+        return "Requested payment failed"
     }
 
     /// `fiat` (in `pin.rate.currency`) priced in `mint` at `pin`, or nil when it can't be priced.

@@ -166,6 +166,35 @@ struct DatabaseConversationsTests {
         #expect(loaded.map(\.cashReceiverID) == [receiver, nil])
     }
 
+    @Test("A cash message's return offer and returned message round-trip, and a plain cash message reads back nil")
+    func cashReturnRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        func cash(_ n: UInt64, _ cashReturn: CashReturn?) -> ConversationMessage {
+            ConversationMessage(
+                id: MessageID(value: n),
+                senderID: UUID(),
+                content: .cash(ExchangedFiat(
+                    onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+                    nativeAmount: FiatAmount(value: 1, currency: .usd),
+                    currencyRate: Rate(fx: 1, currency: .usd)
+                )),
+                cashReturn: cashReturn,
+                date: Date(timeIntervalSince1970: TimeInterval(n)),
+                unreadSeq: n
+            )
+        }
+        let offer = CashReturn(hasOffer: true, returnOf: nil)
+        let returning = CashReturn(hasOffer: false, returnOf: .init(messageID: MessageID(value: 1)))
+        let both = CashReturn(hasOffer: true, returnOf: .init(messageID: MessageID(value: 2)))
+
+        try database.upsertConversationMessages([cash(1, offer), cash(2, returning), cash(3, both), cash(4, nil)], conversationID: id)
+        let loaded = try database.getConversationMessages(conversationID: id)
+
+        #expect(loaded.map(\.cashReturn) == [offer, returning, both, nil])
+    }
+
     @Test("Widget messages round-trip, including a payment request, and a widget with no username reads back as unrecognized")
     func widgetMessageRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

@@ -29,6 +29,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onCashCardTap: (String) -> Void
     /// Fired with a payment request's id bytes when its card is tapped. The owner opens Request details.
     var onPaymentRequestTap: (Data) -> Void = { _ in }
+    /// Fired with a cash message's id when its receiver taps Send Back.
+    var onSendBack: (String) -> Void = { _ in }
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
@@ -152,8 +154,13 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var snapDistanceFromNewest: CGFloat? = nil
     /// The latest request to land on a message, from a message link; each new token scrolls once.
     var messageJump: MessageJump? = nil
+    /// Draws the transcript alone, for the chat list's long-press preview: no bar, no jump button,
+    /// no touches, opened at the newest message. Read reporting is the caller's to turn off, through
+    /// `reportsReads` and `onMessagesSeen`, as it is for the screen.
+    var isReadOnlyPreview = false
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
+        if isReadOnlyPreview { return makePreviewController(context: context) }
         let jump = JumpToBottomModel()
         context.coordinator.jump = jump
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -183,6 +190,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onPaymentRequestTap = onPaymentRequestTap
+        screen.onSendBack = onSendBack
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile
@@ -233,7 +241,38 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         return screen
     }
 
+    /// The transcript with the same rows, cells and attribution as the screen, over a plain empty
+    /// bar the clip closes to nothing. Nothing in it takes a touch.
+    private func makePreviewController(context: Context) -> ChatScreenViewController {
+        let screen = ChatScreenViewController(bar: UIView())
+        screen.opensAtUnreadDivider = false
+        screen.authorAvatars = authorAvatars
+        screen.ownProfile = ownProfile
+        screen.linkCardSource = linkCardSource
+        screen.updateAction = updateAction
+        context.coordinator.mintMediaURL = mintMediaURL
+        context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
+        screen.mediaURLResolver = context.coordinator.mediaURLResolver
+        screen.reactionStripEntries = reactionStripEntries
+        screen.onMessagesSeen = onMessagesSeen
+        screen.reportsReads = reportsReads
+        screen.loadViewIfNeeded()
+        screen.view.isUserInteractionEnabled = false
+        screen.setBarHeight(0, accessories: BarAccessories())
+        screen.update(items: items)
+        context.coordinator.screen = screen
+        context.coordinator.lastMessageID = lastMessageID(of: items)
+        return screen
+    }
+
     func updateUIViewController(_ screen: ChatScreenViewController, context: Context) {
+        if isReadOnlyPreview {
+            screen.authorAvatars = authorAvatars
+            screen.onMessagesSeen = onMessagesSeen
+            screen.reportsReads = reportsReads
+            screen.update(items: items)
+            return
+        }
         // Re-supply the bar with current inputs; SwiftUI diffs it, so the composer's draft and
         // focus survive across updates.
         context.coordinator.barHost?.rootView = bar(coordinator: context.coordinator)
@@ -248,6 +287,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onPaymentRequestTap = onPaymentRequestTap
+        screen.onSendBack = onSendBack
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile

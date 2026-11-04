@@ -103,6 +103,8 @@ final class ConversationController {
     var chatListProjection: ChatListProjection<ConversationID> {
         // Reading the store's tracked set here is what makes archiving re-render the list.
         let archived = chatArchive?.archivedIDs ?? []
+        // Same for the marks: reading the tracked set re-renders rows, chips and the badge.
+        let marked = chatMarkedUnread?.markedIDs ?? []
         let entries = chatListSource.map { conversation in
             ChatListEntry(
                 id: conversation.id,
@@ -111,7 +113,7 @@ final class ConversationController {
                 isArchived: archived.contains(conversation.id),
                 isMuted: conversation.isMuted(at: .now),
                 isHidden: conversation.isHidden,
-                unread: chatListUnread(for: conversation),
+                unread: chatListUnread(for: conversation, isMarked: marked.contains(conversation.id)),
                 joinRequests: chatListJoinRequests(for: conversation.id)
             )
         }
@@ -130,8 +132,14 @@ final class ConversationController {
         return ChatListJoinRequests(count: requests.count, newestEnteredAt: requests.compactMap(\.enteredAt).max())
     }
 
-    private func chatListUnread(for conversation: Conversation) -> ChatListUnread {
-        guard conversation.hasUnread(for: selfUserID) else { return .count(0) }
+    /// The unread state the list rules see for `conversation`, mark included.
+    func chatListUnread(for conversation: Conversation) -> ChatListUnread {
+        chatListUnread(for: conversation, isMarked: isMarkedUnread(conversation.id))
+    }
+
+    /// A marked chat with nothing unread is the no-count unread state; a known count wins over the mark.
+    private func chatListUnread(for conversation: Conversation, isMarked: Bool) -> ChatListUnread {
+        guard conversation.hasUnread(for: selfUserID) else { return isMarked ? .unknown : .count(0) }
         return unreadCount(for: conversation).map(ChatListUnread.count) ?? .unknown
     }
 
@@ -167,6 +175,116 @@ final class ConversationController {
 
     func unarchive(_ id: ConversationID) {
         chatArchive?.unarchive(id)
+    }
+
+    /// Archives every chat in `ids`.
+    func archive(_ ids: [ConversationID]) {
+        ids.forEach(archive)
+    }
+
+    /// Unarchives every chat in `ids`.
+    func unarchive(_ ids: [ConversationID]) {
+        ids.forEach(unarchive)
+    }
+
+    // MARK: - Mark unread
+
+    /// Whether the user marked the chat unread on this device.
+    func isMarkedUnread(_ id: ConversationID) -> Bool {
+        chatMarkedUnread?.markedIDs.contains(id) ?? false
+    }
+
+    /// Unread messages or a mark: what decides between Mark as Read and Mark as Unread. A pending
+    /// join request doesn't count; it is not something reading the chat clears.
+    func isUnread(_ conversation: Conversation) -> Bool {
+        conversation.hasUnread(for: selfUserID) || isMarkedUnread(conversation.id)
+    }
+
+    /// The read action a chat's swipe, menu and selection offer; nil for a chat the user hasn't
+    /// joined, such as one still in Requests, which can't be marked.
+    func readAction(for conversation: Conversation) -> ChatReadAction? {
+        guard !ChatListSelection.source(from: [conversation], isMember: store.isMember(of:)).isEmpty else { return nil }
+        return isUnread(conversation) ? .markRead : .markUnread
+    }
+
+    /// Runs `action` on one chat, and reports it when it is the action the chat offers.
+    func perform(_ action: ChatReadAction, on id: ConversationID, source: ChatReadSource) {
+        if let conversation = conversation(withID: id), readAction(for: conversation) == action {
+            switch action {
+            case .markRead:   Analytics.chatMarkedRead(chatType: conversation.type, source: source)
+            case .markUnread: Analytics.chatMarkedUnread(chatType: conversation.type, source: source)
+            }
+        }
+        switch action {
+        case .markRead:   markRead(id, source: source)
+        case .markUnread: markUnread(id, source: source)
+        }
+    }
+
+    /// Marks the chat unread on this device. Sends nothing.
+    func markUnread(_ id: ConversationID, source: ChatReadSource) {
+        guard let conversation = conversation(withID: id), readAction(for: conversation) != nil else { return }
+        chatMarkedUnread?.mark(id)
+    }
+
+    /// Clears the mark and advances READ to the newest message, the same call opening the chat makes.
+    /// Other members see the receipt. A chat with nothing unread sends nothing.
+    func markRead(_ id: ConversationID, source: ChatReadSource) {
+        chatMarkedUnread?.clear(id)
+        guard let conversation = conversation(withID: id),
+              conversation.hasUnread(for: selfUserID),
+              let newest = conversation.lastMessage?.id
+        else { return }
+        advanceReadPointer(to: newest, in: id)
+    }
+
+    /// Read All: reads every unread chat in the main list, muted included, and clears every mark
+    /// there. Archived chats keep theirs. Returns how many chats it read, for analytics.
+    @discardableResult
+    func readAllChats() -> Int {
+        let unread = chatListConversations.filter(isUnread)
+        for conversation in unread {
+            markRead(conversation.id, source: .menu)
+        }
+        Analytics.chatsReadAll(count: unread.count)
+        return unread.count
+    }
+
+    /// The select-mode read capsule: reads every chat in `ids`, or marks them all, per `toggle`.
+    /// Read All with nothing selected goes through ``readAllChats()`` after its confirmation instead.
+    /// Sends one read event per selected chat, whatever that chat's own state was.
+    func apply(_ toggle: ChatSelectionReadToggle, to ids: [ConversationID]) {
+        let types = ids.compactMap(conversation(withID:)).map(\.type)
+        switch toggle {
+        case .readAll:
+            return
+        case .read:
+            types.forEach { Analytics.chatMarkedRead(chatType: $0, source: .selection) }
+            ids.forEach { markRead($0, source: .selection) }
+        case .unread:
+            types.forEach { Analytics.chatMarkedUnread(chatType: $0, source: .selection) }
+            ids.forEach { markUnread($0, source: .selection) }
+        }
+    }
+
+    /// The read capsule for a selection of `ids`.
+    func readToggle(for ids: [ConversationID]) -> ChatSelectionReadToggle {
+        ChatSelectionReadToggle(selectedUnread: ids.compactMap(conversation(withID:)).map(isUnread))
+    }
+
+    /// The mute capsule for a selection of `ids`.
+    func muteToggle(for ids: [ConversationID]) -> ChatSelectionMute {
+        ChatSelectionMute(selectedMuted: ids.map { isMuted(conversationID: $0) })
+    }
+
+    /// Whether Read All has anything to do.
+    var hasUnreadInChatList: Bool {
+        chatListConversations.contains(where: isUnread)
+    }
+
+    /// Called as a chat opens: opening it is reading it, so the mark goes.
+    func chatOpened(_ id: ConversationID) {
+        chatMarkedUnread?.clear(id)
     }
 
     /// The unread count a conversation row shows; nil when the chat is unread but its READ
@@ -414,6 +532,9 @@ final class ConversationController {
     /// The session's archive record, wired by `SessionAuthenticator` after construction like
     /// `chatDrafts`; tests attach one only when they exercise archive.
     @ObservationIgnored var chatArchive: ChatArchiveStore?
+
+    /// The chats marked unread on this device, wired by `SessionAuthenticator` like ``chatArchive``.
+    @ObservationIgnored var chatMarkedUnread: (any ChatMarkedUnreadStore)?
 
     @ObservationIgnored var chatDrafts: ChatDraftStore? {
         didSet { failedSends = chatDrafts.map(FailedSendDrafts.init(store:)) }
@@ -1398,6 +1519,7 @@ final class ConversationController {
         // The server clears archive with mute on leave, so the local record is stale the moment the
         // leave lands. A hidden chat's record is deliberately left alone elsewhere (rule 5).
         chatArchive?.unarchive(conversationID)
+        chatMarkedUnread?.clear(conversationID)
     }
 
     /// Records the signed-in user's own join or leave when a roster update names them, so a membership
@@ -1460,6 +1582,20 @@ final class ConversationController {
     func unmute(conversationID: ConversationID) async throws {
         let viewerState = try await viewerSettings.unmuteChat(owner: owner, conversationID: conversationID)
         applyViewerState(viewerState, in: conversationID)
+    }
+
+    /// Mutes every chat in `ids` until `mute` lapses, one call each, stopping at the first failure.
+    func mute(_ ids: [ConversationID], _ mute: ConversationMuteState) async throws {
+        for id in ids {
+            try await self.mute(conversationID: id, mute)
+        }
+    }
+
+    /// Unmutes every chat in `ids`, one call each, stopping at the first failure.
+    func unmute(_ ids: [ConversationID]) async throws {
+        for id in ids {
+            try await unmute(conversationID: id)
+        }
     }
 
     /// Seats a viewer state the RPC returned through the same version comparison a streamed
@@ -1799,15 +1935,40 @@ final class ConversationController {
             return "Typing…"
         }
         guard let message = conversation.lastMessage else { return nil }
+        return messagePreview(
+            message,
+            in: conversation,
+            knownAuthors: knownAuthors,
+            viewerAmount: viewerAmount,
+            requestTitle: requestTitle,
+            currencyName: currencyName
+        )
+    }
+
+    /// One message as a line of text, attributed to whoever wrote it: what the feed row shows for
+    /// the last message, and what the long-press preview shows for each of the last few.
+    func messagePreview(
+        _ message: ConversationMessage,
+        in conversation: Conversation,
+        knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
+        viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
+        requestTitle: (PaymentRequestID) -> String? = { _ in nil },
+        attributed: Bool = true,
+        currencyName: (PublicKey) -> String?
+    ) -> String? {
         let isFromSelf = message.isFromSelf(selfUserID)
-        let senderName = groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf, knownAuthors: knownAuthors)
+        // Unattributed lines drop the "You:" / "Name:" prefix: the preview's bubble side and sender
+        // label already say who wrote them.
+        let senderName = attributed
+            ? groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf, knownAuthors: knownAuthors)
+            : nil
 
         switch message.content {
         case .text(let text):
             // A bare prefix says less than no line at all, so an empty body previews as nothing.
             guard !text.isEmpty else { return nil }
             let text = InviteLinkText.redacting(text)
-            if isFromSelf { return "You: \(text)" }
+            if isFromSelf && attributed { return "You: \(text)" }
             guard let senderName else { return text }
             return "\(senderName): \(text)"
 
@@ -1836,7 +1997,7 @@ final class ConversationController {
 
         case .media(_, let caption):
             let body = ChatMediaStrings.listPreview(caption: caption)
-            if isFromSelf { return "You: \(body)" }
+            if isFromSelf && attributed { return "You: \(body)" }
             guard let senderName else { return body }
             return "\(senderName): \(body)"
 
@@ -1926,7 +2087,7 @@ final class ConversationController {
     /// attribution: the viewer's own message is covered by "You", and a DM's other party is what
     /// the row is already titled after. A sender the chat's roster subset omits is named from
     /// `knownAuthors`, and left unattributed until the directory has a name for them.
-    private func groupSenderName(
+    func groupSenderName(
         for message: ConversationMessage,
         in conversation: Conversation,
         isFromSelf: Bool,

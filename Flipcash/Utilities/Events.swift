@@ -302,6 +302,28 @@ extension Analytics {
         )
     }
 
+    /// A swiped Send Back ended. `alreadyReturned` is a failure with `Error` = `Already Returned`:
+    /// the server says the payment was sent back already, so this swipe paid nothing. Carries no
+    /// intent, chat or message id.
+    static func sentCashBack(exchangedFiat: ExchangedFiat, error: Error?, alreadyReturned: Bool = false) {
+        track(
+            TransferEvents.shared.sentCash(
+                state: alreadyReturned ? .failure : .from(error),
+                amount: exchangedFiat.analyticsAmount,
+                error: alreadyReturned ? "Already Returned" : nil,
+                context: .sendBack,
+                recipientCount: nil
+            ),
+            error: alreadyReturned ? nil : error
+        )
+    }
+
+    /// The receiver of a DM's opening payment tapped Send Back. `hasBalance` is false when the
+    /// insufficient-balance modal showed instead of the confirm sheet.
+    static func sendBackTapped(hasBalance: Bool) {
+        track(TransferEvents.shared.sendBackTapped(hasBalance: hasBalance))
+    }
+
     /// A reaction boost was paid for. `exchangedFiat` is the whole boost, before the split.
     /// `error` is nil on success.
     static func sentBoost(chatType: ConversationType?, exchangedFiat: ExchangedFiat, error: Error?) {
@@ -482,6 +504,21 @@ extension Analytics {
             state: .from(error),
             error: error.map(chatResult)
         ))
+    }
+
+    /// A chat was marked unread from the chat list.
+    static func chatMarkedUnread(chatType: ConversationType?, source: ChatReadSource) {
+        track(ChatEvents.shared.markedUnread(chatType: chatType.sharedChatType, source: source.shared))
+    }
+
+    /// A chat was marked read from the chat list.
+    static func chatMarkedRead(chatType: ConversationType?, source: ChatReadSource) {
+        track(ChatEvents.shared.markedRead(chatType: chatType.sharedChatType, source: source.shared))
+    }
+
+    /// Read All ran over the chat list; `count` is how many chats it read or unmarked.
+    static func chatsReadAll(count: Int) {
+        track(ChatEvents.shared.readAll(count: Int32(count)))
     }
 }
 

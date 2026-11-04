@@ -101,6 +101,8 @@ struct ConversationScreen: View {
     @State private var reactionPickerRequest: ReactionPickerRequest?
     /// The paid reaction whose sheet is open, once the "$" picker has chosen its emoji.
     @State private var paidReactionTarget: ReactionBoostTarget?
+    /// The Send Back offer whose confirm sheet is open.
+    @State private var sendBackOffer: SendBackOffer?
     /// The group send whose card was tapped, shown in the details sheet.
     @State private var groupSendDetails: GroupSendDetails?
     /// The payment request whose details sheet is open.
@@ -486,6 +488,7 @@ struct ConversationScreen: View {
             onPaymentRequestTap: { data in
                 afterKeyboardLowered { paymentRequestDetails = PaymentRequestSelection(id: PaymentRequestID(data: data)) }
             },
+            onSendBack: { id in afterKeyboardLowered { tapSendBack(id) } },
             onOpenURL: openLink,
             onMentionTap: openMention,
             onShareProfile: shareProfile,
@@ -737,6 +740,11 @@ struct ConversationScreen: View {
         }
         .sheet(item: $paidReactionTarget) { target in
             PaidReactionSheet(target: target, selfReactions: selfReactions(on: target.messageID))
+        }
+        .sheet(item: $sendBackOffer) { offer in
+            SendBackSheet(offer: offer) { offer in
+                _ = await coordinator?.sendBack?.confirm(offer)
+            }
         }
         .sheet(item: $reactorsRequest, onDismiss: {
             guard let userID = pendingReactorProfile else { return }
@@ -1287,6 +1295,8 @@ struct ConversationScreen: View {
         content
         .task(id: conversationID) {
             guard let conversationID else { return }
+            // Opening a chat is reading it, so a mark from the list goes, whatever the gate says.
+            conversationController.chatOpened(conversationID)
             // Ensure the conversation metadata is in the store before the title, tip styling, and Send
             // Cash target rely on it. The post-tip open (and any push/link that lands here before the
             // feed or stream has the freshly-created chat) would otherwise render the unresolved
@@ -1844,6 +1854,45 @@ struct ConversationScreen: View {
         }
     }
 
+    /// Send Back for one open of `id`. Not gated on chat type: the row follows the message's offer.
+    private func makeSendBack(_ id: ConversationID) -> SendBackController? {
+        let router = router
+        return SendBackController(
+            conversationID: id,
+            services: LiveSendBackServices(session: session, ratesController: ratesController),
+            analytics: LiveSendBackAnalytics(),
+            presenter: LiveSendBackPresenter(session: session, ratesController: ratesController) { mint in
+                router.push(.currencyInfoForDeposit(mint))
+            }
+        )
+    }
+
+    /// The receiver's tap on Send Back: the balance check, then the confirm sheet or the
+    /// insufficient-balance modal. The id is the row's stable id; resolve it to the cash message.
+    private func tapSendBack(_ messageID: String) {
+        guard let conversationID,
+              let sendBack = coordinator?.sendBack,
+              let message = (coordinator?.loader.messages ?? []).first(where: { $0.stableID == messageID }),
+              case .cash(let fiat) = message.content,
+              let senderID = message.senderID
+        else { return }
+        let balance = session.balance(for: fiat.mint)
+        let offer = SendBackOffer(
+            conversationID: conversationID,
+            messageID: message.id,
+            senderID: senderID,
+            original: fiat,
+            recipientName: title,
+            token: balance?.name ?? "Cash",
+            iconURL: balance?.imageURL
+        )
+        Task {
+            if let confirmed = await sendBack.tap(offer) {
+                sendBackOffer = confirmed
+            }
+        }
+    }
+
     /// The gate panel's CTA: buys the mint the requirement names, or opens add-cash when there is no
     /// one token to buy — a requirement spanning every holding, and a dollar-token one, which is
     /// satisfied by adding cash rather than by swapping into the thing the cash already is. Both
@@ -2120,6 +2169,7 @@ struct ConversationScreen: View {
                 session: session,
                 knownAuthors: sessionContainer.knownAuthors,
                 paymentRequests: sessionContainer.paymentRequests,
+                sendBack: makeSendBack(id),
                 openingLoadLanded: loadedConversationID == id
             )
         }

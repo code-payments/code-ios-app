@@ -31,7 +31,17 @@ struct ActivityRow: View {
 
     var body: some View {
         Button {
-            router.push(.transactionDetails(activity))
+            guard activity.returnedPayment != nil else {
+                router.push(.transactionDetails(activity))
+                return
+            }
+            let conversations = sessionContainer.conversationController
+            Task {
+                let destination = await Self.destination(for: activity) {
+                    await conversations.hydratedConversation(withID: $0) != nil
+                }
+                router.push(destination)
+            }
         } label: {
             content
         }
@@ -111,7 +121,8 @@ struct ActivityRow: View {
             boostedReaction: activity.boostedReaction,
             name: resolution.counterpartyName,
             chatName: boostChatName,
-            serverTitle: activity.title
+            serverTitle: activity.title,
+            isReturn: activity.returnedPayment != nil
         ) ?? activity.title
     }
 
@@ -135,12 +146,41 @@ struct ActivityRow: View {
         boostedReaction: Activity.BoostedReaction?,
         name: String?,
         chatName: String?,
-        serverTitle: String
+        serverTitle: String,
+        isReturn: Bool = false
     ) -> String? {
+        if isReturn {
+            return returnTitle(kind: kind, name: name)
+        }
         guard let boostedReaction else {
             return peerTitle(kind: kind, name: name, serverTitle: serverTitle)
         }
         return boostTitle(kind: kind, emoji: boostedReaction.emoji, name: name, chatName: chatName)
+    }
+
+    /// Where a tap on the row goes: a payment that sent back a DM's opening payment opens that DM
+    /// when `dmExists` finds it, stored or fetched from the server; every other row, and one whose
+    /// DM is gone or can't be fetched, opens its details.
+    static func destination(
+        for activity: Activity,
+        dmExists: (ConversationID) async -> Bool
+    ) async -> AppRouter.Destination {
+        if let returned = activity.returnedPayment, await dmExists(returned.conversationID) {
+            return .tipConversation(returned.conversationID)
+        }
+        return .transactionDetails(activity)
+    }
+
+    /// How a payment that sent back a DM's opening payment is titled: "Sent back to <name>" by the
+    /// one who returned it, "<name> sent back" to the one it returned to. `nil` until the
+    /// counterparty resolves, so the caller falls back to the server's title.
+    static func returnTitle(kind: Activity.Kind, name: String?) -> String? {
+        guard let name, !name.isEmpty else { return nil }
+        switch kind {
+        case .gave:     return "Sent back to \(name)"
+        case .received: return "\(name) sent back"
+        default:        return nil
+        }
     }
 
     /// How a boosted payment is titled: "Boosted 🔥 for Sally" / "Boost 🔥 from Sally" once the

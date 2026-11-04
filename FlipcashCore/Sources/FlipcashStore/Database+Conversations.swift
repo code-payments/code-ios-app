@@ -772,7 +772,9 @@ nonisolated extension Database {
                     m.systemAdmittedBy    <- systemAdmittedBy,
                     m.systemInvitedBy     <- systemInvitedBy,
                     m.cashPaymentsJson    <- Self.encodeCashPayments(message.cashPayments),
-                    m.cashReceiverId      <- message.cashReceiverID
+                    m.cashReceiverId      <- message.cashReceiverID,
+                    m.cashReturnOffer     <- message.cashReturn.map(\.hasOffer),
+                    m.cashReturnOfId      <- message.cashReturn?.returnOf?.messageID.value
                 )
             )
             return true
@@ -850,6 +852,14 @@ nonisolated extension Database {
 
     nonisolated private static func decodeCashPayments(_ data: Data?) -> [CashPayment] {
         data.flatMap { try? JSONDecoder().decode([CashPayment].self, from: $0) } ?? []
+    }
+
+    /// The `CashReturn` a cash row's two columns hold; nil when the row neither offers a return nor
+    /// is one.
+    nonisolated static func decodeCashReturn(offer: Bool?, returnOf: UInt64?) -> CashReturn? {
+        let returnOf = returnOf.map { CashReturn.ReturnOf(messageID: MessageID(value: $0)) }
+        guard offer == true || returnOf != nil else { return nil }
+        return CashReturn(hasOffer: offer == true, returnOf: returnOf)
     }
 
     nonisolated private static func decodeReactions(_ data: Data?) -> ReactionState? {
@@ -1039,6 +1049,7 @@ nonisolated extension Database {
             cashAction: cashAction,
             cashReceiverID: row[m.cashReceiverId],
             cashPayments: Self.decodeCashPayments(row[m.cashPaymentsJson]),
+            cashReturn: Self.decodeCashReturn(offer: row[m.cashReturnOffer], returnOf: row[m.cashReturnOfId]),
             date: date,
             unreadSeq: row[m.unreadSeq],
             eventSequence: row[m.eventSequence],

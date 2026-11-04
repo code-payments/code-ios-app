@@ -32,13 +32,23 @@ struct RecipientRowScaffold<Trailing: View>: View {
     /// The viewer's mute on this chat, drawn right after the title. The mute rather than a
     /// muted flag — ``MuteBell`` owns the countdown, because a timed one lapses with nothing sent.
     var mute: ConversationMuteState? = nil
+    /// Select mode: nil outside it; otherwise whether this row is picked. A leading circle shows it
+    /// and the row tints while picked.
+    var selection: Bool? = nil
     let accessibilityLabel: String
     let onTap: () -> Void
     @ViewBuilder let trailing: Trailing
 
     var body: some View {
+        let isSelecting = selection != nil
         Button(action: onTap) {
-            RecipientRowBody(
+            // Always laid out, never inserted: an inserted circle with a move transition slid on its
+            // own while the content beside it jumped.
+            RecipientRowSelectReveal(progress: isSelecting ? 1 : 0) {
+                RecipientRowSelectCircle(isSelected: selection == true)
+                    .opacity(isSelecting ? 1 : 0)
+                    .accessibilityHidden(!isSelecting)
+                RecipientRowBody(
                 avatarID: avatarID,
                 title: title,
                 subtitle: subtitle,
@@ -46,11 +56,78 @@ struct RecipientRowScaffold<Trailing: View>: View {
                 blurhash: blurhash,
                 accessoryPlacement: accessoryPlacement,
                 mute: mute
-            ) {
-                trailing
+                ) {
+                    trailing
+                }
             }
+            // Inside the row: a List cell doesn't reliably pick up an animation set on the List.
+            .animation(.smooth(duration: 0.3), value: isSelecting)
         }
-        .recipientRowChrome(accessibilityLabel: accessibilityLabel)
+        .recipientRowChrome(accessibilityLabel: accessibilityLabel, isSelected: selection == true)
+        .accessibilityAddTraits(selection == true ? .isSelected : [])
+    }
+}
+
+/// Lays out select mode's circle and the row content beside it from one `progress`: 0 outside
+/// select mode, 1 in it. Takes exactly two subviews, the circle then the content.
+///
+/// Animating `progress` lays the whole row out again on every frame, so avatar, title, subtitle,
+/// and trailing content slide right as one block. The circle stays at the leading edge and fades
+/// in with the same animation. Animating a slot's width instead let each `Text` re-truncate and
+/// cross-fade on its own.
+private struct RecipientRowSelectReveal: Layout {
+
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    /// The circle plus the gap after it: the width the row's content moves right by.
+    private static let slot: CGFloat = 22 + 12
+
+    private var offset: CGFloat { Self.slot * progress }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let content = subviews[1].sizeThatFits(
+            ProposedViewSize(width: proposal.width.map { max(0, $0 - offset) }, height: proposal.height)
+        )
+        let circle = subviews[0].sizeThatFits(.unspecified)
+        return CGSize(width: offset + content.width, height: max(content.height, circle.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews[0].place(
+            at: CGPoint(x: bounds.minX, y: bounds.midY),
+            anchor: .leading,
+            proposal: .unspecified
+        )
+        subviews[1].place(
+            at: CGPoint(x: bounds.minX + offset, y: bounds.minY),
+            anchor: .topLeading,
+            proposal: ProposedViewSize(width: max(0, bounds.width - offset), height: bounds.height)
+        )
+    }
+}
+
+/// Select mode's leading circle: the same 22pt outline and filled check as Select People.
+private struct RecipientRowSelectCircle: View {
+
+    let isSelected: Bool
+
+    var body: some View {
+        // One image whose symbol swaps, so a tap changes the circle in place. Two images in an
+        // if/else would be two views, and the tap would swap one for the other instead of the symbol.
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.system(size: 22))
+            // A white check on the unread blue, the selection colour the design uses.
+            .symbolRenderingMode(isSelected ? .palette : .monochrome)
+            .foregroundStyle(
+                isSelected ? Color.textMain : Color.textSecondary,
+                Color.unreadIndicator
+            )
+            .contentTransition(.symbolEffect(.replace))
     }
 }
 
@@ -117,11 +194,12 @@ struct RecipientRowBody<Trailing: View>: View {
 private extension View {
     /// Row chrome shared by every conversation row: list insets, clear
     /// background, separator tint, and single-element button accessibility.
-    func recipientRowChrome(accessibilityLabel: String) -> some View {
+    func recipientRowChrome(accessibilityLabel: String, isSelected: Bool = false) -> some View {
         self
             .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
-            .listRowBackground(Color.clear)
+            // A picked row in select mode takes the row fill; otherwise rows sit on the screen.
+            .listRowBackground(isSelected ? Color.backgroundRow : Color.clear)
             .listRowSeparatorTint(.rowSeparator)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(accessibilityLabel))
@@ -139,6 +217,8 @@ struct RecipientRowAccessory: View {
     /// The count the unread pill carries. Nil while unread draws a bare dot: the count can't
     /// always be known, and a guessed number would be wrong.
     var unreadCount: Int? = nil
+    /// Off in select mode, where a tap picks the row rather than opening it.
+    var showsChevron = true
 
     var body: some View {
         let count = hasUnread ? unreadCount.flatMap { $0 > 0 ? $0 : nil } : nil
@@ -159,7 +239,7 @@ struct RecipientRowAccessory: View {
                 Circle()
                     .fill(Color.unreadIndicator)
                     .frame(width: 9, height: 9)
-            } else {
+            } else if showsChevron {
                 Image(systemName: "chevron.right")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
