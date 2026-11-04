@@ -4,5 +4,5 @@ import FlipcashCore
 extension Bundle {
 
     /// FlipcashUI's resource bundle (assets, fonts, emoji catalog).
-    nonisolated static let flipcashUI = packageResources(named: "FlipcashUI_FlipcashUI", fallback: .module)
+    static let flipcashUI = packageResources(named: "FlipcashUI_FlipcashUI", fallback: .module)
 }
