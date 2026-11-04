@@ -20,6 +20,7 @@ struct TipConversationsScreen: View {
     @State private var muteTarget: MuteTarget?
     @State private var filter: ChatListFilter = .all
     @Environment(ToastController.self) private var toasts
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
     @State private var chipsRevealed = false
     @State private var isTabBarOnSide = false
@@ -127,22 +128,24 @@ struct TipConversationsScreen: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.2), value: isSelecting)
-                    .safeAreaInset(edge: .bottom) {
+                    // A bar, not a plain inset: hiding the tab bar takes its scroll edge blur with
+                    // it, and only a bar puts one back behind the capsules.
+                    .scrollEdgeBar(.bottom) {
                         if isSelecting {
                             ChatSelectionActions(
                                 selected: selectedIDs(in: conversations),
                                 onReadAll: confirmReadAll,
                                 onMute: { ids in
                                     muteTarget = MuteTarget(ids: ids)
-                                    selection.end()
+                                    setSelecting(false)
                                 },
                                 onArchive: { ids in
                                     archive(ids)
-                                    selection.end()
+                                    setSelecting(false)
                                 },
-                                onDone: selection.end
+                                onDone: { setSelecting(false) }
                             )
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .transition(selectionBarTransition)
                         }
                     }
                     .listStyle(.plain)
@@ -182,7 +185,7 @@ struct TipConversationsScreen: View {
         .toolbar {
             if isSelecting {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Done", action: selection.end)
+                    Button("Done") { setSelecting(false) }
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
                         .accessibilityIdentifier("chat-select-done")
@@ -191,7 +194,7 @@ struct TipConversationsScreen: View {
                 ToolbarItem(placement: .topBarLeading) {
                     ChatListMoreMenu(
                         canReadAll: conversationController.hasUnreadInChatList,
-                        onSelect: selection.begin,
+                        onSelect: { setSelecting(true) },
                         onReadAll: confirmReadAll
                     )
                 }
@@ -257,6 +260,18 @@ struct TipConversationsScreen: View {
 
     private var isSelecting: Bool { selection.isActive }
 
+    /// Enters or leaves select mode on one animation, so the tab bar and the capsules swap together.
+    private func setSelecting(_ isOn: Bool) {
+        let animation: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.15)
+        withAnimation(animation) {
+            if isOn { selection.begin() } else { selection.end() }
+        }
+    }
+
+    private var selectionBarTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9, anchor: .bottom))
+    }
+
     @ToolbarContentBuilder private var toolbarTrailingItems: some ToolbarContent {
         if showsSearchButton {
             ToolbarItem(placement: .topBarTrailing) {
@@ -290,7 +305,7 @@ struct TipConversationsScreen: View {
     private func confirmReadAll() {
         sessionContainer.session.dialogItem = .markAllChatsRead {
             conversationController.readAllChats()
-            selection.end()
+            setSelecting(false)
         }
     }
 
