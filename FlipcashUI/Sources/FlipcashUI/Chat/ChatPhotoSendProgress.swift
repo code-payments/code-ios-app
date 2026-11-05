@@ -45,6 +45,32 @@ public final class ChatPhotoSendProgress {
         }
     }
 
+    /// One phase for photos sent together, which a stack's front draws for the whole send: nil
+    /// counts as a photo already confirmed, and a failed one is left out. Preparing until any has
+    /// bytes going out, then the share of the send uploaded, with each photo past its upload
+    /// counting as done, then the slowest of the rest. Nil when none has progress.
+    public static func combined(_ phases: [Phase?]) -> Phase? {
+        guard phases.contains(where: { $0 != nil }) else { return nil }
+        let live = phases.map { $0 ?? .sent }.filter { $0 != .failed }
+        guard !live.isEmpty else { return .failed }
+        if live.allSatisfy({ $0 == .preparing }) { return .preparing }
+        func uploaded(_ phase: Phase) -> Double? {
+            switch phase {
+            case .preparing:                  0
+            case .uploading(let fraction):    fraction
+            case .processing, .sending, .sent: nil
+            case .failed:                     nil
+            }
+        }
+        if live.contains(where: { uploaded($0) != nil }) {
+            let total = live.reduce(0) { $0 + (uploaded($1) ?? 1) }
+            return .uploading(fraction: total / Double(live.count))
+        }
+        if live.contains(.processing) { return .processing }
+        if live.contains(.sending) { return .sending }
+        return .sent
+    }
+
     /// Starts an upload attempt over, including after a failure or a retried store.
     public func beginAttempt() {
         phase = .preparing

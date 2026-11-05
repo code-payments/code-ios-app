@@ -874,11 +874,14 @@ public final class ChatViewController: UICollectionViewController {
                 self?.reconfigureVisibleMessage(id: message.id)
             }
             let localImage = pendingMediaImage?(message.id)
+            let behind = media.stackPhotos.dropFirst().map(\.messageID)
             cell.configure(
                 with: message,
                 maxWidth: cardMaxWidth,
                 localImage: localImage,
                 progress: pendingMediaProgress?(message.id),
+                stackImages: Dictionary(behind.compactMap { id in pendingMediaImage?(id).map { (id, $0) } }) { first, _ in first },
+                stackProgress: behind.map { pendingMediaProgress?($0) },
                 remote: remote,
                 quoteThumbnail: quoteThumbnail(for: message),
                 authorImageData: authorImageData,
@@ -916,11 +919,13 @@ public final class ChatViewController: UICollectionViewController {
         return media.stackPhotos.enumerated().map { position, photo in
             if position == 0 { return front.pages[0] }
             let content = photo.content
+            let localImage = pendingMediaImage?(photo.messageID)
             return ChatMediaViewerRequest.Page(
                 messageID: photo.messageID,
                 blobID: photo.blobID,
-                localImage: nil,
-                placeholder: (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
+                localImage: localImage,
+                placeholder: localImage
+                    ?? (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
                     ?? BlurHashCache.shared.image(for: photo.blurhash),
                 canReply: photo.canReply,
                 canForward: photo.canForward,

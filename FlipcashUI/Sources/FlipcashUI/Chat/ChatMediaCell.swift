@@ -318,6 +318,8 @@ public final class ChatMediaCell: ChatColumnCell {
     ///   - maxWidth: the transcript's widest bubble, which the photo always spans.
     ///   - localImage: the picked image of a pending send this device staged, or nil.
     ///   - progress: the send progress of a pending photo this device staged, or nil.
+    ///   - stackImages: the picked images of a stack's photos this device is sending, by message id.
+    ///   - stackProgress: the send progress of each photo behind a stack's front, nil once confirmed.
     ///   - remote: where the photo downloads from, or nil until it is resolved.
     ///   - quoteThumbnail: where a quoted photo's thumbnail loads from, or nil.
     ///   - captionWidth: the width a caption's card is held to, or nil for the transcript's bubble
@@ -327,6 +329,8 @@ public final class ChatMediaCell: ChatColumnCell {
         maxWidth: CGFloat,
         localImage: UIImage?,
         progress: ChatPhotoSendProgress? = nil,
+        stackImages: [String: UIImage] = [:],
+        stackProgress: [ChatPhotoSendProgress?] = [],
         remote: ChatMediaLocation?,
         quoteThumbnail: ChatMediaLocation? = nil,
         authorImageData: Data? = nil,
@@ -345,7 +349,7 @@ public final class ChatMediaCell: ChatColumnCell {
         imageHeightConstraint.constant = size.height
         layOutStackFan(frame: CGSize(width: size.width, height: size.height), isStack: media.stackPhotos.count > 1)
         // The same row losing its progress is a confirmed send, which fades; a new row starts clean.
-        progressOverlay.bind(progress, suppressed: message.isFailed, animated: drawnRowID == message.id)
+        progressOverlay.bind(progress, behind: stackProgress, suppressed: message.isFailed, animated: drawnRowID == message.id)
         drawImage(
             for: message.id,
             blobID: media.blobID,
@@ -355,7 +359,7 @@ public final class ChatMediaCell: ChatColumnCell {
             size: CGSize(width: size.width, height: size.height)
         )
         imageTap.isEnabled = !blurhashOnly && !message.isFailed
-        drawStack(media.stackPhotos)
+        drawStack(media.stackPhotos, localImages: blurhashOnly ? [:] : stackImages)
 
         let caption = media.caption.flatMap { $0.isEmpty ? nil : $0 }
         let emojiCaption = caption != nil && media.captionIsEmojiOnly
@@ -465,9 +469,10 @@ public final class ChatMediaCell: ChatColumnCell {
     }
 
     /// Fans the photos after the front one behind it and counts the set, or clears both for a photo
-    /// drawn alone. A card behind shows the photo once it is in the memory cache, else its BlurHash:
-    /// only its edges show, so it never downloads on its own.
-    private func drawStack(_ photos: [ChatMediaStackPhoto]) {
+    /// drawn alone. A card behind shows its picked image while this device sends it, the photo once
+    /// it is in the memory cache, else its BlurHash: only its edges show, so it never downloads on
+    /// its own.
+    private func drawStack(_ photos: [ChatMediaStackPhoto], localImages: [String: UIImage] = [:]) {
         let behind = photos.dropFirst()
         for (position, card) in stackCards.enumerated() {
             guard position < behind.count else {
@@ -476,7 +481,8 @@ public final class ChatMediaCell: ChatColumnCell {
                 continue
             }
             let photo = behind[behind.startIndex + position]
-            card.image = (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
+            card.image = localImages[photo.messageID]
+                ?? (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
                 ?? BlurHashCache.shared.image(for: photo.blurhash)
             card.isHidden = false
         }

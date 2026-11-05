@@ -19,28 +19,32 @@ public enum ChatMediaGrouping {
 
     /// What the rule reads of one message.
     public struct Member: Equatable, Sendable {
-        /// The server-assigned message id, gapless within a chat.
+        /// The server-assigned message id, gapless within a chat. Unread while ``isPending``.
         public let seq: UInt64
         public let sender: UserID?
         public let isPhoto: Bool
         public let date: Date
         public let hasCaption: Bool
         public let isReply: Bool
+        /// Whether this device is still sending it, so it has no server id yet.
+        public let isPending: Bool
 
-        public init(seq: UInt64, sender: UserID?, isPhoto: Bool, date: Date, hasCaption: Bool, isReply: Bool) {
+        public init(seq: UInt64, sender: UserID?, isPhoto: Bool, date: Date, hasCaption: Bool, isReply: Bool, isPending: Bool = false) {
             self.seq = seq
             self.sender = sender
             self.isPhoto = isPhoto
             self.date = date
             self.hasCaption = hasCaption
             self.isReply = isReply
+            self.isPending = isPending
         }
     }
 
     /// The index ranges into `members`, which are in seq order, that draw as a stack: each a maximal
     /// run of two or more photos from one sender with consecutive seqs, each within ``window`` of
     /// the one before, where only the first may be a reply and only the last may have a caption.
-    /// Grouped greedily from the oldest.
+    /// A pending photo has no seq to compare, so it joins on the other checks alone: a send's photos
+    /// stack while they upload. Grouped greedily from the oldest.
     public static func stacks(_ members: [Member]) -> [Range<Int>] {
         var stacks: [Range<Int>] = []
         var start = 0
@@ -60,7 +64,7 @@ public enum ChatMediaGrouping {
     }
 
     /// The stacks in `messages`, a chat's messages in seq order, as index ranges into it. A message
-    /// with no server id yet takes part in none and breaks any run around it.
+    /// that failed to send takes part in none and breaks any run around it.
     public static func stacks(in messages: [ConversationMessage]) -> [Range<Int>] {
         stacks(messages.map { message in
             Member(message) ?? Member(seq: 0, sender: nil, isPhoto: false, date: message.date, hasCaption: false, isReply: false)
@@ -70,7 +74,7 @@ public enum ChatMediaGrouping {
     private static func joins(_ next: Member, after previous: Member) -> Bool {
         next.isPhoto
             && next.sender == previous.sender
-            && next.seq == previous.seq + 1
+            && (next.isPending || previous.isPending || next.seq == previous.seq + 1)
             && next.date.timeIntervalSince(previous.date) <= window
             && !previous.hasCaption
             && !next.isReply
@@ -78,10 +82,15 @@ public enum ChatMediaGrouping {
 }
 
 extension ChatMediaGrouping.Member {
-    /// What the rule reads of a confirmed message, or nil for one with no server id yet: a pending
-    /// photo keeps its own bubble, with its upload progress, until the server confirms it.
+    /// What the rule reads of a message, or nil for one that failed to send: it keeps its own bubble,
+    /// with its retry.
     public init?(_ message: ConversationMessage) {
-        guard message.status == .sent else { return nil }
+        let isPending: Bool
+        switch message.status {
+        case .sent:    isPending = false
+        case .sending: isPending = true
+        case .failed:  return nil
+        }
         let isPhoto: Bool
         let hasCaption: Bool
         switch message.content {
@@ -98,7 +107,8 @@ extension ChatMediaGrouping.Member {
             isPhoto: isPhoto && !message.isDeleted,
             date: message.date,
             hasCaption: hasCaption,
-            isReply: message.repliedTo != nil
+            isReply: message.repliedTo != nil,
+            isPending: isPending
         )
     }
 }

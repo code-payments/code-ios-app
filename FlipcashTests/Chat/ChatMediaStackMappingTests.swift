@@ -111,6 +111,52 @@ struct ChatMediaStackMappingTests {
         #expect(actions.last?.contains(.savePhoto) == true)
     }
 
+    // MARK: - A send still in flight
+
+    private func myPhoto(_ seq: UInt64?, after offset: TimeInterval, status: SendStatus = .sent, caption: String? = nil) -> ConversationMessage {
+        ConversationMessage(
+            id: seq.map { MessageID(value: $0) } ?? .unassigned,
+            senderID: me,
+            content: .media([MediaAttachment(blobID: seq.map { BlobID(data: Data([UInt8($0)])) }, width: 300, height: 400, blurhash: nil)], caption: caption),
+            date: base.addingTimeInterval(offset),
+            unreadSeq: seq ?? 0,
+            status: status,
+            clientMessageID: seq == nil ? UUID() : nil
+        )
+    }
+
+    /// Each stack in the mapped transcript, as its members' stable ids.
+    private func stackIDs(_ messages: [ConversationMessage]) -> [[String]] {
+        ChatItem.from(messages, selfUserID: me).compactMap { item -> [String]? in
+            guard case .message(let row) = item, case .media(let media) = row.content, !media.stackPhotos.isEmpty else { return nil }
+            return media.stackPhotos.map(\.messageID)
+        }
+    }
+
+    @Test("A send's photos stack while they upload, before any has a server id")
+    func pendingSendStacks() {
+        let messages = [myPhoto(nil, after: 0, status: .sending), myPhoto(nil, after: 0.01, status: .sending), myPhoto(nil, after: 0.02, status: .sending, caption: "sunrise")]
+        #expect(stackIDs(messages) == [messages.map(\.stableID)])
+    }
+
+    @Test("A send part way through posting stays one stack")
+    func halfPostedSendStacks() {
+        let messages = [myPhoto(1, after: 0), myPhoto(2, after: 0.5), myPhoto(nil, after: 0.6, status: .sending)]
+        #expect(stackIDs(messages) == [messages.map(\.stableID)])
+    }
+
+    @Test("A photo that failed to send leaves the stack and keeps its own bubble")
+    func failedPhotoLeavesTheStack() {
+        let messages = [myPhoto(nil, after: 0, status: .sending), myPhoto(nil, after: 0.01, status: .sending), myPhoto(nil, after: 0.02, status: .failed)]
+        #expect(stackIDs(messages) == [[messages[0].stableID, messages[1].stableID]])
+    }
+
+    @Test("A pending photo doesn't join a photo sent minutes before it")
+    func pendingPhotoKeepsTheWindow() {
+        let messages = [myPhoto(1, after: 0), myPhoto(nil, after: 60, status: .sending)]
+        #expect(stackIDs(messages).isEmpty)
+    }
+
     @Test("An edited caption under a stack shows the Edited marker on its row")
     func stackCaptionCarriesEdited() {
         func photo(_ seq: UInt64, caption: String?, edited: Bool) -> ConversationMessage {

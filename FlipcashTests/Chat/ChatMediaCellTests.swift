@@ -209,6 +209,28 @@ struct ChatMediaCellTests {
         #expect(stackCell(photos).stackCards.filter { !$0.isHidden }.count == cards)
     }
 
+    @Test("A stack still sending draws its picked images behind the front and its whole send's progress")
+    func pendingStackDrawsLocalImagesAndProgress() async {
+        let picked = UIImage()
+        let front = ChatPhotoSendProgress()
+        let back = ChatPhotoSendProgress()
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(
+            with: ChatMessage(id: "0", content: .media(stack(2)), sender: .other),
+            maxWidth: 240, localImage: nil, progress: front,
+            stackImages: ["1": picked], stackProgress: [back], remote: nil
+        )
+        #expect(cell.stackCards.first?.image === picked)
+
+        front.didUpload(BlobUploadProgress(sentBytes: 100, totalBytes: 100))
+        await waitFor { cell.progressOverlay.fraction == 0.5 }
+        #expect(cell.progressOverlay.fraction == 0.5)
+
+        back.didUpload(BlobUploadProgress(sentBytes: 50, totalBytes: 100))
+        await waitFor { cell.progressOverlay.fraction == 0.75 }
+        #expect(cell.progressOverlay.fraction == 0.75)
+    }
+
     @Test("Two photos draw a single back card, never more cards than photos")
     func twoPhotosDrawOneBackCard() {
         let cell = stackCell(2)
