@@ -69,3 +69,40 @@ struct PaymentRequestPaymentCurrencyTests {
         #expect(send.paymentOptions.map(\.stored.mint) == expected)
     }
 }
+
+@MainActor
+@Suite("PaymentRequestPayment without a balance")
+struct PaymentRequestPaymentNoBalanceTests {
+
+    @Test("The pay flow shows No Balance Yet and does not open the sheet when nothing is held")
+    func start_noBalance_blocksSheet() async throws {
+        let container = try SessionContainer.makeTest(holdings: [])
+        let flow = PaymentRequestPayFlow()
+
+        let result = await flow.start(
+            PaymentRequestID(data: Data([1])),
+            sessionContainer: container,
+            router: AppRouter()
+        )
+
+        #expect(result == .noBalance)
+        #expect(flow.isPaying == false)
+        #expect(flow.payment == nil)
+        #expect(container.session.dialogItem?.title == "No Balance Yet")
+    }
+
+    @Test("Submitting with no selected balance shows insufficient funds, not Couldn't Send")
+    func submit_nilSelectedBalance_showsInsufficientFunds() async throws {
+        let container = try SessionContainer.makeTest(holdings: [])
+        let payment = PaymentRequestPayment(
+            requestID: PaymentRequestID(data: Data([1])),
+            sessionContainer: container
+        )
+        #expect(payment.selectedBalance == nil)
+
+        let outcome = await payment.submit()
+
+        #expect(outcome == .failed)
+        #expect(container.session.dialogItem?.title == "You Need More Cash")
+    }
+}

@@ -31,6 +31,8 @@ final class PaymentRequestPayment {
         /// The request stopped accepting payments; "Request Closed" was shown.
         case closed
         case failed
+        /// The viewer holds nothing to pay with; the "No Balance Yet" dialog was shown.
+        case noBalance
     }
 
     let requestID: PaymentRequestID
@@ -123,23 +125,23 @@ final class PaymentRequestPayment {
         if needsRefetch {
             switch await prepare() {
             case .ready: break
-            case .nothingToPay, .closed, .failed: return .failed
+            case .nothingToPay, .closed, .failed, .noBalance: return .failed
             }
         }
-        guard let request, let share, let creator = request.creator,
-              let intentID, let intentKey = try? PublicKey(intentID),
-              let chatID = request.chatID,
-              let fiat = shareFiat(share, of: request) else {
-            showSendError()
-            return .failed
-        }
-
         guard let selectedBalance else {
             ErrorReporting.captureError(
                 GroupSendViewModel.Error.noSpendableBalance,
                 reason: "No spendable balance at request payment",
-                metadata: ["conversationID": chatID.description]
+                metadata: ["requestID": "\(requestID)"]
             )
+            showInsufficientFunds(shortfall: nil)
+            return .failed
+        }
+
+        guard let request, let share, let creator = request.creator,
+              let intentID, let intentKey = try? PublicKey(intentID),
+              let chatID = request.chatID,
+              let fiat = shareFiat(share, of: request) else {
             showSendError()
             return .failed
         }
@@ -229,7 +231,7 @@ final class PaymentRequestPayment {
             : "Add more cash, or select a different Community Currency"
         session.dialogItem = .error(title: title, subtitle: subtitle) {
             .destructive("Add More Cash") { [weak self] in
-                self?.depositMint = self?.selectedBalance?.stored.mint
+                self?.depositMint = self?.selectedBalance?.stored.mint ?? .usdf
             };
             .dismiss(kind: .subtle)
         }

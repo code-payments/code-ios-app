@@ -1089,7 +1089,7 @@ struct ConversationScreen: View {
 
     private func payRequest(_ id: PaymentRequestID) {
         afterKeyboardLowered {
-            Task { await requestPayFlow.start(id, sessionContainer: sessionContainer) }
+            Task { await requestPayFlow.start(id, sessionContainer: sessionContainer, router: router) }
         }
     }
 
