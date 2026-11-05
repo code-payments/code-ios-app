@@ -11,6 +11,18 @@ import FlipcashCore
 
 nonisolated private let logger = Logger(label: "flipcash.group-rosters")
 
+/// Whether a person is on a group's roster, which a private group's host actions wait on.
+enum MembershipCheck: Equatable {
+    /// On the roster, or in a public group, which has no check.
+    case confirmed
+    /// A private group's roster hasn't answered yet.
+    case pending
+    /// The roster was read and the person isn't on it.
+    case notMember
+    /// The roster couldn't be read.
+    case failed
+}
+
 /// The members of each private group whose roster has been read this session.
 ///
 /// Read with `GetRoster` when a member opens the group's profile or member list, and kept live with
@@ -39,6 +51,27 @@ final class GroupRosters {
     /// Whether `conversationID`'s roster has been read at least once.
     func isLoaded(_ conversationID: ConversationID) -> Bool {
         members[conversationID] != nil
+    }
+
+    /// What the roster says about `userID` in `conversation`, without reading anything.
+    ///
+    /// A public group has no check: its roster can be long and paged, so everyone counts as
+    /// confirmed there. A private group is pending until its roster has been read.
+    func membership(of userID: UserID, in conversation: Conversation?) -> MembershipCheck {
+        guard let conversation, conversation.isPrivate else { return .confirmed }
+        guard let roster = members[conversation.id] else { return .pending }
+        return roster[userID] != nil ? .confirmed : .notMember
+    }
+
+    /// Like ``membership(of:in:)``, reading the roster first when a private group's isn't held. A
+    /// read that fails answers ``MembershipCheck/failed``. There is no timeout.
+    func checkMembership(of userID: UserID, in conversation: Conversation?) async -> MembershipCheck {
+        var result = membership(of: userID, in: conversation)
+        if result == .pending, let conversation {
+            await refresh(conversation.id)
+            result = membership(of: userID, in: conversation)
+        }
+        return result == .pending ? .failed : result
     }
 
     /// `conversationID`'s members, `creator` first, then the most recently joined.

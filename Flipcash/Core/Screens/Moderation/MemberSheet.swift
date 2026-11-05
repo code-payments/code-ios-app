@@ -99,9 +99,17 @@ struct MemberSheet: View {
 
     @State private var profile: UserProfileViewModel?
     @State private var isLifting = false
+    @State private var rosterReadFailed = false
 
     private var conversation: Conversation? {
         conversationController.conversation(withID: target.conversationID)
+    }
+
+    /// What the roster says about this member. A private group's host rows stay disabled until it
+    /// confirms them, so the sheet opens at its final height and nothing pops in.
+    private var membership: MembershipCheck {
+        let held = sessionContainer.groupRosters.membership(of: target.userID, in: conversation)
+        return held == .pending && rosterReadFailed ? .failed : held
     }
 
     private var canModerate: Bool {
@@ -197,6 +205,12 @@ struct MemberSheet: View {
             profile = model
             await model.loadProfile()
         }
+        .task(id: target.id) {
+            // A private group's roster may not be held yet; the host rows wait on it.
+            guard membership == .pending else { return }
+            let answer = await sessionContainer.groupRosters.checkMembership(of: target.userID, in: conversation)
+            rosterReadFailed = answer == .failed
+        }
         .task(id: target.conversationID) {
             // A host can reach this sheet from a cold launch with nothing read yet.
             guard canModerate else { return }
@@ -248,6 +262,7 @@ struct MemberSheet: View {
                 ) {
                     close(with: .restrict(moderationTarget))
                 }
+                .disabled(membership != .confirmed)
             case .lift:
                 ChatActionRow(
                     icon: Image(systemName: "lock.open"),
@@ -256,7 +271,7 @@ struct MemberSheet: View {
                 ) {
                     lift()
                 }
-                .disabled(isLifting)
+                .disabled(isLifting || membership != .confirmed)
             case nil:
                 EmptyView()
             }
@@ -270,7 +285,25 @@ struct MemberSheet: View {
                 ) {
                     close(with: .remove(moderationTarget))
                 }
+                .disabled(membership != .confirmed)
             }
+
+            if let note = membershipNote {
+                Text(note)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .accessibilityIdentifier("member-sheet-membership-note")
+            }
+        }
+    }
+
+    /// The line under the disabled rows once the roster has answered that they can't apply.
+    private var membershipNote: String? {
+        let firstName = moderationTarget.firstName
+        switch membership {
+        case .notMember: return GroupModerationCopy.notInGroup(firstName: firstName)
+        case .failed:    return GroupModerationCopy.membershipCheckFailed(firstName: firstName)
+        case .confirmed, .pending: return nil
         }
     }
 

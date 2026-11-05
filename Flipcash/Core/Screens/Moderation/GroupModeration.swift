@@ -65,6 +65,15 @@ enum GroupModerationCopy {
         "\(firstName) can still read the group but can't send messages"
     }
 
+    // Placeholder copy until design reviews the disabled state.
+    static func notInGroup(firstName: String) -> String {
+        "\(firstName) isn't in this group."
+    }
+
+    static func membershipCheckFailed(firstName: String) -> String {
+        "Couldn't check whether \(firstName) is in this group."
+    }
+
     static func removeTitle(firstName: String) -> String {
         "Remove \(firstName)?"
     }

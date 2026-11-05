@@ -379,6 +379,9 @@ struct DeepLinkAction {
             )
         case .lookupFailed:
             showLookupFailed(isScan: isScan, on: session)
+        case .memberSheet:
+            // Only a group transcript asks for it, and a link never does.
+            break
         }
     }
 

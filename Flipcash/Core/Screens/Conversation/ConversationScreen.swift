@@ -763,7 +763,14 @@ struct ConversationScreen: View {
             let lookup = await sessionContainer.linkCardFeed.person(.username(username))
             guard !Task.isCancelled else { return }
             tappedMention = nil
-            open(MentionDestination.destination(for: lookup, counterpart: tipCounterpart?.userID), for: username)
+            open(
+                MentionDestination.destination(
+                    for: lookup,
+                    counterpart: tipCounterpart?.userID,
+                    inGroup: groupConversation != nil
+                ),
+                for: username
+            )
         }
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
@@ -2065,6 +2072,9 @@ struct ConversationScreen: View {
 
     private func open(_ destination: MentionDestination, for username: Username) {
         switch destination {
+        case .memberSheet(let userID):
+            guard let conversationID else { return }
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID)
         case .ownTipCard:
             router.showOwnTipCard()
         case .profile(let userID, let origin):
