@@ -371,14 +371,24 @@ final class PaymentRequestPayFlow {
     private(set) var payment: PaymentRequestPayment?
 
     /// Prepares to pay the viewer's share of `requestID` and shows the sheet when it is payable.
-    /// A viewer with nothing to pay with gets the "No Balance Yet" dialog instead of the sheet.
+    /// A payable share the viewer has nothing to pay with gets the "No Balance Yet" dialog instead of
+    /// the sheet; a closed request still reads "Request Closed". `requests` replaces the session's
+    /// store, for tests.
     @discardableResult
     func start(
         _ requestID: PaymentRequestID,
         sessionContainer: SessionContainer,
-        router: AppRouter
+        router: AppRouter,
+        requests: PaymentRequests? = nil
     ) async -> PaymentRequestPayment.Preparation {
         guard !isPreparing else { return .failed }
+        isPreparing = true
+        defer { isPreparing = false }
+        let payment = self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
+            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer, requests: requests)
+        self.payment = payment
+        let preparation = await payment.prepare()
+        guard preparation == .ready else { return preparation }
         let session = sessionContainer.session
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         if let dialog = giveCashGate(session: session, rate: rate)
@@ -386,14 +396,8 @@ final class PaymentRequestPayFlow {
             session.dialogItem = dialog
             return .noBalance
         }
-        isPreparing = true
-        defer { isPreparing = false }
-        let payment = self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
-            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer)
-        self.payment = payment
-        let preparation = await payment.prepare()
-        if preparation == .ready { isPaying = true }
-        return preparation
+        isPaying = true
+        return .ready
     }
 }
 

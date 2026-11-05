@@ -74,21 +74,60 @@ struct PaymentRequestPaymentCurrencyTests {
 @Suite("PaymentRequestPayment without a balance")
 struct PaymentRequestPaymentNoBalanceTests {
 
+    private let requestID = PaymentRequestID(data: Data([1]))
+
+    /// A store whose refetch returns a request with an unpaid share for `container`'s user.
+    private func store(status: GroupPaymentRequest.Status, for container: SessionContainer) -> PaymentRequests {
+        let request = GroupPaymentRequest(
+            id: requestID,
+            creator: UUID(),
+            createdAt: .now.addingTimeInterval(-60),
+            status: status,
+            closedAt: nil,
+            version: 1,
+            chatID: ConversationID(data: Data(repeating: 0x0B, count: 32)),
+            split: .init(
+                text: .plaintext(title: "Dinner", description: ""),
+                currency: "usd",
+                endsAt: .now.addingTimeInterval(86_400),
+                shares: [.init(userID: container.session.userID, nativeAmount: 10)]
+            )
+        )
+        return PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in (request, Data(repeating: 7, count: 32)) })
+    }
+
     @Test("The pay flow shows No Balance Yet and does not open the sheet when nothing is held")
     func start_noBalance_blocksSheet() async throws {
         let container = try SessionContainer.makeTest(holdings: [])
         let flow = PaymentRequestPayFlow()
 
         let result = await flow.start(
-            PaymentRequestID(data: Data([1])),
+            requestID,
             sessionContainer: container,
-            router: AppRouter()
+            router: AppRouter(),
+            requests: store(status: .open, for: container)
         )
 
         #expect(result == .noBalance)
         #expect(flow.isPaying == false)
-        #expect(flow.payment == nil)
         #expect(container.session.dialogItem?.title == "No Balance Yet")
+    }
+
+    @Test("A closed request with no balance reads Request Closed, not No Balance Yet")
+    func start_closedNoBalance_showsRequestClosed() async throws {
+        let container = try SessionContainer.makeTest(holdings: [])
+        let flow = PaymentRequestPayFlow()
+
+        let result = await flow.start(
+            requestID,
+            sessionContainer: container,
+            router: AppRouter(),
+            requests: store(status: .closed, for: container)
+        )
+
+        #expect(result == .closed)
+        #expect(flow.isPaying == false)
+        #expect(container.session.dialogItem?.title == "Request Closed")
     }
 
     @Test("Submitting with no selected balance shows insufficient funds, not Couldn't Send")

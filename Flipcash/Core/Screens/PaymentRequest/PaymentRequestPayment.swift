@@ -54,13 +54,14 @@ final class PaymentRequestPayment {
     init(
         requestID: PaymentRequestID,
         sessionContainer: SessionContainer,
+        requests: PaymentRequests? = nil,
         payer: (any RequestedPaying)? = nil,
         resolver: (any RecipientResolving)? = nil,
         clock: @escaping () -> Date = Date.init
     ) {
         let session = sessionContainer.session
         self.requestID = requestID
-        self.requests = sessionContainer.paymentRequests
+        self.requests = requests ?? sessionContainer.paymentRequests
         self.session = session
         self.ratesController = sessionContainer.ratesController
         self.payer = payer ?? session
