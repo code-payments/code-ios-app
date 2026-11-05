@@ -15,6 +15,7 @@ struct PaymentRequestDetailsScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
@@ -241,8 +242,8 @@ struct PaymentRequestDetailsScreen: View {
     /// Refetches for the intent ID right before the swipe sheet, as the spec requires.
     private func pay() {
         Task {
-            switch await payFlow.start(requestID, sessionContainer: sessionContainer) {
-            case .ready:
+            switch await payFlow.start(requestID, sessionContainer: sessionContainer, router: router) {
+            case .ready, .noBalance:
                 break
             case .nothingToPay, .closed, .failed:
                 hasPaymentIntent = false
@@ -370,17 +371,33 @@ final class PaymentRequestPayFlow {
     private(set) var payment: PaymentRequestPayment?
 
     /// Prepares to pay the viewer's share of `requestID` and shows the sheet when it is payable.
+    /// A payable share the viewer has nothing to pay with gets the "No Balance Yet" dialog instead of
+    /// the sheet; a closed request still reads "Request Closed". `requests` replaces the session's
+    /// store, for tests.
     @discardableResult
-    func start(_ requestID: PaymentRequestID, sessionContainer: SessionContainer) async -> PaymentRequestPayment.Preparation {
+    func start(
+        _ requestID: PaymentRequestID,
+        sessionContainer: SessionContainer,
+        router: AppRouter,
+        requests: PaymentRequests? = nil
+    ) async -> PaymentRequestPayment.Preparation {
         guard !isPreparing else { return .failed }
         isPreparing = true
         defer { isPreparing = false }
         let payment = self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
-            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer)
+            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer, requests: requests)
         self.payment = payment
         let preparation = await payment.prepare()
-        if preparation == .ready { isPaying = true }
-        return preparation
+        guard preparation == .ready else { return preparation }
+        let session = sessionContainer.session
+        let rate = sessionContainer.ratesController.rateForBalanceCurrency()
+        if let dialog = giveCashGate(session: session, rate: rate)
+            .blockingDialog(router: router, addMoneySource: .chat, context: .payRequest) {
+            session.dialogItem = dialog
+            return .noBalance
+        }
+        isPaying = true
+        return .ready
     }
 }
 
