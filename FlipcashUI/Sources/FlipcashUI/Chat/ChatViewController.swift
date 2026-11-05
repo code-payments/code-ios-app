@@ -154,13 +154,13 @@ public final class ChatViewController: UICollectionViewController {
     /// The widest a bubble may grow, as a share of the collection view's width.
     static let maxBubbleWidthFraction: CGFloat = 0.78
 
-    /// The widest a photo row may draw, in points: about a large phone's bubble, so a photo on a
-    /// wide screen stays phone-sized instead of growing past the visible height.
-    static let maxPhotoWidth: CGFloat = 320
+    /// The widest transcript a card is sized against, in points: a large phone's width. A row that
+    /// fills a share of the width (a photo, a cash or link card) keeps its phone size on a wide screen.
+    static let maxCardLayoutWidth: CGFloat = 440
 
-    /// The width a photo row draws at, given the row's widest bubble.
-    static func photoWidth(maxBubbleWidth: CGFloat) -> CGFloat {
-        min(maxBubbleWidth, maxPhotoWidth)
+    /// The transcript width a card is sized against, given the collection view's `width`.
+    static func cardLayoutWidth(_ width: CGFloat) -> CGFloat {
+        min(width, maxCardLayoutWidth)
     }
 
     /// A cash card's width as a fraction of the row between the column insets — narrower than a
@@ -748,7 +748,7 @@ public final class ChatViewController: UICollectionViewController {
             let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
             let card = cell as! ChatInviteCardCell
             card.onInvite = { [weak self] in self?.onInviteCardTap?() }
-            card.configure(groupName: groupName, maxWidth: width - ChatColumnCell.rowInset * 2)
+            card.configure(groupName: groupName, maxWidth: Self.cardLayoutWidth(width) - ChatColumnCell.rowInset * 2)
         case .message(let message):
             configure(cell, with: message)
         }
@@ -795,6 +795,13 @@ public final class ChatViewController: UICollectionViewController {
             ? width - ChatColumnCell.authorGutterWidth
             : width
         let maxWidth = available * Self.maxBubbleWidthFraction
+        // Rows that fill a share of the width are sized against a phone-width transcript; text
+        // bubbles, which size to their content, keep the full width.
+        let cardWidth = Self.cardLayoutWidth(width)
+        let cardAvailable = message.isAttributedTranscript && message.sender != .me
+            ? cardWidth - ChatColumnCell.authorGutterWidth
+            : cardWidth
+        let cardMaxWidth = cardAvailable * Self.maxBubbleWidthFraction
         let authorImageData = message.author.flatMap { authorAvatars[$0.id] }
         (cell as? ChatColumnCell)?.onAuthorTap = { [weak self] userID in self?.onAuthorTap?(userID) }
         switch cell {
@@ -806,7 +813,8 @@ public final class ChatViewController: UICollectionViewController {
             cell.webImages = mediaURLResolver.map(WebCardImages.init(resolver:))
             cell.configure(
                 with: message,
-                maxWidth: linkCardWidth(for: message, available: available) ?? maxWidth,
+                maxWidth: linkCardWidth(for: message, available: cardAvailable)
+                    ?? (ChatLinkMessageCell.cardFillsWidth(message.linkPreview?.card) ? cardMaxWidth : maxWidth),
                 authorImageData: authorImageData,
                 quoteThumbnail: quoteThumbnail(for: message)
             )
@@ -836,7 +844,7 @@ public final class ChatViewController: UICollectionViewController {
         case let cell as ChatCashCardCell:
             // Every cash card is one width, so an incoming card in a group doesn't give up the avatar
             // gutter the way a bubble does.
-            cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: cashCardWidth(available: cardWidth), authorImageData: authorImageData)
             cell.onSendBack = { [weak self] in self?.onSendBack?(message.messageID) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
@@ -846,14 +854,13 @@ public final class ChatViewController: UICollectionViewController {
             cell.linkCardSource = linkCardSource
             cell.ownProfile = ownProfile
             cell.onShare = { [weak self] card, name in self?.onShareProfile?(card, name) }
-            let cardWidth = available - ChatColumnCell.rowInset * 2
-            cell.configure(with: message, maxWidth: cardWidth, authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: cardAvailable - ChatColumnCell.rowInset * 2, authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatPaymentRequestCell:
-            cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: cashCardWidth(available: cardWidth), authorImageData: authorImageData)
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
@@ -869,13 +876,13 @@ public final class ChatViewController: UICollectionViewController {
             let localImage = pendingMediaImage?(message.id)
             cell.configure(
                 with: message,
-                maxWidth: Self.photoWidth(maxBubbleWidth: maxWidth),
+                maxWidth: cardMaxWidth,
                 localImage: localImage,
                 progress: pendingMediaProgress?(message.id),
                 remote: remote,
                 quoteThumbnail: quoteThumbnail(for: message),
                 authorImageData: authorImageData,
-                captionWidth: linkCardWidth(for: media.captionCard, available: available)
+                captionWidth: linkCardWidth(for: media.captionCard, available: cardAvailable)
             )
             cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onImageTap = { [weak self, weak cell] in

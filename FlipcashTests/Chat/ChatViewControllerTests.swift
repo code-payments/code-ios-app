@@ -333,16 +333,16 @@ struct ChatRowSpacingTests {
     }
 }
 
-@Suite("ChatViewController photo width")
-struct ChatViewControllerPhotoWidthTests {
+@Suite("ChatViewController card layout width")
+struct ChatViewControllerCardLayoutWidthTests {
 
-    @Test("A phone's photo keeps the full bubble width")
+    @Test("A phone's cards size against its full width")
     func phoneWidth_isUnchanged() {
-        #expect(ChatViewController.photoWidth(maxBubbleWidth: 280) == 280)
+        #expect(ChatViewController.cardLayoutWidth(402) == 402)
     }
 
-    @Test("A wide screen's photo stops at the photo cap")
+    @Test("A wide screen's cards size against a large phone's width")
     func wideScreen_isCapped() {
-        #expect(ChatViewController.photoWidth(maxBubbleWidth: 560) == ChatViewController.maxPhotoWidth)
+        #expect(ChatViewController.cardLayoutWidth(720) == ChatViewController.maxCardLayoutWidth)
     }
 }
