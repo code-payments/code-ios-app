@@ -39,4 +39,12 @@ public enum E2eePolicy {
             )
         }
     }
+
+    /// The @flipcash account's user id, read from shared-core's `ChatEncryptionPolicy` so it has
+    /// one source of truth. `nil` only if shared-core hands back something that is not 16 bytes.
+    public static let flipcashUserID: UserID? = {
+        let data = SharedBytes.shared.data(bytes: ChatEncryptionPolicy.shared.FLIPCASH_USER_ID)
+        guard data.count == 16 else { return nil }
+        return data.withUnsafeBytes { UUID(uuid: $0.loadUnaligned(as: uuid_t.self)) }
+    }()
 }
