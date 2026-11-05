@@ -762,8 +762,18 @@ struct ConversationScreen: View {
             guard let username = tappedMention else { return }
             let lookup = await sessionContainer.linkCardFeed.person(.username(username))
             guard !Task.isCancelled else { return }
+            let roster = await groupRoster(forMention: lookup)
+            guard !Task.isCancelled else { return }
             tappedMention = nil
-            open(MentionDestination.destination(for: lookup, counterpart: tipCounterpart?.userID), for: username)
+            open(
+                MentionDestination.destination(
+                    for: lookup,
+                    counterpart: tipCounterpart?.userID,
+                    inGroup: groupConversation != nil,
+                    groupMembers: roster
+                ),
+                for: username
+            )
         }
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
@@ -2063,8 +2073,21 @@ struct ConversationScreen: View {
         tappedMention = username
     }
 
+    /// The group's member ids once the roster is read, so a mention of someone who has left can be
+    /// told apart. `nil` outside a group, for the viewer's own handle, or when no roster is readable.
+    private func groupRoster(forMention lookup: Result<UserLinkFacts, any Error>) async -> Set<UserID>? {
+        guard let group = groupConversation, case .success(let facts) = lookup, !facts.isOwn else { return nil }
+        let rosters = sessionContainer.groupRosters
+        if !rosters.isLoaded(group.id) { await rosters.refresh(group.id) }
+        guard rosters.isLoaded(group.id) else { return nil }
+        return Set(rosters.members(for: group.id, creator: group.creator).compactMap(\.userID))
+    }
+
     private func open(_ destination: MentionDestination, for username: Username) {
         switch destination {
+        case .memberSheet(let userID, let isFormerMember):
+            guard let conversationID else { return }
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID, isFormerMember: isFormerMember)
         case .ownTipCard:
             router.showOwnTipCard()
         case .profile(let userID, let origin):

@@ -51,6 +51,37 @@ import FlipcashCore
         #expect(destination == .ownTipCard)
     }
 
+    @Test func inAGroupSomeoneElseOpensTheMemberSheet() {
+        let destination = MentionDestination.destination(
+            for: Self.facts(Self.otherID), counterpart: nil, inGroup: true, groupMembers: [Self.otherID]
+        )
+        #expect(destination == .memberSheet(Self.otherID, isFormerMember: false))
+    }
+
+    @Test func inAGroupAnUnknownRosterTreatsThemAsAMember() {
+        let destination = MentionDestination.destination(for: Self.facts(Self.otherID), counterpart: nil, inGroup: true)
+        #expect(destination == .memberSheet(Self.otherID, isFormerMember: false))
+    }
+
+    @Test func inAGroupSomeoneWhoLeftOpensTheSheetAsAFormerMember() {
+        let destination = MentionDestination.destination(
+            for: Self.facts(Self.otherID), counterpart: nil, inGroup: true, groupMembers: [Self.counterpartID]
+        )
+        #expect(destination == .memberSheet(Self.otherID, isFormerMember: true))
+    }
+
+    @Test func inAGroupTheViewersOwnHandleStillOpensTheirTipCard() {
+        let destination = MentionDestination.destination(
+            for: Self.facts(Self.otherID, isOwn: true), counterpart: nil, inGroup: true, groupMembers: []
+        )
+        #expect(destination == .ownTipCard)
+    }
+
+    @Test func inAGroupAnUnclaimedHandleIsStillNoSuchAccount() {
+        #expect(MentionDestination.destination(for: .failure(NoSuchAccount()), counterpart: nil, inGroup: true) == .noSuchAccount)
+        #expect(MentionDestination.destination(for: .failure(Offline()), counterpart: nil, inGroup: true) == .lookupFailed)
+    }
+
     @Test func anUnclaimedHandleIsNoSuchAccount() {
         #expect(MentionDestination.destination(for: .failure(NoSuchAccount()), counterpart: nil) == .noSuchAccount)
         #expect(MentionDestination.destination(for: .failure(ErrorFetchProfile.notFound), counterpart: nil) == .noSuchAccount)

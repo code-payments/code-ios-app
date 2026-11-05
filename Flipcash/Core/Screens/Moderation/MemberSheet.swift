@@ -15,6 +15,8 @@ struct MemberSheetTarget: Identifiable, Equatable {
     let userID: UserID
     /// The name and picture the tapped portrait drew, shown until the profile loads.
     var portrait: GroupPortrait?
+    /// Set for someone who has left or been removed, so the sheet offers no group actions on them.
+    var isFormerMember = false
 
     var id: String { "\(conversationID)-\(userID)" }
 }
@@ -120,8 +122,8 @@ struct MemberSheet: View {
     private func options(at date: Date) -> MemberModerationOptions {
         let state = conversation?.viewerState
         return MemberModerationOptions.resolve(
-            canSilence: state?.canSilence ?? false,
-            canBan: state?.canBan ?? false,
+            canSilence: !target.isFormerMember && (state?.canSilence ?? false),
+            canBan: !target.isFormerMember && (state?.canBan ?? false),
             isCreator: conversation?.creator == target.userID,
             isSelf: target.userID == sessionContainer.session.userID,
             isRestricted: silence(at: date) != nil
