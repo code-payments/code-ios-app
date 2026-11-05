@@ -145,6 +145,16 @@ struct ChatMediaStackMappingTests {
         #expect(stackIDs(messages) == [messages.map(\.stableID)])
     }
 
+    @Test("A stack's confirmed photos carry their server ids, so the READ pointer can reach the newest")
+    func stackPhotosCarryServerIDs() {
+        let messages = [myPhoto(1, after: 0), myPhoto(2, after: 0.5), myPhoto(nil, after: 0.6, status: .sending)]
+        let serverIDs = ChatItem.from(messages, selfUserID: me).compactMap { item -> [MessageID?]? in
+            guard case .message(let row) = item, case .media(let media) = row.content, !media.stackPhotos.isEmpty else { return nil }
+            return media.stackPhotos.map(\.serverID)
+        }
+        #expect(serverIDs == [[MessageID(value: 1), MessageID(value: 2), nil]])
+    }
+
     @Test("A photo that failed to send leaves the stack and keeps its own bubble")
     func failedPhotoLeavesTheStack() {
         let messages = [myPhoto(nil, after: 0, status: .sending), myPhoto(nil, after: 0.01, status: .sending), myPhoto(nil, after: 0.02, status: .failed)]

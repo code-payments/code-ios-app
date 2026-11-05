@@ -457,6 +457,8 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
 public struct ChatMediaStackPhoto: Hashable, Sendable, Codable {
     /// The photo message's stable id.
     public let messageID: String
+    /// The photo message's confirmed server id, or nil while it is still sending.
+    public let serverID: MessageID?
     public let blobID: BlobID?
     public let width: Int
     public let height: Int
@@ -468,8 +470,9 @@ public struct ChatMediaStackPhoto: Hashable, Sendable, Codable {
     /// Whether this photo's message offers Forward, so its viewer page does too.
     public let canForward: Bool
 
-    public init(messageID: String, blobID: BlobID?, width: Int, height: Int, blurhash: String?, isRedacted: Bool, sealed: SealedBlob?, canReply: Bool, canForward: Bool) {
+    public init(messageID: String, serverID: MessageID? = nil, blobID: BlobID?, width: Int, height: Int, blurhash: String?, isRedacted: Bool, sealed: SealedBlob?, canReply: Bool, canForward: Bool) {
         self.messageID = messageID
+        self.serverID = serverID
         self.blobID = blobID
         self.width = width
         self.height = height

@@ -403,8 +403,13 @@ extension ChatItem {
                         case .text, .cash, .deleted, .encrypted, .widget, .system: nil
                         }
                         let actions = capabilities(member)
+                        let memberServerID: MessageID? = switch member.status {
+                        case .sent:              member.id
+                        case .sending, .failed:  nil
+                        }
                         return ChatMediaStackPhoto(
                             messageID: member.stableID,
+                            serverID: memberServerID,
                             blobID: photo?.blobID,
                             width: photo?.width ?? 0,
                             height: photo?.height ?? 0,

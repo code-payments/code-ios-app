@@ -138,6 +138,21 @@ struct ChatReadReportingTests {
         #expect(ChatViewController.readCandidate(.unreadDivider(count: 2)) == nil)
     }
 
+    @Test("A stack reads as its newest confirmed photo, so the photos behind the front are read with it")
+    func stackReadCandidate() {
+        func photo(_ id: String, _ serverID: UInt64?) -> ChatMediaStackPhoto {
+            ChatMediaStackPhoto(messageID: id, serverID: serverID.map { MessageID(value: $0) }, blobID: nil, width: 300, height: 400, blurhash: nil, isRedacted: false, sealed: nil, canReply: true, canForward: true)
+        }
+        func stack(_ photos: [ChatMediaStackPhoto]) -> ChatItem {
+            let media = ChatMediaContent(blobID: nil, width: 300, height: 400, blurhash: nil, caption: nil, isRedacted: false, stackPhotos: photos)
+            return .message(ChatMessage(id: "p1", serverID: MessageID(value: 10), content: .media(media), sender: .other))
+        }
+
+        #expect(ChatViewController.readCandidate(stack([photo("p1", 10), photo("p2", 11), photo("p3", 12)])) == ReadProgress.VisibleMessage(id: MessageID(value: 12), isFromSelf: false))
+        // A photo still sending has no id yet; the newest confirmed one counts.
+        #expect(ChatViewController.readCandidate(stack([photo("p1", 10), photo("p2", 11), photo("p3", nil)])) == ReadProgress.VisibleMessage(id: MessageID(value: 11), isFromSelf: false))
+    }
+
     @Test("With reporting off, nothing is reported until it turns back on")
     func reportingOffHoldsReports() async {
         let controller = ChatViewController()

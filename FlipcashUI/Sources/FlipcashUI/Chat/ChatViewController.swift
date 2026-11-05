@@ -1526,12 +1526,19 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     /// The message a row on screen lets the READ pointer move past, or nil for a row with no
-    /// confirmed server id. A system notice counts as inbound: left out, a chat whose newest
-    /// message is a notice could never be read.
+    /// confirmed server id. A stack counts as its newest confirmed photo, since the photos behind
+    /// the front have no row of their own. A system notice counts as inbound: left out, a chat
+    /// whose newest message is a notice could never be read.
     static func readCandidate(_ item: ChatItem) -> ReadProgress.VisibleMessage? {
         switch item {
         case .message(let message):
-            guard let serverID = message.serverID else { return nil }
+            let stackIDs: [MessageID] = switch message.content {
+            case .media(let media):
+                media.stackPhotos.compactMap(\.serverID)
+            case .text, .cash, .deleted, .unavailable, .shareProfile, .paymentRequest:
+                []
+            }
+            guard let serverID = ([message.serverID].compactMap { $0 } + stackIDs).max() else { return nil }
             let isFromSelf = switch message.sender {
             case .me:    true
             case .other: false
