@@ -647,7 +647,10 @@ struct ChatProfileScreen: View {
         if userID == conversationController.selfUserID {
             router.push(.userProfile(userID, origin: .groupMember(conversationID)))
         } else {
-            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID, portrait: portrait)
+            Task {
+                let isMember = await sessionContainer.groupRosters.confirmsMember(userID, in: conversation)
+                memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID, portrait: portrait, isFormerMember: !isMember)
+            }
         }
     }
 

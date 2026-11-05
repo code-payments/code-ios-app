@@ -62,6 +62,8 @@ private struct UserProfileContent: View {
     @State private var isPickingMuteDuration = false
     @State private var isReporting = false
     @State private var silenceTarget: ModerationTarget?
+    /// Whether the group's host actions apply, answered alongside the profile load.
+    @State private var isGroupMember = false
     @State private var startChattingRequest: StartChattingRequest?
     @State private var postPayment = PostPaymentChat()
     /// Where this screen sits in its stack, recorded when it first appears.
@@ -128,7 +130,8 @@ private struct UserProfileContent: View {
     }
 
     private var moderationItems: [ProfileMenuItem] {
-        guard let group = moderationGroup, let state = group.viewerState else { return [] }
+        // A private group's section waits for the roster to confirm the person is still a member.
+        guard let group = moderationGroup, let state = group.viewerState, isGroupMember else { return [] }
         return ProfileMenuItems.moderation(
             canSilence: state.canSilence,
             canBan: state.canBan,
@@ -279,6 +282,10 @@ private struct UserProfileContent: View {
         }
         .onAppear {
             if position == nil { position = router.positionOfTopmost() }
+        }
+        .task(id: moderationGroup?.id) {
+            guard let group = moderationGroup else { return }
+            isGroupMember = await sessionContainer.groupRosters.confirmsMember(model.userID, in: group)
         }
         .task {
             await model.loadProfile()

@@ -26,21 +26,20 @@ nonisolated enum MentionDestination: Equatable {
     /// The counterpart opens the way the DM's own title does, with Mute and without Message, since
     /// Message would lead straight back here. Anyone else gets Message and Send Cash.
     ///
-    /// In a group (`inGroup`), anyone else opens the member sheet. `groupMembers` is the roster
-    /// when it is known: someone it leaves out is a former member. `nil` means it can't be told,
-    /// as in a public group, and the person is treated as a member.
+    /// In a group (`inGroup`), anyone else opens the member sheet, as a former member when
+    /// `isGroupMember` is false (see ``GroupRosters/confirmsMember(_:in:)``).
     static func destination(
         for lookup: Result<UserLinkFacts, any Error>,
         counterpart: UserID?,
         origin: UserProfileOrigin = .mention,
         inGroup: Bool = false,
-        groupMembers: Set<UserID>? = nil
+        isGroupMember: Bool = true
     ) -> Self {
         switch lookup {
         case .success(let facts):
             if facts.isOwn { return .ownTipCard }
             if inGroup {
-                return .memberSheet(facts.userID, isFormerMember: groupMembers.map { !$0.contains(facts.userID) } ?? false)
+                return .memberSheet(facts.userID, isFormerMember: !isGroupMember)
             }
             return .profile(facts.userID, origin: facts.userID == counterpart ? .directMessage : origin)
         case .failure(let error):

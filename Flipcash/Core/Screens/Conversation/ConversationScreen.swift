@@ -231,7 +231,11 @@ struct ConversationScreen: View {
     /// the same screen the counterpart's own card opens in a DM.
     private func openAuthorProfile(_ userID: UserID) {
         if groupConversation != nil, let conversationID, userID != session.userID {
-            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID)
+            // Presented once the roster check has answered, so the sheet never changes after it opens.
+            Task {
+                let isMember = await sessionContainer.groupRosters.confirmsMember(userID, in: groupConversation)
+                memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID, isFormerMember: !isMember)
+            }
         } else {
             router.push(.userProfile(userID, origin: groupMemberOrigin))
         }
@@ -762,7 +766,7 @@ struct ConversationScreen: View {
             guard let username = tappedMention else { return }
             let lookup = await sessionContainer.linkCardFeed.person(.username(username))
             guard !Task.isCancelled else { return }
-            let roster = await groupRoster(forMention: lookup)
+            let isMember = await isGroupMember(lookup)
             guard !Task.isCancelled else { return }
             tappedMention = nil
             open(
@@ -770,7 +774,7 @@ struct ConversationScreen: View {
                     for: lookup,
                     counterpart: tipCounterpart?.userID,
                     inGroup: groupConversation != nil,
-                    groupMembers: roster
+                    isGroupMember: isMember
                 ),
                 for: username
             )
@@ -2073,14 +2077,11 @@ struct ConversationScreen: View {
         tappedMention = username
     }
 
-    /// The group's member ids once the roster is read, so a mention of someone who has left can be
-    /// told apart. `nil` outside a group, for the viewer's own handle, or when no roster is readable.
-    private func groupRoster(forMention lookup: Result<UserLinkFacts, any Error>) async -> Set<UserID>? {
-        guard let group = groupConversation, case .success(let facts) = lookup, !facts.isOwn else { return nil }
-        let rosters = sessionContainer.groupRosters
-        if !rosters.isLoaded(group.id) { await rosters.refresh(group.id) }
-        guard rosters.isLoaded(group.id) else { return nil }
-        return Set(rosters.members(for: group.id, creator: group.creator).compactMap(\.userID))
+    /// Whether a looked-up mention is someone the group's host actions apply to, with the roster
+    /// read first when a private group's isn't held. Only a group transcript asks.
+    private func isGroupMember(_ lookup: Result<UserLinkFacts, any Error>) async -> Bool {
+        guard case .success(let facts) = lookup, !facts.isOwn else { return true }
+        return await sessionContainer.groupRosters.confirmsMember(facts.userID, in: groupConversation)
     }
 
     private func open(_ destination: MentionDestination, for username: Username) {

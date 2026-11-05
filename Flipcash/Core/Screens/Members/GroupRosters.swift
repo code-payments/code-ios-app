@@ -41,6 +41,18 @@ final class GroupRosters {
         members[conversationID] != nil
     }
 
+    /// Whether the host actions on `userID` apply, which a private group decides from its roster.
+    ///
+    /// Reads the roster first when it isn't held, so a caller can decide what to show before it
+    /// shows anything. A private group's roster that can't be read confirms no one. A public group
+    /// has no check: its roster can be long and paged, so everyone counts as a member there.
+    func confirmsMember(_ userID: UserID, in conversation: Conversation?) async -> Bool {
+        guard let conversation, conversation.isPrivate else { return true }
+        if !isLoaded(conversation.id) { await refresh(conversation.id) }
+        guard isLoaded(conversation.id) else { return false }
+        return members[conversation.id]?[userID] != nil
+    }
+
     /// `conversationID`'s members, `creator` first, then the most recently joined.
     func members(for conversationID: ConversationID, creator: UserID?) -> [ConversationMember] {
         Self.ordered(Array((members[conversationID] ?? [:]).values), creator: creator)

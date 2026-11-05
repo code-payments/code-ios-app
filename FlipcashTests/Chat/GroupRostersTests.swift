@@ -38,6 +38,56 @@ struct GroupRostersTests {
         #expect(rosters.members(for: group, creator: host.userID).map(\.displayName) == ["Host", "Late", "Early"])
     }
 
+    private func conversation(isPrivate: Bool) -> Conversation {
+        Conversation(id: group, members: [], lastMessage: nil, lastActivity: .distantPast, type: .group, isPrivate: isPrivate)
+    }
+
+    @Test("A rostered member is confirmed in a private group")
+    func confirmsVerifiedMember() async {
+        let present = member("Present")
+        let rosters = GroupRosters { _ in [present] }
+        await rosters.refresh(group)
+
+        #expect(await rosters.confirmsMember(present.userID!, in: conversation(isPrivate: true)))
+    }
+
+    @Test("Someone off the roster is not confirmed in a private group")
+    func rejectsFormerMember() async {
+        let rosters = GroupRosters { _ in [member("Present")] }
+        await rosters.refresh(group)
+
+        #expect(await !rosters.confirmsMember(UUID(), in: conversation(isPrivate: true)))
+    }
+
+    @Test("An unloaded roster is read before the answer")
+    func readsUnloadedRoster() async {
+        let present = member("Present")
+        var reads = 0
+        let rosters = GroupRosters { _ in reads += 1; return [present] }
+
+        let confirmed = await rosters.confirmsMember(present.userID!, in: conversation(isPrivate: true))
+
+        #expect(confirmed)
+        #expect(reads == 1)
+        #expect(rosters.isLoaded(group))
+    }
+
+    @Test("A failed read confirms no one in a private group")
+    func failedReadConfirmsNoOne() async {
+        let rosters = GroupRosters { _ in throw ErrorGetChat.denied }
+
+        #expect(await !rosters.confirmsMember(UUID(), in: conversation(isPrivate: true)))
+    }
+
+    @Test("A public group is never checked or read")
+    func publicGroupUnchanged() async {
+        var reads = 0
+        let rosters = GroupRosters { _ in reads += 1; return [] }
+
+        #expect(await rosters.confirmsMember(UUID(), in: conversation(isPrivate: false)))
+        #expect(reads == 0)
+    }
+
     @Test("A failed read keeps the roster unloaded")
     func failedRead() async {
         let rosters = GroupRosters { _ in throw ErrorGetChat.denied }
