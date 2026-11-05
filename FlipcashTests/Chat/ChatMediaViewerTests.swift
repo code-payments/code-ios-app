@@ -168,6 +168,41 @@ struct ChatMediaViewerTests {
         #expect(viewer.pageCounter.isDescendant(of: viewer.pageCounterPill))
     }
 
+    @Test("A stack lays its photos side by side in a pager, one screen each")
+    func stackPagesSideBySide() throws {
+        var stack = try #require(request(message(media()), localImage: Self.localImage))
+        stack.stackPages = Array(repeating: stack.pages[0], count: 3)
+        let viewer = makeViewer(stack)
+
+        #expect(viewer.pager.isPagingEnabled)
+        #expect(viewer.pager.contentSize.width == 3 * viewer.pager.bounds.width)
+
+        viewer.showPage(2)
+        #expect(viewer.pageIndex == 2)
+        #expect(viewer.pager.contentOffset.x == 2 * viewer.pager.bounds.width)
+        #expect(viewer.pageCounter.text == "3 of 3")
+        #expect(viewer.viewForZooming(in: viewer.scrollView) === viewer.imageView)
+    }
+
+    @Test("A zoomed-in photo stops the pager, and paging away puts it back to fit")
+    func zoomLocksPaging() throws {
+        var stack = try #require(request(message(media()), localImage: Self.localImage))
+        stack.stackPages = Array(repeating: stack.pages[0], count: 2)
+        let viewer = makeViewer(stack)
+        let first = viewer.scrollView
+
+        first.setZoomScale(2, animated: false)
+        #expect(!viewer.pager.isScrollEnabled)
+
+        first.setZoomScale(first.minimumZoomScale, animated: false)
+        #expect(viewer.pager.isScrollEnabled)
+
+        first.setZoomScale(2, animated: false)
+        viewer.showPage(1)
+        #expect(first.zoomScale == first.minimumZoomScale)
+        #expect(viewer.pager.isScrollEnabled)
+    }
+
     @Test("A single photo shows no counter")
     func singlePhotoHasNoCounter() throws {
         let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))

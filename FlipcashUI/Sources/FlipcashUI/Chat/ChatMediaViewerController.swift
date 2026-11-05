@@ -107,8 +107,8 @@ public struct ChatMediaViewerRequest {
 /// A full-screen photo, zoomed in from the tapped transcript row: pinch or double-tap to zoom, swipe
 /// down or close to put it back. It opens with no buttons; a tap shows or hides them. The buttons react,
 /// reply, save to Photos and forward, with save waiting for the photo itself to load. A card stack
-/// opens on its front photo and swipes sideways through the rest under a "2 of 5" counter, each page
-/// acting on its own message.
+/// opens on its front photo and pages sideways through the rest under the finger, with a "2 of 5"
+/// counter, each page acting on its own message.
 public final class ChatMediaViewerController: UIViewController, UIScrollViewDelegate {
 
     private static let maximumZoomScale: CGFloat = 4
@@ -137,14 +137,18 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     /// Darkens the photo under the top and bottom controls while they show.
     private let topScrim = ChromeScrimView(fadingDown: true)
     private let bottomScrim = ChromeScrimView(fadingDown: false)
-    private var loadTask: Task<Void, Never>?
     /// The user's own reaction emoji the React button currently shows, in strip order.
     private var ownReactionEmoji: [String] = []
     /// What the React button's chip stack currently draws; empty while it shows the face icon.
     private(set) var reactChips: [String] = []
 
-    let scrollView = UIScrollView()
-    let imageView = UIImageView()
+    /// Pages sideways between a stack's photos; holds one zooming page per photo.
+    let pager = UIScrollView()
+    private var pageViews: [ChatMediaViewerPageView] = []
+    /// The showing page's zooming scroll view.
+    var scrollView: UIScrollView { pageViews[pageIndex] }
+    /// The showing page's photo.
+    var imageView: UIImageView { pageViews[pageIndex].imageView }
     let closeButton = UIButton(configuration: .plain())
     let reactButton = UIButton(configuration: .plain())
     let replyButton = UIButton(configuration: .plain())
@@ -170,12 +174,8 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     private(set) var reactionStrip: ReactionStripView?
     private var reactionDismissCatcher: UIControl?
 
-    /// The photo itself, once drawn, never the placeholder, so save never writes a BlurHash.
-    private var loadedImage: UIImage? {
-        didSet {
-            saveButton.isEnabled = loadedImage != nil
-        }
-    }
+    /// The showing photo itself, once drawn, never the placeholder, so save never writes a BlurHash.
+    private var loadedImage: UIImage? { pageViews[pageIndex].loadedImage }
 
     /// - Parameters:
     ///   Every per-message callback gets the stable id of the photo showing.
@@ -207,9 +207,12 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         originalData = { [weak self] in self.flatMap { ChatMediaImageSource.originalData(blobID: $0.page.blobID) } }
 
         let zoom = UIViewController.Transition.ZoomOptions()
-        // A zoomed-in photo pans instead; the swipe down only dismisses at the fitted size.
-        zoom.interactiveDismissShouldBegin = { [weak self] _ in
+        // A zoomed-in photo pans instead; the swipe down only dismisses at the fitted size, and in a
+        // stack a sideways drag pages rather than dismissing.
+        zoom.interactiveDismissShouldBegin = { [weak self] context in
             guard let self else { return true }
+            let velocity = context.velocity
+            if pages.count > 1, abs(velocity.dx) > abs(velocity.dy) { return false }
             return scrollView.zoomScale <= scrollView.minimumZoomScale
         }
         preferredTransition = .zoom(options: zoom) { [sourceView = request.sourceView] _ in sourceView() }
@@ -225,28 +228,42 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         overrideUserInterfaceStyle = .dark
         view.backgroundColor = .black
 
-        scrollView.delegate = self
-        scrollView.minimumZoomScale = 1
-        scrollView.maximumZoomScale = Self.maximumZoomScale
-        scrollView.showsVerticalScrollIndicator = false
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.contentInsetAdjustmentBehavior = .never
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(scrollView)
+        pager.delegate = self
+        pager.isPagingEnabled = true
+        pager.bounces = pages.count > 1
+        pager.alwaysBounceVertical = false
+        pager.showsVerticalScrollIndicator = false
+        pager.showsHorizontalScrollIndicator = false
+        pager.contentInsetAdjustmentBehavior = .never
+        pager.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(pager)
 
-        imageView.contentMode = .scaleAspectFit
-        imageView.isAccessibilityElement = true
-        imageView.accessibilityLabel = "Photo"
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(imageView)
+        var pageConstraints: [NSLayoutConstraint] = []
+        for _ in pages {
+            let pageView = ChatMediaViewerPageView(maximumZoomScale: Self.maximumZoomScale)
+            pageView.delegate = self
+            pager.addSubview(pageView)
+            pageConstraints += [
+                pageView.topAnchor.constraint(equalTo: pager.contentLayoutGuide.topAnchor),
+                pageView.bottomAnchor.constraint(equalTo: pager.contentLayoutGuide.bottomAnchor),
+                pageView.leadingAnchor.constraint(equalTo: pageViews.last?.trailingAnchor ?? pager.contentLayoutGuide.leadingAnchor),
+                pageView.widthAnchor.constraint(equalTo: pager.frameLayoutGuide.widthAnchor),
+                pageView.heightAnchor.constraint(equalTo: pager.frameLayoutGuide.heightAnchor),
+            ]
+            pageViews.append(pageView)
+        }
+        if let last = pageViews.last {
+            pageConstraints.append(last.trailingAnchor.constraint(equalTo: pager.contentLayoutGuide.trailingAnchor))
+        }
+        NSLayoutConstraint.activate(pageConstraints)
 
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
         doubleTap.numberOfTapsRequired = 2
-        scrollView.addGestureRecognizer(doubleTap)
+        pager.addGestureRecognizer(doubleTap)
 
         let singleTap = UITapGestureRecognizer(target: self, action: #selector(singleTapped))
         singleTap.require(toFail: doubleTap)
-        scrollView.addGestureRecognizer(singleTap)
+        pager.addGestureRecognizer(singleTap)
 
         configure(closeButton, symbol: "xmark", label: "Close", action: #selector(closeTapped))
         configure(reactButton, symbol: "face.smiling", label: "React", action: #selector(reactTapped))
@@ -276,7 +293,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         for scrim in [topScrim, bottomScrim] {
             scrim.isUserInteractionEnabled = false
             scrim.translatesAutoresizingMaskIntoConstraints = false
-            view.insertSubview(scrim, aboveSubview: scrollView)
+            view.insertSubview(scrim, aboveSubview: pager)
         }
 
         pageCounter.font = .default(size: 15, weight: .semibold)
@@ -289,27 +306,12 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         pageCounterPill.isHidden = pages.count < 2
         pageCounterPill.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(pageCounterPill)
-        if pages.count > 1 {
-            for direction in [UISwipeGestureRecognizer.Direction.left, .right] {
-                let swipe = UISwipeGestureRecognizer(target: self, action: #selector(swiped(_:)))
-                swipe.direction = direction
-                scrollView.addGestureRecognizer(swipe)
-            }
-        }
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            // Pinned to the frame, so at scale 1 the photo fits the screen and zooming grows it.
-            imageView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
-            imageView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
-            imageView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
-            imageView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
-            imageView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
-            imageView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor),
+            pager.topAnchor.constraint(equalTo: view.topAnchor),
+            pager.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            pager.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            pager.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             closeButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
@@ -339,14 +341,17 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 
         updateReactButton(entries: reactionEntries())
         observeReactionEntries()
-        loadedImage = nil
         setControlsHidden(true, animated: false)
-        loadImage()
+        loadPages(around: pageIndex)
     }
 
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         pageCounterPill.layer.cornerRadius = pageCounterPill.bounds.height / 2
+        if !pager.isDragging, !pager.isDecelerating {
+            // A size change (rotation, the Duo spanning) keeps the showing page in place.
+            pager.contentOffset = CGPoint(x: CGFloat(pageIndex) * pager.bounds.width, y: 0)
+        }
         guard #unavailable(iOS 26) else { return }
         closeButton.layer.cornerRadius = closeButton.bounds.height / 2
         for pill in [leadingPill, trailingPill] {
@@ -423,61 +428,91 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         imageView.accessibilityValue = pages.count < 2 ? nil : pageCounter.text
     }
 
-    @objc private func swiped(_ recognizer: UISwipeGestureRecognizer) {
-        // A zoomed-in photo pans instead.
-        guard scrollView.zoomScale <= scrollView.minimumZoomScale else { return }
-        showPage(pageIndex + (recognizer.direction == .left ? 1 : -1))
+    /// Pages to the photo at `index` of the stack, ignoring an index past either end.
+    func showPage(_ index: Int, animated: Bool = false) {
+        guard pages.indices.contains(index) else { return }
+        pager.setContentOffset(CGPoint(x: CGFloat(index) * pager.bounds.width, y: 0), animated: animated)
+        settle(on: index)
     }
 
-    /// Moves to the photo at `index` of the stack, ignoring an index past either end.
-    func showPage(_ index: Int) {
+    /// Makes the photo at `index` the showing one: its buttons, counter and reactions, with the
+    /// photo left behind put back to its fitted size.
+    private func settle(on index: Int) {
         guard pages.indices.contains(index), index != pageIndex else { return }
+        let previous = pageViews[pageIndex]
         pageIndex = index
+        previous.setZoomScale(previous.minimumZoomScale, animated: false)
+        pager.isScrollEnabled = true
         dismissReactionStrip(animated: false)
-        scrollView.setZoomScale(scrollView.minimumZoomScale, animated: false)
         applyPageButtons()
         refreshReactionChrome()
-        loadImage()
+        saveButton.isEnabled = loadedImage != nil
+        loadPages(around: index)
         UIAccessibility.post(notification: .layoutChanged, argument: imageView)
     }
 
-    private func loadImage() {
-        loadTask?.cancel()
-        imageView.kf.cancelDownloadTask()
-        let page = page
+    /// Loads the photo at `index` and its neighbours, so a page arrives drawn as it slides in.
+    private func loadPages(around index: Int) {
+        for neighbour in index - 1 ... index + 1 where pages.indices.contains(neighbour) {
+            loadImage(at: neighbour)
+        }
+        saveButton.isEnabled = loadedImage != nil
+    }
+
+    private func loadImage(at index: Int) {
+        let pageView = pageViews[index]
+        guard !pageView.hasStartedLoading else { return }
+        pageView.hasStartedLoading = true
+        let page = pages[index]
         if let staged = page.localImage {
             // Flattened onto white like the upload (`ChatMediaEncoder.render`), so transparent
             // pixels don't show the viewer's black ground. A background colour would also fill
             // the aspect-fit letterbox.
             let localImage = Self.flattenedOntoWhite(staged)
-            imageView.image = localImage
-            loadedImage = localImage
+            pageView.imageView.image = localImage
+            pageView.loadedImage = localImage
             return
         }
-        imageView.image = page.placeholder
-        loadedImage = nil
-        loadTask = Task { [weak self] in
+        pageView.imageView.image = page.placeholder
+        pageView.loadTask = Task { [weak self] in
             guard let remote = await page.remote(), !Task.isCancelled else { return }
-            self?.setImage(page, from: remote)
+            self?.setImage(page, at: index, from: remote)
         }
     }
 
-    private func setImage(_ page: ChatMediaViewerRequest.Page, from remote: ChatMediaLocation) {
-        guard page.messageID == self.page.messageID else { return }
-        imageView.kf.setImage(
+    private func setImage(_ page: ChatMediaViewerRequest.Page, at index: Int, from remote: ChatMediaLocation) {
+        let pageView = pageViews[index]
+        pageView.imageView.kf.setImage(
             with: ChatMediaImageSource.source(blobID: page.blobID, location: remote),
             placeholder: page.placeholder,
             options: ChatMediaImageSource.options()
-        ) { [weak self] result in
+        ) { [weak self, weak pageView] result in
             ChatMediaImageSource.persist(result)
             switch result {
             case .success(let value):
-                self?.loadedImage = value.image
+                pageView?.loadedImage = value.image
+                guard let self, index == pageIndex else { return }
+                saveButton.isEnabled = true
             case .failure:
                 // Best-effort: the placeholder stays up and zoom and save stay off.
                 break
             }
         }
+    }
+
+    // MARK: - Paging
+
+    public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard scrollView === pager, pager.bounds.width > 0, pager.isDragging || pager.isDecelerating else { return }
+        // The counter turns as the drag passes halfway, as Android's pager does.
+        let index = Int((pager.contentOffset.x / pager.bounds.width).rounded())
+        settle(on: min(max(index, 0), pages.count - 1))
+    }
+
+    public func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        guard scrollView !== pager else { return }
+        // A zoomed-in photo pans under the finger; paging waits for it to be back at fit.
+        pager.isScrollEnabled = scrollView.zoomScale <= scrollView.minimumZoomScale
     }
 
     // MARK: - Zoom
@@ -489,7 +524,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
     }
 
     public func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-        imageView
+        (scrollView as? ChatMediaViewerPageView)?.imageView
     }
 
     @objc private func doubleTapped(_ recognizer: UITapGestureRecognizer) {
@@ -768,6 +803,43 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
 #endif
 
 /// A black-to-clear gradient that keeps the viewer's white controls legible over a bright photo.
+/// One photo of the viewer: a scroll view that zooms its image, fitted to the screen at scale 1.
+final class ChatMediaViewerPageView: UIScrollView {
+    let imageView = UIImageView()
+    /// The photo itself once drawn, never the placeholder.
+    var loadedImage: UIImage?
+    var hasStartedLoading = false
+    var loadTask: Task<Void, Never>?
+
+    init(maximumZoomScale: CGFloat) {
+        super.init(frame: .zero)
+        minimumZoomScale = 1
+        self.maximumZoomScale = maximumZoomScale
+        showsVerticalScrollIndicator = false
+        showsHorizontalScrollIndicator = false
+        contentInsetAdjustmentBehavior = .never
+        translatesAutoresizingMaskIntoConstraints = false
+
+        imageView.contentMode = .scaleAspectFit
+        imageView.isAccessibilityElement = true
+        imageView.accessibilityLabel = "Photo"
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(imageView)
+        NSLayoutConstraint.activate([
+            // Pinned to the frame, so at scale 1 the photo fits the screen and zooming grows it.
+            imageView.topAnchor.constraint(equalTo: contentLayoutGuide.topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: contentLayoutGuide.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: contentLayoutGuide.trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: contentLayoutGuide.bottomAnchor),
+            imageView.widthAnchor.constraint(equalTo: frameLayoutGuide.widthAnchor),
+            imageView.heightAnchor.constraint(equalTo: frameLayoutGuide.heightAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+}
+
 private final class ChromeScrimView: UIView {
 
     override static var layerClass: AnyClass { CAGradientLayer.self }
