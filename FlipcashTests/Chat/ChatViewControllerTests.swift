@@ -332,3 +332,17 @@ struct ChatRowSpacingTests {
         #expect(gap(after: 0, in: items) == 10)
     }
 }
+
+@Suite("ChatViewController photo width")
+struct ChatViewControllerPhotoWidthTests {
+
+    @Test("A phone's photo keeps the full bubble width")
+    func phoneWidth_isUnchanged() {
+        #expect(ChatViewController.photoWidth(maxBubbleWidth: 280) == 280)
+    }
+
+    @Test("A wide screen's photo stops at the photo cap")
+    func wideScreen_isCapped() {
+        #expect(ChatViewController.photoWidth(maxBubbleWidth: 560) == ChatViewController.maxPhotoWidth)
+    }
+}

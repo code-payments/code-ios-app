@@ -154,6 +154,15 @@ public final class ChatViewController: UICollectionViewController {
     /// The widest a bubble may grow, as a share of the collection view's width.
     static let maxBubbleWidthFraction: CGFloat = 0.78
 
+    /// The widest a photo row may draw, in points: about a large phone's bubble, so a photo on a
+    /// wide screen stays phone-sized instead of growing past the visible height.
+    static let maxPhotoWidth: CGFloat = 320
+
+    /// The width a photo row draws at, given the row's widest bubble.
+    static func photoWidth(maxBubbleWidth: CGFloat) -> CGFloat {
+        min(maxBubbleWidth, maxPhotoWidth)
+    }
+
     /// A cash card's width as a fraction of the row between the column insets — narrower than a
     /// bubble, and taken of the inset row rather than the full width. Matches Android's
     /// `CASH_CARD_WIDTH_FRACTION` so the card reads the same size on both.
@@ -860,7 +869,7 @@ public final class ChatViewController: UICollectionViewController {
             let localImage = pendingMediaImage?(message.id)
             cell.configure(
                 with: message,
-                maxWidth: maxWidth,
+                maxWidth: Self.photoWidth(maxBubbleWidth: maxWidth),
                 localImage: localImage,
                 progress: pendingMediaProgress?(message.id),
                 remote: remote,
