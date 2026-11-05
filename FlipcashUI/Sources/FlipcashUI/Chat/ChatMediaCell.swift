@@ -41,6 +41,15 @@ public final class ChatMediaCell: ChatColumnCell {
     static let stackFanAngle: CGFloat = 4 * .pi / 180
     /// The photos fanned behind a card stack's front photo, nearest first.
     let stackCards: [UIImageView] = [UIImageView(), UIImageView()]
+    /// How wide a stack card's outline is, in the conversation's background colour, so photos that
+    /// look alike still read as separate cards.
+    static let stackOutlineWidth: CGFloat = 3
+    /// The front photo's shadow over the cards behind it, shaped to the photo.
+    var stackShadow: UIView { stackShadowView }
+    /// The front photo's outline, drawn over its edge.
+    var stackOutline: UIView { stackOutlineView }
+    private let stackShadowView = StackShadowView()
+    private let stackOutlineView = StackOutlineView()
     /// A card stack's "5 photos" pill, over the front photo's top-trailing corner.
     let stackCountLabel = UILabel()
     private let stackCountPill = CapsuleBlurView(effect: UIBlurEffect(style: .systemThinMaterialDark))
@@ -170,6 +179,8 @@ public final class ChatMediaCell: ChatColumnCell {
             card.layer.cornerRadius = BubbleBackgroundView.baseRadius
             card.layer.cornerCurve = .continuous
             card.backgroundColor = .secondarySystemFill
+            card.layer.borderWidth = Self.stackOutlineWidth
+            card.layer.borderColor = UIColor(Color.backgroundMain).cgColor
             card.isHidden = true
             card.isAccessibilityElement = false
             card.translatesAutoresizingMaskIntoConstraints = false
@@ -198,6 +209,14 @@ public final class ChatMediaCell: ChatColumnCell {
         for card in stackCards {
             stack.insertSubview(card, at: 0)
         }
+        stackShadowView.shape = { [unowned self] in imageBubble.maskingPath }
+        stackShadow.isHidden = true
+        stackShadow.translatesAutoresizingMaskIntoConstraints = false
+        stack.insertSubview(stackShadow, belowSubview: imageBubble)
+        stackOutlineView.shape = { [unowned self] in imageBubble.maskingPath }
+        stackOutline.isHidden = true
+        stackOutline.translatesAutoresizingMaskIntoConstraints = false
+        imageBubble.insertSubview(stackOutline, aboveSubview: imageView)
 
         quotePanel.ground = UIColor(Color.backgroundMain).withAlphaComponent(Self.quoteGroundAlpha)
         quotePanel.isHidden = true
@@ -259,6 +278,14 @@ public final class ChatMediaCell: ChatColumnCell {
             quotePanel.widthAnchor.constraint(lessThanOrEqualTo: imageBubble.widthAnchor, multiplier: Self.quoteMaxWidthFraction),
             quotePanel.bottomAnchor.constraint(lessThanOrEqualTo: imageBubble.bottomAnchor, constant: -Self.quoteInset),
         ])
+        for overlay in [stackShadow, stackOutline] {
+            NSLayoutConstraint.activate([
+                overlay.topAnchor.constraint(equalTo: imageBubble.topAnchor),
+                overlay.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor),
+                overlay.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor),
+                overlay.bottomAnchor.constraint(equalTo: imageBubble.bottomAnchor),
+            ])
+        }
         for card in stackCards {
             let height = card.heightAnchor.constraint(equalToConstant: 240)
             stackCardHeightConstraints.append(height)
@@ -487,6 +514,8 @@ public final class ChatMediaCell: ChatColumnCell {
             card.isHidden = false
         }
         stackCountPill.isHidden = photos.count < 2
+        stackShadow.isHidden = photos.count < 2
+        stackOutline.isHidden = photos.count < 2
         quoteClearOfPill.isActive = photos.count >= 2
         stackCountLabel.text = photos.count < 2 ? nil : ChatMediaStrings.stackCount(photos.count)
         imageBubble.accessibilityLabel = photos.count < 2 ? "Photo" : ChatMediaStrings.stackCount(photos.count)
@@ -597,6 +626,55 @@ extension ChatMediaCell: BubbleCarrying {
     }
 }
 #endif
+
+/// The soft shadow a card stack's front photo casts on the cards behind it, following `shape`.
+private final class StackShadowView: UIView {
+    var shape: (() -> UIBezierPath)?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.7
+        layer.shadowRadius = 8
+        layer.shadowOffset = CGSize(width: 0, height: 3)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.shadowPath = shape?().cgPath
+    }
+}
+
+/// A card stack's front-photo outline in the conversation's background colour, following `shape`.
+/// The stroke straddles the shape and the bubble's mask clips its outer half, so it is drawn at
+/// twice the visible width.
+private final class StackOutlineView: UIView {
+    var shape: (() -> UIBezierPath)?
+    private let stroke = CAShapeLayer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        stroke.fillColor = UIColor.clear.cgColor
+        stroke.strokeColor = UIColor(Color.backgroundMain).cgColor
+        stroke.lineWidth = ChatMediaCell.stackOutlineWidth * 2
+        stroke.actions = ["path": NSNull()]
+        layer.addSublayer(stroke)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        stroke.frame = bounds
+        stroke.path = shape?().cgPath
+    }
+}
 
 /// A blur that rounds itself to a capsule whenever its own height settles.
 private final class CapsuleBlurView: UIVisualEffectView {

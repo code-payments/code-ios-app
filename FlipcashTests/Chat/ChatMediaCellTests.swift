@@ -231,6 +231,16 @@ struct ChatMediaCellTests {
         #expect(cell.progressOverlay.fraction == 0.75)
     }
 
+    @Test("A stack outlines its cards and shadows its front photo; a single photo draws neither", arguments: [(1, false), (2, true), (3, true)])
+    func stackSeparation(photos: Int, separated: Bool) {
+        let cell = stackCell(photos)
+        #expect(cell.stackShadow.isHidden == !separated)
+        #expect(cell.stackOutline.isHidden == !separated)
+        for card in cell.stackCards where !card.isHidden {
+            #expect(card.layer.borderWidth == ChatMediaCell.stackOutlineWidth)
+        }
+    }
+
     @Test("Two photos draw a single back card, never more cards than photos")
     func twoPhotosDrawOneBackCard() {
         let cell = stackCell(2)
