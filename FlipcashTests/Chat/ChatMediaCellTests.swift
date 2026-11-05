@@ -228,15 +228,28 @@ struct ChatMediaCellTests {
         }
     }
 
-    @Test("The fit scale is 1 unturned and keeps a turned card's bounds inside its frame")
-    func stackFitScale() {
-        let size = CGSize(width: 240, height: 320)
-        #expect(ChatMediaCell.stackFitScale(for: size, angle: 0) == 1)
-        let scale = ChatMediaCell.stackFitScale(for: size, angle: ChatMediaCell.stackFanAngle)
-        let turned = CGRect(origin: .zero, size: size)
-            .applying(CGAffineTransform(rotationAngle: ChatMediaCell.stackFanAngle).scaledBy(x: scale, y: scale))
-        #expect(scale < 1)
-        #expect(turned.width <= size.width + 0.001 && turned.height <= size.height + 0.001)
+    @Test("A stack's front photo keeps a single photo's full height, so the row has no extra gap", arguments: [2, 3])
+    func stackKeepsPhotoHeight(photos: Int) {
+        let stack = stackCell(photos)
+        let single = stackCell(1)
+        #expect(stack.imageBubble.bounds.height == single.imageBubble.bounds.height)
+        #expect(stack.imageBubble.bounds.width < single.imageBubble.bounds.width)
+        #expect(stack.imageBubble.transform == .identity)
+    }
+
+    @Test("A fanned card, turned, just meets the frame's edges; flat fans need no room", arguments: [
+        CGSize(width: 240, height: 320), CGSize(width: 240, height: 120),
+    ])
+    func stackFanFillsFrame(frame: CGSize) throws {
+        let flat = try #require(ChatMediaCell.stackFan(in: frame, angle: 0))
+        #expect(flat.photo == frame && flat.card == frame)
+
+        let fan = try #require(ChatMediaCell.stackFan(in: frame, angle: ChatMediaCell.stackFanAngle))
+        #expect(fan.photo.height == frame.height)
+        #expect(fan.card.width == fan.photo.width && fan.card.height < frame.height)
+        let turned = CGRect(origin: .zero, size: fan.card)
+            .applying(CGAffineTransform(rotationAngle: ChatMediaCell.stackFanAngle))
+        #expect(abs(turned.width - frame.width) < 0.001 && abs(turned.height - frame.height) < 0.001)
     }
 
     @Test("An edited caption shows the text bubble's Edited marker; an unedited one does not", arguments: [true, false])

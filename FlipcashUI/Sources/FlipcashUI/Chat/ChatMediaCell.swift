@@ -46,7 +46,7 @@ public final class ChatMediaCell: ChatColumnCell {
     private let stackCountPill = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
 
     private let stack = UIStackView()
-    private let imageBubble = BubbleBackgroundView()
+    let imageBubble = BubbleBackgroundView()
     let imageView = UIImageView()
     /// Shown over the BlurHash when an encrypted photo's bytes fail to decrypt or check out.
     let unavailableLabel = UILabel()
@@ -71,6 +71,8 @@ public final class ChatMediaCell: ChatColumnCell {
 
     private var imageWidthConstraint: NSLayoutConstraint!
     private var imageHeightConstraint: NSLayoutConstraint!
+    /// The back cards' heights, a little under the front photo's so their turned corners stay in the frame.
+    private var stackCardHeightConstraints: [NSLayoutConstraint] = []
     private var captionMaxWidthConstraint: NSLayoutConstraint!
     /// Holds a bare caption card open at the bubble's full width, as `ChatLinkMessageCell` does.
     private var captionCardWidthConstraint: NSLayoutConstraint!
@@ -167,6 +169,7 @@ public final class ChatMediaCell: ChatColumnCell {
             card.isHidden = true
             card.isAccessibilityElement = false
             card.translatesAutoresizingMaskIntoConstraints = false
+            card.transform = CGAffineTransform(rotationAngle: position == 0 ? -Self.stackFanAngle : Self.stackFanAngle)
         }
         stackCountLabel.font = .default(size: 13, weight: .semibold)
         stackCountLabel.textColor = .white
@@ -253,11 +256,13 @@ public final class ChatMediaCell: ChatColumnCell {
             quotePanel.bottomAnchor.constraint(lessThanOrEqualTo: imageBubble.bottomAnchor, constant: -Self.quoteInset),
         ])
         for card in stackCards {
+            let height = card.heightAnchor.constraint(equalToConstant: 240)
+            stackCardHeightConstraints.append(height)
             NSLayoutConstraint.activate([
                 card.centerXAnchor.constraint(equalTo: imageBubble.centerXAnchor),
                 card.centerYAnchor.constraint(equalTo: imageBubble.centerYAnchor),
                 card.widthAnchor.constraint(equalTo: imageBubble.widthAnchor),
-                card.heightAnchor.constraint(equalTo: imageBubble.heightAnchor),
+                height,
             ])
         }
     }
@@ -333,8 +338,8 @@ public final class ChatMediaCell: ChatColumnCell {
             imageHeight: Double(media.height),
             maxWidth: Double(maxWidth)
         )
-        imageWidthConstraint.constant = size.width
         imageHeightConstraint.constant = size.height
+        layOutStackFan(frame: CGSize(width: size.width, height: size.height), isStack: media.stackPhotos.count > 1)
         // The same row losing its progress is a confirmed send, which fades; a new row starts clean.
         progressOverlay.bind(progress, suppressed: message.isFailed, animated: drawnRowID == message.id)
         drawImage(
@@ -472,7 +477,6 @@ public final class ChatMediaCell: ChatColumnCell {
             card.isHidden = false
         }
         stackCountPill.isHidden = photos.count < 2
-        setNeedsLayout()
         stackCountLabel.text = photos.count < 2 ? nil : ChatMediaStrings.stackCount(photos.count)
         imageBubble.accessibilityLabel = photos.count < 2 ? "Photo" : ChatMediaStrings.stackCount(photos.count)
     }
@@ -480,32 +484,31 @@ public final class ChatMediaCell: ChatColumnCell {
     public override func layoutSubviews() {
         super.layoutSubviews()
         stackCountPill.layer.cornerRadius = stackCountPill.bounds.height / 2
-        layOutStackFan()
     }
 
-    /// Shrinks a stack's front photo and the cards behind it so the fan fits the frame a single
-    /// photo takes: rows keep their usual gaps, and the timestamp reveal and avatar gutter stay clear.
-    private func layOutStackFan() {
-        // The photo sits a few views down; size it now, or the first pass fans at full size.
-        stack.layoutIfNeeded()
-        let isStack = stackCards.contains { !$0.isHidden }
-        let scale = isStack ? Self.stackFitScale(for: imageBubble.bounds.size, angle: Self.stackFanAngle) : 1
-        imageBubble.transform = scale == 1 ? .identity : CGAffineTransform(scaleX: scale, y: scale)
-        for (position, card) in stackCards.enumerated() {
-            card.transform = CGAffineTransform(rotationAngle: position == 0 ? -Self.stackFanAngle : Self.stackFanAngle)
-                .scaledBy(x: scale, y: scale)
-        }
+    /// Fits a stack in the frame a single photo takes, so its row keeps a photo's height and gaps:
+    /// the front photo keeps the full height and narrows, centered, leaving room either side for the
+    /// turned cards, which keep the timestamp reveal and avatar gutter clear.
+    private func layOutStackFan(frame: CGSize, isStack: Bool) {
+        let fan = isStack ? Self.stackFan(in: frame, angle: Self.stackFanAngle) : nil
+        imageWidthConstraint.constant = fan?.photo.width ?? frame.width
+        for height in stackCardHeightConstraints { height.constant = fan?.card.height ?? frame.height }
+        let inset = (frame.width - (fan?.photo.width ?? frame.width)) / 2
+        stack.isLayoutMarginsRelativeArrangement = fan != nil
+        stack.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: inset, bottom: 0, trailing: inset)
     }
 
-    /// The scale at which a `size` card turned by `angle` about its center fits inside `size`.
-    static func stackFitScale(for size: CGSize, angle: CGFloat) -> CGFloat {
-        guard size.width > 0, size.height > 0 else { return 1 }
+    /// The front photo's and each back card's size for a stack in `frame`: both as wide as the
+    /// front, the photo at the full height, and a card short enough that, turned by `angle`, its
+    /// corners just meet the frame's edges. Nil when the frame is too narrow or flat to fan.
+    static func stackFan(in frame: CGSize, angle: CGFloat) -> (photo: CGSize, card: CGSize)? {
         let cosine = cos(angle), sine = abs(sin(angle))
-        return min(
-            1,
-            size.width / (size.width * cosine + size.height * sine),
-            size.height / (size.width * sine + size.height * cosine)
-        )
+        let determinant = cosine * cosine - sine * sine
+        guard frame.width > 0, frame.height > 0, determinant > 0 else { return nil }
+        let width = (frame.width * cosine - frame.height * sine) / determinant
+        let cardHeight = (frame.height * cosine - frame.width * sine) / determinant
+        guard width > 0, cardHeight > 0 else { return nil }
+        return (CGSize(width: width, height: frame.height), CGSize(width: width, height: cardHeight))
     }
 
     private func drawImage(for rowID: String, blobID: BlobID?, blurhash: String?, localImage: UIImage?, remote: ChatMediaLocation?, size: CGSize) {
@@ -567,11 +570,8 @@ extension ChatMediaCell: BubbleCarrying {
 
     var liftPreviewMaskingPath: UIBezierPath? {
         let path = UIBezierPath()
-        // A stack's front photo is drawn scaled down (`layOutStackFan`); its frame already is.
-        let photoShape = imageBubble.maskingPath
-        photoShape.apply(imageBubble.transform)
         let bubbles: [(frame: CGRect, shape: UIBezierPath)] = [
-            (imageBubble.frame, photoShape),
+            (imageBubble.frame, imageBubble.maskingPath),
             (captionBubble.frame, captionBubble.maskingPath),
             (captionCardBubble.frame, captionCardBubble.maskingPath),
             (captionTrailingBubble.frame, captionTrailingBubble.maskingPath),
