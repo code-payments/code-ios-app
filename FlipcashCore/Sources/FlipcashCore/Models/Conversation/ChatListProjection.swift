@@ -95,7 +95,7 @@ public struct ChatListProjection<ID: Hashable & Sendable>: Sendable {
     public let groupsChipCount: Int
     /// An archived chat exists to show.
     public let archivedRowVisible: Bool
-    /// Unread, non-muted, non-hidden archived chats, drawn in the secondary colour.
+    /// Unread archived chats, muted included, drawn in the secondary colour.
     public let archivedRowCount: Int
     /// Unread chats in `main`, muted included, as the tab badge has always counted.
     public let tabBadge: Int
@@ -126,7 +126,7 @@ public struct ChatListProjection<ID: Hashable & Sendable>: Sendable {
             unreadChipCount: unread.count,
             groupsChipCount: groups.count(where: \.isUnread),
             archivedRowVisible: !archived.isEmpty,
-            archivedRowCount: archived.count { $0.isUnread && !$0.isMuted },
+            archivedRowCount: archived.count { $0.isUnread },
             tabBadge: unread.count
         )
     }
