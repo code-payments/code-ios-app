@@ -3,7 +3,7 @@
   "note": "Behavior fixture for docs/superpowers/specs/2026-09-28-chat-media-photos-design.md. Heights are points or dp as floats; compare with a 0.001 tolerance.",
   "maxAttachments": 10,
   "minAspect": 0.5,
-  "maxAspect": 1.3333333333333333,
+  "maxAspect": 1.25,
   "jpegQualityLadder": [
     0.9,
     0.8,
@@ -331,10 +331,10 @@
       "maxWidth": 240,
       "expected": {
         "width": 240,
-        "height": 320.0,
-        "cropped": false
+        "height": 300.0,
+        "cropped": true
       },
-      "note": "Portrait phone photo."
+      "note": "Portrait phone photo: 3:4 is taller than 5:4, so it clamps to 5:4 and crops a little."
     },
     {
       "name": "wide-at-limit",
@@ -362,15 +362,15 @@
     },
     {
       "name": "tall-at-limit",
-      "imageWidth": 3000,
-      "imageHeight": 4000,
+      "imageWidth": 4000,
+      "imageHeight": 5000,
       "maxWidth": 240,
       "expected": {
         "width": 240,
-        "height": 320.0,
+        "height": 300.0,
         "cropped": false
       },
-      "note": "Exactly 4:3 tall is not cropped. Compare with maxAspect as the double 4.0/3.0."
+      "note": "Exactly 5:4 tall is not cropped."
     },
     {
       "name": "tall-2-1",
@@ -379,10 +379,10 @@
       "maxWidth": 240,
       "expected": {
         "width": 240,
-        "height": 320.0,
+        "height": 300.0,
         "cropped": true
       },
-      "note": "2:1 is taller than 4:3, clamps to 4:3 and crops."
+      "note": "2:1 is taller than 5:4, clamps to 5:4 and crops."
     },
     {
       "name": "screenshot",
@@ -391,10 +391,10 @@
       "maxWidth": 240,
       "expected": {
         "width": 240,
-        "height": 320.0,
+        "height": 300.0,
         "cropped": true
       },
-      "note": "An iPhone screenshot is taller than 4:3 and crops."
+      "note": "An iPhone screenshot is taller than 5:4 and crops."
     },
     {
       "name": "tiny-upscaled",
