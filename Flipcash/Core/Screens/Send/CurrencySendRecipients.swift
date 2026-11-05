@@ -7,8 +7,8 @@ import Foundation
 import FlipcashCore
 
 /// Who Currency Info's Select Recipient step lists: the chat list's 1:1 chats, in the chat list's
-/// order, narrowed by a search over name and username. Groups never appear, and neither do the
-/// device's contacts — this is a view of the chat list, not an address book.
+/// order, narrowed by a search over name and username. Groups never appear, nor does the @flipcash
+/// account's chat, and neither do the device's contacts — this is a view of the chat list, not an address book.
 nonisolated enum CurrencySendRecipients {
 
     /// `chats` is the chat list as it is drawn; `name` is how a row titles a chat.
@@ -18,7 +18,9 @@ nonisolated enum CurrencySendRecipients {
         selfUserID: UserID?,
         name: (Conversation) -> String
     ) -> [Conversation] {
-        let direct = chats.filter { $0.type != .group }
+        let direct = chats.filter {
+            $0.type != .group && $0.counterpart(excluding: selfUserID)?.userID != E2eePolicy.flipcashUserID
+        }
         let needle = normalized(query)
         guard !needle.isEmpty else { return direct }
         return direct.filter { chat in

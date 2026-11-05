@@ -75,6 +75,26 @@ struct CurrencyInfoSendTests {
         #expect(names(result) == ["Bea", "Al"])
     }
 
+    @Test("The @flipcash chat is left out, other DMs stay")
+    func flipcashChatHidden() throws {
+        let flipcashID = try #require(E2eePolicy.flipcashUserID)
+        let flipcash = Conversation(
+            id: .test(9),
+            members: [
+                ConversationMember(userID: me, displayName: "Me"),
+                ConversationMember(userID: flipcashID, displayName: "Flipcash", username: Username("flipcash")),
+            ],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 9),
+            type: .contactDm,
+            title: nil
+        )
+        let chats = [flipcash, chat(1, type: .contactDm, name: "Al")]
+        let name: (Conversation) -> String = { $0.counterpart(excluding: me)?.displayName ?? "" }
+        #expect(names(CurrencySendRecipients.recipients(in: chats, query: "", selfUserID: me, name: name)) == ["Al"])
+        #expect(CurrencySendRecipients.recipients(in: chats, query: "flipcash", selfUserID: me, name: name).isEmpty)
+    }
+
     @Test("Search matches a name or a username, with or without @")
     func search() {
         let chats = [
