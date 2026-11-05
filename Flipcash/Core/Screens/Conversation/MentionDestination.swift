@@ -12,9 +12,9 @@ nonisolated enum MentionDestination: Equatable {
     /// The handle is the viewer's own. Matches a person card linking to the viewer.
     case ownTipCard
     case profile(UserID, origin: UserProfileOrigin)
-    /// A group transcript's mention of someone else: the member sheet, without its group section
-    /// when the person has left or been removed.
-    case memberSheet(UserID, isFormerMember: Bool)
+    /// A group transcript's mention of someone else: the member sheet, which settles for itself
+    /// whether the person is still in the group.
+    case memberSheet(UserID)
     /// Nobody has claimed the handle.
     case noSuchAccount
     /// The lookup never got an answer.
@@ -26,20 +26,18 @@ nonisolated enum MentionDestination: Equatable {
     /// The counterpart opens the way the DM's own title does, with Mute and without Message, since
     /// Message would lead straight back here. Anyone else gets Message and Send Cash.
     ///
-    /// In a group (`inGroup`), anyone else opens the member sheet, as a former member when
-    /// `isGroupMember` is false (see ``GroupRosters/confirmsMember(_:in:)``).
+    /// In a group (`inGroup`), anyone else opens the member sheet.
     static func destination(
         for lookup: Result<UserLinkFacts, any Error>,
         counterpart: UserID?,
         origin: UserProfileOrigin = .mention,
-        inGroup: Bool = false,
-        isGroupMember: Bool = true
+        inGroup: Bool = false
     ) -> Self {
         switch lookup {
         case .success(let facts):
             if facts.isOwn { return .ownTipCard }
             if inGroup {
-                return .memberSheet(facts.userID, isFormerMember: !isGroupMember)
+                return .memberSheet(facts.userID)
             }
             return .profile(facts.userID, origin: facts.userID == counterpart ? .directMessage : origin)
         case .failure(let error):

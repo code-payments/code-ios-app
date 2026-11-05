@@ -52,22 +52,13 @@ import FlipcashCore
     }
 
     @Test func inAGroupSomeoneElseOpensTheMemberSheet() {
-        let destination = MentionDestination.destination(
-            for: Self.facts(Self.otherID), counterpart: nil, inGroup: true, isGroupMember: true
-        )
-        #expect(destination == .memberSheet(Self.otherID, isFormerMember: false))
-    }
-
-    @Test func inAGroupSomeoneWhoLeftOpensTheSheetAsAFormerMember() {
-        let destination = MentionDestination.destination(
-            for: Self.facts(Self.otherID), counterpart: nil, inGroup: true, isGroupMember: false
-        )
-        #expect(destination == .memberSheet(Self.otherID, isFormerMember: true))
+        let destination = MentionDestination.destination(for: Self.facts(Self.otherID), counterpart: nil, inGroup: true)
+        #expect(destination == .memberSheet(Self.otherID))
     }
 
     @Test func inAGroupTheViewersOwnHandleStillOpensTheirTipCard() {
         let destination = MentionDestination.destination(
-            for: Self.facts(Self.otherID, isOwn: true), counterpart: nil, inGroup: true, isGroupMember: false
+            for: Self.facts(Self.otherID, isOwn: true), counterpart: nil, inGroup: true
         )
         #expect(destination == .ownTipCard)
     }

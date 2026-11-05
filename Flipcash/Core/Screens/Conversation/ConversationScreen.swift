@@ -231,11 +231,7 @@ struct ConversationScreen: View {
     /// the same screen the counterpart's own card opens in a DM.
     private func openAuthorProfile(_ userID: UserID) {
         if groupConversation != nil, let conversationID, userID != session.userID {
-            // Presented once the roster check has answered, so the sheet never changes after it opens.
-            Task {
-                let isMember = await sessionContainer.groupRosters.confirmsMember(userID, in: groupConversation)
-                memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID, isFormerMember: !isMember)
-            }
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID)
         } else {
             router.push(.userProfile(userID, origin: groupMemberOrigin))
         }
@@ -766,15 +762,12 @@ struct ConversationScreen: View {
             guard let username = tappedMention else { return }
             let lookup = await sessionContainer.linkCardFeed.person(.username(username))
             guard !Task.isCancelled else { return }
-            let isMember = await isGroupMember(lookup)
-            guard !Task.isCancelled else { return }
             tappedMention = nil
             open(
                 MentionDestination.destination(
                     for: lookup,
                     counterpart: tipCounterpart?.userID,
-                    inGroup: groupConversation != nil,
-                    isGroupMember: isMember
+                    inGroup: groupConversation != nil
                 ),
                 for: username
             )
@@ -2077,18 +2070,11 @@ struct ConversationScreen: View {
         tappedMention = username
     }
 
-    /// Whether a looked-up mention is someone the group's host actions apply to, with the roster
-    /// read first when a private group's isn't held. Only a group transcript asks.
-    private func isGroupMember(_ lookup: Result<UserLinkFacts, any Error>) async -> Bool {
-        guard case .success(let facts) = lookup, !facts.isOwn else { return true }
-        return await sessionContainer.groupRosters.confirmsMember(facts.userID, in: groupConversation)
-    }
-
     private func open(_ destination: MentionDestination, for username: Username) {
         switch destination {
-        case .memberSheet(let userID, let isFormerMember):
+        case .memberSheet(let userID):
             guard let conversationID else { return }
-            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID, isFormerMember: isFormerMember)
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID)
         case .ownTipCard:
             router.showOwnTipCard()
         case .profile(let userID, let origin):

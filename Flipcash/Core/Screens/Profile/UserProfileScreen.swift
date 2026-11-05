@@ -63,7 +63,7 @@ private struct UserProfileContent: View {
     @State private var isReporting = false
     @State private var silenceTarget: ModerationTarget?
     /// Whether the group's host actions apply, answered alongside the profile load.
-    @State private var isGroupMember = false
+    @State private var rosterReadFailed = false
     @State private var startChattingRequest: StartChattingRequest?
     @State private var postPayment = PostPaymentChat()
     /// Where this screen sits in its stack, recorded when it first appears.
@@ -129,9 +129,16 @@ private struct UserProfileContent: View {
         return conversationController.conversation(withID: id)
     }
 
+    /// What the roster says about this person in the group the profile opened from. The "In <group>"
+    /// items show disabled until it confirms them, and a non-member gets none.
+    private var membership: MembershipCheck {
+        let held = sessionContainer.groupRosters.membership(of: model.userID, in: moderationGroup)
+        return held == .pending && rosterReadFailed ? .failed : held
+    }
+
     private var moderationItems: [ProfileMenuItem] {
         // A private group's section waits for the roster to confirm the person is still a member.
-        guard let group = moderationGroup, let state = group.viewerState, isGroupMember else { return [] }
+        guard let group = moderationGroup, let state = group.viewerState, membership != .notMember else { return [] }
         return ProfileMenuItems.moderation(
             canSilence: state.canSilence,
             canBan: state.canBan,
@@ -285,7 +292,9 @@ private struct UserProfileContent: View {
         }
         .task(id: moderationGroup?.id) {
             guard let group = moderationGroup else { return }
-            isGroupMember = await sessionContainer.groupRosters.confirmsMember(model.userID, in: group)
+            guard membership == .pending else { return }
+            let answer = await sessionContainer.groupRosters.checkMembership(of: model.userID, in: group)
+            rosterReadFailed = answer == .failed
         }
         .task {
             await model.loadProfile()
@@ -340,6 +349,7 @@ private struct UserProfileContent: View {
                             Label(item.title, systemImage: item.systemImage)
                         }
                         .tint(item.isDestructive ? Color.textError : nil)
+                        .disabled(membership != .confirmed)
                     }
                 }
             }

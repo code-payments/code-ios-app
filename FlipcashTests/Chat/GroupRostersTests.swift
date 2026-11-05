@@ -48,43 +48,52 @@ struct GroupRostersTests {
         let rosters = GroupRosters { _ in [present] }
         await rosters.refresh(group)
 
-        #expect(await rosters.confirmsMember(present.userID!, in: conversation(isPrivate: true)))
+        #expect(rosters.membership(of: present.userID!, in: conversation(isPrivate: true)) == .confirmed)
     }
 
-    @Test("Someone off the roster is not confirmed in a private group")
-    func rejectsFormerMember() async {
-        let rosters = GroupRosters { _ in [member("Present")] }
-        await rosters.refresh(group)
-
-        #expect(await !rosters.confirmsMember(UUID(), in: conversation(isPrivate: true)))
-    }
-
-    @Test("An unloaded roster is read before the answer")
-    func readsUnloadedRoster() async {
+    @Test("Pending until the roster is read, then enabled for a member")
+    func pendingThenConfirmed() async {
         let present = member("Present")
         var reads = 0
         let rosters = GroupRosters { _ in reads += 1; return [present] }
+        let chat = conversation(isPrivate: true)
 
-        let confirmed = await rosters.confirmsMember(present.userID!, in: conversation(isPrivate: true))
+        #expect(rosters.membership(of: present.userID!, in: chat) == .pending)
+        let answer = await rosters.checkMembership(of: present.userID!, in: chat)
 
-        #expect(confirmed)
+        #expect(answer == .confirmed)
+        #expect(rosters.membership(of: present.userID!, in: chat) == .confirmed)
         #expect(reads == 1)
-        #expect(rosters.isLoaded(group))
     }
 
-    @Test("A failed read confirms no one in a private group")
-    func failedReadConfirmsNoOne() async {
+    @Test("Pending, then not a member when the roster omits them")
+    func pendingThenNotMember() async {
+        let rosters = GroupRosters { _ in [member("Present")] }
+        let chat = conversation(isPrivate: true)
+        let stranger = UUID()
+
+        #expect(rosters.membership(of: stranger, in: chat) == .pending)
+        #expect(await rosters.checkMembership(of: stranger, in: chat) == .notMember)
+        #expect(rosters.membership(of: stranger, in: chat) == .notMember)
+    }
+
+    @Test("Pending, then failed when the read throws, and still pending to the sync check")
+    func pendingThenFailed() async {
         let rosters = GroupRosters { _ in throw ErrorGetChat.denied }
+        let chat = conversation(isPrivate: true)
 
-        #expect(await !rosters.confirmsMember(UUID(), in: conversation(isPrivate: true)))
+        #expect(await rosters.checkMembership(of: UUID(), in: chat) == .failed)
+        #expect(rosters.membership(of: UUID(), in: chat) == .pending)
     }
 
-    @Test("A public group is never checked or read")
+    @Test("A public group is confirmed without a read")
     func publicGroupUnchanged() async {
         var reads = 0
         let rosters = GroupRosters { _ in reads += 1; return [] }
+        let chat = conversation(isPrivate: false)
 
-        #expect(await rosters.confirmsMember(UUID(), in: conversation(isPrivate: false)))
+        #expect(rosters.membership(of: UUID(), in: chat) == .confirmed)
+        #expect(await rosters.checkMembership(of: UUID(), in: chat) == .confirmed)
         #expect(reads == 0)
     }
 
