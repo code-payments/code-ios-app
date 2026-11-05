@@ -376,7 +376,7 @@
       "note": "Rule 1. The archived group is in no chip and not in the badge; it shows only in the Archived row's count."
     },
     {
-      "name": "archived-muted-not-counted",
+      "name": "archived-muted-still-counted",
       "chats": [
         {
           "id": "a",
@@ -422,11 +422,11 @@
         },
         "archivedRow": {
           "visible": true,
-          "count": 1
+          "count": 2
         },
         "tabBadge": 0
       },
-      "note": "The Archived row counts unread chats that are not muted. A muted archived chat stays listed under Archived but counts toward nothing."
+      "note": "The Archived row counts every unread archived chat, muted or not, the way the tab badge counts muted chats in the main list. It counts chats, not messages: a has 9 unread and adds 1."
     },
     {
       "name": "muted-in-main-still-in-badge",

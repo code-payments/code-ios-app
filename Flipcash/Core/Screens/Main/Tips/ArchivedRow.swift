@@ -8,7 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// The first row under the chips, shown whenever a chat is archived. Its trailing count is the
-/// unread, non-muted archived chats, in the secondary colour so it does not read as a badge.
+/// unread archived chats (muted included), in the secondary colour so it does not read as a badge.
 struct ArchivedRow: View {
 
     let count: Int
