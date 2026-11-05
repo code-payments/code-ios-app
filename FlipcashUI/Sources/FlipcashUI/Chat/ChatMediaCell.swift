@@ -41,9 +41,13 @@ public final class ChatMediaCell: ChatColumnCell {
     static let stackFanAngle: CGFloat = 4 * .pi / 180
     /// The photos fanned behind a card stack's front photo, nearest first.
     let stackCards: [UIImageView] = [UIImageView(), UIImageView()]
-    /// A card stack's "5 photos" pill, over the front photo's bottom-leading corner.
+    /// A card stack's "5 photos" pill, over the front photo's top-trailing corner.
     let stackCountLabel = UILabel()
-    private let stackCountPill = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+    private let stackCountPill = CapsuleBlurView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+    /// Keeps a reply's quote panel, which shares the top edge, clear of the count pill while it shows.
+    private lazy var quoteClearOfPill = quotePanel.trailingAnchor.constraint(
+        lessThanOrEqualTo: stackCountPill.leadingAnchor, constant: -Self.quoteInset
+    )
 
     private let stack = UIStackView()
     let imageBubble = BubbleBackgroundView()
@@ -247,8 +251,8 @@ public final class ChatMediaCell: ChatColumnCell {
             stackCountLabel.bottomAnchor.constraint(equalTo: stackCountPill.contentView.bottomAnchor, constant: -4),
             stackCountLabel.leadingAnchor.constraint(equalTo: stackCountPill.contentView.leadingAnchor, constant: 10),
             stackCountLabel.trailingAnchor.constraint(equalTo: stackCountPill.contentView.trailingAnchor, constant: -10),
-            stackCountPill.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.progressInset),
-            stackCountPill.bottomAnchor.constraint(equalTo: imageBubble.bottomAnchor, constant: -Self.progressInset),
+            stackCountPill.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor, constant: -Self.progressInset),
+            stackCountPill.topAnchor.constraint(equalTo: imageBubble.topAnchor, constant: Self.progressInset),
 
             quotePanel.topAnchor.constraint(equalTo: imageBubble.topAnchor, constant: Self.quoteInset),
             quotePanel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.quoteInset),
@@ -477,13 +481,9 @@ public final class ChatMediaCell: ChatColumnCell {
             card.isHidden = false
         }
         stackCountPill.isHidden = photos.count < 2
+        quoteClearOfPill.isActive = photos.count >= 2
         stackCountLabel.text = photos.count < 2 ? nil : ChatMediaStrings.stackCount(photos.count)
         imageBubble.accessibilityLabel = photos.count < 2 ? "Photo" : ChatMediaStrings.stackCount(photos.count)
-    }
-
-    public override func layoutSubviews() {
-        super.layoutSubviews()
-        stackCountPill.layer.cornerRadius = stackCountPill.bounds.height / 2
     }
 
     /// Fits a stack in the frame a single photo takes, so its row keeps a photo's height and gaps:
@@ -591,3 +591,11 @@ extension ChatMediaCell: BubbleCarrying {
     }
 }
 #endif
+
+/// A blur that rounds itself to a capsule whenever its own height settles.
+private final class CapsuleBlurView: UIVisualEffectView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.cornerRadius = bounds.height / 2
+    }
+}
