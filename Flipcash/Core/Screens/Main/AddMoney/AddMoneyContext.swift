@@ -10,6 +10,7 @@ nonisolated enum AddMoneyContext: Hashable, Sendable {
     case buyCurrency
     case createCurrency
     case giveCash
+    case payRequest
     case sendTips
     /// Direct entry — no gating dialog precedes the sheet.
     case general
@@ -19,6 +20,7 @@ nonisolated enum AddMoneyContext: Hashable, Sendable {
         case .buyCurrency:    "Add money to buy currencies"
         case .createCurrency: "Add money to create a currency"
         case .giveCash:       "Add money to give cash"
+        case .payRequest:     "Add money to pay this request"
         case .sendTips:       "Add money to send tips"
         case .general:        "Add money to get started"
         }

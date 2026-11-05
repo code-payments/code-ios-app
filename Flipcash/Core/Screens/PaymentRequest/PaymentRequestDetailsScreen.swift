@@ -392,7 +392,7 @@ final class PaymentRequestPayFlow {
         let session = sessionContainer.session
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         if let dialog = giveCashGate(session: session, rate: rate)
-            .blockingDialog(router: router, addMoneySource: .chat, context: .giveCash) {
+            .blockingDialog(router: router, addMoneySource: .chat, context: .payRequest) {
             session.dialogItem = dialog
             return .noBalance
         }
