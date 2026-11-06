@@ -241,6 +241,17 @@ struct ChatMediaCellTests {
         }
     }
 
+    @Test("Every card in a stack clips its photo to its rounded shape, turned cards included", arguments: [2, 3])
+    func stackCardsClipToTheirShape(photos: Int) {
+        let cell = stackCell(photos)
+        #expect(cell.imageView.clipsToBounds)
+        for card in cell.stackCards where !card.isHidden {
+            #expect(card.clipsToBounds)
+            #expect(card.layer.cornerRadius == BubbleBackgroundView.baseRadius)
+            #expect(card.transform != .identity)
+        }
+    }
+
     @Test("Two photos draw a single back card, never more cards than photos")
     func twoPhotosDrawOneBackCard() {
         let cell = stackCell(2)
