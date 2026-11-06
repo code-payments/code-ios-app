@@ -187,34 +187,53 @@ public struct ChatSeal: @unchecked Sendable {
             return message.opened(.failure(.unsupported))
         }
 
-        let bytes = SharedBytes.shared
-        let payload = EncryptedPayload(nonce: bytes.byteArray(data: nonce), ciphertext: bytes.byteArray(data: ciphertext))
-        let plaintext: KotlinByteArray
+        let plaintext: Data
         do {
-            switch mode {
-            case .pair(let chatKey, let own, let peer):
-                let isFromSelf = senderID == selfUserID
-                plaintext = try cipher.decrypt(
-                    payload: payload,
-                    chatKey: chatKey,
-                    senderPk: isFromSelf ? own : peer,
-                    recipientPk: isFromSelf ? peer : own,
-                    chatId: chatID
-                )
-            case .group(let groupKey):
-                plaintext = try cipher.decryptGroup(payload: payload, groupKey: groupKey, chatId: chatID, senderId: userID(senderID))
-            }
+            plaintext = try decrypt(nonce: nonce, ciphertext: ciphertext, senderID: senderID)
         } catch {
             return message.opened(.failure(.authentication))
         }
 
         // Authenticated, so anything this client can't read, or a photo whose metadata breaks the
         // contract, is a newer or misbehaving client's content.
-        guard let content = try? Flipcash_Messaging_V1_Content(serializedBytes: bytes.data(bytes: plaintext)),
+        guard let content = try? Flipcash_Messaging_V1_Content(serializedBytes: plaintext),
               let readable = content.readable(senderID: senderID) else {
             return message.opened(.failure(.unsupported))
         }
         return message.opened(.success((readable.content, readable.repliedTo)), linkPreview: readable.linkPreview)
+    }
+
+    /// The content an edit of `message`, this user's sealed photo, sends to change its caption to
+    /// `caption`: the photo's own sealed content with only the caption replaced, so the items and
+    /// any reply wrapper go back exactly as they were sent. Throws when the message isn't one.
+    public func sealCaptionEdit(of message: ConversationMessage, to caption: String) throws -> Flipcash_Messaging_V1_Content {
+        guard let sealed = message.sealed, sealed.scheme == scheme.rawValue, let senderID = message.senderID, senderID == selfUserID else {
+            throw CaptionEditFailure.notOwnSealedPhoto
+        }
+        let plaintext = try decrypt(nonce: sealed.nonce, ciphertext: sealed.ciphertext, senderID: senderID)
+        let content = try Flipcash_Messaging_V1_Content(serializedBytes: plaintext)
+        return try seal(content.replacingCaption(with: caption))
+    }
+
+    /// The plaintext of a payload `senderID` sealed in this chat. Throws when it fails to authenticate.
+    private func decrypt(nonce: Data, ciphertext: Data, senderID: UserID) throws -> Data {
+        let bytes = SharedBytes.shared
+        let payload = EncryptedPayload(nonce: bytes.byteArray(data: nonce), ciphertext: bytes.byteArray(data: ciphertext))
+        let plaintext: KotlinByteArray
+        switch mode {
+        case .pair(let chatKey, let own, let peer):
+            let isFromSelf = senderID == selfUserID
+            plaintext = try cipher.decrypt(
+                payload: payload,
+                chatKey: chatKey,
+                senderPk: isFromSelf ? own : peer,
+                recipientPk: isFromSelf ? peer : own,
+                chatId: chatID
+            )
+        case .group(let groupKey):
+            plaintext = try cipher.decryptGroup(payload: payload, groupKey: groupKey, chatId: chatID, senderId: userID(senderID))
+        }
+        return bytes.data(bytes: plaintext)
     }
 
     // MARK: - Payment request text -
@@ -272,6 +291,14 @@ public enum RequestTextFailure: Error, Hashable, Sendable {
     case notGroup
     /// The scheme is unknown or the request names no creator.
     case unsupported
+}
+
+/// Why a photo's caption edit could not be built.
+public enum CaptionEditFailure: Error, Hashable, Sendable {
+    /// The message is not this user's photo, or not sealed the way this seal reads.
+    case notOwnSealedPhoto
+    /// The message's content is not a photo with a caption.
+    case notCaptionedPhoto
 }
 
 /// Why a photo blob could not be decrypted; either way the photo draws as unsupported.
@@ -370,6 +397,34 @@ extension Flipcash_Messaging_V1_Content {
                 $0.content = [body]
             }
         }
+    }
+
+    /// The content an edit of a plaintext photo sends to change its caption to `caption`: its
+    /// single-ORIGINAL item, as a plaintext send attaches it, under the new caption, kept a reply
+    /// to `repliedTo` when set. Throws when `content` is not a photo with a caption.
+    public static func captionEdit(of content: ConversationMessage.Content, to caption: String, repliedTo: MessageID?) throws -> Self {
+        guard case .media(let attachments, let current) = content, !(current?.isEmpty ?? true),
+              attachments.count == 1, let item = attachments[0].proto else {
+            throw CaptionEditFailure.notCaptionedPhoto
+        }
+        return .plaintext(media: item, caption: caption, repliedTo: repliedTo)
+    }
+
+    /// This content with its photo's caption replaced by `caption`, the photo inside a reply
+    /// included. Throws when it is not a photo with a caption.
+    func replacingCaption(with caption: String) throws -> Self {
+        var content = self
+        switch content.type {
+        case .media(var media) where media.hasCaption && !media.caption.text.isEmpty:
+            media.caption.text = caption
+            content.media = media
+        case .reply(var reply) where reply.content.count == 1:
+            reply.content[0] = try reply.content[0].replacingCaption(with: caption)
+            content.reply = reply
+        case .media, .reply, .text, .cash, .system, .widget, .deleted, .encrypted, nil:
+            throw CaptionEditFailure.notCaptionedPhoto
+        }
+        return content
     }
 
     /// The content, replied-to message and link preview of decrypted Text, Media, or a Reply of

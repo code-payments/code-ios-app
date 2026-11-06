@@ -110,4 +110,27 @@ struct ChatPhotoSendProgressTests {
         progress.didUpload(bytes(10, of: 100))
         #expect(progress.phase == .uploading(fraction: 0.1))
     }
+
+    // MARK: - A stack's whole send
+
+    @Test("A stack stays preparing until any of its photos has bytes going out")
+    func combinedPreparing() {
+        #expect(ChatPhotoSendProgress.combined([.preparing, .preparing]) == .preparing)
+        #expect(ChatPhotoSendProgress.combined([nil, nil]) == nil)
+    }
+
+    @Test("A stack's upload is the share of the send, with photos past their upload counted as done")
+    func combinedUploading() {
+        #expect(ChatPhotoSendProgress.combined([.uploading(fraction: 0.5), .preparing]) == .uploading(fraction: 0.25))
+        #expect(ChatPhotoSendProgress.combined([.processing, .uploading(fraction: 0.5)]) == .uploading(fraction: 0.75))
+        #expect(ChatPhotoSendProgress.combined([nil, .preparing]) == .uploading(fraction: 0.5))
+    }
+
+    @Test("Once every upload is done, a stack shows the slowest of the rest, leaving failed photos out")
+    func combinedAfterUpload() {
+        #expect(ChatPhotoSendProgress.combined([.sending, .processing]) == .processing)
+        #expect(ChatPhotoSendProgress.combined([.sent, .sending, .failed]) == .sending)
+        #expect(ChatPhotoSendProgress.combined([.sent, nil]) == .sent)
+        #expect(ChatPhotoSendProgress.combined([.failed, .failed]) == .failed)
+    }
 }

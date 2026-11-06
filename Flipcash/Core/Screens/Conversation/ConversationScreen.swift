@@ -610,15 +610,14 @@ struct ConversationScreen: View {
         while let presented = presenter.presentedViewController {
             presenter = presented
         }
-        let stableID = request.messageID
         let viewer = ChatMediaViewerController(
             request: request,
-            onReply: { handleMessageAction(stableID, .reply) },
-            onForward: { handleMessageAction(stableID, .forward) },
+            onReply: { handleMessageAction($0, .reply) },
+            onForward: { handleMessageAction($0, .forward) },
             onSave: { image, original in try await PhotoLibrary.save(image: image, original: original) },
-            onReact: { emoji in toggleReaction(stableID, emoji: emoji) },
-            onMoreReactions: { openReactionPicker(stableID) },
-            reactionEntries: { chatMessage(withStableID: stableID).map(reactionStripEntries) ?? [] }
+            onReact: { stableID, emoji in toggleReaction(stableID, emoji: emoji) },
+            onMoreReactions: { openReactionPicker($0) },
+            reactionEntries: { stableID in reactionStripEntries(forStableID: stableID) }
         )
         presenter.present(viewer, animated: true)
     }
@@ -1484,8 +1483,15 @@ struct ConversationScreen: View {
                 kind: preview.kind
             ))
         case .edit:
-            guard case .text(let text) = message.content else { return }
-            composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
+            // A photo's edit is its caption; the photo itself can't change.
+            switch message.content {
+            case .text(let text):
+                composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
+            case .media(_, let caption?) where !caption.isEmpty:
+                composer.beginEditing(messageID: message.id, stableID: stableID, currentText: caption)
+            case .media, .cash, .deleted, .encrypted, .widget, .system:
+                return
+            }
         case .delete:
             confirmDelete(message.id)
         case .report:
@@ -1497,6 +1503,10 @@ struct ConversationScreen: View {
         case .forward:
             guard let conversationID else { return }
             messageShare = MessageShareRequest(id: stableID, url: .messageLink(in: conversationID, messageID: message.id))
+        case .savePhoto:
+            savePhoto(message, stableID: stableID)
+        case .saveAllPhotos:
+            saveAllPhotos(inStackFrontedBy: stableID)
         case .pin:
             pin(message)
         case .unpin:
@@ -1512,6 +1522,85 @@ struct ConversationScreen: View {
                 )
                 ErrorReporting.captureError(error, reason: "Failed to remove user")
             }
+        }
+    }
+
+    /// Saves the photo in `message` to the library the way the full-screen viewer does: its original
+    /// bytes when held, otherwise the image this device already drew. Nothing is downloaded here.
+    private func savePhoto(_ message: ConversationMessage, stableID: String) {
+        guard case .media(let attachments, _) = message.content, let attachment = attachments.first else { return }
+        let original = ChatMediaImageSource.originalData(blobID: attachment.blobID)
+        let image = conversationController.pendingMediaImage(forMessageID: stableID)
+            ?? attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))
+            ?? original.flatMap(UIImage.init(data:))
+        guard let image else {
+            session.dialogItem = .error(title: "Couldn't Save Photo", subtitle: "Please try again.")
+            return
+        }
+        Task {
+            do {
+                try await PhotoLibrary.save(image: image, original: original)
+                container.toasts.show(.init("Saved to Photos", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
+            } catch {
+                showPhotoLibraryDenied()
+            }
+        }
+    }
+
+    /// Saves every photo of the card stack `stableID` fronts to the library, oldest first, the way
+    /// Save Photo saves one. A photo this device hasn't drawn yet is downloaded first; one that still
+    /// can't be had is skipped and counted in the failure dialog.
+    private func saveAllPhotos(inStackFrontedBy stableID: String) {
+        guard let front = chatMessage(withStableID: stableID),
+              case .media(let media) = front.content else { return }
+        let messages = coordinator?.loader.messages ?? []
+        let attachments: [MediaAttachment] = media.stackPhotos.compactMap { photo in
+            guard !photo.isRedacted, let message = messages.first(where: { $0.stableID == photo.messageID }) else { return nil }
+            switch message.content {
+            case .media(let attachments, _): return attachments.first
+            case .text, .cash, .deleted, .encrypted, .widget, .system: return nil
+            }
+        }
+        let resolver = pinnedList.mediaURLResolver
+        Task {
+            var saved = 0
+            for attachment in attachments {
+                var image = attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))
+                    ?? ChatMediaImageSource.originalData(blobID: attachment.blobID).flatMap(UIImage.init(data:))
+                if image == nil, let location = await resolver.location(for: attachment) {
+                    image = await ChatMediaImageSource.image(blobID: attachment.blobID, location: location)
+                }
+                guard let image else { continue }
+                do {
+                    try await PhotoLibrary.save(image: image, original: ChatMediaImageSource.originalData(blobID: attachment.blobID))
+                    saved += 1
+                } catch {
+                    showPhotoLibraryDenied()
+                    return
+                }
+            }
+            let total = media.stackPhotos.filter { !$0.isRedacted }.count
+            if saved == total {
+                container.toasts.show(.init("Saved to Photos", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
+            } else {
+                session.dialogItem = .error(
+                    title: "Couldn't Save All Photos",
+                    subtitle: "\(saved) of \(total) photos were saved. Please try again."
+                )
+            }
+        }
+    }
+
+    /// The dialog for a save the photo library refused, which only Settings can fix.
+    private func showPhotoLibraryDenied() {
+        session.dialogItem = .error(
+            title: "Failed to Save",
+            subtitle: "Please allow Flipcash access to Photos in Settings in order to save this photo."
+        ) {
+            .destructive("Open Settings") {
+                URL.openSettings()
+            };
+            .notNow()
         }
     }
 
@@ -1633,6 +1722,20 @@ struct ConversationScreen: View {
     /// most used, then the row's own reactions, then the start of the catalog, filtered to what the
     /// current OS build can draw. Empty suppresses the strip.
     private func reactionStripEntries(for message: ChatMessage) -> [ReactionStrip.Entry] {
+        reactionStripEntries(selfReactions: message.selfReactions)
+    }
+
+    /// The viewer's strip for a photo, including one behind a card stack's front, which has no row
+    /// of its own and so is read from the message.
+    private func reactionStripEntries(forStableID stableID: String) -> [ReactionStrip.Entry] {
+        if let row = chatMessage(withStableID: stableID) {
+            return reactionStripEntries(for: row)
+        }
+        guard let message = coordinator?.loader.messages.first(where: { $0.stableID == stableID }) else { return [] }
+        return reactionStripEntries(selfReactions: message.reactionState?.selfReactions ?? [])
+    }
+
+    private func reactionStripEntries(selfReactions: [SelfReaction]) -> [ReactionStrip.Entry] {
         let fixed = RecentReactions.defaults.filter { !undrawableEmoji.contains($0) }
         let mostUsed = sessionContainer.recentReactions
             .row(limit: fixed.count + RecentReactionsStore.stripLimit, undrawable: undrawableEmoji)
@@ -1640,7 +1743,7 @@ struct ConversationScreen: View {
             .prefix(RecentReactionsStore.stripLimit)
         let recents = fixed + mostUsed
         return ReactionStrip.filled(
-            ReactionStrip.entries(recents: recents, selfReactions: message.selfReactions),
+            ReactionStrip.entries(recents: recents, selfReactions: selfReactions),
             from: stripCatalog,
             limit: RecentReactionsStore.stripFillLimit
         )

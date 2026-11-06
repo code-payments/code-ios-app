@@ -37,8 +37,29 @@ public final class ChatMediaCell: ChatColumnCell {
     /// Near-opaque, so the quote reads over any photo, light or dark.
     private static let quoteGroundAlpha: CGFloat = 0.85
 
+    /// How far each photo behind a card stack's front one turns, alternating sides.
+    static let stackFanAngle: CGFloat = 4 * .pi / 180
+    /// The photos fanned behind a card stack's front photo, nearest first.
+    let stackCards: [UIImageView] = [UIImageView(), UIImageView()]
+    /// How wide a stack card's outline is, in the conversation's background colour, so photos that
+    /// look alike still read as separate cards.
+    static let stackOutlineWidth: CGFloat = 3
+    /// The front photo's shadow over the cards behind it, shaped to the photo.
+    var stackShadow: UIView { stackShadowView }
+    /// The front photo's outline, drawn over its edge.
+    var stackOutline: UIView { stackOutlineView }
+    private let stackShadowView = StackShadowView()
+    private let stackOutlineView = StackOutlineView()
+    /// A card stack's "5 photos" pill, over the front photo's top-trailing corner.
+    let stackCountLabel = UILabel()
+    private let stackCountPill = CapsuleBlurView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+    /// Keeps a reply's quote panel, which shares the top edge, clear of the count pill while it shows.
+    private lazy var quoteClearOfPill = quotePanel.trailingAnchor.constraint(
+        lessThanOrEqualTo: stackCountPill.leadingAnchor, constant: -Self.quoteInset
+    )
+
     private let stack = UIStackView()
-    private let imageBubble = BubbleBackgroundView()
+    let imageBubble = BubbleBackgroundView()
     let imageView = UIImageView()
     /// Shown over the BlurHash when an encrypted photo's bytes fail to decrypt or check out.
     let unavailableLabel = UILabel()
@@ -63,6 +84,8 @@ public final class ChatMediaCell: ChatColumnCell {
 
     private var imageWidthConstraint: NSLayoutConstraint!
     private var imageHeightConstraint: NSLayoutConstraint!
+    /// The back cards' heights, a little under the front photo's so their turned corners stay in the frame.
+    private var stackCardHeightConstraints: [NSLayoutConstraint] = []
     private var captionMaxWidthConstraint: NSLayoutConstraint!
     /// Holds a bare caption card open at the bubble's full width, as `ChatLinkMessageCell` does.
     private var captionCardWidthConstraint: NSLayoutConstraint!
@@ -150,6 +173,30 @@ public final class ChatMediaCell: ChatColumnCell {
             }
         }
 
+        for (position, card) in stackCards.enumerated() {
+            card.contentMode = .scaleAspectFill
+            card.clipsToBounds = true
+            card.layer.cornerRadius = BubbleBackgroundView.baseRadius
+            card.layer.cornerCurve = .continuous
+            card.backgroundColor = .secondarySystemFill
+            card.layer.borderWidth = Self.stackOutlineWidth
+            card.layer.borderColor = UIColor(Color.backgroundMain).cgColor
+            card.isHidden = true
+            card.isAccessibilityElement = false
+            card.translatesAutoresizingMaskIntoConstraints = false
+            card.transform = CGAffineTransform(rotationAngle: position == 0 ? -Self.stackFanAngle : Self.stackFanAngle)
+        }
+        stackCountLabel.font = .default(size: 13, weight: .semibold)
+        stackCountLabel.textColor = .white
+        stackCountLabel.translatesAutoresizingMaskIntoConstraints = false
+        stackCountPill.contentView.addSubview(stackCountLabel)
+        stackCountPill.clipsToBounds = true
+        stackCountPill.layer.cornerCurve = .continuous
+        stackCountPill.isHidden = true
+        stackCountPill.isUserInteractionEnabled = false
+        stackCountPill.translatesAutoresizingMaskIntoConstraints = false
+        imageBubble.addSubview(stackCountPill)
+
         stack.axis = .vertical
         stack.spacing = Self.captionGap
         stack.addArrangedSubview(imageBubble)
@@ -157,6 +204,19 @@ public final class ChatMediaCell: ChatColumnCell {
         stack.addArrangedSubview(captionCardBubble)
         stack.addArrangedSubview(captionTrailingBubble)
         stack.addArrangedSubview(captionEmoji)
+
+        // Behind the front photo, the farther card lowest.
+        for card in stackCards {
+            stack.insertSubview(card, at: 0)
+        }
+        stackShadowView.shape = { [unowned self] in imageBubble.maskingPath }
+        stackShadow.isHidden = true
+        stackShadow.translatesAutoresizingMaskIntoConstraints = false
+        stack.insertSubview(stackShadow, belowSubview: imageBubble)
+        stackOutlineView.shape = { [unowned self] in imageBubble.maskingPath }
+        stackOutline.isHidden = true
+        stackOutline.translatesAutoresizingMaskIntoConstraints = false
+        imageBubble.insertSubview(stackOutline, aboveSubview: imageView)
 
         quotePanel.ground = UIColor(Color.backgroundMain).withAlphaComponent(Self.quoteGroundAlpha)
         quotePanel.isHidden = true
@@ -206,11 +266,36 @@ public final class ChatMediaCell: ChatColumnCell {
             unavailableLabel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.captionInset),
             unavailableLabel.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor, constant: -Self.captionInset),
 
+            stackCountLabel.topAnchor.constraint(equalTo: stackCountPill.contentView.topAnchor, constant: 4),
+            stackCountLabel.bottomAnchor.constraint(equalTo: stackCountPill.contentView.bottomAnchor, constant: -4),
+            stackCountLabel.leadingAnchor.constraint(equalTo: stackCountPill.contentView.leadingAnchor, constant: 10),
+            stackCountLabel.trailingAnchor.constraint(equalTo: stackCountPill.contentView.trailingAnchor, constant: -10),
+            stackCountPill.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor, constant: -Self.progressInset),
+            stackCountPill.topAnchor.constraint(equalTo: imageBubble.topAnchor, constant: Self.progressInset),
+
             quotePanel.topAnchor.constraint(equalTo: imageBubble.topAnchor, constant: Self.quoteInset),
             quotePanel.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor, constant: Self.quoteInset),
             quotePanel.widthAnchor.constraint(lessThanOrEqualTo: imageBubble.widthAnchor, multiplier: Self.quoteMaxWidthFraction),
             quotePanel.bottomAnchor.constraint(lessThanOrEqualTo: imageBubble.bottomAnchor, constant: -Self.quoteInset),
         ])
+        for overlay in [stackShadow, stackOutline] {
+            NSLayoutConstraint.activate([
+                overlay.topAnchor.constraint(equalTo: imageBubble.topAnchor),
+                overlay.leadingAnchor.constraint(equalTo: imageBubble.leadingAnchor),
+                overlay.trailingAnchor.constraint(equalTo: imageBubble.trailingAnchor),
+                overlay.bottomAnchor.constraint(equalTo: imageBubble.bottomAnchor),
+            ])
+        }
+        for card in stackCards {
+            let height = card.heightAnchor.constraint(equalToConstant: 240)
+            stackCardHeightConstraints.append(height)
+            NSLayoutConstraint.activate([
+                card.centerXAnchor.constraint(equalTo: imageBubble.centerXAnchor),
+                card.centerYAnchor.constraint(equalTo: imageBubble.centerYAnchor),
+                card.widthAnchor.constraint(equalTo: imageBubble.widthAnchor),
+                height,
+            ])
+        }
     }
 
     @available(*, unavailable)
@@ -247,6 +332,7 @@ public final class ChatMediaCell: ChatColumnCell {
         progressOverlay.bind(nil, suppressed: false, animated: false)
         drawnRowID = nil
         reactionRow.prepareForReuse()
+        drawStack([])
     }
 
     /// Whether a photo draws only its BlurHash: the server withheld it, or the viewer is previewing a
@@ -259,6 +345,8 @@ public final class ChatMediaCell: ChatColumnCell {
     ///   - maxWidth: the transcript's widest bubble, which the photo always spans.
     ///   - localImage: the picked image of a pending send this device staged, or nil.
     ///   - progress: the send progress of a pending photo this device staged, or nil.
+    ///   - stackImages: the picked images of a stack's photos this device is sending, by message id.
+    ///   - stackProgress: the send progress of each photo behind a stack's front, nil once confirmed.
     ///   - remote: where the photo downloads from, or nil until it is resolved.
     ///   - quoteThumbnail: where a quoted photo's thumbnail loads from, or nil.
     ///   - captionWidth: the width a caption's card is held to, or nil for the transcript's bubble
@@ -268,6 +356,8 @@ public final class ChatMediaCell: ChatColumnCell {
         maxWidth: CGFloat,
         localImage: UIImage?,
         progress: ChatPhotoSendProgress? = nil,
+        stackImages: [String: UIImage] = [:],
+        stackProgress: [ChatPhotoSendProgress?] = [],
         remote: ChatMediaLocation?,
         quoteThumbnail: ChatMediaLocation? = nil,
         authorImageData: Data? = nil,
@@ -278,15 +368,18 @@ public final class ChatMediaCell: ChatColumnCell {
         let blurhashOnly = Self.isBlurhashOnly(media, canReact: message.canReact)
         self.blurhashOnly = blurhashOnly
 
-        let size = ChatMediaBubbleSizing.size(
-            imageWidth: Double(media.width),
-            imageHeight: Double(media.height),
-            maxWidth: Double(maxWidth)
-        )
-        imageWidthConstraint.constant = size.width
+        let isStack = media.stackPhotos.count > 1
+        let size = isStack
+            ? ChatMediaBubbleSizing.stackSize(maxWidth: Double(maxWidth))
+            : ChatMediaBubbleSizing.size(
+                imageWidth: Double(media.width),
+                imageHeight: Double(media.height),
+                maxWidth: Double(maxWidth)
+            )
         imageHeightConstraint.constant = size.height
+        layOutStackFan(frame: CGSize(width: size.width, height: size.height), isStack: isStack)
         // The same row losing its progress is a confirmed send, which fades; a new row starts clean.
-        progressOverlay.bind(progress, suppressed: message.isFailed, animated: drawnRowID == message.id)
+        progressOverlay.bind(progress, behind: stackProgress, suppressed: message.isFailed, animated: drawnRowID == message.id)
         drawImage(
             for: message.id,
             blobID: media.blobID,
@@ -296,6 +389,7 @@ public final class ChatMediaCell: ChatColumnCell {
             size: CGSize(width: size.width, height: size.height)
         )
         imageTap.isEnabled = !blurhashOnly && !message.isFailed
+        drawStack(media.stackPhotos, localImages: blurhashOnly ? [:] : stackImages)
 
         let caption = media.caption.flatMap { $0.isEmpty ? nil : $0 }
         let emojiCaption = caption != nil && media.captionIsEmojiOnly
@@ -323,7 +417,8 @@ public final class ChatMediaCell: ChatColumnCell {
                     sender: message.sender,
                     joinsBubbleAbove: true,
                     joinsBubbleBelow: isLast ? message.joinsBubbleBelow : true,
-                    linkPreview: row.preview
+                    linkPreview: row.preview,
+                    isEdited: isLast && message.isEdited
                 )
                 let bubble: LinkableBubbleView
                 switch row.kind {
@@ -352,7 +447,8 @@ public final class ChatMediaCell: ChatColumnCell {
                 joinsBubbleAbove: !emojiCaption,
                 joinsBubbleBelow: message.joinsBubbleBelow,
                 isEmojiOnly: emojiCaption,
-                linkPreview: emojiCaption ? nil : media.captionPreview
+                linkPreview: emojiCaption ? nil : media.captionPreview,
+                isEdited: message.isEdited
             )
             captionMessage = captionRow
             if emojiCaption {
@@ -400,6 +496,57 @@ public final class ChatMediaCell: ChatColumnCell {
         reactionRow.configure(pills: blurhashOnly ? [] : message.reactions, canReact: message.canReact && !blurhashOnly, canBoost: message.canBoost)
         reactionRow.isHidden = blurhashOnly
         updateColumn(for: message, authorImageData: authorImageData)
+    }
+
+    /// Fans the photos after the front one behind it and counts the set, or clears both for a photo
+    /// drawn alone. A card behind shows its picked image while this device sends it, the photo once
+    /// it is in the memory cache, else its BlurHash: only its edges show, so it never downloads on
+    /// its own.
+    private func drawStack(_ photos: [ChatMediaStackPhoto], localImages: [String: UIImage] = [:]) {
+        let behind = photos.dropFirst()
+        for (position, card) in stackCards.enumerated() {
+            guard position < behind.count else {
+                card.isHidden = true
+                card.image = nil
+                continue
+            }
+            let photo = behind[behind.startIndex + position]
+            card.image = localImages[photo.messageID]
+                ?? (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
+                ?? BlurHashCache.shared.image(for: photo.blurhash)
+            card.isHidden = false
+        }
+        stackCountPill.isHidden = photos.count < 2
+        stackShadow.isHidden = photos.count < 2
+        stackOutline.isHidden = photos.count < 2
+        quoteClearOfPill.isActive = photos.count >= 2
+        stackCountLabel.text = photos.count < 2 ? nil : ChatMediaStrings.stackCount(photos.count)
+        imageBubble.accessibilityLabel = photos.count < 2 ? "Photo" : ChatMediaStrings.stackCount(photos.count)
+    }
+
+    /// Fits a stack in the frame a single photo takes, so its row keeps a photo's height and gaps:
+    /// the front photo keeps the full height and narrows, centered, leaving room either side for the
+    /// turned cards, which keep the timestamp reveal and avatar gutter clear.
+    private func layOutStackFan(frame: CGSize, isStack: Bool) {
+        let fan = isStack ? Self.stackFan(in: frame, angle: Self.stackFanAngle) : nil
+        imageWidthConstraint.constant = fan?.photo.width ?? frame.width
+        for height in stackCardHeightConstraints { height.constant = fan?.card.height ?? frame.height }
+        let inset = (frame.width - (fan?.photo.width ?? frame.width)) / 2
+        stack.isLayoutMarginsRelativeArrangement = fan != nil
+        stack.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: inset, bottom: 0, trailing: inset)
+    }
+
+    /// The front photo's and each back card's size for a stack in `frame`: both as wide as the
+    /// front, the photo at the full height, and a card short enough that, turned by `angle`, its
+    /// corners just meet the frame's edges. Nil when the frame is too narrow or flat to fan.
+    static func stackFan(in frame: CGSize, angle: CGFloat) -> (photo: CGSize, card: CGSize)? {
+        let cosine = cos(angle), sine = abs(sin(angle))
+        let determinant = cosine * cosine - sine * sine
+        guard frame.width > 0, frame.height > 0, determinant > 0 else { return nil }
+        let width = (frame.width * cosine - frame.height * sine) / determinant
+        let cardHeight = (frame.height * cosine - frame.width * sine) / determinant
+        guard width > 0, cardHeight > 0 else { return nil }
+        return (CGSize(width: width, height: frame.height), CGSize(width: width, height: cardHeight))
     }
 
     private func drawImage(for rowID: String, blobID: BlobID?, blurhash: String?, localImage: UIImage?, remote: ChatMediaLocation?, size: CGSize) {
@@ -482,3 +629,60 @@ extension ChatMediaCell: BubbleCarrying {
     }
 }
 #endif
+
+/// The soft shadow a card stack's front photo casts on the cards behind it, following `shape`.
+private final class StackShadowView: UIView {
+    var shape: (() -> UIBezierPath)?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.7
+        layer.shadowRadius = 8
+        layer.shadowOffset = CGSize(width: 0, height: 3)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.shadowPath = shape?().cgPath
+    }
+}
+
+/// A card stack's front-photo outline in the conversation's background colour, following `shape`.
+/// The stroke straddles the shape and the bubble's mask clips its outer half, so it is drawn at
+/// twice the visible width.
+private final class StackOutlineView: UIView {
+    var shape: (() -> UIBezierPath)?
+    private let stroke = CAShapeLayer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        stroke.fillColor = UIColor.clear.cgColor
+        stroke.strokeColor = UIColor(Color.backgroundMain).cgColor
+        stroke.lineWidth = ChatMediaCell.stackOutlineWidth * 2
+        stroke.actions = ["path": NSNull()]
+        layer.addSublayer(stroke)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        stroke.frame = bounds
+        stroke.path = shape?().cgPath
+    }
+}
+
+/// A blur that rounds itself to a capsule whenever its own height settles.
+private final class CapsuleBlurView: UIVisualEffectView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.cornerRadius = bounds.height / 2
+    }
+}

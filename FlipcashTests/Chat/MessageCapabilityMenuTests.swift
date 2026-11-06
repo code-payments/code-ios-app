@@ -97,6 +97,28 @@ struct MessageCapabilityMenuTests {
         #expect(notified.map(\.1) == [.edit, .delete])
     }
 
+    @Test("Save Photo renders as a plain row and reports the row's id to the screen")
+    func savePhotoNotifies() {
+        let controller = loadedController([
+            .message(ChatMessage(id: "row-4", text: "hi", sender: .other, actions: [.reply, .savePhoto, .report]))
+        ])
+        #expect(titles(menu(controller, at: 0)) == ["Reply", "Save Photo", "Report"])
+        var notified: [(String, MessageCapability)] = []
+        controller.onMessageAction = { notified.append(($0, $1)) }
+
+        guard let save = menu(controller, at: 0)?.children
+            .compactMap({ $0 as? UIAction })
+            .first(where: { $0.title == "Save Photo" }) else {
+            Issue.record("expected a Save Photo action")
+            return
+        }
+        #expect(!save.attributes.contains(.destructive))
+        save.performWithSender(nil, target: nil)
+
+        #expect(notified.map(\.0) == ["row-4"])
+        #expect(notified.map(\.1) == [.savePhoto])
+    }
+
     @Test("Report renders last, and is marked destructive")
     func reportIsOfferedAndDestructive() {
         let controller = loadedController([

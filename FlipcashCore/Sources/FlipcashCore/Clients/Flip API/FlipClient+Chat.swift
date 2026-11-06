@@ -361,6 +361,28 @@ extension FlipClient {
         }
     }
 
+    /// Changes the caption of `photo`, the owner's photo message, to `caption`; the photo and any
+    /// reply go back as they were sent.
+    public func editCaption(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        photo: ConversationMessage,
+        caption: String,
+        seal: ChatSeal?,
+        expectedEventSequence: UInt64
+    ) async throws -> MessageMutation {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.editCaption(
+                owner: owner,
+                conversationID: conversationID,
+                photo: photo,
+                caption: caption,
+                seal: seal,
+                expectedEventSequence: expectedEventSequence
+            ) { c.resume(with: $0) }
+        }
+    }
+
     /// Adds the owner's reaction with `emoji` to a message and returns the emoji's new aggregate.
     public func addReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction {
         try await withCheckedThrowingContinuation { c in

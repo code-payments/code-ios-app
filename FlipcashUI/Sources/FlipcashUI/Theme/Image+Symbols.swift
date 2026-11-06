@@ -54,6 +54,9 @@ public enum SystemSymbol: String {
     case doc = "doc.on.doc"
     case docFill = "doc.on.doc.fill"
     case forwardArrow = "arrowshape.turn.up.right.fill"
+    /// Save to the photo library, matching the full-screen photo viewer's save button.
+    case saveToPhotos = "square.and.arrow.down"
+    case saveAllToPhotos = "square.and.arrow.down.on.square"
     case pinFill = "pin.fill"
     case pinSlash = "pin.slash"
     case clipboard = "doc.on.clipboard"

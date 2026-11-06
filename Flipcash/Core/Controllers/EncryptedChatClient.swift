@@ -195,6 +195,13 @@ extension EncryptedChatClient: ConversationMessaging {
         }
     }
 
+    func editCaption(owner: KeyPair, conversationID: ConversationID, photo: ConversationMessage, caption: String, expectedEventSequence: UInt64) async throws -> MessageMutation {
+        try await refetchingOnRefusal(conversationID) {
+            let seal = try await sealForSending(conversationID, owner: owner)
+            return try await client.editCaption(owner: owner, conversationID: conversationID, photo: photo, caption: caption, seal: seal, expectedEventSequence: expectedEventSequence)
+        }
+    }
+
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation {
         try await client.deleteMessage(owner: owner, conversationID: conversationID, messageID: messageID, expectedEventSequence: expectedEventSequence)
     }

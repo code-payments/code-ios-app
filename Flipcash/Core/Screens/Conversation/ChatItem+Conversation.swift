@@ -125,9 +125,37 @@ extension ChatItem {
         // bubble to an invisible row, or steal the "Delivered"/"Read" receipt anchor below.
         // A message still waiting on the peer's key is left out until it decrypts, and a blank
         // system message draws nothing, so it must not head a separator either.
-        let messages: [ConversationMessage] = switch deletedPresentation {
+        let shown: [ConversationMessage] = switch deletedPresentation {
         case .hidden:      messages.filter { !$0.isDeleted && !$0.isAwaitingDecryption && !$0.isBlankSystem }
         case .placeholder: messages.filter { !$0.isAwaitingDecryption && !$0.isBlankSystem }
+        }
+
+        // Photos sent together draw as one card stack fronted by the first (see `ChatMediaGrouping`).
+        // The photos behind it leave the list here, so receipts, runs and separators see one row; a
+        // caption on the last stays that message's own text row under the stack, with its menu,
+        // "Edited" marker, receipt and reactions.
+        var stackMembers: [String: [ConversationMessage]] = [:]
+        var captionRows: Set<String> = []
+        var messages: [ConversationMessage] = []
+        var cursor = 0
+        for range in ChatMediaGrouping.stacks(in: shown) {
+            messages += shown[cursor..<range.lowerBound]
+            let members = Array(shown[range])
+            stackMembers[members[0].stableID] = members
+            messages.append(members[0])
+            if let last = members.last, case .media(_, let caption?) = last.content, !caption.isEmpty {
+                messages.append(last.replacingContent(.text(caption), lastEditedTs: last.lastEditedTs))
+                captionRows.insert(last.stableID)
+            }
+            cursor = range.upperBound
+        }
+        messages += shown[cursor...]
+        // A caption keeps the cards a caption draws: a cash, token or web link stays underlined text.
+        func captionCard(_ links: [DetectedLink]) -> LinkCard? {
+            switch linkCard(links) {
+            case .cash, .token, .web, nil: nil
+            case let card?: card
+            }
         }
 
         // The marker goes where the ciphertext starts: above the first encrypted message with
@@ -208,7 +236,12 @@ extension ChatItem {
         // split around it.
         let layouts = messages.map { message in
             switch message.content {
-            case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard, page: message.linkPreview))
+            case .text(let text):
+                Self.rows(for: text, preview: detectedLink(
+                    in: text,
+                    card: { captionRows.contains(message.stableID) ? captionCard($0) : linkCard($0) },
+                    page: message.linkPreview
+                ))
             case .cash, .deleted, .encrypted, .widget, .media, .system: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
@@ -363,7 +396,30 @@ extension ChatItem {
                     captionPreview: captionLayout?.preview,
                     captionRows: captionLayout?.rows ?? [],
                     isRedacted: message.redacted,
-                    sealed: attachment?.sealed
+                    sealed: attachment?.sealed,
+                    stackPhotos: (stackMembers[message.stableID] ?? []).map { member in
+                        let photo: MediaAttachment? = switch member.content {
+                        case .media(let attachments, _): attachments.first
+                        case .text, .cash, .deleted, .encrypted, .widget, .system: nil
+                        }
+                        let actions = capabilities(member)
+                        let memberServerID: MessageID? = switch member.status {
+                        case .sent:              member.id
+                        case .sending, .failed:  nil
+                        }
+                        return ChatMediaStackPhoto(
+                            messageID: member.stableID,
+                            serverID: memberServerID,
+                            blobID: photo?.blobID,
+                            width: photo?.width ?? 0,
+                            height: photo?.height ?? 0,
+                            blurhash: photo?.blurhash,
+                            isRedacted: member.redacted,
+                            sealed: photo?.sealed,
+                            canReply: actions.contains(.reply),
+                            canForward: actions.contains(.forward)
+                        )
+                    }
                 ))
             }
 
@@ -417,6 +473,10 @@ extension ChatItem {
             // A split message reads as one: the quote heads its first row, the receipt and the
             // "Edited" marker close its last, and every row between holds the author run and offers
             // the whole message's menu.
+            var actionSet = capabilities(message)
+            if stackMembers[message.stableID] != nil, actionSet.contains(.savePhoto) {
+                actionSet.insert(.saveAllPhotos)
+            }
             let rows = layouts[index]
             for (position, row) in rows.enumerated() {
                 let isFirst = position == 0
@@ -438,7 +498,7 @@ extension ChatItem {
                     receipt: isLast ? receipt : nil,
                     linkPreview: row.preview,
                     isEdited: isLast && message.lastEditedTs != nil && !message.isDeleted,
-                    actions: orderedActions(capabilities(message)),
+                    actions: orderedActions(actionSet),
                     quote: isFirst ? quote : nil,
                     // The viewer's own rows are never attributed: the trailing edge already says who
                     // wrote them, and a name and avatar over them would read as a second speaker.
@@ -717,11 +777,11 @@ extension ChatItem {
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
     /// must not shuffle its rows between renders of the same message.
     ///
-    /// Forward follows Reply, as on Android, and Pin follows Forward. Report goes
+    /// Forward follows Reply, as on Android, then Save Photo, and Pin after them. Report goes
     /// last: it is the rarest row and the only one that never appears on your own message, so the
     /// menu reads "yours ends with delete, theirs ends with report".
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
-        [.copy, .reply, .forward, .pin, .unpin, .edit, .delete, .report, .silence, .remove].filter(capabilities.contains)
+        [.copy, .reply, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin, .edit, .delete, .report, .silence, .remove].filter(capabilities.contains)
     }
 
     /// The large line and the lines around it for a cash card in the transcript. A group send to

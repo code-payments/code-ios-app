@@ -45,6 +45,8 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let repliedTo: MessageID?
         var linkPreview: MessageLinkPreview? = nil
         let expectedEventSequence: UInt64
+        /// Whether this was `editCaption`, whose `text` is the new caption.
+        var isCaption = false
     }
 
     struct Deleted: Sendable, Equatable {
@@ -484,6 +486,15 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, expectedEventSequence: UInt64) async throws -> MessageMutation {
         lock.withLock {
             _edited.append(Edited(conversationID: conversationID, messageID: messageID, text: text, repliedTo: repliedTo, linkPreview: linkPreview, expectedEventSequence: expectedEventSequence))
+        }
+        if let editError { throw editError }
+        guard let editResult else { throw ErrorEditMessage.unknown }
+        return editResult
+    }
+
+    func editCaption(owner: KeyPair, conversationID: ConversationID, photo: ConversationMessage, caption: String, expectedEventSequence: UInt64) async throws -> MessageMutation {
+        lock.withLock {
+            _edited.append(Edited(conversationID: conversationID, messageID: photo.id, text: caption, repliedTo: photo.repliedTo, expectedEventSequence: expectedEventSequence, isCaption: true))
         }
         if let editError { throw editError }
         guard let editResult else { throw ErrorEditMessage.unknown }

@@ -433,8 +433,14 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
     public let isRedacted: Bool
     /// What decrypting the blob needs when it is end-to-end encrypted, nil for a plaintext blob.
     public let sealed: SealedBlob?
+    /// Optional so a cached row from before stacks still decodes.
+    private let stack: [ChatMediaStackPhoto]?
+    /// Every photo of the card stack this row fronts, in send order with this one first, or empty
+    /// for a photo drawn alone. See `ChatMediaGrouping`.
+    public var stackPhotos: [ChatMediaStackPhoto] { stack ?? [] }
 
-    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionPreview: LinkPreview? = nil, captionRows: [ChatMediaCaptionRow] = [], isRedacted: Bool, sealed: SealedBlob? = nil) {
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionPreview: LinkPreview? = nil, captionRows: [ChatMediaCaptionRow] = [], isRedacted: Bool, sealed: SealedBlob? = nil, stackPhotos: [ChatMediaStackPhoto] = []) {
+        self.stack = stackPhotos.isEmpty ? nil : stackPhotos
         self.blobID = blobID
         self.width = width
         self.height = height
@@ -444,6 +450,42 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
         self.captionRows = captionRows
         self.isRedacted = isRedacted
         self.sealed = sealed
+    }
+}
+
+/// One photo of a card stack: the message it is, and what drawing and opening it needs.
+public struct ChatMediaStackPhoto: Hashable, Sendable, Codable {
+    /// The photo message's stable id.
+    public let messageID: String
+    /// The photo message's confirmed server id, or nil while it is still sending.
+    public let serverID: MessageID?
+    public let blobID: BlobID?
+    public let width: Int
+    public let height: Int
+    public let blurhash: String?
+    public let isRedacted: Bool
+    public let sealed: SealedBlob?
+    /// Whether this photo's message offers Reply, so its viewer page does too.
+    public let canReply: Bool
+    /// Whether this photo's message offers Forward, so its viewer page does too.
+    public let canForward: Bool
+
+    public init(messageID: String, serverID: MessageID? = nil, blobID: BlobID?, width: Int, height: Int, blurhash: String?, isRedacted: Bool, sealed: SealedBlob?, canReply: Bool, canForward: Bool) {
+        self.messageID = messageID
+        self.serverID = serverID
+        self.blobID = blobID
+        self.width = width
+        self.height = height
+        self.blurhash = blurhash
+        self.isRedacted = isRedacted
+        self.sealed = sealed
+        self.canReply = canReply
+        self.canForward = canForward
+    }
+
+    /// The photo alone, as a row of its own would draw it, with no caption.
+    public var content: ChatMediaContent {
+        ChatMediaContent(blobID: blobID, width: width, height: height, blurhash: blurhash, caption: nil, isRedacted: isRedacted, sealed: sealed)
     }
 }
 

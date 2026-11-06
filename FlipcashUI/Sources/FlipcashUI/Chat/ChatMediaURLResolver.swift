@@ -54,6 +54,14 @@ public final class ChatMediaURLResolver {
         return resolve(blobID, sealed: media.sealed) { $0.map(onResolved) }
     }
 
+    /// Where to draw `media` from, waiting for the fetch; nil when it may not draw or the fetch
+    /// failed. Follows the same rules as the callback form.
+    public func location(for media: ChatMediaContent, canReact: Bool) async -> ChatMediaLocation? {
+        guard !ChatMediaCell.isBlurhashOnly(media, canReact: canReact),
+              let blobID = media.blobID else { return nil }
+        return await location(of: blobID, sealed: media.sealed)
+    }
+
     /// Where to draw a quoted photo's thumbnail from, or nil for now, sharing the photo row's cache.
     ///
     /// Nil without fetching for anything but a photo whose bytes the viewer may see: a quote of text,

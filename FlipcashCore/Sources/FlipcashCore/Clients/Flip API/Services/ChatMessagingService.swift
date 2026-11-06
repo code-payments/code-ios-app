@@ -319,6 +319,46 @@ final class ChatMessagingService: Sendable {
             completion(.failure(.encryptionFailed))
             return
         }
+        edit(owner: owner, conversationID: conversationID, messageID: messageID, to: content, seal: seal, expectedEventSequence: expectedEventSequence, completion: completion)
+    }
+
+    /// Changes the caption of `photo`, this user's photo message, to `caption`, leaving the photo
+    /// and any reply as they were sent. A sealed photo is resealed with `seal` from its own
+    /// ciphertext; a plaintext one goes back as plaintext.
+    func editCaption(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        photo: ConversationMessage,
+        caption: String,
+        seal: ChatSeal?,
+        expectedEventSequence: UInt64,
+        completion: @Sendable @escaping (Result<MessageMutation, ErrorEditMessage>) -> Void
+    ) {
+        let content: Flipcash_Messaging_V1_Content
+        do {
+            if photo.sealed != nil {
+                guard let seal else { throw CaptionEditFailure.notOwnSealedPhoto }
+                content = try seal.sealCaptionEdit(of: photo, to: caption)
+            } else {
+                content = try .captionEdit(of: photo.content, to: caption, repliedTo: photo.repliedTo)
+            }
+        } catch {
+            logger.error("Failed to build caption edit", metadata: ["error": "\(error)"])
+            completion(.failure(photo.sealed != nil ? .encryptionFailed : .cannotEdit))
+            return
+        }
+        edit(owner: owner, conversationID: conversationID, messageID: photo.id, to: content, seal: seal, expectedEventSequence: expectedEventSequence, completion: completion)
+    }
+
+    private func edit(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        messageID: MessageID,
+        to content: Flipcash_Messaging_V1_Content,
+        seal: ChatSeal?,
+        expectedEventSequence: UInt64,
+        completion: @Sendable @escaping (Result<MessageMutation, ErrorEditMessage>) -> Void
+    ) {
         let request = Flipcash_Messaging_V1_EditMessageRequest.with {
             $0.chatID = conversationID.proto
             $0.messageID = messageID.proto

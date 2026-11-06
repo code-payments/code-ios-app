@@ -2202,7 +2202,7 @@ final class ConversationController {
                 case .delete: "Couldn't Delete Message"
                 // Neither of these mutates the transcript, so neither can raise a mutation alert.
                 // Report files straight from its sheet and reports its own outcome there.
-                case .copy, .reply, .report, .forward, .pin, .unpin, .silence, .remove: "Something Went Wrong"
+                case .copy, .reply, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin, .silence, .remove: "Something Went Wrong"
                 }
             }
         }
@@ -2746,9 +2746,21 @@ final class ConversationController {
             insertPending($0.text, repliedTo: nil, linkPreview: $0.linkPreview, into: conversationID)
         }
 
-        var deliveredAll = true
+        // Every upload settles before the first post, then the posts go out back to back, so the
+        // set lands as consecutive messages inside `ChatMediaGrouping.window` and draws as one stack.
+        // A photo whose upload failed stays failed and retryable; the rest still post, in order.
+        var photos: [UploadedPhoto?] = []
         for send in sends {
-            let delivered = await deliverMedia(
+            photos.append(await awaitUpload(clientMessageID: send.clientMessageID, chip: send.message.chip, to: conversationID))
+        }
+        var deliveredAll = true
+        for (send, photo) in zip(sends, photos) {
+            guard let photo else {
+                deliveredAll = false
+                continue
+            }
+            let delivered = await postMedia(
+                photo,
                 clientMessageID: send.clientMessageID,
                 chip: send.message.chip,
                 caption: send.message.caption,
@@ -2961,16 +2973,21 @@ final class ConversationController {
         repliedTo: MessageID?,
         to conversationID: ConversationID
     ) async -> Bool {
+        guard let photo = await awaitUpload(clientMessageID: clientMessageID, chip: chip, to: conversationID) else { return false }
+        return await postMedia(photo, clientMessageID: clientMessageID, chip: chip, caption: caption, repliedTo: repliedTo, to: conversationID)
+    }
+
+    /// Waits for `chip`'s upload, or marks the pending row failed and returns nil when it fails.
+    private func awaitUpload(clientMessageID: UUID, chip: ComposerChip, to conversationID: ConversationID) async -> UploadedPhoto? {
         // Read at await time: a retry replaces the chip's task.
         guard let upload = chip.uploadTask else {
             chip.progress.fail()
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
             logger.error("Photo send has no upload to await", metadata: ["conversationID": "\(conversationID)"])
-            return false
+            return nil
         }
-        let photo: UploadedPhoto
         do {
-            photo = try await upload.value
+            return try await upload.value
         } catch {
             chip.progress.fail()
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
@@ -2982,9 +2999,19 @@ final class ConversationController {
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to upload conversation photo")
-            return false
+            return nil
         }
+    }
 
+    /// Posts an uploaded photo and confirms its pending row, or marks the row failed.
+    private func postMedia(
+        _ photo: UploadedPhoto,
+        clientMessageID: UUID,
+        chip: ComposerChip,
+        caption: String?,
+        repliedTo: MessageID?,
+        to conversationID: ConversationID
+    ) async -> Bool {
         let chatType = conversation(withID: conversationID)?.type
         chip.progress.beginSending()
         do {

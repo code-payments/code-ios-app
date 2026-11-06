@@ -17,6 +17,11 @@ public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable
     case report
     /// Send a link to the message into other chats, or out through the system share sheet.
     case forward
+    /// Write the photo to the device's photo library, the way the full-screen viewer's save does.
+    case savePhoto
+    /// Write every photo of a card stack to the device's photo library, oldest first. Offered on a
+    /// stack's front photo only, by the transcript, since a message alone can't tell it is in one.
+    case saveAllPhotos
     /// Pin the message to the top of the chat.
     case pin
     /// Take the message off the chat's pins.
@@ -38,6 +43,9 @@ extension MessageCapability {
         case .delete: "Delete"
         case .report: "Report"
         case .forward: "Forward"
+        // Not "Save": the composer's edit button already carries that accessibility label.
+        case .savePhoto: "Save Photo"
+        case .saveAllPhotos: "Save All"
         case .pin:    "Pin"
         case .unpin:  "Unpin"
         // The transcript menu adds the sender's first name; this is the fallback when none is known.
@@ -50,7 +58,7 @@ extension MessageCapability {
     public var isDestructive: Bool {
         switch self {
         // Report is red to match Report on the profile menus, though nothing is destroyed.
-        case .copy, .reply, .edit, .forward, .pin, .unpin: false
+        case .copy, .reply, .edit, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin: false
         case .delete, .report, .silence, .remove: true
         }
     }
@@ -78,6 +86,9 @@ extension MessageCapability {
     /// have a sequence to point at. A tombstone, a system notice, a widget, and a message this client
     /// could not decrypt don't get it. Like Report, it survives `isMember` and `canPost`: a reader
     /// outside a group can still pass a message along.
+    ///
+    /// Save Photo is offered on every photo message the menu opens on, whoever sent it: saving is
+    /// device-local, so an end-to-end encrypted chat is no different from a public one.
     ///
     /// `conversation` is accepted but unread today: it is the seam a group-chat permissions model
     /// plugs into (an admin deleting another member's message, a read-only channel), and taking it
@@ -160,10 +171,11 @@ extension MessageCapability {
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
-        // `hasText` gates Edit, which only a text body has. `hasCopyableText` gates Copy, which a
-        // photo's caption also offers: it copies the caption. Matching Android's resolver.
-        let hasText: Bool
+        // `isEditable` gates Edit: a text body, or a photo's caption. `hasCopyableText` gates Copy,
+        // which a photo's caption also offers: it copies the caption. Matching Android's resolver.
+        let isEditable: Bool
         let hasCopyableText: Bool
+        let isPhoto: Bool
         switch message.content {
         case .deleted, .encrypted, .system:
             // Nothing is left to act on: a tombstone must not be re-deleted, and this client has no
@@ -188,17 +200,21 @@ extension MessageCapability {
             // Server-authored like the profile card: Reply only. Paying and closing live on the card.
             return [.reply]
         case .text:
-            hasText = true
+            isEditable = true
             hasCopyableText = true
+            isPhoto = false
         case .media(_, let caption):
-            hasText = false
-            hasCopyableText = !(caption?.isEmpty ?? true)
+            // Editing a photo changes its caption only, so one sent without a caption can't gain one.
+            isEditable = !(caption?.isEmpty ?? true)
+            hasCopyableText = isEditable
+            isPhoto = true
         }
 
         guard message.isFromSelf(selfUserID) else {
-            return hasCopyableText
-                ? [.copy, .reply, .report, .forward]
-                : [.reply, .report, .forward]
+            var capabilities: Set<MessageCapability> = [.reply, .report, .forward]
+            if hasCopyableText { capabilities.insert(.copy) }
+            if isPhoto { capabilities.insert(.savePhoto) }
+            return capabilities
         }
 
         // An unconfirmed message has no `eventSequence` to send as `expected_event_sequence`, so no
@@ -212,7 +228,10 @@ extension MessageCapability {
         if hasCopyableText {
             capabilities.insert(.copy)
         }
-        if hasText {
+        if isPhoto {
+            capabilities.insert(.savePhoto)
+        }
+        if isEditable {
             if isWithin(policy.editWindow, of: message, at: now) {
                 capabilities.insert(.edit)
             }

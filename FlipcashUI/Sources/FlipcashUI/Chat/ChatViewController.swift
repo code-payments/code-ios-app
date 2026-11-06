@@ -154,6 +154,15 @@ public final class ChatViewController: UICollectionViewController {
     /// The widest a bubble may grow, as a share of the collection view's width.
     static let maxBubbleWidthFraction: CGFloat = 0.78
 
+    /// The widest transcript a card is sized against, in points: a large phone's width. A row that
+    /// fills a share of the width (a photo, a cash or link card) keeps its phone size on a wide screen.
+    static let maxCardLayoutWidth: CGFloat = 440
+
+    /// The transcript width a card is sized against, given the collection view's `width`.
+    static func cardLayoutWidth(_ width: CGFloat) -> CGFloat {
+        min(width, maxCardLayoutWidth)
+    }
+
     /// A cash card's width as a fraction of the row between the column insets — narrower than a
     /// bubble, and taken of the inset row rather than the full width. Matches Android's
     /// `CASH_CARD_WIDTH_FRACTION` so the card reads the same size on both.
@@ -739,7 +748,7 @@ public final class ChatViewController: UICollectionViewController {
             let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
             let card = cell as! ChatInviteCardCell
             card.onInvite = { [weak self] in self?.onInviteCardTap?() }
-            card.configure(groupName: groupName, maxWidth: width - ChatColumnCell.rowInset * 2)
+            card.configure(groupName: groupName, maxWidth: Self.cardLayoutWidth(width) - ChatColumnCell.rowInset * 2)
         case .message(let message):
             configure(cell, with: message)
         }
@@ -786,6 +795,13 @@ public final class ChatViewController: UICollectionViewController {
             ? width - ChatColumnCell.authorGutterWidth
             : width
         let maxWidth = available * Self.maxBubbleWidthFraction
+        // Rows that fill a share of the width are sized against a phone-width transcript; text
+        // bubbles, which size to their content, keep the full width.
+        let cardWidth = Self.cardLayoutWidth(width)
+        let cardAvailable = message.isAttributedTranscript && message.sender != .me
+            ? cardWidth - ChatColumnCell.authorGutterWidth
+            : cardWidth
+        let cardMaxWidth = cardAvailable * Self.maxBubbleWidthFraction
         let authorImageData = message.author.flatMap { authorAvatars[$0.id] }
         (cell as? ChatColumnCell)?.onAuthorTap = { [weak self] userID in self?.onAuthorTap?(userID) }
         switch cell {
@@ -797,7 +813,8 @@ public final class ChatViewController: UICollectionViewController {
             cell.webImages = mediaURLResolver.map(WebCardImages.init(resolver:))
             cell.configure(
                 with: message,
-                maxWidth: linkCardWidth(for: message, available: available) ?? maxWidth,
+                maxWidth: linkCardWidth(for: message, available: cardAvailable)
+                    ?? (ChatLinkMessageCell.cardFillsWidth(message.linkPreview?.card) ? cardMaxWidth : maxWidth),
                 authorImageData: authorImageData,
                 quoteThumbnail: quoteThumbnail(for: message)
             )
@@ -827,7 +844,7 @@ public final class ChatViewController: UICollectionViewController {
         case let cell as ChatCashCardCell:
             // Every cash card is one width, so an incoming card in a group doesn't give up the avatar
             // gutter the way a bubble does.
-            cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: cashCardWidth(available: cardWidth), authorImageData: authorImageData)
             cell.onSendBack = { [weak self] in self?.onSendBack?(message.messageID) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
@@ -837,14 +854,13 @@ public final class ChatViewController: UICollectionViewController {
             cell.linkCardSource = linkCardSource
             cell.ownProfile = ownProfile
             cell.onShare = { [weak self] card, name in self?.onShareProfile?(card, name) }
-            let cardWidth = available - ChatColumnCell.rowInset * 2
-            cell.configure(with: message, maxWidth: cardWidth, authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: cardAvailable - ChatColumnCell.rowInset * 2, authorImageData: authorImageData)
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatPaymentRequestCell:
-            cell.configure(with: message, maxWidth: cashCardWidth(available: width), authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: cashCardWidth(available: cardWidth), authorImageData: authorImageData)
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
@@ -858,25 +874,29 @@ public final class ChatViewController: UICollectionViewController {
                 self?.reconfigureVisibleMessage(id: message.id)
             }
             let localImage = pendingMediaImage?(message.id)
+            let behind = media.stackPhotos.dropFirst().map(\.messageID)
             cell.configure(
                 with: message,
-                maxWidth: maxWidth,
+                maxWidth: cardMaxWidth,
                 localImage: localImage,
                 progress: pendingMediaProgress?(message.id),
+                stackImages: Dictionary(behind.compactMap { id in pendingMediaImage?(id).map { (id, $0) } }) { first, _ in first },
+                stackProgress: behind.map { pendingMediaProgress?($0) },
                 remote: remote,
                 quoteThumbnail: quoteThumbnail(for: message),
                 authorImageData: authorImageData,
-                captionWidth: linkCardWidth(for: media.captionCard, available: available)
+                captionWidth: linkCardWidth(for: media.captionCard, available: cardAvailable)
             )
             cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
             cell.onImageTap = { [weak self, weak cell] in
-                guard let self, let request = ChatMediaViewerRequest(
+                guard let self, var request = ChatMediaViewerRequest(
                     message: message,
                     localImage: localImage,
                     remote: remote,
                     placeholder: cell?.imageView.image,
                     sourceView: { [weak self] in self?.mediaSourceView(forMessageID: message.id) }
                 ) else { return }
+                request.stackPages = stackPages(for: media, front: request, canReact: message.canReact)
                 onMediaTap?(request)
             }
             cell.onMentionTap = { [weak self] username in self?.onMentionTap?(username) }
@@ -889,6 +909,30 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         default:
             assertionFailure("Unhandled chat cell class for message row")
+        }
+    }
+
+    /// The viewer's pages for a card stack fronted by `front`, or none for a photo drawn alone. The
+    /// photos behind the front one resolve their download when paged to.
+    private func stackPages(for media: ChatMediaContent, front: ChatMediaViewerRequest, canReact: Bool) -> [ChatMediaViewerRequest.Page] {
+        guard media.stackPhotos.count > 1 else { return [] }
+        return media.stackPhotos.enumerated().map { position, photo in
+            if position == 0 { return front.pages[0] }
+            let content = photo.content
+            let localImage = pendingMediaImage?(photo.messageID)
+            return ChatMediaViewerRequest.Page(
+                messageID: photo.messageID,
+                blobID: photo.blobID,
+                localImage: localImage,
+                placeholder: localImage
+                    ?? (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
+                    ?? BlurHashCache.shared.image(for: photo.blurhash),
+                canReply: photo.canReply,
+                canForward: photo.canForward,
+                remote: { [weak resolver = mediaURLResolver] in
+                    await resolver?.location(for: content, canReact: canReact)
+                }
+            )
         }
     }
 
@@ -1482,12 +1526,19 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     /// The message a row on screen lets the READ pointer move past, or nil for a row with no
-    /// confirmed server id. A system notice counts as inbound: left out, a chat whose newest
-    /// message is a notice could never be read.
+    /// confirmed server id. A stack counts as its newest confirmed photo, since the photos behind
+    /// the front have no row of their own. A system notice counts as inbound: left out, a chat
+    /// whose newest message is a notice could never be read.
     static func readCandidate(_ item: ChatItem) -> ReadProgress.VisibleMessage? {
         switch item {
         case .message(let message):
-            guard let serverID = message.serverID else { return nil }
+            let stackIDs: [MessageID] = switch message.content {
+            case .media(let media):
+                media.stackPhotos.compactMap(\.serverID)
+            case .text, .cash, .deleted, .unavailable, .shareProfile, .paymentRequest:
+                []
+            }
+            guard let serverID = ([message.serverID].compactMap { $0 } + stackIDs).max() else { return nil }
             let isFromSelf = switch message.sender {
             case .me:    true
             case .other: false
@@ -1841,8 +1892,9 @@ extension ChatViewController {
                 switch action {
                 case .copy:
                     if let body { UIPasteboard.general.string = body }
-                // The link rows need the chat's id, which this module never holds.
-                case .reply, .edit, .delete, .report, .forward, .pin, .unpin, .silence, .remove:
+                // The link rows need the chat's id, and Save Photo needs the app's photo library,
+                // neither of which this module holds.
+                case .reply, .edit, .delete, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin, .silence, .remove:
                     handler?(rowID, action)
                 }
             }
@@ -2067,6 +2119,8 @@ extension MessageCapability {
         case .delete: .trash
         case .report: .exclamationBubble
         case .forward: .forwardArrow
+        case .savePhoto: .saveToPhotos
+        case .saveAllPhotos: .saveAllToPhotos
         case .pin:    .pinFill
         case .unpin:  .pinSlash
         case .silence: .micSlash
@@ -2077,7 +2131,7 @@ extension MessageCapability {
     var isModeration: Bool {
         switch self {
         case .silence, .remove: true
-        case .copy, .reply, .edit, .delete, .report, .forward, .pin, .unpin: false
+        case .copy, .reply, .edit, .delete, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin: false
         }
     }
 
@@ -2088,7 +2142,7 @@ extension MessageCapability {
         case .silence, .remove:
             guard let senderName else { return title }
             return "\(title) \(senderName)"
-        case .copy, .reply, .edit, .delete, .report, .forward, .pin, .unpin:
+        case .copy, .reply, .edit, .delete, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin:
             return title
         }
     }
