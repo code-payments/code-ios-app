@@ -634,7 +634,9 @@ final class ConversationController {
             selfUserID: selfUserID
         )
         self.pins = ConversationPins(messaging: messaging, owner: owner, selfUserID: selfUserID)
-        reactions.didPersist = { [weak self] in self?.bumpMessageRevision() }
+        reactions.didPersist = { [weak self] conversationID, messageIDs in
+            self?.noteMessageWrite(.messages(messageIDs, in: conversationID))
+        }
         pins.didChange = { [weak self] in self?.bumpMessageRevision() }
     }
 
@@ -815,6 +817,13 @@ final class ConversationController {
         guard !catchUpInFlight.contains(conversationID) else { return }
         catchUpInFlight.insert(conversationID)
         defer { catchUpInFlight.remove(conversationID) }
+        // Every batch is reported once, when the run ends, so a multi-batch catch-up re-reads the
+        // open transcript once instead of once per batch. `catchUpInFlight` keeps this slot to one run.
+        defer {
+            if let written = catchUpWrites.removeValue(forKey: conversationID), !written.isEmpty {
+                noteMessageWrite(.messages(written, in: conversationID))
+            }
+        }
 
         let after = store.appliedCursor(for: conversationID)
         // One baseline for the whole run. A per-batch watermark would let the second
@@ -828,8 +837,11 @@ final class ConversationController {
                 // Batch + checkpoint cursor persist atomically; advance the in-memory checkpoint only
                 // after the write succeeds, so a rolled-back batch isn't skipped on the next catch-up.
                 let cursor = checkpoint ?? self.store.appliedCursor(for: conversationID)
-                let outcome = self.persistChanges(operation: "delta-batch") {
+                let outcome = self.persistChanges(operation: "delta-batch", scope: nil) {
                     try self.database.persistMessages(reconciled, cursor: cursor, conversationID: conversationID)
+                }
+                if outcome == .changed {
+                    self.catchUpWrites[conversationID, default: []] += reconciled.map(\.id)
                 }
                 if outcome.succeeded {
                     self.commitReconciled(pairs, in: conversationID)
@@ -923,8 +935,9 @@ final class ConversationController {
     /// Re-reads every known conversation's transcript and feed preview straight from disk, with no
     /// network involved. Covers the notification extension's writes: it persists pushed messages into
     /// the shared store, which the running app's in-memory `store` never observes, since
-    /// `Database.transaction` only posts `.databaseDidChange` for writes made by this process. Bumping
-    /// `messageRevision` invalidates the cached transcript window so the next read re-queries the DB;
+    /// `Database.transaction` only posts `.databaseDidChange` for writes made by this process. Which
+    /// chats it wrote isn't known here, so this reports a write to every chat, which bumps
+    /// `messageRevision` and drops the cached transcript window so the next read re-queries the DB;
     /// `refreshFeedPreview` does the same for each chat's last-message preview and unread state, which
     /// don't come from the network-only catch-up paths. The extension also advances a chat's catch-up
     /// cursor when its delta completed (see `NotificationService.persist`), so the stored cursors are
@@ -1001,7 +1014,7 @@ final class ConversationController {
             let floor = messages.map(\.eventSequence).filter({ $0 > 0 }).min() ?? 0
             // Page + floor cursor land atomically (a failed write must not seat the cursor), and a
             // non-overlapping page drops the stale older epoch first.
-            let ok = persist(operation: "reset-resync") {
+            let ok = persist(operation: "reset-resync", scope: .conversation(conversationID)) {
                 try dropStaleEpochIfNeeded(before: messages, in: conversationID)
                 try database.persistMessages(reconciled, cursor: floor, conversationID: conversationID)
             }
@@ -1693,7 +1706,7 @@ final class ConversationController {
             // in-memory cursor optimistically, so if this write rolls back, re-seat the cursor to the
             // persisted value and catch up — otherwise the un-persisted messages are skipped by the next
             // GetDelta and lost (the store no longer holds a confirmed copy).
-            let outcome = persistChanges(operation: "apply-chat-events") {
+            let outcome = persistChanges(operation: "apply-chat-events", scope: .messages(reconciled.map(\.id), in: conversationID)) {
                 try database.persistMessages(reconciled, cursor: store.appliedCursor(for: conversationID), conversationID: conversationID)
             }
             if outcome.succeeded {
@@ -1823,7 +1836,9 @@ final class ConversationController {
     }
 
     private func persistConversation(_ conversation: Conversation) {
-        persistChanges(operation: "upsert-conversation") { try database.upsertConversation(withStoreMembers(conversation)) }
+        // The one message row this writes is the chat's last message.
+        let scope: MessageWriteScope = conversation.lastMessage.map { .messages([$0.id], in: conversation.id) } ?? .conversation(conversation.id)
+        persistChanges(operation: "upsert-conversation", scope: scope) { try database.upsertConversation(withStoreMembers(conversation)) }
     }
 
     /// A server copy of a group carrying the store's member list instead of its own. A group's server
@@ -1840,13 +1855,14 @@ final class ConversationController {
         return conversation
     }
 
+    /// - Parameter scope: the message rows the write touches, for a message-write operation.
     @discardableResult
-    func persist(operation: String, _ write: () throws -> Void) -> Bool {
+    func persist(operation: String, scope: MessageWriteScope = .allConversations, _ write: () throws -> Void) -> Bool {
         guard attempt(operation: operation, write) else { return false }
-        // A successful confirmed-message write invalidates the DB-backed transcript window; bump the
-        // revision the coordinator observes so it re-reads.
+        // A successful confirmed-message write invalidates the DB-backed transcript window; report it
+        // so the window re-reads and the views observing `messageRevision` re-evaluate.
         if Self.messageWriteOperations.contains(operation) {
-            messageRevision &+= 1
+            noteMessageWrite(scope)
         }
         return true
     }
@@ -1869,12 +1885,17 @@ final class ConversationController {
     /// Runs a write that returns whether it changed a message row, bumping `messageRevision` only
     /// when it did. A catch-up that re-fetches what the notification extension already stored then
     /// redraws nothing, instead of invalidating every chat row's unread count once per batch.
+    ///
+    /// - Parameter scope: the message rows the write touches. Pass nil when the caller reports the
+    ///   write itself, once for several writes.
     @discardableResult
-    func persistChanges(operation: String, _ write: () throws -> Bool) -> PersistOutcome {
+    func persistChanges(operation: String, scope: MessageWriteScope? = .allConversations, _ write: () throws -> Bool) -> PersistOutcome {
         var changed = false
         guard attempt(operation: operation, { changed = try write() }) else { return .failed }
         guard changed else { return .unchanged }
-        messageRevision &+= 1
+        if let scope {
+            noteMessageWrite(scope)
+        }
         return .changed
     }
 
@@ -2160,10 +2181,14 @@ final class ConversationController {
         windowedMessages(for: conversationID, limit: Self.recentWindow)
     }
 
-    /// Bumped after every successful confirmed-message DB write, so the coordinator — which reads the
-    /// transcript from the DB, not the store — knows to re-read its window. Pending-overlay changes
-    /// re-fire through the store directly.
+    /// Bumped after every successful confirmed-message DB write, so the views that read the transcript
+    /// from the DB, not the store, re-evaluate. Pending-overlay changes re-fire through the store
+    /// directly. The cached transcript window is not keyed on this: ``noteMessageWrite(_:)`` drops or
+    /// patches it only for the conversation a write touched.
     private(set) var messageRevision = 0
+
+    /// Batch writes of each running catch-up, reported once when the run ends.
+    @ObservationIgnored private var catchUpWrites: [ConversationID: [MessageID]] = [:]
 
     /// Own sends the server has confirmed this session, per chat. Observed by the jump badge, which
     /// reads a rise as the viewer having caught up with the transcript.
@@ -2172,7 +2197,99 @@ final class ConversationController {
     /// Forces the transcript to re-read its window. `persist(operation:)` does this for database
     /// writes; an overlay change writes nothing, so it has to say so explicitly.
     func bumpMessageRevision() {
+        noteMessageWrite(.allConversations)
+    }
+
+    /// The message rows a confirmed write touched.
+    enum MessageWriteScope {
+        /// Unknown, or across the feed: every chat's window re-reads.
+        case allConversations
+        /// One chat's rows may have been removed or rewritten wholesale: its window re-reads.
+        case conversation(ConversationID)
+        /// Exactly these rows of one chat were inserted or rewritten.
+        case messages([MessageID], in: ConversationID)
+    }
+
+    /// Reports a confirmed write: bumps ``messageRevision`` and brings the cached transcript window up
+    /// to date. A write to another chat leaves the window alone, and a write of a few rows to the
+    /// window's own chat patches those rows in, so neither re-decodes the whole window.
+    func noteMessageWrite(_ scope: MessageWriteScope) {
         messageRevision &+= 1
+        guard let cached = confirmedWindowCache else { return }
+        switch scope {
+        case .allConversations:
+            confirmedWindowCache = nil
+        case .conversation(let conversationID):
+            if cached.key.conversationID == conversationID {
+                confirmedWindowCache = nil
+            }
+        case .messages(let messageIDs, let conversationID):
+            guard cached.key.conversationID == conversationID else { return }
+            confirmedWindowCache = patchedWindowCache(cached, writing: messageIDs)
+        }
+    }
+
+    /// `cached` with the rows of `messageIDs` re-read, or nil when re-reading the window is cheaper
+    /// or a read fails.
+    private func patchedWindowCache(
+        _ cached: (key: ConfirmedWindowKey, messages: [ConversationMessage]),
+        writing messageIDs: [MessageID]
+    ) -> (key: ConfirmedWindowKey, messages: [ConversationMessage])? {
+        let key = cached.key
+        do {
+            // An anchored window starts at its anchor. The newest-N window starts at the oldest of the
+            // newest N stored rows, which an arrival moves up.
+            let lowerBound = try key.startID ?? database.newestWindowFloor(conversationID: key.conversationID, limit: key.limit)
+            let inWindow = messageIDs.filter { id in lowerBound.map { id.value >= $0 } ?? true }
+            // Re-reading most of the window row by row costs more than one window read.
+            guard inWindow.count * 4 <= max(cached.messages.count, 4) else { return nil }
+            let rows = try database.messages(conversationID: key.conversationID, ids: inWindow)
+            return (key, Self.patchedWindow(cached.messages, written: inWindow, rows: rows, from: lowerBound))
+        } catch {
+            return nil
+        }
+    }
+
+    /// A confirmed window after a write: `window` with every `written` row replaced by its stored copy
+    /// in `rows` (dropped when absent, inserted in id order when new), and every row below
+    /// `lowerBound` dropped. Equal to a fresh window read when `window` was current before the write
+    /// and `written` lists every row the write touched.
+    static func patchedWindow(
+        _ window: [ConversationMessage],
+        written: [MessageID],
+        rows: [ConversationMessage],
+        from lowerBound: UInt64?
+    ) -> [ConversationMessage] {
+        // `window` is in ascending id order, so each written row is found by binary search and the
+        // patch costs O(written · log window) plus the array shifts, not a pass over every row.
+        var patched = window
+        if let lowerBound {
+            patched.removeFirst(insertionIndex(of: lowerBound, in: patched))
+        }
+        let stored = Dictionary(rows.map { ($0.id.value, $0) }, uniquingKeysWith: { _, last in last })
+        for id in Set(written.map(\.value)) {
+            if let lowerBound, id < lowerBound { continue }
+            let index = insertionIndex(of: id, in: patched)
+            let present = index < patched.count && patched[index].id.value == id
+            switch (present, stored[id]) {
+            case (true, let row?):  patched[index] = row
+            case (true, nil):       patched.remove(at: index)
+            case (false, let row?): patched.insert(row, at: index)
+            case (false, nil):      break
+            }
+        }
+        return patched
+    }
+
+    /// The first index in `messages` (ascending by id) whose id is not below `id`.
+    private static func insertionIndex(of id: UInt64, in messages: [ConversationMessage]) -> Int {
+        var low = 0
+        var high = messages.count
+        while low < high {
+            let mid = (low + high) / 2
+            if messages[mid].id.value < id { low = mid + 1 } else { high = mid }
+        }
+        return low
     }
 
     /// Set when a mutation needs to be reported to the person who made it. The screen presents it
@@ -2227,16 +2344,16 @@ final class ConversationController {
         return reactions.displayed(displayed, in: conversationID)
     }
 
-    /// The confirmed rows behind ``windowedMessages(for:startingAt:limit:)``, cached against
-    /// ``messageRevision``.
+    /// The confirmed rows behind ``windowedMessages(for:startingAt:limit:)``, cached until
+    /// ``noteMessageWrite(_:)`` reports a write to this chat that it can't patch in.
     ///
     /// The window read runs synchronously on the main actor on every observation tick, and an
     /// id-anchored window grows without bound as the reader pages back, so re-decoding it per tick
     /// is what a long group transcript feels as scroll jank. Nothing but a confirmed write can
-    /// change these rows, and every such write bumps the revision — the pending overlay is applied
-    /// on top by the caller and stays live.
+    /// change these rows, and every such write is reported — the pending overlay is applied on top by
+    /// the caller and stays live.
     private func confirmedWindow(for conversationID: ConversationID, startingAt startID: UInt64?, limit: Int) -> [ConversationMessage] {
-        let key = ConfirmedWindowKey(conversationID: conversationID, startID: startID, limit: limit, revision: messageRevision)
+        let key = ConfirmedWindowKey(conversationID: conversationID, startID: startID, limit: limit)
         if let cached = confirmedWindowCache, cached.key == key {
             return cached.messages
         }
@@ -2254,7 +2371,6 @@ final class ConversationController {
         let conversationID: ConversationID
         let startID: UInt64?
         let limit: Int
-        let revision: Int
     }
 
     /// One entry, not a table: a screen reads one chat's window, and the next open replaces it.
@@ -2388,7 +2504,7 @@ final class ConversationController {
             // drops the stale older epoch first.
             let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
             let head = messages.map(\.eventSequence).max() ?? 0
-            let ok = persist(operation: "load-messages") {
+            let ok = persist(operation: "load-messages", scope: .conversation(conversationID)) {
                 try dropStaleEpochIfNeeded(before: messages, in: conversationID)
                 try database.persistMessages(reconciled, cursor: head, conversationID: conversationID)
             }
@@ -2462,7 +2578,9 @@ final class ConversationController {
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    _ = persist(operation: "load-older") { try database.upsertConversationMessages(older, conversationID: conversationID) }
+                    _ = persist(operation: "load-older", scope: .messages(older.map(\.id), in: conversationID)) {
+                        try database.upsertConversationMessages(older, conversationID: conversationID)
+                    }
                 }
             }
         } catch {
@@ -2583,7 +2701,7 @@ final class ConversationController {
             // reconciles it later) instead of vanishing it.
             var confirmed = message
             confirmed.clientMessageID = clientMessageID
-            let ok = persist(operation: "send-message") { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
+            let ok = persist(operation: "send-message", scope: .messages([confirmed.id], in: conversationID)) { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
             if ok {
                 store.dropPending(clientMessageID: clientMessageID, confirmedAt: message.id, in: conversationID)
             } else {
@@ -2654,7 +2772,7 @@ final class ConversationController {
                     clientMessageID: clientMessageID
                 )
                 confirmed.clientMessageID = clientMessageID
-                if persist(operation: "send-payment-request", { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
+                if persist(operation: "send-payment-request", scope: .messages([confirmed.id], in: conversationID), { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
                     store.dropPending(clientMessageID: clientMessageID, confirmedAt: confirmed.id, in: conversationID)
                 } else {
                     scheduleGapCatchUp(conversationID)
@@ -3027,7 +3145,7 @@ final class ConversationController {
             chip.progress.finish()
             var confirmed = message
             confirmed.clientMessageID = clientMessageID
-            let ok = persist(operation: "send-media-message") { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
+            let ok = persist(operation: "send-media-message", scope: .messages([confirmed.id], in: conversationID)) { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
             if ok {
                 keepSentImage(chip.image, clientMessageID: clientMessageID)
                 store.dropPending(clientMessageID: clientMessageID, confirmedAt: message.id, in: conversationID)

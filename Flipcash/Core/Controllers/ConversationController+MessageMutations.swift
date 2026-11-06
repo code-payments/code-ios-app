@@ -154,7 +154,7 @@ extension ConversationController {
         in conversationID: ConversationID,
         operation: String
     ) {
-        _ = persist(operation: operation) {
+        _ = persist(operation: operation, scope: .messages([outcome.message.id], in: conversationID)) {
             try database.upsertConversationMessages([outcome.message], conversationID: conversationID)
         }
         store.dropMutation(for: messageID, in: conversationID)

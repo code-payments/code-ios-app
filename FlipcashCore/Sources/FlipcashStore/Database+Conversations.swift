@@ -200,6 +200,36 @@ nonisolated extension Database {
         return Array(try rows.map { conversationMessage(from: $0) }.compactMap { $0 }.reversed())
     }
 
+    /// The oldest id among the newest `limit` stored rows — the lower bound of
+    /// ``messagesWindow(conversationID:before:limit:)`` with no `before` — or nil when the conversation
+    /// stores fewer than `limit` rows. One index seek, no decode.
+    public func newestWindowFloor(conversationID: ConversationID, limit: Int) throws -> UInt64? {
+        guard limit > 0 else { return nil }
+        let m = ConversationMessageTable()
+        let query = m.table.select(m.id)
+            .filter(m.conversationId == conversationID.data)
+            .order(m.id.desc)
+            .limit(1, offset: limit - 1)
+        return try reader.pluck(query)?[m.id]
+    }
+
+    /// The stored messages among `ids`, oldest-first. An id that isn't stored, or whose row doesn't
+    /// decode, is absent — as it would be from a window read.
+    public func messages(conversationID: ConversationID, ids: [MessageID]) throws -> [ConversationMessage] {
+        let m = ConversationMessageTable()
+        let unique = Array(Set(ids.map(\.value)))
+        var messages: [ConversationMessage] = []
+        // Chunked to stay under SQLite's bound-variable limit.
+        for start in stride(from: 0, to: unique.count, by: 500) {
+            let chunk = Array(unique[start..<min(start + 500, unique.count)])
+            let rows = try reader.prepareRowIterator(
+                m.table.filter(m.conversationId == conversationID.data && chunk.contains(m.id))
+            )
+            messages += try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
+        }
+        return messages.sorted { $0.id.value < $1.id.value }
+    }
+
     /// Every message from `startID` (inclusive) to the newest, oldest-first — the id-anchored window.
     /// Anchoring by id means an arriving message grows the window at the tail instead of sliding the
     /// oldest revealed row out from under a reader who has scrolled up.
