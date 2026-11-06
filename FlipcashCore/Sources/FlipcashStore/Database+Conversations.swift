@@ -445,9 +445,7 @@ nonisolated extension Database {
     public func upsertConversationMessages(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
         try write { writer in
             try writer.transaction(.immediate) {
-                for message in messages {
-                    try writeMessage(message, conversationId: conversationID.data)
-                }
+                try writeMessages(messages, conversationId: conversationID.data)
             }
         }
     }
@@ -465,9 +463,7 @@ nonisolated extension Database {
             var changed = false
             // IMMEDIATE: reads the current cursor before updating it (see replaceConversationFeed).
             try writer.transaction(.immediate) {
-                for message in messages {
-                    changed = try writeMessage(message, conversationId: conversationID.data) || changed
-                }
+                changed = try writeMessages(messages, conversationId: conversationID.data)
                 if cursor > 0 {
                     let scoped = c.table.filter(c.id == conversationID.data)
                     let current = try writer.pluck(scoped).flatMap { $0[c.catchupCursor] } ?? 0
@@ -609,176 +605,280 @@ nonisolated extension Database {
     /// Must be called inside a `writer.transaction`. Returns whether the stored row changed.
     @discardableResult
     private func writeMessage(_ message: ConversationMessage, conversationId: Data) throws -> Bool {
-        try write { writer in
+        try writeMessages([message], conversationId: conversationId)
+    }
+
+    /// Must be called inside a `writer.transaction`. Merges each message into its stored row by the
+    /// rules in ``mergeDecision(for:over:)``, reading every stored row the batch touches in one query
+    /// and inserting through one prepared statement. Returns whether any stored row changed.
+    @discardableResult
+    private func writeMessages(_ messages: [ConversationMessage], conversationId: Data) throws -> Bool {
+        guard !messages.isEmpty else { return false }
+        return try write { writer in
             let m = ConversationMessageTable()
+            var stored = try storedMessageStates(ids: messages.map(\.id.value), conversationId: conversationId, writer: writer)
+            var insert: (sql: String, statement: Statement)?
+            var changed = false
 
-            let scoped = m.table.filter(m.conversationId == conversationId && m.id == message.id.value)
-            var message = message
+            for incoming in messages {
+                let scoped = m.table.filter(m.conversationId == conversationId && m.id == incoming.id.value)
+                var message = incoming
 
-            // Last-writer-wins parity with the in-memory `ConversationStore`: never let a stale re-delivery
-            // (e.g. the deprecated `new_messages` overlay landing after the `events` tombstone, or a
-            // duplicate delta batch) overwrite a newer persisted version — that would resurrect a
-            // deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
-            if let existing = try writer.pluck(scoped) {
-                // Reactions sit outside the event log, so they merge on their own versions whatever the
-                // copy's event sequence says.
-                let storedReactions = Self.decodeReactions(existing[m.reactionsJson])
-                let reactions = Self.mergedReactions(stored: storedReactions, incoming: message.reactionState)
-                let existingSequence = existing[m.eventSequence]
-                if existingSequence > message.eventSequence {
-                    // Stale re-delivery: keep the newer stored version.
-                    if reactions != storedReactions {
-                        try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
-                        return true
+                if let existing = stored[message.id.value] {
+                    switch Self.mergeDecision(for: message, over: existing) {
+                    case .keep(let reactions, let adoptClientMessageID):
+                        // Stale or equal version: the stored row stays, taking only what merges outside
+                        // the event log.
+                        var setters: [Setter] = []
+                        if let reactions {
+                            setters.append(m.reactionsJson <- Self.encodeReactions(reactions))
+                            stored[message.id.value]?.reactions = reactions
+                        }
+                        if let adoptClientMessageID {
+                            setters.append(m.clientMessageID <- adoptClientMessageID)
+                            stored[message.id.value]?.clientMessageID = adoptClientMessageID
+                        }
+                        if !setters.isEmpty {
+                            try writer.run(scoped.update(setters))
+                            changed = true
+                        }
+                        continue
+                    case .replace(let reactions, let clientMessageID):
+                        message.reactionState = reactions
+                        message.clientMessageID = clientMessageID
                     }
-                    return false
                 }
-                // A copy that settles a row stored as ciphertext (waiting on a key, or unsupported by the
-                // build that stored it) is not a re-delivery. An unknown stored failure counts as final.
-                let storedFailure = existing[m.decryptFailure].map { ConversationMessage.DecryptFailure(rawValue: $0) ?? .authentication }
-                let opensStoredRow = existing[m.kind] == 3 && message.settles(unopenedWith: storedFailure)
-                if existingSequence == message.eventSequence && !opensStoredRow {
-                    // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
-                    // copy landing after a stream echo, or vice versa) so identity stays stable.
-                    var changed = false
-                    if existing[m.clientMessageID] == nil, let clientMessageID = message.clientMessageID {
-                        try writer.run(scoped.update(m.clientMessageID <- clientMessageID))
-                        changed = true
-                    }
-                    if reactions != storedReactions {
-                        try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
-                        changed = true
-                    }
-                    return changed
-                }
-                message.reactionState = reactions
-                // Newer version wins; preserve the row's established identity if the newer copy lacks one.
-                if message.clientMessageID == nil {
-                    message.clientMessageID = existing[m.clientMessageID]
-                }
-            }
 
-            let kind: Int
-            var text: String?
-            var quarks: UInt64?
-            var nativeAmount: String?
-            var currency: CurrencyCode?
-            var mint: PublicKey?
-            var deletedBy: UUID?
-            var deletedAt: Double?
-            var encryptedScheme: Int?
-            var encryptedNonce: Data?
-            var encryptedCiphertext: Data?
-            var mediaJson: Data?
-            var linkPreviewJson: Data?
-            var systemUserId: UUID?
-            var systemAdmittedBy: UUID?
-            var systemInvitedBy: UUID?
-            if let sealed = message.sealed {
-                encryptedScheme = sealed.scheme
-                encryptedNonce = sealed.nonce
-                encryptedCiphertext = sealed.ciphertext
-            }
-
-            switch message.content {
-            case .text(let value):
-                kind = 0
-                text = value
-                linkPreviewJson = try message.linkPreview.map { try JSONEncoder().encode($0) }
-            case .cash(let amount):
-                kind = 1
-                quarks = amount.onChainAmount.quarks
-                nativeAmount = amount.nativeAmount.value.description
-                currency = amount.nativeAmount.currency
-                mint = amount.mint
-            case .deleted(let deletion):
-                kind = 2
-                deletedBy = deletion.deletedBy
-                deletedAt = deletion.deletedAt.timeIntervalSinceReferenceDate
-            case .encrypted(let scheme, let nonce, let ciphertext):
-                kind = 3
-                encryptedScheme = scheme
-                encryptedNonce = nonce
-                encryptedCiphertext = ciphertext
-            case .widget(let widget):
-                // A profile share's username rides in `text`; a widget with none is one this client
-                // can't draw. A payment request is its own kind, its id base64 in `text`.
-                switch widget {
-                case .shareProfile(let share):
-                    kind = 4
-                    text = share.username.value
-                case .paymentRequest(let id):
-                    kind = 7
-                    text = id.data.base64EncodedString()
-                case .unrecognized:
-                    kind = 4
-                    text = nil
+                let (columns, kind) = try Self.messageColumns(message, conversationId: conversationId)
+                let sql = Self.insertMessageSQL(columns.map(\.name))
+                if insert?.sql != sql {
+                    insert = (sql, try writer.prepare(sql))
                 }
-            case .system(let fallbackText, let event):
-                kind = 6
-                text = fallbackText
-                switch event {
-                case .userJoined(let userID, let admittedBy):
-                    systemUserId = userID
-                    systemAdmittedBy = admittedBy
-                case .userJoinedViaInvite(let userID, let invitedBy):
-                    systemUserId = userID
-                    systemInvitedBy = invitedBy
-                case nil:
-                    break
-                }
-            case .media(let attachments, let caption):
-                kind = 5
-                mediaJson = try JSONEncoder().encode(
-                    StoredMedia(attachments: attachments, caption: caption, redacted: message.redacted)
+                try insert!.statement.run(columns.map(\.value))
+                stored[message.id.value] = StoredMessageState(
+                    eventSequence: message.eventSequence,
+                    reactions: message.reactionState,
+                    clientMessageID: message.clientMessageID,
+                    kind: kind,
+                    decryptFailure: message.decryptFailure?.rawValue
                 )
+                changed = true
             }
-
-            let cashAction: Int? = switch message.cashAction {
-            case .sent:   0
-            case .tipped: 1
-            case .none:   nil
-            }
-
-            try writer.run(
-                m.table.insert(
-                    or: .replace,
-                    m.conversationId <- conversationId,
-                    m.id             <- message.id.value,
-                    m.senderId       <- message.senderID,
-                    m.kind           <- kind,
-                    m.text           <- text,
-                    m.quarks         <- quarks,
-                    m.nativeAmount   <- nativeAmount,
-                    m.currency       <- currency,
-                    m.mint           <- mint,
-                    m.cashAction     <- cashAction,
-                    m.date           <- message.date.timeIntervalSinceReferenceDate,
-                    m.unreadSeq      <- message.unreadSeq,
-                    m.eventSequence  <- message.eventSequence,
-                    m.clientMessageID <- message.clientMessageID,
-                    m.repliedToId    <- message.repliedTo?.value,
-                    m.lastEditedTs   <- message.lastEditedTs?.timeIntervalSinceReferenceDate,
-                    m.deletedBy      <- deletedBy,
-                    m.deletedAt      <- deletedAt,
-                    m.encryptedScheme     <- encryptedScheme,
-                    m.encryptedNonce      <- encryptedNonce,
-                    m.encryptedCiphertext <- encryptedCiphertext,
-                    m.decryptFailure      <- message.decryptFailure?.rawValue,
-                    m.reactionsJson       <- Self.encodeReactions(message.reactionState),
-                    m.mediaJson           <- mediaJson,
-                    m.linkPreviewJson     <- linkPreviewJson,
-                    m.systemUserId        <- systemUserId,
-                    m.systemAdmittedBy    <- systemAdmittedBy,
-                    m.systemInvitedBy     <- systemInvitedBy,
-                    m.cashPaymentsJson    <- Self.encodeCashPayments(message.cashPayments),
-                    m.cashReceiverId      <- message.cashReceiverID,
-                    m.cashReturnOffer     <- message.cashReturn.map(\.hasOffer),
-                    m.cashReturnOfId      <- message.cashReturn?.returnOf?.messageID.value
-                )
-            )
-            return true
+            return changed
         }
+    }
+
+    /// The parts of a stored message row that decide how an incoming copy of it merges.
+    private struct StoredMessageState {
+        var eventSequence: UInt64
+        var reactions: ReactionState?
+        var clientMessageID: UUID?
+        var kind: Int
+        var decryptFailure: Int?
+
+        init(eventSequence: UInt64, reactions: ReactionState?, clientMessageID: UUID?, kind: Int, decryptFailure: Int?) {
+            self.eventSequence = eventSequence
+            self.reactions = reactions
+            self.clientMessageID = clientMessageID
+            self.kind = kind
+            self.decryptFailure = decryptFailure
+        }
+    }
+
+    /// The stored state of each of `ids` this conversation already holds, keyed by id. Reads in
+    /// chunks to stay under SQLite's bound-variable limit.
+    private func storedMessageStates(ids: [UInt64], conversationId: Data, writer: Connection) throws -> [UInt64: StoredMessageState] {
+        let m = ConversationMessageTable()
+        var states: [UInt64: StoredMessageState] = [:]
+        let unique = Array(Set(ids))
+        for start in stride(from: 0, to: unique.count, by: 500) {
+            let chunk = Array(unique[start..<min(start + 500, unique.count)])
+            let query = m.table
+                .select(m.id, m.eventSequence, m.reactionsJson, m.clientMessageID, m.kind, m.decryptFailure)
+                .filter(m.conversationId == conversationId && chunk.contains(m.id))
+            let rows = try writer.prepareRowIterator(query)
+            while let row = try rows.failableNext() {
+                states[row[m.id]] = StoredMessageState(
+                    eventSequence: row[m.eventSequence],
+                    reactions: Self.decodeReactions(row[m.reactionsJson]),
+                    clientMessageID: row[m.clientMessageID],
+                    kind: row[m.kind],
+                    decryptFailure: row[m.decryptFailure]
+                )
+            }
+        }
+        return states
+    }
+
+    /// What writing an incoming copy over a stored row does.
+    private enum MergeDecision {
+        /// Keep the stored row. Write `reactions` and adopt `adoptClientMessageID` when non-nil.
+        case keep(reactions: ReactionState?, adoptClientMessageID: UUID?)
+        /// Replace the row with the incoming copy, carrying these reactions and client id.
+        case replace(reactions: ReactionState?, clientMessageID: UUID?)
+    }
+
+    /// Last-writer-wins parity with the in-memory `ConversationStore`: never let a stale re-delivery
+    /// (e.g. the deprecated `new_messages` overlay landing after the `events` tombstone, or a
+    /// duplicate delta batch) overwrite a newer persisted version — that would resurrect a
+    /// deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
+    nonisolated private static func mergeDecision(for message: ConversationMessage, over existing: StoredMessageState) -> MergeDecision {
+        // Reactions sit outside the event log, so they merge on their own versions whatever the
+        // copy's event sequence says.
+        let reactions = mergedReactions(stored: existing.reactions, incoming: message.reactionState)
+        let reactionsChanged = reactions != existing.reactions
+        if existing.eventSequence > message.eventSequence {
+            // Stale re-delivery: keep the newer stored version.
+            return .keep(reactions: reactionsChanged ? reactions : nil, adoptClientMessageID: nil)
+        }
+        // A copy that settles a row stored as ciphertext (waiting on a key, or unsupported by the
+        // build that stored it) is not a re-delivery. An unknown stored failure counts as final.
+        let storedFailure = existing.decryptFailure.map { ConversationMessage.DecryptFailure(rawValue: $0) ?? .authentication }
+        let opensStoredRow = existing.kind == 3 && message.settles(unopenedWith: storedFailure)
+        if existing.eventSequence == message.eventSequence && !opensStoredRow {
+            // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
+            // copy landing after a stream echo, or vice versa) so identity stays stable.
+            let adopt = existing.clientMessageID == nil ? message.clientMessageID : nil
+            return .keep(reactions: reactionsChanged ? reactions : nil, adoptClientMessageID: adopt)
+        }
+        // Newer version wins; preserve the row's established identity if the newer copy lacks one.
+        return .replace(reactions: reactions, clientMessageID: message.clientMessageID ?? existing.clientMessageID)
+    }
+
+    /// `INSERT OR REPLACE` into `conversation_message` over `columns`, in order.
+    nonisolated private static func insertMessageSQL(_ columns: [String]) -> String {
+        let placeholders = Array(repeating: "?", count: columns.count).joined(separator: ", ")
+        return "INSERT OR REPLACE INTO \"\(ConversationMessageTable.name)\" (\(columns.joined(separator: ", "))) VALUES (\(placeholders))"
+    }
+
+    /// Every stored column of `message`'s row, as quoted column name and bound value, and the row's
+    /// `kind`.
+    nonisolated private static func messageColumns(_ message: ConversationMessage, conversationId: Data) throws -> (columns: [(name: String, value: Binding?)], kind: Int) {
+        let m = ConversationMessageTable()
+        let kind: Int
+        var text: String?
+        var quarks: UInt64?
+        var nativeAmount: String?
+        var currency: CurrencyCode?
+        var mint: PublicKey?
+        var deletedBy: UUID?
+        var deletedAt: Double?
+        var encryptedScheme: Int?
+        var encryptedNonce: Data?
+        var encryptedCiphertext: Data?
+        var mediaJson: Data?
+        var linkPreviewJson: Data?
+        var systemUserId: UUID?
+        var systemAdmittedBy: UUID?
+        var systemInvitedBy: UUID?
+        if let sealed = message.sealed {
+            encryptedScheme = sealed.scheme
+            encryptedNonce = sealed.nonce
+            encryptedCiphertext = sealed.ciphertext
+        }
+
+        switch message.content {
+        case .text(let value):
+            kind = 0
+            text = value
+            linkPreviewJson = try message.linkPreview.map { try JSONEncoder().encode($0) }
+        case .cash(let amount):
+            kind = 1
+            quarks = amount.onChainAmount.quarks
+            nativeAmount = amount.nativeAmount.value.description
+            currency = amount.nativeAmount.currency
+            mint = amount.mint
+        case .deleted(let deletion):
+            kind = 2
+            deletedBy = deletion.deletedBy
+            deletedAt = deletion.deletedAt.timeIntervalSinceReferenceDate
+        case .encrypted(let scheme, let nonce, let ciphertext):
+            kind = 3
+            encryptedScheme = scheme
+            encryptedNonce = nonce
+            encryptedCiphertext = ciphertext
+        case .widget(let widget):
+            // A profile share's username rides in `text`; a widget with none is one this client
+            // can't draw. A payment request is its own kind, its id base64 in `text`.
+            switch widget {
+            case .shareProfile(let share):
+                kind = 4
+                text = share.username.value
+            case .paymentRequest(let id):
+                kind = 7
+                text = id.data.base64EncodedString()
+            case .unrecognized:
+                kind = 4
+                text = nil
+            }
+        case .system(let fallbackText, let event):
+            kind = 6
+            text = fallbackText
+            switch event {
+            case .userJoined(let userID, let admittedBy):
+                systemUserId = userID
+                systemAdmittedBy = admittedBy
+            case .userJoinedViaInvite(let userID, let invitedBy):
+                systemUserId = userID
+                systemInvitedBy = invitedBy
+            case nil:
+                break
+            }
+        case .media(let attachments, let caption):
+            kind = 5
+            mediaJson = try JSONEncoder().encode(
+                StoredMedia(attachments: attachments, caption: caption, redacted: message.redacted)
+            )
+        }
+
+        let cashAction: Int? = switch message.cashAction {
+        case .sent:   0
+        case .tipped: 1
+        case .none:   nil
+        }
+
+        func column<V: Value>(_ expression: SQLite.Expression<V>, _ value: V) -> (name: String, value: Binding?) {
+            (expression.template, value.datatypeValue)
+        }
+        func column<V: Value>(_ expression: SQLite.Expression<V?>, _ value: V?) -> (name: String, value: Binding?) {
+            (expression.template, value?.datatypeValue)
+        }
+
+        let columns = [
+            column(m.conversationId, conversationId),
+            column(m.id, message.id.value),
+            column(m.senderId, message.senderID),
+            column(m.kind, kind),
+            column(m.text, text),
+            column(m.quarks, quarks),
+            column(m.nativeAmount, nativeAmount),
+            column(m.currency, currency),
+            column(m.mint, mint),
+            column(m.cashAction, cashAction),
+            column(m.date, message.date.timeIntervalSinceReferenceDate),
+            column(m.unreadSeq, message.unreadSeq),
+            column(m.eventSequence, message.eventSequence),
+            column(m.clientMessageID, message.clientMessageID),
+            column(m.repliedToId, message.repliedTo?.value),
+            column(m.lastEditedTs, message.lastEditedTs?.timeIntervalSinceReferenceDate),
+            column(m.deletedBy, deletedBy),
+            column(m.deletedAt, deletedAt),
+            column(m.encryptedScheme, encryptedScheme),
+            column(m.encryptedNonce, encryptedNonce),
+            column(m.encryptedCiphertext, encryptedCiphertext),
+            column(m.decryptFailure, message.decryptFailure?.rawValue),
+            column(m.reactionsJson, encodeReactions(message.reactionState)),
+            column(m.mediaJson, mediaJson),
+            column(m.linkPreviewJson, linkPreviewJson),
+            column(m.systemUserId, systemUserId),
+            column(m.systemAdmittedBy, systemAdmittedBy),
+            column(m.systemInvitedBy, systemInvitedBy),
+            column(m.cashPaymentsJson, encodeCashPayments(message.cashPayments)),
+            column(m.cashReceiverId, message.cashReceiverID),
+            column(m.cashReturnOffer, message.cashReturn.map(\.hasOffer)),
+            column(m.cashReturnOfId, message.cashReturn?.returnOf?.messageID.value),
+        ]
+        return (columns, kind)
     }
 
     /// Replaces a stored message's reactions with `transform` applied to them, returning the new
