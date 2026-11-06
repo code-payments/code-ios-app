@@ -2244,6 +2244,9 @@ final class ConversationController {
             // Re-reading most of the window row by row costs more than one window read.
             guard inWindow.count * 4 <= max(cached.messages.count, 4) else { return nil }
             let rows = try database.messages(conversationID: key.conversationID, ids: inWindow)
+            // A row gone from the newest-N window lets a fresh read pull an older row in to fill the
+            // limit, which a patch can't see, so re-read instead.
+            guard key.startID != nil || rows.count == inWindow.count else { return nil }
             return (key, Self.patchedWindow(cached.messages, written: inWindow, rows: rows, from: lowerBound))
         } catch {
             return nil
