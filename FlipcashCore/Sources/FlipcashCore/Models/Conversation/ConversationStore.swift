@@ -15,6 +15,10 @@ import Foundation
 public struct ConversationStore: Sendable {
 
     public private(set) var conversations: [Conversation] = []
+    /// Each held conversation's position in `conversations`, so a per-id lookup is O(1) instead of a
+    /// linear scan. Every mutation that inserts, removes or reorders rows must call `reindex()`; a
+    /// `didSet` can't do it, since element writes fire it too and would make each one O(n).
+    private var indexByID: [ConversationID: Int] = [:]
     /// Optimistic messages not yet confirmed by the server. Each carries the server id it was sent
     /// after (its `anchor`) and a monotonic send `sequence`, so the transcript orders it relative to
     /// confirmed rows without comparing client and server wall-clock times.
@@ -61,6 +65,7 @@ public struct ConversationStore: Sendable {
     public mutating func setFeed(_ conversations: [Conversation]) {
         let merged = conversations.map { keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0))))) }
         self.conversations = merged.sorted { $0.lastActivity > $1.lastActivity }
+        reindex()
     }
 
     /// Replace one type's conversations from that type's paged feed load,
@@ -72,6 +77,7 @@ public struct ConversationStore: Sendable {
         let incoming = conversations.filter { $0.type == type }.map { keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0))))) }
         self.conversations = (self.conversations.filter { $0.type != type } + incoming)
             .sorted { $0.lastActivity > $1.lastActivity }
+        reindex()
     }
 
     /// Merge the group feed in, and returns the groups the user is no longer in.
@@ -88,6 +94,7 @@ public struct ConversationStore: Sendable {
         let joined = Set(groups.map(\.id))
         let departed = joinedGroupIDs.subtracting(joined)
         conversations.removeAll { $0.type == .group && departed.contains($0.id) }
+        reindex()
         joinedGroupIDs = joined
         for group in groups {
             upsert(group)
@@ -275,7 +282,7 @@ public struct ConversationStore: Sendable {
     /// The signed-in user's READ watermark for a conversation: the higher of the server's copy and
     /// the local advances made since.
     public func selfReadPointer(for conversationID: ConversationID, selfUserID: UserID) -> MessageID? {
-        conversations.first { $0.id == conversationID }?.selfReadPointer(for: selfUserID)
+        conversation(withID: conversationID)?.selfReadPointer(for: selfUserID)
     }
 
     /// Advances the signed-in user's READ watermark ahead of the server, and records it as unsynced
@@ -299,7 +306,7 @@ public struct ConversationStore: Sendable {
     /// Monotonically advance a member's READ watermark; never moves it backward. `date` is when the
     /// pointer was advanced (for the read receipt); stored only when the watermark actually moves.
     private mutating func advanceReadPointer(to messageID: MessageID, for userID: UserID, at date: Date?, in conversationID: ConversationID) {
-        guard let convoIndex = conversations.firstIndex(where: { $0.id == conversationID }),
+        guard let convoIndex = position(of: conversationID),
               let memberIndex = conversations[convoIndex].members.firstIndex(where: { $0.userID == userID }) else {
             return
         }
@@ -312,14 +319,14 @@ public struct ConversationStore: Sendable {
 
     /// Flips the hidden flag for a conversation in place, retaining it in the store; no-ops for a conversation not in the feed.
     public mutating func setHidden(_ hidden: Bool, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
         conversations[index].isHidden = hidden
     }
 
     /// Bump a conversation's last activity and re-sort the feed. No-ops for a conversation not in the
     /// feed, and for a date that is not later than the one it holds.
     public mutating func advanceLastActivity(to date: Date, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }),
+        guard let index = position(of: conversationID),
               date > conversations[index].lastActivity else { return }
         conversations[index].lastActivity = date
         sort()
@@ -331,7 +338,7 @@ public struct ConversationStore: Sendable {
     /// regression — the newest message was tombstoned, so the preview must fall back to the previous
     /// visible one instead of showing deleted content. Never touches `lastActivity` or the feed order.
     public mutating func setFeedPreview(_ newest: ConversationMessage?, in conversationID: ConversationID, force: Bool = false) {
-        guard let newest, let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let newest, let index = position(of: conversationID) else { return }
         if !force,
            let current = conversations[index].lastMessage,
            (current.id, current.eventSequence) >= (newest.id, newest.eventSequence),
@@ -417,6 +424,7 @@ public struct ConversationStore: Sendable {
     /// removed from) a group chat. No-ops when the conversation isn't held.
     public mutating func remove(_ conversationID: ConversationID) {
         conversations.removeAll { $0.id == conversationID }
+        reindex()
     }
 
     /// Advance the contiguous event-log frontier while events arrive gapless and flag a gap the moment
@@ -533,7 +541,7 @@ public struct ConversationStore: Sendable {
     /// A joiner the server couldn't identify still advances the summary: `memberCount` is
     /// authoritative regardless of whether the member list could be updated.
     public mutating func applyRosterUpdates(_ updates: [DecodedRosterUpdate], in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
 
         for update in updates.sorted(by: { $0.rosterSummary.version < $1.rosterSummary.version }) {
             guard update.rosterSummary.version > conversations[index].rosterSummary.version else { continue }
@@ -561,7 +569,7 @@ public struct ConversationStore: Sendable {
     /// cached one, mirroring `applyRosterUpdates` — delivery order and re-delivery don't matter.
     /// No-ops for a chat the store doesn't hold.
     public mutating func applyViewerStateChanged(_ viewerState: ConversationViewerState, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
         guard viewerState.version > (conversations[index].viewerState?.version ?? 0) else { return }
         conversations[index].viewerState = viewerState
     }
@@ -573,7 +581,7 @@ public struct ConversationStore: Sendable {
     /// Returns whether anything changed, so the caller knows to persist.
     @discardableResult
     public mutating func refreshViewerPermissions(from fetched: ConversationViewerState, in conversationID: ConversationID) -> Bool {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return false }
+        guard let index = position(of: conversationID) else { return false }
         let current = conversations[index].viewerState ?? ConversationViewerState()
         guard current.canEdit != fetched.canEdit || current.canSilence != fetched.canSilence || current.canBan != fetched.canBan || current.canInvite != fetched.canInvite || current.canPin != fetched.canPin else {
             return false
@@ -597,7 +605,7 @@ public struct ConversationStore: Sendable {
     /// overwrite a newer title with an older one until the next full refresh corrects it. No-ops for
     /// a chat the store doesn't hold.
     public mutating func applyTitleChanged(_ title: String, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
         conversations[index].title = title
     }
 
@@ -606,14 +614,14 @@ public struct ConversationStore: Sendable {
     /// Same best-effort, no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the
     /// store doesn't hold.
     public mutating func applyDescriptionChanged(_ description: String, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
         conversations[index].description = description.isEmpty ? nil : description
     }
 
     /// Apply a picture change delivered via `MetadataUpdate.ProfilePictureChanged`. Same best-effort,
     /// no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the store doesn't hold.
     public mutating func applyPictureChanged(_ picture: ProfilePicture, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
         conversations[index].picture = picture
     }
 
@@ -621,7 +629,7 @@ public struct ConversationStore: Sendable {
     /// best-effort, no-version caveat as ``applyTitleChanged(_:in:)``. No-ops for a chat the store
     /// doesn't hold.
     public mutating func applyCoverPictureChanged(_ coverPicture: ProfilePicture, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
         conversations[index].coverPicture = coverPicture
     }
 
@@ -633,7 +641,7 @@ public struct ConversationStore: Sendable {
     /// dropped rule would leave a gated group reading as open, and a refetch decodes the same way.
     public mutating func applyRulesChanged(_ rules: ConversationRules, in conversationID: ConversationID) {
         guard !rules.dropsListenerRule,
-              let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+              let index = position(of: conversationID) else { return }
         conversations[index].rules = rules
     }
 
@@ -641,7 +649,7 @@ public struct ConversationStore: Sendable {
     /// Convergent like ``applyRosterUpdates(_:in:)``: only a version greater than the held one is
     /// kept, so delivery order and re-delivery don't matter. No-ops for a chat the store doesn't hold.
     public mutating func applyPinsChanged(_ summary: ConversationPinSummary, in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
         guard summary.version > (conversations[index].pinSummary?.version ?? 0) else { return }
         conversations[index].pinSummary = summary
     }
@@ -652,13 +660,13 @@ public struct ConversationStore: Sendable {
     /// version too rather than keeping it: a retained higher version would make
     /// ``applyViewerStateChanged(_:in:)`` swallow every update the chat sends after a rejoin.
     public mutating func clearViewerState(in conversationID: ConversationID) {
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+        guard let index = position(of: conversationID) else { return }
         conversations[index].viewerState = nil
     }
 
     private mutating func upsert(_ conversation: Conversation) {
         var conversation = keepingViewerState(keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated(conversation))))))
-        if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
+        if let index = position(of: conversation.id) {
             if conversation.type == .group {
                 conversation.members = mergedMembers(conversation.members, over: conversations[index].members)
             }
@@ -699,7 +707,7 @@ public struct ConversationStore: Sendable {
             return conversation
         }
         var conversation = conversation
-        let current = conversations.first { $0.id == conversation.id }?.lastMessage
+        let current = self.conversation(withID: conversation.id)?.lastMessage
         conversation.lastMessage = current.flatMap { current in
             !current.isDeleted && current.id != tombstone.id ? current : nil
         }
@@ -710,7 +718,7 @@ public struct ConversationStore: Sendable {
     /// A feed or metadata response can be older than a stream event that landed while it was in
     /// flight; taking it as-is would roll the row back, and a launch would show the list move twice.
     private func keepingNewerActivity(_ conversation: Conversation) -> Conversation {
-        guard let stored = conversations.first(where: { $0.id == conversation.id }) else { return conversation }
+        guard let stored = self.conversation(withID: conversation.id) else { return conversation }
         var conversation = conversation
         if stored.lastActivity > conversation.lastActivity {
             conversation.lastActivity = stored.lastActivity
@@ -729,7 +737,7 @@ public struct ConversationStore: Sendable {
     /// store already holds is not dropped: it is server-computed and does not advance the version, so
     /// only ``refreshViewerPermissions(from:in:)`` lowers one.
     private func keepingViewerState(_ conversation: Conversation) -> Conversation {
-        guard let held = conversations.first(where: { $0.id == conversation.id })?.viewerState else {
+        guard let held = self.conversation(withID: conversation.id)?.viewerState else {
             return conversation
         }
         guard let incoming = conversation.viewerState else {
@@ -760,7 +768,7 @@ public struct ConversationStore: Sendable {
     /// reported", not "cleared"; `GetChat` and `coverPictureChanged` are what change it.
     private func keepingCoverPicture(_ conversation: Conversation) -> Conversation {
         guard conversation.coverPicture == nil,
-              let held = conversations.first(where: { $0.id == conversation.id })?.coverPicture else {
+              let held = self.conversation(withID: conversation.id)?.coverPicture else {
             return conversation
         }
         var conversation = conversation
@@ -772,7 +780,7 @@ public struct ConversationStore: Sendable {
     /// one. Feed and list RPCs may omit the summary, so an unset one there is "not reported", not
     /// "cleared"; `GetChat` and `pinsChanged` are what change it.
     private func keepingPinSummary(_ conversation: Conversation) -> Conversation {
-        guard let held = conversations.first(where: { $0.id == conversation.id })?.pinSummary else {
+        guard let held = self.conversation(withID: conversation.id)?.pinSummary else {
             return conversation
         }
         if let incoming = conversation.pinSummary, incoming.version >= held.version {
@@ -793,7 +801,7 @@ public struct ConversationStore: Sendable {
             return conversation
         }
         let server = conversation.members[serverIndex].readPointer
-        let local = conversations.first { $0.id == conversation.id }?.selfReadPointer(for: selfUserID)
+        let local = self.conversation(withID: conversation.id)?.selfReadPointer(for: selfUserID)
         guard let local, server.map({ $0 < local }) ?? true else {
             if let server {
                 didSyncSelfReadPointer(server, in: conversation.id)
@@ -811,5 +819,32 @@ public struct ConversationStore: Sendable {
 
     private mutating func sort() {
         conversations.sort { $0.lastActivity > $1.lastActivity }
+        reindex()
+    }
+
+    // MARK: - Lookup by id
+
+    /// The held conversation with this id, or nil when the store doesn't hold it.
+    public func conversation(withID id: ConversationID) -> Conversation? {
+        position(of: id).map { conversations[$0] }
+    }
+
+    /// Whether the store holds a conversation with this id.
+    public func contains(_ id: ConversationID) -> Bool {
+        position(of: id) != nil
+    }
+
+    private func position(of id: ConversationID) -> Int? {
+        guard let index = indexByID[id] else { return nil }
+        guard index < conversations.count, conversations[index].id == id else {
+            // A mutation that moved rows skipped `reindex()`. Answer correctly anyway.
+            assertionFailure("ConversationStore.indexByID is stale")
+            return conversations.firstIndex { $0.id == id }
+        }
+        return index
+    }
+
+    private mutating func reindex() {
+        indexByID = Dictionary(conversations.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 }
