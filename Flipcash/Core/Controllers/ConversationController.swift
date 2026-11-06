@@ -59,7 +59,7 @@ final class ConversationController {
 
     /// The conversation with this ID, if the feed currently holds it.
     func conversation(withID id: ConversationID) -> Conversation? {
-        conversations.first { $0.id == id }
+        store.conversation(withID: id)
     }
 
     /// The visible feed, excluding hidden (blocked-counterpart) conversations.
@@ -1161,7 +1161,7 @@ final class ConversationController {
             // with the chat. Nothing to fetch.
             return
         }
-        guard !store.conversations.contains(where: { $0.id == conversationID }),
+        guard !store.contains(conversationID),
               !hydratingConversationIDs.contains(conversationID) else {
             return
         }
@@ -1818,7 +1818,7 @@ final class ConversationController {
     /// Persists the store's current version of a conversation. No-ops for
     /// conversations the store doesn't know yet.
     func persistConversation(_ conversationID: ConversationID) {
-        guard let conversation = store.conversations.first(where: { $0.id == conversationID }) else { return }
+        guard let conversation = store.conversation(withID: conversationID) else { return }
         persistConversation(conversation)
     }
 
@@ -1832,7 +1832,7 @@ final class ConversationController {
     /// would drop those members from the cache. Call after the copy has been applied to the store.
     private func withStoreMembers(_ conversation: Conversation) -> Conversation {
         guard conversation.type == .group,
-              let stored = store.conversations.first(where: { $0.id == conversation.id }) else {
+              let stored = store.conversation(withID: conversation.id) else {
             return conversation
         }
         var conversation = conversation
@@ -2105,7 +2105,7 @@ final class ConversationController {
     }
 
     func displayName(forConversationID conversationID: ConversationID) -> String {
-        if let conversation = store.conversations.first(where: { $0.id == conversationID }) {
+        if let conversation = store.conversation(withID: conversationID) {
             return displayName(for: conversation)
         }
         return contactName(for: conversationID) ?? Self.fallbackCounterpartName
