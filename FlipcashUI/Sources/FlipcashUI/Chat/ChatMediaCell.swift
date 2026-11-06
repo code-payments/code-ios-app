@@ -368,13 +368,16 @@ public final class ChatMediaCell: ChatColumnCell {
         let blurhashOnly = Self.isBlurhashOnly(media, canReact: message.canReact)
         self.blurhashOnly = blurhashOnly
 
-        let size = ChatMediaBubbleSizing.size(
-            imageWidth: Double(media.width),
-            imageHeight: Double(media.height),
-            maxWidth: Double(maxWidth)
-        )
+        let isStack = media.stackPhotos.count > 1
+        let size = isStack
+            ? ChatMediaBubbleSizing.stackSize(maxWidth: Double(maxWidth))
+            : ChatMediaBubbleSizing.size(
+                imageWidth: Double(media.width),
+                imageHeight: Double(media.height),
+                maxWidth: Double(maxWidth)
+            )
         imageHeightConstraint.constant = size.height
-        layOutStackFan(frame: CGSize(width: size.width, height: size.height), isStack: media.stackPhotos.count > 1)
+        layOutStackFan(frame: CGSize(width: size.width, height: size.height), isStack: isStack)
         // The same row losing its progress is a confirmed send, which fades; a new row starts clean.
         progressOverlay.bind(progress, behind: stackProgress, suppressed: message.isFailed, animated: drawnRowID == message.id)
         drawImage(

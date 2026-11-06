@@ -259,24 +259,26 @@ struct ChatMediaCellTests {
         #expect(cell.stackCountLabel.text == "2 photos")
     }
 
-    @Test("A stack's fanned cards stay inside the frame a single photo takes", arguments: [2, 3])
-    func fanStaysInsidePhotoFrame(photos: Int) throws {
+    @Test("A stack draws in a square frame as wide as a single photo, whatever its photos' shape", arguments: [2, 3])
+    func stackFrameIsSquare(photos: Int) throws {
         let cell = stackCell(photos)
         let single = stackCell(1)
         let photoFrame = try #require(cell.stackCards.first?.superview).bounds
         let singleFrame = try #require(single.stackCards.first?.superview).bounds
-        #expect(photoFrame.size == singleFrame.size, "\(photoFrame) vs \(singleFrame)")
+        #expect(photoFrame.width == singleFrame.width)
+        #expect(photoFrame.height == photoFrame.width, "\(photoFrame)")
+        #expect(singleFrame.height > singleFrame.width, "a single portrait photo keeps its 5:4 frame")
         for card in cell.stackCards where !card.isHidden {
             #expect(photoFrame.insetBy(dx: -0.5, dy: -0.5).contains(card.frame), "\(card.frame) in \(photoFrame)")
         }
     }
 
-    @Test("A stack's front photo keeps a single photo's full height, so the row has no extra gap", arguments: [2, 3])
-    func stackKeepsPhotoHeight(photos: Int) {
+    @Test("A stack's front photo fills its square frame's full height, so the row has no extra gap", arguments: [2, 3])
+    func stackKeepsFrameHeight(photos: Int) throws {
         let stack = stackCell(photos)
-        let single = stackCell(1)
-        #expect(stack.imageBubble.bounds.height == single.imageBubble.bounds.height)
-        #expect(stack.imageBubble.bounds.width < single.imageBubble.bounds.width)
+        let frame = try #require(stack.stackCards.first?.superview).bounds
+        #expect(stack.imageBubble.bounds.height == frame.height)
+        #expect(stack.imageBubble.bounds.width < frame.width)
         #expect(stack.imageBubble.transform == .identity)
     }
 

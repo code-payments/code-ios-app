@@ -22,6 +22,11 @@ nonisolated enum ChatMediaBubbleSizing {
         let cropped: Bool
     }
 
+    /// The bubble for a stack of photos: a `maxWidth` square, whatever the photos' shape.
+    static func stackSize(maxWidth: Double) -> Size {
+        Size(width: maxWidth, height: maxWidth, cropped: true)
+    }
+
     /// The bubble for a `imageWidth` × `imageHeight` photo: always `maxWidth` wide, its height following
     /// the photo's aspect clamped to 1:2…5:4. A photo missing either dimension draws square.
     static func size(imageWidth: Double, imageHeight: Double, maxWidth: Double) -> Size {
