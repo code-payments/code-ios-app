@@ -1000,10 +1000,9 @@ final class ConversationController {
             let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
             let floor = messages.map(\.eventSequence).filter({ $0 > 0 }).min() ?? 0
             // Page + floor cursor land atomically (a failed write must not seat the cursor), and a
-            // non-overlapping page drops the stale older epoch first.
+            // non-overlapping page records a history gap instead of joining the older rows.
             let ok = persist(operation: "reset-resync") {
-                try dropStaleEpochIfNeeded(before: messages, in: conversationID)
-                try database.persistMessages(reconciled, cursor: floor, conversationID: conversationID)
+                try database.persistNewestPage(reconciled, cursor: floor, conversationID: conversationID)
             }
             if ok {
                 commitReconciled(pairs, in: conversationID)
@@ -1790,17 +1789,6 @@ final class ConversationController {
         }
     }
 
-    /// A freshly fetched newest page that does not overlap the retained history proves nothing about
-    /// contiguity — the interior gap would render seamlessly stitched and can never be fetched (older
-    /// paging anchors below the *oldest* persisted row). Drop the stale older epoch; it re-pages from
-    /// the server on scroll. Must run before the page itself is persisted.
-    private func dropStaleEpochIfNeeded(before page: [ConversationMessage], in conversationID: ConversationID) throws {
-        guard let oldestOfPage = page.map(\.id.value).min(),
-              let newestPersisted = try database.newestMessageID(conversationID: conversationID),
-              newestPersisted.value < oldestOfPage else { return }
-        try database.deleteMessages(conversationID: conversationID)
-    }
-
     /// Recompute the feed row's preview from the newest persisted *visible* message (the store no longer
     /// holds the confirmed transcript to derive it from).
     func refreshFeedPreview(for conversationID: ConversationID) {
@@ -2337,6 +2325,13 @@ final class ConversationController {
         ((try? database.messagesWindow(conversationID: conversationID, before: nil, limit: limit)) ?? []).first?.id.value
     }
 
+    /// The history gap in `conversationID`'s stored rows, or nil when they are contiguous. Observes
+    /// `messageRevision`, since every write that opens, narrows or closes a gap bumps it.
+    func historyGap(in conversationID: ConversationID) -> HistoryGap? {
+        _ = messageRevision   // observe: re-read when a confirmed DB write lands
+        return (try? database.historyGap(conversationID: conversationID)) ?? nil
+    }
+
     /// The persisted id `step` rows older than `before` — the loader's next window anchor — or nil when
     /// no older history is persisted locally (time to page the server).
     func olderAnchor(for conversationID: ConversationID, before: UInt64, step: Int) -> UInt64? {
@@ -2384,13 +2379,13 @@ final class ConversationController {
             // head — fetching only genuinely newer messages, appended at the tail — instead of a
             // `GetDelta(after: 0)` that re-pulls the whole history and prepends it, knocking the
             // transcript off the bottom on first open. Page + cursor land atomically (a failed write
-            // must not seat the cursor past messages that never persisted), and a non-overlapping page
-            // drops the stale older epoch first.
+            // must not seat the cursor past messages that never persisted). A page that does not
+            // overlap the stored rows records a history gap: the older rows stay, the transcript reads
+            // only from the page up, and paging back fills the gap until it reaches them.
             let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
             let head = messages.map(\.eventSequence).max() ?? 0
             let ok = persist(operation: "load-messages") {
-                try dropStaleEpochIfNeeded(before: messages, in: conversationID)
-                try database.persistMessages(reconciled, cursor: head, conversationID: conversationID)
+                try database.persistNewestPage(reconciled, cursor: head, conversationID: conversationID)
             }
             if ok {
                 commitReconciled(pairs, in: conversationID)
@@ -2439,13 +2434,16 @@ final class ConversationController {
         olderPageState[conversationID]?.isLoading ?? false
     }
 
-    /// Pages strictly older than the oldest loaded message, prepends it to the in-memory window, and
+    /// Pages strictly older than the oldest readable message, prepends it to the in-memory window, and
     /// persists it — retention is on, so paged-in history stays in the DB and a reopen reads it locally
-    /// instead of re-fetching. No-ops while a page is in flight or once history is exhausted.
+    /// instead of re-fetching. Above a history gap this pages before the gap's upper bound, so each
+    /// page fills the gap from the top until it reaches the stored rows below it. No-ops while a page
+    /// is in flight or once history is exhausted.
     func loadOlderMessages(for conversationID: ConversationID) async {
         guard canRead(conversationID) else { return }
         guard hasMoreOlderMessages(for: conversationID), !isLoadingOlderMessages(for: conversationID) else { return }
-        // Page before the oldest PERSISTED id — the DB holds all viewed history; the store may be trimmed.
+        // Page before the oldest PERSISTED readable id — the DB holds all viewed history; the store may
+        // be trimmed. Rows below a history gap are not readable, so this is the gap's upper bound.
         guard let oldest = (try? database.oldestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
 
         olderPageState[conversationID, default: OlderPageState()].isLoading = true
@@ -2453,16 +2451,22 @@ final class ConversationController {
 
         do {
             let older = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: oldest)
+            let hadGap = (try? database.historyGap(conversationID: conversationID)) != nil
             if older.isEmpty {
                 olderPageState[conversationID]?.hasMore = false
+                // Nothing older on the server: rows below a gap are not part of this history.
+                if hadGap {
+                    _ = persist(operation: "load-older") { try database.persistOlderPage([], conversationID: conversationID) }
+                }
             } else {
                 // Retention is on, so persist the paged-in history: the next open reads it from the DB
-                // instead of re-fetching. Prepended history must not play insertion transitions — the
-                // revision bump and the resulting re-read ride an animation-suppressed transaction.
+                // instead of re-fetching. The same write narrows or closes a history gap. Prepended
+                // history must not play insertion transitions — the revision bump and the resulting
+                // re-read ride an animation-suppressed transaction.
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    _ = persist(operation: "load-older") { try database.upsertConversationMessages(older, conversationID: conversationID) }
+                    _ = persist(operation: "load-older") { try database.persistOlderPage(older, conversationID: conversationID) }
                 }
             }
         } catch {

@@ -392,6 +392,21 @@ nonisolated public struct GroupMembershipTable: Sendable {
     public let conversationId = Expression <Data> ("conversationId")
 }
 
+/// A break in a conversation's stored history, left when a newest page arrived that did not overlap
+/// the rows already stored. Rows at or above `aboveId` are the contiguous run the transcript reads;
+/// rows at or below `belowId` are older history kept for when paging back reaches them. At most one
+/// row per conversation.
+nonisolated public struct ConversationHistoryGapTable: Sendable {
+    public static let name = "conversation_history_gap"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationId = Expression <Data>   ("conversationId")
+    public let belowId        = Expression <UInt64> ("belowId")
+    public let aboveId        = Expression <UInt64> ("aboveId")
+}
+
 nonisolated public struct ConversationMemberTable: Sendable {
     public static let name = "conversation_member"
 
@@ -840,6 +855,16 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.cashReturnOffer)
                     t.column(conversationMessageTable.cashReturnOfId)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
+                })
+            }
+
+            let historyGapTable = ConversationHistoryGapTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(historyGapTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(historyGapTable.conversationId, primaryKey: true)
+                    t.column(historyGapTable.belowId)
+                    t.column(historyGapTable.aboveId)
                 })
             }
 

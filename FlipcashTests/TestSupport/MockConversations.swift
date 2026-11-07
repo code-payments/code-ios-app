@@ -149,6 +149,19 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         get { lock.withLock { _olderMessages } }
         set { lock.withLock { _olderMessages = newValue } }
     }
+    /// When set, older pages are cut from this server history: the newest 50 messages below `before`,
+    /// like the real paging. Takes precedence over `olderMessages`.
+    var olderHistory: [ConversationMessage]? {
+        get { lock.withLock { _olderHistory } }
+        set { lock.withLock { _olderHistory = newValue } }
+    }
+    private var _olderHistory: [ConversationMessage]?
+    /// When set, older-page `getMessages` throws this instead of returning a page.
+    var olderError: Error? {
+        get { lock.withLock { _olderError } }
+        set { lock.withLock { _olderError = newValue } }
+    }
+    private var _olderError: Error?
     /// The `before` cursors `getMessages` was paged with.
     var olderQueries: [MessageID] { lock.withLock { _olderQueries } }
     /// Messages `getMessage` returns by id; an id missing here reads as not found.
@@ -432,6 +445,10 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
             return messages
         }
         lock.withLock { _olderQueries.append(before) }
+        if let error = olderError { throw error }
+        if let history = olderHistory {
+            return Array(history.filter { $0.id.value < before.value }.sorted { $0.id.value < $1.id.value }.suffix(50))
+        }
         return olderMessages
     }
 
