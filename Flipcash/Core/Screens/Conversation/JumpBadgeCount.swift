@@ -14,7 +14,8 @@ import FlipcashCore
 /// It opens equal to the unread divider's count and holds there until the first user drag, however
 /// many of those rows are already on screen. An inbound message that arrives after the opening load
 /// has landed adds to it. After the drag it is the live count: inbound messages past the viewer's
-/// read pointer. A confirmed own send also ends the hold, since the viewer has caught up.
+/// read pointer, or past what they have seen on this visit when that runs ahead of it. A confirmed
+/// own send also ends the hold, since the viewer has caught up.
 @MainActor
 @Observable
 final class JumpBadgeCount {
@@ -31,12 +32,22 @@ final class JumpBadgeCount {
     @ObservationIgnored private var arrivalCutoff: MessageID?
     /// Newest-page loads this chat had landed when the badge was built; a rise is a landing on this visit.
     @ObservationIgnored private let landingsAtOpen: Int
+    /// What the reader has seen on this visit and not yet committed to the pointer; nil counts from
+    /// the pointer alone.
+    @ObservationIgnored private let pendingRead: PendingReadPointer?
     private var didScroll = false
 
     /// Pass the boundary resolved at open, before the opening read report moves the pointer.
     /// `openingLoadLanded` is true when the opening load finished before this was built.
-    init(controller: ConversationController, conversationID: ConversationID, boundary: UnreadBoundary, openingLoadLanded: Bool = false) {
+    init(
+        controller: ConversationController,
+        conversationID: ConversationID,
+        boundary: UnreadBoundary,
+        pendingRead: PendingReadPointer? = nil,
+        openingLoadLanded: Bool = false
+    ) {
         self.controller = controller
+        self.pendingRead = pendingRead
         self.conversationID = conversationID
         self.openingCount = boundary.count ?? 0
         self.pointerAtOpen = controller.readThrough(for: conversationID)
@@ -54,11 +65,20 @@ final class JumpBadgeCount {
 
     /// The number to show; the badge hides at zero.
     var count: Int {
-        guard isFrozen else { return controller.unreadBelowCount(in: conversationID) }
+        guard isFrozen else { return liveCount }
         _ = controller.messageRevision   // observe: re-count when an inbound message lands
         seatCutoffFromLanding()
         guard let arrivalCutoff else { return openingCount }
         return openingCount + controller.inboundMessageCount(after: arrivalCutoff, in: conversationID)
+    }
+
+    /// Inbound messages past the pointer or the visit's uncommitted seen id, whichever is newer.
+    private var liveCount: Int {
+        // An unknown pointer counts nothing, as ``ConversationController/unreadBelowCount(in:)`` does.
+        guard let readThrough = controller.readThrough(for: conversationID) else { return 0 }
+        let through = max(readThrough, pendingRead?.seenThrough ?? readThrough)
+        _ = controller.messageRevision   // observe: re-count when an inbound message lands
+        return controller.inboundMessageCount(after: through, in: conversationID)
     }
 
     /// Marks the opening page load as landed, so the history it brought in doesn't count as arrivals.

@@ -67,8 +67,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onMessagesSeen: (MessageID) -> Void
     /// Whether rows on screen count as read right now.
     let reportsReads: Bool
-    /// Inbound messages after the viewer's read pointer, for the jump-to-bottom badge.
-    let unreadBelowCount: Int
+    /// The jump-to-bottom badge's count. Observed by the coordinator, not read by the owning view's
+    /// body, so a change redraws only the button. Nil shows no badge.
+    let jumpBadge: JumpBadgeCount?
     /// Fired on the reader's first drag after the opening scroll.
     let onUserScrollBegan: () -> Void
     /// Fired when a reaction pill is tapped: the row's stable id and the toggled emoji.
@@ -230,13 +231,13 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
-        screen.unreadBelowCount = unreadBelowCount
         screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
+        context.coordinator.observe(jumpBadge)
         context.coordinator.lastMessageID = lastMessageID(of: items)
         return screen
     }
@@ -320,7 +321,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
-        screen.unreadBelowCount = unreadBelowCount
+        context.coordinator.observe(jumpBadge)
         screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
@@ -473,11 +474,39 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         var attachActions = AttachActions()
         /// The last message jump performed, so a re-render doesn't scroll again.
         var lastJumpToken: Int?
+        /// The badge whose count is being pushed to the screen.
+        private var jumpBadge: JumpBadgeCount?
 
         init(model: ConversationBarModel, composer: ComposerModel) {
             self.model = model
             self.composer = composer
             self.overlay = AttachKeyboardOverlay(model: model)
+        }
+
+        /// Pushes `badge`'s count to the screen now and on every change, until another badge replaces it.
+        func observe(_ badge: JumpBadgeCount?) {
+            guard badge !== jumpBadge else { return }
+            jumpBadge = badge
+            pushBadgeCount()
+        }
+
+        private func pushBadgeCount() {
+            guard let badge = jumpBadge else {
+                screen?.unreadBelowCount = 0
+                return
+            }
+            let count = withObservationTracking {
+                badge.count
+            } onChange: { [weak self] in
+                Task { @MainActor [weak self] in
+                    // A badge replaced since this was armed has nothing left to push.
+                    guard let self, jumpBadge === badge else { return }
+                    pushBadgeCount()
+                }
+            }
+            if screen?.unreadBelowCount != count {
+                screen?.unreadBelowCount = count
+            }
         }
 
         /// `+` is opening the panel: over the keyboard while it is up and its window or the field's
