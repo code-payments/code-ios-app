@@ -48,6 +48,8 @@ final class ConversationLoadCoordinator {
     private let openingUnreadBoundary: UnreadBoundary
     /// The jump-to-bottom badge's count, frozen at the divider's until the reader first scrolls.
     let jumpBadge: JumpBadgeCount
+    /// What the reader has seen on this visit, committed to the READ pointer once scrolling settles.
+    let pendingRead: PendingReadPointer
     /// The newest stored message at open. A message of the viewer's past it is a send made on this
     /// visit, which ends the divider under ``UnreadDividerLifetime/untilSend``.
     private let newestAtOpen: MessageID?
@@ -101,7 +103,15 @@ final class ConversationLoadCoordinator {
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
         let boundary = controller.unreadBoundary(for: conversationID)
         self.openingUnreadBoundary = boundary
-        self.jumpBadge = JumpBadgeCount(controller: controller, conversationID: conversationID, boundary: boundary, openingLoadLanded: openingLoadLanded)
+        let pendingRead = PendingReadPointer(controller: controller, conversationID: conversationID)
+        self.pendingRead = pendingRead
+        self.jumpBadge = JumpBadgeCount(
+            controller: controller,
+            conversationID: conversationID,
+            boundary: boundary,
+            pendingRead: pendingRead,
+            openingLoadLanded: openingLoadLanded
+        )
         self.newestAtOpen = controller.lastConfirmedMessage(for: conversationID)?.id
         self.claimReplies = CashLinkClaimReplies(claims: session.cashLinkClaims) { [controller] messageID in
             guard CashLinkClaimReplies.isEnabled else { return }

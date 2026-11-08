@@ -313,7 +313,7 @@ struct ChatPreview: View {
             onQuoteTap: { _ in },
             onMessagesSeen: { _ in },
             reportsReads: false,
-            unreadBelowCount: 0,
+            jumpBadge: nil,
             onUserScrollBegan: {},
             onReactionTap: { _, _ in },
             onReactionLongPress: { _, _ in },

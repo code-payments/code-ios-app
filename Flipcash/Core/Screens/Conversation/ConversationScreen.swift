@@ -504,7 +504,9 @@ struct ConversationScreen: View {
             onQuoteTap: jumpToQuote,
             onMessagesSeen: markSeen,
             reportsReads: reportsReads(gate: gate),
-            unreadBelowCount: coordinator?.jumpBadge.count ?? 0,
+            // The badge object, not its count: the count moves with every row the reader passes,
+            // and reading it here would re-run this whole body for each one.
+            jumpBadge: coordinator?.jumpBadge,
             onUserScrollBegan: { coordinator?.jumpBadge.userDidScroll() },
             onReactionTap: toggleReaction,
             onReactionLongPress: openReactors,
@@ -1375,12 +1377,14 @@ struct ConversationScreen: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase != .active else { return }
             saveDraft(flushing: true)
+            coordinator?.pendingRead.commit()
             if let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
             }
         }
         .onDisappear {
             saveDraft(flushing: true)
+            coordinator?.pendingRead.commit()
             if let conversationID {
                 conversationController.flushReadPointer(in: conversationID)
             }
@@ -2053,10 +2057,14 @@ struct ConversationScreen: View {
         )
     }
 
-    /// Moves the READ pointer past a message the transcript reports on screen.
+    /// Moves the READ pointer past a message the transcript reports on screen, once scrolling settles.
     private func markSeen(_ messageID: MessageID) {
         guard let conversationID else { return }
-        conversationController.advanceReadPointer(to: messageID, in: conversationID)
+        if let coordinator, coordinator.conversationID == conversationID {
+            coordinator.pendingRead.markSeen(messageID)
+        } else {
+            conversationController.advanceReadPointer(to: messageID, in: conversationID)
+        }
     }
 
     /// Whether rows on screen count as read: only while the app is in front, since UIKit keeps
@@ -2274,18 +2282,18 @@ struct ConversationScreen: View {
     /// a re-resolution to a *different* id (a contact's pre-assigned chat id replaced by the
     /// server-assigned one), which must re-window the new conversation, not keep rendering the old.
     private func syncCoordinator(_ id: ConversationID?) {
+        guard coordinator?.conversationID != id else { return }
+        coordinator?.pendingRead.commit()
         guard let id else { coordinator = nil; return }
-        if coordinator?.conversationID != id {
-            coordinator = ConversationLoadCoordinator(
-                conversationID: id,
-                controller: conversationController,
-                session: session,
-                knownAuthors: sessionContainer.knownAuthors,
-                paymentRequests: sessionContainer.paymentRequests,
-                sendBack: makeSendBack(id),
-                openingLoadLanded: loadedConversationID == id
-            )
-        }
+        coordinator = ConversationLoadCoordinator(
+            conversationID: id,
+            controller: conversationController,
+            session: session,
+            knownAuthors: sessionContainer.knownAuthors,
+            paymentRequests: sessionContainer.paymentRequests,
+            sendBack: makeSendBack(id),
+            openingLoadLanded: loadedConversationID == id
+        )
     }
 
 
