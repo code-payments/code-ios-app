@@ -41,6 +41,20 @@ Ids repeat their two-digit prefix sixteen times, e.g. `0101010101010101010101010
 | `SelectionStarted` | `chatId` (optional, Android only; see below) |
 | `SelectionToggled` | `chatId` (required) |
 | `SelectionEnded` | none |
+| `ChatOpened` | `chatId` (required). Pushes `Chat`. |
+| `ArchivedOpened` | none. Pushes `ArchivedChats`. |
+| `NewChatOpened` | none. Pushes `NewChat`. |
+| `Back` | none. Lent by the host on every screen above Chats; Chats itself has no `Back`. |
+
+## Route and screens
+
+`launch` opens `/tab/chats`, the form both apps' deep links already use; hosts refuse any other
+route with `bad_input`. Opening a chat, the archive or a new chat pushes a screen the host doesn't
+drive yet. Its node names the screen, shows what it was opened with (`Chat`: `chatId`), and offers
+only `Back`. Chats stays alive underneath, so `Back` returns to the list as it was.
+
+Not covered yet: switching tabs (Android's tab tap clears the stack, iOS keeps a stack per tab),
+muting from a row, and tapping a row in select mode.
 
 ## Where the platforms differ
 

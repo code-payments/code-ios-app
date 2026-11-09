@@ -25,25 +25,51 @@ struct ChatsBehaviorTests {
         }
     }
 
+    /// Sends each step to ``ChatsPuppetHost/handle(_:)``, the same request path the CLI uses:
+    /// `launch` first, then `ls` or `do` per step, matching `expectPath` exactly and `expect` as a
+    /// subset of the top node's state.
     private func replay(_ behavior: Behavior, file: String) {
         var host = ChatsPuppetHost()
+        var launch: [String: JSON] = ["cmd": .string("launch")]
+        if let route = behavior.route { launch["route"] = .string(route) }
+        guard case .object(let first) = host.handle(.object(launch)), first["ok"] == .bool(true),
+              case .object(let node)? = first["node"], node["name"] == .string(behavior.screen) else {
+            Issue.record("\(file): launch didn't open \(behavior.screen)")
+            return
+        }
         for (index, step) in behavior.steps.enumerated() {
             let label = "\(file): step \(index + 1) (\(step.do ?? "ls"))"
-            let result = step.do.map { host.perform($0, input: step.input ?? [:]) } ?? .success(())
-            switch (result, step.expectError) {
-            case (.failure(let code), let expected?):
-                #expect(code.rawValue == expected, "\(label): expected error \(expected), got \(code.rawValue)")
-                continue
-            case (.failure(let code), nil):
-                Issue.record("\(label): unexpected error \(code.rawValue)")
+            var request: [String: JSON] = ["cmd": .string(step.do == nil ? "ls" : "do")]
+            if let action = step.do {
+                request["action"] = .string(action)
+                request["input"] = .object(step.input ?? [:])
+            }
+            guard case .object(let response) = host.handle(.object(request)) else {
+                Issue.record("\(label): response isn't an object")
                 return
-            case (.success, let expected?):
+            }
+            if response["ok"] != .bool(true) {
+                var code = "?"
+                if case .object(let error)? = response["error"], case .string(let c)? = error["code"] { code = c }
+                if let expected = step.expectError {
+                    #expect(code == expected, "\(label): expected error \(expected), got \(code)")
+                    continue
+                }
+                Issue.record("\(label): unexpected error \(code)")
+                return
+            }
+            if let expected = step.expectError {
                 Issue.record("\(label): expected error \(expected), got success")
                 continue
-            case (.success, nil):
-                break
             }
-            let state = host.state()
+            if let want = step.expectPath {
+                let got = response["path"] ?? .null
+                #expect(got == .array(want.map(JSON.string)), "\(label): path: expected \(want), got \(got)")
+            }
+            guard case .object(let top)? = response["node"], case .object(let state)? = top["state"] else {
+                Issue.record("\(label): response has no node state")
+                return
+            }
             for (key, want) in step.expect ?? [:] {
                 guard let got = state[key] else {
                     Issue.record("\(label): state.\(key): missing on iOS")
@@ -63,7 +89,9 @@ private struct Behavior: Decodable {
         let input: [String: JSON]?
         let expect: [String: JSON]?
         let expectError: String?
+        let expectPath: [String]?
     }
     let screen: String
+    let route: String?
     let steps: [Step]
 }

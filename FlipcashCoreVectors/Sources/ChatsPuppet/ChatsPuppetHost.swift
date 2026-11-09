@@ -23,7 +23,16 @@ public struct ChatsPuppetHost {
 
     public static let screen = "Chats"
 
+    /// The only route `launch` accepts: the Chats tab, in the form both apps' deep links use.
+    public static let route = "/tab/chats"
+
     private var model = ChatsModel<String>()
+
+    /// Screens pushed over the list. They aren't hosted: each shows its name and lends `Back`.
+    private var stack: [ChatsDestination<String>] = []
+
+    /// The screen names from the list to the top screen.
+    public var path: [String] { [Self.screen] + stack.map(Self.name) }
 
     public init() {
         model.update(.project(Self.seed))
@@ -54,15 +63,19 @@ public struct ChatsPuppetHost {
 
     // MARK: - Actions
 
-    /// Each action's input schema, in the form the Android host lists them.
+    private static func schema(_ properties: [String: JSON], required: [String] = []) -> JSON {
+        .object([
+            "type": .string("object"),
+            "properties": .object(properties),
+            "required": .array(required.map(JSON.string)),
+        ])
+    }
+
+    /// `Back`, which the host lends to every screen above the list.
+    public static let back: (name: String, input: JSON) = ("Back", schema([:]))
+
+    /// The list's actions and their input schemas, in the form the Android host lists them.
     public static let actions: [(name: String, input: JSON)] = {
-        func schema(_ properties: [String: JSON], required: [String] = []) -> JSON {
-            .object([
-                "type": .string("object"),
-                "properties": .object(properties),
-                "required": .array(required.map(JSON.string)),
-            ])
-        }
         let chatId: JSON = .object(["type": .string("string"), "format": .string("ChatId")])
         return [
             ("FilterSelected", schema(
@@ -73,10 +86,29 @@ public struct ChatsPuppetHost {
             ("SelectionStarted", schema(["chatId": chatId])),
             ("SelectionToggled", schema(["chatId": chatId], required: ["chatId"])),
             ("SelectionEnded", schema([:])),
+            ("ChatOpened", schema(["chatId": chatId], required: ["chatId"])),
+            ("ArchivedOpened", schema([:])),
+            ("NewChatOpened", schema([:])),
         ]
     }()
 
+    /// The top screen's actions: the list's own, or only `Back` on a pushed screen.
+    public var currentActions: [(name: String, input: JSON)] { stack.isEmpty ? Self.actions : [Self.back] }
+
+    private static func name(_ destination: ChatsDestination<String>) -> String {
+        switch destination {
+        case .chat: "Chat"
+        case .archived: "ArchivedChats"
+        case .newChat: "NewChat"
+        }
+    }
+
     public mutating func perform(_ action: String, input: [String: JSON]) -> Result<Void, ErrorCode> {
+        guard stack.isEmpty else {
+            guard action == Self.back.name else { return .failure(.unknownAction) }
+            stack.removeLast()
+            return .success(())
+        }
         switch action {
         case "FilterSelected":
             guard case .string(let raw)? = input["filter"], let filter = ChatListFilter(rawValue: raw) else {
@@ -100,6 +132,13 @@ public struct ChatsPuppetHost {
             model.toggle(id)
         case "SelectionEnded":
             model.endSelection()
+        case "ChatOpened":
+            guard case .string(let id)? = input["chatId"] else { return .failure(.badInput) }
+            stack.append(model.openChat(id))
+        case "ArchivedOpened":
+            stack.append(model.openArchived())
+        case "NewChatOpened":
+            stack.append(model.openNewChat())
         default:
             return .failure(.unknownAction)
         }
@@ -134,26 +173,40 @@ public struct ChatsPuppetHost {
     }
 
     private func node() -> JSON {
-        .object([
-            "name": .string(Self.screen),
-            "state": .object(state()),
-            "actions": .array(Self.actions.map { .object(["name": .string($0.name), "input": $0.input]) }),
+        let state: [String: JSON]
+        switch stack.last {
+        case nil: state = self.state()
+        case .chat(let id)?: state = ["chatId": .string(id)]
+        case .archived?, .newChat?: state = [:]
+        }
+        return .object([
+            "name": .string(path.last!),
+            "state": .object(state),
+            "actions": .array(currentActions.map { .object(["name": .string($0.name), "input": $0.input]) }),
         ])
     }
 
     // MARK: - Requests
 
-    /// Answers one request object: `ls`, `do` or `reset`.
+    /// Answers one request object: `ls`, `do`, `launch` or `reset`.
     public mutating func handle(_ request: JSON) -> JSON {
         guard case .object(let req) = request, case .string(let cmd)? = req["cmd"] else {
             return Self.error(.badRequest, "a request is an object with a cmd")
         }
-        if case .array(let path)? = req["path"], path != [.string(Self.screen)] {
-            return Self.error(.badRequest, "no node at \(JSON.array(path))")
+        if case .array(let requested)? = req["path"], requested != path.map(JSON.string) {
+            return Self.error(.badRequest, "no node at \(JSON.array(requested))")
         }
         switch cmd {
         case "ls":
             break
+        case "launch":
+            switch req["route"] {
+            case nil, .null?: break
+            case .string(Self.route)?: break
+            case .string(let other)?: return Self.error(.badInput, "This host launches only \(Self.route), not \(other)")
+            default: return Self.error(.badRequest, "route must be a string")
+            }
+            self = ChatsPuppetHost()
         case "reset":
             self = ChatsPuppetHost()
         case "do":
@@ -173,12 +226,12 @@ public struct ChatsPuppetHost {
                         "ok": .bool(false),
                         "error": .object([
                             "code": .string(code.rawValue),
-                            "message": .string("\(Self.screen) has no action \(action)"),
-                            "actions": .array(Self.actions.map { .string($0.name) }),
+                            "message": .string("\(path.last!) has no action \(action)"),
+                            "actions": .array(currentActions.map { .string($0.name) }),
                         ]),
                     ])
                 case .badInput:
-                    let schema = Self.actions.first { $0.name == action }?.input ?? .null
+                    let schema = currentActions.first { $0.name == action }?.input ?? .null
                     return .object([
                         "ok": .bool(false),
                         "error": .object([
@@ -194,7 +247,7 @@ public struct ChatsPuppetHost {
         default:
             return Self.error(.badRequest, "unknown cmd \(cmd)")
         }
-        return .object(["ok": .bool(true), "path": .array([.string(Self.screen)]), "node": node()])
+        return .object(["ok": .bool(true), "path": .array(path.map(JSON.string)), "node": node()])
     }
 
     /// Answers one request line with one response line.
