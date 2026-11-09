@@ -41,7 +41,8 @@ final class PaymentRequests {
 
     /// The first page of OPEN requests a chat refetch reads.
     static let openPageSize = 100
-    /// The first page of RESOLVED requests a chat refetch reads, enough to fill the deck's 24 hours.
+    /// The first page of RESOLVED requests a chat refetch reads, which tells a held OPEN copy it ended
+    /// when a live update was missed.
     static let resolvedPageSize = 20
     /// How often an on-screen chat or details sheet refetches.
     static let pollInterval: Duration = .seconds(45)

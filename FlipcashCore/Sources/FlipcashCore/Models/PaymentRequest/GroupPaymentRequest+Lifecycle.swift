@@ -9,9 +9,6 @@ import Foundation
 
 extension GroupPaymentRequest {
 
-    /// How long an ended request stays in a chat's deck after it closed.
-    public static let deckRetention: TimeInterval = 24 * 60 * 60
-
     /// The status as of `now`: an OPEN request whose deadline has passed reads as EXPIRED.
     public func effectiveStatus(at now: Date) -> Status {
         switch status {
@@ -197,33 +194,21 @@ extension GroupPaymentRequest {
     }
 
     /// The requests a chat's deck shows as of `now`, in deck order: open requests `viewer` owes on,
-    /// then other open requests, each by nearest deadline, then those that ended within
-    /// ``deckRetention``, most recently ended first.
+    /// then the other open requests, each by nearest deadline. A request that has ended is never in it.
     public static func deckOrder(_ requests: [GroupPaymentRequest], viewer: UserID? = nil, at now: Date) -> [GroupPaymentRequest] {
-        var open: [GroupPaymentRequest] = []
-        var ended: [(request: GroupPaymentRequest, closedAt: Date)] = []
-
-        for request in requests {
-            switch request.effectiveStatus(at: now) {
-            case .open:
-                open.append(request)
-            case .completed, .closed, .expired:
-                guard let closedAt = request.effectiveClosedAt(at: now),
-                      now.timeIntervalSince(closedAt) < deckRetention else { continue }
-                ended.append((request, closedAt))
-            case .unknown:
-                continue
+        requests
+            .filter { $0.effectiveStatus(at: now) == .open }
+            .sorted { lhs, rhs in
+                if let viewer {
+                    let lhsOwed = lhs.isOwed(by: viewer, at: now)
+                    if lhsOwed != rhs.isOwed(by: viewer, at: now) { return lhsOwed }
+                }
+                return (lhs.split?.endsAt ?? .distantFuture) < (rhs.split?.endsAt ?? .distantFuture)
             }
-        }
+    }
 
-        open.sort { lhs, rhs in
-            if let viewer {
-                let lhsOwed = lhs.isOwed(by: viewer, at: now)
-                if lhsOwed != rhs.isOwed(by: viewer, at: now) { return lhsOwed }
-            }
-            return (lhs.split?.endsAt ?? .distantFuture) < (rhs.split?.endsAt ?? .distantFuture)
-        }
-        ended.sort { $0.closedAt > $1.closedAt }
-        return open + ended.map(\.request)
+    /// The earliest deadline after `now` among `requests`, when the deck next loses a request on the clock.
+    public static func nextExpiry(of requests: [GroupPaymentRequest], after now: Date) -> Date? {
+        requests.compactMap(\.split?.endsAt).filter { $0 > now }.min()
     }
 }
