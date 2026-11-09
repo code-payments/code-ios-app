@@ -250,6 +250,24 @@ private struct GroupSendConfirmSheet: View {
         }
     }
 
+    /// Half of ``Font/appDisplayLarge``'s size, as "each" sits on the chat's cash card.
+    private static let eachFont: Font = .default(size: UIFont.appDisplayLarge.pointSize / 2, weight: .medium)
+
+    /// The amount, followed by a smaller "each" for a group. One `Text`, so the runs share a
+    /// baseline and shrink together, and "each" never wraps.
+    private var amountLine: Text {
+        var line = AttributedString(viewModel.eachAmountLabel ?? "")
+        line.swiftUI.font = Font.appDisplayLarge
+        line.swiftUI.foregroundColor = Color.textMain
+        if viewModel.isSplitAcrossSelection {
+            var each = AttributedString(" each")
+            each.swiftUI.font = Self.eachFont
+            each.swiftUI.foregroundColor = Color.textSecondary
+            line.append(each)
+        }
+        return Text(line)
+    }
+
     var body: some View {
         PartialSheet(background: .clear) {
             VStack(spacing: 25) {
@@ -261,9 +279,7 @@ private struct GroupSendConfirmSheet: View {
                         .lineLimit(1)
                 }
                 VStack(spacing: 8) {
-                    Text(viewModel.eachLabel ?? "")
-                        .font(.appDisplayLarge)
-                        .foregroundStyle(Color.textMain)
+                    amountLine
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
                     if let total = viewModel.totalLabel {
