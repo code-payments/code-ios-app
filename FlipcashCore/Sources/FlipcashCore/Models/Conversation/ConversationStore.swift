@@ -39,6 +39,11 @@ public struct ConversationStore: Sendable {
     /// naming the user. Held here rather than on the conversation so a metadata refresh — which
     /// replaces the whole row — cannot clobber it.
     private var joinedGroupIDs: Set<ConversationID> = []
+    /// Counts the memberships the client has seated itself, and stamps each seated group with the
+    /// count it reached. A group feed requested before a seat cannot have seen it, so
+    /// ``setGroupFeed(_:requestedAt:)`` compares against these stamps rather than trusting the feed.
+    private var seatGeneration: UInt64 = 0
+    private var seatedAtGeneration: [ConversationID: UInt64] = [:]
 
     /// An optimistic send plus the keys that place it in the transcript: `anchor` is the newest
     /// confirmed server id at send time (the row this send sits after), `sequence` is its send order.
@@ -89,13 +94,20 @@ public struct ConversationStore: Sendable {
     /// upserted and marked joined, and only a group that was previously joined and is absent from this
     /// feed is dropped: the user left it somewhere else, and the contract says to remove it from the
     /// chat list. The returned ids are those drops, for the caller to mirror in the cache.
+    ///
+    /// `requestedAt` is the ``groupFeedMark`` read before the feed was requested. A group the client
+    /// joined or created after that point is newer than the feed's snapshot, so its absence is not a
+    /// departure: it stays in the store, stays a member, and is left out of the returned drops.
+    /// Omitting it treats the feed as requested now.
     @discardableResult
-    public mutating func setGroupFeed(_ groups: [Conversation]) -> Set<ConversationID> {
+    public mutating func setGroupFeed(_ groups: [Conversation], requestedAt mark: UInt64? = nil) -> Set<ConversationID> {
+        let mark = mark ?? seatGeneration
+        let seatedSince = Set(seatedAtGeneration.filter { $0.value > mark }.keys)
         let joined = Set(groups.map(\.id))
-        let departed = joinedGroupIDs.subtracting(joined)
+        let departed = joinedGroupIDs.subtracting(joined).subtracting(seatedSince)
         conversations.removeAll { $0.type == .group && departed.contains($0.id) }
         reindex()
-        joinedGroupIDs = joined
+        joinedGroupIDs = joined.union(seatedSince)
         for group in groups {
             upsert(group)
         }
@@ -507,6 +519,10 @@ public struct ConversationStore: Sendable {
         }
     }
 
+    /// Read this before requesting a group feed and pass it to ``setGroupFeed(_:requestedAt:)`` when
+    /// the response is applied.
+    public var groupFeedMark: UInt64 { seatGeneration }
+
     /// The groups the user has joined, for the caller to persist.
     public var joinedGroups: Set<ConversationID> {
         joinedGroupIDs
@@ -517,8 +533,11 @@ public struct ConversationStore: Sendable {
     public mutating func setMembership(_ isMember: Bool, in conversationID: ConversationID) {
         if isMember {
             joinedGroupIDs.insert(conversationID)
+            seatGeneration += 1
+            seatedAtGeneration[conversationID] = seatGeneration
         } else {
             joinedGroupIDs.remove(conversationID)
+            seatedAtGeneration.removeValue(forKey: conversationID)
         }
     }
 
