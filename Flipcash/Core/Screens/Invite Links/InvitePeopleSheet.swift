@@ -362,10 +362,10 @@ private struct InvitePeoplePresenter: ViewModifier {
                         .task { try? await links.load() }
                 }
             }
-            .fullScreenCover(isPresented: canInvite ? .constant(false) : $isPresented) {
+            .sheet(isPresented: canInvite ? .constant(false) : $isPresented) {
                 ShareToChatsSheet(subject: .group(conversationID), isPresented: $isPresented, onInvited: onInvited)
             }
-            .fullScreenCover(item: $share) { share in
+            .sheet(item: $share) { share in
                 switch share {
                 case .invite(let links):
                     ShareToChatsSheet(subject: .inviteLink(conversationID, links), isPresented: isSharing, onInvited: invited)

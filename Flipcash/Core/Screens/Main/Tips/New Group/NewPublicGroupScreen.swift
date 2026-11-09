@@ -307,12 +307,11 @@ struct NewPublicGroupScreen: View {
 
                 // The whole create flow is replaced rather than stacked under the chat. Back from
                 // a group that now exists belongs at the chat list holding it, not at a filled
-                // form offering to create it twice or at the picker that opened the form. The
-                // chat list is this stack's root, so unwinding to it is the same as popping both.
-                router.popToRoot()
-                // Both privacies land in the chat. A private group's invite card is there, so the
-                // host's first job (inviting people) starts from it rather than from the profile.
-                router.push(.tipConversation(conversation.id))
+                // form offering to create it twice or at the picker that opened the form. One
+                // assignment, so the chat slides in as a push; popping to the root and pushing
+                // would unwind the form first. Both privacies land in the chat, where a private
+                // group's invite card starts the host's first invite.
+                router.replaceTopmostPath(with: .tipConversation(conversation.id))
 
             } catch {
                 buttonState = .normal

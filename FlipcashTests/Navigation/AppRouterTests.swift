@@ -164,6 +164,16 @@ struct AppRouterTests {
         #expect(router[.balance] == AppRouter.navigationPath(.discoverCurrencies, .currencyCreationSummary))
     }
 
+    @Test("replaceTopmostPath swaps the whole stack for one destination in a single write")
+    func replaceTopmostPath_replacesStack() {
+        let router = AppRouter()
+        router.activeTabStack = .tips
+        router.push(.newPrivateGroup)
+        router.push(.newPublicGroup)
+        router.replaceTopmostPath(with: .currencyInfo(.usdc))
+        #expect(router[.tips] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+    }
+
     @Test("setPath with identical path is a no-op")
     func setPath_identical_isNoop() {
         let router = AppRouter()

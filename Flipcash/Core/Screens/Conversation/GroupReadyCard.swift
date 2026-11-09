@@ -90,7 +90,7 @@ private struct GroupReadyInvitePresenter: ViewModifier {
                 open()
             }
             .dialog(item: $dialog)
-            .fullScreenCover(item: $share) { share in
+            .sheet(item: $share) { share in
                 switch share {
                 case .invite(let links):
                     ShareToChatsSheet(subject: .inviteLink(conversationID, links), isPresented: isSharing, onInvited: invited)

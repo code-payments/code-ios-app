@@ -66,7 +66,7 @@ struct InviteLinksScreen: View {
             )
         }
         // Share Link opens the invite share sheet (1f) on that row's link.
-        .fullScreenCover(item: $sharing) { shared in
+        .sheet(item: $sharing) { shared in
             if let links {
                 ShareToChatsSheet(
                     subject: .inviteLink(conversationID, links, entry: shared.id),

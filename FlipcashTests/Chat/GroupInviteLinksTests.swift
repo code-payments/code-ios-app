@@ -299,20 +299,28 @@ struct GroupInviteLinksTests {
         #expect(ShareToChatsSheet.showsGroupCardTile(for: .group(group)))
     }
 
-    @Test("The invite share sheet's meta line describes the link itself")
-    func sheetMeta() {
-        let limited = Invite(
-            id: InviteID(data: Data(repeating: 1, count: 16)),
-            conversationID: group,
-            createdBy: me,
-            maxUses: 10,
-            useCount: 3,
-            createdAt: now,
-            expiresAt: nil,
-            status: .active,
-            secretEnvelope: nil
-        )
-        #expect(InviteLinkCopy.sheetMeta(limited) == "Never expires · 3 of 10 joined")
+    @Test("Both group sheets drop Recent Chats and order their tiles Copy, Share, QR Code")
+    func groupSheetLayout() {
+        let links = makeLinks(Server())
+        for subject in [ShareToChatsSubject.inviteLink(group, links), .group(group)] {
+            #expect(ShareToChatsSheet.isGroupSheet(subject))
+            #expect(!ShareToChatsSheet.showsRecentChats(for: subject))
+        }
+        #expect(ShareToChatsSheet.groupTileTitles == ["Copy", "Share", "QR Code"])
+        #expect(InviteLinkCopy.groupSheetLine == "Send this link to the people you want to join your group")
+    }
+
+    @Test("Profile, message and currency sheets keep Recent Chats")
+    func otherSheetsKeepRecentChats() {
+        let url = URL(string: "https://app.flipcash.com/chat/x")!
+        for subject in [
+            ShareToChatsSubject.user(userID: UUID(), username: nil, displayName: "A", directChatID: nil),
+            .message(url),
+            .currency(url: url, name: "C"),
+        ] {
+            #expect(!ShareToChatsSheet.isGroupSheet(subject))
+            #expect(ShareToChatsSheet.showsRecentChats(for: subject))
+        }
     }
 
     // MARK: - First link and the group-ready card -

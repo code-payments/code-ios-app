@@ -336,6 +336,20 @@ final class AppRouter {
         logger.info("Set path", metadata: navigationMetadata(stack: stack, destination: destinations.last))
     }
 
+    /// Replaces the topmost stack's whole path with `destination` in one assignment, so SwiftUI
+    /// animates it as a single forward push over the current top rather than a pop to the root
+    /// followed by a push. No-op with a warning if there is no topmost stack.
+    func replaceTopmostPath(with destination: Destination) {
+        guard let stack = topmostStack else {
+            logger.warning("Replace path attempted with no topmost stack", metadata: [
+                "destination": "\(destination)",
+            ])
+            return
+        }
+        setPath([destination], on: stack)
+        lastPush = (stack, destination)
+    }
+
     /// SwiftUI binding setter — fires when the NavigationStack writes a new
     /// path back through the binding (system swipe-back, NavigationLink
     /// activation, programmatic `dismiss()`). Distinguished from explicit
