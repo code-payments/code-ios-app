@@ -204,6 +204,39 @@ struct ConversationRosterTests {
         #expect(!store.isMember(of: group(2)))
     }
 
+    @Test("A group seated after a feed was requested survives that feed landing without it")
+    func seatedGroupSurvivesStaleGroupFeed() {
+        var store = ConversationStore()
+        store.setGroupFeed([group(1, lastActivity: 100)])
+
+        let mark = store.groupFeedMark
+        // Joined, and created, while the request is in flight.
+        store.apply(.metadataRefresh(group(2, lastActivity: 200)))
+        store.setMembership(true, in: conversationID(2))
+        store.apply(.metadataRefresh(group(3, lastActivity: 300)))
+        store.setMembership(true, in: conversationID(3))
+
+        let departed = store.setGroupFeed([group(1, lastActivity: 100)], requestedAt: mark)
+
+        #expect(departed.isEmpty)
+        #expect(store.contains(conversationID(2)))
+        #expect(store.contains(conversationID(3)))
+        #expect(store.joinedGroups == [conversationID(1), conversationID(2), conversationID(3)])
+    }
+
+    @Test("A group missing from a feed requested after it was seated is still dropped")
+    func seatedGroupDroppedByFreshGroupFeed() {
+        var store = ConversationStore()
+        store.apply(.metadataRefresh(group(2, lastActivity: 200)))
+        store.setMembership(true, in: conversationID(2))
+
+        let departed = store.setGroupFeed([], requestedAt: store.groupFeedMark)
+
+        #expect(departed == [conversationID(2)])
+        #expect(!store.contains(conversationID(2)))
+        #expect(store.joinedGroups.isEmpty)
+    }
+
     @Test("The group feed seats membership for the groups it returns")
     func groupFeedSeatsMembership() {
         var store = ConversationStore()

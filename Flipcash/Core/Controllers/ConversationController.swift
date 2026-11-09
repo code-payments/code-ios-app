@@ -1247,6 +1247,9 @@ final class ConversationController {
     private func reconcileFeeds() async -> [Conversation] {
         let sources: [FeedArrivals.Source] = [.dm(.contactDm), .dm(.tipDm), .groups]
         let arrivals = FeedArrivals(expecting: sources.count)
+        // Before any fetch starts: a join that lands while the feeds are in flight is newer than
+        // the group snapshot, and the apply below must not read its absence as a departure.
+        let groupFeedMark = store.groupFeedMark
         let fetches = sources.map { source in
             Task { [self] in
                 let feed = await fetchFeed(source)
@@ -1256,7 +1259,7 @@ final class ConversationController {
                 }
                 if arrivals.isClosed {
                     guard let feed else { return }
-                    withTransaction(Self.unanimated) { applyFeed(feed, from: source) }
+                    withTransaction(Self.unanimated) { applyFeed(feed, from: source, groupFeedMark: groupFeedMark) }
                     await backfillMessages(for: feed)
                 } else {
                     arrivals.arrive(source, feed)
@@ -1274,7 +1277,7 @@ final class ConversationController {
 
         withTransaction(Self.unanimated) {
             for (source, feed) in landed {
-                applyFeed(feed, from: source)
+                applyFeed(feed, from: source, groupFeedMark: groupFeedMark)
             }
             watermarkStamps.release()
         }
@@ -1318,10 +1321,10 @@ final class ConversationController {
         }
     }
 
-    private func applyFeed(_ feed: [Conversation], from source: FeedArrivals.Source) {
+    private func applyFeed(_ feed: [Conversation], from source: FeedArrivals.Source, groupFeedMark: UInt64) {
         switch source {
         case .dm(let type): applyFeed(feed, type: type)
-        case .groups:       applyGroupFeed(feed)
+        case .groups:       applyGroupFeed(feed, requestedAt: groupFeedMark)
         }
     }
 
@@ -1334,8 +1337,9 @@ final class ConversationController {
     /// this feed, so a type-scoped replace would delete it out from under its own open screen.
     @discardableResult
     func loadGroupFeed() async -> [Conversation] {
+        let mark = store.groupFeedMark
         guard let groups = await fetchGroupFeed() else { return [] }
-        applyGroupFeed(groups)
+        applyGroupFeed(groups, requestedAt: mark)
         return groups
     }
 
@@ -1349,8 +1353,8 @@ final class ConversationController {
         }
     }
 
-    private func applyGroupFeed(_ groups: [Conversation]) {
-        let departed = store.setGroupFeed(groups)
+    private func applyGroupFeed(_ groups: [Conversation], requestedAt mark: UInt64) {
+        let departed = store.setGroupFeed(groups, requestedAt: mark)
         reconcileHidden()
         paymentRequests?.forget(conversations: departed)
         persistChanges(operation: "replace-group-feed") {
