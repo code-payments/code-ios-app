@@ -188,11 +188,11 @@ nonisolated extension Database {
     }
 
     /// A bounded window of a conversation's messages, oldest-first: the newest `limit` when `before` is
-    /// nil, otherwise the `limit` messages immediately older than `before`. Index-backed by the
-    /// composite `(conversationId, id)` primary key — no scan, no sort.
+    /// nil, otherwise the `limit` messages immediately older than `before`. Stops at a history gap.
+    /// Index-backed by the composite `(conversationId, id)` primary key — no scan, no sort.
     public func messagesWindow(conversationID: ConversationID, before: MessageID? = nil, limit: Int) throws -> [ConversationMessage] {
         let m = ConversationMessageTable()
-        var query = m.table.filter(m.conversationId == conversationID.data)
+        var query = m.table.filter(m.conversationId == conversationID.data && m.id >= (try historyFloor(conversationID)))
         if let before {
             query = query.filter(m.id < before.value)
         }
@@ -232,22 +232,23 @@ nonisolated extension Database {
 
     /// Every message from `startID` (inclusive) to the newest, oldest-first — the id-anchored window.
     /// Anchoring by id means an arriving message grows the window at the tail instead of sliding the
-    /// oldest revealed row out from under a reader who has scrolled up.
+    /// oldest revealed row out from under a reader who has scrolled up. Stops at a history gap.
     public func messages(conversationID: ConversationID, from startID: UInt64) throws -> [ConversationMessage] {
         let m = ConversationMessageTable()
+        let floor = max(startID, try historyFloor(conversationID))
         let rows = try reader.prepareRowIterator(
-            m.table.filter(m.conversationId == conversationID.data && m.id >= startID).order(m.id.asc)
+            m.table.filter(m.conversationId == conversationID.data && m.id >= floor).order(m.id.asc)
         )
         return try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
     }
 
     /// Every message in the half-open id interval `(after, through]`, oldest-first — the window a
     /// read-pointer advance just crossed. A nil `after` means the pointer had never been set, so the
-    /// whole stored history up to `through` counts as newly read. Index-backed by the composite
-    /// `(conversationId, id)` primary key.
+    /// whole stored history up to `through` counts as newly read. Stops at a history gap, since rows
+    /// below one were never on screen. Index-backed by the composite `(conversationId, id)` primary key.
     public func messages(conversationID: ConversationID, after: MessageID?, through: MessageID) throws -> [ConversationMessage] {
         let m = ConversationMessageTable()
-        var query = m.table.filter(m.conversationId == conversationID.data && m.id <= through.value)
+        var query = m.table.filter(m.conversationId == conversationID.data && m.id <= through.value && m.id >= (try historyFloor(conversationID)))
         if let after {
             query = query.filter(m.id > after.value)
         }
@@ -256,10 +257,10 @@ nonisolated extension Database {
     }
 
     /// The id `step` rows older than `before` — the next anchor when the reader pages back — falling
-    /// back to the oldest available older row; nil when nothing older is persisted.
+    /// back to the oldest available older row; nil when nothing older is persisted above a history gap.
     public func olderAnchor(conversationID: ConversationID, before: UInt64, step: Int) throws -> UInt64? {
         let m = ConversationMessageTable()
-        let older = m.table.filter(m.conversationId == conversationID.data && m.id < before)
+        let older = m.table.filter(m.conversationId == conversationID.data && m.id < before && m.id >= (try historyFloor(conversationID)))
         if let row = try reader.pluck(older.order(m.id.desc).limit(1, offset: step - 1)) {
             return row[m.id]
         }
@@ -275,13 +276,15 @@ nonisolated extension Database {
 
     /// The number of stored messages after `after` that someone other than `selfUserID` sent and
     /// that are not deleted — the count the unread divider shows. A row with no sender counts as
-    /// someone else's, except a system message, which is never unread. Index-backed by the composite `(conversationId, id)` primary key.
+    /// someone else's, except a system message, which is never unread. Stops at a history gap, like
+    /// every read the transcript makes. Index-backed by the composite `(conversationId, id)` primary key.
     public func inboundMessageCount(conversationID: ConversationID, after: MessageID, excludingSender selfUserID: UUID) throws -> Int {
         let m = ConversationMessageTable()
         return try reader.scalar(
             m.table.filter(
                 m.conversationId == conversationID.data
                     && m.id > after.value
+                    && m.id >= (try historyFloor(conversationID))
                     && m.kind != 2
                     && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
@@ -319,13 +322,15 @@ nonisolated extension Database {
 
     /// The oldest stored message id after `after` that someone other than `selfUserID` sent, deleted
     /// or not, or nil when there is none — where the unread divider goes. A row with no sender counts
-    /// as someone else's, except a system message, so the divider never lands above one.
+    /// as someone else's, except a system message, so the divider never lands above one. Stops at a
+    /// history gap, so the divider never points at a row no window reaches.
     public func firstInboundMessageID(conversationID: ConversationID, after: MessageID, excludingSender selfUserID: UUID) throws -> UInt64? {
         let m = ConversationMessageTable()
         return try reader.pluck(
             m.table.filter(
                 m.conversationId == conversationID.data
                     && m.id > after.value
+                    && m.id >= (try historyFloor(conversationID))
                     && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
             ).order(m.id.asc)
@@ -333,30 +338,31 @@ nonisolated extension Database {
     }
 
     /// The newest stored message id at or below `through`, or nil when none is stored — the row the
-    /// unread divider sits under when the READ pointer's own message is gone.
+    /// unread divider sits under when the READ pointer's own message is gone. Stops at a history gap.
     public func newestMessageID(conversationID: ConversationID, through: MessageID) throws -> UInt64? {
         let m = ConversationMessageTable()
         return try reader.pluck(
-            m.table.filter(m.conversationId == conversationID.data && m.id <= through.value).order(m.id.desc)
+            m.table.filter(m.conversationId == conversationID.data && m.id <= through.value && m.id >= (try historyFloor(conversationID))).order(m.id.desc)
         ).map { $0[m.id] }
     }
 
-    /// The ids of up to `limit` stored messages older than `before` (or the newest when nil), newest first.
+    /// The ids of up to `limit` stored messages older than `before` (or the newest when nil), newest
+    /// first, stopping at a history gap.
     public func messageIDs(conversationID: ConversationID, before: UInt64? = nil, limit: Int) throws -> [MessageID] {
         let m = ConversationMessageTable()
-        var query = m.table.select(m.id).filter(m.conversationId == conversationID.data)
+        var query = m.table.select(m.id).filter(m.conversationId == conversationID.data && m.id >= (try historyFloor(conversationID)))
         if let before {
             query = query.filter(m.id < before)
         }
         return try reader.prepareRowIterator(query.order(m.id.desc).limit(limit)).map { MessageID(value: $0[m.id]) }
     }
 
-    /// The oldest persisted message id for a conversation, or nil when none is cached — the anchor for
-    /// paging genuinely older history from the server.
+    /// The oldest persisted message id above any history gap, or nil when none is cached — the anchor
+    /// for paging older history from the server, which fills the gap when there is one.
     public func oldestMessageID(conversationID: ConversationID) throws -> MessageID? {
         let m = ConversationMessageTable()
         return try reader.pluck(
-            m.table.filter(m.conversationId == conversationID.data).order(m.id.asc)
+            m.table.filter(m.conversationId == conversationID.data && m.id >= (try historyFloor(conversationID))).order(m.id.asc)
         ).map { MessageID(value: $0[m.id]) }
     }
 
@@ -489,30 +495,117 @@ nonisolated extension Database {
     @discardableResult
     public func persistMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws -> Bool {
         try write { writer in
-            let c = ConversationTable()
             var changed = false
             // IMMEDIATE: reads the current cursor before updating it (see replaceConversationFeed).
             try writer.transaction(.immediate) {
-                changed = try writeMessages(messages, conversationId: conversationID.data)
-                if cursor > 0 {
-                    let scoped = c.table.filter(c.id == conversationID.data)
-                    let current = try writer.pluck(scoped).flatMap { $0[c.catchupCursor] } ?? 0
-                    if cursor > current {
-                        try writer.run(scoped.update(c.catchupCursor <- cursor))
-                    }
-                }
+                changed = try writeMessages(messages, cursor: cursor, conversationID: conversationID, writer: writer)
             }
             return changed
         }
     }
 
-    /// Deletes a conversation's persisted messages — used when a freshly fetched newest page does not
-    /// overlap the retained history, so a stale older epoch can't render seamlessly stitched to the new
-    /// page across an unfetchable gap.
+    /// The body of ``persistMessages(_:cursor:conversationID:)``, for callers already inside a transaction.
+    private func writeMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID, writer: Connection) throws -> Bool {
+        let c = ConversationTable()
+        let changed = try writeMessages(messages, conversationId: conversationID.data)
+        if cursor > 0 {
+            let scoped = c.table.filter(c.id == conversationID.data)
+            let current = try writer.pluck(scoped).flatMap { $0[c.catchupCursor] } ?? 0
+            if cursor > current {
+                try writer.run(scoped.update(c.catchupCursor <- cursor))
+            }
+        }
+        return changed
+    }
+
+    // MARK: - History gap
+
+    /// The bounds of a conversation's history gap, or nil when its stored history is contiguous.
+    public func historyGap(conversationID: ConversationID) throws -> HistoryGap? {
+        let g = ConversationHistoryGapTable()
+        return try reader.pluck(g.table.filter(g.conversationId == conversationID.data)).map {
+            HistoryGap(below: MessageID(value: $0[g.belowId]), above: MessageID(value: $0[g.aboveId]))
+        }
+    }
+
+    /// The lowest id the transcript may read: the gap's upper bound, or 0 when there is no gap. Rows
+    /// below it are kept but are not contiguous with the rows above, so no window may join them.
+    func historyFloor(_ conversationID: ConversationID) throws -> UInt64 {
+        try historyGap(conversationID: conversationID)?.above.value ?? 0
+    }
+
+    /// Persists a newest page (and its cursor) the way ``persistMessages(_:cursor:conversationID:)``
+    /// does, first recording a history gap when the page does not overlap the stored rows. The older
+    /// rows are kept, not deleted, so paging back can reconnect to them instead of re-fetching them.
+    /// A page that misses an unfilled gap's upper run as well drops that run — it is bounded by gaps
+    /// on both sides — and moves the gap's upper bound to the new page, keeping its lower bound.
+    @discardableResult
+    public func persistNewestPage(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws -> Bool {
+        try write { writer in
+            let m = ConversationMessageTable()
+            let g = ConversationHistoryGapTable()
+            var changed = false
+            try writer.transaction(.immediate) {
+                if let pageOldest = messages.map(\.id.value).min(),
+                   let newestStored = try writer.pluck(
+                       m.table.select(m.id).filter(m.conversationId == conversationID.data).order(m.id.desc)
+                   )?[m.id],
+                   newestStored < pageOldest {
+                    let existing = try writer.pluck(g.table.filter(g.conversationId == conversationID.data))
+                    let below = existing?[g.belowId] ?? newestStored
+                    if existing != nil {
+                        try writer.run(m.table.filter(m.conversationId == conversationID.data && m.id > below && m.id < pageOldest).delete())
+                    }
+                    try writer.run(g.table.insert(or: .replace,
+                        g.conversationId <- conversationID.data,
+                        g.belowId <- below,
+                        g.aboveId <- pageOldest
+                    ))
+                }
+                changed = try writeMessages(messages, cursor: cursor, conversationID: conversationID, writer: writer)
+            }
+            return changed
+        }
+    }
+
+    /// Persists a page of older history fetched before the transcript's oldest readable row, and
+    /// narrows the history gap when there is one, in one transaction so a reader never sees the page
+    /// without the floor that exposes it. A page reaching the gap's lower bound closes it; a page that
+    /// stops short moves the upper bound down to the page; an empty page means the server holds
+    /// nothing older, so the rows below the gap are not part of this history and are dropped.
+    public func persistOlderPage(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
+        try write { writer in
+            let m = ConversationMessageTable()
+            let g = ConversationHistoryGapTable()
+            try writer.transaction(.immediate) {
+                for message in messages {
+                    try writeMessage(message, conversationId: conversationID.data)
+                }
+                let scoped = g.table.filter(g.conversationId == conversationID.data)
+                guard let gap = try writer.pluck(scoped) else { return }
+                guard let pageOldest = messages.map(\.id.value).min() else {
+                    try writer.run(m.table.filter(m.conversationId == conversationID.data && m.id < gap[g.aboveId]).delete())
+                    try writer.run(scoped.delete())
+                    return
+                }
+                if pageOldest <= gap[g.belowId] {
+                    try writer.run(scoped.delete())
+                } else if pageOldest < gap[g.aboveId] {
+                    try writer.run(scoped.update(g.aboveId <- pageOldest))
+                }
+            }
+        }
+    }
+
+    /// Deletes a conversation's persisted messages and any history gap between them.
     public func deleteMessages(conversationID: ConversationID) throws {
         try write { writer in
             let m = ConversationMessageTable()
-            try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+            let g = ConversationHistoryGapTable()
+            try writer.transaction(.immediate) {
+                try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+                try writer.run(g.table.filter(g.conversationId == conversationID.data).delete())
+            }
         }
     }
 
@@ -1192,5 +1285,17 @@ nonisolated extension Database {
             sealed: sealed,
             decryptFailure: row[m.decryptFailure].flatMap(ConversationMessage.DecryptFailure.init(rawValue:))
         )
+    }
+}
+
+/// A break in a conversation's stored history: `below` is the newest stored id under it, `above` the
+/// oldest id of the contiguous run the transcript reads.
+nonisolated public struct HistoryGap: Equatable, Sendable {
+    public let below: MessageID
+    public let above: MessageID
+
+    public init(below: MessageID, above: MessageID) {
+        self.below = below
+        self.above = above
     }
 }
