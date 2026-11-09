@@ -60,6 +60,8 @@ struct ConversationScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var didInitialRead = false
+    /// The chat's keyboard, handed to the received-bill flow while this screen is up.
+    @State private var keyboardHandle = ChatKeyboardHandle()
     @State private var didOpenRequest = false
     /// The chat whose opening load has landed, for a coordinator built after it.
     @State private var loadedConversationID: ConversationID?
@@ -559,7 +561,8 @@ struct ConversationScreen: View {
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
             transcriptTopInset: Self.transcriptTopInset(slots: [anchorHeight, stackHeight, showsPinBar ? pinBarHeight : 0]),
-            messageJump: messageJump
+            messageJump: messageJump,
+            keyboardHandle: keyboardHandle
         )
     }
 
@@ -1386,12 +1389,15 @@ struct ConversationScreen: View {
             guard old != nil, didInitialRead,
                   let last = latestConfirmedMessage,
                   last.buzzesOnReceive(selfUserID: conversationController.selfUserID),
-                  conversationController.visibleConversationID == conversationID
+                  conversationController.visibleConversationID == conversationID,
+                  // One buzz: a message that raises the received bill is felt through the bill.
+                  conversationController.chatCashBills?.isBilling(last.id) != true
             else { return false }
             return true
         }
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
+            conversationController.chatCashBills?.keyboard = keyboardHandle
             syncCoordinator(conversationID)
             composer.linkPreview.load = ComposerLinkPreview.loader(
                 metadata: sessionContainer.linkMetadataSource,
@@ -1426,6 +1432,9 @@ struct ConversationScreen: View {
             }
         }
         .onDisappear {
+            if conversationController.chatCashBills?.keyboard === keyboardHandle {
+                conversationController.chatCashBills?.keyboard = nil
+            }
             saveDraft(flushing: true)
             coordinator?.pendingRead.commit()
             if let conversationID {

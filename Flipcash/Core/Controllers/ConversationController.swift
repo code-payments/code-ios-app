@@ -442,6 +442,9 @@ final class ConversationController {
     /// Raises the in-app pill for reactions on the user's own messages; wired at session setup.
     @ObservationIgnored var reactionAlerts: ReactionAlertController?
 
+    /// Shows the received bill when cash to the user lands live in the open chat; wired at session setup.
+    @ObservationIgnored var chatCashBills: ChatCashBillController?
+
     var store: ConversationStore
 
     /// The current blocklist (wired to `BlocklistController`), used to reconcile
@@ -1717,6 +1720,7 @@ final class ConversationController {
             if outcome.succeeded {
                 commitReconciled(pairs, in: conversationID)
                 receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .live)
+                chatCashBills?.handleLive(reconciled, in: conversationID, countedThrough: countedThrough)
             } else {
                 store.reseatCursor((try? database.catchupCursor(conversationID: conversationID)) ?? 0, for: conversationID)
                 scheduleGapCatchUp(conversationID)
