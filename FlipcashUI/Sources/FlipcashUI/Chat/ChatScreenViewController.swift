@@ -797,6 +797,11 @@ public final class ChatScreenViewController: UIViewController {
         keyboardFloor?.overlap ?? 0
     }
 
+    /// Whether the composer's field is first responder, that is, the keyboard is up for it.
+    public var composerHoldsKeyboard: Bool {
+        bar.firstTextInputResponder?.isFirstResponder ?? false
+    }
+
     /// Whether the composer's field holds the keyboard and can take a replacement input view.
     public var canReplaceComposerInputView: Bool {
         guard let responder = bar.firstTextInputResponder, responder.isFirstResponder else { return false }
