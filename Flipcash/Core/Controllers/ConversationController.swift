@@ -139,7 +139,7 @@ final class ConversationController {
 
     /// A marked chat with nothing unread is the no-count unread state; a known count wins over the mark.
     private func chatListUnread(for conversation: Conversation, isMarked: Bool) -> ChatListUnread {
-        guard conversation.hasUnread(for: selfUserID) else { return isMarked ? .unknown : .count(0) }
+        guard hasUnreadMessages(conversation) else { return isMarked ? .unknown : .count(0) }
         return unreadCount(for: conversation).map(ChatListUnread.count) ?? .unknown
     }
 
@@ -197,7 +197,7 @@ final class ConversationController {
     /// Unread messages or a mark: what decides between Mark as Read and Mark as Unread. A pending
     /// join request doesn't count; it is not something reading the chat clears.
     func isUnread(_ conversation: Conversation) -> Bool {
-        conversation.hasUnread(for: selfUserID) || isMarkedUnread(conversation.id)
+        hasUnreadMessages(conversation) || isMarkedUnread(conversation.id)
     }
 
     /// The read action a chat's swipe, menu and selection offer; nil for a chat the user hasn't
@@ -232,7 +232,7 @@ final class ConversationController {
     func markRead(_ id: ConversationID, source: ChatReadSource) {
         chatMarkedUnread?.clear(id)
         guard let conversation = conversation(withID: id),
-              conversation.hasUnread(for: selfUserID),
+              hasUnreadMessages(conversation),
               let newest = conversation.lastMessage?.id
         else { return }
         advanceReadPointer(to: newest, in: id)
@@ -287,14 +287,46 @@ final class ConversationController {
         chatMarkedUnread?.clear(id)
     }
 
+    /// Whether `conversation` holds a message that is unread for the viewer. A share payment is
+    /// unread only for the member it paid, so one to someone else is looked past.
+    func hasUnreadMessages(_ conversation: Conversation) -> Bool {
+        conversation.hasUnread(for: selfUserID, countedThrough: newestCountingAsUnread(in: conversation))
+    }
+
     /// The unread count a conversation row shows; nil when the chat is unread but its READ
     /// watermark's message is neither stored nor fetched yet. See
-    /// ``Conversation/unreadCount(for:unreadSeqAt:)`` and ``resolveUnreadCount(for:)``.
+    /// ``Conversation/unreadCount(for:countedThrough:uncounted:unreadSeqAt:)`` and
+    /// ``resolveUnreadCount(for:)``.
     func unreadCount(for conversation: Conversation) -> Int? {
-        conversation.unreadCount(for: selfUserID) { pointer in
+        let newest = newestCountingAsUnread(in: conversation)
+        return conversation.unreadCount(
+            for: selfUserID,
+            countedThrough: newest,
+            uncounted: sharePaymentsToOthers(in: conversation, through: newest)
+        ) { pointer in
             storedUnreadSeq(of: pointer, in: conversation.id)
                 ?? watermarkStamps.stamp(for: .init(conversationID: conversation.id, messageID: pointer))
         }
+    }
+
+    /// The newest message that can be unread for the viewer: the chat's latest, or the newest
+    /// stored one under it when the latest is a share payment to someone else.
+    private func newestCountingAsUnread(in conversation: Conversation) -> ConversationMessage? {
+        guard let latest = conversation.lastMessage else { return nil }
+        if latest.countsAsUnread(for: selfUserID) { return latest }
+        _ = messageRevision   // observe: the message under the payment can land after the row draws
+        return (try? database.newestMessageCountingAsUnread(conversationID: conversation.id, for: selfUserID)) ?? nil
+    }
+
+    /// The stored share payments to someone else between the viewer's READ watermark and `newest`.
+    /// Only a group holds any, so a DM skips the read.
+    private func sharePaymentsToOthers(in conversation: Conversation, through newest: ConversationMessage?) -> Int {
+        guard conversation.type == .group, let newest else { return 0 }
+        _ = messageRevision
+        let after = conversation.selfReadPointer(for: selfUserID) ?? MessageID(value: 0)
+        return (try? database.sharePaymentsToOthersCount(
+            conversationID: conversation.id, after: after, through: newest.id, for: selfUserID
+        )) ?? 0
     }
 
     /// Fetches the READ watermark's message when ``unreadCount(for:)`` can't be known without it,
@@ -1300,7 +1332,7 @@ final class ConversationController {
     /// ``FeedReconcileTiming/unreadCap``; the lookups keep going and fill their rows in as they land.
     private func resolveUnreadCounts(in conversations: [Conversation]) async {
         unresolvedUnreadQueue = conversations
-            .filter { $0.hasUnread(for: selfUserID) && unreadCount(for: $0) == nil }
+            .filter { hasUnreadMessages($0) && unreadCount(for: $0) == nil }
         guard !unresolvedUnreadQueue.isEmpty else { return }
         watermarkStamps.hold()
         let wait = BoundedWait(expecting: unresolvedUnreadQueue.count)
@@ -1990,6 +2022,18 @@ final class ConversationController {
             if isFromSelf && attributed { return "You: \(text)" }
             guard let senderName else { return text }
             return "\(senderName): \(text)"
+
+        case .cash(let amount) where message.isSharePayment:
+            // A share of a request: who paid whom, with the request's title when it can be read.
+            let paid = viewerAmount(amount).formattedDroppingZeroFraction()
+            let subject = message.paymentRequestID.flatMap(requestTitle).map { " for \($0)" } ?? ""
+            if isFromSelf { return "You paid \(paid)\(subject)" }
+            let payer = message.senderID.flatMap { noticeUserName(for: $0, in: conversation, knownAuthors: knownAuthors) } ?? "Someone"
+            let receiver = message.cashReceiverID
+            let creator = receiver == selfUserID
+                ? "you"
+                : receiver.flatMap { noticeUserName(for: $0, in: conversation, knownAuthors: knownAuthors) } ?? "Someone"
+            return "\(payer) paid \(creator) \(paid)\(subject)"
 
         case .cash(let amount):
             let formatted = viewerAmount(amount).formatted()

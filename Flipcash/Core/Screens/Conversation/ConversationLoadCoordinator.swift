@@ -328,12 +328,18 @@ final class ConversationLoadCoordinator {
         }
         // Read inside the observation scope, so a fetched or refetched request re-maps its row.
         var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
+        var requestTimelines: [PaymentRequestID: RequestTimeline] = [:]
         if let paymentRequests {
+            requestTimelines = paymentRequests.timelines(in: conversationID)
             let copy = PaymentRequestCopy(session.displayCurrency)
             for message in window {
-                if let id = message.paymentRequestID, message.date > openedAt,
-                   refetchedPayments.insert(message.id.value).inserted {
-                    Task { _ = try? await paymentRequests.refresh(id) }
+                if let id = message.paymentRequestID {
+                    if message.date > openedAt, refetchedPayments.insert(message.id.value).inserted {
+                        Task { _ = try? await paymentRequests.refresh(id) }
+                    } else if paymentRequests.request(id) == nil {
+                        // An older share payment's row needs its request for the title and ring.
+                        Task { await paymentRequests.fetchIfMissing(id) }
+                    }
                 }
                 guard case .widget(.paymentRequest(let id)) = message.content else { continue }
                 let state = paymentRequests.cardState(for: id, in: conversationID, sentBy: message.senderID, copy: copy, now: capabilityClock)
@@ -385,6 +391,7 @@ final class ConversationLoadCoordinator {
             headsHistory: headsHistory,
             unreadBoundary: unreadBoundary(in: window),
             paymentRequestCards: paymentRequestCards,
+            requests: requestTimelines,
             sendBackRows: sendBackRows,
             // Read inside the observation scope, so a pin or unpin re-maps the menus.
             pinnedIDs: controller.pins.pinnedIDs(in: conversationID)
@@ -455,6 +462,7 @@ final class ConversationLoadCoordinator {
             linkCard: { links in classifier.firstCard(in: links) },
             paymentRequest: { inputs.paymentRequestCards[$0.id.value] ?? .loading },
             sendBack: { inputs.sendBackRows[$0.id.value] },
+            requests: inputs.requests,
             unreadBoundary: inputs.unreadBoundary,
             headsHistory: inputs.headsHistory
         )
@@ -572,6 +580,9 @@ final class ConversationLoadCoordinator {
         var unreadBoundary: UnreadBoundary
         /// Each request widget's card in the window, keyed by raw message id.
         var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
+        /// The chat's stored, readable requests, which title share payment rows and are the
+        /// source of the marked-paid and closed rows.
+        var requests: [PaymentRequestID: RequestTimeline] = [:]
         /// Each cash message's Send Back row, keyed by raw message id; absent draws none.
         var sendBackRows: [UInt64: ChatCashContent.SendBack] = [:]
         /// The chat's pinned messages, which decide Pin or Unpin on each row's menu.
