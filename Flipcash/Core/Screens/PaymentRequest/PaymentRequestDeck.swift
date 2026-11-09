@@ -473,8 +473,8 @@ struct PaymentRequestStackFace: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            PaymentRequestRing(fraction: item.card.fraction, isEnded: false, diameter: Self.ringDiameter)
-                .paidBadge(item.viewerStatus.showsPaidBadge, diameter: Self.ringDiameter, isEnded: false)
+            PaymentRequestRing(fraction: item.card.fraction, diameter: Self.ringDiameter)
+                .paidBadge(item.viewerStatus.showsPaidBadge, diameter: Self.ringDiameter)
             .deckPart(.ring, measure)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.card.title)
@@ -531,8 +531,8 @@ private struct PaymentRequestDeckCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                PaymentRequestRing(fraction: item.card.fraction, isEnded: false, diameter: 36)
-                    .paidBadge(item.viewerStatus.showsPaidBadge, diameter: 36, isEnded: false)
+                PaymentRequestRing(fraction: item.card.fraction, diameter: 36)
+                    .paidBadge(item.viewerStatus.showsPaidBadge, diameter: 36)
                     .deckPart(.ring, measure)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Request")
@@ -764,8 +764,8 @@ private struct PaymentRequestDeckMorph: View, Animatable {
         if let from = stack[.ring], let to = card[.ring] {
             let frame = lerp(from, to, p)
             let base = p < 0.5 ? PaymentRequestStackFace.ringDiameter : Self.cardRing
-            PaymentRequestRing(fraction: item.card.fraction, isEnded: false, diameter: base)
-                .paidBadge(item.viewerStatus.showsPaidBadge, diameter: base, isEnded: false)
+            PaymentRequestRing(fraction: item.card.fraction, diameter: base)
+                .paidBadge(item.viewerStatus.showsPaidBadge, diameter: base)
             .scaleEffect(frame.width / base)
             .frame(width: base, height: base)
             .position(x: frame.midX - origin.x, y: frame.midY - origin.y)
