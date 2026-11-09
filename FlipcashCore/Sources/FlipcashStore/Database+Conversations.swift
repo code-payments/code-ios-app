@@ -409,7 +409,7 @@ nonisolated extension Database {
     }
 
     /// Mirror a group feed load: upsert the feed's groups, record them as joined, and delete the
-    /// groups the user left elsewhere (`departed`, as reported by ``ConversationStore/setGroupFeed(_:)``).
+    /// groups the user left elsewhere (`departed`, as reported by ``ConversationStore/setGroupFeed(_:requestedAt:)``).
     /// Returns whether any group's last-message row changed.
     ///
     /// Deliberately not ``replaceConversationFeed(_:type:)``: the group feed carries only joined
