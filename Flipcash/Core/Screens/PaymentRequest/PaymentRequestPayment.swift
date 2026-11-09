@@ -35,7 +35,17 @@ final class PaymentRequestPayment {
         case noBalance
     }
 
+    /// The request and the viewer's unpaid share as they read when the swipe sheet opened.
+    struct SheetSnapshot: Equatable {
+        let request: GroupPaymentRequest
+        let share: GroupPaymentRequest.Share
+    }
+
     let requestID: PaymentRequestID
+
+    /// What the swipe sheet shows, taken when ``prepare()`` finds the share payable; it outlives
+    /// the share reading paid, so the sheet keeps its amount through success and dismiss.
+    private(set) var sheetSnapshot: SheetSnapshot?
 
     private(set) var selectedBalance: ExchangedBalance?
     /// Set when the insufficient-funds dialog's Add Money is tapped; the presenter routes to the deposit and clears it.
@@ -104,7 +114,9 @@ final class PaymentRequestPayment {
             showRequestClosed()
             return .closed
         }
-        return intentID != nil && share != nil ? .ready : .nothingToPay
+        guard intentID != nil, let request, let share else { return .nothingToPay }
+        sheetSnapshot = SheetSnapshot(request: request, share: share)
+        return .ready
     }
 
     /// The share in the request's currency, nil when the request's currency or amount can't be read.
