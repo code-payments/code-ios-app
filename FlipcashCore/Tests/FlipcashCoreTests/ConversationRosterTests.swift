@@ -224,6 +224,34 @@ struct ConversationRosterTests {
         #expect(store.joinedGroups == [conversationID(1), conversationID(2), conversationID(3)])
     }
 
+    @Test("A group left after a feed was requested stays left when that feed still lists it")
+    func leftGroupStaysLeftOnStaleGroupFeed() {
+        var store = ConversationStore()
+        store.setGroupFeed([group(1, lastActivity: 100), group(2, lastActivity: 200)])
+
+        let mark = store.groupFeedMark
+        store.setMembership(false, in: conversationID(2))
+
+        let departed = store.setGroupFeed([group(1, lastActivity: 100), group(2, lastActivity: 200)], requestedAt: mark)
+
+        #expect(departed.isEmpty)
+        #expect(store.joinedGroups == [conversationID(1)])
+        #expect(store.contains(conversationID(2)))
+        #expect(!store.isMember(of: group(2)))
+    }
+
+    @Test("A group left, then listed by a feed requested after the leave, is joined again")
+    func leftGroupRejoinedByFreshGroupFeed() {
+        var store = ConversationStore()
+        store.setGroupFeed([group(2, lastActivity: 200)])
+        store.setMembership(false, in: conversationID(2))
+
+        store.setGroupFeed([group(2, lastActivity: 200)], requestedAt: store.groupFeedMark)
+
+        #expect(store.joinedGroups == [conversationID(2)])
+        #expect(store.isMember(of: group(2)))
+    }
+
     @Test("A group missing from a feed requested after it was seated is still dropped")
     func seatedGroupDroppedByFreshGroupFeed() {
         var store = ConversationStore()

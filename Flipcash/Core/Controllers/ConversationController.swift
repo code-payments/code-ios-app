@@ -1358,7 +1358,9 @@ final class ConversationController {
         reconcileHidden()
         paymentRequests?.forget(conversations: departed)
         persistChanges(operation: "replace-group-feed") {
-            try database.replaceGroupFeed(groups.map(withStoreMembers), departed: departed)
+            // Only the groups the store still counts as joined are recorded as joined: a group
+            // the user left after this feed was requested is listed by it, but is not a member.
+            try database.replaceGroupFeed(groups.filter { store.isMember(of: $0) }.map(withStoreMembers), departed: departed)
         }
         resendUnsyncedReadPointers()
         // Same repair the DM feeds need: the store refuses a tombstone as a preview, so a chat whose
