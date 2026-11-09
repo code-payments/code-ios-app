@@ -87,7 +87,7 @@ jobs:
       - name: FlipcashCore vectors
         working-directory: FlipcashCoreVectors
         run: |
-          xcodebuild test -scheme FlipcashCoreVectors-Package \
+          xcodebuild test -scheme FlipcashCoreVectors \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/core" \
             -quiet

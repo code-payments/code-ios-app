@@ -70,7 +70,7 @@ public struct ChatsPuppetHost {
                 required: ["filter"]
             )),
             ("ChipsRevealed", schema([:])),
-            ("SelectionStarted", schema([:])),
+            ("SelectionStarted", schema(["chatId": chatId])),
             ("SelectionToggled", schema(["chatId": chatId], required: ["chatId"])),
             ("SelectionEnded", schema([:])),
         ]
