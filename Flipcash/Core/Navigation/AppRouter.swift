@@ -63,6 +63,7 @@ final class AppRouter {
     /// The destination `push` last appended, and onto which stack. Any other change
     /// to `paths` clears it, so it names the top of that stack whenever it is set.
     @ObservationIgnored private var lastPush: (stack: Stack, destination: Destination)?
+    @ObservationIgnored private var pendingCollapse: (stack: Stack, destination: Destination, count: Int)?
 
     /// The stack owned by the currently-selected tab. A tab is the active
     /// surface without being a *sheet*, so `presentedSheet` is nil while a tab
@@ -336,18 +337,32 @@ final class AppRouter {
         logger.info("Set path", metadata: navigationMetadata(stack: stack, destination: destinations.last))
     }
 
-    /// Replaces the topmost stack's whole path with `destination` in one assignment, so SwiftUI
-    /// animates it as a single forward push over the current top rather than a pop to the root
-    /// followed by a push. No-op with a warning if there is no topmost stack.
-    func replaceTopmostPath(with destination: Destination) {
+    /// Pushes `destination` over the current top as a normal forward push and remembers the
+    /// resulting depth, so `collapseTopmostPath(toTop:)` can later drop everything beneath it.
+    /// Replacing the path outright would animate as a pop whenever the new path is shorter.
+    func pushForCollapse(_ destination: Destination) {
         guard let stack = topmostStack else {
-            logger.warning("Replace path attempted with no topmost stack", metadata: [
+            logger.warning("Push for collapse attempted with no topmost stack", metadata: [
                 "destination": "\(destination)",
             ])
             return
         }
-        setPath([destination], on: stack)
+        paths[stack, default: NavigationPath()].append(destination)
+        pendingCollapse = (stack, destination, paths[stack, default: NavigationPath()].count)
         lastPush = (stack, destination)
+        logger.info("Push", metadata: navigationMetadata(stack: stack, destination: destination))
+    }
+
+    /// Once the push from `pushForCollapse(_:)` has settled, removes everything beneath
+    /// `destination` so the stack becomes `[destination]`. Removing views under the visible top
+    /// is not animated. Does nothing if the stack changed in the meantime (the user already
+    /// popped or something else was pushed), so it never discards a screen the user is on.
+    func collapseTopmostPath(toTop destination: Destination) {
+        guard let pending = pendingCollapse, pending.destination == destination else { return }
+        pendingCollapse = nil
+        guard paths[pending.stack, default: NavigationPath()].count == pending.count else { return }
+        setPath([destination], on: pending.stack)
+        lastPush = (pending.stack, destination)
     }
 
     /// SwiftUI binding setter — fires when the NavigationStack writes a new
