@@ -1,0 +1,10 @@
+{
+  "screen": "Chats",
+  "description": "Each filter narrows the visible list to its chip, and only All shows the archived row.",
+  "steps": [
+    {"do": "ChipsRevealed", "expect": {"chipsRevealed": true, "showsChips": true}},
+    {"do": "FilterSelected", "input": {"filter": "Unread"}, "expect": {"filter": "Unread", "visibleChatIds": ["01010101010101010101010101010101", "04040404040404040404040404040404"], "showsArchivedRow": false}},
+    {"do": "FilterSelected", "input": {"filter": "Groups"}, "expect": {"filter": "Groups", "visibleChatIds": ["01010101010101010101010101010101", "03030303030303030303030303030303"], "showsArchivedRow": false}},
+    {"do": "FilterSelected", "input": {"filter": "All"}, "expect": {"filter": "All", "visibleChatIds": ["01010101010101010101010101010101", "02020202020202020202020202020202", "03030303030303030303030303030303", "04040404040404040404040404040404"], "showsArchivedRow": true}}
+  ]
+}

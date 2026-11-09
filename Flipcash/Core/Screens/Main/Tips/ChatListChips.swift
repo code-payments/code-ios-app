@@ -7,12 +7,8 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The Chats tab's chip filters. The selection lives in the screen's `@State` and is never
-/// persisted: every cold start opens on `.all`.
-enum ChatListFilter: CaseIterable, Hashable {
-    case all
-    case unread
-    case groups
+/// What each chip reads on screen.
+extension ChatListFilter {
 
     var title: String {
         switch self {
@@ -20,25 +16,6 @@ enum ChatListFilter: CaseIterable, Hashable {
         case .unread: "Unread"
         case .groups: "Groups"
         }
-    }
-
-    func ids<ID>(in projection: ChatListProjection<ID>) -> [ID] {
-        switch self {
-        case .all: projection.main
-        case .unread: projection.unreadChip
-        case .groups: projection.groupsChip
-        }
-    }
-
-    /// The number a chip shows: unread chats inside its filter, or nothing when zero. `All` shows
-    /// none because the tab badge already shows that number.
-    func badge<ID>(in projection: ChatListProjection<ID>) -> Int? {
-        let count: Int = switch self {
-        case .all: 0
-        case .unread: projection.unreadChipCount
-        case .groups: projection.groupsChipCount
-        }
-        return count > 0 ? count : nil
     }
 
     /// The one-line empty state for a filter with no chats. `.all` only reaches this when every
