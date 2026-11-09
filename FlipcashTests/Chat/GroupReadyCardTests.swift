@@ -89,4 +89,21 @@ struct GroupReadyCardTests {
         // A DM never gets the invitation.
         #expect(GroupReadyCard.emptyPreview(for: chat(type: .contactDm, count: 1, canInvite: true, isPrivate: false)) == nothing)
     }
+
+    @Test("Placeholder shapes: none under the card, kept for a gated chat and a plain first load")
+    func gatePlaceholder() {
+        func shows(withholds: Bool = false, read: Bool, empty: Bool = true, card: Bool) -> Bool {
+            GroupReadyCard.showsGatePlaceholder(withholdsTranscript: withholds, didInitialRead: read, transcriptIsEmpty: empty, cardShown: card)
+        }
+        // A new group before its first read: the card, no shapes.
+        #expect(!shows(read: false, card: true))
+        // An empty chat with no card still bridges its first load.
+        #expect(shows(read: false, card: false))
+        // A gated chat keeps them, card or not.
+        #expect(shows(withholds: true, read: true, card: false))
+        #expect(shows(withholds: true, read: false, card: true))
+        // Rows loaded, or read finished: none.
+        #expect(!shows(read: false, empty: false, card: false))
+        #expect(!shows(read: true, card: false))
+    }
 }
