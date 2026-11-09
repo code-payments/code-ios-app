@@ -764,6 +764,74 @@ struct DatabaseConversationsTests {
         #expect(try database.getConversationMessages(conversationID: id).first?.content == .text("edited"))
     }
 
+    // MARK: - Batched writes -
+
+    private func versioned(_ id: UInt64, _ text: String, sequence: UInt64) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: id), senderID: otherID, content: .text(text),
+            date: Date(timeIntervalSince1970: TimeInterval(id)), unreadSeq: id, eventSequence: sequence)
+    }
+
+    @Test("one batch keeps stored rows newer than the copy, replaces older ones, and inserts new ids")
+    func batchMergesEachRowOnItsOwnVersion() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages([
+            versioned(1, "stored-newer", sequence: 10),
+            versioned(2, "stored-older", sequence: 3),
+        ], conversationID: id)
+
+        try database.upsertConversationMessages([
+            versioned(1, "stale-redelivery", sequence: 5),
+            versioned(2, "edited", sequence: 8),
+            versioned(3, "new", sequence: 9),
+        ], conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded == [
+            versioned(1, "stored-newer", sequence: 10),
+            versioned(2, "edited", sequence: 8),
+            versioned(3, "new", sequence: 9),
+        ])
+    }
+
+    @Test("a stale copy later in the same batch does not overwrite the newer copy written before it")
+    func batchDuplicateIdsAreLastWriterWins() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+
+        try database.upsertConversationMessages([
+            versioned(1, "newer", sequence: 7),
+            versioned(1, "stale", sequence: 4),
+            versioned(2, "first", sequence: 2),
+            versioned(2, "second", sequence: 6),
+        ], conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded == [versioned(1, "newer", sequence: 7), versioned(2, "second", sequence: 6)])
+    }
+
+    @Test("a batch larger than one stored-row read still merges every row against its stored version")
+    func batchPastReadChunkMergesEveryRow() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let ids = Array(UInt64(1)...1_200)
+        try database.upsertConversationMessages(ids.map { versioned($0, "stored", sequence: 10) }, conversationID: id)
+
+        // Odd ids arrive stale, even ids arrive newer.
+        try database.upsertConversationMessages(ids.map {
+            $0.isMultiple(of: 2) ? versioned($0, "newer", sequence: 11) : versioned($0, "stale", sequence: 9)
+        }, conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded.count == ids.count)
+        #expect(loaded == ids.map {
+            $0.isMultiple(of: 2) ? versioned($0, "newer", sequence: 11) : versioned($0, "stored", sequence: 10)
+        })
+    }
+
     @Test("the feed preview skips a deleted newest message and shows the newest visible one")
     func latestMessageSkipsTombstone() throws {
         let (database, url) = try Database.makeTemp()
