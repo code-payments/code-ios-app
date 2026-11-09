@@ -361,7 +361,11 @@ final class AppRouter {
         guard let pending = pendingCollapse, pending.destination == destination else { return }
         pendingCollapse = nil
         guard paths[pending.stack, default: NavigationPath()].count == pending.count else { return }
-        setPath([destination], on: pending.stack)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            setPath([destination], on: pending.stack)
+        }
         lastPush = (pending.stack, destination)
     }
 
