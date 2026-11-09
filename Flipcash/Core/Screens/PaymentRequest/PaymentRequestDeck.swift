@@ -123,9 +123,12 @@ final class PaymentRequestDeckState {
 
 // MARK: - Presence -
 
-/// Whether the stack is under the app bar, and how far it has faded in. It fades in and out in place
-/// when requests arrive or run out after the chat is on screen, and is simply there when the chat
-/// opens with requests already known.
+/// Whether the stack is under the app bar, how far it has faded in, and which cards it draws while a
+/// request leaves. It fades in and out in place when requests arrive or run out after the chat is on
+/// screen, and is simply there when the chat opens with requests already known.
+///
+/// A request that ends leaves the deck. One that completed stays where it was, with its ring swept to
+/// full, for ``sweep``; then the remaining cards close the gap with the deck's settle motion.
 @MainActor
 @Observable
 final class PaymentRequestDeckPresence {
@@ -136,28 +139,98 @@ final class PaymentRequestDeckPresence {
     private(set) var isVisible = false
     /// The last non-empty deck, drawn while the stack fades out after the requests are gone.
     private(set) var lastItems: [PaymentRequestDeckItem] = []
+    /// The cards drawn in place of the live deck while departing requests finish leaving.
+    private(set) var held: [PaymentRequestDeckItem]?
 
     /// The stack fades in when it first shows rather than being there from its first frame.
     private(set) var fadesIn = false
     private var hasSettled = false
+    /// The live deck as of the last update.
+    @ObservationIgnored private var live: [PaymentRequestDeckItem] = []
+    @ObservationIgnored private var release: Task<Void, Never>?
 
     static let fade = Animation.easeOut(duration: 0.25)
+    /// How the remaining cards close the gap a departed request leaves.
+    static let settle = Animation.spring(duration: 0.35, bounce: 0.15)
+    /// How long a completed request stays while its ring sweeps to full.
+    static let sweep: Duration = .milliseconds(300)
 
-    /// The items the stack draws: the live deck, or the last one while it fades out.
+    /// The items the stack draws: the held deck, the live one, or the last one while it fades out.
     func items(_ live: [PaymentRequestDeckItem]) -> [PaymentRequestDeckItem] {
-        live.isEmpty ? lastItems : live
+        if let held { return held }
+        return live.isEmpty ? lastItems : live
     }
 
-    /// Follows the deck's contents; the first call sets the state without a fade.
-    func update(_ items: [PaymentRequestDeckItem]) {
-        if !items.isEmpty { lastItems = items }
-        let hasItems = !items.isEmpty
+    /// The items the expanded list draws: the held deck, or the live one.
+    func listItems(_ live: [PaymentRequestDeckItem]) -> [PaymentRequestDeckItem] {
+        held ?? live
+    }
+
+    /// Follows the deck's contents; the first call sets the state without a fade. `completed` returns
+    /// a departed request's card as it reads now when the request completed, nil when it left any
+    /// other way. With `animates` false, as under Reduce Motion, departures apply at once.
+    func update(
+        _ items: [PaymentRequestDeckItem],
+        completed: (PaymentRequestID) -> PaymentRequestDeckItem?,
+        animates: Bool
+    ) {
+        let previous = held ?? live
+        live = items
         guard hasSettled else {
             hasSettled = true
-            isMounted = hasItems
-            isVisible = hasItems
+            if !items.isEmpty { lastItems = items }
+            isMounted = !items.isEmpty
+            isVisible = !items.isEmpty
             return
         }
+        release?.cancel()
+        let departing = animates ? Self.holding(previous: previous, live: items, completed: completed) : nil
+        guard let departing else {
+            held = nil
+            follow(items)
+            return
+        }
+        held = departing.items
+        lastItems = departing.items
+        let delay = departing.sweeps ? Self.sweep : .zero
+        release = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard let self, !Task.isCancelled else { return }
+            withAnimation(Self.settle) { self.held = nil }
+            self.follow(self.live)
+        }
+    }
+
+    /// What the stack holds while requests leave: `previous` in its order, each still-live card as it
+    /// reads now, a completed one as `completed` returns it, and any other departed card as it was,
+    /// followed by cards that just arrived. Nil when nothing left. `sweeps` is whether any of them
+    /// completed and needs time for its ring.
+    static func holding(
+        previous: [PaymentRequestDeckItem],
+        live: [PaymentRequestDeckItem],
+        completed: (PaymentRequestID) -> PaymentRequestDeckItem?
+    ) -> (items: [PaymentRequestDeckItem], sweeps: Bool)? {
+        let liveByID = Dictionary(live.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let departed = previous.filter { liveByID[$0.id] == nil }
+        guard !departed.isEmpty else { return nil }
+        var sweeps = false
+        var items = previous.map { item in
+            if let current = liveByID[item.id] { return current }
+            if let done = completed(item.id) {
+                sweeps = true
+                return done
+            }
+            return item
+        }
+        let kept = Set(previous.map(\.id))
+        items += live.filter { !kept.contains($0.id) }
+        return (items, sweeps)
+    }
+
+    /// Shows or hides the stack for the live deck `items`.
+    private func follow(_ items: [PaymentRequestDeckItem]) {
+        if !items.isEmpty { lastItems = items }
+        let hasItems = !items.isEmpty
         guard hasItems != isVisible else { return }
         if hasItems {
             // The stack runs its own fade once it appears; this animation moves what sits below it.
@@ -222,9 +295,9 @@ struct PaymentRequestStack: View {
     /// How much each step back shrinks a card, so its sides tuck in under the one in front.
     private static let depthScale: CGFloat = 0.08
     private static let depthDim: CGFloat = 0.25
-    private static let settle = Animation.spring(duration: 0.35, bounce: 0.15)
-    /// How long the ended look takes to fade in, which a re-sort waits out.
-    private static let endedFadeDuration = 0.3
+    private static let settle = PaymentRequestDeckPresence.settle
+    /// How long a card's own change (a paid badge arriving) takes to fade in, which a re-sort waits out.
+    private static let fadeDuration = 0.3
     /// The furthest an upward drag pulls the front card.
     static let maxUpwardPull: CGFloat = 12
 
@@ -290,11 +363,12 @@ struct PaymentRequestStack: View {
             // Only the front card's Pay button takes a tap; the rest peek.
             .allowsHitTesting(index == 0)
             .zIndex(Double(items.count - index))
-            // A move that no gesture drives, such as a request ending and sorting down, settles after
-            // the ended look has faded. Cycling sets its own animation and keeps it.
+            // A move that no gesture drives, such as a paid request sorting behind an owed one,
+            // settles after the card's own change has faded. Cycling and a departure set their own
+            // animation and keep it.
             .transaction(value: index) { transaction in
                 if transaction.animation == nil, !reduceMotion {
-                    transaction.animation = Self.settle.delay(Self.endedFadeDuration)
+                    transaction.animation = Self.settle.delay(Self.fadeDuration)
                 }
             }
     }
@@ -399,13 +473,8 @@ struct PaymentRequestStackFace: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            PaymentRequestRing(
-                fraction: item.card.fraction,
-                isEnded: item.card.isEnded,
-                isClosed: item.request.status == .closed,
-                diameter: Self.ringDiameter
-            )
-            .paidBadge(item.viewerStatus.showsPaidBadge, diameter: Self.ringDiameter, isEnded: item.card.isEnded)
+            PaymentRequestRing(fraction: item.card.fraction, isEnded: false, diameter: Self.ringDiameter)
+                .paidBadge(item.viewerStatus.showsPaidBadge, diameter: Self.ringDiameter, isEnded: false)
             .deckPart(.ring, measure)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.card.title)
@@ -429,18 +498,13 @@ struct PaymentRequestStackFace: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .opacity(item.card.isEnded ? 0.4 : 1)
         .background {
             RoundedRectangle(cornerRadius: Self.cornerRadius)
                 .fill(Color.backgroundSecondary)
                 .overlay(RoundedRectangle(cornerRadius: Self.cornerRadius).strokeBorder(item.owedShare != nil ? Color.success : Color.rowSeparator))
-                .opacity(item.card.isEnded ? 0.4 : 1)
-                // The base keeps an ended card solid over the cards beneath it.
-                .background(Color.backgroundMain, in: .rect(cornerRadius: Self.cornerRadius))
                 .deckPart(.container, measure)
         }
-        // The switch to the ended look fades, and so does the paid badge arriving.
-        .requestMotion(value: item.card.isEnded)
+        // The paid badge arriving fades in.
         .requestMotion(value: item.viewerStatus.showsPaidBadge)
     }
 }
@@ -467,8 +531,8 @@ private struct PaymentRequestDeckCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                PaymentRequestRing(fraction: item.card.fraction, isEnded: item.card.isEnded, isClosed: item.request.status == .closed, diameter: 36)
-                    .paidBadge(item.viewerStatus.showsPaidBadge, diameter: 36, isEnded: item.card.isEnded)
+                PaymentRequestRing(fraction: item.card.fraction, isEnded: false, diameter: 36)
+                    .paidBadge(item.viewerStatus.showsPaidBadge, diameter: 36, isEnded: false)
                     .deckPart(.ring, measure)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Request")
@@ -486,14 +550,13 @@ private struct PaymentRequestDeckCard: View {
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textMain)
                 .deckPart(.amounts, measure)
-            PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: item.card.isEnded)
+            PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: false)
                 .deckPart(.bar, measure)
             PaymentRequestDeckCardFooter(item: item)
                 .deckPart(.status, measure)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .opacity(item.card.isEnded ? 0.4 : 1)
         .background {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.backgroundSecondary)
@@ -635,7 +698,6 @@ private struct PaymentRequestDeckMorph: View, Animatable {
         let p = min(max(progress, 0), 1)
         if let stackBox = stack[.container], let cardBox = card[.container] {
             let box = lerp(stackBox, cardBox, p)
-            let content = item.card.isEnded ? 0.4 : 1.0
             // The title reads the same in both, so its two sizes cross over the whole move. The
             // amounts read differently, so one leaves before the other arrives rather than overlap.
             let outgoing = 1 - p * p
@@ -648,8 +710,6 @@ private struct PaymentRequestDeckMorph: View, Animatable {
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: radius)
                     .fill(Color.backgroundSecondary)
-                    .opacity(item.card.isEnded ? 0.4 + 0.6 * p : 1)
-                    .background(Color.backgroundMain, in: .rect(cornerRadius: radius))
                     .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(Color.rowSeparator))
                     .overlay {
                         if item.owedShare != nil {
@@ -684,7 +744,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                             Text("Request").font(.appTextCaption).foregroundStyle(Color.textSecondary)
                         }
                         extra(.bar, in: box, from: cardBox, stretches: true) {
-                            PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: item.card.isEnded)
+                            PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: false)
                         }
                         extra(.status, in: box, from: cardBox, stretches: true) {
                             PaymentRequestDeckCardFooter(item: item)
@@ -692,7 +752,6 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                     }
                     .opacity(extras)
                 }
-                .opacity(content)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -705,13 +764,8 @@ private struct PaymentRequestDeckMorph: View, Animatable {
         if let from = stack[.ring], let to = card[.ring] {
             let frame = lerp(from, to, p)
             let base = p < 0.5 ? PaymentRequestStackFace.ringDiameter : Self.cardRing
-            PaymentRequestRing(
-                fraction: item.card.fraction,
-                isEnded: item.card.isEnded,
-                isClosed: item.request.status == .closed,
-                diameter: base
-            )
-            .paidBadge(item.viewerStatus.showsPaidBadge, diameter: base, isEnded: item.card.isEnded)
+            PaymentRequestRing(fraction: item.card.fraction, isEnded: false, diameter: base)
+                .paidBadge(item.viewerStatus.showsPaidBadge, diameter: base, isEnded: false)
             .scaleEffect(frame.width / base)
             .frame(width: base, height: base)
             .position(x: frame.midX - origin.x, y: frame.midY - origin.y)
@@ -808,19 +862,30 @@ extension PaymentRequests {
         now: Date
     ) -> [PaymentRequestDeckItem] {
         order.apply(to: deck(for: conversationID, viewer: viewer, at: now)).compactMap { request in
-            guard let text = text(of: request) else { return nil }
-            let owed = viewer.flatMap { viewer in
-                request.isOwed(by: viewer, at: now) ? request.share(for: viewer) : nil
-            }
-            let deadline = request.deadline(at: now)
-            return PaymentRequestDeckItem(
-                request: request,
-                card: PaymentRequestCardContent(request: request, title: text.title, copy: copy, now: now),
-                amounts: copy.deckAmounts(request),
-                viewerStatus: PaymentRequestViewerStatus(request: request, viewer: viewer, copy: copy),
-                owedShare: owed.map { copy.shareText($0, of: request) },
-                timeLeft: PaymentRequestCopy.timeLeft(deadline)
-            )
+            deckItem(request, viewer: viewer, copy: copy, now: now)
         }
+    }
+
+    /// The deck card for `id` once it has completed, for its ring's last sweep on the way out; nil
+    /// when it isn't held, didn't complete, or its title can't be read.
+    func completedDeckItem(_ id: PaymentRequestID, viewer: UserID?, copy: PaymentRequestCopy, now: Date) -> PaymentRequestDeckItem? {
+        guard let request = request(id), request.status == .completed else { return nil }
+        return deckItem(request, viewer: viewer, copy: copy, now: now)
+    }
+
+    private func deckItem(_ request: GroupPaymentRequest, viewer: UserID?, copy: PaymentRequestCopy, now: Date) -> PaymentRequestDeckItem? {
+        guard let text = text(of: request) else { return nil }
+        let owed = viewer.flatMap { viewer in
+            request.isOwed(by: viewer, at: now) ? request.share(for: viewer) : nil
+        }
+        let deadline = request.deadline(at: now)
+        return PaymentRequestDeckItem(
+            request: request,
+            card: PaymentRequestCardContent(request: request, title: text.title, copy: copy, now: now),
+            amounts: copy.deckAmounts(request),
+            viewerStatus: PaymentRequestViewerStatus(request: request, viewer: viewer, copy: copy),
+            owedShare: owed.map { copy.shareText($0, of: request) },
+            timeLeft: PaymentRequestCopy.timeLeft(deadline)
+        )
     }
 }
