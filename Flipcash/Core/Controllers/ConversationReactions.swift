@@ -35,8 +35,9 @@ final class ConversationReactions {
     /// Counts the user's reaction adds for the strip's recents. Wired by the session before use.
     @ObservationIgnored var recents: RecentReactionsStore?
 
-    /// Called after every write to a stored message's reactions, so the transcript re-reads its rows.
-    @ObservationIgnored var didPersist: () -> Void = {}
+    /// Called after every write to stored messages' reactions, with the chat and the messages written,
+    /// so the transcript re-reads those rows.
+    @ObservationIgnored var didPersist: (ConversationID, [MessageID]) -> Void = { _, _ in }
 
     @ObservationIgnored private let messaging: any ConversationMessaging
     @ObservationIgnored private let database: Database
@@ -140,7 +141,7 @@ final class ConversationReactions {
         }
         do {
             if try database.mergeReactions(summaries, conversationID: conversationID) > 0 {
-                didPersist()
+                didPersist(conversationID, Array(summaries.keys))
             }
         } catch {
             logger.error("Failed to persist message reactions", metadata: [
@@ -248,7 +249,7 @@ final class ConversationReactions {
     private func write(_ transforms: [MessageID: (inout ReactionState) -> Void], in conversationID: ConversationID, operation: String) {
         do {
             try database.updateReactions(transforms, conversationID: conversationID)
-            didPersist()
+            didPersist(conversationID, Array(transforms.keys))
         } catch {
             logger.error("Failed to persist message reactions", metadata: [
                 "operation": "\(operation)",
