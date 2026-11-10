@@ -437,8 +437,10 @@ private struct PaymentRequestPaySheetPresenter: ViewModifier {
                 pendingDeposit = nil
                 router.navigate(to: .currencyInfoForDeposit(mint))
             }) {
-            // The share reads paid once the payment lands; the sheet stays up through its success state.
-            if let payment = flow.payment, let request = payment.request, let creator = request.creator {
+            // The share reads paid once the payment lands, so the sheet renders from what it opened
+            // with and stays up through its success state.
+            if let payment = flow.payment, let snapshot = payment.sheetSnapshot, let creator = snapshot.request.creator {
+                let request = snapshot.request
                 PaymentRequestPaySheet(
                     payment: payment,
                     payee: request.chatID.flatMap { chatID in
@@ -447,7 +449,7 @@ private struct PaymentRequestPaySheetPresenter: ViewModifier {
                             .first { $0.userID == creator }
                     },
                     payeeID: creator,
-                    amount: payment.share.map { PaymentRequestCopy(session.displayCurrency).shareText($0, of: request) } ?? ""
+                    amount: PaymentRequestCopy(session.displayCurrency).shareText(snapshot.share, of: request)
                 )
                 .task {
                     // Opened from the chat's strip, nothing else has loaded the roster that names the payee.

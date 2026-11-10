@@ -22,19 +22,19 @@ struct NewChatScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 12) {
                 ChatActionRow(
-                    icon: .asset(.at),
-                    title: "Find Someone by Username",
-                    accessibilityIdentifier: "new-chat-find-by-username"
-                ) {
-                    choose(.findByUsername)
-                }
-
-                ChatActionRow(
                     icon: .asset(.group),
                     title: "Create a New Group",
                     accessibilityIdentifier: "new-chat-private-group"
                 ) {
                     choose(.privateGroup)
+                }
+
+                ChatActionRow(
+                    icon: .asset(.at),
+                    title: "Find Someone by Username",
+                    accessibilityIdentifier: "new-chat-find-by-username"
+                ) {
+                    choose(.findByUsername)
                 }
 
                 ChatActionRow(

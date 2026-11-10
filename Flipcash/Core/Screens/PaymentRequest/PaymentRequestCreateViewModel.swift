@@ -31,7 +31,10 @@ final class PaymentRequestCreateViewModel {
     }
 
     var enteredAmount: String = ""
-    var title: String
+    /// The request's title, the weekday default until the creator saves one on the Name screen.
+    var name = PaymentRequestName()
+    /// The title the request is sent with.
+    var title: String { name.title }
     var deadline: PaymentRequestDeadline = .oneWeek
     private(set) var people: PaymentRequestPeople?
     /// Set when checking a member would make a 101st share, until the sheet is dismissed.
@@ -59,13 +62,12 @@ final class PaymentRequestCreateViewModel {
         self.conversationController = sessionContainer.conversationController
         self.requests = sessionContainer.paymentRequests
         self.conversationID = conversationID
-        self.title = defaultPaymentRequestTitle()
     }
 
     /// Clears the draft for a fresh New Request: amount, default title and deadline, everyone selected.
     func startNewRequest() {
         enteredAmount = ""
-        title = defaultPaymentRequestTitle()
+        name = PaymentRequestName()
         deadline = .oneWeek
         people = nil
         idempotencyKey = nil
@@ -129,10 +131,7 @@ final class PaymentRequestCreateViewModel {
         return people.shares(perPerson: amount)
     }
 
-    var sendButtonTitle: String {
-        guard let amount else { return "Request" }
-        return people?.buttonTitle(perPerson: amount) ?? "Request"
-    }
+    var sendButtonTitle: String { paymentRequestSendButtonTitle }
 
     // MARK: - Send -
 

@@ -498,6 +498,9 @@ nonisolated public struct ConversationMessageTable: Sendable {
     // returns. Both nil for a cash row that is neither, and for every other row.
     public let cashReturnOffer = Expression <Bool?>        ("cashReturnOffer")
     public let cashReturnOfId = Expression <UInt64?>       ("cashReturnOfId")
+    // The payment request a cash row pays a share of (`CashContent.payment_request_id`); nil for
+    // every other row.
+    public let paymentRequestId = Expression <Data?>       ("paymentRequestId")
 }
 
 
@@ -854,6 +857,7 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.cashReceiverId)
                     t.column(conversationMessageTable.cashReturnOffer)
                     t.column(conversationMessageTable.cashReturnOfId)
+                    t.column(conversationMessageTable.paymentRequestId)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
                 })
             }

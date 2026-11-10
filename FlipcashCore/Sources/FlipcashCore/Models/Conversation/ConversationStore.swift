@@ -353,7 +353,8 @@ public struct ConversationStore: Sendable {
     /// database), never regressing: an older or equal-versioned candidate is ignored, unless it decrypts
     /// the current one, so a stale re-delivery can't overwrite a newer preview. `force` bypasses the guard for the one legitimate
     /// regression — the newest message was tombstoned, so the preview must fall back to the previous
-    /// visible one instead of showing deleted content. Never touches `lastActivity` or the feed order.
+    /// visible one instead of showing deleted content. Advances `lastActivity` to the new preview's date
+    /// when that is later, re-sorting the feed; never moves it back.
     public mutating func setFeedPreview(_ newest: ConversationMessage?, in conversationID: ConversationID, force: Bool = false) {
         guard let newest, let index = position(of: conversationID) else { return }
         if !force,
@@ -362,6 +363,10 @@ public struct ConversationStore: Sendable {
            !(current.isUnopened && newest.settles(unopenedWith: current.decryptFailure)
              && (current.id, current.eventSequence) == (newest.id, newest.eventSequence)) { return }
         conversations[index].lastMessage = newest
+        // A resume re-reads previews the notification extension wrote, and the row must move with
+        // them, as a cold load's `max(storedActivity, lastMessage.date)` does; otherwise it sits at
+        // its old position until the feed lands.
+        advanceLastActivity(to: newest.date, in: conversationID)
     }
 
     // MARK: - Live events (cursor + gap detection + feed activity)

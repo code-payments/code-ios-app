@@ -59,18 +59,20 @@ struct GroupSendViewModelTests {
         #expect(viewModel.sendTitle == "Send \(try #require(viewModel.enteredTotal).formatted())")
     }
 
-    @Test("The confirm sheet reads \"$1.00 each\" over \"$3.00 total\", or just the amount for one person")
+    @Test("The confirm sheet reads \"$1.00\" with \"each\" over \"$3.00 total\", or just the amount for one person")
     func confirmLabels() async throws {
         let (viewModel, _) = try await make(total: "1")
         let a = UUID()
         viewModel.toggle(a)
 
-        #expect(viewModel.eachLabel == "$1.00")
+        #expect(viewModel.eachAmountLabel == "$1.00")
+        #expect(viewModel.isSplitAcrossSelection == false)
         #expect(viewModel.totalLabel == nil)
 
         [UUID(), UUID()].forEach(viewModel.toggle)
 
-        #expect(viewModel.eachLabel == "$1.00 each")
+        #expect(viewModel.eachAmountLabel == "$1.00")
+        #expect(viewModel.isSplitAcrossSelection)
         #expect(viewModel.totalLabel == "$3.00 total")
     }
 

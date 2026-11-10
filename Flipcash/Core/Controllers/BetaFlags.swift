@@ -180,6 +180,7 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
+        case chatCashBill
 
         var id: String {
             localizedTitle
@@ -191,6 +192,8 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
+            case .chatCashBill:
+                return "Chat Cash Bill"
             }
         }
 
@@ -200,6 +203,8 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
+            case .chatCashBill:
+                return "Show the bill when someone sends you cash in the chat you have open."
             }
         }
 
@@ -208,6 +213,7 @@ extension BetaFlags {
             switch self {
             case .vibrateOnScan:  return .developer
             case .enableCoinbase: return .developer
+            case .chatCashBill:   return .publicBeta
             }
         }
 
@@ -217,6 +223,7 @@ extension BetaFlags {
             switch self {
             case .vibrateOnScan:  return false
             case .enableCoinbase: return false
+            case .chatCashBill:   return true
             }
         }
     }

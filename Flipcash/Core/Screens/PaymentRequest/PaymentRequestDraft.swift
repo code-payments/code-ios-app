@@ -139,20 +139,39 @@ struct PaymentRequestPeople: Hashable, Sendable {
         orderedSelection.map { GroupPaymentRequest.Share(userID: $0, nativeAmount: perPerson.doubleValue) }
     }
 
-    /// `perPerson` times the number of shares, or nil when nobody is selected.
-    func total(perPerson: FiatAmount) -> FiatAmount? {
-        let count = orderedSelection.count
-        guard count > 0 else { return nil }
-        return FiatAmount(value: perPerson.value * Decimal(count), currency: perPerson.currency)
-    }
-
-    /// "Request $520 Total", or nil when nobody is selected.
-    func buttonTitle(perPerson: FiatAmount) -> String? {
-        total(perPerson: perPerson).map { "Request \($0.formattedDroppingZeroFraction()) Total" }
-    }
-
     private static func people(_ count: Int) -> String {
         count == 1 ? "1 Person" : "\(count) People"
+    }
+}
+
+/// The summary's create button, whatever the amount and selection.
+let paymentRequestSendButtonTitle = "Send Request"
+
+/// A new request's title: the weekday default until the creator saves their own.
+struct PaymentRequestName: Equatable {
+
+    /// The weekday default, "Monday Request".
+    let defaultTitle: String
+    /// The title the creator saved on the Name screen, nil while the default stands.
+    private(set) var customTitle: String?
+
+    init(defaultTitle: String = defaultPaymentRequestTitle()) {
+        self.defaultTitle = defaultTitle
+    }
+
+    /// The title the request is sent with and the summary's Name row shows.
+    var title: String { customTitle ?? defaultTitle }
+
+    /// What the Name screen's field opens with: empty while the default stands, so the default
+    /// shows only as the placeholder.
+    var fieldText: String { customTitle ?? "" }
+
+    /// The Name screen's placeholder.
+    var placeholder: String { defaultTitle }
+
+    /// Keeps `title`, already validated, as the creator's own.
+    mutating func save(_ title: String) {
+        customTitle = title
     }
 }
 

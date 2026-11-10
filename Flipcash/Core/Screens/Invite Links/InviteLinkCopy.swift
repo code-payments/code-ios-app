@@ -12,7 +12,8 @@ import FlipcashCore
 enum InviteLinkCopy {
 
     static let creating = "Creating link…"
-    static let footnote = "Anyone with this link can join and see who’s in the group. Share it only with people you want in the group"
+    /// Under the link pill on a group's Invite People sheet, for both kinds of link.
+    static let groupSheetLine = "Send this link to the people you want to join your group"
     static let cantShare = "Can’t share from this device"
 
     /// Under an invite link's group card QR.
@@ -57,11 +58,6 @@ enum InviteLinkCopy {
     /// The Approve New Members row's subtitle for the switch's position.
     static func approveSubtitle(isOn: Bool) -> String {
         isOn ? "You approve each person" : "Anyone with the link joins right away"
-    }
-
-    /// The sheet's meta line under the current link: "Expires Nov 3 · 0 joined".
-    static func sheetMeta(_ invite: Invite) -> String {
-        "\(expiry(invite)) · \(joined(invite))"
     }
 
     /// A Manage Invites row's second line.

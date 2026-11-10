@@ -145,3 +145,61 @@ struct PaymentRequestPaymentNoBalanceTests {
         #expect(container.session.dialogItem?.title == "You Need More Cash")
     }
 }
+
+@MainActor
+@Suite("PaymentRequestPayment sheet snapshot")
+struct PaymentRequestPaymentSheetSnapshotTests {
+
+    private let requestID = PaymentRequestID(data: Data([2]))
+
+    /// What the server returns on the next refetch.
+    @MainActor
+    private final class Server {
+        var isPaid = false
+    }
+
+    private func request(for userID: UserID, paid: Bool) -> GroupPaymentRequest {
+        GroupPaymentRequest(
+            id: requestID,
+            creator: UUID(),
+            createdAt: .now.addingTimeInterval(-60),
+            status: .open,
+            closedAt: nil,
+            version: paid ? 2 : 1,
+            chatID: ConversationID(data: Data(repeating: 0x0C, count: 32)),
+            split: .init(
+                text: .plaintext(title: "Dinner", description: ""),
+                currency: "usd",
+                endsAt: .now.addingTimeInterval(86_400),
+                shares: [.init(
+                    userID: userID,
+                    nativeAmount: 10,
+                    paidAt: paid ? .now : nil,
+                    settlement: paid ? .intent(Data(repeating: 9, count: 32)) : nil
+                )]
+            )
+        )
+    }
+
+    @Test("The sheet keeps the share it opened with after a refetch reads it paid")
+    func sheetSnapshot_survivesShareReadingPaid() async throws {
+        let container = try SessionContainer.makeTest(holdings: [])
+        let userID = container.session.userID
+        let server = Server()
+        let requests = PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in
+            (request(for: userID, paid: server.isPaid), Data(repeating: 7, count: 32))
+        })
+        let payment = PaymentRequestPayment(requestID: requestID, sessionContainer: container, requests: requests)
+
+        #expect(await payment.prepare() == .ready)
+        let opened = try #require(payment.sheetSnapshot)
+
+        server.isPaid = true
+        _ = try await requests.refresh(requestID)
+
+        #expect(payment.share == nil)
+        #expect(payment.sheetSnapshot == opened)
+        #expect(opened.share.nativeAmount == 10)
+        #expect(opened.share.isPaid == false)
+    }
+}

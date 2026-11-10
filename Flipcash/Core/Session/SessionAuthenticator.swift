@@ -357,7 +357,35 @@ final class SessionAuthenticator {
             flipClient: container.flipClient
         )
         wireReactionAlerts(on: sessionContainer, toasts: container.toasts)
+        wireChatCashBills(on: sessionContainer)
         return sessionContainer
+    }
+
+    /// Points the received-bill-in-chat flow at this session's bill, router and rates.
+    private func wireChatCashBills(on sessionContainer: SessionContainer) {
+        let session = sessionContainer.session
+        let conversations = sessionContainer.conversationController
+        let router = sessionContainer.appRouter
+        let ratesController = sessionContainer.ratesController
+        let bills = ChatCashBillController(selfUserID: session.userID)
+        bills.openConversationID = { [weak conversations] in conversations?.visibleConversationID }
+        bills.somethingOnTop = { [weak session, weak router] in
+            // A dialog draws in its own window. Any view controller presented from the root is a
+            // sheet, the media viewer, or this chat's own sheet; the router's list catches a sheet
+            // still on its way up.
+            session?.dialogItem != nil
+                || !(router?.presentedSheets.isEmpty ?? true)
+                || UIApplication.shared.currentKeyWindow?.rootViewController?.presentedViewController != nil
+        }
+        bills.isBillShowing = { [weak session] in session?.isShowingBill ?? false }
+        bills.verifiedState = { [weak ratesController] amount in
+            guard let ratesController else { return nil }
+            ratesController.ensureMintSubscribed(amount.mint)
+            return await ratesController.awaitVerifiedState(for: amount.nativeAmount.currency, mint: amount.mint)
+        }
+        bills.present = { [weak session] description in session?.showCashBill(description) }
+        session.onCashBillDismissed = { [weak bills] in bills?.billDidClose() }
+        conversations.chatCashBills = bills
     }
 
     /// Points the in-app reaction pill at this session's chats, rates and router. The pill draws

@@ -57,8 +57,11 @@ struct ConversationScreen: View {
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var didInitialRead = false
+    /// The chat's keyboard, handed to the received-bill flow while this screen is up.
+    @State private var keyboardHandle = ChatKeyboardHandle()
     @State private var didOpenRequest = false
     /// The chat whose opening load has landed, for a coordinator built after it.
     @State private var loadedConversationID: ConversationID?
@@ -110,6 +113,8 @@ struct ConversationScreen: View {
     @State private var paymentRequestDeck = PaymentRequestDeckState()
     @State private var deckWindow = PaymentRequestDeckWindow()
     @State private var requestDeckPresence = PaymentRequestDeckPresence()
+    /// The instant the request deck is worded at; it advances each minute and at every deadline it holds.
+    @State private var requestDeckClock = Date.now
     /// Paying a share from the request stack's Pay button.
     @State private var requestPayFlow = PaymentRequestPayFlow()
     /// The request stack's measured height, reserved at the transcript's top; 0 while hidden.
@@ -531,8 +536,14 @@ struct ConversationScreen: View {
             // which is why this reads `withholdsTranscript` and not `obscuresTranscript`: a chat
             // whose rules haven't landed yet is blurred without yet refusing anything.
             // Also stands in while an empty transcript's first load is out, so a chat with nothing
-            // cached opens on the placeholder and paints once with its history.
-            showsGatePlaceholder: (gate.withholdsTranscript || !didInitialRead) && (coordinator?.items.isEmpty ?? true),
+            // cached opens on the placeholder and paints once with its history, except under the
+            // group-ready card.
+            showsGatePlaceholder: GroupReadyCard.showsGatePlaceholder(
+                withholdsTranscript: gate.withholdsTranscript,
+                didInitialRead: didInitialRead,
+                transcriptIsEmpty: coordinator?.items.isEmpty ?? true,
+                cardShown: showsInviteCard
+            ),
             gateMintName: gateMintName,
             gateShortfall: gateShortfall,
             gateDisplayCurrency: ratesController.displayCurrency,
@@ -550,7 +561,8 @@ struct ConversationScreen: View {
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
             transcriptTopInset: Self.transcriptTopInset(slots: [anchorHeight, stackHeight, showsPinBar ? pinBarHeight : 0]),
-            messageJump: messageJump
+            messageJump: messageJump,
+            keyboardHandle: keyboardHandle
         )
     }
 
@@ -682,7 +694,15 @@ struct ConversationScreen: View {
             Task { await sessionContainer.hostedLobbies.refresh(hostedConversationID) }
         }
         .onChange(of: requestDeckItems, initial: true) { _, items in
-            requestDeckPresence.update(items)
+            requestDeckPresence.update(items, completed: completedDeckItem, animates: !reduceMotion)
+        }
+        // Wakes at the deck's next deadline, so a request leaves at its `ends_at`, and at least once a
+        // minute so the time left stays current.
+        .task(id: requestDeckWake) {
+            let wake = requestDeckWake
+            try? await Task.sleep(for: .seconds(max(0, wake.timeIntervalSinceNow)) + .milliseconds(50))
+            guard !Task.isCancelled else { return }
+            requestDeckClock = max(.now, wake)
         }
         .onChange(of: conversationController.reactions.error) { _, _ in
             scheduleReactionErrorDismissal()
@@ -891,7 +911,7 @@ struct ConversationScreen: View {
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { deckWindow.listFrame = $0 }
         .onChange(of: paymentRequestDeck.phase != .collapsed) { _, isUp in
             if isUp {
-                deckWindow.items = requestDeckItems
+                deckWindow.items = requestDeckPresence.listItems(requestDeckItems)
                 deckWindow.present(state: paymentRequestDeck) { id in
                     PaymentRequestDetailsScreen(requestID: id)
                         .injectingEnvironment(from: sessionContainer)
@@ -901,7 +921,14 @@ struct ConversationScreen: View {
                 deckWindow.dismiss()
             }
         }
-        .onChange(of: requestDeckItems.map(\.id)) { deckWindow.items = requestDeckItems }
+        .onChange(of: requestDeckPresence.listItems(requestDeckItems)) { _, items in
+            deckWindow.items = items
+            // An expanded list that loses its last card collapses as the stack fades out. Details
+            // opened from it stay up; closing them puts the deck back at rest.
+            if items.isEmpty, paymentRequestDeck.isOpen, deckWindow.details == nil {
+                paymentRequestDeck.collapse()
+            }
+        }
         .onChange(of: scenePhase, initial: true) { _, phase in deckWindow.scenePhase = phase }
         .onDisappear { deckWindow.dismiss() }
         // Each refetch puts the deck back in its default order.
@@ -910,7 +937,7 @@ struct ConversationScreen: View {
         }
     }
 
-    /// The private group's open and recently ended requests, worded for the viewer, in deck order.
+    /// The private group's open requests, worded for the viewer, in deck order.
     private var requestDeckItems: [PaymentRequestDeckItem] {
         guard let group = groupConversation, group.isPrivate else { return [] }
         return sessionContainer.paymentRequests.deckItems(
@@ -918,7 +945,26 @@ struct ConversationScreen: View {
             viewer: session.userID,
             order: paymentRequestDeck.order,
             copy: PaymentRequestCopy(session.displayCurrency),
-            now: .now
+            now: requestDeckClock
+        )
+    }
+
+    /// When the deck's clock next advances: the nearest deadline it holds, or a minute on.
+    private var requestDeckWake: Date {
+        let minute = requestDeckClock.addingTimeInterval(60)
+        guard let expiry = GroupPaymentRequest.nextExpiry(of: requestDeckItems.map(\.request), after: requestDeckClock) else {
+            return minute
+        }
+        return min(expiry, minute)
+    }
+
+    /// A request that just left the deck, as its card reads now that it completed.
+    private func completedDeckItem(_ id: PaymentRequestID) -> PaymentRequestDeckItem? {
+        sessionContainer.paymentRequests.completedDeckItem(
+            id,
+            viewer: session.userID,
+            copy: PaymentRequestCopy(session.displayCurrency),
+            now: requestDeckClock
         )
     }
 
@@ -1087,12 +1133,12 @@ struct ConversationScreen: View {
             return PaymentRequestCopy.owedAccessibilityLabel(
                 share: share,
                 title: front.card.title,
-                deadline: front.request.deadline(at: .now),
+                deadline: front.request.deadline(at: requestDeckClock),
                 count: requestDeckItems.count
             )
         }
         return PaymentRequestCopy(session.displayCurrency)
-            .deckAccessibilityLabel(front: front.request, title: front.card.title, viewerStatus: front.viewerStatus, count: requestDeckItems.count, now: .now)
+            .deckAccessibilityLabel(front: front.request, title: front.card.title, viewerStatus: front.viewerStatus, count: requestDeckItems.count, now: requestDeckClock)
     }
 
     private func payRequest(_ id: PaymentRequestID) {
@@ -1343,12 +1389,15 @@ struct ConversationScreen: View {
             guard old != nil, didInitialRead,
                   let last = latestConfirmedMessage,
                   last.buzzesOnReceive(selfUserID: conversationController.selfUserID),
-                  conversationController.visibleConversationID == conversationID
+                  conversationController.visibleConversationID == conversationID,
+                  // One buzz: a message that raises the received bill is felt through the bill.
+                  conversationController.chatCashBills?.isBilling(last.id) != true
             else { return false }
             return true
         }
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
+            conversationController.chatCashBills?.keyboard = keyboardHandle
             syncCoordinator(conversationID)
             composer.linkPreview.load = ComposerLinkPreview.loader(
                 metadata: sessionContainer.linkMetadataSource,
@@ -1383,6 +1432,9 @@ struct ConversationScreen: View {
             }
         }
         .onDisappear {
+            if conversationController.chatCashBills?.keyboard === keyboardHandle {
+                conversationController.chatCashBills?.keyboard = nil
+            }
             saveDraft(flushing: true)
             coordinator?.pendingRead.commit()
             if let conversationID {

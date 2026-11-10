@@ -41,7 +41,8 @@ final class PaymentRequests {
 
     /// The first page of OPEN requests a chat refetch reads.
     static let openPageSize = 100
-    /// The first page of RESOLVED requests a chat refetch reads, enough to fill the deck's 24 hours.
+    /// The first page of RESOLVED requests a chat refetch reads, which tells a held OPEN copy it ended
+    /// when a live update was missed.
     static let resolvedPageSize = 20
     /// How often an on-screen chat or details sheet refetches.
     static let pollInterval: Duration = .seconds(45)
@@ -151,6 +152,17 @@ final class PaymentRequests {
     /// The stored copy of `id`, if any.
     func request(_ id: PaymentRequestID) -> GroupPaymentRequest? {
         requests[id]
+    }
+
+    /// `conversationID`'s stored requests whose title the viewer can read, keyed by id: the ones a
+    /// transcript row may name.
+    func timelines(in conversationID: ConversationID) -> [PaymentRequestID: RequestTimeline] {
+        var timelines: [PaymentRequestID: RequestTimeline] = [:]
+        for request in requests.values where request.chatID == conversationID && !unavailable.contains(request.id) {
+            guard let title = text(of: request)?.title else { continue }
+            timelines[request.id] = RequestTimeline(request: request, title: title)
+        }
+        return timelines
     }
 
     /// `conversationID`'s requests the deck shows to `viewer` as of `now`, in deck order.

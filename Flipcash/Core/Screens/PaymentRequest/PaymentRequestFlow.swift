@@ -154,8 +154,8 @@ private struct PaymentRequestFlowContent: View {
                         path.append(.selectPeople)
                     }, sent: { dismiss() })
                 case .name:
-                    PaymentRequestNameScreen(title: viewModel.title) {
-                        viewModel.title = $0
+                    PaymentRequestNameScreen(name: viewModel.name) {
+                        viewModel.name.save($0)
                         path.removeLast()
                     }
                 case .selectPeople:
@@ -483,13 +483,15 @@ private struct PaymentRequestNameScreen: View {
     @State private var text: String
     @FocusState private var isFocused: Bool
 
+    let placeholder: String
     let save: (String) -> Void
 
     /// Same threshold as the profile and group name screens.
     private static let countdownThreshold = 10
 
-    init(title: String, save: @escaping (String) -> Void) {
-        _text = State(initialValue: title)
+    init(name: PaymentRequestName, save: @escaping (String) -> Void) {
+        _text = State(initialValue: name.fieldText)
+        self.placeholder = name.placeholder
         self.save = save
     }
 
@@ -507,7 +509,7 @@ private struct PaymentRequestNameScreen: View {
                     .foregroundStyle(Color.textMain)
                     .padding(.top, 20)
 
-                TextField("Request Name", text: $text)
+                TextField(placeholder, text: $text)
                     .font(.appDisplayMedium)
                     .foregroundStyle(Color.textMain)
                     .focused($isFocused)

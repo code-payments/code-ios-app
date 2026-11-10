@@ -185,6 +185,24 @@ struct ConversationStoreTests {
         #expect(store.conversations.first?.lastMessage?.id.value == 9)
     }
 
+    @Test("setFeedPreview with a message newer than the row's activity moves the row up")
+    func feedPreviewAdvancesActivity() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100), conversation(2, lastActivity: 200)])
+        store.setFeedPreview(message(5, "pushed", at: 300), in: conversationID(1))
+        #expect(store.conversations.map(\.id) == [conversationID(1), conversationID(2)])
+        #expect(store.conversations.first?.lastActivity == Date(timeIntervalSince1970: 300))
+    }
+
+    @Test("setFeedPreview with a message older than the row's activity leaves its position")
+    func feedPreviewKeepsNewerActivity() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100), conversation(2, lastActivity: 200)])
+        store.setFeedPreview(message(5, "old", at: 50), in: conversationID(1))
+        #expect(store.conversations.map(\.id) == [conversationID(2), conversationID(1)])
+        #expect(store.conversations.last?.lastActivity == Date(timeIntervalSince1970: 100))
+    }
+
     // MARK: - Deleted-message previews
 
     @Test("A metadata refresh whose newest message was deleted keeps the visible preview the row shows")

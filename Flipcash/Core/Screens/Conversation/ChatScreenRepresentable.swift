@@ -159,6 +159,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// no touches, opened at the newest message. Read reporting is the caller's to turn off, through
     /// `reportsReads` and `onMessagesSeen`, as it is for the screen.
     var isReadOnlyPreview = false
+    /// Lets a received bill lower and restore this screen's keyboard.
+    var keyboardHandle: ChatKeyboardHandle?
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         if isReadOnlyPreview { return makePreviewController(context: context) }
@@ -179,6 +181,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         jumpHost.view.clipsToBounds = false
         jumpHost.safeAreaRegions = []
         let screen = ChatScreenViewController(bar: barHost.view, barController: barHost, jump: jump, jumpButtonController: jumpHost)
+        keyboardHandle?.screen = screen
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder

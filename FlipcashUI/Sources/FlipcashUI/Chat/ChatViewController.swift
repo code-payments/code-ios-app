@@ -158,6 +158,11 @@ public final class ChatViewController: UICollectionViewController {
     /// fills a share of the width (a photo, a cash or link card) keeps its phone size on a wide screen.
     static let maxCardLayoutWidth: CGFloat = 440
 
+    /// The room a request row's text has in a transcript `width` wide, between the column insets.
+    static func requestEventTextWidth(_ width: CGFloat) -> CGFloat {
+        width - 2 * ChatColumnCell.rowInset
+    }
+
     /// The transcript width a card is sized against, given the collection view's `width`.
     static func cardLayoutWidth(_ width: CGFloat) -> CGFloat {
         min(width, maxCardLayoutWidth)
@@ -198,7 +203,7 @@ public final class ChatViewController: UICollectionViewController {
                     configure(cell, with: message)
                 case .typingIndicator(let typists):
                     (cell as? ChatTypingIndicatorCell)?.configure(typists: typists, imageData: authorAvatars)
-                case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard:
+                case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .requestEvent, .inviteCard:
                     continue
                 }
             }
@@ -429,6 +434,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatUnreadDividerCell.self, forCellWithReuseIdentifier: ChatUnreadDividerCell.reuseIdentifier)
         collectionView.register(ChatEncryptionMarkerCell.self, forCellWithReuseIdentifier: ChatEncryptionMarkerCell.reuseIdentifier)
         collectionView.register(ChatSystemMessageCell.self, forCellWithReuseIdentifier: ChatSystemMessageCell.reuseIdentifier)
+        collectionView.register(ChatRequestEventCell.self, forCellWithReuseIdentifier: ChatRequestEventCell.reuseIdentifier)
         collectionView.register(ChatInviteCardCell.self, forCellWithReuseIdentifier: ChatInviteCardCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
 
@@ -633,7 +639,7 @@ public final class ChatViewController: UICollectionViewController {
         let arrivals = (start..<new.count).compactMap { row -> (row: Int, message: ChatMessage)? in
             switch new[row] {
             case .message(let message): (row, message)
-            case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard: nil
+            case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .requestEvent, .inviteCard: nil
             }
         }
         guard let taker = TypingDotsHandoff.takerIndex(
@@ -660,7 +666,7 @@ public final class ChatViewController: UICollectionViewController {
         switch item {
         case .typingIndicator(let typists):
             typists.isEmpty ? [.counterpart] : Set(typists.map { .member($0.id) })
-        case .message, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard:
+        case .message, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .requestEvent, .inviteCard:
             nil
         }
     }
@@ -676,7 +682,7 @@ public final class ChatViewController: UICollectionViewController {
         guard items.indices.contains(index) else { return nil }
         switch items[index] {
         case .message(let message): return message
-        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard: return nil
+        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .requestEvent, .inviteCard: return nil
         }
     }
 
@@ -744,6 +750,9 @@ public final class ChatViewController: UICollectionViewController {
         case .systemMessage(_, let text, _, let userLink):
             let tap: ((UserID) -> Void)? = onAuthorTap == nil ? nil : { [weak self] in self?.onAuthorTap?($0) }
             (cell as! ChatSystemMessageCell).configure(text: text, userLink: userLink, onUserTap: tap)
+        case .requestEvent(let event):
+            let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
+            (cell as! ChatRequestEventCell).configure(with: event, maxWidth: Self.requestEventTextWidth(width))
         case .inviteCard(let groupName):
             let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
             let card = cell as! ChatInviteCardCell
@@ -990,11 +999,16 @@ public final class ChatViewController: UICollectionViewController {
     /// The id of the payment request whose card is at `indexPath`, or nil if that row isn't one or
     /// its message failed to send (the tap retries it instead).
     private func paymentRequestID(at indexPath: IndexPath) -> Data? {
-        guard items.indices.contains(indexPath.item),
-              case .message(let message) = items[indexPath.item],
-              case .paymentRequest(let request) = message.content,
-              !message.isFailed else { return nil }
-        return request.requestID
+        guard items.indices.contains(indexPath.item) else { return nil }
+        switch items[indexPath.item] {
+        case .message(let message):
+            guard case .paymentRequest(let request) = message.content, !message.isFailed else { return nil }
+            return request.requestID
+        case .requestEvent(let event):
+            return event.requestID
+        case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard:
+            return nil
+        }
     }
 
     /// The stable id of the cash message at `indexPath`, or nil if that row isn't a cash card. The
@@ -1132,7 +1146,7 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Scrolls the given row into view, or waits for the update that brings it in.
     public func scrollToMessage(id: String) {
-        guard items.contains(where: { $0.messageID == id }) else {
+        guard items.contains(where: { $0.draws(messageID: id) }) else {
             pendingScrollTargetID = id
             return
         }
@@ -1147,7 +1161,7 @@ public final class ChatViewController: UICollectionViewController {
     @discardableResult
     private func performPendingScrollIfLanded() -> Bool {
         guard let target = pendingScrollTargetID,
-              items.contains(where: { $0.messageID == target }) else { return false }
+              items.contains(where: { $0.draws(messageID: target) }) else { return false }
         pendingScrollTargetID = nil
         needsInitialScroll = false
         scrollToRow(id: target, animated: false)
@@ -1165,7 +1179,7 @@ public final class ChatViewController: UICollectionViewController {
     /// settled by re-anchoring on the target until the rows around it have self-sized, then the scroll
     /// runs to that measured offset.
     private func scrollToRow(id: String, animated: Bool) {
-        guard let index = items.firstIndex(where: { $0.messageID == id }) else { return }
+        guard let index = items.firstIndex(where: { $0.draws(messageID: id) }) else { return }
         let indexPath = IndexPath(item: index, section: 0)
         positionClaim += 1
         let claim = positionClaim
@@ -1245,7 +1259,7 @@ public final class ChatViewController: UICollectionViewController {
         for cell in bubbleCells(forStableID: stableID) { cell.flashAttention(startedAt: now) }
         for indexPath in collectionView.indexPathsForVisibleItems {
             guard let cell = collectionView.cellForItem(at: indexPath) else { continue }
-            markAttention(cell, isTarget: items.indices.contains(indexPath.item) && items[indexPath.item].messageID == stableID)
+            markAttention(cell, isTarget: items.indices.contains(indexPath.item) && items[indexPath.item].draws(messageID: stableID))
         }
     }
 
@@ -1266,7 +1280,7 @@ public final class ChatViewController: UICollectionViewController {
     private func reattachAttention(to cell: UICollectionViewCell, at indexPath: IndexPath) {
         guard let attention,
               items.indices.contains(indexPath.item),
-              items[indexPath.item].messageID == attention.id else {
+              items[indexPath.item].draws(messageID: attention.id) else {
             markAttention(cell, isTarget: false)
             return
         }
@@ -1357,7 +1371,7 @@ public final class ChatViewController: UICollectionViewController {
     /// quote jump's scroll and flash, or to the newest message once there are none.
     func jumpFromJumpButton() {
         let items = items
-        if let origin = replyReturns.popOrigin(exists: { id in items.contains { $0.messageID == id } }) {
+        if let origin = replyReturns.popOrigin(exists: { id in items.contains { $0.draws(messageID: id) } }) {
             scrollToRow(id: origin, animated: true)
             return
         }
@@ -1378,7 +1392,7 @@ public final class ChatViewController: UICollectionViewController {
         guard !replyReturns.isEmpty, !isUpdating else { return }
         let visibleBounds = chatLayout.visibleBounds
         replyReturns.dropReached { id in
-            guard let index = items.firstIndex(where: { $0.messageID == id }),
+            guard let index = items.firstIndex(where: { $0.draws(messageID: id) }),
                   let frame = chatLayout.layoutAttributesForItem(at: IndexPath(item: index, section: 0))?.frame
             else { return false }
             return Self.isReached(frame, in: visibleBounds)
@@ -1546,6 +1560,8 @@ public final class ChatViewController: UICollectionViewController {
             return ReadProgress.VisibleMessage(id: serverID, isFromSelf: isFromSelf)
         case .systemMessage(_, _, let serverID, _):
             return serverID.map { ReadProgress.VisibleMessage(id: $0, isFromSelf: false) }
+        case .requestEvent(let event):
+            return event.serverID.map { ReadProgress.VisibleMessage(id: $0, isFromSelf: false) }
         case .typingIndicator, .dateSeparator, .unreadDivider, .encryptionMarker, .inviteCard:
             return nil
         }
@@ -1791,7 +1807,7 @@ extension ChatViewController: ChatLayoutDelegate {
         guard items.indices.contains(indexPath.item) else { return false }
         switch items[indexPath.item] {
         case .dateSeparator, .unreadDivider, .encryptionMarker: return true
-        case .message, .typingIndicator, .systemMessage, .inviteCard: return false
+        case .message, .typingIndicator, .systemMessage, .requestEvent, .inviteCard: return false
         }
     }
 
@@ -1808,7 +1824,7 @@ extension ChatViewController: ChatLayoutDelegate {
         switch items[indexPath.item] {
         case .message(let message): return message.sender
         case .typingIndicator: return .other
-        case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .inviteCard: return nil
+        case .dateSeparator, .unreadDivider, .encryptionMarker, .systemMessage, .requestEvent, .inviteCard: return nil
         }
     }
 }
@@ -2051,7 +2067,7 @@ extension ChatViewController {
     /// The on-screen cell drawing the first row of the message with `stableID` — the row a split
     /// message's quote heads, and the one an edit spotlights.
     private func bubbleCell(forStableID stableID: String) -> BubbleCarrying? {
-        guard let item = items.firstIndex(where: { $0.messageID == stableID }) else { return nil }
+        guard let item = items.firstIndex(where: { $0.draws(messageID: stableID) }) else { return nil }
         return collectionView.cellForItem(at: IndexPath(item: item, section: 0)) as? BubbleCarrying
     }
 
@@ -2059,7 +2075,7 @@ extension ChatViewController {
     /// of a message that was split around its card.
     private func bubbleCells(forStableID stableID: String) -> [BubbleCarrying] {
         items.indices
-            .filter { items[$0].messageID == stableID }
+            .filter { items[$0].draws(messageID: stableID) }
             .compactMap { collectionView.cellForItem(at: IndexPath(item: $0, section: 0)) as? BubbleCarrying }
     }
 }

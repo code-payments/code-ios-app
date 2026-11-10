@@ -115,6 +115,10 @@ class Session {
         billState.bill != nil
     }
 
+    /// Called after any bill closes (Put in Wallet, swipe, scrim, backgrounding, a grab). Lets the
+    /// open chat hand the keyboard back.
+    @ObservationIgnored var onCashBillDismissed: (() -> Void)?
+
     /// Whether a `ScanCashOperation` is currently in flight. Used by
     /// `ScanViewModel` to prevent new codes from being registered while
     /// a grab is being processed, avoiding orphaned entries in the
@@ -1393,8 +1397,9 @@ class Session {
     }
     
     func showCashBill(_ billDescription: BillDescription) {
-        // Only inbound bills enqueue a "+$" deposit toast; sent bills don't.
-        if billDescription.received {
+        // Only inbound bills enqueue a "+$" deposit toast; sent bills don't. A chat bill opts out:
+        // the payment is already a bubble in the open chat.
+        if billDescription.received && billDescription.announcesDeposit {
             enqueue(toast: .init(
                 amount: billDescription.exchangedFiat.nativeAmount,
                 isDeposit: true
@@ -1645,6 +1650,8 @@ class Session {
         // Consume toast after bill state is cleared
         // so isShowingBill returns false
         consumeToast()
+
+        onCashBillDismissed?()
     }
 
     /// Records the wallet's current figures against an incoming deposit in `mint`.
@@ -2068,11 +2075,15 @@ extension Session {
         let exchangedFiat: ExchangedFiat
         let received: Bool
         let verifiedState: VerifiedState?
+        /// Whether a received bill enqueues the "+$X" deposit toast. Off for a payment that arrived
+        /// in the open chat, where the cash bubble already says so.
+        let announcesDeposit: Bool
 
-        init(exchangedFiat: ExchangedFiat, received: Bool, verifiedState: VerifiedState? = nil) {
+        init(exchangedFiat: ExchangedFiat, received: Bool, verifiedState: VerifiedState? = nil, announcesDeposit: Bool = true) {
             self.exchangedFiat = exchangedFiat
             self.received = received
             self.verifiedState = verifiedState
+            self.announcesDeposit = announcesDeposit
         }
     }
 }

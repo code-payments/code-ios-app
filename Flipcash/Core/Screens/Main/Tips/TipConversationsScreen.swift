@@ -498,7 +498,7 @@ struct TipConversationRow: View {
         let counterpart = conversation.counterpart(excluding: conversationController.selfUserID)
         let title = conversationController.displayName(for: conversation)
         let joinRequests = ChatRowJoinRequests(conversationController.joinRequests(for: conversation.id))
-        let hasUnreadMessages = conversation.hasUnread(for: conversationController.selfUserID)
+        let hasUnreadMessages = conversationController.hasUnreadMessages(conversation)
         let unreadMessageCount = hasUnreadMessages ? conversationController.unreadCount(for: conversation) : nil
         let subtitle = joinRequests.subtitle(preview: self.subtitle, hasUnreadMessages: hasUnreadMessages)
         // Marked unread with nothing unread draws the no-count state; a known count still wins.
@@ -560,8 +560,10 @@ struct TipConversationRow: View {
     }
 
     private var lastRequestID: PaymentRequestID? {
-        guard case .widget(.paymentRequest(let id)) = conversation.lastMessage?.content else { return nil }
-        return id
+        guard let message = conversation.lastMessage else { return nil }
+        if case .widget(.paymentRequest(let id)) = message.content { return id }
+        // A share payment's preview names its request too.
+        return message.paymentRequestID
     }
 
     /// The preview line: the last message, or an italic placeholder for a chat with no message

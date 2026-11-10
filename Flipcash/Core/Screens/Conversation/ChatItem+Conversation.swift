@@ -113,6 +113,10 @@ extension ChatItem {
         paymentRequest: (ConversationMessage) -> PaymentRequestCardState = { _ in .loading },
         /// The Send Back row under a cash message; nil draws none. See ``SendBackRow/resolve``.
         sendBack: (ConversationMessage) -> ChatCashContent.SendBack? = { _ in nil },
+        /// The chat's stored, readable payment requests, resolved by the caller from the request
+        /// store. They title a share payment's row and are the source of the marked-paid and
+        /// closed rows, which have no message behind them.
+        requests: [PaymentRequestID: RequestTimeline] = [:],
         /// Where the viewer's unread messages began at open; the divider heads the first message
         /// after it that someone else sent.
         unreadBoundary: UnreadBoundary = .none,
@@ -202,9 +206,14 @@ extension ChatItem {
         func isSystem(_ message: ConversationMessage) -> Bool {
             if case .system = message.content { true } else { false }
         }
+        // A share payment draws as a centred line too, with no sender to group a bubble under.
+        func isNotice(_ message: ConversationMessage) -> Bool {
+            isSystem(message) || message.isSharePayment
+        }
         let dividerHeadID: String? = {
             var older: ConversationMessage?
-            for message in messages where !isSystem(message) {
+            // A share payment paid to someone else is never unread, so the divider passes it too.
+            for message in messages where !isSystem(message) && message.countsAsUnread(for: selfUserID) {
                 if let older, unreadBoundary.dividerBetween(newer: message, older: older, selfUserID: selfUserID) {
                     return message.stableID
                 }
@@ -261,14 +270,50 @@ extension ChatItem {
             }
         }
 
+        // The marked-paid and closed rows, each placed after the last message at or before its
+        // time. One older than the oldest loaded message waits for paging to reach it.
+        var storedAfter: [Int: [RequestOccurrence]] = [:]
+        if let oldest = messages.first?.date {
+            for occurrence in RequestOccurrence.stored(in: requests) where occurrence.date >= oldest {
+                guard let index = messages.lastIndex(where: { $0.date <= occurrence.date }) else { continue }
+                storedAfter[index, default: []].append(occurrence)
+            }
+        }
+        // What each request row was built from, so a run of them can collapse once every row is placed.
+        var occurrences: [String: RequestOccurrence] = [:]
+        // The date of the row drawn last. It is not always the previous message's: a stored row
+        // sits between two messages at a time of its own.
+        var lastDrawn: Date?
+        func separates(_ date: Date, fromDrawn earlier: Date) -> Bool {
+            date.timeIntervalSince(earlier) > gap || !calendar.isDate(date, inSameDayAs: earlier)
+        }
+
         var items: [ChatItem] = []
+        func appendRequestRow(_ occurrence: RequestOccurrence, showsSeparator: Bool) {
+            guard let row = RequestOccurrence.row(for: [occurrence], request: requests[occurrence.requestID], selfUserID: selfUserID, nameOf: nameOf) else { return }
+            if showsSeparator {
+                items.append(.dateSeparator(id: "sep-\(row.id)", text: occurrence.date.formattedChatSeparator()))
+            }
+            occurrences[row.id] = occurrence
+            items.append(.requestEvent(row))
+            lastDrawn = occurrence.date
+        }
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
             let previous = index > 0 ? messages[index - 1] : nil
             let next = index + 1 < messages.count ? messages[index + 1] : nil
+            // Rows with no message behind them, drawn between this message and its neighbours.
+            let followsStored = index > 0 && storedAfter[index - 1] != nil
+            let stored = storedAfter[index] ?? []
+            defer {
+                lastDrawn = message.date
+                for occurrence in stored {
+                    appendRequestRow(occurrence, showsSeparator: lastDrawn.map { separates(occurrence.date, fromDrawn: $0) } ?? true)
+                }
+            }
 
             // A separator opens the transcript and breaks any run longer than the gap.
-            let showsSeparator = previous.map { separates(message, from: $0) } ?? true
+            let showsSeparator = lastDrawn.map { separates(message.date, fromDrawn: $0) } ?? true
             let showsMarker = index == markerIndex
             if showsMarker {
                 items.append(.encryptionMarker)
@@ -292,11 +337,12 @@ extension ChatItem {
             // separator is already the heading of what follows it, so a second, shorter threshold
             // would flatten runs the transcript still draws as continuous.
             let groupedAbove = previous.map {
-                $0.senderID == message.senderID && !isSystem($0) && !showsSeparator && !showsDivider && !showsMarker
+                $0.senderID == message.senderID && !isNotice($0) && !showsSeparator && !showsDivider && !showsMarker
+                    && !followsStored
             } ?? false
             let groupedBelow = next.map {
-                $0.senderID == message.senderID && !isSystem($0) && !separates($0, from: message) && !divides($0, from: message)
-                    && index + 1 != markerIndex
+                $0.senderID == message.senderID && !isNotice($0) && !separates($0, from: message) && !divides($0, from: message)
+                    && index + 1 != markerIndex && stored.isEmpty
             } ?? false
 
             // The bubble run, which is not the author run. A bubble stacked above a bare emoji would
@@ -324,6 +370,21 @@ extension ChatItem {
                 continue
             case .text(let text):
                 content = .text(text)
+            case .cash(let fiat) where message.isSharePayment:
+                guard let requestID = message.paymentRequestID else { continue }
+                // The separator above already went in with the loop's own; the row adds none.
+                appendRequestRow(
+                    RequestOccurrence(
+                        kind: .sharePayment(message: message, amount: viewerAmount(fiat)),
+                        requestID: requestID,
+                        // The payment names who it paid, so the row reads right before the request loads.
+                        creator: message.cashReceiverID ?? requests[requestID]?.request.creator,
+                        member: message.senderID,
+                        date: message.date
+                    ),
+                    showsSeparator: false
+                )
+                continue
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
                 let isTip = message.cashAction == .tipped
@@ -524,7 +585,45 @@ extension ChatItem {
                 )))
             }
         }
-        return items
+        return collapsingRequestRows(items, occurrences: occurrences, requests: requests, selfUserID: selfUserID, nameOf: nameOf)
+    }
+
+    /// Joins request rows that sit directly under one another, for one request and of one kind,
+    /// into a single row. Anything drawn between two of them, a date header included, keeps them apart.
+    nonisolated private static func collapsingRequestRows(
+        _ items: [ChatItem],
+        occurrences: [String: RequestOccurrence],
+        requests: [PaymentRequestID: RequestTimeline],
+        selfUserID: UserID,
+        nameOf: (UserID) -> String?
+    ) -> [ChatItem] {
+        guard !occurrences.isEmpty else { return items }
+        var collapsed: [ChatItem] = []
+        var run: [RequestOccurrence] = []
+        func flush() {
+            guard let first = run.first else { return }
+            if let row = RequestOccurrence.row(for: run, request: requests[first.requestID], selfUserID: selfUserID, nameOf: nameOf) {
+                collapsed.append(.requestEvent(row))
+            }
+            run = []
+        }
+        for item in items {
+            switch item {
+            case .requestEvent(let event):
+                guard let occurrence = occurrences[event.id] else {
+                    flush()
+                    collapsed.append(item)
+                    continue
+                }
+                if let last = run.last, !last.collapses(with: occurrence) { flush() }
+                run.append(occurrence)
+            case .message, .dateSeparator, .unreadDivider, .typingIndicator, .encryptionMarker, .systemMessage, .inviteCard:
+                flush()
+                collapsed.append(item)
+            }
+        }
+        flush()
+        return collapsed
     }
 
     /// The pin bar's quote of a pinned `message`: the same author, snippet and kind a reply's quote

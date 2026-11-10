@@ -33,6 +33,20 @@ enum GroupReadyCard {
         )
     }
 
+    /// Whether the transcript draws the gate's placeholder shapes behind an empty chat.
+    ///
+    /// A gated chat the viewer is refused always gets them. Otherwise they only bridge an empty
+    /// transcript's first load, and not while the group-ready card shows: that chat is new and has
+    /// nothing to wait for, so the shapes would sit behind the card.
+    static func showsGatePlaceholder(
+        withholdsTranscript: Bool,
+        didInitialRead: Bool,
+        transcriptIsEmpty: Bool,
+        cardShown: Bool
+    ) -> Bool {
+        (withholdsTranscript || (!didInitialRead && !cardShown)) && transcriptIsEmpty
+    }
+
     /// The chat-list line for a conversation that has no message at all: an invitation while the
     /// group-ready card would show, "Nothing yet" otherwise. Client-only, so it follows the card
     /// leaving once someone joins.
@@ -90,7 +104,7 @@ private struct GroupReadyInvitePresenter: ViewModifier {
                 open()
             }
             .dialog(item: $dialog)
-            .fullScreenCover(item: $share) { share in
+            .sheet(item: $share) { share in
                 switch share {
                 case .invite(let links):
                     ShareToChatsSheet(subject: .inviteLink(conversationID, links), isPresented: isSharing, onInvited: invited)

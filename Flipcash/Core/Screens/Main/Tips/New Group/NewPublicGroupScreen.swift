@@ -306,14 +306,17 @@ struct NewPublicGroupScreen: View {
 
                 guard !Task.isCancelled else { return }
 
-                // The whole create flow is replaced rather than stacked under the chat. Back from
-                // a group that now exists belongs at the chat list holding it, not at a filled
-                // form offering to create it twice or at the picker that opened the form. The
-                // chat list is this stack's root, so unwinding to it is the same as popping both.
-                router.popToRoot()
-                // Both privacies land in the chat. A private group's invite card is there, so the
-                // host's first job (inviting people) starts from it rather than from the profile.
-                router.push(.tipConversation(conversation.id))
+                // The chat is pushed over the form so it slides in from the right; replacing the
+                // path with a shorter one would animate as a pop. NavigationStack has no
+                // push-finished callback, so the form and picker are dropped from beneath it after
+                // a delay sized to the push transition. Back from a group that now exists belongs
+                // at the chat list, not at a filled form offering to create it twice. Both
+                // privacies land in the chat, where a private group's invite card starts the
+                // host's first invite.
+                let chat = AppRouter.Destination.tipConversation(conversation.id)
+                router.pushForCollapse(chat)
+                try? await Task.delay(milliseconds: 600)
+                router.collapseTopmostPath(toTop: chat)
 
             } catch {
                 buttonState = .normal

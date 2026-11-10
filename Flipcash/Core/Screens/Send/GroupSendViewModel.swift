@@ -145,10 +145,15 @@ final class GroupSendViewModel {
         return FiatAmount(value: each.value * Decimal(selection.count), currency: each.currency)
     }
 
-    /// The confirm sheet's large line: "$1.00 each" for two or more people, just the amount for one.
-    var eachLabel: String? {
+    /// The confirm sheet's large amount, "$1.00", without the "each" that follows it for a group.
+    var eachAmountLabel: String? {
         guard let each = enteredAmountEach, !selection.isEmpty else { return nil }
-        return selection.count > 1 ? "\(each.formatted()) each" : each.formatted()
+        return each.formatted()
+    }
+
+    /// Whether the confirm sheet's amount is one person's part, followed by "each": two or more people.
+    var isSplitAcrossSelection: Bool {
+        selection.count > 1
     }
 
     /// The confirm sheet's smaller line, "$3.00 total"; nil for one person, who gets only the amount.

@@ -233,36 +233,52 @@ extension Conversation {
     /// row. A DM with no watermark counts from zero. A group whose paged roster omits the viewer's
     /// row reads as read: its pointer is unknown, not zero. Android's `FeedProjection.unreadCount`
     /// applies the same rule.
-    public func hasUnread(for selfUserID: UserID?) -> Bool {
-        guard let lastMessage, lastMessage.senderID != selfUserID else { return false }
+    ///
+    /// `newest` is the newest message that can be unread for the viewer. It defaults to
+    /// ``lastMessage``, which is right unless that is a share payment to someone else (see
+    /// ``ConversationMessage/countsAsUnread(for:)``): then the caller passes the newest message
+    /// under it that counts, and without one the chat reads as read.
+    public func hasUnread(for selfUserID: UserID?, countedThrough newest: ConversationMessage? = nil) -> Bool {
+        let latest = newest ?? lastMessage.flatMap { $0.countsAsUnread(for: selfUserID) ? $0 : nil }
+        guard let latest, latest.senderID != selfUserID else { return false }
         let member = members.first { $0.userID == selfUserID }
         switch type {
         case .group:
             guard let member else { return false }
-            return (member.readPointer?.value ?? 0) < lastMessage.id.value
+            return (member.readPointer?.value ?? 0) < latest.id.value
         case .contactDm, .tipDm:
-            return (member?.readPointer?.value ?? 0) < lastMessage.id.value
+            return (member?.readPointer?.value ?? 0) < latest.id.value
         }
     }
 
     /// How many unread-eligible messages follow the signed-in user's READ watermark: 0 when
-    /// ``hasUnread(for:)`` is false, nil when the chat is unread but the count can't be known.
+    /// ``hasUnread(for:countedThrough:)`` is false, nil when the chat is unread but the count can't be known.
     ///
     /// The server stamps every message with a running `unreadSeq`, so the count is the newest
     /// message's stamp minus the stamp of the message at the watermark. The feed reports the
     /// watermark as a message id only, so `unreadSeqAt` supplies that message's stamp from local
     /// storage; a watermark whose message isn't stored yields nil. A DM with no watermark counts
-    /// from zero, as ``hasUnread(for:)`` does.
-    public func unreadCount(for selfUserID: UserID?, unreadSeqAt: (MessageID) -> UInt64?) -> Int? {
-        guard let lastMessage, hasUnread(for: selfUserID) else { return 0 }
+    /// from zero, as ``hasUnread(for:countedThrough:)`` does.
+    ///
+    /// The stamp is one value for every member, so it counts a share payment for all of them.
+    /// `uncounted` is how many share payments to someone else sit between the watermark and
+    /// `newest`; they come off the count, which never drops below one for an unread chat.
+    public func unreadCount(
+        for selfUserID: UserID?,
+        countedThrough newest: ConversationMessage? = nil,
+        uncounted: Int = 0,
+        unreadSeqAt: (MessageID) -> UInt64?
+    ) -> Int? {
+        let latest = newest ?? lastMessage.flatMap { $0.countsAsUnread(for: selfUserID) ? $0 : nil }
+        guard let latest, hasUnread(for: selfUserID, countedThrough: latest) else { return 0 }
         var readSeq: UInt64 = 0
         if let pointer = selfReadPointer(for: selfUserID), pointer.value > 0 {
             guard let seq = unreadSeqAt(pointer) else { return nil }
             readSeq = seq
         }
         // Unread by id but not by stamp: the newest message doesn't count toward unread.
-        guard lastMessage.unreadSeq > readSeq else { return nil }
-        return Int(lastMessage.unreadSeq - readSeq)
+        guard latest.unreadSeq > readSeq else { return nil }
+        return max(1, Int(latest.unreadSeq - readSeq) - uncounted)
     }
 
     /// Whether the signed-in user has this chat muted as of `date`.

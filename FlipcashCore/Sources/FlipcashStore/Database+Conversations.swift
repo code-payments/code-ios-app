@@ -288,6 +288,42 @@ nonisolated extension Database {
                     && m.kind != 2
                     && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
+                    && Self.countsAsUnread(m, for: selfUserID)
+            ).count
+        )
+    }
+
+    /// The SQL form of ``ConversationMessage/countsAsUnread(for:)``: every row but a share payment
+    /// to someone other than `selfUserID`. Written NULL-safe, since most rows have neither column.
+    private static func countsAsUnread(_ m: ConversationMessageTable, for selfUserID: UUID) -> Expression<Bool?> {
+        m.paymentRequestId == nil || (m.cashReceiverId != nil && m.cashReceiverId == selfUserID)
+    }
+
+    /// The newest stored message that can be unread for `selfUserID`, or nil when none is stored:
+    /// the message a chat's unread state reads when its latest is a share payment to someone else.
+    public func newestMessageCountingAsUnread(conversationID: ConversationID, for selfUserID: UUID) throws -> ConversationMessage? {
+        let m = ConversationMessageTable()
+        guard let row = try reader.pluck(
+            m.table.filter(
+                m.conversationId == conversationID.data
+                    && m.id >= (try historyFloor(conversationID))
+                    && Self.countsAsUnread(m, for: selfUserID)
+            ).order(m.id.desc)
+        ) else { return nil }
+        return conversationMessage(from: row)
+    }
+
+    /// How many stored share payments to someone other than `selfUserID` lie after `after` and at
+    /// or before `through`: the messages the server's unread stamp counts that this viewer doesn't.
+    public func sharePaymentsToOthersCount(conversationID: ConversationID, after: MessageID, through: MessageID, for selfUserID: UUID) throws -> Int {
+        let m = ConversationMessageTable()
+        return try reader.scalar(
+            m.table.filter(
+                m.conversationId == conversationID.data
+                    && m.id > after.value
+                    && m.id <= through.value
+                    && m.paymentRequestId != nil
+                    && (m.cashReceiverId == nil || m.cashReceiverId != selfUserID)
             ).count
         )
     }
@@ -316,6 +352,7 @@ nonisolated extension Database {
                 m.conversationId == conversationID.data
                     && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
+                    && Self.countsAsUnread(m, for: selfUserID)
             ).order(m.id.desc)
         ).map { MessageID(value: $0[m.id]) }
     }
@@ -333,6 +370,7 @@ nonisolated extension Database {
                     && m.id >= (try historyFloor(conversationID))
                     && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
+                    && Self.countsAsUnread(m, for: selfUserID)
             ).order(m.id.asc)
         ).map { $0[m.id] }
     }
@@ -1000,6 +1038,7 @@ nonisolated extension Database {
             column(m.cashReceiverId, message.cashReceiverID),
             column(m.cashReturnOffer, message.cashReturn.map(\.hasOffer)),
             column(m.cashReturnOfId, message.cashReturn?.returnOf?.messageID.value),
+            column(m.paymentRequestId, message.paymentRequestID?.data),
         ]
         return (columns, kind)
     }
@@ -1272,6 +1311,7 @@ nonisolated extension Database {
             cashAction: cashAction,
             cashReceiverID: row[m.cashReceiverId],
             cashPayments: Self.decodeCashPayments(row[m.cashPaymentsJson]),
+            paymentRequestID: row[m.paymentRequestId].map(PaymentRequestID.init(data:)),
             cashReturn: Self.decodeCashReturn(offer: row[m.cashReturnOffer], returnOf: row[m.cashReturnOfId]),
             date: date,
             unreadSeq: row[m.unreadSeq],

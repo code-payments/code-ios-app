@@ -37,10 +37,10 @@ enum ShareToChatsSubject {
 }
 
 /// "Invite People" (nodes 10330:19387, 10330:19549, 10329:12104): hand out a link by Share or Copy,
-/// or post it straight into recent chats with an optional message. A group's sheet shows its link in
-/// a pill above the tiles, whichever link it is. A group gets a third tile, Show QR Code, and a
-/// person with a name gets Show Profile Card; either draws its card over the sheet, and closing it
-/// uncovers the sheet as it was left.
+/// or post it straight into recent chats with an optional message. A group's sheet is the link in a
+/// pill, one line under it and three tiles (Copy, Share, QR Code), with no Recent Chats, and its
+/// height wraps that content. A person with a name gets Show Profile Card; it and the group card
+/// draw over the sheet, and closing one uncovers the sheet as it was left.
 struct ShareToChatsSheet: View {
 
     let subject: ShareToChatsSubject
@@ -63,6 +63,7 @@ struct ShareToChatsSheet: View {
     @State private var model: InvitePeopleViewModel
     @State private var didCopy = false
     @State private var headerHeight: CGFloat = 0
+    @State private var fittedHeight: CGFloat = 0
     @State private var isShowingCard = false
     @State private var isShowingGroupCard = false
     @FocusState private var isMessageFocused: Bool
@@ -94,10 +95,10 @@ struct ShareToChatsSheet: View {
         }
     }
 
-    /// The chat the picker leaves out: the group itself, or the DM with the person shared.
+    /// The chat the picker leaves out: the DM with the person shared. A group's sheet has no picker.
     private var excludedChatID: ConversationID? {
         switch subject {
-        case .group(let id), .inviteLink(let id, _, _): id
+        case .group, .inviteLink: nil
         case .user(_, _, _, _, let directChatID): directChatID
         // The message's own chat stays: a link sent there points at something further up.
         case .message, .currency: nil
@@ -189,17 +190,28 @@ struct ShareToChatsSheet: View {
 
     private var copyTitle: String {
         switch subject {
-        case .group, .inviteLink: "Copy Invite Link"
+        case .group, .inviteLink: "Copy"
         case .user, .message, .currency: "Copy Link"
         }
     }
 
-    private var sendTitle: String {
+    private var sendTitle: String { "Send" }
+
+    /// Whether the sheet is a group's link sheet: no Recent Chats, and a height that wraps its content.
+    nonisolated static func isGroupSheet(_ subject: ShareToChatsSubject) -> Bool {
         switch subject {
-        case .group, .inviteLink: "Invite"
-        case .user, .message, .currency: "Send"
+        case .group, .inviteLink: true
+        case .user, .message, .currency: false
         }
     }
+
+    /// Whether the sheet lists recent chats to send the link into.
+    nonisolated static func showsRecentChats(for subject: ShareToChatsSubject) -> Bool {
+        !isGroupSheet(subject)
+    }
+
+    /// The group sheet's tiles, left to right.
+    nonisolated static let groupTileTitles = ["Copy", "Share", "QR Code"]
 
     /// The group's own title, which names it in the shared message.
     ///
@@ -217,13 +229,8 @@ struct ShareToChatsSheet: View {
 
     /// The chats the Chats tab lists, newest activity first: 1:1 chats and joined groups, less
     /// ``excludedChatID``. Search and people outside recent chats are out of scope.
-    ///
-    /// An invite link goes only to chats the server can't read (Decision 6): the link and the
-    /// server's records together open the group key.
     private var recentChats: [Conversation] {
-        let chats = conversationController.chatListConversations.filter { $0.id != excludedChatID }
-        guard isInviteMode else { return chats }
-        return chats.filter(E2eePolicy.shouldEncrypt)
+        conversationController.chatListConversations.filter { $0.id != excludedChatID }
     }
 
     /// The group's picture for the share sheet's own preview card.
@@ -255,20 +262,63 @@ struct ShareToChatsSheet: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
+            if Self.isGroupSheet(subject) {
+                groupContent
+            } else {
+                listContent
+            }
+        }
+        .overlay {
+            if isShowingCard, let card {
+                ProfileCardScreen(card: card) {
+                    withAnimation(ProfileCardScreen.fade) { isShowingCard = false }
+                }
+                .transition(.asymmetric(insertion: .identity, removal: .opacity))
+            } else if isShowingGroupCard, let groupCard {
+                GroupCardScreen(card: groupCard) {
+                    withAnimation(GroupCardScreen.fade) { isShowingGroupCard = false }
+                }
+                .transition(.asymmetric(insertion: .identity, removal: .opacity))
+            }
+        }
+        .presentationBackground(Color.backgroundMain)
+        .interactiveDismissDisabled(model.isSending)
+        .task {
+            // Idempotent: the store returns without a round trip once the bytes are in memory or
+            // on disk. Loading here rather than relying on the presenting screen keeps the preview
+            // card's icon independent of which screen opened the sheet.
+            guard let groupID else { return }
+            await sessionContainer.profileAvatars.load(.chat(groupID), picture: conversation?.picture)
+        }
+    }
+
+    /// A group's sheet: title bar, the link, its line and the tiles, fitted to their height. The
+    /// card is full height, so the sheet opens to large while it shows.
+    private var groupContent: some View {
+        VStack(spacing: 0) {
+            header
+            VStack(spacing: 16) {
+                linkPanel
+                shareTiles
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { fittedHeight = $0 }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .presentationDetents(
+            [isShowingGroupCard || fittedHeight == 0 ? .large : .height(fittedHeight)]
+        )
+    }
+
+    private var listContent: some View {
             VStack(spacing: 0) {
                 // A List (not a ScrollView of Buttons) so a drag over a row scrolls and never
                 // toggles it on release.
                 List {
-                    Group {
-                        if groupID != nil {
-                            VStack(spacing: 16) {
-                                linkPanel
-                                shareTiles
-                            }
-                        } else {
-                            shareTiles
-                        }
-                    }
+                    shareTiles
                     .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -294,17 +344,6 @@ struct ShareToChatsSheet: View {
                         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                    }
-
-                    if isInviteMode {
-                        Text(InviteLinkCopy.footnote)
-                            .font(.default(size: 12, weight: .medium))
-                            .foregroundStyle(Color.textMain.opacity(0.5))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .accessibilityIdentifier("invite-link-footnote")
                     }
                 }
                 .listStyle(.plain)
@@ -336,29 +375,6 @@ struct ShareToChatsSheet: View {
                 .ignoresSafeArea(.container, edges: .bottom)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
-        .overlay {
-            if isShowingCard, let card {
-                ProfileCardScreen(card: card) {
-                    withAnimation(ProfileCardScreen.fade) { isShowingCard = false }
-                }
-                .transition(.asymmetric(insertion: .identity, removal: .opacity))
-            } else if isShowingGroupCard, let groupCard {
-                GroupCardScreen(card: groupCard) {
-                    withAnimation(GroupCardScreen.fade) { isShowingGroupCard = false }
-                }
-                .transition(.asymmetric(insertion: .identity, removal: .opacity))
-            }
-        }
-        .presentationBackground(Color.backgroundMain)
-        .interactiveDismissDisabled(model.isSending)
-        .task {
-            // Idempotent: the store returns without a round trip once the bytes are in memory or
-            // on disk. Loading here rather than relying on the presenting screen keeps the preview
-            // card's icon independent of which screen opened the sheet.
-            guard let groupID else { return }
-            await sessionContainer.profileAvatars.load(.chat(groupID), picture: conversation?.picture)
-        }
     }
 
     /// The sheet's own title bar: a centred title and a glass close button on the right.
@@ -378,72 +394,92 @@ struct ShareToChatsSheet: View {
         .onGeometryChange(for: CGFloat.self, of: \.size.height) { headerHeight = $0 }
     }
 
-    /// Share and Copy Invite Link, plus Show QR Code for a group or Show Profile Card for a person
-    /// with a card, as tiles side by side, sized to the tallest.
+    /// A group's tiles are Copy, Share and QR Code; a person's are Share, Copy and, with a card,
+    /// Show Profile Card; a message or currency has Share and Copy. Sized to the tallest.
     private var shareTiles: some View {
         HStack(spacing: 10) {
-            ShareTile(title: "Share") {
-                Image.asset(.shareOS)
+            if Self.isGroupSheet(subject) {
+                copyTile
+                shareTile
+                groupCardTile
+            } else {
+                shareTile
+                copyTile
+                profileCardTile
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var shareTile: some View {
+        ShareTile(title: "Share") {
+            Image.asset(.shareOS)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+        } action: {
+            if groupID != nil { Analytics.groupInviteShared(method: .share) }
+            ShareSheet.present(activityItems: shareItems()) { _ in }
+        }
+        .disabled(!hasLink)
+        .opacity(hasLink ? 1 : 0.35)
+        .accessibilityIdentifier("group-invite-send")
+    }
+
+    private var copyTile: some View {
+        ShareTile(title: didCopy ? "Copied" : copyTitle) {
+            if didCopy {
+                Image.system(.circleCheck)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image.asset(.squareBehindSquare)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+            }
+        } action: {
+            copy()
+        }
+        .disabled(!hasLink)
+        .opacity(hasLink ? 1 : 0.35)
+        .accessibilityIdentifier("group-invite-copy")
+    }
+
+    @ViewBuilder
+    private var profileCardTile: some View {
+        if card != nil {
+            ShareTile(title: "Show Profile Card") {
+                // The Scan tab's outline glyph: the card is what the scanner reads.
+                Image(HomeTab.scan.iconName(isSelected: false))
                     .renderingMode(.template)
                     .resizable()
                     .scaledToFit()
             } action: {
-                if groupID != nil { Analytics.groupInviteShared(method: .share) }
-                ShareSheet.present(activityItems: shareItems()) { _ in }
+                isMessageFocused = false
+                // The card runs its own reveal on appear, so only its removal is animated.
+                isShowingCard = true
             }
-            .disabled(!hasLink)
-            .opacity(hasLink ? 1 : 0.35)
-            .accessibilityIdentifier("group-invite-send")
-
-            ShareTile(title: didCopy ? "Copied" : copyTitle) {
-                if didCopy {
-                    Image.system(.circleCheck)
-                        .resizable()
-                        .scaledToFit()
-                } else {
-                    Image.asset(.squareBehindSquare)
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                }
-            } action: {
-                copy()
-            }
-            .disabled(!hasLink)
-            .opacity(hasLink ? 1 : 0.35)
-            .accessibilityIdentifier("group-invite-copy")
-
-            if card != nil {
-                ShareTile(title: "Show Profile Card") {
-                    // The Scan tab's outline glyph: the card is what the scanner reads.
-                    Image(HomeTab.scan.iconName(isSelected: false))
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                } action: {
-                    isMessageFocused = false
-                    // The card runs its own reveal on appear, so only its removal is animated.
-                    isShowingCard = true
-                }
-                .accessibilityIdentifier("profile-card-tile")
-            }
-
-            if Self.showsGroupCardTile(for: subject) {
-                ShareTile(title: "Show QR Code") {
-                    Image(HomeTab.scan.iconName(isSelected: false))
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                } action: {
-                    isMessageFocused = false
-                    isShowingGroupCard = true
-                }
-                .disabled(!hasLink)
-                .opacity(hasLink ? 1 : 0.35)
-                .accessibilityIdentifier("group-card-tile")
-            }
+            .accessibilityIdentifier("profile-card-tile")
         }
-        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private var groupCardTile: some View {
+        if Self.showsGroupCardTile(for: subject) {
+            ShareTile(title: "QR Code") {
+                Image(HomeTab.scan.iconName(isSelected: false))
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+            } action: {
+                isMessageFocused = false
+                isShowingGroupCard = true
+            }
+            .disabled(!hasLink)
+            .opacity(hasLink ? 1 : 0.35)
+            .accessibilityIdentifier("group-card-tile")
+        }
     }
 
     private var sectionHeader: some View {
@@ -538,22 +574,17 @@ struct ShareToChatsSheet: View {
 
     // MARK: - Invite link -
 
-    /// The group's link over the tiles: the invite link with its expiry and uses, or the plain link,
-    /// which has neither.
+    /// The group's link over the tiles, with the line that says what to do with it.
     private var linkPanel: some View {
         InviteLinkPanel(
             pill: isInviteMode ? inviteURL.map(InviteLinkPanel.Pill.link) ?? .creating : .link(model.url),
-            meta: inviteEntry.map { InviteLinkCopy.sheetMeta($0.invite) }
+            meta: InviteLinkCopy.groupSheetLine
         )
     }
 
     private func invite() {
         isMessageFocused = false
         Task {
-            if isInviteMode {
-                guard let inviteURL else { return }
-                model.url = inviteURL
-            }
             guard let first = await model.sendInvites(via: { text, chatID in
                 await conversationController.send(text, to: chatID)
             }) else { return }
