@@ -158,13 +158,12 @@ public final class ChatViewController: UICollectionViewController {
     /// fills a share of the width (a photo, a cash or link card) keeps its phone size on a wide screen.
     static let maxCardLayoutWidth: CGFloat = 440
 
-    /// The transcript width a card is sized against, given the collection view's `width`.
-    /// The room a request row's text has in a transcript `width` wide, once its two rules have
-    /// their shortest length and their gaps.
+    /// The room a request row's text has in a transcript `width` wide, between the column insets.
     static func requestEventTextWidth(_ width: CGFloat) -> CGFloat {
-        width - 2 * (ChatColumnCell.rowInset + 16 + 8)
+        width - 2 * ChatColumnCell.rowInset
     }
 
+    /// The transcript width a card is sized against, given the collection view's `width`.
     static func cardLayoutWidth(_ width: CGFloat) -> CGFloat {
         min(width, maxCardLayoutWidth)
     }
