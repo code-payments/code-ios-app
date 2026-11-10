@@ -20,7 +20,7 @@ import FlipcashStore
 /// again from its ``ChatArchiveFile/archivedIDs``, as the controller does when its archive changes.
 ///
 /// Opening New Chat pushes its hosted chooser, whose rows ask ``NewChat/choose(_:balances:)`` over
-/// ``balances``, the seed's balances as `Session.balances(for:)` gives them. The "No Community
+/// ``balances``, the launched seed's balances as `Session.balances(for:)` gives them. The "No Community
 /// Currencies" dialog shows as a screen above New Chat.
 public struct ChatsPuppetHost: PuppetSession {
 
@@ -51,19 +51,39 @@ public struct ChatsPuppetHost: PuppetSession {
     /// and lend `Back`.
     private var stack: [Screen] = []
 
-    /// $25 of dollars and no community currency, so New Chat's community row depends on the app
-    /// leaving dollars out.
-    static let balances: [ExchangedBalance] = [
-        try! StoredBalance(
-            quarks: 25_000_000, symbol: "USDF", name: "USDF", supplyFromBonding: nil, sellFeeBps: nil,
-            mint: .usdf, vmAuthority: nil, updatedAt: .distantPast, imageURL: nil, costBasis: 0
-        ),
-    ].exchanged(with: .oneToOne)
+    /// The seed a launch gets when it names none.
+    public static let defaultSeed = "default"
+
+    /// The seeds a launch can name: the chats are the same in each, the balances New Chat reads
+    /// differ. The shared Chats README lists what each one holds.
+    public static let seeds: [String: [ExchangedBalance]] = [
+        defaultSeed: [dollars].exchanged(with: .oneToOne),
+        "community-holder": [dollars, puppet].exchanged(with: .oneToOne),
+    ]
+
+    /// $25 of dollars.
+    private static let dollars = try! StoredBalance(
+        quarks: 25_000_000, symbol: "USDF", name: "USDF", supplyFromBonding: nil, sellFeeBps: nil,
+        mint: .usdf, vmAuthority: nil, updatedAt: .distantPast, imageURL: nil, costBasis: 0
+    )
+
+    /// $5 of one launchpad community currency: 208 tokens, valued on its bonding curve.
+    private static let puppet = try! StoredBalance(
+        quarks: 208 * 10_000_000_000, symbol: "PUPPET", name: "Puppet",
+        supplyFromBonding: 1_000_000 * 10_000_000_000, sellFeeBps: nil,
+        mint: try! PublicKey([UInt8](repeating: 7, count: 32)), vmAuthority: nil,
+        updatedAt: .distantPast, imageURL: nil, costBasis: 0
+    )
+
+    /// The launched seed's balances, as `Session.balances(for:)` gives them.
+    private let balances: [ExchangedBalance]
 
     /// The screen names from the list to the top screen.
     public var path: [String] { [Self.screen] + stack.map(Self.name) }
 
-    public init() {
+    /// Starts the list over `seed`, one of ``seeds``.
+    public init(seed: String = defaultSeed) {
+        balances = Self.seeds[seed] ?? Self.seeds[Self.defaultSeed]!
         project()
     }
 
@@ -178,7 +198,7 @@ public struct ChatsPuppetHost: PuppetSession {
     }
 
     private mutating func choose(_ choice: NewChat.Choice) {
-        switch NewChat.choose(choice, balances: Self.balances) {
+        switch NewChat.choose(choice, balances: balances) {
         case .open(let destination): stack.append(.newChat(destination))
         case .noCommunityCurrencies: stack.append(.noCommunityCurrencies)
         }

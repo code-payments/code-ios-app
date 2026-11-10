@@ -14,6 +14,16 @@ The chat list.
 
 Ids repeat their two-digit prefix sixteen times, e.g. `01010101010101010101010101010101`.
 
+A file picks its seed with `"seed"`; one that names none gets `default`, whatever the file before
+it used. Every seed has the chats above; they differ in the balance New Chat reads:
+
+| Seed | Balance |
+|---|---|
+| `default` | $25 of dollars (USDF), no community currency. |
+| `community-holder` | The same dollars and $5 of one community currency, `PUPPET`. |
+
+A seed the host doesn't have is `bad_input`.
+
 ## State keys
 
 | Key | Type | Means |
@@ -81,9 +91,9 @@ screen each row opens.
 `ExploreCurrenciesOpened`, which pushes `DiscoverCurrencies`, and `Back`. Both apps present it as a
 sheet; the host puts it on the stack like a screen, so `expectPath` names it.
 
-The seed holds only dollars, so `new-chat.json` reaches the sheet, not the form. Covering the form
-needs a seed with a community currency, and `launch` has no way to choose a seed yet. Android also
-opens the form while the balance hasn't loaded; iOS has no such state.
+`new-chat.json` runs on the `default` seed, so the community row reaches the sheet;
+`new-chat-community.json` runs on `community-holder` and reaches the form. Android also opens the
+form while the balance hasn't loaded; iOS has no such state, so no shared file covers it.
 
 ## Route and screens
 

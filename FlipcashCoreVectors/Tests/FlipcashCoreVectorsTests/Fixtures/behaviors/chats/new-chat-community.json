@@ -1,0 +1,12 @@
+{
+  "screen": "Chats",
+  "route": "/tab/chats",
+  "seed": "community-holder",
+  "description": "With a community currency in the balance, New Chat's community row opens the form instead of the sheet.",
+  "steps": [
+    {"do": "NewChatOpened", "expectPath": ["Chats", "NewChat"]},
+    {"do": "CommunityGroupOpened", "expectPath": ["Chats", "NewChat", "NewCommunityGroup"]},
+    {"do": "Back", "expectPath": ["Chats", "NewChat"]},
+    {"do": "Back", "expectPath": ["Chats"]}
+  ]
+}

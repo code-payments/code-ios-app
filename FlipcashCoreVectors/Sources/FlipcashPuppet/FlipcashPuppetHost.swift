@@ -17,16 +17,21 @@ public protocol PuppetSession {
 /// `puppet` CLI. A new screen adds its route to ``routes``, not a new process.
 public struct FlipcashPuppetHost {
 
-    /// Each hosted route and how to start its session. The first is what `reset` and a `launch`
-    /// without a route start.
-    public static let routes: [(route: String, start: () -> any PuppetSession)] = [
-        (ChatsPuppetHost.route, { ChatsPuppetHost() }),
+    /// Each hosted route and how to start its session over a seed. The first is what `reset` and a
+    /// `launch` without a route start.
+    public static let routes: [(route: String, start: (_ seed: String) -> any PuppetSession)] = [
+        (ChatsPuppetHost.route, { ChatsPuppetHost(seed: $0) }),
     ]
+
+    /// The seeds a launch can name, the default first. Each launch names its own, so one never
+    /// carries into the next.
+    public static let seeds: [String] =
+        [ChatsPuppetHost.defaultSeed] + ChatsPuppetHost.seeds.keys.filter { $0 != ChatsPuppetHost.defaultSeed }.sorted()
 
     private var session: any PuppetSession
 
     public init() {
-        session = Self.routes[0].start()
+        session = Self.routes[0].start(Self.seeds[0])
     }
 
     /// Answers one request object. `launch` and `reset` start a fresh session; the session answers
@@ -47,9 +52,18 @@ public struct FlipcashPuppetHost {
                 let known = Self.routes.map(\.route).joined(separator: ", ")
                 return ChatsPuppetHost.error(.badInput, "This host launches \(known), not \(route)")
             }
-            session = entry.start()
+            let seed: String
+            switch req["seed"] {
+            case nil, .null?: seed = Self.seeds[0]
+            case .string(let s)?: seed = s
+            default: return ChatsPuppetHost.error(.badRequest, "seed must be a string")
+            }
+            guard Self.seeds.contains(seed) else {
+                return ChatsPuppetHost.error(.badInput, "This host seeds \(Self.seeds.joined(separator: ", ")), not \(seed)")
+            }
+            session = entry.start(seed)
         case "reset":
-            session = Self.routes[0].start()
+            session = Self.routes[0].start(Self.seeds[0])
         default:
             return session.handle(request)
         }

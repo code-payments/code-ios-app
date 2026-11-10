@@ -32,6 +32,7 @@ struct ChatsBehaviorTests {
         var host = FlipcashPuppetHost()
         var launch: [String: JSON] = ["cmd": .string("launch")]
         if let route = behavior.route { launch["route"] = .string(route) }
+        if let seed = behavior.seed { launch["seed"] = .string(seed) }
         guard case .object(let first) = host.handle(.object(launch)), first["ok"] == .bool(true),
               case .object(let node)? = first["node"], node["name"] == .string(behavior.screen) else {
             Issue.record("\(file): launch didn't open \(behavior.screen)")
@@ -93,5 +94,6 @@ private struct Behavior: Decodable {
     }
     let screen: String
     let route: String?
+    let seed: String?
     let steps: [Step]
 }
