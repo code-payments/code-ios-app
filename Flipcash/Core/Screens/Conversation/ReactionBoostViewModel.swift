@@ -5,6 +5,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// The reaction state a boost reads and records around its payment.
 protocol ReactionBoostReacting: AnyObject {

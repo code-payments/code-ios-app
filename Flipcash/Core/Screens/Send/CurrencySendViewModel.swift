@@ -5,6 +5,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// The amount step of sending one currency from its Currency Info page. The currency is fixed, so
 /// there is no picker; the amount it collects is handed to the send (or the cash bill) that follows.

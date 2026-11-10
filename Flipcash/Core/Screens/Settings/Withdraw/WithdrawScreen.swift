@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 /// The withdraw flow's first screen: a currency picker listing every balance
 /// that carries a displayable value, Dollars included — a balance rounding to

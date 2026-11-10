@@ -5,8 +5,11 @@
 
 import SwiftUI
 import FlipcashUI
+import FlipcashCore
+import FlipcashStore
 
 /// What the `+` in the Chats bar opens: the kinds of chat a user can start (node 12391:77285).
+/// ``NewChat/choose(_:balances:)`` decides where each row leads.
 struct NewChatScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
@@ -23,7 +26,7 @@ struct NewChatScreen: View {
                     title: "Find Someone by Username",
                     accessibilityIdentifier: "new-chat-find-by-username"
                 ) {
-                    router.push(.usernameLookup)
+                    choose(.findByUsername)
                 }
 
                 ChatActionRow(
@@ -31,8 +34,7 @@ struct NewChatScreen: View {
                     title: "Create a New Group",
                     accessibilityIdentifier: "new-chat-private-group"
                 ) {
-                    Analytics.groupNewOpened(type: .private_)
-                    router.push(.newPrivateGroup)
+                    choose(.privateGroup)
                 }
 
                 ChatActionRow(
@@ -40,7 +42,7 @@ struct NewChatScreen: View {
                     title: "Create a New Community Chat",
                     accessibilityIdentifier: "new-chat-public-group"
                 ) {
-                    openCommunityChatForm()
+                    choose(.communityGroup)
                 }
 
                 Spacer()
@@ -53,22 +55,32 @@ struct NewChatScreen: View {
         .dialog(item: $dialog)
     }
 
-    /// The form's requirement needs a community currency, so a user without one is sent to buy one
-    /// instead. The leaderboard is pushed onto this stack rather than routed to the Wallet tab, so
-    /// the user stays in Chats.
-    private func openCommunityChatForm() {
-        let communityCurrencies = sessionContainer.session
-            .balances(for: ratesController.rateForBalanceCurrency())
-            .communityCurrencies()
-
-        guard !communityCurrencies.isEmpty else {
-            dialog = .noCommunityCurrencies {
-                router.push(.discoverCurrencies)
+    private func choose(_ choice: NewChat.Choice) {
+        let outcome = NewChat.choose(
+            choice,
+            balances: sessionContainer.session.balances(for: ratesController.rateForBalanceCurrency())
+        )
+        switch outcome {
+        case .open(let destination):
+            switch choice {
+            case .privateGroup: Analytics.groupNewOpened(type: .private_)
+            case .communityGroup: Analytics.groupNewOpened(type: .community)
+            case .findByUsername: break
             }
-            return
+            router.push(Self.route(destination))
+        case .noCommunityCurrencies:
+            dialog = .noCommunityCurrencies {
+                router.push(Self.route(NewChat.explore))
+            }
         }
+    }
 
-        Analytics.groupNewOpened(type: .community)
-        router.push(.newPublicGroup)
+    private static func route(_ destination: NewChat.Destination) -> AppRouter.Destination {
+        switch destination {
+        case .usernameLookup: .usernameLookup
+        case .newPrivateGroup: .newPrivateGroup
+        case .newPublicGroup: .newPublicGroup
+        case .discoverCurrencies: .discoverCurrencies
+        }
     }
 }

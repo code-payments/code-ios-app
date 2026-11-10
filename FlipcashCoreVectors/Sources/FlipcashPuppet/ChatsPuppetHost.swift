@@ -5,6 +5,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// The Chats screen as a Puppet session: the seeded ``ChatsModel`` behind the request and response
 /// shapes in the orchestrator's `docs/puppet/PROTOCOL.md`. ``FlipcashPuppetHost`` starts one for
@@ -17,6 +18,10 @@ import FlipcashCore
 /// which is what `ConversationController.archivedConversations` reads. `Unarchive` calls
 /// ``ChatArchiveFile/unarchive(_:)``, the record `ChatArchiveStore` writes, and projects the seed
 /// again from its ``ChatArchiveFile/archivedIDs``, as the controller does when its archive changes.
+///
+/// Opening New Chat pushes its hosted chooser, whose rows ask ``NewChat/choose(_:balances:)`` over
+/// ``balances``, the seed's balances as `Session.balances(for:)` gives them. The "No Community
+/// Currencies" dialog shows as a screen above New Chat.
 public struct ChatsPuppetHost: PuppetSession {
 
     public enum ErrorCode: String, Error {
@@ -35,8 +40,25 @@ public struct ChatsPuppetHost: PuppetSession {
     /// The archived chats, in the record the app's `ChatArchiveStore` keeps.
     private var archive = ChatArchiveFile(archived: [ChatArchiveFile.key(Self.conversationID(Self.id("05"))!): .distantPast])
 
-    /// Screens pushed over the list. They aren't hosted: each shows its name and lends `Back`.
-    private var stack: [ChatsDestination<String>] = []
+    /// A screen above the list.
+    private enum Screen: Equatable {
+        case chats(ChatsDestination<String>)
+        case newChat(NewChat.Destination)
+        case noCommunityCurrencies
+    }
+
+    /// Screens pushed over the list. Archived and New Chat are hosted; the rest show their name
+    /// and lend `Back`.
+    private var stack: [Screen] = []
+
+    /// $25 of dollars and no community currency, so New Chat's community row depends on the app
+    /// leaving dollars out.
+    static let balances: [ExchangedBalance] = [
+        try! StoredBalance(
+            quarks: 25_000_000, symbol: "USDF", name: "USDF", supplyFromBonding: nil, sellFeeBps: nil,
+            mint: .usdf, vmAuthority: nil, updatedAt: .distantPast, imageURL: nil, costBasis: 0
+        ),
+    ].exchanged(with: .oneToOne)
 
     /// The screen names from the list to the top screen.
     public var path: [String] { [Self.screen] + stack.map(Self.name) }
@@ -124,20 +146,41 @@ public struct ChatsPuppetHost: PuppetSession {
         ("Unarchive", schema(["chatId": .object(["type": .string("string"), "format": .string("ChatId")])], required: ["chatId"])),
     ]
 
-    /// The top screen's actions: the list's own, the archive's, or only `Back` on a screen that isn't hosted.
+    /// New Chat's rows.
+    public static let newChatActions: [(name: String, input: JSON)] = [
+        ("FindByUsernameOpened", schema([:])),
+        ("PrivateGroupOpened", schema([:])),
+        ("CommunityGroupOpened", schema([:])),
+    ]
+
+    /// The top screen's actions: the list's own, a hosted screen's, or only `Back` on a screen that isn't hosted.
     public var currentActions: [(name: String, input: JSON)] {
         switch stack.last {
         case nil: Self.actions
-        case .archived?: Self.archivedActions + [Self.back]
-        case .chat?, .newChat?: [Self.back]
+        case .chats(.archived)?: Self.archivedActions + [Self.back]
+        case .chats(.newChat)?: Self.newChatActions + [Self.back]
+        case .noCommunityCurrencies?: [("ExploreCurrenciesOpened", Self.schema([:])), Self.back]
+        case .chats(.chat)?, .newChat?: [Self.back]
         }
     }
 
-    private static func name(_ destination: ChatsDestination<String>) -> String {
-        switch destination {
-        case .chat: "Chat"
-        case .archived: "ArchivedChats"
-        case .newChat: "NewChat"
+    private static func name(_ screen: Screen) -> String {
+        switch screen {
+        case .chats(.chat): "Chat"
+        case .chats(.archived): "ArchivedChats"
+        case .chats(.newChat): "NewChat"
+        case .newChat(.usernameLookup): "FindByUsername"
+        case .newChat(.newPrivateGroup): "NewPrivateGroup"
+        case .newChat(.newPublicGroup): "NewCommunityGroup"
+        case .newChat(.discoverCurrencies): "DiscoverCurrencies"
+        case .noCommunityCurrencies: "NoCommunityCurrencies"
+        }
+    }
+
+    private mutating func choose(_ choice: NewChat.Choice) {
+        switch NewChat.choose(choice, balances: Self.balances) {
+        case .open(let destination): stack.append(.newChat(destination))
+        case .noCommunityCurrencies: stack.append(.noCommunityCurrencies)
         }
     }
 
@@ -146,7 +189,16 @@ public struct ChatsPuppetHost: PuppetSession {
             switch (top, action) {
             case (_, Self.back.name):
                 stack.removeLast()
-            case (.archived, "Unarchive"):
+            case (.chats(.newChat), "FindByUsernameOpened"):
+                choose(.findByUsername)
+            case (.chats(.newChat), "PrivateGroupOpened"):
+                choose(.privateGroup)
+            case (.chats(.newChat), "CommunityGroupOpened"):
+                choose(.communityGroup)
+            case (.noCommunityCurrencies, "ExploreCurrenciesOpened"):
+                stack.removeLast()
+                stack.append(.newChat(NewChat.explore))
+            case (.chats(.archived), "Unarchive"):
                 guard case .string(let hex)? = input["chatId"], let id = Self.conversationID(hex) else { return .failure(.badInput) }
                 archive.unarchive(id)
                 project()
@@ -180,11 +232,11 @@ public struct ChatsPuppetHost: PuppetSession {
             model.endSelection()
         case "ChatOpened":
             guard case .string(let id)? = input["chatId"] else { return .failure(.badInput) }
-            stack.append(model.openChat(id))
+            stack.append(.chats(model.openChat(id)))
         case "ArchivedOpened":
-            stack.append(model.openArchived())
+            stack.append(.chats(model.openArchived()))
         case "NewChatOpened":
-            stack.append(model.openNewChat())
+            stack.append(.chats(model.openNewChat()))
         default:
             return .failure(.unknownAction)
         }
@@ -222,12 +274,12 @@ public struct ChatsPuppetHost: PuppetSession {
         let state: [String: JSON]
         switch stack.last {
         case nil: state = self.state()
-        case .chat(let id)?: state = ["chatId": .string(id)]
-        case .archived?: state = [
+        case .chats(.chat(let id))?: state = ["chatId": .string(id)]
+        case .chats(.archived)?: state = [
             "loading": .bool(model.isLoading),
             "chatIds": .array((model.projection?.archived ?? []).map(JSON.string)),
         ]
-        case .newChat?: state = [:]
+        case .chats(.newChat)?, .newChat?, .noCommunityCurrencies?: state = [:]
         }
         return .object([
             "name": .string(path.last!),

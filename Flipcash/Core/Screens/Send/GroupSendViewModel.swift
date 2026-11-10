@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// Sends cash into a private group: the sender enters an amount, picks up to ten members, and every
 /// one of them is paid that amount, in the order they were picked. One recipient is a single payment;

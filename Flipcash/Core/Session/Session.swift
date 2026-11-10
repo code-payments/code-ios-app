@@ -161,19 +161,7 @@ class Session {
     }
     
     func balances(for rate: Rate) -> [ExchangedBalance] {
-        balances.compactMap { stored in
-            let exchangedFiat = stored.computeExchangedValue(with: rate)
-
-            // Filter out balances with zero fiat value after conversion (except for USDC)
-            guard stored.mint == .usdf || exchangedFiat.hasDisplayableValue() else {
-                return nil
-            }
-
-            return ExchangedBalance(
-                stored: stored,
-                exchangedFiat: exchangedFiat
-            )
-        }
+        balances.exchanged(with: rate)
     }
     
     /// The holdings a conversion out of `sourceMint` can go into: every balance
