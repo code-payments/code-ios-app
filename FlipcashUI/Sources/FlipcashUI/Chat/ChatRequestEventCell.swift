@@ -77,7 +77,9 @@ public final class ChatRequestEventCell: UICollectionViewCell {
 
         let row = UIStackView(arrangedSubviews: [leadingRule, caption, trailingRule])
         row.axis = .horizontal
-        row.alignment = .center
+        // Top-aligned, with each rule one line tall: a caption that wraps keeps its rules beside
+        // line 1.
+        row.alignment = .top
         row.spacing = Self.ruleGap
         row.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(row)
@@ -90,8 +92,8 @@ public final class ChatRequestEventCell: UICollectionViewCell {
             row.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Self.verticalPadding),
             leadingRule.widthAnchor.constraint(equalTo: trailingRule.widthAnchor),
             leadingRule.widthAnchor.constraint(greaterThanOrEqualToConstant: Self.ruleMinWidth),
-            leadingRule.heightAnchor.constraint(equalToConstant: 1),
-            trailingRule.heightAnchor.constraint(equalToConstant: 1),
+            leadingRule.heightAnchor.constraint(equalToConstant: Self.lineHeight),
+            trailingRule.heightAnchor.constraint(equalToConstant: Self.lineHeight),
             captionWidth,
         ])
         leadingRule.layer.opacity = Self.ruleOpacity
@@ -185,17 +187,18 @@ private struct RequestEventRing: View {
     }
 }
 
-/// A one-point rule that fades from the success colour beside the text to clear at its outer end.
+/// A one-point rule, drawn through the middle of the view, that fades from the success colour
+/// beside the text to clear at its outer end.
 private final class FadingRuleView: UIView {
 
     enum Edge { case leading, trailing }
 
-    override class var layerClass: AnyClass { CAGradientLayer.self }
+    private let gradient = CAGradientLayer()
 
     init(fadesToward edge: Edge) {
         super.init(frame: .zero)
         let color = UIColor(Color.textSuccess)
-        let gradient = layer as! CAGradientLayer
+        layer.addSublayer(gradient)
         gradient.startPoint = CGPoint(x: 0, y: 0.5)
         gradient.endPoint = CGPoint(x: 1, y: 0.5)
         let clear = color.withAlphaComponent(0).cgColor
@@ -210,5 +213,13 @@ private final class FadingRuleView: UIView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        gradient.frame = CGRect(x: 0, y: (bounds.height - 1) / 2, width: bounds.width, height: 1)
+        CATransaction.commit()
+    }
 }
 #endif

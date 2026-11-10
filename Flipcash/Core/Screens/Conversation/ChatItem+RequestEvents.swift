@@ -121,6 +121,9 @@ nonisolated extension RequestOccurrence {
             if run.count == 1 {
                 caption = if first.member == selfUserID {
                     [.viewer("You"), Span(" paid")]
+                } else if first.creator == nil {
+                    // The message names no receiver and the request isn't stored to say who.
+                    [name(first.member), Span(" paid")]
                 } else {
                     [name(first.member), Span(" paid "), name(first.creator)]
                 }

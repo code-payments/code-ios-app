@@ -35,7 +35,7 @@ private func dollars(_ value: Decimal) -> ExchangedFiat {
 private func payment(
     _ id: UInt64,
     by payer: UserID,
-    to creator: UserID = alex,
+    to creator: UserID? = alex,
     _ amount: Decimal = 40,
     for request: PaymentRequestID? = tahoe,
     minutes: Double? = nil
@@ -149,6 +149,12 @@ struct SharePaymentRowTests {
         #expect(row.kind == .sharePayment)
         #expect(row.amount == "$40")
         #expect(row.requestID == tahoe.data)
+    }
+
+    @Test("63: a payment that names no receiver, for a request not stored, reads without one")
+    func noReceiver() throws {
+        let row = try #require(rows([payment(1, by: jordan, to: nil)], viewer: sam, requests: []).first)
+        #expect(line(row) == "Jordan paid $40")
     }
 
     @Test("63: a share payment draws no cash bubble")

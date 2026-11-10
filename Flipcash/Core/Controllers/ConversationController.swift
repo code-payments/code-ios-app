@@ -2029,10 +2029,11 @@ final class ConversationController {
             let subject = message.paymentRequestID.flatMap(requestTitle).map { " for \($0)" } ?? ""
             if isFromSelf { return "You paid \(paid)\(subject)" }
             let payer = message.senderID.flatMap { noticeUserName(for: $0, in: conversation, knownAuthors: knownAuthors) } ?? "Someone"
-            let receiver = message.cashReceiverID
+            // No receiver means no creator to check the request against, so no title either.
+            guard let receiver = message.cashReceiverID else { return "\(payer) paid \(paid)" }
             let creator = receiver == selfUserID
                 ? "you"
-                : receiver.flatMap { noticeUserName(for: $0, in: conversation, knownAuthors: knownAuthors) } ?? "Someone"
+                : noticeUserName(for: receiver, in: conversation, knownAuthors: knownAuthors) ?? "Someone"
             return "\(payer) paid \(creator) \(paid)\(subject)"
 
         case .cash(let amount):
