@@ -5,10 +5,10 @@
 
 import Foundation
 import Testing
-import ChatsPuppet
+import FlipcashPuppet
 
-/// Replays `test-vectors/behaviors/chats/*.json` through ``ChatsPuppetHost``, the seeded
-/// ``ChatsModel`` the `chats-puppet-host` process also serves. Synced copy: a failure is fixed in the canonical files in the orchestrator or
+/// Replays `test-vectors/behaviors/chats/*.json` through ``FlipcashPuppetHost``, the seeded
+/// ``ChatsModel`` the `flipcash-puppet-host` process also serves. Synced copy: a failure is fixed in the canonical files in the orchestrator or
 /// in `ChatsModel`, never by editing the copy here.
 @Suite("Chats behaviors")
 struct ChatsBehaviorTests {
@@ -25,11 +25,11 @@ struct ChatsBehaviorTests {
         }
     }
 
-    /// Sends each step to ``ChatsPuppetHost/handle(_:)``, the same request path the CLI uses:
+    /// Sends each step to ``FlipcashPuppetHost/handle(_:)``, the same request path the CLI uses:
     /// `launch` first, then `ls` or `do` per step, matching `expectPath` exactly and `expect` as a
     /// subset of the top node's state.
     private func replay(_ behavior: Behavior, file: String) {
-        var host = ChatsPuppetHost()
+        var host = FlipcashPuppetHost()
         var launch: [String: JSON] = ["cmd": .string("launch")]
         if let route = behavior.route { launch["route"] = .string(route) }
         guard case .object(let first) = host.handle(.object(launch)), first["ok"] == .bool(true),

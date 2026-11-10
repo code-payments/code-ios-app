@@ -1,17 +1,17 @@
 //
 //  main.swift
-//  chats-puppet-host
+//  flipcash-puppet-host
 //
-//  The Chats Puppet host as a process: one JSON request per line on stdin, one response per line
+//  The Flipcash Puppet host as a process: one JSON request per line on stdin, one response per line
 //  on stdout. The orchestrator's `puppet` CLI starts it and keeps it running across behavior files,
-//  sending `reset` between them.
+//  sending `launch` between them.
 //
 
 import Foundation
-import ChatsPuppet
+import FlipcashPuppet
 
 setvbuf(stdout, nil, _IOLBF, 0)
-var host = ChatsPuppetHost()
+var host = FlipcashPuppetHost()
 while let line = readLine() {
     guard !line.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
     print(host.handle(line: line))

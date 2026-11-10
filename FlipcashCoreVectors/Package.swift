@@ -17,8 +17,8 @@ let package = Package(
         .iOS("18.0"),
     ],
     products: [
-        // The Chats Puppet host for the orchestrator's `puppet` CLI (`docs/puppet/` there).
-        .executable(name: "chats-puppet-host", targets: ["ChatsPuppetHostMain"]),
+        // The Flipcash Puppet host for the orchestrator's `puppet` CLI (`docs/puppet/` there).
+        .executable(name: "flipcash-puppet-host", targets: ["FlipcashPuppetHostMain"]),
     ],
     dependencies: [
         .package(path: "../FlipcashCore"),
@@ -26,17 +26,17 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "ChatsPuppet",
+            name: "FlipcashPuppet",
             dependencies: [.product(name: "FlipcashCore", package: "FlipcashCore")]
         ),
         .executableTarget(
-            name: "ChatsPuppetHostMain",
-            dependencies: ["ChatsPuppet"]
+            name: "FlipcashPuppetHostMain",
+            dependencies: ["FlipcashPuppet"]
         ),
         .testTarget(
             name: "FlipcashCoreVectorsTests",
             dependencies: [
-                "ChatsPuppet",
+                "FlipcashPuppet",
                 .product(name: "FlipcashCore", package: "FlipcashCore"),
                 .product(name: "BigDecimal", package: "BigDecimal"),
             ],
