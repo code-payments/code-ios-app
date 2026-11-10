@@ -12,6 +12,10 @@ import FlipcashCore
 ///
 /// ``ChatsModel`` is synchronous and reads no services, so there is nothing to settle before a
 /// reply and nothing for a fixture guard to catch.
+///
+/// Opening the archive pushes a hosted screen: its list is the projection's ``ChatListProjection/archived``,
+/// which is what `ConversationController.archivedConversations` reads, and `Unarchive` drops the chat
+/// from the archived set and projects the seed again, as the controller does when its archive changes.
 public struct ChatsPuppetHost: PuppetSession {
 
     public enum ErrorCode: String, Error {
@@ -27,6 +31,9 @@ public struct ChatsPuppetHost: PuppetSession {
 
     private var model = ChatsModel<String>()
 
+    /// The archived chats, as the app's `ChatArchiveFile` records them.
+    private var archived: Set<String> = [Self.id("05")]
+
     /// Screens pushed over the list. They aren't hosted: each shows its name and lends `Back`.
     private var stack: [ChatsDestination<String>] = []
 
@@ -34,18 +41,23 @@ public struct ChatsPuppetHost: PuppetSession {
     public var path: [String] { [Self.screen] + stack.map(Self.name) }
 
     public init() {
-        model.update(.project(Self.seed))
+        project()
     }
 
-    /// The seed table in `behaviors/chats/README.md`, newest first.
-    static let seed: [ChatListEntry<String>] = {
-        func id(_ prefix: String) -> String { String(repeating: prefix, count: 16) }
-        func entry(_ id: String, _ type: ConversationType, unread: Int, archived: Bool = false, age: Int) -> ChatListEntry<String> {
+    private mutating func project() {
+        model.update(.project(Self.seed(archived: archived)))
+    }
+
+    private static func id(_ prefix: String) -> String { String(repeating: prefix, count: 16) }
+
+    /// The seed table in `behaviors/chats/README.md`, newest first, with `archived` marked archived.
+    static func seed(archived: Set<String>) -> [ChatListEntry<String>] {
+        func entry(_ id: String, _ type: ConversationType, unread: Int, age: Int) -> ChatListEntry<String> {
             ChatListEntry(
                 id: id,
                 type: type,
                 lastActivity: Date(timeIntervalSince1970: TimeInterval(1_000_000 - age)),
-                isArchived: archived,
+                isArchived: archived.contains(id),
                 isMuted: false,
                 isHidden: false,
                 unread: .count(unread)
@@ -56,9 +68,9 @@ public struct ChatsPuppetHost: PuppetSession {
             entry(id("02"), .tipDm, unread: 0, age: 2),
             entry(id("03"), .group, unread: 0, age: 3),
             entry(id("04"), .tipDm, unread: 1, age: 4),
-            entry("old-crew", .group, unread: 2, archived: true, age: 5),
+            entry(id("05"), .group, unread: 2, age: 5),
         ]
-    }()
+    }
 
     // MARK: - Actions
 
@@ -91,8 +103,19 @@ public struct ChatsPuppetHost: PuppetSession {
         ]
     }()
 
-    /// The top screen's actions: the list's own, or only `Back` on a pushed screen.
-    public var currentActions: [(name: String, input: JSON)] { stack.isEmpty ? Self.actions : [Self.back] }
+    /// The archive's actions. Its select mode is Android-only, so `Unarchive` is the one shared action.
+    public static let archivedActions: [(name: String, input: JSON)] = [
+        ("Unarchive", schema(["chatId": .object(["type": .string("string"), "format": .string("ChatId")])], required: ["chatId"])),
+    ]
+
+    /// The top screen's actions: the list's own, the archive's, or only `Back` on a screen that isn't hosted.
+    public var currentActions: [(name: String, input: JSON)] {
+        switch stack.last {
+        case nil: Self.actions
+        case .archived?: Self.archivedActions + [Self.back]
+        case .chat?, .newChat?: [Self.back]
+        }
+    }
 
     private static func name(_ destination: ChatsDestination<String>) -> String {
         switch destination {
@@ -103,9 +126,17 @@ public struct ChatsPuppetHost: PuppetSession {
     }
 
     public mutating func perform(_ action: String, input: [String: JSON]) -> Result<Void, ErrorCode> {
-        guard stack.isEmpty else {
-            guard action == Self.back.name else { return .failure(.unknownAction) }
-            stack.removeLast()
+        if let top = stack.last {
+            switch (top, action) {
+            case (_, Self.back.name):
+                stack.removeLast()
+            case (.archived, "Unarchive"):
+                guard case .string(let id)? = input["chatId"] else { return .failure(.badInput) }
+                archived.remove(id)
+                project()
+            default:
+                return .failure(.unknownAction)
+            }
             return .success(())
         }
         switch action {
@@ -176,7 +207,11 @@ public struct ChatsPuppetHost: PuppetSession {
         switch stack.last {
         case nil: state = self.state()
         case .chat(let id)?: state = ["chatId": .string(id)]
-        case .archived?, .newChat?: state = [:]
+        case .archived?: state = [
+            "loading": .bool(model.isLoading),
+            "chatIds": .array((model.projection?.archived ?? []).map(JSON.string)),
+        ]
+        case .newChat?: state = [:]
         }
         return .object([
             "name": .string(path.last!),

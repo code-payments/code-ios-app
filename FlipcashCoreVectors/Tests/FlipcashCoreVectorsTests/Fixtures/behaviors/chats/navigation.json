@@ -9,7 +9,7 @@
     {"do": "ChatOpened", "input": {"chatId": "03030303030303030303030303030303"}, "expectPath": ["Chats", "Chat"], "expect": {"chatId": "03030303030303030303030303030303"}},
     {"do": "FilterSelected", "input": {"filter": "All"}, "expectError": "unknown_action"},
     {"do": "Back", "expectPath": ["Chats"], "expect": {"filter": "Groups", "visibleChatIds": ["01010101010101010101010101010101", "03030303030303030303030303030303"]}},
-    {"do": "ArchivedOpened", "expectPath": ["Chats", "ArchivedChats"]},
+    {"do": "ArchivedOpened", "expectPath": ["Chats", "ArchivedChats"], "expect": {"chatIds": ["05050505050505050505050505050505"]}},
     {"do": "Back", "expectPath": ["Chats"]},
     {"do": "NewChatOpened", "expectPath": ["Chats", "NewChat"]},
     {"do": "Back", "expectPath": ["Chats"], "expect": {"filter": "Groups"}}
