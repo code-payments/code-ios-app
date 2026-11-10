@@ -18,6 +18,8 @@ struct FlipcashPuppetHostSeedTests {
         #expect(try #require(ChatsPuppetHost.seeds["default"]).communityCurrencies().isEmpty)
         let holder = try #require(ChatsPuppetHost.seeds["community-holder"]).communityCurrencies()
         #expect(holder.map(\.stored.symbol) == ["PUPPET"])
+        let value = try #require(holder.first).exchangedFiat.nativeAmount.value
+        #expect(abs(value - 5) < Decimal(string: "0.01")!, "PUPPET is worth \(value), not about $5")
     }
 
     @Test("A launch without a seed after a seeded one gets the default")
