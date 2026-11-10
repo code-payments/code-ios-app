@@ -11,9 +11,8 @@ import UIKit
 import FlipcashCore
 
 /// A payment request's share paid, share marked paid, or close, as one centred line in the
-/// transcript with the system row's metrics. A share payment sits between two fading rules and
-/// shows its amount in the success colour; the other two are plain. A tap on the row opens the
-/// request's details, which the collection view's selection delivers.
+/// transcript with the system row's metrics. The amount is semibold in the caption's colour. A tap
+/// on the row opens the request's details, which the collection view's selection delivers.
 public final class ChatRequestEventCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatRequestEventCell"
@@ -23,18 +22,12 @@ public final class ChatRequestEventCell: UICollectionViewCell {
     private static let verticalPadding: CGFloat = 6
     static let textMaxWidth: CGFloat = 250
     private static let textColor = UIColor(Color.textSecondary)
-    private static let amountColor = UIColor(Color.textSuccess)
     private static let font = UIFont.appTextCaption
     private static let emphasisFont = UIFont.default(size: 12, weight: .bold)
 
     static let ringDiameter: CGFloat = 14
     private static let ringGap: CGFloat = 4
-    private static let ruleGap: CGFloat = 8
-    private static let ruleMinWidth: CGFloat = 16
-    private static let ruleOpacity: Float = 0.6
 
-    private let leadingRule = FadingRuleView(fadesToward: .leading)
-    private let trailingRule = FadingRuleView(fadesToward: .trailing)
     private let firstLabel = UILabel()
     private let secondLabel = UILabel()
     private let firstLine = UIStackView()
@@ -75,29 +68,18 @@ public final class ChatRequestEventCell: UICollectionViewCell {
         caption.alignment = .center
         caption.setContentHuggingPriority(.required, for: .horizontal)
 
-        let row = UIStackView(arrangedSubviews: [leadingRule, caption, trailingRule])
-        row.axis = .horizontal
-        // Top-aligned, with each rule one line tall: a caption that wraps keeps its rules beside
-        // line 1.
-        row.alignment = .top
-        row.spacing = Self.ruleGap
-        row.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(row)
+        caption.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(caption)
 
         captionWidth = caption.widthAnchor.constraint(lessThanOrEqualToConstant: Self.textMaxWidth)
         NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: ChatColumnCell.rowInset),
-            row.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -ChatColumnCell.rowInset),
-            row.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Self.verticalPadding),
-            row.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Self.verticalPadding),
-            leadingRule.widthAnchor.constraint(equalTo: trailingRule.widthAnchor),
-            leadingRule.widthAnchor.constraint(greaterThanOrEqualToConstant: Self.ruleMinWidth),
-            leadingRule.heightAnchor.constraint(equalToConstant: Self.lineHeight),
-            trailingRule.heightAnchor.constraint(equalToConstant: Self.lineHeight),
+            caption.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            caption.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: ChatColumnCell.rowInset),
+            caption.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -ChatColumnCell.rowInset),
+            caption.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Self.verticalPadding),
+            caption.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Self.verticalPadding),
             captionWidth,
         ])
-        leadingRule.layer.opacity = Self.ruleOpacity
-        trailingRule.layer.opacity = Self.ruleOpacity
 
         isAccessibilityElement = true
     }
@@ -114,13 +96,6 @@ public final class ChatRequestEventCell: UICollectionViewCell {
         let fit = event.fit(maxWidth: Double(width)) { caption, title in
             Double(Self.width(of: Self.line(caption: caption, amount: event.amount, title: title, separator: event.titleSeparator), ring: showsRing && title != nil))
         }
-
-        let showsRules: Bool = switch event.kind {
-        case .sharePayment:        true
-        case .markedPaid, .closed: false
-        }
-        leadingRule.alpha = showsRules ? 1 : 0
-        trailingRule.alpha = showsRules ? 1 : 0
 
         if fit.wraps {
             firstLabel.attributedText = Self.line(caption: fit.caption, amount: event.amount, title: nil, separator: "")
@@ -152,7 +127,7 @@ public final class ChatRequestEventCell: UICollectionViewCell {
         }
         if let amount {
             line.append(text(" ", font: font, color: textColor))
-            line.append(text(amount, font: emphasisFont, color: amountColor))
+            line.append(text(amount, font: emphasisFont, color: textColor))
         }
         if let title {
             line.append(text(separator + title, font: font, color: textColor))
@@ -184,46 +159,6 @@ private struct RequestEventRing: View {
             .scaleEffect(ChatRequestEventCell.ringDiameter / Self.sourceDiameter)
             .frame(width: ChatRequestEventCell.ringDiameter, height: ChatRequestEventCell.ringDiameter)
             .id(rowID)
-    }
-}
-
-/// A one-point rule in the success colour, drawn through the middle of the view: solid for the
-/// half beside the text, then fading to clear at its outer end.
-private final class FadingRuleView: UIView {
-
-    enum Edge { case leading, trailing }
-
-    private let gradient = CAGradientLayer()
-
-    init(fadesToward edge: Edge) {
-        super.init(frame: .zero)
-        let color = UIColor(Color.textSuccess)
-        layer.addSublayer(gradient)
-        gradient.startPoint = CGPoint(x: 0, y: 0.5)
-        gradient.endPoint = CGPoint(x: 1, y: 0.5)
-        let clear = color.withAlphaComponent(0).cgColor
-        switch edge {
-        case .leading:
-            gradient.colors = [clear, color.cgColor, color.cgColor]
-            gradient.locations = [0, 0.5, 1]
-        case .trailing:
-            gradient.colors = [color.cgColor, color.cgColor, clear]
-            gradient.locations = [0, 0.5, 1]
-        }
-        setContentHuggingPriority(.defaultLow, for: .horizontal)
-        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        isUserInteractionEnabled = false
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        gradient.frame = CGRect(x: 0, y: (bounds.height - 1) / 2, width: bounds.width, height: 1)
-        CATransaction.commit()
     }
 }
 #endif
