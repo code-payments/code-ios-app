@@ -194,8 +194,9 @@ struct PaymentRequestSpecTests {
         #expect(presence.held?.map(\.card.fraction) == [1])
         #expect(presence.isVisible)
 
-        try await Task.sleep(for: PaymentRequestDeckPresence.sweep + .milliseconds(200))
-        #expect(presence.held == nil)
+        // Polled: the sweep's clock starts when its task first gets the main actor, which other
+        // suites in the same process can hold well past any fixed margin.
+        try await waitUntil(presence) { $0.held == nil }
         #expect(!presence.isVisible)
     }
 
