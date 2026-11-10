@@ -129,6 +129,11 @@ private func items(
 
 private func line(_ event: ChatRequestEvent) -> String { event.spokenText }
 
+/// The semibold parts of a row's caption.
+private func emphasized(_ event: ChatRequestEvent) -> [String] {
+    event.caption.filter(\.isEmphasized).map(\.text)
+}
+
 // MARK: - Share payment rows -
 
 @Suite("Share payment rows (spec cases 63-74)")
@@ -139,13 +144,14 @@ struct SharePaymentRowTests {
     }
 
     @Test("63: the row reads per viewer", arguments: [
-        (jordan, "You paid $40 · Tahoe cabin"),
-        (alex, "Jordan paid you $40 · Tahoe cabin"),
-        (sam, "Jordan paid Alex $40 · Tahoe cabin"),
+        (jordan, "You paid $40 · Tahoe cabin", ["You"]),
+        (alex, "Jordan paid you $40 · Tahoe cabin", ["Jordan", "you"]),
+        (sam, "Jordan paid Alex $40 · Tahoe cabin", ["Jordan", "Alex"]),
     ])
-    func copyPerViewer(viewer: UserID, expected: String) throws {
+    func copyPerViewer(viewer: UserID, expected: String, semibold: [String]) throws {
         let row = try #require(rows([payment(1, by: jordan)], viewer: viewer, requests: [tahoeCabin]).first)
         #expect(line(row) == expected)
+        #expect(emphasized(row) == semibold)
         #expect(row.kind == .sharePayment)
         #expect(row.amount == "$40")
         #expect(row.requestID == tahoe.data)
@@ -262,6 +268,8 @@ struct SharePaymentRowTests {
             requests: [request(shares: [creatorShare(40), paid(jordan, 40, minutes: 1), paid(sam, 40, minutes: 2)])]
         )
         #expect(drawn.map(line) == ["You and 1 other paid $80 · Tahoe cabin"])
+        // "You" is regular weight on a collapsed row.
+        #expect(drawn.flatMap(emphasized).isEmpty)
     }
 
     @Test("73: a request that isn't stored draws no title or ring and doesn't tap through")
@@ -381,11 +389,11 @@ struct RequestEventFitTests {
 struct MarkedPaidAndClosedRowTests {
 
     @Test("75: the marked-paid row reads per viewer, at the share's paid_at", arguments: [
-        (alex, "You marked Sam as paid · Tahoe cabin"),
-        (sam, "Alex marked you as paid · Tahoe cabin"),
-        (jordan, "Alex marked Sam as paid · Tahoe cabin"),
+        (alex, "You marked Sam as paid · Tahoe cabin", ["Sam"]),
+        (sam, "Alex marked you as paid · Tahoe cabin", ["Alex"]),
+        (jordan, "Alex marked Sam as paid · Tahoe cabin", ["Alex", "Sam"]),
     ])
-    func markedCopy(viewer: UserID, expected: String) {
+    func markedCopy(viewer: UserID, expected: String, semibold: [String]) {
         let stored = request(shares: [creatorShare(40), marked(sam, 40, minutes: 2), owed(jordan, 40)])
         let drawn = items([text(1, from: alex), text(3, from: jordan)], viewer: viewer, requests: [stored])
         let index = drawn.firstIndex { if case .requestEvent = $0 { true } else { false } }
@@ -394,6 +402,7 @@ struct MarkedPaidAndClosedRowTests {
             return
         }
         #expect(line(row) == expected)
+        #expect(emphasized(row) == semibold)
         #expect(row.kind == .markedPaid)
         #expect(row.amount == nil)
         #expect(row.serverID == nil)

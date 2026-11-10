@@ -95,12 +95,13 @@ nonisolated extension RequestOccurrence {
         nameOf: (UserID) -> String?
     ) -> ChatRequestEvent? {
         guard let first = run.first, let last = run.last else { return nil }
-        func name(_ id: UserID?) -> ChatRequestEvent.Span {
-            if id == selfUserID { return .viewer("you") }
+        // "You" is semibold only on a single share payment's row, where it stands beside a name.
+        func name(_ id: UserID?, emphasizingViewer: Bool = false) -> ChatRequestEvent.Span {
+            if id == selfUserID { return emphasizingViewer ? .viewer("you") : ChatRequestEvent.Span("you") }
             return .name(id.flatMap(nameOf).flatMap { $0.isEmpty ? nil : $0 } ?? "Someone")
         }
         func leading(_ id: UserID?) -> ChatRequestEvent.Span {
-            id == selfUserID ? .viewer("You") : name(id)
+            id == selfUserID ? ChatRequestEvent.Span("You") : name(id)
         }
         let members = run.map(\.member)
         let viewerIsMember = members.contains(selfUserID)
@@ -125,12 +126,12 @@ nonisolated extension RequestOccurrence {
                     // The message names no receiver and the request isn't stored to say who.
                     [name(first.member), Span(" paid")]
                 } else {
-                    [name(first.member), Span(" paid "), name(first.creator)]
+                    [name(first.member), Span(" paid "), name(first.creator, emphasizingViewer: true)]
                 }
             } else if viewerIsMember {
-                caption = [.viewer("You"), Span(" and \(others(run.count - 1)) paid")]
+                caption = [Span("You and \(others(run.count - 1)) paid")]
             } else if first.creator == selfUserID {
-                caption = [Span("\(run.count) people paid "), .viewer("you")]
+                caption = [Span("\(run.count) people paid you")]
             } else {
                 caption = [Span("\(run.count) people paid")]
             }
@@ -154,7 +155,7 @@ nonisolated extension RequestOccurrence {
             if run.count == 1 {
                 caption = [leading(first.creator), Span(" marked "), name(first.member), Span(" as paid")]
             } else if viewerIsMember {
-                caption = [leading(first.creator), Span(" marked "), .viewer("you"), Span(" and \(others(run.count - 1)) as paid")]
+                caption = [leading(first.creator), Span(" marked "), Span("you and \(others(run.count - 1)) as paid")]
             } else {
                 caption = [leading(first.creator), Span(" marked \(run.count) people as paid")]
             }
