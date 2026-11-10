@@ -113,6 +113,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             object: nil
         )
 
+        // Posted before the UI returns, unlike scenePhase `.active`, which lands once the app is
+        // already visible.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+
         return true
     }
 
@@ -128,6 +137,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     // MARK: - Lifecycle -
+
+    @objc private func applicationWillEnterForeground() {
+        sessionContainer?.conversationController.prepareForForeground()
+    }
 
     func scenePhaseChanged(_ phase: ScenePhase) {
         switch phase {

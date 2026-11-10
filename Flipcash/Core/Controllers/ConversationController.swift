@@ -527,6 +527,9 @@ final class ConversationController {
     /// Whether the app was backgrounded while `feedLoadTask` was in flight. Its requests went out
     /// before suspension, so it answers with what the server held then.
     @ObservationIgnored private var feedLoadInterrupted = false
+    /// Whether `prepareForForeground()` already re-read the store for this return to the foreground,
+    /// so `handleForeground()` doesn't read it a second time.
+    @ObservationIgnored private var reloadedForForeground = false
     /// How long a reconcile waits for the slowest feed, and for unread counts, before applying what landed.
     @ObservationIgnored private let reconcileTiming: FeedReconcileTiming
     /// The transcript fetches waiting to run, shared by every feed load.
@@ -944,7 +947,10 @@ final class ConversationController {
     /// or reorder what was just reloaded. `catchUpInFlight` still dedupes a foreground refresh that
     /// overlaps a reconnect's own catch-up of the same conversation.
     func handleForeground() {
-        reloadFromDatabase()
+        if !reloadedForForeground {
+            reloadFromDatabase()
+        }
+        reloadedForForeground = false
         catchUpOpenChat()
         // Joining a load that was in flight across a suspension would leave the feed as it was
         // before the app went away, so wait that one out and fetch again.
@@ -965,6 +971,20 @@ final class ConversationController {
     /// the next `handleForeground()` fetches again instead of joining it.
     func handleBackground() {
         feedLoadInterrupted = feedLoadTask != nil
+        reloadedForForeground = false
+    }
+
+    /// Will-enter-foreground hook (`AppDelegate`): seats what the notification extension wrote while
+    /// the app was suspended before the first frame draws, so a chat with a pushed message is already
+    /// in its new place rather than moving once the app is on screen. Disk only; the network work
+    /// stays in `handleForeground()`.
+    func prepareForForeground() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            reloadFromDatabase()
+        }
+        reloadedForForeground = true
     }
 
     /// Re-reads every known conversation's transcript and feed preview straight from disk, with no
