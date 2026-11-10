@@ -14,8 +14,9 @@ import FlipcashCore
 /// reply and nothing for a fixture guard to catch.
 ///
 /// Opening the archive pushes a hosted screen: its list is the projection's ``ChatListProjection/archived``,
-/// which is what `ConversationController.archivedConversations` reads, and `Unarchive` drops the chat
-/// from the archived set and projects the seed again, as the controller does when its archive changes.
+/// which is what `ConversationController.archivedConversations` reads. `Unarchive` calls
+/// ``ChatArchiveFile/unarchive(_:)``, the record `ChatArchiveStore` writes, and projects the seed
+/// again from its ``ChatArchiveFile/archivedIDs``, as the controller does when its archive changes.
 public struct ChatsPuppetHost: PuppetSession {
 
     public enum ErrorCode: String, Error {
@@ -31,8 +32,8 @@ public struct ChatsPuppetHost: PuppetSession {
 
     private var model = ChatsModel<String>()
 
-    /// The archived chats, as the app's `ChatArchiveFile` records them.
-    private var archived: Set<String> = [Self.id("05")]
+    /// The archived chats, in the record the app's `ChatArchiveStore` keeps.
+    private var archive = ChatArchiveFile(archived: [ChatArchiveFile.key(Self.conversationID(Self.id("05"))!): .distantPast])
 
     /// Screens pushed over the list. They aren't hosted: each shows its name and lends `Back`.
     private var stack: [ChatsDestination<String>] = []
@@ -45,10 +46,25 @@ public struct ChatsPuppetHost: PuppetSession {
     }
 
     private mutating func project() {
+        let archived = Set(archive.archivedIDs.map { $0.data.map { String(format: "%02x", $0) }.joined() })
         model.update(.project(Self.seed(archived: archived)))
     }
 
     private static func id(_ prefix: String) -> String { String(repeating: prefix, count: 16) }
+
+    /// The seed's 32-hex-character chat id as the app's ``ConversationID``, or `nil` if it isn't hex.
+    static func conversationID(_ hex: String) -> ConversationID? {
+        guard hex.count % 2 == 0 else { return nil }
+        var bytes: [UInt8] = []
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            guard let byte = UInt8(hex[index..<next], radix: 16) else { return nil }
+            bytes.append(byte)
+            index = next
+        }
+        return ConversationID(data: Data(bytes))
+    }
 
     /// The seed table in `behaviors/chats/README.md`, newest first, with `archived` marked archived.
     static func seed(archived: Set<String>) -> [ChatListEntry<String>] {
@@ -131,8 +147,8 @@ public struct ChatsPuppetHost: PuppetSession {
             case (_, Self.back.name):
                 stack.removeLast()
             case (.archived, "Unarchive"):
-                guard case .string(let id)? = input["chatId"] else { return .failure(.badInput) }
-                archived.remove(id)
+                guard case .string(let hex)? = input["chatId"], let id = Self.conversationID(hex) else { return .failure(.badInput) }
+                archive.unarchive(id)
                 project()
             default:
                 return .failure(.unknownAction)
