@@ -64,12 +64,34 @@ change made here shows on Chats after `Back`.
 
 Android's archive also has select mode; iOS's doesn't, so no shared file uses it.
 
+### NewChat
+
+Pushed by `NewChatOpened`, and hosted from another feature (Android's `:features:tipping`; on iOS, the
+balance filters `NewChatScreen` uses, moved from the app into FlipcashStore). It has no state keys a file asserts on; its actions push the
+screen each row opens.
+
+| Action | Input |
+|---|---|
+| `FindByUsernameOpened` | none. Pushes `FindByUsername`. |
+| `PrivateGroupOpened` | none. Pushes `NewPrivateGroup`. |
+| `CommunityGroupOpened` | none. Pushes `NewCommunityGroup` when the balance holds a community currency, `NoCommunityCurrencies` when it doesn't. Dollars (USDF) don't count. |
+| `Back` | none. |
+
+`NoCommunityCurrencies` is the sheet both apps show instead of the form. It offers
+`ExploreCurrenciesOpened`, which pushes `DiscoverCurrencies`, and `Back`. Both apps present it as a
+sheet; the host puts it on the stack like a screen, so `expectPath` names it.
+
+The seed holds only dollars, so `new-chat.json` reaches the sheet, not the form. Covering the form
+needs a seed with a community currency, and `launch` has no way to choose a seed yet. Android also
+opens the form while the balance hasn't loaded; iOS has no such state.
+
 ## Route and screens
 
 `launch` opens `/tab/chats`, the form both apps' deep links already use; hosts refuse any other
-route with `bad_input`. Opening the archive pushes the hosted `ArchivedChats` above. Opening a
-chat or a new chat pushes a screen the host doesn't drive yet: its node names the screen, shows
-what it was opened with (`Chat`: `chatId`), and offers only `Back`. Chats stays alive underneath, so `Back` returns to the list as it was.
+route with `bad_input`. Opening the archive or a new chat pushes the hosted `ArchivedChats` or
+`NewChat` above. Opening a chat, and the screens New Chat's rows open, push a screen the host
+doesn't drive yet: its node names the screen, shows what it was opened with (`Chat`: `chatId`),
+and offers only `Back`. Chats stays alive underneath, so `Back` returns to the list as it was.
 
 Not covered yet: switching tabs (Android's tab tap clears the stack, iOS keeps a stack per tab),
 muting from a row, and tapping a row in select mode.
