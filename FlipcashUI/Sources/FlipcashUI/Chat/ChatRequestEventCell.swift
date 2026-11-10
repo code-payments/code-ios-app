@@ -28,10 +28,7 @@ public final class ChatRequestEventCell: UICollectionViewCell {
     static let ringDiameter: CGFloat = 14
     private static let ringGap: CGFloat = 4
 
-    private let firstLabel = UILabel()
-    private let secondLabel = UILabel()
-    private let firstLine = UIStackView()
-    private let secondLine = UIStackView()
+    private let lines = UIStackView()
     private let ring: any UIView & UIContentView
     private var captionWidth: NSLayoutConstraint!
 
@@ -41,13 +38,6 @@ public final class ChatRequestEventCell: UICollectionViewCell {
             .makeContentView()
         super.init(frame: frame)
 
-        for label in [firstLabel, secondLabel] {
-            label.numberOfLines = 1
-            label.lineBreakMode = .byTruncatingTail
-            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            label.setContentHuggingPriority(.required, for: .horizontal)
-            label.heightAnchor.constraint(equalToConstant: Self.lineHeight).isActive = true
-        }
         ring.translatesAutoresizingMaskIntoConstraints = false
         ring.setContentCompressionResistancePriority(.required, for: .horizontal)
         NSLayoutConstraint.activate([
@@ -55,29 +45,20 @@ public final class ChatRequestEventCell: UICollectionViewCell {
             ring.heightAnchor.constraint(equalToConstant: Self.ringDiameter),
         ])
 
-        for line in [firstLine, secondLine] {
-            line.axis = .horizontal
-            line.alignment = .center
-            line.spacing = Self.ringGap
-        }
-        firstLine.addArrangedSubview(firstLabel)
-        secondLine.addArrangedSubview(secondLabel)
+        lines.axis = .vertical
+        lines.alignment = .center
+        lines.setContentHuggingPriority(.required, for: .horizontal)
 
-        let caption = UIStackView(arrangedSubviews: [firstLine, secondLine])
-        caption.axis = .vertical
-        caption.alignment = .center
-        caption.setContentHuggingPriority(.required, for: .horizontal)
+        lines.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(lines)
 
-        caption.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(caption)
-
-        captionWidth = caption.widthAnchor.constraint(lessThanOrEqualToConstant: Self.textMaxWidth)
+        captionWidth = lines.widthAnchor.constraint(lessThanOrEqualToConstant: Self.textMaxWidth)
         NSLayoutConstraint.activate([
-            caption.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            caption.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: ChatColumnCell.rowInset),
-            caption.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -ChatColumnCell.rowInset),
-            caption.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Self.verticalPadding),
-            caption.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Self.verticalPadding),
+            lines.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            lines.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: ChatColumnCell.rowInset),
+            lines.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -ChatColumnCell.rowInset),
+            lines.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Self.verticalPadding),
+            lines.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Self.verticalPadding),
             captionWidth,
         ])
 
@@ -87,36 +68,86 @@ public final class ChatRequestEventCell: UICollectionViewCell {
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    /// Draws `event`, cut to fit the narrower of the system row's 250 points and `maxWidth`, the
-    /// room the row has between its rules.
+    /// Draws `event` whole, in the narrower of the system row's 250 points and `maxWidth`, the room
+    /// the row has between its rules. A row that doesn't fit on one line takes the caption and
+    /// amount, then the title and ring; a line still too wide breaks at word breaks. Nothing is cut.
     public func configure(with event: ChatRequestEvent, maxWidth: CGFloat) {
         let width = min(Self.textMaxWidth, maxWidth)
         captionWidth.constant = width
-        let showsRing = event.ringFraction != nil
-        let fit = event.fit(maxWidth: Double(width)) { caption, title in
-            Double(Self.width(of: Self.line(caption: caption, amount: event.amount, title: title, separator: event.titleSeparator), ring: showsRing && title != nil))
+        let showsRing = event.ringFraction != nil && event.title != nil
+        let ringRoom = Self.ringGap + Self.ringDiameter
+
+        let first = Self.line(caption: event.caption, amount: event.amount, title: nil, separator: "")
+        let whole = Self.line(caption: event.caption, amount: event.amount, title: event.title, separator: event.titleSeparator)
+        let wraps = event.wraps(maxWidth: Double(width)) { includesTitle in
+            Double(Self.width(of: includesTitle ? whole : first) + (includesTitle && showsRing ? ringRoom : 0))
         }
 
-        if fit.wraps {
-            firstLabel.attributedText = Self.line(caption: fit.caption, amount: event.amount, title: nil, separator: "")
-            secondLabel.attributedText = fit.title.map { Self.text($0, font: Self.font, color: Self.textColor) }
-        } else {
-            firstLabel.attributedText = Self.line(caption: fit.caption, amount: event.amount, title: fit.title, separator: event.titleSeparator)
-            secondLabel.attributedText = nil
-        }
-        secondLine.isHidden = !fit.wraps
-
-        // The ring follows the title onto whichever line holds it.
         ring.removeFromSuperview()
-        if let fraction = event.ringFraction, fit.title != nil {
-            (fit.wraps ? secondLine : firstLine).addArrangedSubview(ring)
-            // Keyed by row, so a recycled cell shows the new row's ring without sweeping to it.
-            ring.configuration = UIHostingConfiguration { RequestEventRing(fraction: fraction, rowID: event.id) }
-                .margins(.all, 0)
+        lines.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        var rows: [(text: NSAttributedString, hasRing: Bool)] = []
+        if wraps, let title = event.title {
+            rows += Self.wrap(first, maxWidth: width, ring: false).map { ($0, false) }
+            let titleRows = Self.wrap(Self.text(title, font: Self.font, color: Self.textColor), maxWidth: width, ring: showsRing)
+            rows += titleRows.enumerated().map { ($1, showsRing && $0 == titleRows.count - 1) }
+        } else {
+            let wrapped = Self.wrap(whole, maxWidth: width, ring: showsRing)
+            rows += wrapped.enumerated().map { ($1, showsRing && $0 == wrapped.count - 1) }
+        }
+
+        for row in rows {
+            let label = UILabel()
+            label.numberOfLines = 0
+            label.lineBreakMode = .byWordWrapping
+            label.textAlignment = .center
+            label.attributedText = row.text
+            label.preferredMaxLayoutWidth = width - (row.hasRing ? ringRoom : 0)
+            label.setContentHuggingPriority(.required, for: .horizontal)
+            label.heightAnchor.constraint(greaterThanOrEqualToConstant: Self.lineHeight).isActive = true
+
+            let line = UIStackView(arrangedSubviews: [label])
+            line.axis = .horizontal
+            line.alignment = .center
+            line.spacing = Self.ringGap
+            if row.hasRing, let fraction = event.ringFraction {
+                line.addArrangedSubview(ring)
+                // Keyed by row, so a recycled cell shows the new row's ring without sweeping to it.
+                ring.configuration = UIHostingConfiguration { RequestEventRing(fraction: fraction, rowID: event.id) }
+                    .margins(.all, 0)
+            }
+            lines.addArrangedSubview(line)
         }
 
         accessibilityLabel = event.spokenText
         accessibilityTraits = event.requestID == nil ? .staticText : [.staticText, .button]
+    }
+
+    /// `text` broken between words into lines that fit `maxWidth`, the last with room for the ring
+    /// when `ring` is set.
+    private static func wrap(_ text: NSAttributedString, maxWidth: CGFloat, ring: Bool) -> [NSAttributedString] {
+        var words: [NSAttributedString] = []
+        var start = 0
+        let string = text.string as NSString
+        for index in 0...string.length where index == string.length || string.character(at: index) == 0x20 {
+            if index > start { words.append(text.attributedSubstring(from: NSRange(location: start, length: index - start))) }
+            start = index + 1
+        }
+        let gap = ceil(" ".size(withAttributes: [.font: font]).width)
+        let ranges = ChatRequestEvent.wrapLines(
+            widths: words.map { Double(ceil($0.size().width)) },
+            gap: Double(gap),
+            maxWidth: Double(maxWidth),
+            trailing: ring ? Double(ringGap + ringDiameter) : 0
+        )
+        return ranges.map { range in
+            let line = NSMutableAttributedString()
+            for index in range {
+                if index > range.lowerBound { line.append(Self.text(" ", font: font, color: textColor)) }
+                line.append(words[index])
+            }
+            return line
+        }
     }
 
     /// One line of the row: the caption, the amount, and the title after `separator`.
@@ -139,8 +170,8 @@ public final class ChatRequestEventCell: UICollectionViewCell {
         NSAttributedString(string: string, attributes: [.font: font, .foregroundColor: color])
     }
 
-    private static func width(of line: NSAttributedString, ring: Bool) -> CGFloat {
-        ceil(line.size().width) + (ring ? ringGap + ringDiameter : 0)
+    private static func width(of line: NSAttributedString) -> CGFloat {
+        ceil(line.size().width)
     }
 }
 
