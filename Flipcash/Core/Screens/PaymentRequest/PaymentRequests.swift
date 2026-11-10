@@ -154,6 +154,17 @@ final class PaymentRequests {
         requests[id]
     }
 
+    /// `conversationID`'s stored requests whose title the viewer can read, keyed by id: the ones a
+    /// transcript row may name.
+    func timelines(in conversationID: ConversationID) -> [PaymentRequestID: RequestTimeline] {
+        var timelines: [PaymentRequestID: RequestTimeline] = [:]
+        for request in requests.values where request.chatID == conversationID && !unavailable.contains(request.id) {
+            guard let title = text(of: request)?.title else { continue }
+            timelines[request.id] = RequestTimeline(request: request, title: title)
+        }
+        return timelines
+    }
+
     /// `conversationID`'s requests the deck shows to `viewer` as of `now`, in deck order.
     func deck(for conversationID: ConversationID, viewer: UserID?, at now: Date) -> [GroupPaymentRequest] {
         GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID }, viewer: viewer, at: now)

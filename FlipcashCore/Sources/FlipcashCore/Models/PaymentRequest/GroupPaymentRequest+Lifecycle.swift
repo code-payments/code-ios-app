@@ -59,6 +59,24 @@ extension GroupPaymentRequest {
         return min(1, (paidNative / requested).doubleValue)
     }
 
+    /// The paid share of the total as of `date`, from 0 to 1: the creator's own share, which is paid
+    /// from creation, plus every share paid at or before `date`. `counting` is a member whose share
+    /// counts whatever its `paidAt`, for a payment this copy of the request doesn't show yet.
+    ///
+    /// Unlike ``paidFraction`` a COMPLETED request gets no shortcut to 1: this reads a moment in
+    /// the request's past.
+    public func paidFraction(asOf date: Date, counting payer: UserID? = nil) -> Double {
+        let requested = requestedNative
+        guard requested > 0 else { return 0 }
+        let paid = (split?.shares ?? []).filter { share in
+            if share.settlement == .creator { return true }
+            if let payer, share.userID == payer { return true }
+            guard share.isPaid, let paidAt = share.paidAt else { return false }
+            return paidAt <= date
+        }.reduce(Decimal.zero) { $0 + Decimal($1.nativeAmount) }
+        return min(1, (paid / requested).doubleValue)
+    }
+
     /// The share owed by `userID`, if any.
     public func share(for userID: UserID) -> Share? {
         split?.shares.first { $0.userID == userID }

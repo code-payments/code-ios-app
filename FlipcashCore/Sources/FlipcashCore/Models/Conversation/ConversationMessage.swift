@@ -154,7 +154,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     /// Persisted, so a group send's bubble keeps its recipients across a relaunch.
     public let cashPayments: [CashPayment]
     /// The payment request whose share this `.cash` message paid; `nil` for any other cash message and
-    /// for non-cash content. Not persisted, so a message read back from the local store has `nil`.
+    /// for non-cash content. Persisted, so a share payment keeps its row across a relaunch.
     public let paymentRequestID: PaymentRequestID?
     /// A `.cash` message's part in a return: whether its receiver is offered one, and the message it
     /// returns, if any. `nil` for a cash message that is neither and for non-cash content. Persisted,
@@ -383,6 +383,18 @@ extension ConversationMessage {
     /// `true` when this message was sent by the given user.
     public func isFromSelf(_ selfUserID: UserID) -> Bool {
         senderID == selfUserID
+    }
+
+    /// Whether this message is a share payment: a `.cash` message that paid a share of a request.
+    public var isSharePayment: Bool {
+        paymentRequestID != nil
+    }
+
+    /// Whether this message can be unread for the given user. A share payment is unread only for
+    /// the member it paid, the request's creator; every other message can be unread for anyone.
+    public func countsAsUnread(for selfUserID: UserID?) -> Bool {
+        guard isSharePayment else { return true }
+        return selfUserID != nil && cashReceiverID == selfUserID
     }
 
     /// Whether arriving live in the open chat earns the receive haptic: someone else's message that is
