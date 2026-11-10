@@ -25,7 +25,7 @@ public struct ChatRequestEvent: Hashable, Sendable, Codable {
         public var text: String
         /// Drawn semibold, as a system row draws a user's name.
         public var isEmphasized: Bool
-        /// A member's display name, which the fit rule may shorten.
+        /// A member's display name.
         public var isName: Bool
 
         public init(_ text: String, isEmphasized: Bool = false, isName: Bool = false) {
@@ -102,82 +102,39 @@ public struct ChatRequestEvent: Hashable, Sendable, Codable {
 
 extension ChatRequestEvent {
 
-    /// How a row's text is cut to fit its width.
-    public struct Fit: Hashable, Sendable {
-        /// The caption, with names shortened where the row needed the room.
-        public var caption: [Span]
-        /// The title as drawn. On a wrapped row it is the whole title, which the second line
-        /// truncates at its end.
-        public var title: String?
-        /// Whether the title, and the ring with it, moves to a second line.
-        public var wraps: Bool
+    /// Whether the row takes two lines, the caption and amount over the title and ring. A row that
+    /// fits `maxWidth` on one line stays on one; nothing in it is ever shortened.
+    ///
+    /// `width` measures the row on one line, with the title and its ring when `includesTitle`.
+    public func wraps(maxWidth: Double, width: (_ includesTitle: Bool) -> Double) -> Bool {
+        title != nil && width(true) > maxWidth
     }
 
-    /// The fewest characters a shortened title keeps, ellipsis included.
-    public static let shortestTitle = 8
-    /// The fewest characters a shortened name keeps, ellipsis included.
-    public static let shortestName = 6
-
-    /// Cuts the row to `maxWidth`: the title shortens first, then each name, and only then the title
-    /// wraps to a second line. The amount is never cut.
-    ///
-    /// `width` measures one line holding the given caption, the amount, and the title with its
-    /// ring when a title is passed.
-    public func fit(maxWidth: Double, width: (_ caption: [Span], _ title: String?) -> Double) -> Fit {
-        if width(caption, title) <= maxWidth {
-            return Fit(caption: caption, title: title, wraps: false)
-        }
-
-        var shortTitle = title
-        if let title {
-            for candidate in Self.shortenings(of: title, floor: Self.shortestTitle) {
-                shortTitle = candidate
-                if width(caption, candidate) <= maxWidth {
-                    return Fit(caption: caption, title: candidate, wraps: false)
-                }
+    /// Breaks words into lines of at most `maxWidth`, breaking only between words, and returns each
+    /// line's range of word indices. `widths` are the words' own widths and `gap` the space between
+    /// neighbours. `trailing` is room the last line keeps after its last word (the ring and its
+    /// gap): the last word moves to a line of its own when the line couldn't hold both. A word wider
+    /// than `maxWidth` takes a line to itself.
+    public static func wrapLines(widths: [Double], gap: Double, maxWidth: Double, trailing: Double = 0) -> [Range<Int>] {
+        guard !widths.isEmpty else { return [] }
+        var lines: [Range<Int>] = []
+        var start = 0
+        var used = widths[0]
+        for index in 1..<widths.count {
+            if used + gap + widths[index] > maxWidth {
+                lines.append(start..<index)
+                start = index
+                used = widths[index]
+            } else {
+                used += gap + widths[index]
             }
         }
+        lines.append(start..<widths.count)
 
-        let shortNames = Self.shorteningNames(in: caption) { width($0, shortTitle) <= maxWidth }
-        if shortNames.fits || title == nil {
-            return Fit(caption: shortNames.caption, title: shortTitle, wraps: false)
+        if trailing > 0, let last = lines.last, last.count > 1, used + trailing > maxWidth {
+            lines[lines.count - 1] = last.lowerBound..<(last.upperBound - 1)
+            lines.append((last.upperBound - 1)..<last.upperBound)
         }
-
-        // The first line holds the caption and amount alone, so the names get back what fits there.
-        let firstLine = Self.shorteningNames(in: caption) { width($0, nil) <= maxWidth }
-        return Fit(caption: firstLine.caption, title: title, wraps: true)
-    }
-
-    /// `text` cut one character shorter at a time, each ending in an ellipsis, down to `floor`
-    /// characters; empty when `text` is already that short.
-    static func shortenings(of text: String, floor: Int) -> [String] {
-        let characters = Array(text)
-        guard characters.count > floor else { return [] }
-        return stride(from: characters.count - 2, through: floor - 1, by: -1).map { kept in
-            String(characters.prefix(kept)).trimmingCharacters(in: .whitespaces) + "…"
-        }
-    }
-
-    /// Shortens the longest name a character at a time until `fits` passes or every name is down to
-    /// ``shortestName``.
-    private static func shorteningNames(in caption: [Span], until fits: ([Span]) -> Bool) -> (caption: [Span], fits: Bool) {
-        var current = caption
-        if fits(current) { return (current, true) }
-        // Each name's remaining cuts, shortest last.
-        var remaining: [Int: [String]] = [:]
-        for (index, span) in caption.enumerated() where span.isName {
-            remaining[index] = shortenings(of: span.text, floor: shortestName)
-        }
-        while true {
-            let longest = remaining
-                .filter { !$0.value.isEmpty }
-                .max { lhs, rhs in
-                    let left = current[lhs.key].text.count, right = current[rhs.key].text.count
-                    return left == right ? lhs.key > rhs.key : left < right
-                }
-            guard let longest else { return (current, false) }
-            current[longest.key].text = remaining[longest.key]!.removeFirst()
-            if fits(current) { return (current, true) }
-        }
+        return lines
     }
 }

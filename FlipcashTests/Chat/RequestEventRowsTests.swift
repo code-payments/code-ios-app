@@ -311,11 +311,11 @@ struct SharePaymentRowTests {
 struct RequestEventFitTests {
 
     /// One unit per character, plus a ring the width of two.
-    private func width(_ event: ChatRequestEvent) -> ([ChatRequestEvent.Span], String?) -> Double {
-        { caption, title in
-            var count = caption.map(\.text.count).reduce(0, +)
+    private func width(_ event: ChatRequestEvent) -> (Bool) -> Double {
+        { includesTitle in
+            var count = event.caption.map(\.text.count).reduce(0, +)
             if let amount = event.amount { count += 1 + amount.count }
-            if let title { count += event.titleSeparator.count + title.count + 2 }
+            if includesTitle, let title = event.title { count += event.titleSeparator.count + title.count + 2 }
             return Double(count)
         }
     }
@@ -328,58 +328,46 @@ struct RequestEventFitTests {
         )
     }
 
-    @Test("A row that fits is left whole")
+    @Test("A row that fits stays on one line")
     func fits() {
         let row = event(payer: "Jordan", creator: "Alex", title: "Tahoe cabin")
-        let fit = row.fit(maxWidth: 100, width: width(row))
-        #expect(fit.caption == row.caption)
-        #expect(fit.title == "Tahoe cabin")
-        #expect(!fit.wraps)
+        #expect(!row.wraps(maxWidth: 100, width: width(row)))
     }
 
-    @Test("69: a long title shortens with an ellipsis and stays on one line")
-    func shortensTitle() {
-        let row = event(payer: "Jordan", creator: "Alex", title: "Tahoe cabin weekend with everyone")
-        // Caption 16 + amount 4 + separator 3 + ring 2 leaves 15 for the title.
-        let fit = row.fit(maxWidth: 40, width: width(row))
-        #expect(!fit.wraps)
-        #expect(fit.caption == row.caption)
-        #expect(fit.title == "Tahoe cabin we…")
+    @Test("69: a row too wide for one line takes two, never shortening a name or the title")
+    func wrapsInsteadOfShortening() {
+        let row = event(payer: "Maximiliana", creator: "Bartholomew", title: "Tahoe cabin weekend with everyone")
+        #expect(row.wraps(maxWidth: 40, width: width(row)))
+        #expect(row.caption.map(\.text).joined() == "Maximiliana paid Bartholomew")
+        #expect(row.title == "Tahoe cabin weekend with everyone")
     }
 
-    @Test("69: the title never shortens under eight characters")
-    func titleFloor() throws {
-        let row = event(payer: "Maximiliana", creator: "Bartholomew", title: "Tahoe cabin weekend")
-        // Title at its floor (8) costs 13 with separator and ring; amount 4; " paid " 6. 37 leaves
-        // 14 for two names, which fit only once both are cut.
-        let fit = row.fit(maxWidth: 37, width: width(row))
-        #expect(!fit.wraps)
-        #expect(fit.title == "Tahoe c…")
-        let cut = fit.caption.filter(\.isName).map(\.text)
-        #expect(cut.allSatisfy { $0.count >= ChatRequestEvent.shortestName && $0.hasSuffix("…") })
-        #expect(cut.map(\.count).reduce(0, +) == 14)
-    }
-
-    @Test("70: what still doesn't fit wraps the title and ring to a second line")
-    func wraps() {
-        let row = event(payer: "Maximiliana", creator: "Bartholomew", title: "Tahoe cabin weekend")
-        // Both names at their floor (6 + 6) still leave the line at 35.
-        let fit = row.fit(maxWidth: 30, width: width(row))
-        #expect(fit.wraps)
-        // The whole title moves down; the second line truncates it at its own end.
-        #expect(fit.title == "Tahoe cabin weekend")
-        // The first line holds caption and amount alone, so the names get back what fits in 30.
-        let first = fit.caption.map(\.text).joined()
-        #expect(first.count + 4 <= 30)
-        #expect(fit.caption.filter(\.isName).map(\.text.count).reduce(0, +) == 20)
-    }
-
-    @Test("A row with no title only shortens names")
+    @Test("A row with no title never takes a second line")
     func noTitle() {
         let row = event(payer: "Maximiliana", creator: "Bartholomew", title: nil)
-        let fit = row.fit(maxWidth: 24, width: width(row))
-        #expect(!fit.wraps)
-        #expect(fit.title == nil)
+        #expect(!row.wraps(maxWidth: 10, width: width(row)))
+    }
+
+    @Test("70: a line too wide breaks only between words")
+    func wrapLines() {
+        // "Tahoe cabin weekend with everyone" at one unit per character.
+        let widths: [Double] = [5, 5, 7, 4, 8]
+        #expect(ChatRequestEvent.wrapLines(widths: widths, gap: 1, maxWidth: 20) == [0..<3, 3..<5])
+        #expect(ChatRequestEvent.wrapLines(widths: widths, gap: 1, maxWidth: 100) == [0..<5])
+        #expect(ChatRequestEvent.wrapLines(widths: [], gap: 1, maxWidth: 20).isEmpty)
+    }
+
+    @Test("70: a word wider than the line takes a line to itself")
+    func wideWord() {
+        #expect(ChatRequestEvent.wrapLines(widths: [3, 30, 3], gap: 1, maxWidth: 20) == [0..<1, 1..<2, 2..<3])
+    }
+
+    @Test("70: the ring stays after the last word, which drops to its own line when both won't fit")
+    func ringRoom() {
+        // 5 + 1 + 5 fits 12; with 3 more for the ring it doesn't, so the last word goes down with it.
+        #expect(ChatRequestEvent.wrapLines(widths: [5, 5], gap: 1, maxWidth: 12, trailing: 0) == [0..<2])
+        #expect(ChatRequestEvent.wrapLines(widths: [5, 5], gap: 1, maxWidth: 12, trailing: 3) == [0..<1, 1..<2])
+        #expect(ChatRequestEvent.wrapLines(widths: [5, 5], gap: 1, maxWidth: 14, trailing: 3) == [0..<2])
     }
 }
 
