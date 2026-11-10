@@ -31,7 +31,7 @@ public final class ChatRequestEventCell: UICollectionViewCell {
     private static let ringGap: CGFloat = 4
     private static let ruleGap: CGFloat = 8
     private static let ruleMinWidth: CGFloat = 16
-    private static let ruleOpacity: Float = 0.28
+    private static let ruleOpacity: Float = 0.6
 
     private let leadingRule = FadingRuleView(fadesToward: .leading)
     private let trailingRule = FadingRuleView(fadesToward: .trailing)
@@ -187,8 +187,8 @@ private struct RequestEventRing: View {
     }
 }
 
-/// A one-point rule, drawn through the middle of the view, that fades from the success colour
-/// beside the text to clear at its outer end.
+/// A one-point rule in the success colour, drawn through the middle of the view: solid for the
+/// half beside the text, then fading to clear at its outer end.
 private final class FadingRuleView: UIView {
 
     enum Edge { case leading, trailing }
@@ -202,9 +202,13 @@ private final class FadingRuleView: UIView {
         gradient.startPoint = CGPoint(x: 0, y: 0.5)
         gradient.endPoint = CGPoint(x: 1, y: 0.5)
         let clear = color.withAlphaComponent(0).cgColor
-        gradient.colors = switch edge {
-        case .leading:  [clear, color.cgColor]
-        case .trailing: [color.cgColor, clear]
+        switch edge {
+        case .leading:
+            gradient.colors = [clear, color.cgColor, color.cgColor]
+            gradient.locations = [0, 0.5, 1]
+        case .trailing:
+            gradient.colors = [color.cgColor, color.cgColor, clear]
+            gradient.locations = [0, 0.5, 1]
         }
         setContentHuggingPriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
