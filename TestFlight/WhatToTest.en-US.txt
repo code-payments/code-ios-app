@@ -1,5 +1,31 @@
 What to test in this build
 
+New in this release:
+• Share a payment request, and see marked-paid and closed requests in the chat.
+• When cash arrives in an open chat, the bill it came with shows right there.
+• Payment requests have a Send Request button, and the Name field starts empty.
+• New Chat lists groups first and opens the new chat as soon as it is created.
+• Mark chats as unread or read from the chat list.
+• Send back the opening payment in a direct message.
+• Save chat photos, send several as a stack, and edit their captions.
+• Tap an @mention in a group to open that member's details.
+• Ended payment requests leave the list.
+• If you have no balance, paying a request asks you to add money first.
+• The Invite People sheet is slimmer.
+• Cash bubbles have tighter spacing, and cash cards fade in details that arrive late.
+• Scrolling is smoother while you read unread messages.
+• Launch, group sends, and opening screens are faster.
+• The app download is smaller.
+• Chats move to their new place in the list before the list appears on resume.
+• Groups you just joined or left stay that way when an older update arrives.
+• Older chat history no longer disappears when the newest messages load.
+• No stray placeholder shapes appear behind the group-ready card.
+• The Archived row counts muted chats.
+• The @flipcash chat no longer appears in send recipients.
+• Group send shows "each" correctly, and the pay sheet keeps its amount until it closes.
+• The group request people picker is titled "Request From."
+• A new 7-day request no longer shows as 8 days.
+
 Baseline — always verify these core money flows:
 • Claim a Cash Link on an empty account, then buy a currency with the received balance
 • Add money to your balance (Phantom or Coinbase)
