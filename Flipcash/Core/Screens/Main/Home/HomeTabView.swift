@@ -339,7 +339,6 @@ struct HomeTabView: View {
         // rather than when the drag commits — the binding does not change until
         // the finger lifts.
         .background(TabBarSelectedIcons(
-            tabs: layout.barTabs,
             layout: layout,
             profileImages: profileItemImages,
             chatBadgeCount: chatBadgeCount,
@@ -604,9 +603,7 @@ private struct TipCardTab: View {
 /// every update because SwiftUI resets the images when it rebuilds the bar.
 @available(iOS 26, *)
 private struct TabBarSelectedIcons: UIViewControllerRepresentable {
-    let tabs: [HomeTab]
-
-    /// Which glyph each tab wears.
+    /// Which tabs the bar holds and which glyph each wears.
     let layout: HomeTabLayout
 
     /// The You tab's photo, in place of its glyph. Passed by value so the
@@ -621,11 +618,10 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     let onLongPress: (HomeTab) -> Void
 
     func makeUIViewController(context: Context) -> Probe {
-        Probe(tabs: tabs, layout: layout, profileImages: profileImages, chatBadgeCount: chatBadgeCount, onLongPress: onLongPress)
+        Probe(layout: layout, profileImages: profileImages, chatBadgeCount: chatBadgeCount, onLongPress: onLongPress)
     }
 
     func updateUIViewController(_ probe: Probe, context: Context) {
-        probe.tabs = tabs
         probe.layout = layout
         probe.profileImages = profileImages
         probe.chatBadgeCount = chatBadgeCount
@@ -634,20 +630,17 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     }
 
     final class Probe: UIViewController, UIGestureRecognizerDelegate {
-        var tabs: [HomeTab]
         var layout: HomeTabLayout
         var profileImages: TabBarProfilePhoto.ItemImages?
         var chatBadgeCount: Int
         var onLongPress: (HomeTab) -> Void
 
         init(
-            tabs: [HomeTab],
             layout: HomeTabLayout,
             profileImages: TabBarProfilePhoto.ItemImages?,
             chatBadgeCount: Int,
             onLongPress: @escaping (HomeTab) -> Void
         ) {
-            self.tabs = tabs
             self.layout = layout
             self.profileImages = profileImages
             self.chatBadgeCount = chatBadgeCount
@@ -672,10 +665,14 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
         /// with the tabs — the icons then simply stay outlined, rather than the
         /// wrong glyph being pinned to the wrong tab. Retried on the next turn
         /// of the runloop, because the bar's items do not exist yet on the pass
-        /// where this controller is first added.
+        /// where this controller is first added, and still hold the other
+        /// layout's on the pass after a gate flip.
         func apply() {
             // The search tab, when there is one, is the last item and keeps its system glyph.
-            guard let bar = resolvedTabBar, let items = bar.items, items.count >= tabs.count else {
+            guard let bar = resolvedTabBar,
+                  let items = bar.items,
+                  let tabs = layout.barTabs(forItemCount: items.count)
+            else {
                 scheduleRetry()
                 return
             }
@@ -729,7 +726,7 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
 
         @objc private func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
             guard recognizer.state == .began, let bar = recognizer.view as? UITabBar else { return }
-            guard let tab = TabBarItemLocator.tab(at: recognizer.location(in: bar), in: bar, tabs: tabs) else { return }
+            guard let tab = TabBarItemLocator.tab(at: recognizer.location(in: bar), in: bar, tabs: layout.barTabs) else { return }
             onLongPress(tab)
         }
 
