@@ -34,6 +34,19 @@ enum HomeTabLayout: Equatable {
     /// both layouts; the legacy bar never had one (its search is a toolbar button).
     var hasSearchTab: Bool { true }
 
+    /// The tabs behind a system bar holding `itemCount` items, left to right, or
+    /// nil when this layout never draws that many. For one pass after a gate
+    /// flip the bar still holds the other layout's items; pairing them with
+    /// these tabs puts one tab's glyph on another.
+    ///
+    /// The count without the search item is accepted too, so a bar drawn
+    /// without it still gets its glyphs rather than waiting forever. The two
+    /// layouts' counts, 4 or 5 and 2 or 3, never overlap.
+    func barTabs(forItemCount itemCount: Int) -> [HomeTab]? {
+        let counts = hasSearchTab ? [barTabs.count, barTabs.count + 1] : [barTabs.count]
+        return counts.contains(itemCount) ? barTabs : nil
+    }
+
     /// The tab selected on launch. Groups is today's Chat tab, so both layouts
     /// launch on the same tab.
     var initialTab: HomeTab { HomeTab.initial }
