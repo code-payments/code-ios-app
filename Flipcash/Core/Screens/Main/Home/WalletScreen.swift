@@ -35,7 +35,7 @@ private struct WalletScreenContent: View {
 
     /// Today's wallet, or the Money screen behind `groupMoneyUI` (node 13729:744).
     private var layout: WalletLayout {
-        WalletLayout(showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: session.isStaff))
+        WalletLayout(showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: session)))
     }
     @State private var cards: [TokenCardData] = []
     @State private var total: ExchangedFiat

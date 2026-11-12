@@ -89,7 +89,22 @@ struct HomeTabView: View {
     /// and developer-unlocked devices. Read live, so the toggle takes effect
     /// without a relaunch.
     private var layout: HomeTabLayout {
-        HomeTabLayout(showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: sessionContainer.session.isStaff))
+        HomeTabLayout(showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session)))
+    }
+
+    /// The signed-in account and the server's staff value for it, nil until
+    /// fetched. Holds the account as well as the value, in case a switch
+    /// between two accounts keeps this view.
+    private struct StaffReading: Equatable {
+        let userID: UserID
+        let isStaff: Bool?
+    }
+
+    private var staffReading: StaffReading {
+        StaffReading(
+            userID: sessionContainer.session.userID,
+            isStaff: sessionContainer.session.userFlags?.isStaff
+        )
     }
 
     /// The bar tab in front: `selection`, or the one an off-bar tab covers.
@@ -194,6 +209,11 @@ struct HomeTabView: View {
             }
             .onChange(of: sessionContainer.session.profile?.username, initial: true) { _, username in
                 sessionContainer.chatArchive.setViewerUsername(username)
+            }
+            // Kept for the next cold start, whose first frame can come before
+            // the server's value does.
+            .onChange(of: staffReading, initial: true) { _, reading in
+                betaFlags.recordStaffStanding(reading.isStaff, for: reading.userID)
             }
             // Fetched here rather than on the You tab, so its groups and their
             // avatars are in hand before the tab is first opened.

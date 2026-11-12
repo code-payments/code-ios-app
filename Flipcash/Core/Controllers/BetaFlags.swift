@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import FlipcashCore
 
 /// Manages feature flags gated behind the beta access menu in Settings.
 ///
@@ -35,9 +36,15 @@ class BetaFlags {
     // distinguishable: without it a default-on flag would switch itself back on
     // at every launch.
     @ObservationIgnored @Defaults(.appliedBetaFlagDefaults) private var appliedDefaults: Set<String>?
-    
+
+    // Each account's staff value as this device last had it from the server,
+    // keyed by user ID. Read once into memory, since the shell's gate asks on
+    // every render.
+    @ObservationIgnored @Defaults(.lastKnownStaff) private var storedLastKnownStaff: [String: Bool]?
+    @ObservationIgnored private var lastKnownStaff: [String: Bool] = [:]
+
     // MARK: - Init -
-    
+
     // Internal rather than private: `shared` is the app's one instance, but the
     // launch sequence — read stored, apply defaults, apply overrides — is only
     // verifiable by constructing an instance per simulated launch.
@@ -45,6 +52,7 @@ class BetaFlags {
         readStoredOptions()
         applyDefaults()
         readAccessGranted()
+        lastKnownStaff = storedLastKnownStaff ?? [:]
     }
     
     /// Returns `true` when the given beta flag is currently active.
@@ -102,6 +110,42 @@ class BetaFlags {
             isStaff: isStaff,
             accessGranted: accessGranted
         )
+    }
+
+    /// The staff value the Group Money gate reads: the server's once it has
+    /// arrived, else the one this device last had for the account, else not
+    /// staff. The server's value can land after the first frame, and gating on
+    /// it alone drew today's shell first for a staff account, then switched.
+    static func staffStanding(live: Bool?, lastKnown: Bool?) -> Bool {
+        live ?? lastKnown ?? false
+    }
+
+    /// `stored` with `userID`'s entry set to `live`, including to false.
+    /// Unchanged while `live` is nil, so a launch that has not heard from the
+    /// server yet keeps what it knew.
+    static func recordingStaffStanding(
+        _ live: Bool?,
+        for userID: UserID,
+        in stored: [String: Bool]
+    ) -> [String: Bool] {
+        guard let live else { return stored }
+        var updated = stored
+        updated[userID.uuidString] = live
+        return updated
+    }
+
+    /// ``staffStanding(live:lastKnown:)`` with this device's stored value for
+    /// `userID`.
+    func staffStanding(live: Bool?, userID: UserID) -> Bool {
+        Self.staffStanding(live: live, lastKnown: lastKnownStaff[userID.uuidString])
+    }
+
+    /// Keeps `live` as `userID`'s last known staff value for the next launch.
+    func recordStaffStanding(_ live: Bool?, for userID: UserID) {
+        let updated = Self.recordingStaffStanding(live, for: userID, in: lastKnownStaff)
+        guard updated != lastKnownStaff else { return }
+        lastKnownStaff = updated
+        storedLastKnownStaff = updated
     }
 
     /// Enables or disables a beta flag and persists the change to disk.
@@ -288,4 +332,13 @@ extension BetaFlags {
 
 extension BetaFlags {
     static let mock = BetaFlags()
+}
+
+extension BetaFlags {
+    /// ``staffStanding(live:userID:)`` for the signed-in account. The shell,
+    /// the wallet layout and the flag's toggle all read this, so they never
+    /// disagree for a pass.
+    func staffStanding(of session: Session) -> Bool {
+        staffStanding(live: session.userFlags?.isStaff, userID: session.userID)
+    }
 }

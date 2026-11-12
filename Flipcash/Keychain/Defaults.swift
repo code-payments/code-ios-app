@@ -25,6 +25,7 @@ enum DefaultsKey: String {
 
     case betaFlags = "com.flipcash.betaFlags"
     case appliedBetaFlagDefaults = "com.flipcash.betaFlags.appliedDefaults"
+    case lastKnownStaff = "com.flipcash.betaFlags.lastKnownStaff"
 
     case contactsConnected = "com.flipcash.contacts.connected"
 

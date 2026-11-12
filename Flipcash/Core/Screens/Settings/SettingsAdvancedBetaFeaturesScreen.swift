@@ -32,7 +32,7 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
     private let publicOptions = BetaFlags.Option.allCases.filter { $0.availability == .publicBeta }
 
     private var developerOptions: [BetaFlags.Option] {
-        BetaFlags.developerOptions(isStaff: session.isStaff, accessGranted: betaFlags.accessGranted)
+        BetaFlags.developerOptions(isStaff: betaFlags.staffStanding(of: session), accessGranted: betaFlags.accessGranted)
     }
 
     // MARK: - Body -
