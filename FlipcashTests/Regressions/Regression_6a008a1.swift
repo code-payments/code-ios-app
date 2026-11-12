@@ -32,14 +32,14 @@ struct Regression_6a008a1 {
         let elapsed = clock.measure {
             results = descriptions.map { HistoricalAccount(details: $0) }
         }
+        // One derivation timed in the same run, so a slower host (Thread Sanitizer, a loaded
+        // CI runner) slows both sides. The regression costs one derivation per init.
+        let oneDerivation = clock.measure {
+            _ = DerivedKey.derive(using: .primary(), mnemonic: descriptions[0].account.mnemonic)
+        }
 
         // Observe the result so the optimizer can't elide construction.
         #expect(results.count == 10)
-        // PBKDF2-HMAC-SHA512 / 2048 rounds per init measures ~1 ms each on
-        // an iPhone simulator with hardware SHA accel — 10 inits land near
-        // ~10 ms. Without derivation in init the same loop is microseconds.
-        // 5 ms boundary keeps a 2× margin over the regression and ample
-        // headroom for CI jitter.
-        #expect(elapsed < .milliseconds(5), "elapsed=\(elapsed)")
+        #expect(elapsed < oneDerivation, "elapsed=\(elapsed) oneDerivation=\(oneDerivation)")
     }
 }

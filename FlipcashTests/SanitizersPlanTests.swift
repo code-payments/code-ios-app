@@ -9,9 +9,8 @@ import Testing
 /// Guards the `Sanitizers` test plan's settings that keep the release gate passing.
 ///
 /// Under Thread Sanitizer the main thread is the bottleneck: run in parallel, every
-/// `@MainActor` test queues on it, a single hop waits ~50 s, and tests with wall-clock
-/// bounds (`.timeLimit`, poll deadlines) fail. Run serially, the plan passes and finishes
-/// sooner. See `.claude/plans/2026-11-12-tsan-nio-bytebuffer-race.md`.
+/// `@MainActor` test queues on it, victims wait ~50 s, and tests with wall-clock bounds
+/// (`.timeLimit`, poll deadlines) fail. Run serially, the plan passes. See `.claude/plans/2026-11-12-tsan-nio-bytebuffer-race.md`.
 @Suite("Sanitizers test plan")
 struct SanitizersPlanTests {
 
@@ -28,7 +27,8 @@ struct SanitizersPlanTests {
 
         for target in targets {
             let name = (target["target"] as? [String: Any])?["name"] as? String ?? "?"
-            #expect(target["parallelizable"] as? Bool != true, "\(name) is parallelizable")
+            // A missing key runs the target in parallel, so require an explicit `false`.
+            #expect(target["parallelizable"] as? Bool == false, "\(name) is parallelizable")
         }
     }
 }
