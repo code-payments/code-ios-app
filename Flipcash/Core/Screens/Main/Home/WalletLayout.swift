@@ -42,5 +42,16 @@ enum WalletLayout: Equatable {
             [.title, .balance, .currencyCount, .actions, .recentActivity]
         }
     }
+
+    /// Whether closing a card puts the wallet back at full opacity in the step
+    /// that removes the page, rather than fading it in afterwards. The Money
+    /// layout has no deck to carry the card home, so a fade there leaves a frame
+    /// with nothing drawn between the page going and Money arriving.
+    var restoresContentWhenCardCloses: Bool {
+        switch self {
+        case .standard: false
+        case .money:    true
+        }
+    }
 }
 

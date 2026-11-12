@@ -453,6 +453,10 @@ private struct WalletScreenContent: View {
             pageContentOpacity = 0
             pageIsBuilt = false
             heavyContentReady = false
+            // Money is what the page was covering, and it was faded out when the
+            // card opened. Fading it back in after the page has gone leaves a
+            // frame with neither drawn, so it returns in this same step.
+            if layout.restoresContentWhenCardCloses { deckOpacity = 1 }
             // Brought back here, before the motion, for the same reason it is
             // hidden before the opening one: restoring it relayouts the whole
             // `TabView`. Left until the animation finishes, that cost lands
