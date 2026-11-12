@@ -243,7 +243,7 @@ extension BetaFlags {
             case .chatCashBill:
                 return "Show the bill when someone sends you cash in the chat you have open."
             case .groupMoneyUI:
-                return "Replace the home tabs with Groups and Money, and show the wallet as the Money screen. Staff only."
+                return "If enabled, staff accounts and unlocked devices get Groups and Money in place of the home tabs."
             }
         }
 
