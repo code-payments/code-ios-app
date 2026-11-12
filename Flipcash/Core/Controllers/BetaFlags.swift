@@ -70,6 +70,40 @@ class BetaFlags {
     /// Whether Settings shows the Account Info row.
     var canViewAccountInfo: Bool { accessGranted }
 
+    /// Whether this person gets the staff-only flags: staff, or anyone on a
+    /// device unlocked with the version easter egg.
+    static func hasStaffAccess(isStaff: Bool, accessGranted: Bool) -> Bool {
+        isStaff || accessGranted
+    }
+
+    /// The developer flags the Beta Features screen lists. An unlocked device
+    /// gets all of them; staff on a device that is not unlocked get only the
+    /// ones in ``Option/staffOptions``; everyone else gets none.
+    static func developerOptions(isStaff: Bool, accessGranted: Bool) -> [Option] {
+        Option.allCases.filter { option in
+            guard option.availability == .developer else { return false }
+            if accessGranted { return true }
+            return isStaff && Option.staffOptions.contains(option)
+        }
+    }
+
+    /// Whether the home shell is the Group Money redesign's: the flag is on and
+    /// this person has staff access. Turning the flag on is not enough, so a
+    /// device that loses the unlock, or an account that stops being staff, goes
+    /// back to today's shell with its toggle hidden.
+    static func showsGroupMoneyUI(isEnabled: Bool, isStaff: Bool, accessGranted: Bool) -> Bool {
+        isEnabled && hasStaffAccess(isStaff: isStaff, accessGranted: accessGranted)
+    }
+
+    /// ``showsGroupMoneyUI(isEnabled:isStaff:accessGranted:)`` for this device.
+    func showsGroupMoneyUI(isStaff: Bool) -> Bool {
+        Self.showsGroupMoneyUI(
+            isEnabled: hasEnabled(.groupMoneyUI),
+            isStaff: isStaff,
+            accessGranted: accessGranted
+        )
+    }
+
     /// Enables or disables a beta flag and persists the change to disk.
     func set(_ option: Option, enabled: Bool) {
         if enabled {
@@ -181,6 +215,7 @@ extension BetaFlags {
         case vibrateOnScan
         case enableCoinbase
         case chatCashBill
+        case groupMoneyUI
 
         var id: String {
             localizedTitle
@@ -194,6 +229,8 @@ extension BetaFlags {
                 return "Enable Coinbase"
             case .chatCashBill:
                 return "Chat Cash Bill"
+            case .groupMoneyUI:
+                return "Group Money UI"
             }
         }
 
@@ -205,6 +242,8 @@ extension BetaFlags {
                 return "If enabled, Coinbase onramp will be available regardless of region"
             case .chatCashBill:
                 return "Show the bill when someone sends you cash in the chat you have open."
+            case .groupMoneyUI:
+                return "Replace the home tabs with Groups and Money, and show the wallet as the Money screen. Staff only."
             }
         }
 
@@ -214,6 +253,7 @@ extension BetaFlags {
             case .vibrateOnScan:  return .developer
             case .enableCoinbase: return .developer
             case .chatCashBill:   return .publicBeta
+            case .groupMoneyUI:   return .developer
             }
         }
 
@@ -224,8 +264,13 @@ extension BetaFlags {
             case .vibrateOnScan:  return false
             case .enableCoinbase: return false
             case .chatCashBill:   return true
+            case .groupMoneyUI:   return false
             }
         }
+
+        /// Developer flags that staff see without unlocking the device, since
+        /// their gate is the account rather than the easter egg.
+        static let staffOptions: Set<Option> = [.groupMoneyUI]
     }
 
     /// Where a beta flag's toggle appears in Settings.

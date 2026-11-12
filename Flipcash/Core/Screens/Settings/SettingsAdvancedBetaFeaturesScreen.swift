@@ -15,7 +15,8 @@ private let logger = Logger(label: "flipcash.betaflags")
 ///
 /// Everyone sees the public-beta flags; unlocking developer access (ten taps on
 /// the version footer) adds the developer flags and the account-unlink actions
-/// that used to live on a separate Beta Flags screen.
+/// that used to live on a separate Beta Flags screen. Staff on a device that is
+/// not unlocked see the staff flags (``BetaFlags/Option/staffOptions``) alone.
 struct SettingsAdvancedBetaFeaturesScreen: View {
 
     @Environment(BetaFlags.self) private var betaFlags
@@ -29,7 +30,10 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
     @State private var isShowingUnlinkAlert: Bool = false
 
     private let publicOptions = BetaFlags.Option.allCases.filter { $0.availability == .publicBeta }
-    private let developerOptions = BetaFlags.Option.allCases.filter { $0.availability == .developer }
+
+    private var developerOptions: [BetaFlags.Option] {
+        BetaFlags.developerOptions(isStaff: session.isStaff, accessGranted: betaFlags.accessGranted)
+    }
 
     // MARK: - Body -
 
@@ -51,15 +55,15 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
                         BetaFlagToggleRow(option: option, isOn: betaFlags.bindingFor(option: option))
                     }
 
-                    if betaFlags.accessGranted {
-                        if !developerOptions.isEmpty {
-                            SettingsSectionHeader("Developer")
+                    if !developerOptions.isEmpty {
+                        SettingsSectionHeader("Developer")
 
-                            ForEach(developerOptions) { option in
-                                BetaFlagToggleRow(option: option, isOn: betaFlags.bindingFor(option: option))
-                            }
+                        ForEach(developerOptions) { option in
+                            BetaFlagToggleRow(option: option, isOn: betaFlags.bindingFor(option: option))
                         }
+                    }
 
+                    if betaFlags.accessGranted {
                         SettingsSectionHeader("Account")
 
                         unlinkRow(title: "Unlink Email", isDisabled: session.profile?.email == nil) {
@@ -116,7 +120,7 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
     /// True only when there's nothing at all to show — no public flags, no developer
     /// access to reveal the rest, and so no Contracts section either.
     private var isEmpty: Bool {
-        !betaFlags.hasVisibleOptions && !betaFlags.accessGranted
+        !betaFlags.hasVisibleOptions && !betaFlags.accessGranted && developerOptions.isEmpty
     }
 
     // MARK: - Subviews -

@@ -11,16 +11,6 @@
 import Foundation
 import FlipcashCore
 
-extension BetaFlags.Option {
-    static var groupMoneyUI: BetaFlags.Option { .vibrateOnScan }
-}
-
-extension BetaFlags {
-    static func hasStaffAccess(isStaff: Bool, accessGranted: Bool) -> Bool { false }
-    static func developerOptions(isStaff: Bool, accessGranted: Bool) -> [Option] { [] }
-    static func showsGroupMoneyUI(isEnabled: Bool, isStaff: Bool, accessGranted: Bool) -> Bool { false }
-}
-
 enum HomeTabLayout: Equatable {
     case standard
     case groupMoney
