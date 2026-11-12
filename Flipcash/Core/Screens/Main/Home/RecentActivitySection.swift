@@ -13,6 +13,8 @@ import FlipcashCore
 struct RecentActivitySection: View {
 
     let activities: [Activity]
+    /// The header's label: "Recent" on today's wallet and on currency info.
+    var title: String = "Recent"
     /// Opens the full history — cross-token on the wallet, per-token on currency info.
     let onShowAll: () -> Void
 
@@ -22,7 +24,7 @@ struct RecentActivitySection: View {
             // the entry they show.
             Button(action: onShowAll) {
                 HStack(spacing: 8) {
-                    Text("Recent")
+                    Text(title)
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
                     Image(systemName: "chevron.right")

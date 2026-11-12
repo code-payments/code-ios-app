@@ -11,22 +11,6 @@
 import Foundation
 import FlipcashCore
 
-enum MoneyHeaderContent {
-    static let title = ""
-    static let addMoneyTitle = ""
-    static let withdrawTitle = ""
-    static func currencyCountText(_ count: Int) -> String { "" }
-}
-
-extension AppRouter.Destination {
-    static var walletCurrencies: AppRouter.Destination { .withdrawCurrency(nil) }
-}
-
-enum MoneyAction {
-    case profile, addMoney, withdraw, currencies
-    func perform(on router: AppRouter) {}
-}
-
 enum MoneyActivityRowContent {
     static func conversationID(
         boostedReaction: Activity.BoostedReaction?,
