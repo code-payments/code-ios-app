@@ -78,6 +78,9 @@ final class SessionAuthenticator {
     @ObservationIgnored private let client: Client
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private var poller: Poller?
+
+    /// Whether the server-gate poller is running.
+    var isPolling: Bool { poller != nil }
     
     // MARK: - Init -
     
@@ -244,6 +247,8 @@ final class SessionAuthenticator {
     /// ``requiresUpgrade`` (always) and ``requiresForceLogout`` (once
     /// logged in or held in onboarding).
     private func startPolling() {
+        // Hosted unit tests would otherwise send these fetches to mainnet for the whole run.
+        guard !Container.isRunningUnitTests else { return }
         poller = Poller(seconds: 30, fireImmediately: true) { [weak self] in
             await self?.fetchUnauthenticatedUserFlags()
             await self?.checkForUnusableAccount()
