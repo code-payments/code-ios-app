@@ -69,7 +69,7 @@ public struct ConversationStore: Sendable {
 
     /// Replace the feed from a paged load, sorted most-recent-activity first.
     public mutating func setFeed(_ conversations: [Conversation]) {
-        let merged = conversations.map { keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0))))) }
+        let merged = conversations.map { keepingNewerRosterSummary(keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0)))))) }
         self.conversations = merged.sorted { $0.lastActivity > $1.lastActivity }
         reindex()
     }
@@ -80,7 +80,7 @@ public struct ConversationStore: Sendable {
     public mutating func setFeed(_ conversations: [Conversation], type: ConversationType) {
         // Only the incoming rows are merged: re-merging the other types against themselves would
         // read the store's own copy as the server acknowledging an unsynced READ pointer.
-        let incoming = conversations.filter { $0.type == type }.map { keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0))))) }
+        let incoming = conversations.filter { $0.type == type }.map { keepingNewerRosterSummary(keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0)))))) }
         self.conversations = (self.conversations.filter { $0.type != type } + incoming)
             .sorted { $0.lastActivity > $1.lastActivity }
         reindex()
@@ -693,7 +693,7 @@ public struct ConversationStore: Sendable {
     }
 
     private mutating func upsert(_ conversation: Conversation) {
-        var conversation = keepingViewerState(keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated(conversation))))))
+        var conversation = keepingViewerState(keepingNewerRosterSummary(keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated(conversation)))))))
         if let index = position(of: conversation.id) {
             if conversation.type == .group {
                 conversation.members = mergedMembers(conversation.members, over: conversations[index].members)
@@ -801,6 +801,19 @@ public struct ConversationStore: Sendable {
         }
         var conversation = conversation
         conversation.coverPicture = held
+        return conversation
+    }
+
+    /// `conversation` with the stored roster summary kept when it is newer than the incoming copy's. A
+    /// feed requested before a streamed roster update can land after it, and must not roll the
+    /// version back.
+    private func keepingNewerRosterSummary(_ conversation: Conversation) -> Conversation {
+        guard let held = self.conversation(withID: conversation.id)?.rosterSummary,
+              held.version > conversation.rosterSummary.version else {
+            return conversation
+        }
+        var conversation = conversation
+        conversation.rosterSummary = held
         return conversation
     }
 

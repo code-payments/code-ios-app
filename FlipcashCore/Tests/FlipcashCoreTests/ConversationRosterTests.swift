@@ -192,6 +192,19 @@ struct ConversationRosterTests {
         #expect(store.conversations[0].rosterSummary.version == 4)
     }
 
+    @Test("A feed copy older than a streamed roster update keeps the newer roster summary")
+    func olderFeedKeepsNewerRosterSummary() {
+        var store = ConversationStore()
+        store.setGroupFeed([group(1, members: [member(1), member(2)], memberCount: 2, version: 1)])
+        store.applyRosterUpdates([left(userID(2), memberCount: 1, version: 2)], in: conversationID(1))
+
+        // A feed requested before the update lands after it.
+        store.setGroupFeed([group(1, members: [member(1), member(2)], memberCount: 2, version: 1)])
+        store.setFeed([group(1, members: [member(1), member(2)], memberCount: 2, version: 1)], type: .group)
+
+        #expect(store.conversations[0].rosterSummary == ConversationRosterSummary(memberCount: 1, version: 2))
+    }
+
     // MARK: - Membership
 
     @Test("A DM is always a member chat; an unjoined group is not")
