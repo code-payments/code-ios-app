@@ -5,6 +5,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 extension ExchangedBalance {
 

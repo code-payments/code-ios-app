@@ -5,6 +5,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashStore
 
 /// The selected-currency affordance shared by the amount-entry surfaces: the
 /// currency's image and name with a disclosure chevron, opening the

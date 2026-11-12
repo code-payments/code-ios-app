@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// Pays the viewer's share of one payment request to its creator.
 ///

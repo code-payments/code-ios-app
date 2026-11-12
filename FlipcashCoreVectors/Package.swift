@@ -16,14 +16,27 @@ let package = Package(
         .macOS("15.0"), // FlipcashCore's transitive deps (BigDecimal 13.3, grpc/nio) need >= 13.3
         .iOS("18.0"),
     ],
+    products: [
+        // The Flipcash Puppet host for the orchestrator's `puppet` CLI (`docs/puppet/` there).
+        .executable(name: "flipcash-puppet-host", targets: ["FlipcashPuppetHostMain"]),
+    ],
     dependencies: [
         .package(path: "../FlipcashCore"),
         .package(url: "https://github.com/mgriebling/BigDecimal", from: "3.0.2"), // to assert curve values
     ],
     targets: [
+        .target(
+            name: "FlipcashPuppet",
+            dependencies: [.product(name: "FlipcashCore", package: "FlipcashCore")]
+        ),
+        .executableTarget(
+            name: "FlipcashPuppetHostMain",
+            dependencies: ["FlipcashPuppet"]
+        ),
         .testTarget(
             name: "FlipcashCoreVectorsTests",
             dependencies: [
+                "FlipcashPuppet",
                 .product(name: "FlipcashCore", package: "FlipcashCore"),
                 .product(name: "BigDecimal", package: "BigDecimal"),
             ],

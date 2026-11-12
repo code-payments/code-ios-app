@@ -1,0 +1,10 @@
+{
+  "screen": "Chats",
+  "description": "Unknown actions and inputs outside the schema are refused without changing state.",
+  "steps": [
+    {"do": "Archive", "expectError": "unknown_action"},
+    {"do": "FilterSelected", "input": {"filter": "Bogus"}, "expectError": "bad_input"},
+    {"do": "SelectionToggled", "input": {}, "expectError": "bad_input"},
+    {"ls": true, "expect": {"filter": "All", "selection": null}}
+  ]
+}

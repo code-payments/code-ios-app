@@ -1,0 +1,18 @@
+{
+  "screen": "Chats",
+  "route": "/tab/chats",
+  "description": "New Chat is a hosted screen from another feature: its rows open their screens, and with only dollars the community row offers currencies to buy instead of the form.",
+  "steps": [
+    {"do": "NewChatOpened", "expectPath": ["Chats", "NewChat"]},
+    {"do": "FindByUsernameOpened", "expectPath": ["Chats", "NewChat", "FindByUsername"]},
+    {"do": "Back", "expectPath": ["Chats", "NewChat"]},
+    {"do": "PrivateGroupOpened", "expectPath": ["Chats", "NewChat", "NewPrivateGroup"]},
+    {"do": "Back", "expectPath": ["Chats", "NewChat"]},
+    {"do": "CommunityGroupOpened", "expectPath": ["Chats", "NewChat", "NoCommunityCurrencies"]},
+    {"do": "Back", "expectPath": ["Chats", "NewChat"]},
+    {"do": "CommunityGroupOpened", "expectPath": ["Chats", "NewChat", "NoCommunityCurrencies"]},
+    {"do": "ExploreCurrenciesOpened", "expectPath": ["Chats", "NewChat", "DiscoverCurrencies"]},
+    {"do": "Back", "expectPath": ["Chats", "NewChat"]},
+    {"do": "Back", "expectPath": ["Chats"]}
+  ]
+}
