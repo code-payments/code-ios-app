@@ -42,6 +42,9 @@ struct DestinationView: View {
         case .discoverCurrencies:
             CurrencyDiscoveryScreen()
 
+        case .walletCurrencies:
+            WalletCurrenciesScreen()
+
         case .currencyCreationSummary:
             CurrencyCreationSummaryScreen()
 
