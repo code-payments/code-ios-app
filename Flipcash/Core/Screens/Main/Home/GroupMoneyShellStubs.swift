@@ -11,19 +11,6 @@
 import Foundation
 import FlipcashCore
 
-enum WalletSection: Equatable {
-    case balanceHeader, appreciation, addMoneyRow, tokenCards, recentActivity, tiles
-    case title, balance, currencyCount, actions
-}
-
-enum WalletLayout: Equatable {
-    case standard
-    case money
-
-    init(showsGroupMoney: Bool) { self = .standard }
-    var sections: [WalletSection] { [.tokenCards, .appreciation, .tiles] }
-}
-
 enum MoneyHeaderContent {
     static let title = ""
     static let addMoneyTitle = ""
