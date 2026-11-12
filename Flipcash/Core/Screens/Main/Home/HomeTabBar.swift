@@ -15,6 +15,9 @@ struct HomeTabBar: View {
 
     @Binding var selection: HomeTab
 
+    /// Which tabs the pill holds, and what each is called and wears.
+    var layout: HomeTabLayout = .standard
+
     /// Per-tab unread badge counts; a tab absent or mapped to 0 shows no badge.
     var badgeCounts: [HomeTab: Int] = [:]
 
@@ -26,7 +29,7 @@ struct HomeTabBar: View {
     /// release, so a long press lands on the tab it was made on.
     var onLongPress: ((HomeTab) -> Void)?
 
-    private let tabs = HomeTab.allCases
+    private var tabs: [HomeTab] { layout.barTabs }
 
     // Figma tab bar (node 10642:1325): a 28pt icon over a 10pt Demi label in
     // 50pt-tall items, inside a capsule with 4pt padding → 58pt overall.
@@ -74,7 +77,7 @@ struct HomeTabBar: View {
                                         }
                                     }
 
-                                Text(tab.title)
+                                Text(layout.title(for: tab))
                                     .font(.default(size: 10, weight: .semibold))
                                     .foregroundStyle(Color.white)
                                     .lineLimit(1)
@@ -92,7 +95,7 @@ struct HomeTabBar: View {
                             LongPressGesture(minimumDuration: Self.longPressDuration)
                                 .onEnded { _ in onLongPress?(tab) }
                         )
-                        .accessibilityLabel(tab.title)
+                        .accessibilityLabel(layout.title(for: tab))
                         .accessibilityValue((badgeCounts[tab] ?? 0) > 0 ? "\(badgeCounts[tab] ?? 0) unread" : "")
                         .accessibilityAddTraits(selection == tab ? [.isSelected] : [])
                     }
@@ -114,7 +117,7 @@ struct HomeTabBar: View {
                 .scaleEffect(Self.iconSize / ProfileTabIcon.slotSize)
                 .frame(width: Self.iconSize, height: Self.iconSize)
         } else {
-            Image(tab.iconName(isSelected: tab == selection))
+            Image(layout.iconName(for: tab, isSelected: tab == selection))
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()

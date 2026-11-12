@@ -22,29 +22,36 @@ enum TabBarBadgedIcon {
     private static let bubbleOverhang: CGFloat = 2
 
     /// Both item images for `tab` with `count` in the corner, or nil for a count
-    /// of zero, which leaves the bar its plain template glyphs.
+    /// of zero, which leaves the bar its plain template glyphs. `layout` picks
+    /// the glyph: Groups wears its own with the Group Money layout.
     ///
-    /// Memoized on the last tab and count because this is read from a view body
-    /// and each call would otherwise run two `ImageRenderer` passes.
-    static func itemImages(for tab: HomeTab, count: Int) -> TabBarProfilePhoto.ItemImages? {
+    /// Memoized on the last tab, count and layout because this is read from a
+    /// view body and each call would otherwise run two `ImageRenderer` passes.
+    static func itemImages(
+        for tab: HomeTab,
+        count: Int,
+        layout: HomeTabLayout = .standard
+    ) -> TabBarProfilePhoto.ItemImages? {
         guard count > 0 else { return nil }
-        if let memoized, memoized.tab == tab, memoized.count == count { return memoized.images }
+        if let memoized, memoized.tab == tab, memoized.count == count, memoized.layout == layout {
+            return memoized.images
+        }
 
-        guard let normal = image(of: icon(for: tab, count: count, isSelected: false)),
-              let selected = image(of: icon(for: tab, count: count, isSelected: true))
+        guard let normal = image(of: icon(named: layout.iconName(for: tab, isSelected: false), count: count)),
+              let selected = image(of: icon(named: layout.iconName(for: tab, isSelected: true), count: count))
         else { return nil }
 
         let images = TabBarProfilePhoto.ItemImages(normal: normal, selected: selected)
-        memoized = (tab, count, images)
+        memoized = (tab, count, layout, images)
         return images
     }
 
-    private static var memoized: (tab: HomeTab, count: Int, images: TabBarProfilePhoto.ItemImages)?
+    private static var memoized: (tab: HomeTab, count: Int, layout: HomeTabLayout, images: TabBarProfilePhoto.ItemImages)?
 
     /// The glyph colored as the bar would tint it for the state, since an
     /// original-rendered image is not tinted, with the bubble at full strength.
-    private static func icon(for tab: HomeTab, count: Int, isSelected: Bool) -> some View {
-        Image(tab.iconName(isSelected: isSelected))
+    private static func icon(named name: String, count: Int) -> some View {
+        Image(name)
             .renderingMode(.template)
             .resizable()
             .scaledToFit()

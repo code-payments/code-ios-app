@@ -3,7 +3,7 @@
 //  Flipcash
 //
 
-import Foundation
+import SwiftUI
 
 /// Which tab bar the home shell draws: today's four tabs, or the Group Money
 /// redesign's two (Groups, node 13729:413; Money, node 13729:744), behind
@@ -73,4 +73,14 @@ enum HomeTabLayout: Equatable {
             tab.iconName(isSelected: isSelected)
         }
     }
+}
+
+/// Closes a tab drawn over the home shell because the bar has no slot for it,
+/// going back to the bar tab it covers. In the environment only while one is.
+struct HomeTabClose {
+    let action: () -> Void
+}
+
+extension EnvironmentValues {
+    @Entry var homeTabClose: HomeTabClose? = nil
 }
