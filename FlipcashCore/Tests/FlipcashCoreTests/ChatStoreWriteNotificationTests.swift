@@ -27,7 +27,10 @@ struct ChatStoreWriteNotificationTests {
 
         ChatStoreWriteNotification.post()
 
-        for _ in 0..<100 where counter.value == 0 {
+        // Darwin notifications are delivered on the main thread, which a loaded run can hold
+        // for tens of seconds. The bound only caps how long a failing wait takes.
+        let deadline = ContinuousClock.now + .seconds(90)
+        while counter.value == 0, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
         #expect(counter.value > 0)

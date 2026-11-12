@@ -73,6 +73,9 @@ are real mainnet clients, and the traffic trips a TSan false positive inside swi
 `ByteBuffer`. Guard anything that fetches on a timer or at launch with
 `Container.isRunningUnitTests`. Details in
 [2026-11-12-tsan-nio-bytebuffer-race.md](../plans/2026-11-12-tsan-nio-bytebuffer-race.md).
+The plan runs both targets serially (`"parallelizable": false`; a missing key means parallel,
+and `SanitizersPlanTests` guards it). In parallel, every `@MainActor` test queues on one
+TSan-slowed main thread, and wall-clock-bounded tests fail after ~50s waits. Same doc.
 
 TSan came off the UI tests first, where its runtime crashes during XCUITest's accessibility
 snapshots. That crash is inside the sanitizer, not app code. Details, evidence, and

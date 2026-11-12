@@ -90,12 +90,56 @@ Removing the traffic removes the trigger without hiding anything.
 
 In runs 1–4, `PendingReadPointerTests/markSeen_commitsAfterDelay` (45–52s against a 2s
 deadline) and `RatesControllerStressTests/concurrentUpdates_doNotTearValues` (its 60s
-`.timeLimit`) failed every time. Run together on their own they pass in under 0.2s, so the main
-actor was starved during the full plan. These failures exit 65 even when no race fires.
+`.timeLimit`) failed every time. Run on their own they pass in under 0.2s. These failures exit 65
+even when no race fires.
 
-The stall is not one test's problem. After the guards it moved between tests, and each one
-waits on wall-clock time while it happens (see Outcome). It is still the gate's blocker, and its
-cause is unknown. `sample` could not attach to the simulator host from the agent's shell.
+### Cause: parallel `@MainActor` tests queue on one TSan-slowed main thread
+
+`FlipcashTests` was `parallelizable` in the plan, so Swift Testing ran its tests concurrently in
+one host. Of the 386 test files with suites, 267 are `@MainActor`. Under TSan their work all queues on the
+main thread. Every hop back to the main actor waits behind that backlog. The victims took ~45–60s end to
+end, against well under a second when run alone. Any test bounded by wall
+clock (`.timeLimit(.minutes(1))` on ten suites, short poll deadlines) fails when it lands
+behind the backlog. Which test that is changes from run to run.
+
+Evidence, from one parallel run with `sample <pid> 3` every ~10s on the clone's host:
+
+- **The main thread was 96–100% busy for the whole run.** Idle means a leaf frame of
+  `mach_msg2_trap` or a wait call. The time is spread across many tests: collection-view
+  reloads, `ChatTranscriptDiffFuzzTests`, `Database.init` schema creation (13.6%, the biggest
+  single bucket) and SwiftUI hosting. No single test dominates, and the main thread is not
+  blocked on a lock or semaphore.
+- **Non-main threads averaged about 1.5 busy cores of 14.** NIO/Network threads were roughly
+  12% of that. So the mainnet connections and other suites' background work aren't starving
+  the CPU. The one serial resource is the main thread.
+- **The finish times fit a wait before the bodies run.** In that run, four `PendingReadPointerTests` cases
+  with no waits finished within 8ms of each other at 53.8s. The three
+  `Regression_native_amount_mismatch` cases finished at 46.3s, and `scenarioD` hit its 60s
+  limit.
+- **Serial runs don't stall.** `-parallel-testing-enabled NO` exited 0 in 193s wall clock,
+  against 222s for the one parallel run timed the same way. That one comparison suggests
+  parallelism buys no speed here.
+
+`ChatStoreWriteNotificationTests/postReachesObserver` failed in both parallel runs here too
+(6.3–6.7s). Darwin notifications are delivered on the main thread, and the test allowed 2s.
+`FlipcashCoreTests` had no `parallelizable` key, which runs it in parallel: in run 4 its 1731
+tests still interleaved and finished in 3.8s, and this test took 2.19s.
+
+The second host pid did not come from a crash: neither run left a `Flipcash-*.ips`. The
+6 of 17 `.serialized` suites checked (`AccountManagerTests`, `BetaFlagsTests`, …) ran under the
+second pid, which fits Xcode running them in a separate launch after the parallel pass. That
+isn't confirmed, and only 3 of the 6 failing baseline runs showed a second pid.
+
+### Fix
+
+- **`Sanitizers.xctestplan` sets both targets to `"parallelizable": false`.** This serializes
+  them in process, with no CLI flag needed, so the release-gate command is unchanged.
+  `SanitizersPlanTests` reads the plan through `#filePath` and fails unless every target sets
+  the key to `false` (a missing key means parallel). With the setting flipped back, it failed.
+- **The two short poll deadlines now wait on their condition.** `markSeen_commitsAfterDelay`
+  uses `waitUntil` (90s failure bound). The Darwin notification test now polls until the
+  notification arrives, capped at 90s. The old 2s cap was the whole test. `AllTargets` still runs these tests in parallel.
+- **`.timeLimit(.minutes(1))` is unchanged.** Run serially, those tests finish well inside it.
 
 ## Outcome
 
@@ -120,8 +164,42 @@ TLS connections to mainnet, growing from 3 at the start to more than 10. Tests c
 `init`. If the race returns, give `Container` and the client mocks a non-connecting unit-test
 transport.
 
-**The plan still does not exit 0 reliably.** That's now down to the main-actor stall above, not
-TSan.
+### Outcome of the serial plan
+
+These runs used `xcodebuild test-without-building … -testPlan Sanitizers` on a dedicated iPhone 17
+simulator (`0ACF2A0A-8B3B-4A82-B42C-F2406685E5B7`, so no other worktree's install could kill the
+host), with `TEST_RUNNER_TSAN_OPTIONS="log_path=… log_exe_name=1 halt_on_error=0"`. They were
+built from `fix/tsan-test-stall` on 2026-11-12.
+
+| | Exit 0 | Stall failures | Race reports (log / `log_path` / `.ips`) |
+|---|---|---|---|
+| Parallel plan, runs 1–2 (base `6bd4ad47b`) | 0 of 2 | 2 of 2 | 0 / 0 / 0 |
+| `-parallel-testing-enabled NO`, run 3 (base) | 1 of 1 | 0 of 1 | 0 / 0 / 0 |
+| `FlipcashTests` serial, no CLI flag, runs 4–9 | 6 of 6 | 0 of 6 | 0 / 0 / 0 |
+| Both targets serial, runs 10–11 | 0 of 2 | 0 of 2 (2 other failures) | 0 / 0 / 0 |
+| Both targets serial + the two fixes below, runs 12–15 | 4 of 4 | 0 of 4 | 0 / 0 / 0 |
+
+Runs 10–11 failed on two tests that aren't main-thread backlog:
+
+- **`Regression_6a008a1` asserted 10 `HistoricalAccount` inits take under 5ms.** Under TSan
+  that measured 5.6ms. It now compares against one `DerivedKey.derive` timed in the same run
+  (the regression costs one per init), so a slower host slows both sides. It passed 30 TSan
+  iterations.
+- **`ConversationMembershipTests/otherMemberRosterChangeIsIgnored` waited its full 90s.** This
+  is a product bug, not timing. `ConversationStore.setFeed`, `setFeed(_:type:)` and `upsert`
+  (behind `setGroupFeed`) kept a newer stored activity, pin summary and viewer state, but not a
+  newer `rosterSummary`. A feed requested before a streamed roster update could land after it
+  and roll the version back. `keepingNewerRosterSummary` now keeps it.
+  `ConversationRosterTests/olderFeedKeepsNewerRosterSummary` failed before the change. Members
+  from a stale feed are still merged with incoming-wins, so a member who left in the newer
+  roster can reappear until the next update.
+
+Runs 4–9 took 163–203s wall clock and runs 12–15 took 198–259s, none used a clone, and each passed all 5535 test cases. With
+no race in any run, the `log_path` directory stayed empty. That fits a clean run, but it doesn't
+prove the capture path works for the clone hosts in runs 1–2.
+
+If a later change makes this plan parallel again, `SanitizersPlanTests` fails. A wall-clock test
+that still fails here should wait on its condition (`waitUntil`), not get a longer limit.
 
 ## Release skill step 6a
 

@@ -64,11 +64,7 @@ struct PendingReadPointerTests {
 
         pending.markSeen(MessageID(value: 4))
 
-        let deadline = ContinuousClock.now + .seconds(2)
-        while controller.readThrough(for: id) != MessageID(value: 4), ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(controller.readThrough(for: id) == MessageID(value: 4))
+        try await waitUntil { controller.readThrough(for: id) == MessageID(value: 4) }
     }
 
     @Test("the live badge counts from the uncommitted seen id")

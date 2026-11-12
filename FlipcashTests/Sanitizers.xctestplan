@@ -26,7 +26,7 @@
   },
   "testTargets" : [
     {
-      "parallelizable" : true,
+      "parallelizable" : false,
       "target" : {
         "containerPath" : "container:Code.xcodeproj",
         "identifier" : "9A516F882D9B12EA00AF478B",
@@ -34,6 +34,7 @@
       }
     },
     {
+      "parallelizable" : false,
       "target" : {
         "containerPath" : "container:FlipcashCore",
         "identifier" : "FlipcashCoreTests",
