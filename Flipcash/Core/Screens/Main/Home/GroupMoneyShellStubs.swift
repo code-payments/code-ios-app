@@ -11,20 +11,6 @@
 import Foundation
 import FlipcashCore
 
-enum HomeTabLayout: Equatable {
-    case standard
-    case groupMoney
-
-    init(showsGroupMoney: Bool) { self = .standard }
-    var barTabs: [HomeTab] { [] }
-    var hasSearchTab: Bool { false }
-    var initialTab: HomeTab { .scan }
-    var searchResultTab: HomeTab { .scan }
-    func isReachable(_ tab: HomeTab) -> Bool { false }
-    func title(for tab: HomeTab) -> String { "" }
-    func iconName(for tab: HomeTab, isSelected: Bool) -> String { "" }
-}
-
 enum WalletSection: Equatable {
     case balanceHeader, appreciation, addMoneyRow, tokenCards, recentActivity, tiles
     case title, balance, currencyCount, actions
