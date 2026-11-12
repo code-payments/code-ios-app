@@ -99,7 +99,8 @@ private struct ScanScreenContent: View {
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .toolbar {
-            if let close {
+            // Hidden with the other controls while a bill is up.
+            if let close, showControls {
                 ToolbarItem(placement: .topBarLeading) {
                     CloseButton(action: close.action)
                 }

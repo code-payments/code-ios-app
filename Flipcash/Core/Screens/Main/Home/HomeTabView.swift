@@ -147,7 +147,13 @@ struct HomeTabView: View {
 
     var body: some View {
         tabs
+            // VoiceOver stays on Scan or You while it covers the shell.
+            .accessibilityHidden(offBarTab != nil)
             .overlay { offBarLayer }
+            // A gate flip moves Scan or You between the bar and the overlay in
+            // one update. Animating that would keep the old copy on screen
+            // beside the new one, both bound to the same router stack.
+            .transaction(value: layout) { $0.animation = nil }
             .animation(.easeInOut(duration: 0.25), value: offBarTab)
             .background(Color.backgroundMain)
             // The app-level sheet host, so `router.present(_:)` works from any tab.
@@ -163,7 +169,10 @@ struct HomeTabView: View {
             .onChange(of: selection) { _, tab in
                 router.activeTabStack = isSearchSelected ? nil : tab.pushStack
                 if tab == .chat { hasOpenedChat = true }
-                if layout.isOnBar(tab) { lastBarTab = tab }
+                // Tracked whatever the layout, so turning Group Money on from
+                // You (the only way to reach the toggle) closes back to the
+                // tab the person came from rather than to Groups.
+                if HomeTabLayout.groupMoney.isOnBar(tab) { lastBarTab = tab }
             }
             .onChange(of: isSearchSelected) { _, isSearching in
                 router.activeTabStack = isSearching ? nil : selection.pushStack
