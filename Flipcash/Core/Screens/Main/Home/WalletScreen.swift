@@ -560,7 +560,7 @@ private struct WalletScreenContent: View {
                 .padding(.top, 40)
         case .recentActivity:
             if !recentActivities.isEmpty {
-                RecentActivitySection(activities: recentActivities, title: MoneyHeaderContent.recentActivityTitle) {
+                RecentActivitySection(activities: recentActivities, title: MoneyHeaderContent.recentActivityTitle, rowStyle: .money) {
                     router.push(.activity)
                 }
                 .padding(.top, 44)
