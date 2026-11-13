@@ -19,6 +19,7 @@ struct NewPublicGroupScreen: View {
     @Environment(ConversationController.self) private var conversationController
     @Environment(RatesController.self) private var ratesController
     @Environment(AppRouter.self) private var router
+    @Environment(BetaFlags.self) private var betaFlags
 
     @State private var model: NewPublicGroupModel
     @State private var isPickingPhoto = false
@@ -30,6 +31,13 @@ struct NewPublicGroupScreen: View {
     @FocusState private var isTitleFocused: Bool
 
     private var session: Session { sessionContainer.session }
+
+    private var layout: NewGroupFormLayout {
+        NewGroupFormLayout(
+            privacy: model.privacy,
+            showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: session))
+        )
+    }
 
     init(privacy: GroupPrivacy = .public) {
         _model = State(initialValue: NewPublicGroupModel(privacy: privacy))
@@ -51,13 +59,13 @@ struct NewPublicGroupScreen: View {
                             .padding(.top, 8)
                     }
 
-                    switch model.privacy {
-                    case .public:
+                    if layout.showsCommunitySections {
                         currencySection
                             .padding(.top, 37)
                         requirementSection
                             .padding(.top, 37)
-                    case .private:
+                    }
+                    if layout.showsPrivacyFootnote {
                         Text("Only people you approve can join. Messages are end-to-end encrypted.")
                             .font(.default(size: 13, weight: .medium))
                             .foregroundStyle(Color.textSecondary)
@@ -74,21 +82,31 @@ struct NewPublicGroupScreen: View {
         .onChange(of: communityCurrencies, initial: true) { _, currencies in
             model.applyDefaultCurrency(from: currencies)
         }
-        .navigationTitle(model.privacy == .private ? "New Group" : "New Community Chat")
+        .navigationTitle(layout.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                // The design puts Create in the bar rather than over the content (node
-                // 10127:118246), so the form scrolls under a control that stays put.
-                Button(action: create) {
-                    createLabel
-                        .foregroundStyle(.white)
+            // The design puts Create in the bar rather than over the content (node
+            // 10127:118246), so the form scrolls under a control that stays put.
+            switch layout.createPill(isEnabled: isCreateEnabled) {
+            case .prominent:
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: create) {
+                        createLabel
+                            .foregroundStyle(.white)
+                    }
+                    .prominentButtonStyle()
+                    .disabled(!isCreateEnabled)
+                    .accessibilityIdentifier("new-group-create-button")
                 }
-                .prominentButtonStyle()
-                // Disabled for every state but `.normal`, so the pill dims behind the spinner and
-                // the checkmark and a second tap can't start a second chat.
-                .disabled(!canCreate || !buttonState.isNormal)
-                .accessibilityIdentifier("new-group-create-button")
+            case .grey, .blue:
+                // The shell's pill is a flat fill that turns blue once the group has a name (nodes
+                // 13729:462, 13729:552), so the bar's own glass stays off behind it.
+                if #available(iOS 26.0, *) {
+                    ToolbarItem(placement: .topBarTrailing) { createPill }
+                        .sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem(placement: .topBarTrailing) { createPill }
+                }
             }
         }
         .dialog(item: $dialog)
@@ -124,6 +142,31 @@ struct NewPublicGroupScreen: View {
         }
     }
 
+    /// Disabled for every state but `.normal`, so the pill dims behind the spinner and the
+    /// checkmark and a second tap can't start a second chat.
+    private var isCreateEnabled: Bool {
+        canCreate && buttonState.isNormal
+    }
+
+    /// The Group Money shell's Create: white on grey until the group has a name, then on blue.
+    private var createPill: some View {
+        Button(action: create) {
+            createLabel
+                .font(.appTextBody)
+                .foregroundStyle(Color.textMain)
+                .frame(minWidth: Self.createPillMinWidth, minHeight: Self.createPillHeight)
+                .padding(.horizontal, 4)
+                .background(
+                    Capsule().fill(layout.createPill(isEnabled: isCreateEnabled) == .blue ? Color.blue : Color.textActionDisabled)
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isCreateEnabled)
+        .animation(.easeOut(duration: 0.15), value: isCreateEnabled)
+        .accessibilityIdentifier("new-group-create-button")
+    }
+
     @ViewBuilder private var createLabel: some View {
         switch buttonState {
         case .normal:
@@ -147,7 +190,7 @@ struct NewPublicGroupScreen: View {
                 .onTapGesture { isPickingPhoto = true }
                 .accessibilityIdentifier("new-group-photo-picker")
 
-            TextField("Group Name (Required)", text: $model.title)
+            TextField(layout.namePlaceholder, text: $model.title)
                 .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
                 .focused($isTitleFocused)
@@ -259,6 +302,10 @@ struct NewPublicGroupScreen: View {
 
     /// Shown only once the limit is close enough to explain a disabled Create.
     private static let countdownThreshold = 10
+
+    /// The shell's Create pill (node 13729:474): 82 by 44 with its label.
+    private static let createPillMinWidth: CGFloat = 74
+    private static let createPillHeight: CGFloat = 44
 
     /// The picker's list, whose first entry is the form's default currency.
     private var communityCurrencies: [ExchangedBalance] {
