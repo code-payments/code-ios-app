@@ -12,7 +12,8 @@ import FlipcashCore
 
 /// The "Your Group Is Ready" card at the head of a group the viewer is alone in: an incoming-bubble
 /// card with a title, a line naming the group and a full-width Invite People button. Not a message,
-/// so it has no sender, receipt or reactions.
+/// so it has no sender, receipt or reactions. In the ``ChatInviteCardStyle/emptyState`` style it
+/// drops the bubble and the sender and centres the same three parts (node 13729:642).
 ///
 /// When the row is deleted the controller calls ``fadeOut()`` on the cell as the batch starts, so the
 /// card fades (``Fade``) while the rows below slide up into its space on the batch update's spring.
@@ -38,7 +39,15 @@ public final class ChatInviteCardCell: UICollectionViewCell {
     private let senderAvatar = ChatAuthorAvatarView()
     private let content: any UIView & UIContentView
     private var widthConstraint: NSLayoutConstraint!
+    /// The bubble's place: under the sender's name, past the author gutter.
+    private var bubbleConstraints: [NSLayoutConstraint] = []
+    /// The empty state's place: centred, clear of the header.
+    private var emptyStateConstraints: [NSLayoutConstraint] = []
     private var isFading = false
+
+    /// The empty state's widest, and how far below the header it starts (node 13729:658).
+    static let emptyStateWidth: CGFloat = 338
+    static let emptyStateTopInset: CGFloat = 20
 
     public override init(frame: CGRect) {
         content = UIHostingConfiguration {
@@ -68,6 +77,15 @@ public final class ChatInviteCardCell: UICollectionViewCell {
         let bubbleLeading = ChatColumnCell.rowInset + ChatColumnCell.authorGutterWidth
 
         widthConstraint = card.widthAnchor.constraint(equalToConstant: ChatShareProfileCell.designedWidth)
+        bubbleConstraints = [
+            card.topAnchor.constraint(equalTo: senderName.bottomAnchor, constant: 4),
+            card.leadingAnchor.constraint(equalTo: fadeHost.leadingAnchor, constant: bubbleLeading),
+        ]
+        emptyStateConstraints = [
+            card.topAnchor.constraint(equalTo: fadeHost.topAnchor, constant: Self.emptyStateTopInset),
+            card.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+        ]
+        NSLayoutConstraint.activate(bubbleConstraints)
         NSLayoutConstraint.activate([
             widthConstraint,
             fadeHost.topAnchor.constraint(equalTo: contentView.topAnchor),
@@ -76,9 +94,7 @@ public final class ChatInviteCardCell: UICollectionViewCell {
             fadeHost.trailingAnchor.constraint(equalTo: card.trailingAnchor),
             senderName.topAnchor.constraint(equalTo: fadeHost.topAnchor),
             senderName.leadingAnchor.constraint(equalTo: fadeHost.leadingAnchor, constant: bubbleLeading),
-            card.topAnchor.constraint(equalTo: senderName.bottomAnchor, constant: 4),
             card.bottomAnchor.constraint(equalTo: fadeHost.bottomAnchor),
-            card.leadingAnchor.constraint(equalTo: fadeHost.leadingAnchor, constant: bubbleLeading),
             senderAvatar.leadingAnchor.constraint(equalTo: fadeHost.leadingAnchor, constant: ChatColumnCell.rowInset),
             senderAvatar.topAnchor.constraint(equalTo: card.topAnchor),
             content.topAnchor.constraint(equalTo: card.topAnchor),
@@ -101,28 +117,45 @@ public final class ChatInviteCardCell: UICollectionViewCell {
         resetFade()
     }
 
-    /// - Parameter maxWidth: the widest the card may be; the Share Profile widget's width caps it.
-    func configure(groupName: String, maxWidth: CGFloat) {
-        widthConstraint.constant = min(ChatShareProfileCell.designedWidth, maxWidth - ChatColumnCell.authorGutterWidth)
+    /// - Parameter maxWidth: the widest the card may be; the Share Profile widget's width caps the
+    ///   bubble, and ``emptyStateWidth`` the empty state.
+    func configure(groupName: String, style: ChatInviteCardStyle = .incomingBubble, maxWidth: CGFloat) {
+        let copy = ChatInviteCardCopy(style: style, groupName: groupName)
+        let isEmptyState = style == .emptyState
+        senderName.isHidden = isEmptyState
+        senderAvatar.isHidden = isEmptyState
+        NSLayoutConstraint.deactivate(isEmptyState ? bubbleConstraints : emptyStateConstraints)
+        NSLayoutConstraint.activate(isEmptyState ? emptyStateConstraints : bubbleConstraints)
+        widthConstraint.constant = isEmptyState
+            ? min(Self.emptyStateWidth, maxWidth)
+            : min(ChatShareProfileCell.designedWidth, maxWidth - ChatColumnCell.authorGutterWidth)
         card.apply(
-            fill: UIColor.white.withAlphaComponent(0.02),
+            fill: isEmptyState ? .clear : UIColor.white.withAlphaComponent(0.02),
             radii: BubbleBackgroundView.radii(isFromSelf: false, groupedAbove: false, groupedBelow: false),
             identity: ChatItem.inviteCard(groupName: "").id
         )
-        content.configuration = UIHostingConfiguration {
-            ShareProfileWidgetView(
-                username: nil,
-                state: nil,
-                onShare: { [weak self] in self?.onInvite?() },
-                override: .init(
-                    title: Copy.title,
-                    subtitle: Copy.subtitle(groupName: groupName),
-                    buttonTitle: Copy.button,
-                    avatar: nil
+        let onInvite: () -> Void = { [weak self] in self?.onInvite?() }
+        if isEmptyState {
+            content.configuration = UIHostingConfiguration {
+                GroupReadyEmptyStateView(copy: copy, onInvite: onInvite)
+            }
+            .margins(.all, 0)
+        } else {
+            content.configuration = UIHostingConfiguration {
+                ShareProfileWidgetView(
+                    username: nil,
+                    state: nil,
+                    onShare: onInvite,
+                    override: .init(
+                        title: copy.title,
+                        subtitle: copy.subtitle,
+                        buttonTitle: copy.button,
+                        avatar: nil
+                    )
                 )
-            )
+            }
+            .margins(.all, 0)
         }
-        .margins(.all, 0)
     }
 
     func fadeOut() {
@@ -143,14 +176,29 @@ public final class ChatInviteCardCell: UICollectionViewCell {
     }
 }
 
-extension ChatInviteCardCell {
-    enum Copy {
-        static let title = "Your Group Is Ready"
-        static let button = "Invite People"
+/// The group-ready card as the Group Money shell draws it: no bubble, a centred title and line, and
+/// a white Invite People button (node 13729:658).
+private struct GroupReadyEmptyStateView: View {
 
-        static func subtitle(groupName: String) -> String {
-            "Invite people to join \(groupName)"
+    let copy: ChatInviteCardCopy
+    let onInvite: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(copy.title)
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+            Text(copy.subtitle)
+                .font(.appTextBody)
+                .foregroundStyle(Color.textSecondary)
+            Button(copy.button, action: onInvite)
+                .buttonStyle(.filledCompact)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .accessibilityIdentifier("group-ready-invite-button")
         }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 }
 #endif

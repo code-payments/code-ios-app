@@ -56,6 +56,7 @@ struct ConversationScreen: View {
     @Environment(PushController.self) private var pushController
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(BetaFlags.self) private var betaFlags
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -381,12 +382,20 @@ struct ConversationScreen: View {
         GroupReadyCard.isShown(groupConversation)
     }
 
+    private var showsGroupMoney: Bool {
+        betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: session))
+    }
+
     /// The loaded transcript with the group-ready card ahead of it, as the oldest row, while it
     /// shows. When it stops, the row is deleted and the transcript plays the card's exit.
     private var transcriptItems: [ChatItem] {
         let items = coordinator?.items ?? []
         guard showsInviteCard else { return items }
-        return [ChatItem.inviteCard(groupName: groupConversation?.title ?? "")] + items
+        let card = ChatItem.inviteCard(
+            groupName: groupConversation?.title ?? "",
+            style: GroupReadyCard.style(showsGroupMoney: showsGroupMoney)
+        )
+        return [card] + items
     }
 
     private func openInvite() {
@@ -562,7 +571,8 @@ struct ConversationScreen: View {
             onMediaTap: openMediaViewer,
             transcriptTopInset: Self.transcriptTopInset(slots: [anchorHeight, stackHeight, showsPinBar ? pinBarHeight : 0]),
             messageJump: messageJump,
-            keyboardHandle: keyboardHandle
+            keyboardHandle: keyboardHandle,
+            cashButtonStyle: ComposerCashButtonStyle(showsGroupMoney: showsGroupMoney)
         )
     }
 

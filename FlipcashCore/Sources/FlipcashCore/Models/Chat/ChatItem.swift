@@ -33,7 +33,7 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     case requestEvent(ChatRequestEvent)
     /// The "Your Group Is Ready" card at the head of a group the viewer is alone in. Client-only: it
     /// is never a message, so nothing stores or syncs it.
-    case inviteCard(groupName: String)
+    case inviteCard(groupName: String, style: ChatInviteCardStyle = .incomingBubble)
 
     public var isInviteCard: Bool {
         if case .inviteCard = self { true } else { false }
@@ -85,4 +85,13 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
         default: "\(UnreadCountLabel.text(for: count)) Unread Messages"
         }
     }
+}
+
+/// How the group-ready card is drawn at the head of a group's transcript.
+public enum ChatInviteCardStyle: String, Hashable, Sendable, Codable {
+    /// An incoming bubble from Flipcash.
+    case incomingBubble
+    /// A centred title, line and button with no bubble, as the Group Money shell draws it
+    /// (node 13729:642).
+    case emptyState
 }

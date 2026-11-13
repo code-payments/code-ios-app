@@ -753,11 +753,11 @@ public final class ChatViewController: UICollectionViewController {
         case .requestEvent(let event):
             let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
             (cell as! ChatRequestEventCell).configure(with: event, maxWidth: Self.requestEventTextWidth(width))
-        case .inviteCard(let groupName):
+        case .inviteCard(let groupName, let style):
             let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
             let card = cell as! ChatInviteCardCell
             card.onInvite = { [weak self] in self?.onInviteCardTap?() }
-            card.configure(groupName: groupName, maxWidth: Self.cardLayoutWidth(width) - ChatColumnCell.rowInset * 2)
+            card.configure(groupName: groupName, style: style, maxWidth: Self.cardLayoutWidth(width) - ChatColumnCell.rowInset * 2)
         case .message(let message):
             configure(cell, with: message)
         }
