@@ -50,8 +50,14 @@ public final class ChatInviteCardCell: UICollectionViewCell {
     static let emptyStateTopInset: CGFloat = 20
 
     public override init(frame: CGRect) {
+        // `configure` must set a configuration whose root view is this same type: a
+        // UIHostingContentView traps when its root view type changes.
         content = UIHostingConfiguration {
-            ShareProfileWidgetView(username: nil, state: nil, onShare: {})
+            InviteCardContent(
+                style: .incomingBubble,
+                copy: ChatInviteCardCopy(style: .incomingBubble, groupName: ""),
+                onInvite: {}
+            )
         }
         .margins(.all, 0)
         .makeContentView()
@@ -135,27 +141,10 @@ public final class ChatInviteCardCell: UICollectionViewCell {
             identity: ChatItem.inviteCard(groupName: "").id
         )
         let onInvite: () -> Void = { [weak self] in self?.onInvite?() }
-        if isEmptyState {
-            content.configuration = UIHostingConfiguration {
-                GroupReadyEmptyStateView(copy: copy, onInvite: onInvite)
-            }
-            .margins(.all, 0)
-        } else {
-            content.configuration = UIHostingConfiguration {
-                ShareProfileWidgetView(
-                    username: nil,
-                    state: nil,
-                    onShare: onInvite,
-                    override: .init(
-                        title: copy.title,
-                        subtitle: copy.subtitle,
-                        buttonTitle: copy.button,
-                        avatar: nil
-                    )
-                )
-            }
-            .margins(.all, 0)
+        content.configuration = UIHostingConfiguration {
+            InviteCardContent(style: style, copy: copy, onInvite: onInvite)
         }
+        .margins(.all, 0)
     }
 
     func fadeOut() {
@@ -173,6 +162,34 @@ public final class ChatInviteCardCell: UICollectionViewCell {
         isUserInteractionEnabled = true
         fadeHost.layer.removeAllAnimations()
         fadeHost.alpha = 1
+    }
+}
+
+/// The card's SwiftUI content for either style. One root type for both, so the cell can switch
+/// style on reuse without changing its hosting view's root type.
+private struct InviteCardContent: View {
+
+    let style: ChatInviteCardStyle
+    let copy: ChatInviteCardCopy
+    let onInvite: () -> Void
+
+    var body: some View {
+        switch style {
+        case .emptyState:
+            GroupReadyEmptyStateView(copy: copy, onInvite: onInvite)
+        case .incomingBubble:
+            ShareProfileWidgetView(
+                username: nil,
+                state: nil,
+                onShare: onInvite,
+                override: .init(
+                    title: copy.title,
+                    subtitle: copy.subtitle,
+                    buttonTitle: copy.button,
+                    avatar: nil
+                )
+            )
+        }
     }
 }
 
