@@ -402,10 +402,16 @@ private struct MuteTarget: Identifiable {
 private struct NewChatButton: View {
 
     @Environment(AppRouter.self) private var router
+    @Environment(BetaFlags.self) private var betaFlags
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    private var showsGroupMoney: Bool {
+        betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
+    }
 
     var body: some View {
         Button {
-            router.push(.newChat)
+            router.push(ChatListComposeRoute.destination(showsGroupMoney: showsGroupMoney))
         } label: {
             // Bar items get their glass from the system on iOS 26, so this
             // carries no button style of its own.
@@ -413,7 +419,7 @@ private struct NewChatButton: View {
                 .font(.appTextLarge)
                 .foregroundStyle(Color.textMain)
         }
-        .accessibilityLabel("New chat")
+        .accessibilityLabel(showsGroupMoney ? "New group" : "New chat")
         .accessibilityIdentifier("new-chat-button")
     }
 }
