@@ -28,6 +28,9 @@ private struct ScanScreenContent: View {
 
     @Environment(Preferences.self) private var preferences
 
+    /// Set when Scan is drawn over the home shell rather than shown as a tab.
+    @Environment(\.homeTabClose) private var close
+
     @Bindable private var session: Session
 
     @State private var viewModel: ScanViewModel
@@ -96,6 +99,12 @@ private struct ScanScreenContent: View {
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .toolbar {
+            // Hidden with the other controls while a bill is up.
+            if let close, showControls {
+                ToolbarItem(placement: .topBarLeading) {
+                    CloseButton(action: close.action)
+                }
+            }
             // Outside the `cameraPrompt` branch on purpose: a photo can be scanned
             // whether or not the camera is available, so the glyph outlives the viewport.
             if showControls {

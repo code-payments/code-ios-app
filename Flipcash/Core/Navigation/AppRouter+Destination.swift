@@ -22,6 +22,9 @@ extension AppRouter {
         /// distinctly from "user opened currency info".
         case currencyInfoForDeposit(PublicKey)
         case discoverCurrencies
+        /// Every currency the wallet holds, from "N currencies" on the Money
+        /// screen (``BetaFlags/Option/groupMoneyUI``).
+        case walletCurrencies
         case currencyCreationSummary
         case currencyCreationWizard
         case transactionHistory(PublicKey)
@@ -182,7 +185,7 @@ extension AppRouter {
         /// no Settings sheet to present them in.
         var owningStack: Stack {
             switch self {
-            case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
+            case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies, .walletCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
                  .transactionHistory, .marketCapExplainer, .topCommunityChats, .currencySendAmount, .currencySendRecipient, .activity, .transactionDetails, .give,
                  .buyCurrency, .convertCurrency,
@@ -213,6 +216,7 @@ extension AppRouter {
             case .currencyInfo:                 "currencyInfo"
             case .currencyInfoForDeposit:       "currencyInfoForDeposit"
             case .discoverCurrencies:           "discoverCurrencies"
+            case .walletCurrencies:             "walletCurrencies"
             case .currencyCreationSummary:      "currencyCreationSummary"
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
@@ -325,7 +329,7 @@ extension AppRouter {
             case .setMinimumTip(let isSetupStep):
                 return isSetupStep ? "setup" : "settings"
             case .activity,
-                 .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
+                 .discoverCurrencies, .walletCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture,

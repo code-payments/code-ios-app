@@ -39,8 +39,13 @@ struct HomeTabView: View {
     /// The Chats list's select mode. Held here because its capsules take the tab bar's place.
     @State private var chatSelection = ChatSelection()
 
+    /// The bar tab to go back to when Scan or You is drawn over the shell,
+    /// which happens only with the Group Money layout: it keeps them off the bar.
+    @State private var lastBarTab: HomeTab
+
     init() {
         _selection = State(initialValue: HomeTab.initial)
+        _lastBarTab = State(initialValue: HomeTab.initial)
         _hasOpenedChat = State(initialValue: HomeTab.initial == .chat)
 
         // Color the tab glyphs white in both states, as iOS 27 already does; the
@@ -79,6 +84,41 @@ struct HomeTabView: View {
     /// Set when the user comes back to a tab home from a screen pushed on it, so the update toast waits
     /// only for the navigation to settle rather than the full dwell.
     @State private var returnedToHome = false
+
+    /// Today's four tabs, or Groups and Money behind `groupMoneyUI` for staff
+    /// and developer-unlocked devices. Read live, so the toggle takes effect
+    /// without a relaunch.
+    private var layout: HomeTabLayout {
+        HomeTabLayout(showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session)))
+    }
+
+    /// The signed-in account and the server's staff value for it, nil until
+    /// fetched. Holds the account as well as the value, in case a switch
+    /// between two accounts keeps this view.
+    private struct StaffReading: Equatable {
+        let userID: UserID
+        let isStaff: Bool?
+    }
+
+    private var staffReading: StaffReading {
+        StaffReading(
+            userID: sessionContainer.session.userID,
+            isStaff: sessionContainer.session.userFlags?.isStaff
+        )
+    }
+
+    /// The bar tab in front: `selection`, or the one an off-bar tab covers.
+    /// With today's layout every tab is on the bar, so this is `selection`.
+    private var barSelection: HomeTab {
+        if layout.isOnBar(selection) { return selection }
+        return layout.isOnBar(lastBarTab) ? lastBarTab : layout.initialTab
+    }
+
+    /// The tab drawn over the shell because the bar has no slot for it: Scan
+    /// or You with the Group Money layout. Nil with today's layout.
+    private var offBarTab: HomeTab? {
+        layout.isOnBar(selection) ? nil : selection
+    }
 
     private var hasPushedScreen: Bool {
         guard !isSearchSelected else { return false }
@@ -122,6 +162,14 @@ struct HomeTabView: View {
 
     var body: some View {
         tabs
+            // VoiceOver stays on Scan or You while it covers the shell.
+            .accessibilityHidden(offBarTab != nil)
+            .overlay { offBarLayer }
+            // A gate flip moves Scan or You between the bar and the overlay in
+            // one update. Animating that would keep the old copy on screen
+            // beside the new one, both bound to the same router stack.
+            .transaction(value: layout) { $0.animation = nil }
+            .animation(.easeInOut(duration: 0.25), value: offBarTab)
             .background(Color.backgroundMain)
             // The app-level sheet host, so `router.present(_:)` works from any tab.
             .modifier(RootSheetHostModifier())
@@ -136,6 +184,10 @@ struct HomeTabView: View {
             .onChange(of: selection) { _, tab in
                 router.activeTabStack = isSearchSelected ? nil : tab.pushStack
                 if tab == .chat { hasOpenedChat = true }
+                // Tracked whatever the layout, so turning Group Money on from
+                // You (the only way to reach the toggle) closes back to the
+                // tab the person came from rather than to Groups.
+                if HomeTabLayout.groupMoney.isOnBar(tab) { lastBarTab = tab }
             }
             .onChange(of: isSearchSelected) { _, isSearching in
                 router.activeTabStack = isSearching ? nil : selection.pushStack
@@ -157,6 +209,11 @@ struct HomeTabView: View {
             }
             .onChange(of: sessionContainer.session.profile?.username, initial: true) { _, username in
                 sessionContainer.chatArchive.setViewerUsername(username)
+            }
+            // Kept for the next cold start, whose first frame can come before
+            // the server's value does.
+            .onChange(of: staffReading, initial: true) { _, reading in
+                betaFlags.recordStaffStanding(reading.isStaff, for: reading.userID)
             }
             // Fetched here rather than on the You tab, so its groups and their
             // avatars are in hand before the tab is first opened.
@@ -203,7 +260,7 @@ struct HomeTabView: View {
     /// The Chat tab's glyphs with the unread count drawn in, or nil when
     /// nothing is unread; see ``TabBarBadgedIcon``.
     private var chatItemImages: TabBarProfilePhoto.ItemImages? {
-        TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount)
+        TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount, layout: layout)
     }
 
     private var profileItemImages: TabBarProfilePhoto.ItemImages? {
@@ -240,6 +297,20 @@ struct HomeTabView: View {
         router.requestedTab = nil
     }
 
+    /// Scan or You in front of the shell, when the Group Money layout leaves
+    /// them off the bar and something asked for one: a deep link, a route onto
+    /// the You stack, the Money avatar. Its close button goes back to the bar
+    /// tab it covers. Draws nothing with today's layout.
+    @ViewBuilder private var offBarLayer: some View {
+        if let offBarTab {
+            tabContent(for: offBarTab)
+                .environment(\.homeTabClose, HomeTabClose { selection = barSelection })
+                .toastHost(container.toasts)
+                .background(Color.backgroundMain)
+                .transition(.move(edge: .bottom))
+        }
+    }
+
     @ViewBuilder private var tabs: some View {
         if #available(iOS 26, *) {
             nativeTabs
@@ -254,7 +325,7 @@ struct HomeTabView: View {
     @available(iOS 26, *)
     private var nativeTabs: some View {
         TabView(selection: nativeSelection) {
-            ForEach(HomeTab.allCases) { tab in
+            ForEach(layout.barTabs) { tab in
                 Tab(value: NativeTab.home(tab)) {
                     tabContent(for: tab)
                         // Every tab stays alive, so only the selected one draws the toast.
@@ -264,7 +335,7 @@ struct HomeTabView: View {
                         .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: 21))
                 } label: {
                     tabLabel(for: tab)
-                        .accessibilityLabel(tab.title)
+                        .accessibilityLabel(layout.title(for: tab))
                 }
             }
             Tab(value: NativeTab.search, role: .search) {
@@ -288,7 +359,7 @@ struct HomeTabView: View {
         // rather than when the drag commits — the binding does not change until
         // the finger lifts.
         .background(TabBarSelectedIcons(
-            tabs: HomeTab.allCases,
+            layout: layout,
             profileImages: profileItemImages,
             chatBadgeCount: chatBadgeCount,
             onLongPress: handleLongPress(on:)
@@ -308,7 +379,7 @@ struct HomeTabView: View {
     @available(iOS 26, *)
     private var nativeSelection: Binding<NativeTab> {
         Binding {
-            isSearchSelected ? .search : .home(selection)
+            isSearchSelected ? .search : .home(barSelection)
         } set: { tab in
             switch tab {
             case .home(let tab):
@@ -320,11 +391,12 @@ struct HomeTabView: View {
         }
     }
 
-    /// Opens a search result on the Chat tab, the stack its chats and currencies live on.
+    /// Opens a search result on the Chat tab (Groups, with the Group Money
+    /// layout), the stack its chats and currencies live on.
     private func openFromSearch(_ destination: AppRouter.Destination) {
         router.pushAny(destination, on: .tips)
         isSearchSelected = false
-        selection = .chat
+        selection = layout.searchResultTab
     }
 
     /// The unselected icon for a tab. The filled counterpart is handed to UIKit
@@ -336,7 +408,7 @@ struct HomeTabView: View {
     /// disagreed would take turns with the probe and flicker between the two.
     private func tabLabel(for tab: HomeTab) -> some View {
         Label {
-            Text(tab.title)
+            Text(layout.title(for: tab))
         } icon: {
             tabIcon(for: tab)
         }
@@ -348,7 +420,7 @@ struct HomeTabView: View {
         } else if tab == .chat, let badged = chatItemImages?.normal {
             Image(uiImage: badged).renderingMode(.original)
         } else {
-            Image(tab.iconName(isSelected: false))
+            Image(layout.iconName(for: tab, isSelected: false))
         }
     }
 
@@ -364,20 +436,23 @@ struct HomeTabView: View {
     /// content, sliding out when `isTabBarHidden`.
     private var legacyTabs: some View {
         ZStack(alignment: .bottom) {
-            tabContent(for: selection)
+            tabContent(for: barSelection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 // The pill adds nothing to the safe area, so the toast clears it itself, and it draws
                 // below the pill so it grows out from behind it.
                 .toastHost(
                     container.toasts,
-                    bottomPadding: isTabBarHidden ? 12 : 12 + Self.legacyPillClearance
+                    bottomPadding: isTabBarHidden ? 12 : 12 + Self.legacyPillClearance,
+                    // An off-bar tab drawn over the shell hosts the toast itself.
+                    isEnabled: offBarTab == nil
                 )
                 .transition(.opacity)
                 .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: Self.legacyPillInset))
 
             if !isTabBarHidden {
                 HomeTabBar(
-                    selection: $selection,
+                    selection: Binding { barSelection } set: { selection = $0 },
+                    layout: layout,
                     badgeCounts: [.chat: chatBadgeCount],
                     profileSlot: profileSlot,
                     onLongPress: handleLongPress(on:)
@@ -513,10 +588,20 @@ private struct TipCardTab: View {
 
     @Environment(AppRouter.self) private var router
 
+    /// Set when You is drawn over the shell rather than shown as a tab.
+    @Environment(\.homeTabClose) private var close
+
     var body: some View {
         @Bindable var router = router
         NavigationStack(path: $router[.you]) {
             YouScreen()
+                .toolbar {
+                    if let close {
+                        ToolbarItem(placement: .topBarLeading) {
+                            CloseButton(action: close.action)
+                        }
+                    }
+                }
                 .appRouterDestinations()
         }
     }
@@ -538,7 +623,8 @@ private struct TipCardTab: View {
 /// every update because SwiftUI resets the images when it rebuilds the bar.
 @available(iOS 26, *)
 private struct TabBarSelectedIcons: UIViewControllerRepresentable {
-    let tabs: [HomeTab]
+    /// Which tabs the bar holds and which glyph each wears.
+    let layout: HomeTabLayout
 
     /// The You tab's photo, in place of its glyph. Passed by value so the
     /// enclosing body observes it landing and this representable is updated.
@@ -552,11 +638,11 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     let onLongPress: (HomeTab) -> Void
 
     func makeUIViewController(context: Context) -> Probe {
-        Probe(tabs: tabs, profileImages: profileImages, chatBadgeCount: chatBadgeCount, onLongPress: onLongPress)
+        Probe(layout: layout, profileImages: profileImages, chatBadgeCount: chatBadgeCount, onLongPress: onLongPress)
     }
 
     func updateUIViewController(_ probe: Probe, context: Context) {
-        probe.tabs = tabs
+        probe.layout = layout
         probe.profileImages = profileImages
         probe.chatBadgeCount = chatBadgeCount
         probe.onLongPress = onLongPress
@@ -564,18 +650,18 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     }
 
     final class Probe: UIViewController, UIGestureRecognizerDelegate {
-        var tabs: [HomeTab]
+        var layout: HomeTabLayout
         var profileImages: TabBarProfilePhoto.ItemImages?
         var chatBadgeCount: Int
         var onLongPress: (HomeTab) -> Void
 
         init(
-            tabs: [HomeTab],
+            layout: HomeTabLayout,
             profileImages: TabBarProfilePhoto.ItemImages?,
             chatBadgeCount: Int,
             onLongPress: @escaping (HomeTab) -> Void
         ) {
-            self.tabs = tabs
+            self.layout = layout
             self.profileImages = profileImages
             self.chatBadgeCount = chatBadgeCount
             self.onLongPress = onLongPress
@@ -599,10 +685,14 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
         /// with the tabs — the icons then simply stay outlined, rather than the
         /// wrong glyph being pinned to the wrong tab. Retried on the next turn
         /// of the runloop, because the bar's items do not exist yet on the pass
-        /// where this controller is first added.
+        /// where this controller is first added, and still hold the other
+        /// layout's on the pass after a gate flip.
         func apply() {
             // The search tab, when there is one, is the last item and keeps its system glyph.
-            guard let bar = resolvedTabBar, let items = bar.items, items.count >= tabs.count else {
+            guard let bar = resolvedTabBar,
+                  let items = bar.items,
+                  let tabs = layout.barTabs(forItemCount: items.count)
+            else {
                 scheduleRetry()
                 return
             }
@@ -620,16 +710,16 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
                     // The drawn-in count is invisible to VoiceOver, so the item
                     // carries it the way the system badge did.
                     item.accessibilityValue = chatBadgeCount > 0 ? "\(chatBadgeCount) unread" : nil
-                    if let badged = TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount) {
+                    if let badged = TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount, layout: layout) {
                         item.image = badged.normal
                         item.selectedImage = badged.selected
                         continue
                     }
                 }
 
-                item.image = UIImage(named: tab.iconName(isSelected: false))?
+                item.image = UIImage(named: layout.iconName(for: tab, isSelected: false))?
                     .withRenderingMode(.alwaysTemplate)
-                item.selectedImage = UIImage(named: tab.iconName(isSelected: true))?
+                item.selectedImage = UIImage(named: layout.iconName(for: tab, isSelected: true))?
                     .withRenderingMode(.alwaysTemplate)
             }
         }
@@ -656,7 +746,7 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
 
         @objc private func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
             guard recognizer.state == .began, let bar = recognizer.view as? UITabBar else { return }
-            guard let tab = TabBarItemLocator.tab(at: recognizer.location(in: bar), in: bar, tabs: tabs) else { return }
+            guard let tab = TabBarItemLocator.tab(at: recognizer.location(in: bar), in: bar, tabs: layout.barTabs) else { return }
             onLongPress(tab)
         }
 

@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import FlipcashCore
 
 /// Manages feature flags gated behind the beta access menu in Settings.
 ///
@@ -35,9 +36,15 @@ class BetaFlags {
     // distinguishable: without it a default-on flag would switch itself back on
     // at every launch.
     @ObservationIgnored @Defaults(.appliedBetaFlagDefaults) private var appliedDefaults: Set<String>?
-    
+
+    // Each account's staff value as this device last had it from the server,
+    // keyed by user ID. Read once into memory, since the shell's gate asks on
+    // every render.
+    @ObservationIgnored @Defaults(.lastKnownStaff) private var storedLastKnownStaff: [String: Bool]?
+    @ObservationIgnored private var lastKnownStaff: [String: Bool] = [:]
+
     // MARK: - Init -
-    
+
     // Internal rather than private: `shared` is the app's one instance, but the
     // launch sequence — read stored, apply defaults, apply overrides — is only
     // verifiable by constructing an instance per simulated launch.
@@ -45,6 +52,7 @@ class BetaFlags {
         readStoredOptions()
         applyDefaults()
         readAccessGranted()
+        lastKnownStaff = storedLastKnownStaff ?? [:]
     }
     
     /// Returns `true` when the given beta flag is currently active.
@@ -69,6 +77,76 @@ class BetaFlags {
 
     /// Whether Settings shows the Account Info row.
     var canViewAccountInfo: Bool { accessGranted }
+
+    /// Whether this person gets the staff-only flags: staff, or anyone on a
+    /// device unlocked with the version easter egg.
+    static func hasStaffAccess(isStaff: Bool, accessGranted: Bool) -> Bool {
+        isStaff || accessGranted
+    }
+
+    /// The developer flags the Beta Features screen lists. An unlocked device
+    /// gets all of them; staff on a device that is not unlocked get only the
+    /// ones in ``Option/staffOptions``; everyone else gets none.
+    static func developerOptions(isStaff: Bool, accessGranted: Bool) -> [Option] {
+        Option.allCases.filter { option in
+            guard option.availability == .developer else { return false }
+            if accessGranted { return true }
+            return isStaff && Option.staffOptions.contains(option)
+        }
+    }
+
+    /// Whether the home shell is the Group Money redesign's: the flag is on and
+    /// this person has staff access. Turning the flag on is not enough, so a
+    /// device that loses the unlock, or an account that stops being staff, goes
+    /// back to today's shell with its toggle hidden.
+    static func showsGroupMoneyUI(isEnabled: Bool, isStaff: Bool, accessGranted: Bool) -> Bool {
+        isEnabled && hasStaffAccess(isStaff: isStaff, accessGranted: accessGranted)
+    }
+
+    /// ``showsGroupMoneyUI(isEnabled:isStaff:accessGranted:)`` for this device.
+    func showsGroupMoneyUI(isStaff: Bool) -> Bool {
+        Self.showsGroupMoneyUI(
+            isEnabled: hasEnabled(.groupMoneyUI),
+            isStaff: isStaff,
+            accessGranted: accessGranted
+        )
+    }
+
+    /// The staff value the Group Money gate reads: the server's once it has
+    /// arrived, else the one this device last had for the account, else not
+    /// staff. The server's value can land after the first frame, and gating on
+    /// it alone drew today's shell first for a staff account, then switched.
+    static func staffStanding(live: Bool?, lastKnown: Bool?) -> Bool {
+        live ?? lastKnown ?? false
+    }
+
+    /// `stored` with `userID`'s entry set to `live`, including to false.
+    /// Unchanged while `live` is nil, so a launch that has not heard from the
+    /// server yet keeps what it knew.
+    static func recordingStaffStanding(
+        _ live: Bool?,
+        for userID: UserID,
+        in stored: [String: Bool]
+    ) -> [String: Bool] {
+        guard let live else { return stored }
+        var updated = stored
+        updated[userID.uuidString] = live
+        return updated
+    }
+
+    /// ``staffStanding(live:lastKnown:)`` with this device's stored value for
+    /// `userID`.
+    func staffStanding(live: Bool?, userID: UserID) -> Bool {
+        Self.staffStanding(live: live, lastKnown: lastKnownStaff[userID.uuidString])
+    }
+
+    /// Keeps `live` as `userID`'s last known staff value for the next launch.
+    func recordStaffStanding(_ live: Bool?, for userID: UserID) {
+        let updated = Self.recordingStaffStanding(live, for: userID, in: lastKnownStaff)
+        guard updated != lastKnownStaff else { return }
+        lastKnownStaff = updated
+        storedLastKnownStaff = updated
+    }
 
     /// Enables or disables a beta flag and persists the change to disk.
     func set(_ option: Option, enabled: Bool) {
@@ -181,6 +259,7 @@ extension BetaFlags {
         case vibrateOnScan
         case enableCoinbase
         case chatCashBill
+        case groupMoneyUI
 
         var id: String {
             localizedTitle
@@ -194,6 +273,8 @@ extension BetaFlags {
                 return "Enable Coinbase"
             case .chatCashBill:
                 return "Chat Cash Bill"
+            case .groupMoneyUI:
+                return "Group Money UI"
             }
         }
 
@@ -205,6 +286,8 @@ extension BetaFlags {
                 return "If enabled, Coinbase onramp will be available regardless of region"
             case .chatCashBill:
                 return "Show the bill when someone sends you cash in the chat you have open."
+            case .groupMoneyUI:
+                return "If enabled, staff accounts and unlocked devices get Groups and Money in place of the home tabs."
             }
         }
 
@@ -214,6 +297,7 @@ extension BetaFlags {
             case .vibrateOnScan:  return .developer
             case .enableCoinbase: return .developer
             case .chatCashBill:   return .publicBeta
+            case .groupMoneyUI:   return .developer
             }
         }
 
@@ -224,8 +308,13 @@ extension BetaFlags {
             case .vibrateOnScan:  return false
             case .enableCoinbase: return false
             case .chatCashBill:   return true
+            case .groupMoneyUI:   return false
             }
         }
+
+        /// Developer flags that staff see without unlocking the device, since
+        /// their gate is the account rather than the easter egg.
+        static let staffOptions: Set<Option> = [.groupMoneyUI]
     }
 
     /// Where a beta flag's toggle appears in Settings.
@@ -243,4 +332,13 @@ extension BetaFlags {
 
 extension BetaFlags {
     static let mock = BetaFlags()
+}
+
+extension BetaFlags {
+    /// ``staffStanding(live:userID:)`` for the signed-in account. The shell,
+    /// the wallet layout and the flag's toggle all read this, so they never
+    /// disagree for a pass.
+    func staffStanding(of session: Session) -> Bool {
+        staffStanding(live: session.userFlags?.isStaff, userID: session.userID)
+    }
 }
