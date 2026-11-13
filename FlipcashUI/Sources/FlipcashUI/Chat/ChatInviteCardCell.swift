@@ -135,9 +135,11 @@ public final class ChatInviteCardCell: UICollectionViewCell {
         widthConstraint.constant = isEmptyState
             ? min(Self.emptyStateWidth, maxWidth)
             : min(ChatShareProfileCell.designedWidth, maxWidth - ChatColumnCell.authorGutterWidth)
+        // The empty state is the row's content alone: no base, wash or hairline (node 13729:642).
         card.apply(
-            fill: isEmptyState ? .clear : UIColor.white.withAlphaComponent(0.02),
+            fill: UIColor.white.withAlphaComponent(0.02),
             radii: BubbleBackgroundView.radii(isFromSelf: false, groupedAbove: false, groupedBelow: false),
+            bare: isEmptyState,
             identity: ChatItem.inviteCard(groupName: "").id
         )
         let onInvite: () -> Void = { [weak self] in self?.onInvite?() }

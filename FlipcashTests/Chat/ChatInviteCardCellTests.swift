@@ -50,4 +50,18 @@ struct ChatInviteCardCellTests {
         #expect(emptyState > 0)
         #expect(height(of: cell) == bubble)
     }
+
+    @Test("The empty state draws no bubble, and a reused cell draws it again for the bubble style")
+    func emptyStateDrawsNoBubble() {
+        let cell = ChatInviteCardCell(frame: CGRect(x: 0, y: 0, width: 390, height: 200))
+        let chrome = cell.descendants(of: BubbleBackgroundView.self).first
+
+        cell.configure(groupName: "Ski Trip", style: .emptyState, maxWidth: 390)
+        let emptyStateDraws = chrome?.isDrawingBubble
+        cell.prepareForReuse()
+        cell.configure(groupName: "Ski Trip", style: .incomingBubble, maxWidth: 390)
+
+        #expect(emptyStateDraws == false)
+        #expect(chrome?.isDrawingBubble == true)
+    }
 }

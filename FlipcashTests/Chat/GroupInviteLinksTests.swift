@@ -310,6 +310,12 @@ struct GroupInviteLinksTests {
         #expect(InviteLinkCopy.groupSheetLine == "Send this link to the people you want to join your group")
     }
 
+    @Test("The shell's Invite People sheet opens full height; today's fits its content")
+    func groupSheetHeight() {
+        #expect(GroupInviteSheetLayout(showsGroupMoney: true).opensFullHeight)
+        #expect(!GroupInviteSheetLayout(showsGroupMoney: false).opensFullHeight)
+    }
+
     @Test("Profile, message and currency sheets keep Recent Chats")
     func otherSheetsKeepRecentChats() {
         let url = URL(string: "https://app.flipcash.com/chat/x")!
