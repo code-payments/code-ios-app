@@ -80,6 +80,9 @@ private struct NestedSheetRootView: View {
             case .addMoney:
                 AddMoneySheetRoot()
 
+            case .invitePeople:
+                EmptyView()
+
             case .give, .downloadApp, .tips, .switchAccount:
                 // Root-only sheets; `presentNested` logs a warning if one
                 // lands here.

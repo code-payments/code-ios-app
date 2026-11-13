@@ -22,6 +22,7 @@ extension AppRouter {
         case tips
         case you
         case switchAccount
+        case invitePeople
 
         /// The sheet a stack is presented in. Cross-stack navigation uses
         /// this to know which top-level modal to surface.
@@ -42,6 +43,7 @@ extension AppRouter {
             case .tips:         .tips
             case .you:          nil
             case .switchAccount: .switchAccount
+            case .invitePeople: nil
             }
         }
 
@@ -64,6 +66,7 @@ extension AppRouter {
             case .tips:         true
             case .you:          true
             case .switchAccount: false
+            case .invitePeople: false
             }
         }
 
@@ -78,6 +81,7 @@ extension AppRouter {
             case .tips:         "tips"
             case .you:          "you"
             case .switchAccount: "switchAccount"
+            case .invitePeople: "invitePeople"
             }
         }
     }
