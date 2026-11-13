@@ -47,6 +47,10 @@ struct ShareToChatsSheet: View {
 
     @Binding var isPresented: Bool
 
+    /// Whether this is the router's Invite People sheet, the one the Group Money shell redraws
+    /// (node 13729:672). Manage Invites, Join Requests and the link card keep today's sheet.
+    let isInvitePeople: Bool
+
     /// Called after a direct send with the chat picked first, which the presenter opens.
     let onInvited: (ConversationID) -> Void
 
@@ -72,10 +76,12 @@ struct ShareToChatsSheet: View {
     init(
         subject: ShareToChatsSubject,
         isPresented: Binding<Bool>,
+        isInvitePeople: Bool = false,
         onInvited: @escaping (ConversationID) -> Void
     ) {
         self.subject = subject
         self._isPresented = isPresented
+        self.isInvitePeople = isInvitePeople
         self.onInvited = onInvited
         let url: URL = switch subject {
         case .group(let id): .groupChatInvite(for: id)
@@ -214,12 +220,21 @@ struct ShareToChatsSheet: View {
     /// The group sheet's tiles, left to right.
     nonisolated static let groupTileTitles = ["Copy", "Share", "QR Code"]
 
-    /// What a group's sheet shows: the Group Money shell's Invite People (node 13729:672) or today's.
-    /// Any other subject keeps today's sheet whatever the shell.
+    /// What a group's sheet shows: the Group Money shell's Invite People (node 13729:672) for the
+    /// router's Invite People sheet, today's for every other presenter and any other subject.
+    static func layout(for subject: ShareToChatsSubject, isInvitePeople: Bool, showsGroupMoney: Bool) -> GroupInviteSheetLayout {
+        let admitsAnyone = if case .inviteLink = subject { true } else { false }
+        return GroupInviteSheetLayout(
+            showsGroupMoney: showsGroupMoney && isInvitePeople && isGroupSheet(subject),
+            admitsAnyone: admitsAnyone
+        )
+    }
+
     private var layout: GroupInviteSheetLayout {
-        GroupInviteSheetLayout(
-            showsGroupMoney: Self.isGroupSheet(subject)
-                && betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
+        Self.layout(
+            for: subject,
+            isInvitePeople: isInvitePeople,
+            showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
         )
     }
 

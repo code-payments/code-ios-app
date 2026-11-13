@@ -75,6 +75,14 @@ enum GroupReadyInvite {
     static func target(isApproving: Bool) -> Target {
         isApproving ? .plainLink : .currentLink
     }
+
+    /// Whether the router's Invite People sheet closes once the failed-link dialog does. With no
+    /// link made, the sheet has nothing to share and its tiles stay off, so it closes as today's
+    /// card presenter does, unless the viewer took the plain link (the sheet swaps to it) or went to
+    /// Manage Invites (which closed it already).
+    static func closesSheetAfterFailedLink(sharesPlainLink: Bool, opensManageInvites: Bool) -> Bool {
+        !sharesPlainLink && !opensManageInvites
+    }
 }
 
 /// Opens the share sheet straight from the card for a private group's host, with no Invite People

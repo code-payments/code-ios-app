@@ -13,6 +13,15 @@ import SwiftUI
 struct GroupInviteSheetLayout: Equatable {
 
     let showsGroupMoney: Bool
+    /// Whether opening the link joins the group outright. A current invite link does; the plain
+    /// `/chat/{uuid}` link, shared while Approve New Members is on or by a member who can't invite,
+    /// asks the host first.
+    let admitsAnyone: Bool
+
+    init(showsGroupMoney: Bool, admitsAnyone: Bool = true) {
+        self.showsGroupMoney = showsGroupMoney
+        self.admitsAnyone = admitsAnyone
+    }
 
     var title: String {
         "Invite People"
@@ -32,9 +41,11 @@ struct GroupInviteSheetLayout: Equatable {
         showsGroupMoney ? "Send this link to the people you want in your group." : nil
     }
 
-    /// The line under the link.
-    var linkCaption: String {
-        showsGroupMoney ? "Anyone with the link can join." : InviteLinkCopy.groupSheetLine
+    /// The line under the link. The shell's caption promises open entry, so a link that asks the
+    /// host first goes without one rather than repeat ``message``.
+    var linkCaption: String? {
+        guard showsGroupMoney else { return InviteLinkCopy.groupSheetLine }
+        return admitsAnyone ? "Anyone with the link can join." : nil
     }
 
     var tileTitles: [String] {
