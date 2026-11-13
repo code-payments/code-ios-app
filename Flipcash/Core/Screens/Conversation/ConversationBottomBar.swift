@@ -1493,6 +1493,17 @@ struct ConversationComposer: View {
 /// The way out of an edit: the bar's leading control while the field holds an existing message,
 /// standing where Send Cash stands the rest of the time. Field-sized and glass, so the swap reads
 /// as the same control changing job rather than a foreign button arriving.
+/// How the composer's `$` is drawn.
+enum ComposerCashButtonStyle: Equatable {
+    /// Glass drawn by the bar, joined to the field's.
+    case glass
+    case blue
+
+    init(showsGroupMoney: Bool) {
+        self = .glass
+    }
+}
+
 /// The round `$` beside the field. Its glass is drawn by the bar, joined to the field's.
 private struct ComposerCashButton: View {
 

@@ -22,6 +22,11 @@ enum GroupReadyCard {
         return memberCount == 1 && viewerCanInvite
     }
 
+    /// How the card is drawn.
+    static func style(showsGroupMoney: Bool) -> ChatInviteCardStyle {
+        .incomingBubble
+    }
+
     static func isShown(_ conversation: Conversation?) -> Bool {
         guard let conversation else { return false }
         return isShown(

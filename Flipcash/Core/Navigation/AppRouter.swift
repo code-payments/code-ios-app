@@ -435,6 +435,10 @@ final class AppRouter {
         ])
     }
 
+    /// Presents a group's Invite People sheet over whatever is showing.
+    func presentInvitePeople(_ conversationID: ConversationID) {
+    }
+
     /// Appends `sheet` on top of the current top, stacking visually. Requires
     /// at least one sheet already presented (no-op + warning otherwise — the
     /// caller should `present(_:)` a root first, not promote-implicitly).
