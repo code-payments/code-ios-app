@@ -56,9 +56,10 @@ struct GroupInviteSheetLayout: Equatable {
         showsGroupMoney
     }
 
-    /// The shell's sheet is a full screen (node 13729:672); today's fits its content.
+    /// Whether the sheet opens at full height. Neither shell's does: the Group Money shell's sheet
+    /// fits its content as today's does, where frame 1-07 draws a full screen.
     var opensFullHeight: Bool {
-        showsGroupMoney
+        false
     }
 }
 
@@ -71,17 +72,18 @@ enum InvitePeopleRoute: Equatable {
     /// The host's link card, with Approve New Members and Manage Invites.
     case linkCard
 
-    /// The group-ready card's button. The shell has one Invite People sheet for everyone; without
-    /// it, a private group's host goes straight to the share sheet.
+    /// The group-ready card's button. The shell opens the Invite People sheet for everyone;
+    /// without it, a private group's host goes straight to the share sheet.
     static func forGroupReady(showsGroupMoney: Bool, canInvite: Bool, isPrivate: Bool) -> Self {
         if showsGroupMoney { return .invitePeopleSheet }
         if isPrivate && canInvite { return .shareSheet }
         return forGroupInfo(showsGroupMoney: showsGroupMoney, canInvite: canInvite)
     }
 
-    /// Group info's Invite People.
+    /// Group info's Invite People, which `invitePeople(_:canInvite:…)` presents: the host's link
+    /// card, or the plain link's share sheet for a member who can't invite. The Group Money shell
+    /// keeps today's sheets here.
     static func forGroupInfo(showsGroupMoney: Bool, canInvite: Bool) -> Self {
-        if showsGroupMoney { return .invitePeopleSheet }
-        return canInvite ? .linkCard : .shareSheet
+        canInvite ? .linkCard : .shareSheet
     }
 }

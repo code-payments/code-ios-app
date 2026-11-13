@@ -310,9 +310,9 @@ struct GroupInviteLinksTests {
         #expect(InviteLinkCopy.groupSheetLine == "Send this link to the people you want to join your group")
     }
 
-    @Test("The shell's Invite People sheet opens full height; today's fits its content")
+    @Test("The shell's Invite People sheet fits its content, as today's does")
     func groupSheetHeight() {
-        #expect(GroupInviteSheetLayout(showsGroupMoney: true).opensFullHeight)
+        #expect(!GroupInviteSheetLayout(showsGroupMoney: true).opensFullHeight)
         #expect(!GroupInviteSheetLayout(showsGroupMoney: false).opensFullHeight)
     }
 

@@ -157,10 +157,10 @@ struct GroupMoneyInviteSpecTests {
         #expect(InvitePeopleRoute.forGroupReady(showsGroupMoney: false, canInvite: false, isPrivate: false) == .shareSheet)
     }
 
-    @Test("4.3 group info's Invite People opens the same sheet with the shell on, and today's card or share sheet with it off")
+    @Test("4.3 group info's Invite People opens today's card or share sheet, with the shell on or off")
     func invite_groupInfoRoute() {
-        #expect(InvitePeopleRoute.forGroupInfo(showsGroupMoney: true, canInvite: true) == .invitePeopleSheet)
-        #expect(InvitePeopleRoute.forGroupInfo(showsGroupMoney: true, canInvite: false) == .invitePeopleSheet)
+        #expect(InvitePeopleRoute.forGroupInfo(showsGroupMoney: true, canInvite: true) == .linkCard)
+        #expect(InvitePeopleRoute.forGroupInfo(showsGroupMoney: true, canInvite: false) == .shareSheet)
         #expect(InvitePeopleRoute.forGroupInfo(showsGroupMoney: false, canInvite: true) == .linkCard)
         #expect(InvitePeopleRoute.forGroupInfo(showsGroupMoney: false, canInvite: false) == .shareSheet)
     }

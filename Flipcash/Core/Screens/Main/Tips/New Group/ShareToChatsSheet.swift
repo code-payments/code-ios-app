@@ -48,7 +48,8 @@ struct ShareToChatsSheet: View {
     @Binding var isPresented: Bool
 
     /// Whether this is the router's Invite People sheet, the one the Group Money shell redraws
-    /// (node 13729:672). Manage Invites, Join Requests and the link card keep today's sheet.
+    /// (node 13729:672). Group info, Manage Invites, Join Requests and the link card keep today's
+    /// sheet.
     let isInvitePeople: Bool
 
     /// Called after a direct send with the chat picked first, which the presenter opens.
