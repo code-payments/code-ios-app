@@ -323,7 +323,7 @@ struct ShareToChatsSheet: View {
         .onGeometryChange(for: CGFloat.self, of: \.size.height) { fittedHeight = $0 }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .presentationDetents(
-            [isShowingGroupCard || fittedHeight == 0 ? .large : .height(fittedHeight)]
+            [layout.opensFullHeight || isShowingGroupCard || fittedHeight == 0 ? .large : .height(fittedHeight)]
         )
     }
 

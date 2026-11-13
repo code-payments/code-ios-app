@@ -44,6 +44,11 @@ struct GroupInviteSheetLayout: Equatable {
     var tilesAreSquare: Bool {
         showsGroupMoney
     }
+
+    /// The shell's sheet is a full screen (node 13729:672); today's fits its content.
+    var opensFullHeight: Bool {
+        showsGroupMoney
+    }
 }
 
 /// What a group's Invite People button opens.
