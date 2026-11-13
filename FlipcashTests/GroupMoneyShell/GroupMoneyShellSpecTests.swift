@@ -143,6 +143,35 @@ struct GroupMoneyShellSpecTests {
         #expect(!bar.contains(.tipCard))
     }
 
+    @Test("3.7 flag on: Groups has no search button on either bar; flag off keeps today's, on the legacy pill only")
+    func searchButton_followsLayout() {
+        #expect(HomeTabLayout.groupMoney.listShowsSearchButton(onSystemBar: true) == false)
+        #expect(HomeTabLayout.groupMoney.listShowsSearchButton(onSystemBar: false) == false)
+        #expect(HomeTabLayout.standard.listShowsSearchButton(onSystemBar: true) == false)
+        #expect(HomeTabLayout.standard.listShowsSearchButton(onSystemBar: false) == true)
+    }
+
+    @Test("3.8 flag on: the system bar holds Groups and Money alone, centred at their width")
+    func groupMoney_systemBarIsCentredWithoutSearch() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, bar) = try await hostedTabBar(showsGroupMoney: true)
+        defer { window.isHidden = true }
+        #expect(bar.items?.map(\.title) == ["Groups", "Money"])
+        let frames = TabBarItemLocator.itemFrames(in: bar)
+        let items = frames.dropFirst().reduce(frames[0]) { $0.union($1) }
+        #expect(abs(items.midX - bar.bounds.midX) <= 1, "items \(items) in bar \(bar.bounds)")
+        #expect(items.width < bar.bounds.width * 0.75, "items \(items) in bar \(bar.bounds)")
+    }
+
+    @Test("3.9 flag off: the system bar keeps today's four tabs and its search tab")
+    func standard_systemBarKeepsSearch() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, bar) = try await hostedTabBar(showsGroupMoney: false)
+        defer { window.isHidden = true }
+        #expect(bar.items?.count == 5)
+        #expect(bar.items?.last?.title == "Search")
+    }
+
     // MARK: - Routing
 
     @Test("4.1 launch opens Groups")
@@ -391,5 +420,68 @@ struct GroupMoneyShellSpecTests {
     func activity_unsignedAmount() {
         let amount = FiatAmount(value: Decimal(string: "18.36")!, currency: .usd)
         #expect(MoneyActivityRowContent.amountText(amount, signPrefix: nil) == "$18.36")
+    }
+}
+
+// MARK: - Hosted tab bar -
+
+/// Answers the shell's gate without touching the stored flags, which other
+/// suites read from `UserDefaults.standard` while this one runs.
+private final class GateFlags: BetaFlags {
+    let showsGroupMoney: Bool
+
+    init(showsGroupMoney: Bool) {
+        self.showsGroupMoney = showsGroupMoney
+        super.init()
+    }
+
+    override func showsGroupMoneyUI(isStaff: Bool) -> Bool {
+        showsGroupMoney
+    }
+}
+
+extension GroupMoneyShellSpecTests {
+
+    /// `HomeTabView` in an iPhone-sized window, and the system tab bar it draws
+    /// once every item in that bar is laid out. The caller hides the window.
+    @available(iOS 26, *)
+    fileprivate func hostedTabBar(showsGroupMoney: Bool) async throws -> (UIWindow, UITabBar) {
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let view = HomeTabView()
+            .environment(GateFlags(showsGroupMoney: showsGroupMoney) as BetaFlags)
+            .injectingEnvironment(from: sessionContainer)
+            .injectingEnvironment(from: Container.mock)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: view)
+        window.makeKeyAndVisible()
+
+        var found: UITabBar?
+        do {
+            try await waitUntil(timeout: .seconds(30)) {
+                window.layoutIfNeeded()
+                guard let bar = Self.tabBar(in: window),
+                      let itemCount = bar.items?.count, itemCount >= 2,
+                      TabBarItemLocator.itemFrames(in: bar).count == itemCount
+                else { return false }
+                found = bar
+                return true
+            }
+        } catch {
+            let bar = Self.tabBar(in: window)
+            Issue.record("bar items: \(bar?.items?.map { $0.title ?? "-" } ?? []), frames: \(bar.map(TabBarItemLocator.itemFrames(in:)) ?? [])")
+            window.isHidden = true
+            throw error
+        }
+        return (window, try #require(found))
+    }
+
+    private static func tabBar(in view: UIView) -> UITabBar? {
+        if let bar = view as? UITabBar, !bar.isHidden { return bar }
+        for subview in view.subviews {
+            if let bar = tabBar(in: subview) { return bar }
+        }
+        return nil
     }
 }
