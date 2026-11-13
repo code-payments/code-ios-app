@@ -34,7 +34,7 @@ struct InviteLinkPanel: View {
             pillView
             if let meta {
                 Text(meta)
-                    .font(isCentered ? .default(size: 14, weight: .regular) : .appTextCaption)
+                    .font(.appTextCaption)
                     .multilineTextAlignment(isCentered ? .center : .leading)
                     .foregroundStyle(Color.textSecondary)
                     .accessibilityIdentifier("invite-link-meta")
