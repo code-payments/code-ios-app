@@ -29,6 +29,7 @@ struct ChatProfileScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(AppRouter.self) private var router
     @Environment(ToastController.self) private var toasts
+    @Environment(BetaFlags.self) private var betaFlags
 
     @State private var isInviting = false
     @State private var isPickingMuteDuration = false
@@ -639,7 +640,13 @@ struct ChatProfileScreen: View {
             source: .profile,
             memberCount: conversation?.rosterSummary.memberCount ?? 0
         )
-        isInviting = true
+        let showsGroupMoney = betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: session))
+        switch InvitePeopleRoute.forGroupInfo(showsGroupMoney: showsGroupMoney, canInvite: conversation?.canInvite ?? false) {
+        case .invitePeopleSheet:
+            router.presentInvitePeople(conversationID)
+        case .linkCard, .shareSheet:
+            isInviting = true
+        }
     }
 
     /// A portrait opens the member sheet; the viewer's own still opens their profile.
