@@ -24,7 +24,7 @@ enum GroupReadyCard {
 
     /// How the card is drawn.
     static func style(showsGroupMoney: Bool) -> ChatInviteCardStyle {
-        .incomingBubble
+        showsGroupMoney ? .emptyState : .incomingBubble
     }
 
     static func isShown(_ conversation: Conversation?) -> Bool {
