@@ -204,6 +204,66 @@ struct GroupMoneyInviteSpecTests {
         #expect(layout.tilesAreSquare == false)
     }
 
+    @Test("4.8 the shell's Invite People sheet fits its content, as today's does")
+    func invite_sheetFitsContent_shellOn() {
+        #expect(GroupInviteSheetLayout(showsGroupMoney: true).opensFullHeight == false)
+        #expect(ShareToChatsSheet.layout(for: .group(Self.groupID), isInvitePeople: true, showsGroupMoney: true).opensFullHeight == false)
+    }
+
+    @Test("4.9 with the shell on, group info's Invite People is today's, never the router's sheet that makes a link as it opens")
+    func invite_groupInfoKeepsTodaysSheet_shellOn() {
+        for canInvite in [true, false] {
+            let route = InvitePeopleRoute.forGroupInfo(showsGroupMoney: true, canInvite: canInvite)
+            #expect(route != .invitePeopleSheet)
+            #expect(route == InvitePeopleRoute.forGroupInfo(showsGroupMoney: false, canInvite: canInvite))
+        }
+    }
+
+    @Test("4.10 with the shell on, the router's Invite People sheet opens at its content's height, not full height")
+    func invite_routerSheetFitsContent_shellOn() async throws {
+        let flags = BetaFlags()
+        let wasOn = flags.hasEnabled(.groupMoneyUI)
+        let hadAccess = flags.accessGranted
+        flags.set(.groupMoneyUI, enabled: true)
+        flags.setAccessGranted(true)
+        defer {
+            flags.set(.groupMoneyUI, enabled: wasOn)
+            flags.setAccessGranted(hadAccess)
+        }
+
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let view = Color.clear
+            .modifier(RootSheetHostModifier())
+            .environment(flags)
+            .injectingEnvironment(from: sessionContainer)
+            .injectingEnvironment(from: Container.mock)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        window.rootViewController = UIHostingController(rootView: view)
+        window.makeKeyAndVisible()
+        defer {
+            window.rootViewController?.dismiss(animated: false)
+            window.isHidden = true
+        }
+
+        sessionContainer.appRouter.presentInvitePeople(Self.groupID)
+
+        // The sheet opens on `.large` until it has measured its content, then takes that height.
+        try await waitUntil {
+            window.layoutIfNeeded()
+            guard let sheet = window.rootViewController?.presentedViewController?.sheetPresentationController else { return false }
+            let detents = sheet.detents.map(\.identifier)
+            return !detents.isEmpty && !detents.contains(.large)
+        }
+        let presented = try #require(window.rootViewController?.presentedViewController)
+        try await waitUntil {
+            window.layoutIfNeeded()
+            let height = presented.view.frame.height
+            return height > 0 && height < window.bounds.height - 100
+        }
+    }
+
     // MARK: - 5. Join preview (13729:1404) -
 
     @Test("5.1 with the shell on, a live link's preview has no invited line")
