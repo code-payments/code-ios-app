@@ -316,6 +316,28 @@ struct GroupInviteLinksTests {
         #expect(!GroupInviteSheetLayout(showsGroupMoney: false).opensFullHeight)
     }
 
+    @Test("Only the router's Invite People sheet takes the shell's layout; other group sheets keep today's")
+    func shellLayoutIsInvitePeopleOnly() {
+        let links = makeLinks(Server())
+        for subject in [ShareToChatsSubject.inviteLink(group, links), .group(group)] {
+            #expect(ShareToChatsSheet.layout(for: subject, isInvitePeople: true, showsGroupMoney: true).showsGroupMoney)
+            #expect(!ShareToChatsSheet.layout(for: subject, isInvitePeople: false, showsGroupMoney: true).showsGroupMoney)
+            #expect(!ShareToChatsSheet.layout(for: subject, isInvitePeople: true, showsGroupMoney: false).showsGroupMoney)
+        }
+        let url = URL(string: "https://app.flipcash.com/chat/x")!
+        #expect(!ShareToChatsSheet.layout(for: .message(url), isInvitePeople: true, showsGroupMoney: true).showsGroupMoney)
+    }
+
+    @Test("The shell's caption promises open entry only for an invite link; the plain link asks the host and has none")
+    func shellCaptionFollowsLink() {
+        let links = makeLinks(Server())
+        let invite = ShareToChatsSheet.layout(for: .inviteLink(group, links), isInvitePeople: true, showsGroupMoney: true)
+        let plain = ShareToChatsSheet.layout(for: .group(group), isInvitePeople: true, showsGroupMoney: true)
+        #expect(invite.linkCaption == "Anyone with the link can join.")
+        #expect(plain.linkCaption == nil)
+        #expect(ShareToChatsSheet.layout(for: .group(group), isInvitePeople: true, showsGroupMoney: false).linkCaption == InviteLinkCopy.groupSheetLine)
+    }
+
     @Test("Profile, message and currency sheets keep Recent Chats")
     func otherSheetsKeepRecentChats() {
         let url = URL(string: "https://app.flipcash.com/chat/x")!
@@ -426,5 +448,12 @@ struct GroupInviteLinksTests {
     func cardTargetFollowsApprove() {
         #expect(GroupReadyInvite.target(isApproving: true) == .plainLink)
         #expect(GroupReadyInvite.target(isApproving: false) == .currentLink)
+    }
+
+    @Test("Invite People closes after a failed link unless the viewer took the plain link or Manage Invites")
+    func sheetClosesAfterFailedLink() {
+        #expect(GroupReadyInvite.closesSheetAfterFailedLink(sharesPlainLink: false, opensManageInvites: false))
+        #expect(!GroupReadyInvite.closesSheetAfterFailedLink(sharesPlainLink: true, opensManageInvites: false))
+        #expect(!GroupReadyInvite.closesSheetAfterFailedLink(sharesPlainLink: false, opensManageInvites: true))
     }
 }

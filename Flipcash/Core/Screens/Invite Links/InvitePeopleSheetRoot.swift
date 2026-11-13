@@ -25,6 +25,7 @@ struct InvitePeopleSheetRoot: View {
     @Environment(ConversationController.self) private var conversationController
 
     @State private var sharesPlainLink = false
+    @State private var opensManageInvites = false
     @State private var dialog: DialogItem?
 
     var body: some View {
@@ -35,14 +36,22 @@ struct InvitePeopleSheetRoot: View {
                 do {
                     _ = try await links.currentLink()
                 } catch {
+                    // The dialog is a sheet on this one, so this sheet stays up under it and closes
+                    // when it does.
                     dialog = InviteLinkDialogs.cardCreateFailed(
                         error,
                         onManage: {
+                            opensManageInvites = true
                             router.dismissSheet()
                             router.push(.inviteLinks(conversationID))
                         },
                         onShare: { _ in sharesPlainLink = true }
                     )
+                    .onDismiss {
+                        if GroupReadyInvite.closesSheetAfterFailedLink(sharesPlainLink: sharesPlainLink, opensManageInvites: opensManageInvites) {
+                            router.dismissSheet()
+                        }
+                    }
                 }
             }
     }
@@ -51,9 +60,9 @@ struct InvitePeopleSheetRoot: View {
     private var sheet: some View {
         switch target {
         case .currentLink:
-            ShareToChatsSheet(subject: .inviteLink(conversationID, links), isPresented: isPresented, onInvited: invited)
+            ShareToChatsSheet(subject: .inviteLink(conversationID, links), isPresented: isPresented, isInvitePeople: true, onInvited: invited)
         case .plainLink:
-            ShareToChatsSheet(subject: .group(conversationID), isPresented: isPresented, onInvited: invited)
+            ShareToChatsSheet(subject: .group(conversationID), isPresented: isPresented, isInvitePeople: true, onInvited: invited)
         }
     }
 
