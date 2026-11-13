@@ -192,6 +192,10 @@ struct HomeTabView: View {
             .onChange(of: isSearchSelected) { _, isSearching in
                 router.activeTabStack = isSearching ? nil : selection.pushStack
             }
+            // A gate flip to the shell takes the search tab away; don't leave it selected.
+            .onChange(of: layout.hasSearchTab) { _, hasSearchTab in
+                if !hasSearchTab { isSearchSelected = false }
+            }
             .onDisappear { router.activeTabStack = nil }
             .onChange(of: router.presentedSheet != nil || sessionContainer.session.isShowingBill, initial: true) { _, covered in
                 container.toasts.isCovered = covered
@@ -338,14 +342,18 @@ struct HomeTabView: View {
                         .accessibilityLabel(layout.title(for: tab))
                 }
             }
-            Tab(value: NativeTab.search, role: .search) {
-                NavigationStack {
-                    ChatSearchScreen(chrome: .tab, navigate: openFromSearch, isActive: isSearchSelected)
+            // The Group Money shell has no search. Without the search tab the
+            // system draws the bar at its two items' width, centred.
+            if layout.hasSearchTab {
+                Tab(value: NativeTab.search, role: .search) {
+                    NavigationStack {
+                        ChatSearchScreen(chrome: .tab, navigate: openFromSearch, isActive: isSearchSelected)
+                    }
+                    .toastHost(container.toasts, isEnabled: isSearchSelected)
+                    .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
+                } label: {
+                    Label("Search", systemImage: "magnifyingglass")
                 }
-                .toastHost(container.toasts, isEnabled: isSearchSelected)
-                .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
-            } label: {
-                Label("Search", systemImage: "magnifyingglass")
             }
         }
         // Selected-tab highlight over a lightly tinted glass bar — echoes the old

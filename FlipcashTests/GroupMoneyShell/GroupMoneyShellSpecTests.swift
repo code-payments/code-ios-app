@@ -112,9 +112,9 @@ struct GroupMoneyShellSpecTests {
         #expect(layout.barTabs.map { layout.title(for: $0) } == ["Groups", "Money"])
     }
 
-    @Test("3.3 flag on: search keeps its own tab on the native bar")
-    func groupMoney_keepsSearch() {
-        #expect(HomeTabLayout.groupMoney.hasSearchTab)
+    @Test("3.3 flag on: the native bar has no search tab")
+    func groupMoney_hasNoSearchTab() {
+        #expect(HomeTabLayout.groupMoney.hasSearchTab == false)
     }
 
     @Test("3.4 flag off: today's four tabs, in today's order, with today's names and glyphs")
