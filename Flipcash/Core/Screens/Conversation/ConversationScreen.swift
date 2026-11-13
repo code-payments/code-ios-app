@@ -403,7 +403,16 @@ struct ConversationScreen: View {
             source: .chat,
             memberCount: groupConversation?.rosterSummary.memberCount ?? 0
         )
-        afterKeyboardLowered { isInviting = true }
+        let route = InvitePeopleRoute.forGroupReady(
+            showsGroupMoney: showsGroupMoney,
+            canInvite: groupConversation?.canInvite ?? false,
+            isPrivate: groupConversation?.isPrivate ?? false
+        )
+        if route == .invitePeopleSheet, let conversationID {
+            afterKeyboardLowered { router.presentInvitePeople(conversationID) }
+        } else {
+            afterKeyboardLowered { isInviting = true }
+        }
     }
 
     /// The group's own picture, fetched under the chat's access context rather than any member's.

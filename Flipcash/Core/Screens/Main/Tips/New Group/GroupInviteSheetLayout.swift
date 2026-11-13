@@ -7,7 +7,9 @@
 
 import SwiftUI
 
-/// What the group share sheet shows for a shell.
+/// What the group share sheet shows for a shell. The Group Money shell's Invite People sheet
+/// (node 13729:672) closes from the left, names the group, says what the link is for and draws three
+/// square tiles; with the shell off, the sheet is today's.
 struct GroupInviteSheetLayout: Equatable {
 
     let showsGroupMoney: Bool
@@ -17,27 +19,30 @@ struct GroupInviteSheetLayout: Equatable {
     }
 
     var closeEdge: HorizontalEdge {
-        .trailing
+        showsGroupMoney ? .leading : .trailing
     }
 
+    /// The group's avatar and name under the title bar.
     var showsGroupIdentity: Bool {
-        false
+        showsGroupMoney
     }
 
+    /// The line over the link.
     var message: String? {
-        nil
+        showsGroupMoney ? "Send this link to the people you want in your group." : nil
     }
 
+    /// The line under the link.
     var linkCaption: String {
-        InviteLinkCopy.groupSheetLine
+        showsGroupMoney ? "Anyone with the link can join." : InviteLinkCopy.groupSheetLine
     }
 
     var tileTitles: [String] {
-        ShareToChatsSheet.groupTileTitles
+        showsGroupMoney ? ["Copy Link", "Share Link", "QR Code"] : ShareToChatsSheet.groupTileTitles
     }
 
     var tilesAreSquare: Bool {
-        false
+        showsGroupMoney
     }
 }
 
@@ -50,14 +55,17 @@ enum InvitePeopleRoute: Equatable {
     /// The host's link card, with Approve New Members and Manage Invites.
     case linkCard
 
-    /// The group-ready card's button.
+    /// The group-ready card's button. The shell has one Invite People sheet for everyone; without
+    /// it, a private group's host goes straight to the share sheet.
     static func forGroupReady(showsGroupMoney: Bool, canInvite: Bool, isPrivate: Bool) -> Self {
+        if showsGroupMoney { return .invitePeopleSheet }
         if isPrivate && canInvite { return .shareSheet }
         return forGroupInfo(showsGroupMoney: showsGroupMoney, canInvite: canInvite)
     }
 
     /// Group info's Invite People.
     static func forGroupInfo(showsGroupMoney: Bool, canInvite: Bool) -> Self {
-        canInvite ? .linkCard : .shareSheet
+        if showsGroupMoney { return .invitePeopleSheet }
+        return canInvite ? .linkCard : .shareSheet
     }
 }
