@@ -482,6 +482,8 @@ struct GroupMoneyShellSpecTests {
             window.layoutIfNeeded()
             guard let bar = Self.navigationBar(in: window) else { return false }
             return bar.topItem?.title == "1 Selected" && Self.barElement(labelled: "Done", in: bar) != nil
+                // The shell removes the bar's centred title outside select mode; the count brings it back.
+                && Self.titleLabels(in: bar).map(\.text) == ["1 Selected"]
         }
     }
 
