@@ -199,7 +199,8 @@ struct TipConversationsScreen: View {
                 }
             } else {
                 if showsGroupMoney {
-                    groupsTitleItem
+                    // In the slot the "…" menu takes outside the shell.
+                    ShellTabTitle(title: "Groups", accessibilityIdentifier: "chat-list-title")
                 } else {
                     ToolbarItem(placement: .topBarLeading) {
                         ChatListMoreMenu(
@@ -273,26 +274,6 @@ struct TipConversationsScreen: View {
 
     private var showsGroupMoney: Bool {
         betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
-    }
-
-    /// The shell's "Groups" title, flush leading where its Groups frame draws it (node 13729:421),
-    /// in the slot the "…" menu takes outside the shell. Plain text, so no glass behind it.
-    @ToolbarContentBuilder private var groupsTitleItem: some ToolbarContent {
-        if #available(iOS 26.0, *) {
-            ToolbarItem(placement: .topBarLeading) { groupsTitle }
-                .sharedBackgroundVisibility(.hidden)
-        } else {
-            ToolbarItem(placement: .topBarLeading) { groupsTitle }
-        }
-    }
-
-    private var groupsTitle: some View {
-        Text("Groups")
-            .font(.appTitleLarge)
-            .foregroundStyle(Color.textMain)
-            .fixedSize()
-            .accessibilityAddTraits(.isHeader)
-            .accessibilityIdentifier("chat-list-title")
     }
 
     /// The height of the iOS 26 system tab bar's pill, measured on a 402pt-wide iPhone.
