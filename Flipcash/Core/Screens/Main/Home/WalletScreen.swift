@@ -96,6 +96,10 @@ private struct WalletScreenContent: View {
 
     private var safeAreaTop: CGFloat { safeArea.top }
 
+    /// The top inset outside the navigation stack: the status bar's alone, where `safeArea`
+    /// also counts Money's bar.
+    @State private var statusBarInset: CGFloat = 0
+
     /// Geometry taken from the currency info spec (Figma 9121:14267), which
     /// places the card at y=134.5 with the 44pt chrome at y=66, and starts the
     /// action tiles 22pt below the card. The panel supplies 8pt of its own top
@@ -123,6 +127,16 @@ private struct WalletScreenContent: View {
 
     private var headerTopPadding: CGFloat {
         max(0, Self.headerTopFromScreenEdge - safeArea.top)
+    }
+
+    /// Where Money's balance sits below the status bar: the 20pt and 44pt of the title row it
+    /// drew under the status bar before that row moved into the bar, then the spec's 64pt.
+    private static let moneyBalanceTopFromStatusBar: CGFloat = 20 + 44 + 64
+
+    /// The bar is not the title row's 44pt on every iOS version (54pt on iOS 27), so the
+    /// balance pads from the height the bar actually takes.
+    private var moneyBalanceTopPadding: CGFloat {
+        max(0, statusBarInset + Self.moneyBalanceTopFromStatusBar - safeArea.top)
     }
     /// How far below the status bar content returns to full strength.
     private static let topFadeLength: CGFloat = 20
@@ -217,10 +231,17 @@ private struct WalletScreenContent: View {
             .task(id: session.walletDeposit.releasedLanding?.mint) { await playDeposit() }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { containerSize = $0 }
             .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeArea = $0 }
-            // No top bar on the wallet root (per Figma) — the balance header
-            // sits directly under the status bar. Pushed destinations restore
-            // their own nav bar.
-            .toolbar(.hidden, for: .navigationBar)
+            // No top bar on today's wallet root (per Figma) — the balance header
+            // sits directly under the status bar. Money puts its title and avatar
+            // in the bar, where Groups puts its title and Add, so switching tabs
+            // leaves them in place. Pushed destinations restore their own nav bar.
+            .toolbar(showsMoneyBar ? .visible : .hidden, for: .navigationBar)
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                if showsMoneyBar {
+                    moneyBarItems
+                }
+            }
             .appRouterDestinations()
             .onAppear {
                 historyController.sync()
@@ -258,6 +279,7 @@ private struct WalletScreenContent: View {
             // which a depth watcher reads as "back at the wallet" and closes the
             // card out from under the screen the user was returning to.
         }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarInset = $0 }
         .environment(\.walletCardNamespace, cardNamespace)
     }
 
@@ -510,18 +532,20 @@ private struct WalletScreenContent: View {
         // the card underneath as a tap.
         .scrollDisabled(pageIsBuilt)
         // The app-wide soft edge effect is drawn from a bar's own background,
-        // and the wallet hides its navigation bar, so it covers the bottom
+        // and today's wallet hides its navigation bar, so it covers the bottom
         // (tab bar) but not the top — what scrolls up into the status bar has
-        // to be faded by hand.
+        // to be faded by hand. Money's bar draws its own.
         .overlay(alignment: .top) {
-            LinearGradient(
-                colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: safeArea.top + Self.topFadeLength)
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
+            if layout == .standard {
+                LinearGradient(
+                    colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: safeArea.top + Self.topFadeLength)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+            }
         }
     }
 
@@ -550,12 +574,12 @@ private struct WalletScreenContent: View {
     private func moneySection(_ section: WalletSection) -> some View {
         switch section {
         case .title:
-            moneyTitleBar
-                .padding(.top, 20)
+            // Drawn in the navigation bar; see `moneyBarItems`.
+            EmptyView()
         case .balance:
             BalanceHeaderButton(balance: total)
                 .frame(height: 60)
-                .padding(.top, 64)
+                .padding(.top, moneyBalanceTopPadding)
         case .currencyCount:
             currencyCountButton
                 .padding(.top, 4)
@@ -574,28 +598,39 @@ private struct WalletScreenContent: View {
         }
     }
 
-    private var moneyTitleBar: some View {
-        HStack(alignment: .center) {
-            Text(MoneyHeaderContent.title)
-                .font(.appTitleLarge)
-                .foregroundStyle(Color.textMain)
-                .accessibilityAddTraits(.isHeader)
-            Spacer()
-            Button {
-                MoneyAction.profile.perform(on: router)
-            } label: {
-                ContactAvatarView(
-                    id: session.userID.uuidString,
-                    displayName: session.profile?.displayName ?? "",
-                    imageData: sessionContainer.profileAvatars.data(for: session.userID),
-                    blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
-                    size: 44
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("You")
-            .accessibilityIdentifier("money-profile-button")
+    /// Money's bar, while no currency page covers the screen: the page draws its own chrome over
+    /// the wallet, and a bar would sit on top of it and push it down.
+    private var showsMoneyBar: Bool {
+        layout == .money && !pageIsBuilt
+    }
+
+    /// The title where Groups draws its own, and the avatar in the slot Groups gives Add.
+    @ToolbarContentBuilder private var moneyBarItems: some ToolbarContent {
+        ShellTabTitle(title: MoneyHeaderContent.title, accessibilityIdentifier: "money-title")
+        // The photo is the control, so no glass behind it.
+        if #available(iOS 26.0, *) {
+            ToolbarItem(placement: .topBarTrailing) { moneyProfileButton }
+                .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .topBarTrailing) { moneyProfileButton }
         }
+    }
+
+    private var moneyProfileButton: some View {
+        Button {
+            MoneyAction.profile.perform(on: router)
+        } label: {
+            ContactAvatarView(
+                id: session.userID.uuidString,
+                displayName: session.profile?.displayName ?? "",
+                imageData: sessionContainer.profileAvatars.data(for: session.userID),
+                blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
+                size: 44
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("You")
+        .accessibilityIdentifier("money-profile-button")
     }
 
     private var currencyCountButton: some View {
