@@ -11,7 +11,9 @@
 import Foundation
 import SwiftUI
 import Testing
+import UIKit
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @MainActor
@@ -112,9 +114,9 @@ struct GroupMoneyShellSpecTests {
         #expect(layout.barTabs.map { layout.title(for: $0) } == ["Groups", "Money"])
     }
 
-    @Test("3.3 flag on: search keeps its own tab on the native bar")
-    func groupMoney_keepsSearch() {
-        #expect(HomeTabLayout.groupMoney.hasSearchTab)
+    @Test("3.3 flag on: the native bar has no search tab")
+    func groupMoney_hasNoSearchTab() {
+        #expect(HomeTabLayout.groupMoney.hasSearchTab == false)
     }
 
     @Test("3.4 flag off: today's four tabs, in today's order, with today's names and glyphs")
@@ -141,6 +143,35 @@ struct GroupMoneyShellSpecTests {
         let bar = HomeTabLayout.groupMoney.barTabs
         #expect(!bar.contains(.scan))
         #expect(!bar.contains(.tipCard))
+    }
+
+    @Test("3.7 flag on: Groups has no search button on either bar; flag off keeps today's, on the legacy pill only")
+    func searchButton_followsLayout() {
+        #expect(HomeTabLayout.groupMoney.listShowsSearchButton(onSystemBar: true) == false)
+        #expect(HomeTabLayout.groupMoney.listShowsSearchButton(onSystemBar: false) == false)
+        #expect(HomeTabLayout.standard.listShowsSearchButton(onSystemBar: true) == false)
+        #expect(HomeTabLayout.standard.listShowsSearchButton(onSystemBar: false) == true)
+    }
+
+    @Test("3.8 flag on: the system bar holds Groups and Money alone, centred at their width")
+    func groupMoney_systemBarIsCentredWithoutSearch() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, bar) = try await hostedTabBar(showsGroupMoney: true)
+        defer { window.isHidden = true }
+        #expect(bar.items?.map(\.title) == ["Groups", "Money"])
+        let frames = TabBarItemLocator.itemFrames(in: bar)
+        let items = frames.dropFirst().reduce(frames[0]) { $0.union($1) }
+        #expect(abs(items.midX - bar.bounds.midX) <= 1, "items \(items) in bar \(bar.bounds)")
+        #expect(items.width < bar.bounds.width * 0.75, "items \(items) in bar \(bar.bounds)")
+    }
+
+    @Test("3.9 flag off: the system bar keeps today's four tabs and its search tab")
+    func standard_systemBarKeepsSearch() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, bar) = try await hostedTabBar(showsGroupMoney: false)
+        defer { window.isHidden = true }
+        #expect(bar.items?.count == 5)
+        #expect(bar.items?.last?.title == "Search")
     }
 
     // MARK: - Routing
@@ -391,5 +422,812 @@ struct GroupMoneyShellSpecTests {
     func activity_unsignedAmount() {
         let amount = FiatAmount(value: Decimal(string: "18.36")!, currency: .usd)
         #expect(MoneyActivityRowContent.amountText(amount, signPrefix: nil) == "$18.36")
+    }
+    // MARK: - Groups list
+
+    @Test("8.1 flag on: the list's bar has no \"…\" and reads Groups in the leading slot")
+    func groupsList_titleBarHasNoOverflow() async throws {
+        let (window, bar) = try await hostedChatListBar(GateFlags(showsGroupMoney: true)) {
+            Self.barElement(labelled: "Groups", in: $0) != nil
+        }
+        defer { window.isHidden = true }
+        #expect(Self.barElement(labelled: "More", in: bar) == nil)
+        #expect(bar.topItem?.title == "Groups")
+        // The centred title gives way to the leading one.
+        #expect(Self.titleLabels(in: bar).isEmpty, "centred titles: \(Self.titleLabels(in: bar))")
+        let title = try #require(Self.barElement(labelled: "Groups", in: bar)).accessibilityFrame
+        #expect(title.maxX < bar.bounds.midX, "title \(title) in bar \(bar.bounds)")
+        // Set in the large title token, not the bar's own title size.
+        #expect(title.height >= UIFont.appTitleLarge.lineHeight - 1, "title \(title)")
+        #expect(Self.barElement(labelled: "New group", in: bar) != nil)
+    }
+
+    @Test("8.2 flag off: the list keeps its \"…\" and its centred Chat title")
+    func chatList_titleBarKeepsOverflow() async throws {
+        let (window, bar) = try await hostedChatListBar(GateFlags(showsGroupMoney: false)) {
+            Self.barElement(labelled: "More", in: $0) != nil
+        }
+        defer { window.isHidden = true }
+        #expect(bar.topItem?.title == "Chat")
+        let labels = Self.titleLabels(in: bar)
+        #expect(labels.map(\.text) == ["Chat"])
+        if let label = labels.first {
+            let frame = label.convert(label.bounds, to: bar)
+            #expect(abs(frame.midX - bar.bounds.midX) <= 1, "title \(frame) in bar \(bar.bounds)")
+        }
+        #expect(Self.barElement(labelled: "Groups", in: bar) == nil)
+    }
+
+    @Test("8.3 flag on: a row's long press ends with Select, which starts select mode with that row picked")
+    func groupsList_rowMenuSelectPicksRow() async throws {
+        let (controller, id) = try await Self.seededChatList()
+        let selection = ChatSelection()
+        let window = try Self.hostWindow(
+            NavigationStack { TipConversationsScreen(showsSearchButton: false) }
+                .environment(selection)
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let menu = try await Self.rowMenu(in: window)
+        #expect(Self.actions(in: menu).map(\.title) == ["Mark as Unread", "Mute", "Archive", "Select"])
+
+        try Self.perform("Select", in: menu)
+        try await waitUntil(timeout: .seconds(30)) { selection.isActive }
+        #expect(selection.selected == [id])
+        // The bar is select mode's, as from the "…" menu: the count, and Done to leave.
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            guard let bar = Self.navigationBar(in: window) else { return false }
+            return bar.topItem?.title == "1 Selected" && Self.barElement(labelled: "Done", in: bar) != nil
+                // The shell removes the bar's centred title outside select mode; the count brings it back.
+                && Self.titleLabels(in: bar).map(\.text) == ["1 Selected"]
+        }
+    }
+
+    @Test("8.4 flag off: a row's long press has no Select")
+    func chatList_rowMenuHasNoSelect() async throws {
+        let (controller, _) = try await Self.seededChatList()
+        let window = try Self.hostWindow(
+            NavigationStack { TipConversationsScreen(showsSearchButton: false) }
+                .environment(ChatSelection())
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: false) as BetaFlags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let menu = try await Self.rowMenu(in: window)
+        #expect(Self.actions(in: menu).map(\.title) == ["Mark as Unread", "Mute", "Archive"])
+    }
+
+    @Test("8.5 flag on: Select from a row swaps the tab bar for the select capsules")
+    func groupsList_rowSelectSwapsTabBar() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (controller, _) = try await Self.seededChatList()
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let menu = try await Self.rowMenu(in: window)
+        #expect(Self.visibleTabBar(in: window) != nil)
+        #expect(Self.element(labelled: "Archive", in: window) == nil)
+
+        try Self.perform("Select", in: menu)
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            return Self.visibleTabBar(in: window) == nil && Self.element(labelled: "Archive", in: window) != nil
+        }
+    }
+
+    @Test("8.6 one hosted list follows the gate on, off and on again")
+    func groupsList_followsGateFlips() async throws {
+        let (controller, _) = try await Self.seededChatList()
+        let gate = ShellGate(isOn: true)
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(FlippableGateFlags(gate: gate) as BetaFlags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        for isOn in [true, false, true] {
+            gate.isOn = isOn
+            try await waitUntil(timeout: .seconds(30)) {
+                window.layoutIfNeeded()
+                guard let bar = Self.navigationBar(in: window) else { return false }
+                return Self.barElement(labelled: isOn ? "Groups" : "More", in: bar) != nil
+                    && Self.barElement(labelled: isOn ? "More" : "Groups", in: bar) == nil
+            }
+            let menu = try await Self.rowMenu(in: window)
+            #expect(Self.actions(in: menu).map(\.title).contains("Select") == isOn, "gate \(isOn)")
+        }
+    }
+
+    // MARK: - Shell title
+
+    @Test("8.7 flag on: Groups and Money draw their titles on the same spot, in the same font")
+    func shellTitles_sameFrameOnBothTabs() async throws {
+        let (controller, _) = try await Self.seededChatList()
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let groups = try await Self.frame(ofHeader: "Groups", in: window)
+
+        sessionContainer.appRouter.showTab(.wallet)
+        let money = try await Self.frame(ofHeader: "Money", in: window)
+
+        #expect(abs(money.minX - groups.minX) <= 0.5, "Money \(money), Groups \(groups)")
+        #expect(abs(money.midY - groups.midY) <= 0.5, "Money \(money), Groups \(groups)")
+        #expect(abs(money.height - groups.height) <= 0.5, "Money \(money), Groups \(groups)")
+    }
+
+    @Test("8.8 flag on: the avatar on Money sits where Add sits on Groups, centred on the title's line")
+    func shellTrailingControls_sameSpotOnBothTabs() async throws {
+        let (controller, _) = try await Self.seededChatList()
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let add = try await Self.frame(of: "New group", in: window)
+        let groupsTitle = try await Self.frame(ofHeader: "Groups", in: window)
+
+        sessionContainer.appRouter.showTab(.wallet)
+        let avatar = try await Self.frame(of: "You", in: window)
+        let moneyTitle = try await Self.frame(ofHeader: "Money", in: window)
+
+        // The avatar's frame is the circle's 44pt wide but reads taller than it; its top is the
+        // circle's top. Add's frame is its glyph, narrower than its slot, so the two are compared
+        // at the slot's centre rather than at their trailing edges.
+        let avatarCentre = CGPoint(x: avatar.midX, y: avatar.minY + avatar.width / 2)
+        #expect(avatar.width == 44, "avatar \(avatar)")
+        #expect(abs(avatarCentre.x - add.midX) <= 0.5, "avatar \(avatar), Add \(add)")
+        #expect(abs(avatarCentre.y - add.midY) <= 0.5, "avatar \(avatar), Add \(add)")
+        #expect(abs(add.midY - groupsTitle.midY) <= 0.5, "Add \(add), title \(groupsTitle)")
+        #expect(abs(avatarCentre.y - moneyTitle.midY) <= 0.5, "avatar \(avatar), title \(moneyTitle)")
+    }
+
+    @Test("8.9 flag on: Money's title stays put while the screen scrolls under it, as Groups' does")
+    func moneyTitle_pinnedWhileScrolling() async throws {
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        sessionContainer.appRouter.showTab(.wallet)
+        let title = try await Self.frame(ofHeader: "Money", in: window)
+        let addMoney = try await Self.frame(of: "Add Money", in: window)
+
+        let scroll = try #require(
+            Self.scrollViews(in: window).max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }
+        )
+        scroll.contentOffset.y += 100
+        // Once the content has moved, the title's frame is read from the same pass.
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            let frame = Self.elements(in: window).first { $0.accessibilityLabel == "Add Money" }?.accessibilityFrame
+            return frame.map { abs($0.minY - (addMoney.minY - 100)) <= 0.5 } ?? false
+        }
+        let scrolledTitle = try await Self.frame(ofHeader: "Money", in: window)
+        #expect(scrolledTitle == title, "scrolled \(scrolledTitle), resting \(title)")
+    }
+
+    // MARK: - Recent activity fills Money
+
+    @Test("8.10 flag on: with a few rows, Recent Activity runs to the bottom of Money and the page does not scroll")
+    func moneyActivity_fewRowsFillTheScreen() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 2)
+        defer { window.isHidden = true }
+
+        #expect(try await Self.activityRowCount(in: window) == 2)
+        let reading = try await Self.overflow(in: window) { abs($0) <= 0.5 }
+        #expect(abs(reading.overflow) <= 0.5, "\(reading.description)")
+    }
+
+    @Test("8.11 flag on: with no activity, Recent Activity still shows, says so, and runs to the bottom of Money")
+    func moneyActivity_emptyFillsTheScreen() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 0)
+        defer { window.isHidden = true }
+
+        let header = try await Self.frame(of: MoneyHeaderContent.recentActivityTitle, in: window)
+        let empty = try await Self.frame(of: "No activity yet", in: window)
+        let reading = try await Self.overflow(in: window) { abs($0) <= 0.5 }
+        #expect(abs(reading.overflow) <= 0.5, "\(reading.description)")
+        // The message sits in the space the section fills, not straight under its header.
+        #expect(empty.minY - header.maxY > 100, "header \(header), message \(empty)")
+    }
+
+    @Test("8.12 flag on: with more rows than fit, Money lists more than three and the page scrolls to them")
+    func moneyActivity_manyRowsScroll() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 30)
+        defer { window.isHidden = true }
+
+        #expect(try await Self.activityRowCount(in: window) == WalletLayout.money.recentActivityLimit)
+        #expect(WalletLayout.money.recentActivityLimit > 3)
+        let reading = try await Self.overflow(in: window) { $0 > 0 }
+        #expect(reading.overflow > 0, "\(reading.description)")
+    }
+
+    @Test("8.13 flag off: today's wallet still previews three rows of recent activity")
+    func standardActivity_keepsThreeRows() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 6, showsGroupMoney: false)
+        defer { window.isHidden = true }
+
+        #expect(try await Self.activityRowCount(in: window) == 3)
+    }
+
+    // MARK: - Currencies as the card stack
+
+    @Test("8.14 flag on: the currencies screen shows each currency held as a card in today's stack")
+    func currencies_showCardStack() async throws {
+        let (window, container) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+
+        #expect(try await Self.waitForElement(identified: "currency-row", in: window) != nil)
+        #expect(try await Self.waitForElement(identified: "currency-row-usdf", in: window) != nil)
+        #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
+    }
+
+    @Test("8.15 flag on: the currencies screen keeps the system bar; a card opens its page there with the bar hidden and back blocked, and closes back to the stack")
+    func currencies_cardOpensAndClosesInPlace() async throws {
+        let (window, container) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+
+        // The system bar, not a drawn one, so going back hands it to Money's in one transition.
+        try await Self.waitForSystemBar(title: "Currencies", in: window)
+
+        try await Self.activate(identified: "currency-row", in: window)
+        let close = try await Self.waitForElement(identified: "currency-info-back", in: window)
+        // Opened over the currencies screen, not pushed past it.
+        #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
+        #expect(try Self.topNavigationItem(in: window).hidesBackButton)
+        // The page draws its own chrome where the bar was.
+        try await Self.waitForSystemBar(title: nil, in: window)
+
+        _ = try #require(close).accessibilityActivate()
+        try await Self.waitForNoElement(identified: "currency-info-back", in: window)
+        #expect(try await Self.waitForElement(identified: "currency-row", in: window) != nil)
+        #expect(try Self.topNavigationItem(in: window).hidesBackButton == false)
+        try await Self.waitForSystemBar(title: "Currencies", in: window)
+        #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
+    }
+
+    @Test("8.16 flag on: a token link while a card is open on the currencies screen opens it on Money, whose tab bar returns on close")
+    func currencies_deepLinkFromOpenCardLandsOnMoney() async throws {
+        let (window, container) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+        let router = container.appRouter
+
+        try await Self.activate(identified: "currency-row", in: window)
+        _ = try await Self.waitForElement(identified: "currency-info-back", in: window)
+
+        // What `DeepLinkController` does for `flipcash://token/<mint>`.
+        router.setPath([], on: .balance)
+        router.requestedTab = .wallet
+        router.requestedCardMint = .jeffy
+
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            return router.requestedCardMint == nil && router[.balance].isEmpty
+                && Self.element(identified: "currency-info-back", in: window) != nil
+                && Self.visibleTabBar(in: window) == nil
+        }
+
+        let close = try #require(Self.element(identified: "currency-info-back", in: window))
+        _ = close.accessibilityActivate()
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            return Self.element(identified: "currency-info-back", in: window) == nil
+                && Self.visibleTabBar(in: window) != nil
+        }
+    }
+
+    @Test("8.17 flag off: today's wallet still opens a card from its stack and closes it back")
+    func standardWallet_cardStillOpensAndCloses() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 0, holdings: Self.currencyHoldings, showsGroupMoney: false)
+        defer { window.isHidden = true }
+
+        try await Self.activate(identified: "currency-row", in: window)
+        let close = try await Self.waitForElement(identified: "currency-info-back", in: window)
+        _ = try #require(close).accessibilityActivate()
+        try await Self.waitForNoElement(identified: "currency-info-back", in: window)
+        #expect(try await Self.waitForElement(identified: "currency-row", in: window) != nil)
+    }
+}
+
+// MARK: - Hosted tab bar -
+
+/// Answers the shell's gate without touching the stored flags, which other
+/// suites read from `UserDefaults.standard` while this one runs.
+private final class GateFlags: BetaFlags {
+    let showsGroupMoney: Bool
+
+    init(showsGroupMoney: Bool) {
+        self.showsGroupMoney = showsGroupMoney
+        super.init()
+    }
+
+    override func showsGroupMoneyUI(isStaff: Bool) -> Bool {
+        showsGroupMoney
+    }
+}
+
+extension GroupMoneyShellSpecTests {
+
+    /// `HomeTabView` in an iPhone-sized window, and the system tab bar it draws
+    /// once every item in that bar is laid out. The caller hides the window.
+    @available(iOS 26, *)
+    fileprivate func hostedTabBar(showsGroupMoney: Bool) async throws -> (UIWindow, UITabBar) {
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let view = HomeTabView()
+            .environment(GateFlags(showsGroupMoney: showsGroupMoney) as BetaFlags)
+            .injectingEnvironment(from: sessionContainer)
+            .injectingEnvironment(from: Container.mock)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: view)
+        window.makeKeyAndVisible()
+
+        var found: UITabBar?
+        do {
+            try await waitUntil(timeout: .seconds(30)) {
+                window.layoutIfNeeded()
+                guard let bar = Self.tabBar(in: window),
+                      let itemCount = bar.items?.count, itemCount >= 2,
+                      TabBarItemLocator.itemFrames(in: bar).count == itemCount
+                else { return false }
+                found = bar
+                return true
+            }
+        } catch {
+            let bar = Self.tabBar(in: window)
+            Issue.record("bar items: \(bar?.items?.map { $0.title ?? "-" } ?? []), frames: \(bar.map(TabBarItemLocator.itemFrames(in:)) ?? [])")
+            window.isHidden = true
+            throw error
+        }
+        return (window, try #require(found))
+    }
+
+    private static func tabBar(in view: UIView) -> UITabBar? {
+        if let bar = view as? UITabBar, !bar.isHidden { return bar }
+        for subview in view.subviews {
+            if let bar = tabBar(in: subview) { return bar }
+        }
+        return nil
+    }
+}
+
+// MARK: - Hosted chat list -
+
+/// The shell's gate, flipped by a test while one view stays hosted.
+@Observable
+private final class ShellGate {
+    var isOn: Bool
+    init(isOn: Bool) { self.isOn = isOn }
+}
+
+/// ``GateFlags`` whose answer follows a ``ShellGate``. Reading it inside a view's body tracks the
+/// gate, so a flip redraws the hosted view as a stored flag change would.
+private final class FlippableGateFlags: BetaFlags {
+    let gate: ShellGate
+
+    init(gate: ShellGate) {
+        self.gate = gate
+        super.init()
+    }
+
+    override func showsGroupMoneyUI(isStaff: Bool) -> Bool {
+        gate.isOn
+    }
+}
+
+extension GroupMoneyShellSpecTests {
+
+    /// `HomeTabView` on its launch tab, Groups or Chat, and that list's navigation bar once
+    /// `isReady` holds for it. The caller hides the window.
+    fileprivate func hostedChatListBar(
+        _ flags: BetaFlags,
+        until isReady: @escaping (UINavigationBar) -> Bool
+    ) async throws -> (UIWindow, UINavigationBar) {
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(flags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        var found: UINavigationBar?
+        do {
+            try await waitUntil(timeout: .seconds(30)) {
+                window.layoutIfNeeded()
+                guard let bar = Self.navigationBar(in: window), isReady(bar) else { return false }
+                found = bar
+                return true
+            }
+        } catch {
+            let bar = Self.navigationBar(in: window)
+            Issue.record("bar title: \(bar?.topItem?.title ?? "-"), labels: \(bar.map { Self.elements(in: $0).compactMap(\.accessibilityLabel) } ?? [])")
+            window.isHidden = true
+            throw error
+        }
+        return (window, try #require(found))
+    }
+
+    /// The wallet tab with `count` activities in its history, newest first. The caller hides the
+    /// window.
+    fileprivate static func hostedMoney(
+        activities count: Int,
+        holdings: [SessionContainer.Holding] = [],
+        showsGroupMoney: Bool = true
+    ) async throws -> (UIWindow, SessionContainer) {
+        let sessionContainer = try SessionContainer.makeTest(holdings: holdings)
+        if !holdings.isEmpty {
+            sessionContainer.ratesController.configureTestRates(balanceCurrency: .usd, rates: [Rate(fx: 1.0, currency: .usd)])
+        }
+        try sessionContainer.database.insertActivities(activities: (0..<count).map { index in
+            Activity(
+                id: .testMint(index: index),
+                state: .completed,
+                kind: .received,
+                title: "Activity \(index)",
+                exchangedFiat: .mockOne,
+                date: Date(timeIntervalSinceNow: -Double(index) * 60),
+                metadata: nil
+            )
+        })
+        let window = try hostWindow(
+            HomeTabView()
+                .environment(GateFlags(showsGroupMoney: showsGroupMoney) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        sessionContainer.appRouter.showTab(.wallet)
+        return (window, sessionContainer)
+    }
+
+    /// Dollars and one launchpad currency: two cards in the stack.
+    fileprivate static var currencyHoldings: [SessionContainer.Holding] {
+        [
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000),
+            SessionContainer.Holding(
+                mint: MintMetadata.makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ]
+    }
+
+    /// Money with ``currencyHoldings``, with the currencies screen pushed from "N currencies".
+    /// The caller hides the window.
+    fileprivate static func hostedCurrencies() async throws -> (UIWindow, SessionContainer) {
+        let (window, container) = try await hostedMoney(activities: 0, holdings: currencyHoldings)
+        _ = try await waitForElement(identified: "money-currencies-button", in: window)
+        MoneyAction.currencies.perform(on: container.appRouter)
+        return (window, container)
+    }
+
+    /// The first element carrying `identifier`, when one is on screen.
+    fileprivate static func element(identified identifier: String, in view: UIView) -> NSObject? {
+        elements(in: view).first { self.identifier(of: $0) == identifier }
+    }
+
+    /// The first element carrying `identifier`, once one is on screen.
+    fileprivate static func waitForElement(identified identifier: String, in window: UIWindow) async throws -> NSObject? {
+        var found: NSObject?
+        do {
+            try await waitUntil(timeout: .seconds(30)) {
+                window.layoutIfNeeded()
+                found = element(identified: identifier, in: window)
+                return found != nil
+            }
+        } catch {
+            Issue.record("no \(identifier); on screen: \(elements(in: window).compactMap { self.identifier(of: $0) })")
+            throw error
+        }
+        return found
+    }
+
+    /// Returns once nothing on screen carries `identifier`.
+    fileprivate static func waitForNoElement(identified identifier: String, in window: UIWindow) async throws {
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            return element(identified: identifier, in: window) == nil
+        }
+    }
+
+    /// Activates the first element carrying `identifier`, as VoiceOver's double tap does.
+    fileprivate static func activate(identified identifier: String, in window: UIWindow) async throws {
+        let target = try #require(try await waitForElement(identified: identifier, in: window))
+        #expect(target.accessibilityActivate(), "\(identifier) did not activate")
+    }
+
+    /// The navigation stack showing in `window` with a screen pushed onto it, if any.
+    /// Returns `nil` rather than failing, so it can be polled.
+    fileprivate static func topNavigationController(in window: UIWindow) -> UINavigationController? {
+        func controllers(under controller: UIViewController) -> [UIViewController] {
+            [controller] + controller.children.flatMap(controllers(under:))
+                + (controller.presentedViewController.map(controllers(under:)) ?? [])
+        }
+        guard let root = window.rootViewController else { return nil }
+        return controllers(under: root)
+            .compactMap { $0 as? UINavigationController }
+            .last { $0.view.window != nil && !$0.view.isHidden && $0.viewControllers.count > 1 }
+    }
+
+    /// The navigation item of the screen on top of the stack showing in `window`.
+    fileprivate static func topNavigationItem(in window: UIWindow) throws -> UINavigationItem {
+        try #require(topNavigationController(in: window)?.topViewController?.navigationItem)
+    }
+
+    /// Waits until the top stack's system bar shows `title`, or is hidden when `title` is `nil`.
+    fileprivate static func waitForSystemBar(title: String?, in window: UIWindow) async throws {
+        try await waitUntil(timeout: .seconds(30)) {
+            guard let stack = topNavigationController(in: window) else { return false }
+            guard let title else { return stack.isNavigationBarHidden }
+            return !stack.isNavigationBarHidden && stack.topViewController?.navigationItem.title == title
+        }
+    }
+
+    /// How many recent-activity rows the wallet draws, once that count has held for two passes.
+    /// Counted by frame, since the element walk can reach one row by more than one path.
+    fileprivate static func activityRowCount(in window: UIWindow) async throws -> Int {
+        var last: Int?
+        var settled: Int?
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            let rows = elements(in: window).filter { identifier(of: $0) == "recent-activity-row" }
+            let count = Set(rows.map { "\($0.accessibilityFrame)" }).count
+            defer { last = count }
+            guard count > 0 || element(labelled: "Add Money", in: window) != nil
+                    || element(labelled: "Recent", in: window) != nil,
+                  count == last else { return false }
+            settled = count
+            return true
+        }
+        return try #require(settled)
+    }
+
+    /// The tab's own scroll view: the largest visible one.
+    fileprivate static func mainScrollView(in window: UIWindow) throws -> UIScrollView {
+        window.layoutIfNeeded()
+        return try #require(
+            scrollViews(in: window).max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }
+        )
+    }
+
+    /// How far `scroll`'s content runs past what it shows between its insets: zero when the
+    /// content exactly fills it, negative when it stops short.
+    fileprivate static func overflow(of scroll: UIScrollView) -> CGFloat {
+        let visible = scroll.bounds.height - scroll.adjustedContentInset.top - scroll.adjustedContentInset.bottom
+        return scroll.contentSize.height - visible
+    }
+
+    /// The tab's scroll view overflow once `holds` accepts it, or its last reading after
+    /// `timeout`, with a description for a failure message. Polled, since the content's minimum
+    /// height follows the scroll view's own measured height a pass after the first layout.
+    fileprivate static func overflow(
+        in window: UIWindow,
+        timeout: Duration = .seconds(10),
+        until holds: (CGFloat) -> Bool
+    ) async throws -> (overflow: CGFloat, description: String) {
+        let deadline = ContinuousClock().now + timeout
+        while true {
+            let scroll = try mainScrollView(in: window)
+            let reading = (overflow(of: scroll), describe(scroll))
+            if holds(reading.0) || ContinuousClock().now >= deadline { return reading }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
+    /// `scroll`'s content size, bounds and adjusted insets, for a failure message.
+    fileprivate static func describe(_ scroll: UIScrollView) -> String {
+        "content \(scroll.contentSize), bounds \(scroll.bounds), insets \(String(describing: scroll.adjustedContentInset))"
+    }
+
+    /// The accessibility identifier `element` carries, when it has one.
+    fileprivate static func identifier(of element: NSObject) -> String? {
+        if let identified = element as? UIAccessibilityIdentification {
+            return identified.accessibilityIdentifier
+        }
+        guard element.responds(to: NSSelectorFromString("accessibilityIdentifier")) else { return nil }
+        return element.value(forKey: "accessibilityIdentifier") as? String
+    }
+
+    /// `view` in an iPhone-sized key window.
+    fileprivate static func hostWindow(_ view: some View) throws -> UIWindow {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: view)
+        window.makeKeyAndVisible()
+        return window
+    }
+
+    /// A chat list holding one read DM with a message, so its row has the long-press menu.
+    fileprivate static func seededChatList() async throws -> (ConversationController, ConversationID) {
+        let me = UUID()
+        let them = UUID()
+        let mock = MockConversations()
+        let conversation = Conversation(
+            id: .test(1),
+            members: [
+                ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 5)),
+                ConversationMember(userID: them, displayName: "Them"),
+            ],
+            lastMessage: ConversationMessage(
+                id: MessageID(value: 5),
+                senderID: them,
+                content: .text("hi"),
+                date: Date(timeIntervalSince1970: 5),
+                unreadSeq: 5
+            ),
+            lastActivity: Date(timeIntervalSince1970: 999),
+            type: .tipDm
+        )
+        mock.feed = [conversation]
+        let controller = ConversationController(
+            fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
+            contactNaming: MockDMContactNaming(),
+            database: try Database.makeTemp().database,
+            owner: .generate()!, selfUserID: me
+        )
+        await controller.loadFeed()
+        return (controller, conversation.id)
+    }
+
+    /// The menu the first row with a long-press menu would show, asked of the list's collection
+    /// view the way UIKit asks it on a long press.
+    fileprivate static func rowMenu(in window: UIWindow) async throws -> UIMenu {
+        var found: UIMenu?
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            found = collectionViews(in: window).lazy.compactMap(firstRowMenu(in:)).first
+            return found != nil
+        }
+        return try #require(found)
+    }
+
+    private static func firstRowMenu(in collection: UICollectionView) -> UIMenu? {
+        for section in 0..<collection.numberOfSections {
+            for item in 0..<collection.numberOfItems(inSection: section) {
+                let indexPath = IndexPath(item: item, section: section)
+                guard let configuration = collection.delegate?.collectionView?(
+                    collection,
+                    contextMenuConfigurationForItemsAt: [indexPath],
+                    point: .zero
+                ), let provider = configuration.value(forKey: "actionProvider") else { continue }
+                typealias Provider = @convention(block) ([UIMenuElement]) -> UIMenu?
+                return unsafeBitCast(provider as AnyObject, to: Provider.self)([])
+            }
+        }
+        return nil
+    }
+
+    /// The menu's actions in order, sections flattened.
+    fileprivate static func actions(in menu: UIMenu) -> [UIAction] {
+        menu.children.flatMap { element -> [UIAction] in
+            if let submenu = element as? UIMenu { return actions(in: submenu) }
+            return (element as? UIAction).map { [$0] } ?? []
+        }
+    }
+
+    /// Runs the action titled `title`, as choosing it from the menu does.
+    fileprivate static func perform(_ title: String, in menu: UIMenu) throws {
+        let action = try #require(actions(in: menu).first { $0.title == title })
+        typealias Handler = @convention(block) (UIAction) -> Void
+        let handler = try #require(action.value(forKey: "handler"))
+        unsafeBitCast(handler as AnyObject, to: Handler.self)(action)
+    }
+
+    fileprivate static func navigationBar(in view: UIView) -> UINavigationBar? {
+        if let bar = view as? UINavigationBar, !bar.isHidden, bar.window != nil { return bar }
+        for subview in view.subviews {
+            if let bar = navigationBar(in: subview) { return bar }
+        }
+        return nil
+    }
+
+    fileprivate static func visibleTabBar(in view: UIView) -> UITabBar? {
+        if let bar = view as? UITabBar, !bar.isHidden, bar.alpha > 0.01, bar.window != nil { return bar }
+        for subview in view.subviews {
+            if let bar = visibleTabBar(in: subview) { return bar }
+        }
+        return nil
+    }
+
+    /// Visible scroll views under `view` that are not a list's collection view.
+    fileprivate static func scrollViews(in view: UIView) -> [UIScrollView] {
+        guard !view.isHidden, view.alpha > 0.01 else { return [] }
+        let own = (view as? UIScrollView).flatMap { $0 is UICollectionView ? nil : [$0] } ?? []
+        return own + view.subviews.flatMap(scrollViews(in:))
+    }
+
+    private static func collectionViews(in view: UIView) -> [UICollectionView] {
+        let own = (view as? UICollectionView).map { [$0] } ?? []
+        return own + view.subviews.flatMap(collectionViews(in:))
+    }
+
+    /// Bar titles drawn by UIKit: the centred title, when the bar shows one.
+    fileprivate static func titleLabels(in bar: UINavigationBar) -> [UILabel] {
+        func labels(in view: UIView) -> [UILabel] {
+            guard !view.isHidden, view.alpha > 0.01 else { return [] }
+            let own = (view as? UILabel).flatMap { $0.text?.isEmpty == false ? [$0] : nil } ?? []
+            return own + view.subviews.flatMap(labels(in:))
+        }
+        return labels(in: bar)
+    }
+
+    fileprivate static func barElement(labelled label: String, in bar: UINavigationBar) -> NSObject? {
+        elements(in: bar).first { $0.accessibilityLabel == label }
+    }
+
+    fileprivate static func element(labelled label: String, in view: UIView) -> NSObject? {
+        elements(in: view).first { $0.accessibilityLabel == label }
+    }
+
+    /// The on-screen frame of the header labelled `label`: a screen's title, not the tab of the
+    /// same name.
+    fileprivate static func frame(ofHeader label: String, in window: UIWindow) async throws -> CGRect {
+        try await frame(in: window) { $0.accessibilityLabel == label && $0.accessibilityTraits.contains(.header) }
+    }
+
+    /// The on-screen frame of the element labelled `label`.
+    fileprivate static func frame(of label: String, in window: UIWindow) async throws -> CGRect {
+        try await frame(in: window) { $0.accessibilityLabel == label }
+    }
+
+    /// The on-screen frame of the first element `matches` picks, once it has held the same
+    /// frame for two layout passes in a row.
+    private static func frame(in window: UIWindow, matching matches: @escaping (NSObject) -> Bool) async throws -> CGRect {
+        var last: CGRect?
+        var settled: CGRect?
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            guard let frame = elements(in: window).first(where: matches)?.accessibilityFrame,
+                  !frame.isEmpty else { return false }
+            defer { last = frame }
+            guard frame == last else { return false }
+            settled = frame
+            return true
+        }
+        return try #require(settled)
+    }
+
+    /// Every accessibility element under `view`, including SwiftUI's hosted nodes.
+    fileprivate static func elements(in view: UIView) -> [NSObject] {
+        func walk(_ object: NSObject, depth: Int) -> [NSObject] {
+            guard depth < 40 else { return [] }
+            if let view = object as? UIView, view.isHidden || view.alpha <= 0.01 { return [] }
+            var found: [NSObject] = []
+            if object.isAccessibilityElement { found.append(object) }
+            for case let element as NSObject in object.accessibilityElements ?? [] {
+                found += walk(element, depth: depth + 1)
+            }
+            if let view = object as? UIView {
+                for subview in view.subviews { found += walk(subview, depth: depth + 1) }
+            }
+            return found
+        }
+        return walk(view, depth: 0)
     }
 }

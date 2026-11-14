@@ -435,6 +435,16 @@ final class AppRouter {
         ])
     }
 
+    /// Presents a group's Invite People sheet over whatever is showing: the root sheet over a tab,
+    /// or stacked over a chat that is itself in a sheet.
+    func presentInvitePeople(_ conversationID: ConversationID) {
+        if presentedSheets.isEmpty {
+            present(.invitePeople(conversationID))
+        } else {
+            presentNested(.invitePeople(conversationID))
+        }
+    }
+
     /// Appends `sheet` on top of the current top, stacking visually. Requires
     /// at least one sheet already presented (no-op + warning otherwise — the
     /// caller should `present(_:)` a root first, not promote-implicitly).

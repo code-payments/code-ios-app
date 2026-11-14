@@ -12,15 +12,26 @@ import FlipcashUI
 struct TipsScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(BetaFlags.self) private var betaFlags
 
     /// Hosted by the Chats tab rather than presented as the `.tips` sheet.
     /// Defaults to `false` — `TipFlow` presents the sheet only to ask for a
     /// profile, so there it leads with ``TipsIntroScreen``.
     var isEmbedded: Bool = false
 
-    /// The iOS 26 tab bar carries a search tab; the legacy pill does not.
-    private var hasSearchTab: Bool {
+    /// iOS 26 draws the system tab bar; earlier systems draw the legacy pill.
+    private var onSystemBar: Bool {
         if #available(iOS 26, *) { true } else { false }
+    }
+
+    /// Embedded, the list carries the search button only where the home bar
+    /// has no search tab to do it, and never in the Group Money shell.
+    private var showsSearchButton: Bool {
+        guard isEmbedded else { return true }
+        let layout = HomeTabLayout(
+            showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
+        )
+        return layout.listShowsSearchButton(onSystemBar: onSystemBar)
     }
 
     var body: some View {
@@ -31,7 +42,7 @@ struct TipsScreen: View {
         // invitation the tip-card tab already makes. The sheet keeps the
         // intro: it is that flow's only door into profile creation.
         if isEmbedded || sessionContainer.session.profile?.isTippable == true {
-            TipConversationsScreen(showsSearchButton: !(isEmbedded && hasSearchTab))
+            TipConversationsScreen(showsSearchButton: showsSearchButton)
         } else {
             TipsIntroScreen()
         }

@@ -28,6 +28,8 @@ extension AppRouter {
         /// The account switcher, opened by long-pressing the You tab. Settings
         /// reaches the same screen as a push on its own stack.
         case switchAccount
+        /// A group's Invite People sheet: its link, and the ways to send it.
+        case invitePeople(ConversationID)
 
         var id: Self { self }
 
@@ -37,7 +39,7 @@ extension AppRouter {
             switch self {
             case .sendAmount(.privateGroup):
                 true
-            case .give, .buy, .addMoney, .downloadApp, .sendAmount, .tips, .switchAccount:
+            case .give, .buy, .addMoney, .downloadApp, .sendAmount, .tips, .switchAccount, .invitePeople:
                 false
             }
         }
@@ -54,6 +56,7 @@ extension AppRouter {
             case .sendAmount: .sendAmount
             case .tips:         .tips
             case .switchAccount: .switchAccount
+            case .invitePeople: .invitePeople
             }
         }
 
@@ -69,6 +72,7 @@ extension AppRouter {
             case .sendAmount:   .sendAmount
             case .tips:         .tips
             case .switchAccount: .switchAccount
+            case .invitePeople: .invitePeople
             }
         }
 
@@ -80,6 +84,7 @@ extension AppRouter {
             case sendAmount
             case tips
             case switchAccount
+            case invitePeople
         }
 
         var description: String {
@@ -91,6 +96,7 @@ extension AppRouter {
             case .sendAmount:   "sendAmount"
             case .tips:         "tips"
             case .switchAccount: "switchAccount"
+            case .invitePeople: "invitePeople"
             }
         }
     }

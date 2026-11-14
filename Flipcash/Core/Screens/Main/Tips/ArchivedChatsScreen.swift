@@ -46,7 +46,8 @@ struct ArchivedChatsScreen: View {
                             in: .archived,
                             isEnabled: true,
                             onMute: { muteTarget = ArchivedMuteTarget(id: conversation.id) },
-                            onArchive: { conversationController.unarchive(conversation.id) }
+                            onArchive: { conversationController.unarchive(conversation.id) },
+                            onSelect: nil
                         )
                     }
                 }

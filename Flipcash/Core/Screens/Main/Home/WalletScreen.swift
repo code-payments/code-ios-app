@@ -50,42 +50,9 @@ private struct WalletScreenContent: View {
     /// How far that arrival has run: 0 is off-stage, 1 is settled.
     @State private var arrivalProgress: CGFloat = 1
 
-    /// The card being opened. The deck reorganises around it and the detail
-    /// panel rises beneath it.
-    @State private var expandingMint: PublicKey?
-    /// How far the page's hero card is displaced from its resting slot. Seeded
-    /// with the tapped card's position in the deck and animated to zero, so the
-    /// card the page shows *is* the card that travels — there is no copy laid
-    /// over the top, and it belongs to the page's scroll view the whole time.
-    @State private var heroOffset: CGFloat = 0
-    /// The slot the deck leaves empty while that card is drawn elsewhere.
-    @State private var hiddenMint: PublicKey?
-    /// Released once the transition has settled, letting the page build its
-    /// chart and read its activity without stuttering the animation.
-    @State private var heavyContentReady = false
-    /// Brings the page in behind the travelling card: everything except the
-    /// card itself, which is continuous.
-    @State private var pageContentOpacity: Double = 0
-    /// Whether the page exists yet. Split from its fade so the cost of
-    /// building it is paid on its own runloop turn, while the card is already
-    /// in flight, rather than on the frame it becomes visible.
-    @State private var pageIsBuilt = false
-    /// Fades the wallet — balance header included — out behind the opening card.
-    @State private var deckOpacity: Double = 1
-    /// Where a pull-to-close let go of the card, so the deck picks it up there
-    /// rather than snapping it back to its open slot first. Animated to zero as
-    /// the close carries it home.
-    @State private var releasedPullOffset: CGFloat = 0
-    /// Drives the deck's reorganisation, 0 (resting) to 1 (cleared), animated in
-    /// lockstep with the card's flight so the two read as one gesture.
-    @State private var expansionProgress: CGFloat = 0
-    /// Identifies the transition currently in flight. Opening and closing both
-    /// finish their work in callbacks — an animation completion, and a delayed
-    /// page fade — which keep running even once the transition that scheduled
-    /// them has been replaced. Each captures the token it started with and does
-    /// nothing if it no longer matches, so a close settling in the background
-    /// cannot tear down the open that interrupted it.
-    @State private var transitionToken = 0
+    /// The opened card's transition: the deck clearing around it, and the page
+    /// that comes in behind it.
+    private var deck = WalletCardDeck()
     /// Size of the wallet's container, used to push the lower cards off-screen
     /// and to size the detail panel below the open card.
     @State private var containerSize: CGSize = .zero
@@ -95,6 +62,10 @@ private struct WalletScreenContent: View {
     @State private var safeArea: EdgeInsets = .init()
 
     private var safeAreaTop: CGFloat { safeArea.top }
+
+    /// The top inset outside the navigation stack: the status bar's alone, where `safeArea`
+    /// also counts Money's bar.
+    @State private var statusBarInset: CGFloat = 0
 
     /// Geometry taken from the currency info spec (Figma 9121:14267), which
     /// places the card at y=134.5 with the 44pt chrome at y=66, and starts the
@@ -109,9 +80,21 @@ private struct WalletScreenContent: View {
     /// Matched-transition namespace shared with the pushed currency-info screen.
     @Namespace private var cardNamespace
 
-    /// Rows of recent activity previewed on the wallet (the rest lives on the
-    /// per-token transaction history).
-    private static let recentPreviewCount = 3
+    /// Rows of recent activity read for either layout, which each show their own share of them
+    /// (the rest lives on the full history).
+    private static let recentFetchCount = max(
+        WalletLayout.standard.recentActivityLimit,
+        WalletLayout.money.recentActivityLimit
+    )
+
+    /// The recent activity this layout lists.
+    private var listedActivities: [Activity] {
+        Array(recentActivities.prefix(layout.recentActivityLimit))
+    }
+
+    /// The scroll view's visible height, between the bar and the tab bar, which Money's content
+    /// fills at the least so Recent Activity runs to the bottom of the screen.
+    @State private var scrollViewportHeight: CGFloat = 0
 
     /// Where the balance sits, measured from the top of the screen rather than
     /// from the top of this scroll view — 20pt of list inset plus the spec's
@@ -123,6 +106,16 @@ private struct WalletScreenContent: View {
 
     private var headerTopPadding: CGFloat {
         max(0, Self.headerTopFromScreenEdge - safeArea.top)
+    }
+
+    /// Where Money's balance sits below the status bar: the 20pt and 44pt of the title row it
+    /// drew under the status bar before that row moved into the bar, then the spec's 64pt.
+    private static let moneyBalanceTopFromStatusBar: CGFloat = 20 + 44 + 64
+
+    /// The bar is not the title row's 44pt on every iOS version (54pt on iOS 27), so the
+    /// balance pads from the height the bar actually takes.
+    private var moneyBalanceTopPadding: CGFloat {
+        max(0, statusBarInset + Self.moneyBalanceTopFromStatusBar - safeArea.top)
     }
     /// How far below the status bar content returns to full strength.
     private static let topFadeLength: CGFloat = 20
@@ -157,7 +150,7 @@ private struct WalletScreenContent: View {
         _arrivalProgress = State(initialValue: landing?.isNewToken == true ? 0 : 1)
         _appreciation = State(initialValue: seed.appreciation)
         _hasAddedMoney = State(initialValue: sessionContainer.session.hasEverAddedMoney())
-        _recentActivities = State(initialValue: sessionContainer.session.recentActivities(limit: Self.recentPreviewCount))
+        _recentActivities = State(initialValue: sessionContainer.session.recentActivities(limit: Self.recentFetchCount))
     }
 
     private var rate: Rate { ratesController.rateForBalanceCurrency() }
@@ -176,35 +169,7 @@ private struct WalletScreenContent: View {
             Background(color: .backgroundMain) {
                 walletContent
             }
-            // Once the deck has finished reorganising, the currency info screen
-            // takes over the whole screen with its hero card on the same spot the
-            // wallet parked the opened card — so the swap is invisible and the
-            // page scrolls as one, card included.
-            .overlay {
-                // Built once the card is already in flight, but held invisible
-                // until it is most of the way there.
-                if pageIsBuilt, let expandingMint {
-                    CurrencyInfoScreen(
-                        mint: expandingMint,
-                        presentation: .overlay(
-                            onClose: { closeCard() },
-                            heroOffset: heroOffset,
-                            contentOpacity: pageContentOpacity,
-                            onPull: scrubDismiss,
-                            onPullEnded: endDismiss
-                        ),
-                        defersHeavyContent: !heavyContentReady
-                    )
-                    .id(expandingMint)
-                    // Fades in behind the card rather than sliding, which would
-                    // drag the chrome and tiles in from the bottom. The deck is
-                    // clearing underneath, so nothing shows through.
-                    .background(Color.backgroundMain.opacity(pageContentOpacity))
-                    // Deliberately no edge-swipe back. The screen is lifted over
-                    // the wallet rather than pushed onto it, and its chrome says
-                    // so with a close box instead of a back chevron.
-                }
-            }
+            .walletCardPage(deck) { closeCard(resumingFrom: $0) }
             .onChange(of: router.requestedCardMint) { _, _ in openRequestedCard() }
             // A flow launched from the expanded card (Convert, Get) finished and
             // asked to land back on the wallet — close the card overlay.
@@ -217,10 +182,17 @@ private struct WalletScreenContent: View {
             .task(id: session.walletDeposit.releasedLanding?.mint) { await playDeposit() }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { containerSize = $0 }
             .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeArea = $0 }
-            // No top bar on the wallet root (per Figma) — the balance header
-            // sits directly under the status bar. Pushed destinations restore
-            // their own nav bar.
-            .toolbar(.hidden, for: .navigationBar)
+            // No top bar on today's wallet root (per Figma) — the balance header
+            // sits directly under the status bar. Money puts its title and avatar
+            // in the bar, where Groups puts its title and Add, so switching tabs
+            // leaves them in place. Pushed destinations restore their own nav bar.
+            .toolbar(showsMoneyBar ? .visible : .hidden, for: .navigationBar)
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                if showsMoneyBar {
+                    moneyBarItems
+                }
+            }
             .appRouterDestinations()
             .onAppear {
                 historyController.sync()
@@ -258,6 +230,7 @@ private struct WalletScreenContent: View {
             // which a depth watcher reads as "back at the wallet" and closes the
             // card out from under the screen the user was returning to.
         }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarInset = $0 }
         .environment(\.walletCardNamespace, cardNamespace)
     }
 
@@ -265,67 +238,8 @@ private struct WalletScreenContent: View {
     /// on screen while the detail panel rises beneath it.
     private func openCard(_ item: TokenCardData, currentTop: CGFloat) {
         Analytics.tokenInfoOpened(from: .openedFromWallet, mint: item.mint)
-        transitionToken &+= 1
-        let token = transitionToken
-
-        // Everything that costs a frame happens in this one un-animated step, so
-        // the animation that follows is pure interpolation.
-        var seed = Transaction()
-        seed.disablesAnimations = true
-        withTransaction(seed) {
-            // The page's own hero card starts over the deck slot the tapped
-            // card occupies, so the two coincide exactly on the first frame.
-            heroOffset = (currentTop - safeArea.top) - WalletCardGeometry.openCardTopInset
-            pageContentOpacity = 0
-            pageIsBuilt = false
-            expansionProgress = 0
-            expandingMint = item.mint
-            hiddenMint = item.mint
-            // Both of these block the main thread for a few frames — hiding the
-            // tab bar relayouts the whole `TabView`, and building the page runs
-            // its view model's synchronous metadata read and decode. They are
-            // done here, before the animation below is committed, so the cost
-            // lands as a short pause on the tap rather than as a stall part-way
-            // through the flight. SwiftUI's spring animations are driven on the
-            // main thread, so work deferred until *after* the commit does not
-            // run alongside the motion — it interrupts it.
+        deck.open(item.mint, currentTop: currentTop, safeAreaTop: safeArea.top) {
             cardExpansion.isExpanded = true
-            pageIsBuilt = true
-        }
-
-        // The card's flight and the deck's reorganisation are one animation: the
-        // cards above collapse into the opened card's slot and the ones below run
-        // off the bottom exactly as it lifts away.
-        //
-        // The hand-off is driven by the animation finishing rather than by a
-        // matching sleep: a spring is still settling when its nominal duration
-        // is up, so on a timer the flying card is still short of its mark when
-        // the page's hero card appears at the final position. The two are then
-        // drawn a few points apart, which reads as the card juddering into
-        // place. `.removed` fires once it has actually stopped.
-        withAnimation(.smooth(duration: Self.liftDuration), completionCriteria: .removed) {
-            heroOffset = 0
-            expansionProgress = 1
-        } completion: {
-            guard token == transitionToken else { return }
-            // Everything has come to rest, so the chart can fetch its points and
-            // draw for real inside the space it has been holding all along.
-            heavyContentReady = true
-        }
-
-        // The wallet clears ahead of the deck it belongs to, so the screen is
-        // already dark by the time the page starts coming up. Fading the two
-        // across each other instead shows the balance and the cards straight
-        // through the tiles for the length of the overlap.
-        withAnimation(.easeOut(duration: Self.walletFadeDuration)) { deckOpacity = 0 }
-
-        // The card leads and the page follows it in, sharing its curve so the
-        // two read as one movement. Delayed rather than dispatched later, so
-        // both are committed in the same frame and cannot drift apart, and run
-        // long enough that the page is not sitting complete while the card is
-        // still travelling.
-        withAnimation(.smooth(duration: Self.liftDuration).delay(Self.pageFollowDelay)) {
-            pageContentOpacity = 1
         }
     }
 
@@ -367,38 +281,6 @@ private struct WalletScreenContent: View {
         .transition(.opacity)
     }
 
-    /// Runs the opening backwards under a pull-to-close, so the screen recedes
-    /// Recedes the screen under a pull-to-close: the info content and chrome
-    /// fade out. The deck is deliberately left as it
-    /// is — reassembling it under the finger leaves the card nothing to hand
-    /// over to when the drag ends, and the stack reading through a half-faded
-    /// page is not what the gesture should look like anyway. It comes back on
-    /// release, carrying the card home with it.
-    ///
-    /// The card's *position* is left alone too: the scroll view's overscroll
-    /// already carries it down a point per point, and driving its journey back
-    /// to the deck on top of that sends it several times faster than the drag.
-    ///
-    /// Un-animated on purpose. This tracks a finger, so each update is the
-    /// current position rather than something to interpolate towards.
-    private func scrubDismiss(_ progress: CGFloat) {
-        guard expandingMint != nil else { return }
-        var tracking = Transaction()
-        tracking.disablesAnimations = true
-        withTransaction(tracking) { pageContentOpacity = 1 - progress }
-    }
-
-    /// The finger lifted: either carry the dismissal through, or put everything
-    /// back where it was.
-    private func endDismiss(_ passedThreshold: Bool, _ releasedAt: CGFloat) {
-        guard expandingMint != nil else { return }
-        if passedThreshold {
-            closeCard(resumingFrom: releasedAt)
-        } else {
-            withAnimation(.smooth(duration: 0.25)) { pageContentOpacity = 1 }
-        }
-    }
-
     /// Opens the card the router asked for, if any, and clears the request.
     private func openRequestedCard() {
         guard let mint = router.requestedCardMint else { return }
@@ -408,90 +290,21 @@ private struct WalletScreenContent: View {
 
     /// Arrives in the opened state without the travel — for a deep link, where
     /// there is no tap to have come from and the card may not even be on screen
-    /// to start from. Everything lands where the opening animation would have
-    /// left it, so closing still puts the card back into the deck normally.
+    /// to start from.
     private func openCardImmediately(_ mint: PublicKey) {
         Analytics.tokenInfoOpened(from: .openedFromDeeplink, mint: mint)
-        transitionToken &+= 1
-
-        var immediate = Transaction()
-        immediate.disablesAnimations = true
-        withTransaction(immediate) {
-            heroOffset = 0
-            releasedPullOffset = 0
-            expansionProgress = 1
-            deckOpacity = 0
-            pageContentOpacity = 1
-            expandingMint = mint
-            hiddenMint = mint
-            cardExpansion.isExpanded = true
-            pageIsBuilt = true
-            heavyContentReady = true
-        }
+        deck.openImmediately(mint) { cardExpansion.isExpanded = true }
     }
 
-    /// Closes a token: the reverse of opening. The page drops away and the deck
-    /// takes its card back, sliding it down into its own slot and under the
-    /// cards stacked on top of it — put back, rather than simply vanishing.
+    /// Closes a token: the reverse of opening.
     private func closeCard(resumingFrom pullOffset: CGFloat = 0) {
-        guard expandingMint != nil else { return }
-        transitionToken &+= 1
-        let token = transitionToken
-
-        // Hand the card to the deck before anything moves. It is already sitting
-        // at the open position (the stack holds it there while `progress` is 1),
-        // so this swap is invisible — and from here the deck owns the return,
-        // which is what lets the card go *under* its neighbours on the way home.
-        var handback = Transaction()
-        handback.disablesAnimations = true
-        withTransaction(handback) {
-            hiddenMint = nil
-            // Hand the card over at the height the finger left it at, so the
-            // close picks up from there instead of jumping back to the open slot
-            // and replaying from the top.
-            releasedPullOffset = pullOffset
-            pageContentOpacity = 0
-            pageIsBuilt = false
-            heavyContentReady = false
-            // Money is what the page was covering, and it was faded out when the
-            // card opened. Fading it back in after the page has gone leaves a
-            // frame with neither drawn, so it returns in this same step.
-            if layout.restoresContentWhenCardCloses { deckOpacity = 1 }
-            // Brought back here, before the motion, for the same reason it is
-            // hidden before the opening one: restoring it relayouts the whole
-            // `TabView`. Left until the animation finishes, that cost lands
-            // *after* the deck has settled and the bar visibly arrives late.
+        deck.close(
+            resumingFrom: pullOffset,
+            restoresContentAtOnce: layout.restoresContentWhenCardCloses
+        ) {
             cardExpansion.isExpanded = false
         }
-
-        // `expandingMint` has to stay put for the duration: it is the anchor the
-        // reorganisation is measured against, and clearing it here would swap the
-        // deck back to its resting formula in one frame instead of unwinding it.
-        withAnimation(.smooth(duration: Self.liftDuration), completionCriteria: .removed) {
-            expansionProgress = 0
-            deckOpacity = 1
-            releasedPullOffset = 0
-        } completion: {
-            // Only if this close is still the current transition: tapping a card
-            // again while it settles starts an open, and clearing the anchor then
-            // would strand the wallet with its header faded out and no page.
-            guard token == transitionToken else { return }
-            // The deck is back in its resting fan, so the anchor can go. Waiting
-            // for the animation rather than a matching sleep matters here too:
-            // clearing it while the spring is still settling drops the cards the
-            // last few points in one frame.
-            withTransaction(handback) {
-                expandingMint = nil
-            }
-        }
     }
-
-    private static let liftDuration: TimeInterval = 0.32
-    /// The wallet is gone before the page starts arriving, so the two never
-    /// cross-fade over each other.
-    private static let walletFadeDuration: TimeInterval = 0.16
-    /// How far behind the card the page follows.
-    private static let pageFollowDelay: TimeInterval = 0.20
 
     // MARK: - Content
 
@@ -508,20 +321,28 @@ private struct WalletScreenContent: View {
         // than it looks finished. Tying the lock to it left the wallet inert for
         // that tail: a swipe found a disabled scroll view and fell through to
         // the card underneath as a tap.
-        .scrollDisabled(pageIsBuilt)
+        .scrollDisabled(deck.pageIsBuilt)
+        // The container is already the part between the bar and the tab bar.
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.containerSize.height
+        } action: { _, height in
+            scrollViewportHeight = max(0, height)
+        }
         // The app-wide soft edge effect is drawn from a bar's own background,
-        // and the wallet hides its navigation bar, so it covers the bottom
+        // and today's wallet hides its navigation bar, so it covers the bottom
         // (tab bar) but not the top — what scrolls up into the status bar has
-        // to be faded by hand.
+        // to be faded by hand. Money's bar draws its own.
         .overlay(alignment: .top) {
-            LinearGradient(
-                colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: safeArea.top + Self.topFadeLength)
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
+            if layout == .standard {
+                LinearGradient(
+                    colors: [Color.backgroundMain, Color.backgroundMain.opacity(0)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: safeArea.top + Self.topFadeLength)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+            }
         }
     }
 
@@ -539,8 +360,10 @@ private struct WalletScreenContent: View {
             // Bottom inset so the last row clears the tab bar.
             Color.clear.frame(height: bottomContentInset)
         }
+        // At least the screen's height, so Recent Activity can take the rest of it.
+        .frame(minHeight: scrollViewportHeight, alignment: .top)
         .padding(.horizontal, 20)
-        .opacity(deckOpacity)
+        .opacity(deck.deckOpacity)
         .task(id: session.profile?.profilePicture?.thumbnailBlobID) {
             await sessionContainer.profileAvatars.load(userID: session.userID, picture: session.profile?.profilePicture)
         }
@@ -550,12 +373,12 @@ private struct WalletScreenContent: View {
     private func moneySection(_ section: WalletSection) -> some View {
         switch section {
         case .title:
-            moneyTitleBar
-                .padding(.top, 20)
+            // Drawn in the navigation bar; see `moneyBarItems`.
+            EmptyView()
         case .balance:
             BalanceHeaderButton(balance: total)
                 .frame(height: 60)
-                .padding(.top, 64)
+                .padding(.top, moneyBalanceTopPadding)
         case .currencyCount:
             currencyCountButton
                 .padding(.top, 4)
@@ -563,39 +386,65 @@ private struct WalletScreenContent: View {
             moneyActions
                 .padding(.top, 40)
         case .recentActivity:
-            if !recentActivities.isEmpty {
-                RecentActivitySection(activities: recentActivities, title: MoneyHeaderContent.recentActivityTitle, rowStyle: .money) {
-                    router.push(.activity)
-                }
+            moneyRecentActivity
                 .padding(.top, 44)
-            }
+                // Takes whatever height the blocks above leave.
+                .frame(maxHeight: .infinity, alignment: .top)
         case .balanceHeader, .appreciation, .addMoneyRow, .tokenCards, .tiles:
             EmptyView()
         }
     }
 
-    private var moneyTitleBar: some View {
-        HStack(alignment: .center) {
-            Text(MoneyHeaderContent.title)
-                .font(.appTitleLarge)
-                .foregroundStyle(Color.textMain)
-                .accessibilityAddTraits(.isHeader)
-            Spacer()
-            Button {
-                MoneyAction.profile.perform(on: router)
-            } label: {
-                ContactAvatarView(
-                    id: session.userID.uuidString,
-                    displayName: session.profile?.displayName ?? "",
-                    imageData: sessionContainer.profileAvatars.data(for: session.userID),
-                    blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
-                    size: 44
-                )
+    /// Money's Recent Activity: its rows, or once history has been looked for and holds none, a
+    /// message centred in the space the section fills.
+    private var moneyRecentActivity: some View {
+        let activities = listedActivities
+        return VStack(spacing: 0) {
+            RecentActivitySection(activities: activities, title: MoneyHeaderContent.recentActivityTitle, rowStyle: .money) {
+                router.push(.activity)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("You")
-            .accessibilityIdentifier("money-profile-button")
+            if activities.isEmpty && !addMoneyRowState.isAwaitingHistory {
+                Text("No activity yet")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
+    }
+
+    /// Money's bar, while no currency page covers the screen: the page draws its own chrome over
+    /// the wallet, and a bar would sit on top of it and push it down.
+    private var showsMoneyBar: Bool {
+        layout == .money && !deck.pageIsBuilt
+    }
+
+    /// The title where Groups draws its own, and the avatar in the slot Groups gives Add.
+    @ToolbarContentBuilder private var moneyBarItems: some ToolbarContent {
+        ShellTabTitle(title: MoneyHeaderContent.title, accessibilityIdentifier: "money-title")
+        // The photo is the control, so no glass behind it.
+        if #available(iOS 26.0, *) {
+            ToolbarItem(placement: .topBarTrailing) { moneyProfileButton }
+                .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .topBarTrailing) { moneyProfileButton }
+        }
+    }
+
+    private var moneyProfileButton: some View {
+        Button {
+            MoneyAction.profile.perform(on: router)
+        } label: {
+            ContactAvatarView(
+                id: session.userID.uuidString,
+                displayName: session.profile?.displayName ?? "",
+                imageData: sessionContainer.profileAvatars.data(for: session.userID),
+                blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
+                size: 44
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("You")
+        .accessibilityIdentifier("money-profile-button")
     }
 
     private var currencyCountButton: some View {
@@ -652,18 +501,18 @@ private struct WalletScreenContent: View {
             // The stack is deliberately outside the fade: its cards carry
             // their own, driven by the same progress, so the opened one can
             // stay solid while the rest of the deck goes.
-            .opacity(deckOpacity)
+            .opacity(deck.deckOpacity)
 
             if !cards.isEmpty {
                 TokenCardStack(
                     items: cards,
                     namespace: cardNamespace,
-                    expandingMint: expandingMint,
-                    expansionProgress: expansionProgress,
+                    expandingMint: deck.expandingMint,
+                    expansionProgress: deck.expansionProgress,
                     containerHeight: containerSize.height,
-                    hiddenMint: hiddenMint,
+                    hiddenMint: deck.hiddenMint,
                     openTopInset: WalletCardGeometry.openCardTopInset,
-                    openExtraOffset: releasedPullOffset,
+                    openExtraOffset: deck.releasedPullOffset,
                     arrivingMint: arrivingMint,
                     arrivalProgress: arrivalProgress,
                     onCardTap: openCard
@@ -683,7 +532,7 @@ private struct WalletScreenContent: View {
                         .padding(.top, 24)
                 }
             }
-            .opacity(deckOpacity)
+            .opacity(deck.deckOpacity)
 
             // Bottom inset so the last tile clears the tab bar.
             Color.clear.frame(height: bottomContentInset)
@@ -776,7 +625,7 @@ private struct WalletScreenContent: View {
     private var recentActivitySection: some View {
         // The header opens the full cross-token history here; currency info
         // passes its own per-token destination.
-        RecentActivitySection(activities: recentActivities) {
+        RecentActivitySection(activities: listedActivities) {
             router.push(.activity)
         }
         .padding(.top, 24)
@@ -885,7 +734,7 @@ private struct WalletScreenContent: View {
     /// cannot ride on ``refresh()``'s balance trigger, and a deposit's activity
     /// row routinely lands after the balance rise that preceded it.
     private func reloadHistoryState() {
-        let activities = session.recentActivities(limit: Self.recentPreviewCount)
+        let activities = session.recentActivities(limit: Self.recentFetchCount)
         let addedMoney = session.hasEverAddedMoney()
 
         guard activities != recentActivities
@@ -899,8 +748,7 @@ private struct WalletScreenContent: View {
     }
 
     /// Pure balance → view-data projection, shared by the synchronous seed and
-    /// `refresh()`. Resolves each token's bill colors once (a DB read per token)
-    /// rather than per body evaluation.
+    /// `refresh()`.
     private static func snapshot(
         session: Session,
         rate: Rate
@@ -908,22 +756,7 @@ private struct WalletScreenContent: View {
         let all = session.balances(for: rate)
         let visible = Session.walletCardBalances(from: all)
 
-        let cards = visible.map { balance -> TokenCardData in
-            let (value, isPositive) = balance.stored.computeAppreciation(with: rate)
-            // The pill always shows (per Figma). A sub-cent value rounds to
-            // "$0.00" and reads as positive, so a tiny negative never renders "-$0.00".
-            let roundsToZero = value.nativeAmount.value < 0.005
-            let appreciationText = (isPositive || roundsToZero ? "+" : "-") + value.nativeAmount.formatted()
-            return TokenCardData(
-                mint: balance.stored.mint,
-                name: balance.stored.name,
-                imageURL: balance.stored.imageURL,
-                balanceText: balance.exchangedFiat.nativeAmount.formatted(),
-                appreciationText: appreciationText,
-                colors: session.billColors(for: balance.stored.mint),
-                isUSDF: balance.stored.mint == .usdf
-            )
-        }
+        let cards = TokenCardData.walletCards(for: visible, session: session, rate: rate)
 
         let total = all.map(\.exchangedFiat).total(rate: rate)
 

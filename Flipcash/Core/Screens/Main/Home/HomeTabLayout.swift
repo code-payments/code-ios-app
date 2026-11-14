@@ -30,18 +30,27 @@ enum HomeTabLayout: Equatable {
         }
     }
 
-    /// Whether the iOS 26 bar keeps its search tab. Search stays where it is in
-    /// both layouts; the legacy bar never had one (its search is a toolbar button).
-    var hasSearchTab: Bool { true }
+    /// Whether the iOS 26 bar has a search tab. Today's layout does; the Group
+    /// Money shell has no search, so its bar holds Groups and Money alone and
+    /// the system centres it at their width. The legacy bar never had one (its
+    /// search is a toolbar button).
+    var hasSearchTab: Bool { self == .standard }
+
+    /// Whether the Chat tab's list carries a search button in its toolbar:
+    /// today's layout on the legacy pill, which has no search tab to do it.
+    /// The Group Money shell has no search on either bar.
+    func listShowsSearchButton(onSystemBar: Bool) -> Bool {
+        hasSearchTab && !onSystemBar
+    }
 
     /// The tabs behind a system bar holding `itemCount` items, left to right, or
     /// nil when this layout never draws that many. For one pass after a gate
     /// flip the bar still holds the other layout's items; pairing them with
     /// these tabs puts one tab's glyph on another.
     ///
-    /// The count without the search item is accepted too, so a bar drawn
-    /// without it still gets its glyphs rather than waiting forever. The two
-    /// layouts' counts, 4 or 5 and 2 or 3, never overlap.
+    /// With a search tab, the count without the search item is accepted too,
+    /// so a bar drawn without it still gets its glyphs rather than waiting
+    /// forever. The two layouts' counts, 4 or 5 and 2, never overlap.
     func barTabs(forItemCount itemCount: Int) -> [HomeTab]? {
         let counts = hasSearchTab ? [barTabs.count, barTabs.count + 1] : [barTabs.count]
         return counts.contains(itemCount) ? barTabs : nil
