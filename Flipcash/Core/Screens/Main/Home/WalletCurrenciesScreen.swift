@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 import FlipcashUI
 import FlipcashCore
 
@@ -11,47 +12,54 @@ import FlipcashCore
 /// as today's wallet draws them: a ``TokenCardStack``, where tapping a card
 /// opens its page over the deck and closing puts it back.
 ///
-/// The system bar stays hidden, as it does over today's wallet. The deck and the
-/// page it opens are placed against the top of the safe area, and showing the
-/// bar here would move that edge down by the bar's height; hiding it for the
-/// page, as Money does, would move the deck under the travelling card. The
-/// back button and title are drawn instead.
+/// The system bar shows "Currencies" and the back button, as any pushed screen
+/// does, so going back hands the bar to Money's title and avatar in one
+/// transition. A screen that hid its bar instead had Money's bar appear on top
+/// of it for the whole back swipe. The bar hides while a page is up, as Money's
+/// does, since the page draws its own chrome where the bar would be.
+///
+/// Hiding the bar moves the top of the safe area up by its height, on the tap,
+/// while the card is leaving the deck. The deck's scroll view therefore ignores
+/// that edge and is placed from fixed numbers: the bar's bottom while it shows,
+/// and the status bar's inset, where the page lays out from once the bar is gone.
 struct WalletCurrenciesScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
-    @Environment(\.dismiss) private var dismiss
 
     /// One card per currency, resolved off the body (a DB read per token).
     /// `nil` until first read, so the empty message never flashes ahead of it.
     @State private var cards: [TokenCardData]?
     /// The opened card's transition.
     private var deck = WalletCardDeck()
-    /// Used to push the cards below the opened one off the screen.
-    @State private var containerSize: CGSize = .zero
-    /// Where the opened card's page lays out from.
-    @State private var safeArea: EdgeInsets = .init()
+    /// The deck's scroll view, used to push the cards below the opened one off the screen.
+    @State private var viewportHeight: CGFloat = 0
+    /// The bottom of the bar, from the top of the screen, as last measured while it showed.
+    @State private var barBottom: CGFloat = 0
 
     /// Shared with the page the card opens, as today's wallet shares its own.
     @Namespace private var cardNamespace
 
-    /// The drawn bar: as tall as the page's chrome, which takes its place when
-    /// a card opens, so its close box lands where the back button was.
-    private static let headerHeight: CGFloat = 44
-    /// Where the deck starts, and where its cards pile up as it scrolls.
-    private static let deckTop: CGFloat = headerHeight + 16
+    /// The gap between the bar and the deck, which is also where its cards pile up as it scrolls.
+    private static let deckGap: CGFloat = 16
 
     private var rate: Rate { ratesController.rateForBalanceCurrency() }
+
+    /// Where the deck starts and its cards pile up, from the top of the screen.
+    private var deckTop: CGFloat { barBottom + Self.deckGap }
 
     var body: some View {
         Background(color: .backgroundMain) {
             content
         }
-        .overlay(alignment: .top) { header }
         .walletCardPage(deck) { deck.close(resumingFrom: $0) }
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { containerSize = $0 }
-        .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeArea = $0 }
-        .toolbar(.hidden, for: .navigationBar)
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { top in
+            // Measured while the bar shows; the deck keeps that edge while it is hidden.
+            if !deck.pageIsBuilt { barBottom = top }
+        }
+        .navigationTitle("Currencies")
+        .toolbarTitleDisplayMode(.inline)
+        .toolbar(deck.pageIsBuilt ? .hidden : .visible, for: .navigationBar)
         // The page is laid over this screen, not pushed onto it, so going back
         // would pop the screen out from under it.
         .navigationBarBackButtonHidden(deck.pageIsBuilt)
@@ -74,62 +82,43 @@ struct WalletCurrenciesScreen: View {
             ScrollView(.vertical, showsIndicators: false) {
                 TokenCardStack(
                     items: cards,
-                    pinInset: Self.deckTop,
+                    pinInset: deckTop,
                     namespace: cardNamespace,
                     expandingMint: deck.expandingMint,
                     expansionProgress: deck.expansionProgress,
-                    containerHeight: containerSize.height,
+                    containerHeight: viewportHeight,
                     hiddenMint: deck.hiddenMint,
-                    openTopInset: WalletCardGeometry.openCardTopInset,
+                    // The page's hero card rests this far below the status bar.
+                    openTopInset: Self.statusBarInset + WalletCardGeometry.openCardTopInset,
                     openExtraOffset: deck.releasedPullOffset,
                     onCardTap: open
                 )
-                .padding(.top, Self.deckTop)
+                .padding(.top, deckTop)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             }
+            // Measured from the top of the screen, which the bar does not move.
+            .ignoresSafeArea(.container, edges: .top)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { viewportHeight = $0 }
             // Locked while the page is up, as on today's wallet.
             .scrollDisabled(deck.pageIsBuilt)
         }
     }
 
-    private var header: some View {
-        ZStack {
-            Text("Currencies")
-                .font(.appTitle)
-                .foregroundStyle(Color.textMain)
-                .accessibilityAddTraits(.isHeader)
-
-            HStack {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Color.textMain)
-                        .frame(width: Self.headerHeight, height: Self.headerHeight)
-                        // Hit-test the whole target, not just the glyph.
-                        .contentShape(Circle())
-                        .modifier(CircleGlass())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Back")
-                .accessibilityIdentifier("wallet-currencies-back")
-
-                Spacer(minLength: 0)
-            }
-        }
-        .frame(height: Self.headerHeight)
-        .padding(.horizontal, 16)
-        // Clears with the deck as a card opens; the page draws its own chrome.
-        .opacity(deck.deckOpacity)
-    }
-
     private func open(_ item: TokenCardData, currentTop: CGFloat) {
         Analytics.tokenInfoOpened(from: .openedFromWallet, mint: item.mint)
-        deck.open(item.mint, currentTop: currentTop, safeAreaTop: safeArea.top)
+        // The bar hides as the page is built, so the page lays out from the status bar.
+        deck.open(item.mint, currentTop: currentTop, safeAreaTop: Self.statusBarInset)
     }
 
     private func refresh() {
         let balances = Session.walletCardBalances(from: session.balances(for: rate))
         cards = TokenCardData.walletCards(for: balances, session: session, rate: rate)
+    }
+
+    /// The window's top inset: the status bar's alone, which this screen's safe area only
+    /// reports while the bar is hidden.
+    private static var statusBarInset: CGFloat {
+        UIApplication.shared.currentKeyWindow?.safeAreaInsets.top ?? 0
     }
 }
