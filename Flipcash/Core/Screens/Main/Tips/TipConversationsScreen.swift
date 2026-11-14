@@ -13,6 +13,7 @@ struct TipConversationsScreen: View {
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
+    @Environment(BetaFlags.self) private var betaFlags
 
     /// Whether the toolbar offers Search. Off where the iOS 26 tab bar has its own search tab.
     var showsSearchButton = true
@@ -124,7 +125,9 @@ struct TipConversationsScreen: View {
                                 in: .main,
                                 isEnabled: !isSelecting,
                                 onMute: { muteTarget = MuteTarget(ids: [conversation.id]) },
-                                onArchive: { archive([conversation.id]) }
+                                onArchive: { archive([conversation.id]) },
+                                // The shell has no "…" menu, so a row's long press is its way in.
+                                onSelect: showsGroupMoney ? { setSelecting(true, picking: conversation.id) } : nil
                             )
                         }
                     }
@@ -262,6 +265,10 @@ struct TipConversationsScreen: View {
 
     private var isSelecting: Bool { selection.isActive }
 
+    private var showsGroupMoney: Bool {
+        betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
+    }
+
     /// The height of the iOS 26 system tab bar's pill, measured on a 402pt-wide iPhone.
     private static let tabBarPillHeight: CGFloat = 62
 
@@ -292,10 +299,15 @@ struct TipConversationsScreen: View {
     }
 
     /// Enters or leaves select mode, cross-fading the tab bar and the capsules in one animation.
-    private func setSelecting(_ isOn: Bool) {
+    /// Entering from a row's long press picks that row in the same transaction.
+    private func setSelecting(_ isOn: Bool, picking picked: ConversationID? = nil) {
         let animation: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.15)
         withAnimation(animation) {
-            if isOn { selection.begin() } else { selection.end() }
+            if isOn {
+                selection.begin(picking: picked.map { [$0] } ?? [])
+            } else {
+                selection.end()
+            }
         }
     }
 
