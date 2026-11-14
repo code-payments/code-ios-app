@@ -550,6 +550,88 @@ struct GroupMoneyShellSpecTests {
             #expect(Self.actions(in: menu).map(\.title).contains("Select") == isOn, "gate \(isOn)")
         }
     }
+
+    // MARK: - Shell title
+
+    @Test("8.7 flag on: Groups and Money draw their titles on the same spot, in the same font")
+    func shellTitles_sameFrameOnBothTabs() async throws {
+        let (controller, _) = try await Self.seededChatList()
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let groups = try await Self.frame(ofHeader: "Groups", in: window)
+
+        sessionContainer.appRouter.showTab(.wallet)
+        let money = try await Self.frame(ofHeader: "Money", in: window)
+
+        #expect(abs(money.minX - groups.minX) <= 0.5, "Money \(money), Groups \(groups)")
+        #expect(abs(money.midY - groups.midY) <= 0.5, "Money \(money), Groups \(groups)")
+        #expect(abs(money.height - groups.height) <= 0.5, "Money \(money), Groups \(groups)")
+    }
+
+    @Test("8.8 flag on: the avatar on Money sits where Add sits on Groups, centred on the title's line")
+    func shellTrailingControls_sameSpotOnBothTabs() async throws {
+        let (controller, _) = try await Self.seededChatList()
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let add = try await Self.frame(of: "New group", in: window)
+        let groupsTitle = try await Self.frame(ofHeader: "Groups", in: window)
+
+        sessionContainer.appRouter.showTab(.wallet)
+        let avatar = try await Self.frame(of: "You", in: window)
+        let moneyTitle = try await Self.frame(ofHeader: "Money", in: window)
+
+        // The avatar's frame is the circle's 44pt wide but reads taller than it; its top is the
+        // circle's top. Add's frame is its glyph, narrower than its slot, so the two are compared
+        // at the slot's centre rather than at their trailing edges.
+        let avatarCentre = CGPoint(x: avatar.midX, y: avatar.minY + avatar.width / 2)
+        #expect(avatar.width == 44, "avatar \(avatar)")
+        #expect(abs(avatarCentre.x - add.midX) <= 0.5, "avatar \(avatar), Add \(add)")
+        #expect(abs(avatarCentre.y - add.midY) <= 0.5, "avatar \(avatar), Add \(add)")
+        #expect(abs(add.midY - groupsTitle.midY) <= 0.5, "Add \(add), title \(groupsTitle)")
+        #expect(abs(avatarCentre.y - moneyTitle.midY) <= 0.5, "avatar \(avatar), title \(moneyTitle)")
+    }
+
+    @Test("8.9 flag on: Money's title stays put while the screen scrolls under it, as Groups' does")
+    func moneyTitle_pinnedWhileScrolling() async throws {
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        sessionContainer.appRouter.showTab(.wallet)
+        let title = try await Self.frame(ofHeader: "Money", in: window)
+        let addMoney = try await Self.frame(of: "Add Money", in: window)
+
+        let scroll = try #require(
+            Self.scrollViews(in: window).max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }
+        )
+        scroll.contentOffset.y += 100
+        // Once the content has moved, the title's frame is read from the same pass.
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            let frame = Self.elements(in: window).first { $0.accessibilityLabel == "Add Money" }?.accessibilityFrame
+            return frame.map { abs($0.minY - (addMoney.minY - 100)) <= 0.5 } ?? false
+        }
+        let scrolledTitle = try await Self.frame(ofHeader: "Money", in: window)
+        #expect(scrolledTitle == title, "scrolled \(scrolledTitle), resting \(title)")
+    }
 }
 
 // MARK: - Hosted tab bar -
@@ -772,6 +854,13 @@ extension GroupMoneyShellSpecTests {
         return nil
     }
 
+    /// Visible scroll views under `view` that are not a list's collection view.
+    fileprivate static func scrollViews(in view: UIView) -> [UIScrollView] {
+        guard !view.isHidden, view.alpha > 0.01 else { return [] }
+        let own = (view as? UIScrollView).flatMap { $0 is UICollectionView ? nil : [$0] } ?? []
+        return own + view.subviews.flatMap(scrollViews(in:))
+    }
+
     private static func collectionViews(in view: UIView) -> [UICollectionView] {
         let own = (view as? UICollectionView).map { [$0] } ?? []
         return own + view.subviews.flatMap(collectionViews(in:))
@@ -793,6 +882,34 @@ extension GroupMoneyShellSpecTests {
 
     fileprivate static func element(labelled label: String, in view: UIView) -> NSObject? {
         elements(in: view).first { $0.accessibilityLabel == label }
+    }
+
+    /// The on-screen frame of the header labelled `label`: a screen's title, not the tab of the
+    /// same name.
+    fileprivate static func frame(ofHeader label: String, in window: UIWindow) async throws -> CGRect {
+        try await frame(in: window) { $0.accessibilityLabel == label && $0.accessibilityTraits.contains(.header) }
+    }
+
+    /// The on-screen frame of the element labelled `label`.
+    fileprivate static func frame(of label: String, in window: UIWindow) async throws -> CGRect {
+        try await frame(in: window) { $0.accessibilityLabel == label }
+    }
+
+    /// The on-screen frame of the first element `matches` picks, once it has held the same
+    /// frame for two layout passes in a row.
+    private static func frame(in window: UIWindow, matching matches: @escaping (NSObject) -> Bool) async throws -> CGRect {
+        var last: CGRect?
+        var settled: CGRect?
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            guard let frame = elements(in: window).first(where: matches)?.accessibilityFrame,
+                  !frame.isEmpty else { return false }
+            defer { last = frame }
+            guard frame == last else { return false }
+            settled = frame
+            return true
+        }
+        return try #require(settled)
     }
 
     /// Every accessibility element under `view`, including SwiftUI's hosted nodes.
