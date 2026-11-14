@@ -689,21 +689,27 @@ struct GroupMoneyShellSpecTests {
         #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
     }
 
-    @Test("8.15 flag on: a card on the currencies screen opens its page there, blocks back while open, and closes back to the stack")
+    @Test("8.15 flag on: the currencies screen keeps the system bar; a card opens its page there with the bar hidden and back blocked, and closes back to the stack")
     func currencies_cardOpensAndClosesInPlace() async throws {
         let (window, container) = try await Self.hostedCurrencies()
         defer { window.isHidden = true }
+
+        // The system bar, not a drawn one, so going back hands it to Money's in one transition.
+        try await Self.waitForSystemBar(title: "Currencies", in: window)
 
         try await Self.activate(identified: "currency-row", in: window)
         let close = try await Self.waitForElement(identified: "currency-info-back", in: window)
         // Opened over the currencies screen, not pushed past it.
         #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
         #expect(try Self.topNavigationItem(in: window).hidesBackButton)
+        // The page draws its own chrome where the bar was.
+        try await Self.waitForSystemBar(title: nil, in: window)
 
         _ = try #require(close).accessibilityActivate()
         try await Self.waitForNoElement(identified: "currency-info-back", in: window)
         #expect(try await Self.waitForElement(identified: "currency-row", in: window) != nil)
         #expect(try Self.topNavigationItem(in: window).hidesBackButton == false)
+        try await Self.waitForSystemBar(title: "Currencies", in: window)
         #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
     }
 
@@ -955,16 +961,31 @@ extension GroupMoneyShellSpecTests {
         #expect(target.accessibilityActivate(), "\(identifier) did not activate")
     }
 
-    /// The navigation item of the screen on top of the stack showing in `window`.
-    fileprivate static func topNavigationItem(in window: UIWindow) throws -> UINavigationItem {
+    /// The navigation stack showing in `window` with a screen pushed onto it, if any.
+    /// Returns `nil` rather than failing, so it can be polled.
+    fileprivate static func topNavigationController(in window: UIWindow) -> UINavigationController? {
         func controllers(under controller: UIViewController) -> [UIViewController] {
             [controller] + controller.children.flatMap(controllers(under:))
                 + (controller.presentedViewController.map(controllers(under:)) ?? [])
         }
-        let stacks = controllers(under: try #require(window.rootViewController))
+        guard let root = window.rootViewController else { return nil }
+        return controllers(under: root)
             .compactMap { $0 as? UINavigationController }
-            .filter { $0.view.window != nil && !$0.view.isHidden && $0.viewControllers.count > 1 }
-        return try #require(stacks.last?.topViewController?.navigationItem)
+            .last { $0.view.window != nil && !$0.view.isHidden && $0.viewControllers.count > 1 }
+    }
+
+    /// The navigation item of the screen on top of the stack showing in `window`.
+    fileprivate static func topNavigationItem(in window: UIWindow) throws -> UINavigationItem {
+        try #require(topNavigationController(in: window)?.topViewController?.navigationItem)
+    }
+
+    /// Waits until the top stack's system bar shows `title`, or is hidden when `title` is `nil`.
+    fileprivate static func waitForSystemBar(title: String?, in window: UIWindow) async throws {
+        try await waitUntil(timeout: .seconds(30)) {
+            guard let stack = topNavigationController(in: window) else { return false }
+            guard let title else { return stack.isNavigationBarHidden }
+            return !stack.isNavigationBarHidden && stack.topViewController?.navigationItem.title == title
+        }
     }
 
     /// How many recent-activity rows the wallet draws, once that count has held for two passes.
