@@ -676,6 +676,78 @@ struct GroupMoneyShellSpecTests {
 
         #expect(try await Self.activityRowCount(in: window) == 3)
     }
+
+    // MARK: - Currencies as the card stack
+
+    @Test("8.14 flag on: the currencies screen shows each currency held as a card in today's stack")
+    func currencies_showCardStack() async throws {
+        let (window, container) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+
+        #expect(try await Self.waitForElement(identified: "currency-row", in: window) != nil)
+        #expect(try await Self.waitForElement(identified: "currency-row-usdf", in: window) != nil)
+        #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
+    }
+
+    @Test("8.15 flag on: a card on the currencies screen opens its page there, blocks back while open, and closes back to the stack")
+    func currencies_cardOpensAndClosesInPlace() async throws {
+        let (window, container) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+
+        try await Self.activate(identified: "currency-row", in: window)
+        let close = try await Self.waitForElement(identified: "currency-info-back", in: window)
+        // Opened over the currencies screen, not pushed past it.
+        #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
+        #expect(try Self.topNavigationItem(in: window).hidesBackButton)
+
+        _ = try #require(close).accessibilityActivate()
+        try await Self.waitForNoElement(identified: "currency-info-back", in: window)
+        #expect(try await Self.waitForElement(identified: "currency-row", in: window) != nil)
+        #expect(try Self.topNavigationItem(in: window).hidesBackButton == false)
+        #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
+    }
+
+    @Test("8.16 flag on: a token link while a card is open on the currencies screen opens it on Money, whose tab bar returns on close")
+    func currencies_deepLinkFromOpenCardLandsOnMoney() async throws {
+        let (window, container) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+        let router = container.appRouter
+
+        try await Self.activate(identified: "currency-row", in: window)
+        _ = try await Self.waitForElement(identified: "currency-info-back", in: window)
+
+        // What `DeepLinkController` does for `flipcash://token/<mint>`.
+        router.setPath([], on: .balance)
+        router.requestedTab = .wallet
+        router.requestedCardMint = .jeffy
+
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            return router.requestedCardMint == nil && router[.balance].isEmpty
+                && Self.element(identified: "currency-info-back", in: window) != nil
+                && Self.visibleTabBar(in: window) == nil
+        }
+
+        let close = try #require(Self.element(identified: "currency-info-back", in: window))
+        _ = close.accessibilityActivate()
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            return Self.element(identified: "currency-info-back", in: window) == nil
+                && Self.visibleTabBar(in: window) != nil
+        }
+    }
+
+    @Test("8.17 flag off: today's wallet still opens a card from its stack and closes it back")
+    func standardWallet_cardStillOpensAndCloses() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 0, holdings: Self.currencyHoldings, showsGroupMoney: false)
+        defer { window.isHidden = true }
+
+        try await Self.activate(identified: "currency-row", in: window)
+        let close = try await Self.waitForElement(identified: "currency-info-back", in: window)
+        _ = try #require(close).accessibilityActivate()
+        try await Self.waitForNoElement(identified: "currency-info-back", in: window)
+        #expect(try await Self.waitForElement(identified: "currency-row", in: window) != nil)
+    }
 }
 
 // MARK: - Hosted tab bar -
@@ -804,6 +876,9 @@ extension GroupMoneyShellSpecTests {
         showsGroupMoney: Bool = true
     ) async throws -> (UIWindow, SessionContainer) {
         let sessionContainer = try SessionContainer.makeTest(holdings: holdings)
+        if !holdings.isEmpty {
+            sessionContainer.ratesController.configureTestRates(balanceCurrency: .usd, rates: [Rate(fx: 1.0, currency: .usd)])
+        }
         try sessionContainer.database.insertActivities(activities: (0..<count).map { index in
             Activity(
                 id: .testMint(index: index),
@@ -823,6 +898,73 @@ extension GroupMoneyShellSpecTests {
         )
         sessionContainer.appRouter.showTab(.wallet)
         return (window, sessionContainer)
+    }
+
+    /// Dollars and one launchpad currency: two cards in the stack.
+    fileprivate static var currencyHoldings: [SessionContainer.Holding] {
+        [
+            SessionContainer.Holding(mint: .usdf, quarks: 100_000_000),
+            SessionContainer.Holding(
+                mint: MintMetadata.makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ]
+    }
+
+    /// Money with ``currencyHoldings``, with the currencies screen pushed from "N currencies".
+    /// The caller hides the window.
+    fileprivate static func hostedCurrencies() async throws -> (UIWindow, SessionContainer) {
+        let (window, container) = try await hostedMoney(activities: 0, holdings: currencyHoldings)
+        _ = try await waitForElement(identified: "money-currencies-button", in: window)
+        MoneyAction.currencies.perform(on: container.appRouter)
+        return (window, container)
+    }
+
+    /// The first element carrying `identifier`, when one is on screen.
+    fileprivate static func element(identified identifier: String, in view: UIView) -> NSObject? {
+        elements(in: view).first { self.identifier(of: $0) == identifier }
+    }
+
+    /// The first element carrying `identifier`, once one is on screen.
+    fileprivate static func waitForElement(identified identifier: String, in window: UIWindow) async throws -> NSObject? {
+        var found: NSObject?
+        do {
+            try await waitUntil(timeout: .seconds(30)) {
+                window.layoutIfNeeded()
+                found = element(identified: identifier, in: window)
+                return found != nil
+            }
+        } catch {
+            Issue.record("no \(identifier); on screen: \(elements(in: window).compactMap { self.identifier(of: $0) })")
+            throw error
+        }
+        return found
+    }
+
+    /// Returns once nothing on screen carries `identifier`.
+    fileprivate static func waitForNoElement(identified identifier: String, in window: UIWindow) async throws {
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            return element(identified: identifier, in: window) == nil
+        }
+    }
+
+    /// Activates the first element carrying `identifier`, as VoiceOver's double tap does.
+    fileprivate static func activate(identified identifier: String, in window: UIWindow) async throws {
+        let target = try #require(try await waitForElement(identified: identifier, in: window))
+        #expect(target.accessibilityActivate(), "\(identifier) did not activate")
+    }
+
+    /// The navigation item of the screen on top of the stack showing in `window`.
+    fileprivate static func topNavigationItem(in window: UIWindow) throws -> UINavigationItem {
+        func controllers(under controller: UIViewController) -> [UIViewController] {
+            [controller] + controller.children.flatMap(controllers(under:))
+                + (controller.presentedViewController.map(controllers(under:)) ?? [])
+        }
+        let stacks = controllers(under: try #require(window.rootViewController))
+            .compactMap { $0 as? UINavigationController }
+            .filter { $0.view.window != nil && !$0.view.isHidden && $0.viewControllers.count > 1 }
+        return try #require(stacks.last?.topViewController?.navigationItem)
     }
 
     /// How many recent-activity rows the wallet draws, once that count has held for two passes.

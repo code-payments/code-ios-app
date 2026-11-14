@@ -576,7 +576,7 @@ private struct OverlayTopInset: ViewModifier {
 /// Circular Liquid Glass for the overlay's back and share buttons on iOS 26. On
 /// iOS 18 there's no Liquid Glass and a material circle reads as heavy chrome, so
 /// the buttons stay plain (matching standard iOS 18 nav buttons).
-private struct CircleGlass: ViewModifier {
+struct CircleGlass: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.glassEffect(.regular, in: .circle)
