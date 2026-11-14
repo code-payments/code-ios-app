@@ -632,6 +632,50 @@ struct GroupMoneyShellSpecTests {
         let scrolledTitle = try await Self.frame(ofHeader: "Money", in: window)
         #expect(scrolledTitle == title, "scrolled \(scrolledTitle), resting \(title)")
     }
+
+    // MARK: - Recent activity fills Money
+
+    @Test("8.10 flag on: with a few rows, Recent Activity runs to the bottom of Money and the page does not scroll")
+    func moneyActivity_fewRowsFillTheScreen() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 2)
+        defer { window.isHidden = true }
+
+        #expect(try await Self.activityRowCount(in: window) == 2)
+        let reading = try await Self.overflow(in: window) { abs($0) <= 0.5 }
+        #expect(abs(reading.overflow) <= 0.5, "\(reading.description)")
+    }
+
+    @Test("8.11 flag on: with no activity, Recent Activity still shows, says so, and runs to the bottom of Money")
+    func moneyActivity_emptyFillsTheScreen() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 0)
+        defer { window.isHidden = true }
+
+        let header = try await Self.frame(of: MoneyHeaderContent.recentActivityTitle, in: window)
+        let empty = try await Self.frame(of: "No activity yet", in: window)
+        let reading = try await Self.overflow(in: window) { abs($0) <= 0.5 }
+        #expect(abs(reading.overflow) <= 0.5, "\(reading.description)")
+        // The message sits in the space the section fills, not straight under its header.
+        #expect(empty.minY - header.maxY > 100, "header \(header), message \(empty)")
+    }
+
+    @Test("8.12 flag on: with more rows than fit, Money lists more than three and the page scrolls to them")
+    func moneyActivity_manyRowsScroll() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 30)
+        defer { window.isHidden = true }
+
+        #expect(try await Self.activityRowCount(in: window) == WalletLayout.money.recentActivityLimit)
+        #expect(WalletLayout.money.recentActivityLimit > 3)
+        let reading = try await Self.overflow(in: window) { $0 > 0 }
+        #expect(reading.overflow > 0, "\(reading.description)")
+    }
+
+    @Test("8.13 flag off: today's wallet still previews three rows of recent activity")
+    func standardActivity_keepsThreeRows() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 6, showsGroupMoney: false)
+        defer { window.isHidden = true }
+
+        #expect(try await Self.activityRowCount(in: window) == 3)
+    }
 }
 
 // MARK: - Hosted tab bar -
@@ -750,6 +794,100 @@ extension GroupMoneyShellSpecTests {
             throw error
         }
         return (window, try #require(found))
+    }
+
+    /// The wallet tab with `count` activities in its history, newest first. The caller hides the
+    /// window.
+    fileprivate static func hostedMoney(
+        activities count: Int,
+        holdings: [SessionContainer.Holding] = [],
+        showsGroupMoney: Bool = true
+    ) async throws -> (UIWindow, SessionContainer) {
+        let sessionContainer = try SessionContainer.makeTest(holdings: holdings)
+        try sessionContainer.database.insertActivities(activities: (0..<count).map { index in
+            Activity(
+                id: .testMint(index: index),
+                state: .completed,
+                kind: .received,
+                title: "Activity \(index)",
+                exchangedFiat: .mockOne,
+                date: Date(timeIntervalSinceNow: -Double(index) * 60),
+                metadata: nil
+            )
+        })
+        let window = try hostWindow(
+            HomeTabView()
+                .environment(GateFlags(showsGroupMoney: showsGroupMoney) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        sessionContainer.appRouter.showTab(.wallet)
+        return (window, sessionContainer)
+    }
+
+    /// How many recent-activity rows the wallet draws, once that count has held for two passes.
+    /// Counted by frame, since the element walk can reach one row by more than one path.
+    fileprivate static func activityRowCount(in window: UIWindow) async throws -> Int {
+        var last: Int?
+        var settled: Int?
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            let rows = elements(in: window).filter { identifier(of: $0) == "recent-activity-row" }
+            let count = Set(rows.map { "\($0.accessibilityFrame)" }).count
+            defer { last = count }
+            guard count > 0 || element(labelled: "Add Money", in: window) != nil
+                    || element(labelled: "Recent", in: window) != nil,
+                  count == last else { return false }
+            settled = count
+            return true
+        }
+        return try #require(settled)
+    }
+
+    /// The tab's own scroll view: the largest visible one.
+    fileprivate static func mainScrollView(in window: UIWindow) throws -> UIScrollView {
+        window.layoutIfNeeded()
+        return try #require(
+            scrollViews(in: window).max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }
+        )
+    }
+
+    /// How far `scroll`'s content runs past what it shows between its insets: zero when the
+    /// content exactly fills it, negative when it stops short.
+    fileprivate static func overflow(of scroll: UIScrollView) -> CGFloat {
+        let visible = scroll.bounds.height - scroll.adjustedContentInset.top - scroll.adjustedContentInset.bottom
+        return scroll.contentSize.height - visible
+    }
+
+    /// The tab's scroll view overflow once `holds` accepts it, or its last reading after
+    /// `timeout`, with a description for a failure message. Polled, since the content's minimum
+    /// height follows the scroll view's own measured height a pass after the first layout.
+    fileprivate static func overflow(
+        in window: UIWindow,
+        timeout: Duration = .seconds(10),
+        until holds: (CGFloat) -> Bool
+    ) async throws -> (overflow: CGFloat, description: String) {
+        let deadline = ContinuousClock().now + timeout
+        while true {
+            let scroll = try mainScrollView(in: window)
+            let reading = (overflow(of: scroll), describe(scroll))
+            if holds(reading.0) || ContinuousClock().now >= deadline { return reading }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
+    /// `scroll`'s content size, bounds and adjusted insets, for a failure message.
+    fileprivate static func describe(_ scroll: UIScrollView) -> String {
+        "content \(scroll.contentSize), bounds \(scroll.bounds), insets \(String(describing: scroll.adjustedContentInset))"
+    }
+
+    /// The accessibility identifier `element` carries, when it has one.
+    fileprivate static func identifier(of element: NSObject) -> String? {
+        if let identified = element as? UIAccessibilityIdentification {
+            return identified.accessibilityIdentifier
+        }
+        guard element.responds(to: NSSelectorFromString("accessibilityIdentifier")) else { return nil }
+        return element.value(forKey: "accessibilityIdentifier") as? String
     }
 
     /// `view` in an iPhone-sized key window.

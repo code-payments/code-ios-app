@@ -41,6 +41,7 @@ struct RecentActivitySection: View {
 
             ForEach(activities) { activity in
                 ActivityRow(activity: activity, style: rowStyle)
+                    .accessibilityIdentifier("recent-activity-row")
             }
         }
     }

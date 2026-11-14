@@ -113,9 +113,21 @@ private struct WalletScreenContent: View {
     /// Matched-transition namespace shared with the pushed currency-info screen.
     @Namespace private var cardNamespace
 
-    /// Rows of recent activity previewed on the wallet (the rest lives on the
-    /// per-token transaction history).
-    private static let recentPreviewCount = 3
+    /// Rows of recent activity read for either layout, which each show their own share of them
+    /// (the rest lives on the full history).
+    private static let recentFetchCount = max(
+        WalletLayout.standard.recentActivityLimit,
+        WalletLayout.money.recentActivityLimit
+    )
+
+    /// The recent activity this layout lists.
+    private var listedActivities: [Activity] {
+        Array(recentActivities.prefix(layout.recentActivityLimit))
+    }
+
+    /// The scroll view's visible height, between the bar and the tab bar, which Money's content
+    /// fills at the least so Recent Activity runs to the bottom of the screen.
+    @State private var scrollViewportHeight: CGFloat = 0
 
     /// Where the balance sits, measured from the top of the screen rather than
     /// from the top of this scroll view — 20pt of list inset plus the spec's
@@ -171,7 +183,7 @@ private struct WalletScreenContent: View {
         _arrivalProgress = State(initialValue: landing?.isNewToken == true ? 0 : 1)
         _appreciation = State(initialValue: seed.appreciation)
         _hasAddedMoney = State(initialValue: sessionContainer.session.hasEverAddedMoney())
-        _recentActivities = State(initialValue: sessionContainer.session.recentActivities(limit: Self.recentPreviewCount))
+        _recentActivities = State(initialValue: sessionContainer.session.recentActivities(limit: Self.recentFetchCount))
     }
 
     private var rate: Rate { ratesController.rateForBalanceCurrency() }
@@ -531,6 +543,12 @@ private struct WalletScreenContent: View {
         // that tail: a swipe found a disabled scroll view and fell through to
         // the card underneath as a tap.
         .scrollDisabled(pageIsBuilt)
+        // The container is already the part between the bar and the tab bar.
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.containerSize.height
+        } action: { _, height in
+            scrollViewportHeight = max(0, height)
+        }
         // The app-wide soft edge effect is drawn from a bar's own background,
         // and today's wallet hides its navigation bar, so it covers the bottom
         // (tab bar) but not the top — what scrolls up into the status bar has
@@ -563,6 +581,8 @@ private struct WalletScreenContent: View {
             // Bottom inset so the last row clears the tab bar.
             Color.clear.frame(height: bottomContentInset)
         }
+        // At least the screen's height, so Recent Activity can take the rest of it.
+        .frame(minHeight: scrollViewportHeight, alignment: .top)
         .padding(.horizontal, 20)
         .opacity(deckOpacity)
         .task(id: session.profile?.profilePicture?.thumbnailBlobID) {
@@ -587,14 +607,29 @@ private struct WalletScreenContent: View {
             moneyActions
                 .padding(.top, 40)
         case .recentActivity:
-            if !recentActivities.isEmpty {
-                RecentActivitySection(activities: recentActivities, title: MoneyHeaderContent.recentActivityTitle, rowStyle: .money) {
-                    router.push(.activity)
-                }
+            moneyRecentActivity
                 .padding(.top, 44)
-            }
+                // Takes whatever height the blocks above leave.
+                .frame(maxHeight: .infinity, alignment: .top)
         case .balanceHeader, .appreciation, .addMoneyRow, .tokenCards, .tiles:
             EmptyView()
+        }
+    }
+
+    /// Money's Recent Activity: its rows, or once history has been looked for and holds none, a
+    /// message centred in the space the section fills.
+    private var moneyRecentActivity: some View {
+        let activities = listedActivities
+        return VStack(spacing: 0) {
+            RecentActivitySection(activities: activities, title: MoneyHeaderContent.recentActivityTitle, rowStyle: .money) {
+                router.push(.activity)
+            }
+            if activities.isEmpty && !addMoneyRowState.isAwaitingHistory {
+                Text("No activity yet")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
@@ -811,7 +846,7 @@ private struct WalletScreenContent: View {
     private var recentActivitySection: some View {
         // The header opens the full cross-token history here; currency info
         // passes its own per-token destination.
-        RecentActivitySection(activities: recentActivities) {
+        RecentActivitySection(activities: listedActivities) {
             router.push(.activity)
         }
         .padding(.top, 24)
@@ -920,7 +955,7 @@ private struct WalletScreenContent: View {
     /// cannot ride on ``refresh()``'s balance trigger, and a deposit's activity
     /// row routinely lands after the balance rise that preceded it.
     private func reloadHistoryState() {
-        let activities = session.recentActivities(limit: Self.recentPreviewCount)
+        let activities = session.recentActivities(limit: Self.recentFetchCount)
         let addedMoney = session.hasEverAddedMoney()
 
         guard activities != recentActivities
