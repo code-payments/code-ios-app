@@ -23,19 +23,24 @@ extension View {
     /// - Parameters:
     ///   - onMute: opens ``MuteChatSheet`` for the chat, as the trailing swipe does.
     ///   - onArchive: archives (main list) or unarchives (archived list) the chat, toast included.
+    ///   - onSelect: starts select mode with this chat picked, offered as the menu's last item. Nil
+    ///     leaves it out: the Group Money shell's list has no "…" menu to start select mode from,
+    ///     so only that list passes one.
     func chatRowActions(
         for conversation: Conversation,
         in list: ChatRowList,
         isEnabled: Bool,
         onMute: @escaping () -> Void,
-        onArchive: @escaping () -> Void
+        onArchive: @escaping () -> Void,
+        onSelect: (() -> Void)?
     ) -> some View {
         modifier(ChatRowActionsModifier(
             conversation: conversation,
             list: list,
             isEnabled: isEnabled,
             onMute: onMute,
-            onArchive: onArchive
+            onArchive: onArchive,
+            onSelect: onSelect
         ))
     }
 }
@@ -47,6 +52,7 @@ private struct ChatRowActionsModifier: ViewModifier {
     let isEnabled: Bool
     let onMute: () -> Void
     let onArchive: () -> Void
+    let onSelect: (() -> Void)?
 
     @Environment(ConversationController.self) private var conversationController
 
@@ -77,7 +83,8 @@ private struct ChatRowActionsModifier: ViewModifier {
                 action: action,
                 list: list,
                 onMute: onMute,
-                onArchive: onArchive
+                onArchive: onArchive,
+                onSelect: onSelect
             ))
     }
 }
@@ -92,6 +99,7 @@ private struct ChatRowContextMenu: ViewModifier {
     let list: ChatRowList
     let onMute: () -> Void
     let onArchive: () -> Void
+    let onSelect: (() -> Void)?
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
@@ -134,6 +142,11 @@ private struct ChatRowContextMenu: ViewModifier {
                 Button("Archive", systemImage: "archivebox", action: onArchive)
             case .archived:
                 Button("Unarchive", systemImage: "tray.and.arrow.up", action: onArchive)
+            }
+            if let onSelect {
+                // A section of its own: it changes the list's mode, not this chat.
+                Divider()
+                Button("Select", systemImage: "checkmark.circle", action: onSelect)
             }
         }
     }

@@ -64,9 +64,10 @@ final class ChatSelection {
     private(set) var isActive = false
     private(set) var selected: Set<ConversationID> = []
 
-    /// Enters select mode with nothing selected.
-    func begin() {
-        selected = []
+    /// Enters select mode with `picked` already selected: nothing from the "…" menu, the pressed
+    /// row from a row's long-press Select.
+    func begin(picking picked: Set<ConversationID> = []) {
+        selected = picked
         isActive = true
     }
 
