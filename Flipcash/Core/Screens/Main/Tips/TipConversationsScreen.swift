@@ -179,8 +179,10 @@ struct TipConversationsScreen: View {
         .sheet(item: $muteTarget) { target in
             MuteChatSheet(conversationIDs: target.ids, isPresented: isPickingMuteDuration)
         }
-        .navigationTitle(isSelecting ? "\(selection.selected.count) Selected" : "Chat")
+        .navigationTitle(isSelecting ? "\(selection.selected.count) Selected" : showsGroupMoney ? "Groups" : "Chat")
         .toolbarTitleDisplayMode(.inline)
+        // The shell draws its title in the leading slot instead; select mode's count stays centred.
+        .toolbar(removing: showsGroupMoney && !isSelecting ? .title : nil)
         // An archived or left chat drops out of the picks, so no action reaches a chat no longer listed.
         .onChange(of: conversationController.chatListProjection.main) { _, ids in
             selection.retain(Set(ids))
@@ -196,12 +198,16 @@ struct TipConversationsScreen: View {
                         .accessibilityIdentifier("chat-select-done")
                 }
             } else {
-                ToolbarItem(placement: .topBarLeading) {
-                    ChatListMoreMenu(
-                        canReadAll: conversationController.hasUnreadInChatList,
-                        onSelect: { setSelecting(true) },
-                        onReadAll: confirmReadAll
-                    )
+                if showsGroupMoney {
+                    groupsTitleItem
+                } else {
+                    ToolbarItem(placement: .topBarLeading) {
+                        ChatListMoreMenu(
+                            canReadAll: conversationController.hasUnreadInChatList,
+                            onSelect: { setSelecting(true) },
+                            onReadAll: confirmReadAll
+                        )
+                    }
                 }
                 toolbarTrailingItems
             }
@@ -267,6 +273,26 @@ struct TipConversationsScreen: View {
 
     private var showsGroupMoney: Bool {
         betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
+    }
+
+    /// The shell's "Groups" title, flush leading where its Groups frame draws it (node 13729:421),
+    /// in the slot the "…" menu takes outside the shell. Plain text, so no glass behind it.
+    @ToolbarContentBuilder private var groupsTitleItem: some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            ToolbarItem(placement: .topBarLeading) { groupsTitle }
+                .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .topBarLeading) { groupsTitle }
+        }
+    }
+
+    private var groupsTitle: some View {
+        Text("Groups")
+            .font(.appTitleLarge)
+            .foregroundStyle(Color.textMain)
+            .fixedSize()
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("chat-list-title")
     }
 
     /// The height of the iOS 26 system tab bar's pill, measured on a 402pt-wide iPhone.
