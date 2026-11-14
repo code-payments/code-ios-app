@@ -11,7 +11,9 @@
 import Foundation
 import SwiftUI
 import Testing
+import UIKit
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 @MainActor
@@ -421,6 +423,131 @@ struct GroupMoneyShellSpecTests {
         let amount = FiatAmount(value: Decimal(string: "18.36")!, currency: .usd)
         #expect(MoneyActivityRowContent.amountText(amount, signPrefix: nil) == "$18.36")
     }
+    // MARK: - Groups list
+
+    @Test("8.1 flag on: the list's bar has no \"…\" and reads Groups in the leading slot")
+    func groupsList_titleBarHasNoOverflow() async throws {
+        let (window, bar) = try await hostedChatListBar(GateFlags(showsGroupMoney: true)) {
+            Self.barElement(labelled: "Groups", in: $0) != nil
+        }
+        defer { window.isHidden = true }
+        #expect(Self.barElement(labelled: "More", in: bar) == nil)
+        #expect(bar.topItem?.title == "Groups")
+        // The centred title gives way to the leading one.
+        #expect(Self.titleLabels(in: bar).isEmpty, "centred titles: \(Self.titleLabels(in: bar))")
+        let title = try #require(Self.barElement(labelled: "Groups", in: bar)).accessibilityFrame
+        #expect(title.maxX < bar.bounds.midX, "title \(title) in bar \(bar.bounds)")
+        // Set in the large title token, not the bar's own title size.
+        #expect(title.height >= UIFont.appTitleLarge.lineHeight - 1, "title \(title)")
+        #expect(Self.barElement(labelled: "New group", in: bar) != nil)
+    }
+
+    @Test("8.2 flag off: the list keeps its \"…\" and its centred Chat title")
+    func chatList_titleBarKeepsOverflow() async throws {
+        let (window, bar) = try await hostedChatListBar(GateFlags(showsGroupMoney: false)) {
+            Self.barElement(labelled: "More", in: $0) != nil
+        }
+        defer { window.isHidden = true }
+        #expect(bar.topItem?.title == "Chat")
+        let labels = Self.titleLabels(in: bar)
+        #expect(labels.map(\.text) == ["Chat"])
+        if let label = labels.first {
+            let frame = label.convert(label.bounds, to: bar)
+            #expect(abs(frame.midX - bar.bounds.midX) <= 1, "title \(frame) in bar \(bar.bounds)")
+        }
+        #expect(Self.barElement(labelled: "Groups", in: bar) == nil)
+    }
+
+    @Test("8.3 flag on: a row's long press ends with Select, which starts select mode with that row picked")
+    func groupsList_rowMenuSelectPicksRow() async throws {
+        let (controller, id) = try await Self.seededChatList()
+        let selection = ChatSelection()
+        let window = try Self.hostWindow(
+            NavigationStack { TipConversationsScreen(showsSearchButton: false) }
+                .environment(selection)
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let menu = try await Self.rowMenu(in: window)
+        #expect(Self.actions(in: menu).map(\.title) == ["Mark as Unread", "Mute", "Archive", "Select"])
+
+        try Self.perform("Select", in: menu)
+        try await waitUntil(timeout: .seconds(30)) { selection.isActive }
+        #expect(selection.selected == [id])
+        // The bar is select mode's, as from the "…" menu: the count, and Done to leave.
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            guard let bar = Self.navigationBar(in: window) else { return false }
+            return bar.topItem?.title == "1 Selected" && Self.barElement(labelled: "Done", in: bar) != nil
+        }
+    }
+
+    @Test("8.4 flag off: a row's long press has no Select")
+    func chatList_rowMenuHasNoSelect() async throws {
+        let (controller, _) = try await Self.seededChatList()
+        let window = try Self.hostWindow(
+            NavigationStack { TipConversationsScreen(showsSearchButton: false) }
+                .environment(ChatSelection())
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: false) as BetaFlags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let menu = try await Self.rowMenu(in: window)
+        #expect(Self.actions(in: menu).map(\.title) == ["Mark as Unread", "Mute", "Archive"])
+    }
+
+    @Test("8.5 flag on: Select from a row swaps the tab bar for the select capsules")
+    func groupsList_rowSelectSwapsTabBar() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (controller, _) = try await Self.seededChatList()
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        let menu = try await Self.rowMenu(in: window)
+        #expect(Self.visibleTabBar(in: window) != nil)
+        #expect(Self.element(labelled: "Archive", in: window) == nil)
+
+        try Self.perform("Select", in: menu)
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            return Self.visibleTabBar(in: window) == nil && Self.element(labelled: "Archive", in: window) != nil
+        }
+    }
+
+    @Test("8.6 one hosted list follows the gate on, off and on again")
+    func groupsList_followsGateFlips() async throws {
+        let (controller, _) = try await Self.seededChatList()
+        let gate = ShellGate(isOn: true)
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(FlippableGateFlags(gate: gate) as BetaFlags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        defer { window.isHidden = true }
+        for isOn in [true, false, true] {
+            gate.isOn = isOn
+            try await waitUntil(timeout: .seconds(30)) {
+                window.layoutIfNeeded()
+                guard let bar = Self.navigationBar(in: window) else { return false }
+                return Self.barElement(labelled: isOn ? "Groups" : "More", in: bar) != nil
+                    && Self.barElement(labelled: isOn ? "More" : "Groups", in: bar) == nil
+            }
+            let menu = try await Self.rowMenu(in: window)
+            #expect(Self.actions(in: menu).map(\.title).contains("Select") == isOn, "gate \(isOn)")
+        }
+    }
 }
 
 // MARK: - Hosted tab bar -
@@ -483,5 +610,204 @@ extension GroupMoneyShellSpecTests {
             if let bar = tabBar(in: subview) { return bar }
         }
         return nil
+    }
+}
+
+// MARK: - Hosted chat list -
+
+/// The shell's gate, flipped by a test while one view stays hosted.
+@Observable
+private final class ShellGate {
+    var isOn: Bool
+    init(isOn: Bool) { self.isOn = isOn }
+}
+
+/// ``GateFlags`` whose answer follows a ``ShellGate``. Reading it inside a view's body tracks the
+/// gate, so a flip redraws the hosted view as a stored flag change would.
+private final class FlippableGateFlags: BetaFlags {
+    let gate: ShellGate
+
+    init(gate: ShellGate) {
+        self.gate = gate
+        super.init()
+    }
+
+    override func showsGroupMoneyUI(isStaff: Bool) -> Bool {
+        gate.isOn
+    }
+}
+
+extension GroupMoneyShellSpecTests {
+
+    /// `HomeTabView` on its launch tab, Groups or Chat, and that list's navigation bar once
+    /// `isReady` holds for it. The caller hides the window.
+    fileprivate func hostedChatListBar(
+        _ flags: BetaFlags,
+        until isReady: @escaping (UINavigationBar) -> Bool
+    ) async throws -> (UIWindow, UINavigationBar) {
+        let window = try Self.hostWindow(
+            HomeTabView()
+                .environment(flags)
+                .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
+                .injectingEnvironment(from: Container.mock)
+        )
+        var found: UINavigationBar?
+        do {
+            try await waitUntil(timeout: .seconds(30)) {
+                window.layoutIfNeeded()
+                guard let bar = Self.navigationBar(in: window), isReady(bar) else { return false }
+                found = bar
+                return true
+            }
+        } catch {
+            let bar = Self.navigationBar(in: window)
+            Issue.record("bar title: \(bar?.topItem?.title ?? "-"), labels: \(bar.map { Self.elements(in: $0).compactMap(\.accessibilityLabel) } ?? [])")
+            window.isHidden = true
+            throw error
+        }
+        return (window, try #require(found))
+    }
+
+    /// `view` in an iPhone-sized key window.
+    fileprivate static func hostWindow(_ view: some View) throws -> UIWindow {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: view)
+        window.makeKeyAndVisible()
+        return window
+    }
+
+    /// A chat list holding one read DM with a message, so its row has the long-press menu.
+    fileprivate static func seededChatList() async throws -> (ConversationController, ConversationID) {
+        let me = UUID()
+        let them = UUID()
+        let mock = MockConversations()
+        let conversation = Conversation(
+            id: .test(1),
+            members: [
+                ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 5)),
+                ConversationMember(userID: them, displayName: "Them"),
+            ],
+            lastMessage: ConversationMessage(
+                id: MessageID(value: 5),
+                senderID: them,
+                content: .text("hi"),
+                date: Date(timeIntervalSince1970: 5),
+                unreadSeq: 5
+            ),
+            lastActivity: Date(timeIntervalSince1970: 999),
+            type: .tipDm
+        )
+        mock.feed = [conversation]
+        let controller = ConversationController(
+            fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
+            contactNaming: MockDMContactNaming(),
+            database: try Database.makeTemp().database,
+            owner: .generate()!, selfUserID: me
+        )
+        await controller.loadFeed()
+        return (controller, conversation.id)
+    }
+
+    /// The menu the first row with a long-press menu would show, asked of the list's collection
+    /// view the way UIKit asks it on a long press.
+    fileprivate static func rowMenu(in window: UIWindow) async throws -> UIMenu {
+        var found: UIMenu?
+        try await waitUntil(timeout: .seconds(30)) {
+            window.layoutIfNeeded()
+            found = collectionViews(in: window).lazy.compactMap(firstRowMenu(in:)).first
+            return found != nil
+        }
+        return try #require(found)
+    }
+
+    private static func firstRowMenu(in collection: UICollectionView) -> UIMenu? {
+        for section in 0..<collection.numberOfSections {
+            for item in 0..<collection.numberOfItems(inSection: section) {
+                let indexPath = IndexPath(item: item, section: section)
+                guard let configuration = collection.delegate?.collectionView?(
+                    collection,
+                    contextMenuConfigurationForItemsAt: [indexPath],
+                    point: .zero
+                ), let provider = configuration.value(forKey: "actionProvider") else { continue }
+                typealias Provider = @convention(block) ([UIMenuElement]) -> UIMenu?
+                return unsafeBitCast(provider as AnyObject, to: Provider.self)([])
+            }
+        }
+        return nil
+    }
+
+    /// The menu's actions in order, sections flattened.
+    fileprivate static func actions(in menu: UIMenu) -> [UIAction] {
+        menu.children.flatMap { element -> [UIAction] in
+            if let submenu = element as? UIMenu { return actions(in: submenu) }
+            return (element as? UIAction).map { [$0] } ?? []
+        }
+    }
+
+    /// Runs the action titled `title`, as choosing it from the menu does.
+    fileprivate static func perform(_ title: String, in menu: UIMenu) throws {
+        let action = try #require(actions(in: menu).first { $0.title == title })
+        typealias Handler = @convention(block) (UIAction) -> Void
+        let handler = try #require(action.value(forKey: "handler"))
+        unsafeBitCast(handler as AnyObject, to: Handler.self)(action)
+    }
+
+    fileprivate static func navigationBar(in view: UIView) -> UINavigationBar? {
+        if let bar = view as? UINavigationBar, !bar.isHidden, bar.window != nil { return bar }
+        for subview in view.subviews {
+            if let bar = navigationBar(in: subview) { return bar }
+        }
+        return nil
+    }
+
+    fileprivate static func visibleTabBar(in view: UIView) -> UITabBar? {
+        if let bar = view as? UITabBar, !bar.isHidden, bar.alpha > 0.01, bar.window != nil { return bar }
+        for subview in view.subviews {
+            if let bar = visibleTabBar(in: subview) { return bar }
+        }
+        return nil
+    }
+
+    private static func collectionViews(in view: UIView) -> [UICollectionView] {
+        let own = (view as? UICollectionView).map { [$0] } ?? []
+        return own + view.subviews.flatMap(collectionViews(in:))
+    }
+
+    /// Bar titles drawn by UIKit: the centred title, when the bar shows one.
+    fileprivate static func titleLabels(in bar: UINavigationBar) -> [UILabel] {
+        func labels(in view: UIView) -> [UILabel] {
+            guard !view.isHidden, view.alpha > 0.01 else { return [] }
+            let own = (view as? UILabel).flatMap { $0.text?.isEmpty == false ? [$0] : nil } ?? []
+            return own + view.subviews.flatMap(labels(in:))
+        }
+        return labels(in: bar)
+    }
+
+    fileprivate static func barElement(labelled label: String, in bar: UINavigationBar) -> NSObject? {
+        elements(in: bar).first { $0.accessibilityLabel == label }
+    }
+
+    fileprivate static func element(labelled label: String, in view: UIView) -> NSObject? {
+        elements(in: view).first { $0.accessibilityLabel == label }
+    }
+
+    /// Every accessibility element under `view`, including SwiftUI's hosted nodes.
+    fileprivate static func elements(in view: UIView) -> [NSObject] {
+        func walk(_ object: NSObject, depth: Int) -> [NSObject] {
+            guard depth < 40 else { return [] }
+            if let view = object as? UIView, view.isHidden || view.alpha <= 0.01 { return [] }
+            var found: [NSObject] = []
+            if object.isAccessibilityElement { found.append(object) }
+            for case let element as NSObject in object.accessibilityElements ?? [] {
+                found += walk(element, depth: depth + 1)
+            }
+            if let view = object as? UIView {
+                for subview in view.subviews { found += walk(subview, depth: depth + 1) }
+            }
+            return found
+        }
+        return walk(view, depth: 0)
     }
 }
