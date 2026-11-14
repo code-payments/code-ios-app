@@ -43,6 +43,15 @@ enum WalletLayout: Equatable {
         }
     }
 
+    /// How many recent activities the tab lists: a three-row preview on today's wallet, and on
+    /// Money enough to run past the bottom of the screen, where the section fills what is left.
+    var recentActivityLimit: Int {
+        switch self {
+        case .standard: 3
+        case .money:    20
+        }
+    }
+
     /// Whether closing a card puts the wallet back at full opacity in the step
     /// that removes the page, rather than fading it in afterwards. The Money
     /// layout has no deck to carry the card home, so a fade there leaves a frame
