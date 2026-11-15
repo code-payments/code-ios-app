@@ -385,9 +385,9 @@ private struct WalletScreenContent: View {
             appreciationPill
                 .padding(.top, 4)
         case .currencyCount:
-            // 8pt under the pill's outline, as on Android.
+            // 10pt under the pill's outline.
             currencyCountButton
-                .padding(.top, 8)
+                .padding(.top, 10)
         case .actions:
             moneyActions
                 .padding(.top, 40)

@@ -843,7 +843,7 @@ struct GroupMoneyShellSpecTests {
         #expect(pill.text == "-\(FiatAmount(value: 50, currency: .usd).formatted()) from depreciation")
     }
 
-    @Test("8.29 flag on: the currencies row sits 8pt under the pill's outline, and the pill stays 4pt under the balance")
+    @Test("8.29 flag on: the currencies row sits 10pt under the pill's outline, and the pill stays 4pt under the balance")
     func moneyAppreciation_currenciesRowSitsCloseUnderThePill() async throws {
         let (window, _) = try await Self.hostedMoney(activities: 0, holdings: Self.currencyHoldings)
         defer { window.isHidden = true }
@@ -853,7 +853,7 @@ struct GroupMoneyShellSpecTests {
         let currencies = try await Self.frame(identified: "money-currencies-button", in: window)
 
         #expect(abs(outline.minY - balance.maxY - 4) <= 0.5, "balance \(balance), outline \(outline)")
-        #expect(abs(currencies.minY - outline.maxY - 8) <= 0.5, "outline \(outline), currencies \(currencies)")
+        #expect(abs(currencies.minY - outline.maxY - 10) <= 0.5, "outline \(outline), currencies \(currencies)")
     }
 
     @Test("8.30 flag off: today's wallet keeps its pill 4pt under the balance and 74pt over the card stack")
