@@ -10,7 +10,7 @@ import FlipcashCore
 /// around the tapped card as it lifts to the top, the currency page comes in
 /// behind it, and closing puts the card back into its slot. Held by each screen
 /// that shows the stack — today's wallet, and the currencies screen Money pushes
-/// — and read by the stack and by ``View/walletCardPage(_:close:)``.
+/// — and read by the stack and by ``View/walletCardPage(_:underHostBar:close:)``.
 ///
 /// `@State` fields in a `DynamicProperty`, not an `@Observable` class as the
 /// named-unit rule would usually have it. ``open(_:currentTop:safeAreaTop:alongside:)``
@@ -269,7 +269,15 @@ extension View {
     /// included.
     ///
     /// `close` closes the card, resuming from where a pull let go of it.
-    func walletCardPage(_ deck: WalletCardDeck, close: @escaping (_ resumingFrom: CGFloat) -> Void) -> some View {
+    ///
+    /// `underHostBar` is for a screen that keeps its navigation bar up over the
+    /// page rather than hiding it. The page puts its close and share in that
+    /// bar, and still lays out from the status bar, as it does with the bar gone.
+    func walletCardPage(
+        _ deck: WalletCardDeck,
+        underHostBar: Bool = false,
+        close: @escaping (_ resumingFrom: CGFloat) -> Void
+    ) -> some View {
         overlay {
             // Built once the card is already in flight, but held invisible
             // until it is most of the way there.
@@ -287,11 +295,17 @@ extension View {
                             } else {
                                 deck.cancelPull()
                             }
-                        }
+                        },
+                        underHostBar: underHostBar
                     ),
                     defersHeavyContent: !deck.heavyContentReady
                 )
                 .id(mint)
+                // The bar's height is not taken off the top, so the hero card
+                // lands where the deck parked it, a fixed distance below the
+                // status bar.
+                .safeAreaPadding(.top, underHostBar ? WalletCardGeometry.statusBarInset : 0)
+                .ignoresSafeArea(.container, edges: underHostBar ? .top : [])
                 // Fades in behind the card rather than sliding, which would
                 // drag the chrome and tiles in from the bottom. The deck is
                 // clearing underneath, so nothing shows through.

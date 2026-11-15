@@ -688,7 +688,7 @@ struct GroupMoneyShellSpecTests {
         #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
     }
 
-    @Test("8.15 flag on: the currencies screen keeps the system bar; a card opens its page there with the bar hidden and back blocked, and closes back to the stack")
+    @Test("8.15 flag on: the currencies screen keeps the system bar through a card's page; the card opens there with back blocked, and closes back to the stack")
     func currencies_cardOpensAndClosesInPlace() async throws {
         let (window, container) = try await Self.hostedCurrencies()
         defer { window.isHidden = true }
@@ -701,8 +701,14 @@ struct GroupMoneyShellSpecTests {
         // Opened over the currencies screen, not pushed past it.
         #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
         #expect(try Self.topNavigationItem(in: window).hidesBackButton)
-        // The page draws its own chrome where the bar was.
-        try await Self.waitForSystemBar(title: nil, in: window)
+        try await Self.settle(window)
+        if #available(iOS 26, *) {
+            // The bar stays up and holds the page's buttons, so it never has to come back in.
+            #expect(Self.topNavigationController(in: window)?.isNavigationBarHidden == false)
+        } else {
+            // Below iOS 26 the bar is opaque and would cover the page, which draws its own chrome there.
+            try await Self.waitForSystemBar(title: nil, in: window)
+        }
 
         _ = try #require(close).accessibilityActivate()
         try await Self.waitForNoElement(identified: "currency-info-back", in: window)
@@ -836,6 +842,135 @@ struct GroupMoneyShellSpecTests {
 
         let pill = try await Self.appreciationPill(in: window)
         #expect(pill.text == "-\(FiatAmount(value: 50, currency: .usd).formatted()) from depreciation")
+    }
+
+    // MARK: - Currencies bar through a card's page
+
+    @Test("8.24 flag on: the currencies bar leads with back with no card open and with the page's close while one is, on the same spot")
+    func currencies_closeTakesBacksSpot() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, _) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+        try await Self.waitForSystemBar(title: "Currencies", in: window)
+        // The push from Money has finished, so the bar is at rest.
+        try await Self.settle(window)
+
+        let back = try await Self.leadingBarControl(in: window)
+        #expect(Self.identifier(of: back) != "currency-info-back", "\(Self.describeBar(in: window))")
+        let spot = back.accessibilityFrame
+
+        try await Self.activate(identified: "currency-row", in: window)
+        _ = try await Self.waitForElement(identified: "currency-info-back", in: window)
+        try await Self.settle(window)
+        let close = try await Self.leadingBarControl(in: window)
+        #expect(Self.identifier(of: close) == "currency-info-back", "\(Self.describeBar(in: window))")
+        #expect(close.accessibilityLabel == "Close")
+        // Centred on the same point. The close reports its glyph's frame and back its whole
+        // button, but the bar draws the same circle around each.
+        #expect(Self.isCentred(close.accessibilityFrame, on: spot), "close \(close.accessibilityFrame), back \(spot)")
+
+        _ = close.accessibilityActivate()
+        try await Self.waitForNoElement(identified: "currency-info-back", in: window)
+        try await Self.settle(window)
+        let backAgain = try await Self.leadingBarControl(in: window)
+        #expect(Self.identifier(of: backAgain) != "currency-info-back", "\(Self.describeBar(in: window))")
+        #expect(Self.isClose(backAgain.accessibilityFrame, to: spot), "back \(backAgain.accessibilityFrame), was \(spot)")
+    }
+
+    @Test("8.25 flag on: the currencies title sits centred on back's line in the bar's title font with no card open, and goes while one is")
+    func currencies_titleGoesWhileCardOpen() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, _) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+        try await Self.waitForSystemBar(title: "Currencies", in: window)
+        // The push from Money has finished, so the bar is at rest.
+        try await Self.settle(window)
+
+        let bar = try #require(Self.topNavigationController(in: window)?.navigationBar)
+        let barFrame = bar.convert(bar.bounds, to: nil)
+        let back = try await Self.leadingBarControl(in: window).accessibilityFrame
+        let title = try await Self.barHeaderFrame("Currencies", in: window)
+        #expect(abs(title.midX - barFrame.midX) <= 1, "title \(title) in bar \(barFrame)")
+        #expect(abs(title.midY - back.midY) <= 1, "title \(title), back \(back)")
+        #expect(title.height >= UIFont.appTitle.lineHeight - 1, "title \(title)")
+
+        try await Self.activate(identified: "currency-row", in: window)
+        let close = try await Self.waitForElement(identified: "currency-info-back", in: window)
+        try await Self.settle(window)
+        #expect(Self.barHeader("Currencies", in: window) == nil, "\(Self.describeBar(in: window))")
+
+        _ = try #require(close).accessibilityActivate()
+        try await Self.waitForNoElement(identified: "currency-info-back", in: window)
+        let titleAgain = try await Self.barHeaderFrame("Currencies", in: window)
+        #expect(Self.isClose(titleAgain, to: title), "title \(titleAgain), was \(title)")
+    }
+
+    @Test("8.26 flag on: the currencies bar keeps its place and size whether a card is open or not")
+    func currencies_barHoldsStill() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, _) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+        try await Self.waitForSystemBar(title: "Currencies", in: window)
+        // The push from Money has finished, so the bar is at rest.
+        try await Self.settle(window)
+
+        let stack = try #require(Self.topNavigationController(in: window))
+        let bar = stack.navigationBar
+        let resting = bar.convert(bar.bounds, to: nil)
+
+        try await Self.activate(identified: "currency-row", in: window)
+        let close = try await Self.waitForElement(identified: "currency-info-back", in: window)
+        try await Self.settle(window)
+        #expect(!stack.isNavigationBarHidden && !bar.isHidden && bar.alpha > 0.99, "bar hidden with a card open")
+        #expect(bar.convert(bar.bounds, to: nil) == resting, "bar \(bar.convert(bar.bounds, to: nil)), was \(resting)")
+
+        _ = try #require(close).accessibilityActivate()
+        try await Self.waitForNoElement(identified: "currency-info-back", in: window)
+        try await Self.settle(window)
+        #expect(!stack.isNavigationBarHidden && !bar.isHidden && bar.alpha > 0.99, "bar hidden after close")
+        #expect(bar.convert(bar.bounds, to: nil) == resting, "bar \(bar.convert(bar.bounds, to: nil)), was \(resting)")
+    }
+
+    @Test("8.27 flag on: an open card's share sits in the currencies bar, on the close's line, and is not drawn again under it")
+    func currencies_shareSitsInBar() async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, _) = try await Self.hostedCurrencies()
+        defer { window.isHidden = true }
+        try await Self.waitForSystemBar(title: "Currencies", in: window)
+        // The push from Money has finished, so the bar is at rest.
+        try await Self.settle(window)
+
+        try await Self.activate(identified: "currency-row", in: window)
+        _ = try await Self.waitForElement(identified: "currency-info-back", in: window)
+        try await Self.settle(window)
+
+        let bar = try #require(Self.topNavigationController(in: window)?.navigationBar)
+        let barFrame = bar.convert(bar.bounds, to: nil)
+        // The bar takes the touches where it sits, so a share drawn by the page under it is dead.
+        let share = try #require(Self.barElement(labelled: "Share", in: bar), "\(Self.describeBar(in: window))")
+        let close = try await Self.leadingBarControl(in: window)
+        #expect(share.accessibilityFrame.minX > barFrame.midX, "share \(share.accessibilityFrame) in bar \(barFrame)")
+        #expect(abs(share.accessibilityFrame.midY - close.accessibilityFrame.midY) <= 1)
+        // By object, since the element walk can reach one element by more than one path.
+        let shares = Self.elements(in: window).filter { $0.accessibilityLabel == "Share" }
+        let distinct = Set(shares.map(ObjectIdentifier.init))
+        #expect(distinct.count == 1, "\(shares.map { "\(type(of: $0)) \($0.accessibilityFrame)" })")
+    }
+
+    @Test("8.28 flag off: today's wallet's card page still draws its own close and share, with no bar over them")
+    func standardWallet_pageKeepsItsOwnChrome() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 0, holdings: Self.currencyHoldings, showsGroupMoney: false)
+        defer { window.isHidden = true }
+
+        try await Self.activate(identified: "currency-row", in: window)
+        let close = try #require(try await Self.waitForElement(identified: "currency-info-back", in: window))
+        try await Self.settle(window)
+        let bars = Self.visibleNavigationBars(in: window)
+        let barElements = bars.flatMap { Self.elements(in: $0) }
+        #expect(!barElements.contains { $0 === close }, "close in a bar")
+        let share = try #require(Self.element(labelled: "Share", in: window))
+        #expect(!barElements.contains { $0 === share }, "share in a bar")
+        #expect(bars.allSatisfy { !$0.convert($0.bounds, to: nil).intersects(close.accessibilityFrame) }, "a bar covers the close")
     }
 }
 
@@ -1101,6 +1236,83 @@ extension GroupMoneyShellSpecTests {
             guard let title else { return stack.isNavigationBarHidden }
             return !stack.isNavigationBarHidden && stack.topViewController?.navigationItem.title == title
         }
+    }
+
+    /// Lets a card's opening or closing run out, so what is read after it is where things rest.
+    fileprivate static func settle(_ window: UIWindow) async throws {
+        try await Task.sleep(for: .milliseconds(900))
+        window.layoutIfNeeded()
+    }
+
+    /// The control at the leading end of the top stack's bar, once the bar shows one.
+    fileprivate static func leadingBarControl(in window: UIWindow) async throws -> NSObject {
+        var found: NSObject?
+        do {
+            try await waitUntil(timeout: .seconds(5)) {
+                window.layoutIfNeeded()
+                guard let stack = topNavigationController(in: window), !stack.isNavigationBarHidden else { return false }
+                found = elements(in: stack.navigationBar)
+                    .filter { $0.accessibilityTraits.contains(.button) }
+                    .min { $0.accessibilityFrame.minX < $1.accessibilityFrame.minX }
+                return found != nil
+            }
+        } catch {
+            Issue.record("no leading control; \(describeBar(in: window))")
+            throw error
+        }
+        return try #require(found)
+    }
+
+    /// The header labelled `label` in the top stack's bar, if it shows one.
+    fileprivate static func barHeader(_ label: String, in window: UIWindow) -> NSObject? {
+        guard let stack = topNavigationController(in: window), !stack.isNavigationBarHidden else { return nil }
+        return elements(in: stack.navigationBar).first {
+            $0.accessibilityLabel == label && $0.accessibilityTraits.contains(.header)
+        }
+    }
+
+    /// The frame of the header labelled `label` in the top stack's bar, once it shows.
+    fileprivate static func barHeaderFrame(_ label: String, in window: UIWindow) async throws -> CGRect {
+        var frame: CGRect?
+        do {
+            try await waitUntil(timeout: .seconds(5)) {
+                window.layoutIfNeeded()
+                frame = barHeader(label, in: window)?.accessibilityFrame
+                return frame != nil
+            }
+        } catch {
+            Issue.record("no \(label) header; \(describeBar(in: window))")
+            throw error
+        }
+        return try #require(frame)
+    }
+
+    /// What the top stack's bar shows, for failure messages.
+    fileprivate static func describeBar(in window: UIWindow) -> String {
+        guard let stack = topNavigationController(in: window) else { return "no stack" }
+        if stack.isNavigationBarHidden { return "bar hidden" }
+        let items = elements(in: stack.navigationBar).map {
+            "\($0.accessibilityLabel ?? "?")[\(identifier(of: $0) ?? "-")] \($0.accessibilityFrame)"
+        }
+        return "bar: \(items)"
+    }
+
+    /// Whether two frames are the same to within a point.
+    fileprivate static func isClose(_ frame: CGRect, to other: CGRect) -> Bool {
+        abs(frame.minX - other.minX) <= 1 && abs(frame.minY - other.minY) <= 1
+            && abs(frame.width - other.width) <= 1 && abs(frame.height - other.height) <= 1
+    }
+
+    /// Whether two frames share a centre to within a point.
+    fileprivate static func isCentred(_ frame: CGRect, on other: CGRect) -> Bool {
+        abs(frame.midX - other.midX) <= 1 && abs(frame.midY - other.midY) <= 1
+    }
+
+    /// Every navigation bar showing in `view`.
+    fileprivate static func visibleNavigationBars(in view: UIView) -> [UINavigationBar] {
+        guard !view.isHidden, view.alpha > 0.01 else { return [] }
+        let own = (view as? UINavigationBar).map { [$0] } ?? []
+        return own + view.subviews.flatMap(visibleNavigationBars(in:))
     }
 
     /// How many recent-activity rows the wallet draws, once that count has held for two passes.
