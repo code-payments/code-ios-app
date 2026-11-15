@@ -278,16 +278,11 @@ struct HomeTabView: View {
         }
     }
 
-    /// Holding the You tab opens the account switcher, behind the same gate as
-    /// the Switch Accounts row in Settings. The other tabs have no hold action.
-    ///
-    /// The haptic sits after the gate, so a hold that opens nothing stays silent.
+    /// Holding the You tab opens the account switcher. The other tabs have no hold action.
     private func handleLongPress(on tab: HomeTab) {
         switch tab {
         case .tipCard:
-            guard betaFlags.canSwitchAccounts else { return }
-            Haptics.medium()
-            router.present(.switchAccount)
+            router.presentAccountSwitcher(gatedBy: betaFlags)
         case .scan, .wallet, .chat:
             break
         }

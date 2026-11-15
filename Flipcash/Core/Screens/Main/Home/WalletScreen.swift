@@ -430,20 +430,33 @@ private struct WalletScreenContent: View {
         }
     }
 
+    /// The avatar: a tap opens You, and a hold opens the account switcher, as holding the You tab
+    /// does.
     private var moneyProfileButton: some View {
-        Button {
-            MoneyAction.profile.perform(on: router)
-        } label: {
-            ContactAvatarView(
-                id: session.userID.uuidString,
-                displayName: session.profile?.displayName ?? "",
-                imageData: sessionContainer.profileAvatars.data(for: session.userID),
-                blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
-                size: 44
-            )
-        }
-        .buttonStyle(.plain)
+        ContactAvatarView(
+            id: session.userID.uuidString,
+            displayName: session.profile?.displayName ?? "",
+            imageData: sessionContainer.profileAvatars.data(for: session.userID),
+            blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
+            size: 44
+        )
+        .contentShape(.circle)
+        // One composed gesture on a plain view: a Button runs its action when a hold lifts, which
+        // would dismiss the switcher the hold just opened.
+        .gesture(
+            LongPressGesture(minimumDuration: 0.5)
+                .onEnded { _ in router.presentAccountSwitcher(gatedBy: betaFlags) }
+                .exclusively(before: TapGesture().onEnded { MoneyAction.profile.perform(on: router) })
+        )
+        .accessibilityElement()
         .accessibilityLabel("You")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { MoneyAction.profile.perform(on: router) }
+        .accessibilityActions {
+            if betaFlags.canSwitchAccounts {
+                Button("Switch Accounts") { router.presentAccountSwitcher(gatedBy: betaFlags) }
+            }
+        }
         .accessibilityIdentifier("money-profile-button")
     }
 

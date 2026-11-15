@@ -754,22 +754,64 @@ struct GroupMoneyShellSpecTests {
         try await Self.waitForNoElement(identified: "currency-info-back", in: window)
         #expect(try await Self.waitForElement(identified: "currency-row", in: window) != nil)
     }
+
+    // MARK: - Account switcher on Money's avatar
+
+    @Test("8.18 flag on: holding Money's avatar opens the account switcher, as holding the You tab does")
+    func moneyAvatar_holdOpensAccountSwitcher() async throws {
+        let (window, container) = try await Self.hostedMoney(activities: 0, canSwitchAccounts: true)
+        defer { window.isHidden = true }
+
+        try await Self.performAction(named: "Switch Accounts", onElementIdentified: "money-profile-button", in: window)
+
+        #expect(container.appRouter.presentedSheets == [.switchAccount])
+        #expect(container.appRouter.activeTabStack == .balance)
+    }
+
+    @Test("8.19 flag on: without account switching, Money's avatar offers no switcher and a hold opens nothing")
+    func moneyAvatar_holdOpensNothingWhenSwitchingIsClosed() async throws {
+        let (window, container) = try await Self.hostedMoney(activities: 0, canSwitchAccounts: false)
+        defer { window.isHidden = true }
+        let avatar = try #require(try await Self.waitForElement(identified: "money-profile-button", in: window))
+
+        #expect(!Self.customActionNames(of: avatar).contains("Switch Accounts"), "offered: \(Self.customActionNames(of: avatar))")
+        // The avatar's hold calls this whatever the gate says.
+        container.appRouter.presentAccountSwitcher(gatedBy: GateFlags(showsGroupMoney: true, canSwitchAccounts: false))
+        #expect(container.appRouter.presentedSheet == nil)
+    }
+
+    @Test("8.20 flag on: a tap on Money's avatar still opens You, with no sheet over it")
+    func moneyAvatar_tapStillOpensYou() async throws {
+        let (window, container) = try await Self.hostedMoney(activities: 0, canSwitchAccounts: true)
+        defer { window.isHidden = true }
+
+        try await Self.activate(identified: "money-profile-button", in: window)
+
+        try await waitUntil(timeout: .seconds(30)) { container.appRouter.activeTabStack == .you }
+        #expect(container.appRouter.presentedSheet == nil)
+    }
 }
 
 // MARK: - Hosted tab bar -
 
-/// Answers the shell's gate without touching the stored flags, which other
-/// suites read from `UserDefaults.standard` while this one runs.
+/// Answers the shell's gate and the account-switching gate without touching the stored flags, which
+/// other suites read from `UserDefaults.standard` while this one runs.
 private final class GateFlags: BetaFlags {
     let showsGroupMoney: Bool
+    let switchesAccounts: Bool
 
-    init(showsGroupMoney: Bool) {
+    init(showsGroupMoney: Bool, canSwitchAccounts: Bool = false) {
         self.showsGroupMoney = showsGroupMoney
+        self.switchesAccounts = canSwitchAccounts
         super.init()
     }
 
     override func showsGroupMoneyUI(isStaff: Bool) -> Bool {
         showsGroupMoney
+    }
+
+    override var canSwitchAccounts: Bool {
+        switchesAccounts
     }
 }
 
@@ -879,7 +921,8 @@ extension GroupMoneyShellSpecTests {
     fileprivate static func hostedMoney(
         activities count: Int,
         holdings: [SessionContainer.Holding] = [],
-        showsGroupMoney: Bool = true
+        showsGroupMoney: Bool = true,
+        canSwitchAccounts: Bool = false
     ) async throws -> (UIWindow, SessionContainer) {
         let sessionContainer = try SessionContainer.makeTest(holdings: holdings)
         if !holdings.isEmpty {
@@ -898,7 +941,7 @@ extension GroupMoneyShellSpecTests {
         })
         let window = try hostWindow(
             HomeTabView()
-                .environment(GateFlags(showsGroupMoney: showsGroupMoney) as BetaFlags)
+                .environment(GateFlags(showsGroupMoney: showsGroupMoney, canSwitchAccounts: canSwitchAccounts) as BetaFlags)
                 .injectingEnvironment(from: sessionContainer)
                 .injectingEnvironment(from: Container.mock)
         )
@@ -959,6 +1002,31 @@ extension GroupMoneyShellSpecTests {
     fileprivate static func activate(identified identifier: String, in window: UIWindow) async throws {
         let target = try #require(try await waitForElement(identified: identifier, in: window))
         #expect(target.accessibilityActivate(), "\(identifier) did not activate")
+    }
+
+    /// The names of the custom actions VoiceOver offers on `element`.
+    fileprivate static func customActionNames(of element: NSObject) -> [String] {
+        (element.accessibilityCustomActions ?? []).map(\.name)
+    }
+
+    /// Runs the custom action named `name` on the first element carrying `identifier`, as
+    /// VoiceOver's actions rotor does.
+    fileprivate static func performAction(
+        named name: String,
+        onElementIdentified identifier: String,
+        in window: UIWindow
+    ) async throws {
+        let target = try #require(try await waitForElement(identified: identifier, in: window))
+        let action = try #require(
+            target.accessibilityCustomActions?.first { $0.name == name },
+            "no \(name) action on \(identifier); offered: \(customActionNames(of: target))"
+        )
+        if let handler = action.actionHandler {
+            #expect(handler(action), "\(name) did not run")
+        } else {
+            let receiver = try #require(action.target as? NSObject, "\(name) has neither a handler nor a target")
+            _ = receiver.perform(action.selector, with: action)
+        }
     }
 
     /// The navigation stack showing in `window` with a screen pushed onto it, if any.
