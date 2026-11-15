@@ -843,6 +843,35 @@ struct GroupMoneyShellSpecTests {
         #expect(pill.text == "-\(FiatAmount(value: 50, currency: .usd).formatted()) from depreciation")
     }
 
+    @Test("8.29 flag on: the currencies row sits 8pt under the pill's outline, and the pill stays 4pt under the balance")
+    func moneyAppreciation_currenciesRowSitsCloseUnderThePill() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 0, holdings: Self.currencyHoldings)
+        defer { window.isHidden = true }
+
+        let balance = try await Self.frame(identified: "balance-header", in: window)
+        let outline = try await Self.appreciationPillOutline(in: window)
+        let currencies = try await Self.frame(identified: "money-currencies-button", in: window)
+
+        #expect(abs(outline.minY - balance.maxY - 4) <= 0.5, "balance \(balance), outline \(outline)")
+        #expect(abs(currencies.minY - outline.maxY - 8) <= 0.5, "outline \(outline), currencies \(currencies)")
+    }
+
+    @Test("8.30 flag off: today's wallet keeps its pill 4pt under the balance and 74pt over the card stack")
+    func standardAppreciation_keepsItsSpacing() async throws {
+        // One launchpad currency: a dollars card is taller than its slot in the stack and reaches
+        // above it, so the top card is only the stack's top when it is not dollars.
+        let launchpad = try #require(Self.currencyHoldings.last)
+        let (window, _) = try await Self.hostedMoney(activities: 0, holdings: [launchpad], showsGroupMoney: false)
+        defer { window.isHidden = true }
+
+        let balance = try await Self.frame(identified: "balance-header", in: window)
+        let outline = try await Self.appreciationPillOutline(in: window)
+        let card = try await Self.frame(identified: "currency-row", in: window)
+
+        #expect(abs(outline.minY - balance.maxY - 4) <= 0.5, "balance \(balance), outline \(outline)")
+        #expect(abs(card.minY - outline.maxY - 74) <= 0.5, "outline \(outline), card \(card)")
+    }
+
     // MARK: - Currencies bar through a card's page
 
     @Test("8.24 flag on: the currencies bar leads with back with no card open and with the page's close while one is, on the same spot")
@@ -1540,6 +1569,12 @@ extension GroupMoneyShellSpecTests {
             "no amount beside \(wordLabel); on screen: \(elements(in: window).compactMap(\.accessibilityLabel))"
         )
         return ("\(amount.accessibilityLabel ?? "") \(wordLabel)", word.union(amount.accessibilityFrame))
+    }
+
+    /// The pill's outline as drawn: the texts' frame grown by the 3pt the outline pads the amount
+    /// by above and below, which the amount's own frame leaves out.
+    fileprivate static func appreciationPillOutline(in window: UIWindow) async throws -> CGRect {
+        try await appreciationPill(in: window).frame.insetBy(dx: 0, dy: -3)
     }
 
     /// The on-screen frame of the first element `matches` picks, once it has held the same
