@@ -348,9 +348,10 @@ private struct WalletScreenContent: View {
 
     // MARK: - Money layout
 
-    /// The Money screen: title and avatar, the balance, the currencies held,
-    /// Add Money and Withdraw, then recent activity. No card stack, so a token
-    /// opens from the currencies list, or straight to its page from a deep link.
+    /// The Money screen: title and avatar, the balance and its appreciation, the
+    /// currencies held, Add Money and Withdraw, then recent activity. No card
+    /// stack, so a token opens from the currencies list, or straight to its page
+    /// from a deep link.
     private var moneyContent: some View {
         VStack(spacing: 0) {
             ForEach(layout.sections, id: \.self) { section in
@@ -379,6 +380,10 @@ private struct WalletScreenContent: View {
             BalanceHeaderButton(balance: total)
                 .frame(height: 60)
                 .padding(.top, moneyBalanceTopPadding)
+        case .appreciation:
+            // The 4pt today's wallet keeps between its balance and the pill.
+            appreciationPill
+                .padding(.top, 4)
         case .currencyCount:
             currencyCountButton
                 .padding(.top, 4)
@@ -390,7 +395,7 @@ private struct WalletScreenContent: View {
                 .padding(.top, 44)
                 // Takes whatever height the blocks above leave.
                 .frame(maxHeight: .infinity, alignment: .top)
-        case .balanceHeader, .appreciation, .addMoneyRow, .tokenCards, .tiles:
+        case .balanceHeader, .addMoneyRow, .tokenCards, .tiles:
             EmptyView()
         }
     }
@@ -557,8 +562,13 @@ private struct WalletScreenContent: View {
         VStack(spacing: 4) {
             BalanceHeaderButton(balance: total)
                 .frame(height: 60)
-            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive, style: .pill)
+            appreciationPill
         }
+    }
+
+    /// The net gain or loss across every balance, under the balance on both layouts.
+    private var appreciationPill: some View {
+        ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive, style: .pill)
     }
 
     private var walletTiles: some View {

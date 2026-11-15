@@ -270,17 +270,16 @@ struct GroupMoneyShellSpecTests {
         #expect(MoneyHeaderContent.currencyCountText(2) == "2 currencies")
     }
 
-    @Test("5.4 flag on: no card stack, no appreciation pill, no tiles")
+    @Test("5.4 flag on: no card stack, no tiles")
     func money_dropsOldSections() {
         let sections = WalletLayout.money.sections
         #expect(!sections.contains(.tokenCards))
-        #expect(!sections.contains(.appreciation))
         #expect(!sections.contains(.tiles))
     }
 
-    @Test("5.5 flag on: title, balance, currency count, the two buttons, then Recent Activity")
+    @Test("5.5 flag on: title, balance, appreciation, currency count, the two buttons, then Recent Activity")
     func money_sectionOrder() {
-        #expect(WalletLayout.money.sections == [.title, .balance, .currencyCount, .actions, .recentActivity])
+        #expect(WalletLayout.money.sections == [.title, .balance, .appreciation, .currencyCount, .actions, .recentActivity])
     }
 
     @Test("5.6 flag off: today's wallet, section for section")
@@ -790,6 +789,54 @@ struct GroupMoneyShellSpecTests {
         try await waitUntil(timeout: .seconds(30)) { container.appRouter.activeTabStack == .you }
         #expect(container.appRouter.presentedSheet == nil)
     }
+
+    // MARK: - Appreciation on Money
+
+    @Test("8.21 flag on: Money shows the appreciation pill under the balance, above the currencies row and Add Money")
+    func moneyAppreciation_sitsUnderTheBalance() async throws {
+        let (window, _) = try await Self.hostedMoney(activities: 0, holdings: Self.currencyHoldings)
+        defer { window.isHidden = true }
+
+        let balance = try await Self.frame(identified: "balance-header", in: window)
+        let pill = try await Self.appreciationPill(in: window)
+        let currencies = try await Self.frame(identified: "money-currencies-button", in: window)
+        let addMoney = try await Self.frame(of: MoneyHeaderContent.addMoneyTitle, in: window)
+
+        #expect(balance.maxY <= pill.frame.minY, "balance \(balance), pill \(pill.frame)")
+        #expect(pill.frame.maxY <= currencies.minY, "pill \(pill.frame), currencies \(currencies)")
+        #expect(currencies.maxY <= addMoney.minY, "currencies \(currencies), Add Money \(addMoney)")
+        // Centred under the balance, as on today's wallet. The amount's frame leaves out the 4pt
+        // its outline pads it by on the leading side, so the measured centre sits 2pt right.
+        #expect(abs(pill.frame.midX - balance.midX) <= 3, "balance \(balance), pill \(pill.frame)")
+    }
+
+    @Test("8.22 flag on: Money's pill reads what today's wallet's pill reads for the same balances")
+    func moneyAppreciation_readsAsTodaysWallet() async throws {
+        let (money, _) = try await Self.hostedMoney(activities: 0, holdings: Self.currencyHoldings)
+        let moneyPill = try await Self.appreciationPill(in: money)
+        money.isHidden = true
+
+        let (standard, _) = try await Self.hostedMoney(activities: 0, holdings: Self.currencyHoldings, showsGroupMoney: false)
+        defer { standard.isHidden = true }
+        let standardPill = try await Self.appreciationPill(in: standard)
+
+        #expect(moneyPill.text == standardPill.text)
+        // Held at no cost, the holdings read as a gain rather than an empty pill.
+        #expect(moneyPill.text.hasPrefix("+"), "\(moneyPill.text)")
+        #expect(moneyPill.text.hasSuffix(" from appreciation"), "\(moneyPill.text)")
+    }
+
+    @Test("8.23 flag on: a balance worth less than was paid reads as a depreciation on Money")
+    func moneyAppreciation_showsDepreciation() async throws {
+        let (window, _) = try await Self.hostedMoney(
+            activities: 0,
+            holdings: [SessionContainer.Holding(mint: .usdf, quarks: 100_000_000, costBasis: 150)]
+        )
+        defer { window.isHidden = true }
+
+        let pill = try await Self.appreciationPill(in: window)
+        #expect(pill.text == "-\(FiatAmount(value: 50, currency: .usd).formatted()) from depreciation")
+    }
 }
 
 // MARK: - Hosted tab bar -
@@ -1262,6 +1309,26 @@ extension GroupMoneyShellSpecTests {
     /// The on-screen frame of the element labelled `label`.
     fileprivate static func frame(of label: String, in window: UIWindow) async throws -> CGRect {
         try await frame(in: window) { $0.accessibilityLabel == label }
+    }
+
+    /// The on-screen frame of the element carrying `identifier`.
+    fileprivate static func frame(identified identifier: String, in window: UIWindow) async throws -> CGRect {
+        try await frame(in: window) { self.identifier(of: $0) == identifier }
+    }
+
+    /// The wallet's appreciation pill: its amount and label read as one line, and the frame
+    /// the two take together. The pill is two texts, the amount leading the label on its line.
+    fileprivate static func appreciationPill(in window: UIWindow) async throws -> (text: String, frame: CGRect) {
+        let labels: Set<String> = ["from appreciation", "from depreciation"]
+        let word = try await frame(in: window) { labels.contains($0.accessibilityLabel ?? "") }
+        let wordLabel = try #require(elements(in: window).first { $0.accessibilityFrame == word }?.accessibilityLabel)
+        let amount = try #require(
+            elements(in: window)
+                .filter { abs($0.accessibilityFrame.midY - word.midY) <= 1 && $0.accessibilityFrame.maxX <= word.minX }
+                .max { $0.accessibilityFrame.maxX < $1.accessibilityFrame.maxX },
+            "no amount beside \(wordLabel); on screen: \(elements(in: window).compactMap(\.accessibilityLabel))"
+        )
+        return ("\(amount.accessibilityLabel ?? "") \(wordLabel)", word.union(amount.accessibilityFrame))
     }
 
     /// The on-screen frame of the first element `matches` picks, once it has held the same

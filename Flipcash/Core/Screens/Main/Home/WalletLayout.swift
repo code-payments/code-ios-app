@@ -39,7 +39,7 @@ enum WalletLayout: Equatable {
         case .standard:
             [.balanceHeader, .appreciation, .addMoneyRow, .tokenCards, .recentActivity, .tiles]
         case .money:
-            [.title, .balance, .currencyCount, .actions, .recentActivity]
+            [.title, .balance, .appreciation, .currencyCount, .actions, .recentActivity]
         }
     }
 
