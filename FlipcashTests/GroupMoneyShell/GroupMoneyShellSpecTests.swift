@@ -657,13 +657,12 @@ struct GroupMoneyShellSpecTests {
         #expect(empty.minY - header.maxY > 100, "header \(header), message \(empty)")
     }
 
-    @Test("8.12 flag on: with more rows than fit, Money lists more than three and the page scrolls to them")
+    @Test("8.12 flag on: with more rows than fit, Money lists ten and the page scrolls to them")
     func moneyActivity_manyRowsScroll() async throws {
         let (window, _) = try await Self.hostedMoney(activities: 30)
         defer { window.isHidden = true }
 
-        #expect(try await Self.activityRowCount(in: window) == WalletLayout.money.recentActivityLimit)
-        #expect(WalletLayout.money.recentActivityLimit > 3)
+        #expect(try await Self.activityRowCount(in: window) == 10)
         let reading = try await Self.overflow(in: window) { $0 > 0 }
         #expect(reading.overflow > 0, "\(reading.description)")
     }

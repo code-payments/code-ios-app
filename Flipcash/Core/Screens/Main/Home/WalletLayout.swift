@@ -43,12 +43,12 @@ enum WalletLayout: Equatable {
         }
     }
 
-    /// How many recent activities the tab lists: a three-row preview on today's wallet, and on
-    /// Money enough to run past the bottom of the screen, where the section fills what is left.
+    /// How many recent activities the tab lists: a three-row preview on today's wallet, and ten on
+    /// Money, where the section fills what is left of the screen.
     var recentActivityLimit: Int {
         switch self {
         case .standard: 3
-        case .money:    20
+        case .money:    10
         }
     }
 
