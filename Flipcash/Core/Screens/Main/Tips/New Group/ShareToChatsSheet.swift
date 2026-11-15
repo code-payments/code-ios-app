@@ -323,7 +323,7 @@ struct ShareToChatsSheet: View {
     private var groupContent: some View {
         VStack(spacing: 0) {
             header
-            if layout.showsGroupIdentity {
+            if layout.showsGroupMoney {
                 invitation
             } else {
                 VStack(spacing: 16) {
@@ -343,24 +343,10 @@ struct ShareToChatsSheet: View {
         )
     }
 
-    /// The shell's sheet under its title bar: the group, what the link is for, the link and the tiles.
+    /// The shell's sheet under its title bar: what the link is for, the link and the tiles, 16pt
+    /// apart and 16pt in from the title bar and the bottom.
     private var invitation: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 10) {
-                if let groupID {
-                    ContactAvatarView(
-                        id: groupID.description,
-                        displayName: conversation.map(conversationController.displayName(for:)) ?? "",
-                        imageData: sessionContainer.profileAvatars.data(for: .chat(groupID)),
-                        size: 48
-                    )
-                }
-                Text(conversation.map(conversationController.displayName(for:)) ?? "")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-            }
+        VStack(spacing: 16) {
             if let message = layout.message {
                 Text(message)
                     .font(.appTextBody)
@@ -372,8 +358,8 @@ struct ShareToChatsSheet: View {
             shareTiles
         }
         .padding(.horizontal, 24)
-        .padding(.top, 24)
-        .padding(.bottom, 24)
+        .padding(.top, 16)
+        .padding(.bottom, 16)
     }
 
     private var listContent: some View {
@@ -444,7 +430,7 @@ struct ShareToChatsSheet: View {
     private var header: some View {
         ZStack {
             Text(sheetTitle)
-                .font(layout.showsGroupIdentity ? .appTextXL : .appBarButton)
+                .font(layout.showsGroupMoney ? .appTextXL : .appBarButton)
                 .foregroundStyle(Color.textMain)
 
             HStack {
@@ -643,7 +629,7 @@ struct ShareToChatsSheet: View {
         InviteLinkPanel(
             pill: isInviteMode ? inviteURL.map(InviteLinkPanel.Pill.link) ?? .creating : .link(model.url),
             meta: layout.linkCaption,
-            isCentered: layout.showsGroupIdentity
+            isCentered: layout.showsGroupMoney
         )
     }
 

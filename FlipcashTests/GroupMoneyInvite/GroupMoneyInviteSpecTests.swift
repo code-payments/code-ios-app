@@ -180,12 +180,11 @@ struct GroupMoneyInviteSpecTests {
         #expect(router.presentedSheets == [.tips, .invitePeople(Self.groupID)])
     }
 
-    @Test("4.6 the shell's sheet: close on the left, the group, the line, the caption and three square tiles")
+    @Test("4.6 the shell's sheet: close on the left, the line, the caption and three square tiles")
     func invite_sheetLayout_shellOn() {
         let layout = GroupInviteSheetLayout(showsGroupMoney: true)
         #expect(layout.title == "Invite People")
         #expect(layout.closeEdge == .leading)
-        #expect(layout.showsGroupIdentity == true)
         #expect(layout.message == "Send this link to the people you want in your group.")
         #expect(layout.linkCaption == "Anyone with the link can join.")
         #expect(layout.tileTitles == ["Copy Link", "Share Link", "QR Code"])
@@ -197,7 +196,6 @@ struct GroupMoneyInviteSpecTests {
         let layout = GroupInviteSheetLayout(showsGroupMoney: false)
         #expect(layout.title == "Invite People")
         #expect(layout.closeEdge == .trailing)
-        #expect(layout.showsGroupIdentity == false)
         #expect(layout.message == nil)
         #expect(layout.linkCaption == InviteLinkCopy.groupSheetLine)
         #expect(layout.tileTitles == ShareToChatsSheet.groupTileTitles)
@@ -262,6 +260,70 @@ struct GroupMoneyInviteSpecTests {
             let height = presented.view.frame.height
             return height > 0 && height < window.bounds.height - 100
         }
+    }
+
+    @Test("4.11 with the shell on, the Invite People sheet shows no group name or avatar")
+    func invite_sheetHasNoGroupIdentity_shellOn() async throws {
+        let flags = BetaFlags()
+        let wasOn = flags.hasEnabled(.groupMoneyUI)
+        let hadAccess = flags.accessGranted
+        flags.set(.groupMoneyUI, enabled: true)
+        flags.setAccessGranted(true)
+        defer {
+            flags.set(.groupMoneyUI, enabled: wasOn)
+            flags.setAccessGranted(hadAccess)
+        }
+
+        // A titled group the viewer can't invite to, so the sheet shares the plain link and never
+        // asks the server for an invite link.
+        let groupName = "Kestrel Supper Club"
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        try sessionContainer.database.upsertConversation(
+            Conversation(id: Self.groupID, members: [], lastMessage: nil, lastActivity: .now, type: .group, title: groupName)
+        )
+        await sessionContainer.conversationController.hydrateFromDatabase()
+        let group = try #require(sessionContainer.conversationController.conversation(withID: Self.groupID))
+        #expect(sessionContainer.conversationController.displayName(for: group) == groupName)
+
+        let view = InvitePeopleSheetRoot(conversationID: Self.groupID)
+            .environment(flags)
+            .injectingEnvironment(from: sessionContainer)
+            .injectingEnvironment(from: Container.mock)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        window.rootViewController = UIHostingController(rootView: view)
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+
+        // The shell's sheet is up once its body line and tiles are.
+        try await waitUntil {
+            window.layoutIfNeeded()
+            let labels = Self.accessibilityLabels(in: window)
+            return labels.contains("Send this link to the people you want in your group.") && labels.contains("Copy Link")
+        }
+        // The group's avatar reads as the group's name too, so no label naming the group means
+        // neither the avatar nor the name is drawn.
+        let labels = Self.accessibilityLabels(in: window)
+        #expect(!labels.contains { $0.contains(groupName) }, "sheet labels: \(labels)")
+    }
+
+    /// Every accessibility label on screen in `view`.
+    private static func accessibilityLabels(in view: UIView) -> [String] {
+        func walk(_ object: NSObject, depth: Int) -> [String] {
+            guard depth < 40 else { return [] }
+            if let view = object as? UIView, view.isHidden || view.alpha <= 0.01 { return [] }
+            var found: [String] = []
+            if object.isAccessibilityElement, let label = object.accessibilityLabel { found.append(label) }
+            for case let element as NSObject in object.accessibilityElements ?? [] {
+                found += walk(element, depth: depth + 1)
+            }
+            if let view = object as? UIView {
+                for subview in view.subviews { found += walk(subview, depth: depth + 1) }
+            }
+            return found
+        }
+        return walk(view, depth: 0)
     }
 
     // MARK: - 5. Join preview (13729:1404) -

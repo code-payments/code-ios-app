@@ -30,7 +30,7 @@ struct InviteLinkPanel: View {
     var isCentered = false
 
     var body: some View {
-        VStack(alignment: isCentered ? .center : .leading, spacing: isCentered ? 12 : 8) {
+        VStack(alignment: isCentered ? .center : .leading, spacing: 8) {
             pillView
             if let meta {
                 Text(meta)
