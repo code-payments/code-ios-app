@@ -33,10 +33,8 @@ public struct ChatMediaBubbleLoad {
         self.processor = ChatMediaCell.processor(for: media, maxWidth: maxWidth)
     }
 
-    /// The pixel size a bubble's copy must reach: the bubble's width, which a photo always spans,
-    /// as Android's bubble asks for `maxWidth.roundToPx()`. A view not yet on a screen reports a
-    /// scale of 0; that is taken as 3, so its copy never draws soft once it is.
+    /// The pixel size a bubble's copy must reach. See ``ChatPhotoBubbleLayout/targetPixels(maxWidth:scale:)``.
     static func targetPixels(maxWidth: CGFloat, scale: CGFloat) -> Int {
-        Int((maxWidth * (scale > 0 ? scale : 3)).rounded())
+        ChatPhotoBubbleLayout.targetPixels(maxWidth: maxWidth, scale: scale)
     }
 }

@@ -207,8 +207,8 @@ public class ChatColumnCell: UICollectionViewCell {
 
     /// What an attributed incoming row gives up to the gutter: the circle plus the 8pt Figma puts
     /// between it and the bubble. Read by the layout to keep the bubble's max width proportional to
-    /// the space the row actually has.
-    public static let authorGutterWidth = ChatAuthorAvatarView.size + 8
+    /// the space the row actually has. Held in FlipcashCore, where a photo prefetch reads it too.
+    public static let authorGutterWidth = ChatPhotoBubbleLayout.authorGutterWidth
 
     /// Whether a drag starting at this point, in the cell's own coordinates, may reply to the row.
     ///
