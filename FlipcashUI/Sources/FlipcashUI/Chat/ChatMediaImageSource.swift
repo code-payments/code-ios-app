@@ -124,8 +124,16 @@ public enum ChatMediaImageSource {
         }
     }
 
-    static func cacheKey(for blobID: BlobID) -> String {
+    nonisolated static func cacheKey(for blobID: BlobID) -> String {
         "chat-media-\(blobID.description)"
+    }
+
+    /// Writes a photo's downloaded bytes to `cache`'s disk under `blobID` as its full-size copy,
+    /// which ``isCached(blobID:processor:)`` counts for every processor: Kingfisher downsamples it
+    /// for whichever bubble asks. For a download made before any bubble asks, which can't know
+    /// whether the photo will draw alone or in a stack.
+    nonisolated static func storeFullSize(_ data: Data, blobID: BlobID, in cache: ImageCache) throws {
+        try cache.diskStorage.store(value: data, forKey: cacheKey(for: blobID))
     }
 
     /// Whether a failed load was an encrypted blob that will never decrypt, rather than a fetch

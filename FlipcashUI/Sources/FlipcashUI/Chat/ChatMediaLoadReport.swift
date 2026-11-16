@@ -142,6 +142,10 @@ nonisolated struct ChatMediaLoadReport: Equatable {
     var rendition: MediaRendition.Role? = .original
     /// Where the image came from on success; nil for a load that failed.
     var cache: CacheType?
+    /// Whether a photo drawn from the cache was downsampled from its full-size copy, as one a
+    /// prefetch or the viewer left is. Kingfisher reports that as `.none`, which would otherwise
+    /// read as a network load.
+    var fromFullSize = false
     var sealed = false
     var transfer: ChatMediaTransfer?
     var decrypt: Duration?
@@ -173,6 +177,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
                 decrypt = trace.decrypt
             } else if case .provider(let provider) = value.source, let provider = provider as? CachedOnlyProvider {
                 sealed = provider.sealed
+                fromFullSize = value.cacheType == .none
             } else {
                 transfer = value.metrics.map { ChatMediaTransfer(metrics: $0.rawMetrics) }
             }
@@ -255,7 +260,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
             metadata["outcome"] = "failed"
             metadata["step"] = "\(step.rawValue)"
         }
-        if let cache { metadata["cache"] = "\(Self.name(of: cache))" }
+        if let cache { metadata["cache"] = "\(fromFullSize ? "fullSize" : Self.name(of: cache))" }
         if let transfer {
             if let firstByte = transfer.firstByte { metadata["firstByteMs"] = "\(Self.milliseconds(firstByte))" }
             if let body = transfer.body { metadata["bodyMs"] = "\(Self.milliseconds(body))" }

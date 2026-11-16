@@ -33,6 +33,33 @@ public struct ChatMediaBubbleLoad {
         self.processor = ChatMediaCell.processor(for: media, maxWidth: maxWidth)
     }
 
+    /// The load the bubble for `attachment` makes once its message is drawn as a single photo in a
+    /// transcript `rowWidth` points wide, for something that downloads the photo before then.
+    /// `attributedIncoming` is a group chat's message from someone else. The row is built from the
+    /// attachment the way the transcript builds it, so both pick the same copy.
+    ///
+    /// The copy doesn't depend on the photo joining a stack, but the processor does, so the
+    /// processor here is the single photo's.
+    public init?(attachment: MediaAttachment, redacted: Bool, rowWidth: CGFloat, attributedIncoming: Bool, scale: CGFloat) {
+        let media = ChatMediaContent(
+            blobID: attachment.blobID,
+            width: attachment.width,
+            height: attachment.height,
+            blurhash: attachment.blurhash,
+            caption: nil,
+            isRedacted: redacted,
+            sealed: attachment.sealed,
+            renditions: attachment.renditions
+        )
+        let maxWidth = ChatPhotoBubbleLayout.maxWidth(rowWidth: rowWidth, attributedIncoming: attributedIncoming)
+        self.init(media: media, maxWidth: maxWidth, scale: scale)
+    }
+
+    init(rendition: MediaRendition, processor: ImageProcessor) {
+        self.rendition = rendition
+        self.processor = processor
+    }
+
     /// The pixel size a bubble's copy must reach. See ``ChatPhotoBubbleLayout/targetPixels(maxWidth:scale:)``.
     static func targetPixels(maxWidth: CGFloat, scale: CGFloat) -> Int {
         ChatPhotoBubbleLayout.targetPixels(maxWidth: maxWidth, scale: scale)

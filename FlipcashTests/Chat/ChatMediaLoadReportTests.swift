@@ -110,6 +110,17 @@ struct ChatMediaLoadReportTests {
         #expect(undecryptable.sealed)
     }
 
+    @Test("A cached photo Kingfisher downsampled from its full-size copy reports that copy, not the network")
+    func fullSizeCopy() {
+        // Kingfisher hands back a copy it processed from the full-size one as `.none`: it was not in
+        // the cache under the bubble's processor. A photo drawn from the cache alone has no URL, so
+        // it can't have come from the network.
+        let source = Source.provider(CachedOnlyProvider(cacheKey: "chat-media-test", sealed: false))
+        let report = ChatMediaLoadReport(Self.success(cacheType: .none, source: source), blobID: Self.blobID, surface: .bubble)
+
+        #expect(report.metadata["cache"] == "fullSize")
+    }
+
     @Test("A load the view abandoned reports cancelled, not failed")
     func cancelledLoad() {
         let report = ChatMediaLoadReport(
