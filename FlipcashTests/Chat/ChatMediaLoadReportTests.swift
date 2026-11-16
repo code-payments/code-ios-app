@@ -37,14 +37,14 @@ struct ChatMediaLoadReportTests {
             fetchStart: start,
             responseStart: start.addingTimeInterval(0.25),
             responseEnd: start.addingTimeInterval(1.75),
-            response: Self.response(status: 200, headers: ["X-Cache": "Miss from cloudfront", "X-Amz-Cf-Pop": "HKG62-P1"])
+            response: Self.response(status: 200, headers: ["X-Cache": "Miss from cloudfront", "X-Amz-Cf-Pop": "ORD58-P16"])
         )
 
         #expect(transfer.firstByte == .milliseconds(250))
         #expect(transfer.body == .milliseconds(1500))
         #expect(transfer.status == 200)
         #expect(transfer.xCache == "Miss from cloudfront")
-        #expect(transfer.pop == "HKG62-P1")
+        #expect(transfer.pop == "ORD58-P16")
     }
 
     @Test("A plaintext photo from the network reports a network load of its original rendition")
@@ -65,7 +65,7 @@ struct ChatMediaLoadReportTests {
         let provider = Self.sealedProvider()
         var transfer = ChatMediaTransfer()
         transfer.firstByte = .milliseconds(300)
-        transfer.record(Self.response(status: 200, headers: ["X-Amz-Cf-Pop": "HKG62-P1"]))
+        transfer.record(Self.response(status: 200, headers: ["X-Amz-Cf-Pop": "ORD58-P16"]))
         provider.trace.update {
             $0.transfer = transfer
             $0.decrypt = .milliseconds(12)
@@ -76,7 +76,7 @@ struct ChatMediaLoadReportTests {
         #expect(metadata["sealed"] == "true")
         #expect(metadata["firstByteMs"] == "300")
         #expect(metadata["decryptMs"] == "12")
-        #expect(metadata["pop"] == "HKG62-P1")
+        #expect(metadata["pop"] == "ORD58-P16")
     }
 
     @Test("A failed load names its step, and its status or error code")
