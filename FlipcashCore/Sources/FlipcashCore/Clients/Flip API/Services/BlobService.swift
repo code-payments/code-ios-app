@@ -141,13 +141,11 @@ extension BlobService: BlobReserving {
     func downloadLink(blobID: BlobID, owner: KeyPair, accessContext: BlobAccessContext? = nil) async throws -> BlobDownloadLink? {
         let blob = try await fetchBlob(blobID: blobID, owner: owner, accessContext: accessContext)
 
-        guard let blob, blob.hasMetadata, blob.metadata.hasDownloadURL,
-              let url = URL(string: blob.metadata.downloadURL.url) else {
+        guard let blob, blob.hasMetadata, blob.metadata.hasDownloadURL else {
             return nil
         }
 
-        let download = blob.metadata.downloadURL
-        return BlobDownloadLink(url: url, expiresAt: download.hasExpiresAt ? download.expiresAt.date : nil)
+        return BlobDownloadLink(blob.metadata.downloadURL)
     }
 
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState {

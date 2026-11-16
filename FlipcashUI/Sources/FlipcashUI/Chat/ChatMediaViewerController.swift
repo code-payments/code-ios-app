@@ -21,8 +21,9 @@ public struct ChatMediaViewerRequest {
     public let blobID: BlobID?
     /// The staged image of a send this device has not confirmed yet, drawn instead of downloading.
     public let localImage: UIImage?
-    /// Where the photo downloads from, or nil for a pending send.
-    public let remote: ChatMediaLocation?
+    /// Where the photo downloads from, resolved when the viewer loads it so a URL minted earlier
+    /// can't have expired; nil for a pending send.
+    public let remote: () async -> ChatMediaLocation?
     /// Whatever the row drew when it was tapped, shown while the full photo loads.
     public let placeholder: UIImage?
     /// The on-screen view the photo zooms out of and back into, looked up on each use because the
@@ -37,18 +38,19 @@ public struct ChatMediaViewerRequest {
 
     /// Nil when the row may not open: not a photo, BlurHash-only (see
     /// ``ChatMediaCell/isBlurhashOnly(_:canReact:)``), a failed send whose tap is the retry, or a
-    /// photo with neither a staged image nor a resolved URL yet.
+    /// photo with neither a staged image nor a blob. A photo whose URL is still minting opens on
+    /// `placeholder` and loads once it lands.
     public init?(
         message: ChatMessage,
         localImage: UIImage?,
-        remote: ChatMediaLocation?,
+        remote: @escaping () async -> ChatMediaLocation?,
         placeholder: UIImage?,
         sourceView: @escaping () -> UIView?
     ) {
         guard case .media(let media) = message.content,
               !ChatMediaCell.isBlurhashOnly(media, canReact: message.canReact),
               !message.isFailed,
-              localImage != nil || remote != nil else { return nil }
+              localImage != nil || media.blobID != nil else { return nil }
         self.messageID = message.id
         self.blobID = media.blobID
         self.localImage = localImage
@@ -99,7 +101,7 @@ public struct ChatMediaViewerRequest {
             placeholder: placeholder,
             canReply: canReply,
             canForward: canForward,
-            remote: { [remote] in remote }
+            remote: remote
         )]
     }
 }
@@ -474,7 +476,16 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
             return
         }
         pageView.imageView.image = page.placeholder
-        pageView.loadTask = Task { [weak self] in
+        if let blobID = page.blobID, ChatMediaImageSource.isCached(blobID: blobID, processor: DefaultImageProcessor.default) {
+            // Opened before: the full-size copy draws without waiting on a URL.
+            setImage(page, at: index, from: .cached)
+            return
+        }
+        resolveImage(page, at: index)
+    }
+
+    private func resolveImage(_ page: ChatMediaViewerRequest.Page, at index: Int) {
+        pageViews[index].loadTask = Task { [weak self] in
             guard let remote = await page.remote(), !Task.isCancelled else { return }
             self?.setImage(page, at: index, from: remote)
         }
@@ -493,6 +504,12 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
                 pageView?.loadedImage = value.image
                 guard let self, index == pageIndex else { return }
                 saveButton.isEnabled = true
+            case .failure(let error) where remote.url == nil && !error.isNotCurrentTask:
+                // The cached copy has gone or won't read: download it instead.
+                self?.resolveImage(page, at: index)
+            case .failure(let error) where ChatMediaImageSource.isRefused(error) && remote.reportRefused():
+                // The URL expired before it was used: mint another and load again.
+                self?.resolveImage(page, at: index)
             case .failure:
                 // Best-effort: the placeholder stays up and zoom and save stay off.
                 break

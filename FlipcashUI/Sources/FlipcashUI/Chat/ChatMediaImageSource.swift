@@ -12,15 +12,32 @@ import Kingfisher
 
 /// Where one chat photo downloads from, and how its bytes become an image.
 public struct ChatMediaLocation: Sendable {
-    /// The photo's signed download URL.
-    public let url: URL
+    /// The photo's signed download URL, or nil for a photo drawn from the cache alone.
+    public let url: URL?
     /// Turns the downloaded blob into the image's plaintext bytes; nil for a plaintext blob.
     public let decrypt: (@Sendable (Data) throws -> Data)?
+    /// Tells whoever minted `url` that the CDN refused it (a 403), and returns whether resolving the
+    /// photo again will mint a fresh one.
+    public let reportRefused: @MainActor @Sendable () -> Bool
 
-    public init(url: URL, decrypt: (@Sendable (Data) throws -> Data)? = nil) {
+    public init(
+        url: URL,
+        decrypt: (@Sendable (Data) throws -> Data)? = nil,
+        reportRefused: @escaping @MainActor @Sendable () -> Bool = { false }
+    ) {
         self.url = url
         self.decrypt = decrypt
+        self.reportRefused = reportRefused
     }
+
+    private init() {
+        self.url = nil
+        self.decrypt = nil
+        self.reportRefused = { false }
+    }
+
+    /// A photo already in the chat-media cache, which draws without a URL.
+    public static let cached = ChatMediaLocation()
 }
 
 /// Where a chat photo's bytes load from, for every view that draws one.
@@ -30,11 +47,14 @@ public enum ChatMediaImageSource {
     /// minted per fetch, so keying on it would re-download the same photo every session. An
     /// encrypted blob is decrypted before Kingfisher decodes it.
     public static func source(blobID: BlobID?, location: ChatMediaLocation) -> Source {
-        let cacheKey = blobID.map(Self.cacheKey(for:)) ?? location.url.absoluteString
-        guard let decrypt = location.decrypt else {
-            return .network(KF.ImageResource(downloadURL: location.url, cacheKey: cacheKey))
+        let cacheKey = blobID.map(Self.cacheKey(for:)) ?? location.url?.absoluteString ?? ""
+        guard let url = location.url else {
+            return .provider(CachedOnlyProvider(cacheKey: cacheKey))
         }
-        return .provider(DecryptingProvider(cacheKey: cacheKey, url: location.url, decrypt: decrypt))
+        guard let decrypt = location.decrypt else {
+            return .network(KF.ImageResource(downloadURL: url, cacheKey: cacheKey))
+        }
+        return .provider(DecryptingProvider(cacheKey: cacheKey, url: url, decrypt: decrypt))
     }
 
     /// The photo at `location`, from the cache when held, or nil when it fails to load or decrypt.
@@ -71,12 +91,42 @@ public enum ChatMediaImageSource {
         cache.retrieveImageInMemoryCache(forKey: cacheKey(for: blobID))
     }
 
-    private static func cacheKey(for blobID: BlobID) -> String {
+    /// Whether `blobID`'s photo is cached, in memory or on disk, as drawn by `processor` or full size,
+    /// so it can draw from ``ChatMediaLocation/cached`` without a URL. Kingfisher downsamples a
+    /// full-size copy on the way out, which the viewer leaves behind.
+    public static func isCached(blobID: BlobID, processor: ImageProcessor) -> Bool {
+        let key = cacheKey(for: blobID)
+        return cache.imageCachedType(forKey: key, processorIdentifier: processor.identifier).cached
+            || cache.imageCachedType(forKey: key, processorIdentifier: DefaultImageProcessor.default.identifier).cached
+    }
+
+    /// Drops `blobID`'s cached copies after one failed to load, so the next lookup misses and
+    /// mints a URL.
+    public static func evict(blobID: BlobID, processor: ImageProcessor) async {
+        let key = cacheKey(for: blobID)
+        for identifier in [processor.identifier, DefaultImageProcessor.default.identifier] {
+            try? await cache.removeImage(forKey: key, processorIdentifier: identifier)
+        }
+    }
+
+    static func cacheKey(for blobID: BlobID) -> String {
         "chat-media-\(blobID.description)"
     }
 
     /// Whether a failed load was an encrypted blob that will never decrypt, rather than a fetch
     /// that may succeed later.
+    /// Whether the CDN refused the photo's URL (a 403), which a signed URL past its expiry gets.
+    public static func isRefused(_ error: KingfisherError) -> Bool {
+        switch error {
+        case .responseError(reason: .invalidHTTPStatusCode(let response)):
+            response.statusCode == 403
+        case .imageSettingError(reason: .dataProviderError(_, let underlying)):
+            (underlying as? ChatMediaHTTPError)?.status == 403
+        default:
+            false
+        }
+    }
+
     public static func isUndecryptable(_ error: KingfisherError) -> Bool {
         switch error {
         case .imageSettingError(reason: .dataProviderError(_, let underlying)):
@@ -170,6 +220,18 @@ public enum ChatMediaImageSource {
             cacheSerializer: FormatIndicatedCacheSerializer.jpeg,
             toDisk: true
         ) { _ in completion?() }
+    }
+}
+
+/// A photo held in the cache, loaded without a URL. Kingfisher reads the cache before it asks a
+/// provider for data, so this is only asked when the cached copy has gone.
+nonisolated struct CachedOnlyProvider: ImageDataProvider {
+    struct NotCached: Error {}
+
+    let cacheKey: String
+
+    func data(handler: @escaping @Sendable (Result<Data, any Error>) -> Void) {
+        handler(.failure(NotCached()))
     }
 }
 

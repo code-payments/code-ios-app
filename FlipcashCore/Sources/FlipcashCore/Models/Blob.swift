@@ -16,6 +16,13 @@ public struct BlobDownloadLink: Sendable, Equatable {
         self.url = url
         self.expiresAt = expiresAt
     }
+
+    /// The link the server minted, or nil when its URL doesn't parse. An unset `expires_at` is no
+    /// expiry, not the 1970 its default timestamp reads as.
+    init?(_ download: Flipcash_Blob_V1_DownloadUrl) {
+        guard let url = URL(string: download.url) else { return nil }
+        self.init(url: url, expiresAt: download.hasExpiresAt ? download.expiresAt.date : nil)
+    }
 }
 
 /// Where a blob is in its lifecycle.

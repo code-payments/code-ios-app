@@ -54,16 +54,16 @@ struct ChatMediaViewerTests {
         localImage: UIImage? = nil,
         remoteURL: URL? = ChatMediaViewerTests.remoteURL
     ) -> ChatMediaViewerRequest? {
-        ChatMediaViewerRequest(message: message, localImage: localImage, remote: remoteURL.map { ChatMediaLocation(url: $0) }, placeholder: nil) { nil }
+        ChatMediaViewerRequest(message: message, localImage: localImage, remote: { remoteURL.map { ChatMediaLocation(url: $0) } }, placeholder: nil) { nil }
     }
 
     // MARK: - Request
 
     @Test("A viewable photo opens with its blob and URL")
-    func viewablePhotoOpens() throws {
+    func viewablePhotoOpens() async throws {
         let viewer = try #require(request(message(media())))
         #expect(viewer.blobID == Self.blobID)
-        #expect(viewer.remote?.url == Self.remoteURL)
+        #expect(await viewer.remote()?.url == Self.remoteURL)
     }
 
     @Test("A redacted photo, or one seen while previewing a group, never opens")
@@ -78,9 +78,16 @@ struct ChatMediaViewerTests {
         #expect(request(message(media(), receipt: .failed("Not delivered")), localImage: Self.localImage) == nil)
     }
 
-    @Test("A photo with nothing to show yet opens nothing")
-    func unresolvedPhotoNeverOpens() {
-        #expect(request(message(media()), remoteURL: nil) == nil)
+    @Test("A photo with neither a blob nor a staged image opens nothing")
+    func photoWithoutBlobNeverOpens() {
+        let noBlob = ChatMediaContent(blobID: nil, width: 40, height: 30, blurhash: nil, caption: nil, isRedacted: false)
+        #expect(request(message(noBlob), remoteURL: nil) == nil)
+    }
+
+    @Test("A photo whose URL is still minting opens, and loads once it lands")
+    func unresolvedPhotoOpens() throws {
+        let viewer = try #require(request(message(media()), remoteURL: nil))
+        #expect(viewer.blobID == Self.blobID)
     }
 
     @Test("A pending send opens on its staged image")
@@ -95,7 +102,7 @@ struct ChatMediaViewerTests {
     func zoomsFromSource() throws {
         let source = UIView()
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: Self.localImage, remote: nil, placeholder: nil
+            message: message(media()), localImage: Self.localImage, remote: { nil }, placeholder: nil
         ) { source })
         let viewer = makeViewer(request)
 
@@ -114,7 +121,7 @@ struct ChatMediaViewerTests {
     @Test("The viewer is always dark, so its glass and glyphs match the black backdrop")
     func viewerIsDark() throws {
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: Self.localImage, remote: nil, placeholder: nil
+            message: message(media()), localImage: Self.localImage, remote: { nil }, placeholder: nil
         ) { nil })
         let viewer = makeViewer(request)
         #expect(viewer.overrideUserInterfaceStyle == .dark)
@@ -242,7 +249,7 @@ struct ChatMediaViewerTests {
     func saveWaitsForPhoto() throws {
         let placeholder = UIImage(systemName: "photo")!
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
+            message: message(media()), localImage: nil, remote: { ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!) }, placeholder: placeholder
         ) { nil })
         var saved: UIImage?
         let viewer = makeViewer(request, onSave: { image, _ in saved = image })
@@ -320,7 +327,7 @@ struct ChatMediaViewerTests {
 
         let placeholder = UIImage(systemName: "photo")!
         let unloaded = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
+            message: message(media()), localImage: nil, remote: { ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!) }, placeholder: placeholder
         ) { nil })
         #expect(!makeViewer(unloaded).reactButton.isHidden)
 
