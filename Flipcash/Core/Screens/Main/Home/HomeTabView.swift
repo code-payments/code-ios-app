@@ -641,6 +641,11 @@ extension View {
     /// Adds ``EnvironmentValues/shellBarBottomPadding`` to the bottom safe
     /// area. Put it on a tab stack's root view, before its destinations, so
     /// pushed screens keep their own safe area.
+    ///
+    /// On iOS 26 the padding is a bar that draws nothing visible, so scrolling
+    /// content softens under it across the screen's width, as it does under the
+    /// system bar. On the root view rather than the stack, pushed screens get
+    /// neither the inset nor the effect.
     func shellBarSafeArea() -> some View {
         modifier(ShellBarSafeArea())
     }
@@ -650,7 +655,21 @@ private struct ShellBarSafeArea: ViewModifier {
     @Environment(\.shellBarBottomPadding) private var padding
 
     func body(content: Content) -> some View {
-        content.safeAreaPadding(.bottom, padding)
+        if #available(iOS 26, *) {
+            content
+                .safeAreaBar(edge: .bottom, spacing: 0) {
+                    // Not `Color.clear`: a bar of it gets no edge effect at all (checked on an
+                    // iOS 27 simulator). A fill that draws, too faint to see, gets the soft one.
+                    Color.black.opacity(0.001)
+                        .frame(height: padding)
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
+                }
+                // nil keeps the system's own style, so a flag-off tab is unchanged.
+                .scrollEdgeEffectStyle(padding > 0 ? .soft : nil, for: .bottom)
+        } else {
+            content.safeAreaPadding(.bottom, padding)
+        }
     }
 }
 
