@@ -19,6 +19,8 @@ public struct ChatMediaViewerRequest {
     public let messageID: String
     /// The photo's blob, which keys its download in the image cache.
     public let blobID: BlobID?
+    /// Whether the photo's blob is end-to-end encrypted.
+    public let sealed: Bool
     /// The staged image of a send this device has not confirmed yet, drawn instead of downloading.
     public let localImage: UIImage?
     /// Where the photo downloads from, resolved when the viewer loads it so a URL minted earlier
@@ -53,6 +55,7 @@ public struct ChatMediaViewerRequest {
               localImage != nil || media.blobID != nil else { return nil }
         self.messageID = message.id
         self.blobID = media.blobID
+        self.sealed = media.sealed != nil
         self.localImage = localImage
         self.remote = remote
         self.placeholder = placeholder
@@ -68,6 +71,8 @@ public struct ChatMediaViewerRequest {
         /// The photo message's stable id, which every button on the page acts on.
         public let messageID: String
         public let blobID: BlobID?
+        /// Whether the photo's blob is end-to-end encrypted.
+        public let sealed: Bool
         public let localImage: UIImage?
         /// Shown while the photo loads.
         public let placeholder: UIImage?
@@ -76,9 +81,10 @@ public struct ChatMediaViewerRequest {
         /// Where the photo downloads from, waiting for the fetch when it isn't resolved yet.
         public let remote: () async -> ChatMediaLocation?
 
-        public init(messageID: String, blobID: BlobID?, localImage: UIImage?, placeholder: UIImage?, canReply: Bool, canForward: Bool, remote: @escaping () async -> ChatMediaLocation?) {
+        public init(messageID: String, blobID: BlobID?, sealed: Bool, localImage: UIImage?, placeholder: UIImage?, canReply: Bool, canForward: Bool, remote: @escaping () async -> ChatMediaLocation?) {
             self.messageID = messageID
             self.blobID = blobID
+            self.sealed = sealed
             self.localImage = localImage
             self.placeholder = placeholder
             self.canReply = canReply
@@ -97,6 +103,7 @@ public struct ChatMediaViewerRequest {
         return [Page(
             messageID: messageID,
             blobID: blobID,
+            sealed: sealed,
             localImage: localImage,
             placeholder: placeholder,
             canReply: canReply,
@@ -478,7 +485,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         pageView.imageView.image = page.placeholder
         if let blobID = page.blobID, ChatMediaImageSource.isCached(blobID: blobID, processor: DefaultImageProcessor.default) {
             // Opened before: the full-size copy draws without waiting on a URL.
-            setImage(page, at: index, from: .cached)
+            setImage(page, at: index, from: .cached(sealed: page.sealed))
             return
         }
         resolveImage(page, at: index)

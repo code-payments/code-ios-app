@@ -164,6 +164,8 @@ nonisolated struct ChatMediaLoadReport: Equatable {
                 let trace = provider.trace.snapshot
                 transfer = trace.transfer
                 decrypt = trace.decrypt
+            } else if case .provider(let provider) = value.source, let provider = provider as? CachedOnlyProvider {
+                sealed = provider.sealed
             } else {
                 transfer = value.metrics.map { ChatMediaTransfer(metrics: $0.rawMetrics) }
             }
@@ -176,6 +178,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
         var underlying: (any Error)?
         var response: HTTPURLResponse?
         var trace: ChatMediaLoadTrace.State?
+        var cachedSealed = false
         let outcome: Outcome
         switch error {
         case .requestError(reason: .taskCancelled):
@@ -194,6 +197,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
             outcome = .cancelled
         case .imageSettingError(reason: .dataProviderError(let provider, let failure)):
             trace = (provider as? DecryptingProvider)?.trace.snapshot
+            cachedSealed = (provider as? CachedOnlyProvider)?.sealed ?? false
             outcome = .failed(trace?.step ?? .fetch)
             underlying = failure
         case .imageSettingError:
@@ -205,7 +209,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
         }
 
         self.init(blobID: blobID, surface: surface, outcome: outcome)
-        sealed = trace != nil
+        sealed = trace != nil || cachedSealed
         transfer = trace?.transfer
         decrypt = trace?.decrypt
         if let response {

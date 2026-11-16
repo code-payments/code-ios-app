@@ -63,7 +63,7 @@ public final class ChatMediaURLResolver {
     /// Where to draw `media` from, or nil for now.
     ///
     /// A BlurHash-only row returns nil without fetching. A photo already cached as `processor` draws
-    /// it, or the full-size copy, from ``ChatMediaLocation/cached`` without fetching. A URL cache
+    /// it, or the full-size copy, from ``ChatMediaLocation/cached(sealed:)`` without fetching. A URL cache
     /// miss starts at most one fetch per blob and calls `onResolved` when it lands so the caller
     /// can redraw the row; a failed fetch leaves the row on its BlurHash, and the next call tries
     /// again. An encrypted photo also waits on the chat's decryption.
@@ -75,7 +75,9 @@ public final class ChatMediaURLResolver {
     ) -> ChatMediaLocation? {
         guard !ChatMediaCell.isBlurhashOnly(media, canReact: canReact),
               let blobID = media.blobID else { return nil }
-        if let processor, ChatMediaImageSource.isCached(blobID: blobID, processor: processor) { return .cached }
+        if let processor, ChatMediaImageSource.isCached(blobID: blobID, processor: processor) {
+            return .cached(sealed: media.sealed != nil)
+        }
         return resolve(blobID, sealed: media.sealed) { $0.map(onResolved) }
     }
 

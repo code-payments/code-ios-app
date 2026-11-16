@@ -90,6 +90,16 @@ struct ChatMediaViewerTests {
         #expect(viewer.blobID == Self.blobID)
     }
 
+    @Test("A sealed photo's page says so, for the report of a load drawn from the cache")
+    func sealedPhotoPageIsSealed() throws {
+        let sealed = ChatMediaContent(
+            blobID: Self.blobID, width: 40, height: 30, blurhash: nil, caption: nil, isRedacted: false,
+            sealed: SealedBlob(senderID: UUID(), plaintextSize: 10)
+        )
+        #expect(try #require(request(message(sealed))).pages.map(\.sealed) == [true])
+        #expect(try #require(request(message(media()))).pages.map(\.sealed) == [false])
+    }
+
     @Test("A pending send opens on its staged image")
     func pendingSendOpens() throws {
         let viewer = try #require(request(message(media()), localImage: Self.localImage, remoteURL: nil))

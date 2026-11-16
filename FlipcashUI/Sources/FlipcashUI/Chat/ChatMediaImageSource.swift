@@ -19,6 +19,8 @@ public struct ChatMediaLocation: Sendable {
     /// Tells whoever minted `url` that the CDN refused it (a 403), and returns whether resolving the
     /// photo again will mint a fresh one.
     public let reportRefused: @MainActor @Sendable () -> Bool
+    /// Whether a photo drawn from the cache alone was end-to-end encrypted, for its load report.
+    let cachedSealed: Bool
 
     public init(
         url: URL,
@@ -28,16 +30,21 @@ public struct ChatMediaLocation: Sendable {
         self.url = url
         self.decrypt = decrypt
         self.reportRefused = reportRefused
+        self.cachedSealed = false
     }
 
-    private init() {
+    private init(sealed: Bool) {
         self.url = nil
         self.decrypt = nil
         self.reportRefused = { false }
+        self.cachedSealed = sealed
     }
 
-    /// A photo already in the chat-media cache, which draws without a URL.
-    public static let cached = ChatMediaLocation()
+    /// A photo already in the chat-media cache, which draws without a URL. `sealed` says whether
+    /// its blob is end-to-end encrypted, which the cached image alone can't show.
+    public static func cached(sealed: Bool) -> ChatMediaLocation {
+        ChatMediaLocation(sealed: sealed)
+    }
 }
 
 /// Where a chat photo's bytes load from, for every view that draws one.
@@ -49,7 +56,7 @@ public enum ChatMediaImageSource {
     public static func source(blobID: BlobID?, location: ChatMediaLocation) -> Source {
         let cacheKey = blobID.map(Self.cacheKey(for:)) ?? location.url?.absoluteString ?? ""
         guard let url = location.url else {
-            return .provider(CachedOnlyProvider(cacheKey: cacheKey))
+            return .provider(CachedOnlyProvider(cacheKey: cacheKey, sealed: location.cachedSealed))
         }
         guard let decrypt = location.decrypt else {
             return .network(KF.ImageResource(downloadURL: url, cacheKey: cacheKey))
@@ -92,7 +99,7 @@ public enum ChatMediaImageSource {
     }
 
     /// Whether `blobID`'s photo is cached, in memory or on disk, as drawn by `processor` or full size,
-    /// so it can draw from ``ChatMediaLocation/cached`` without a URL. Kingfisher downsamples a
+    /// so it can draw from ``ChatMediaLocation/cached(sealed:)`` without a URL. Kingfisher downsamples a
     /// full-size copy on the way out, which the viewer leaves behind.
     public static func isCached(blobID: BlobID, processor: ImageProcessor) -> Bool {
         let key = cacheKey(for: blobID)
@@ -229,6 +236,8 @@ nonisolated struct CachedOnlyProvider: ImageDataProvider {
     struct NotCached: Error {}
 
     let cacheKey: String
+    /// Whether the cached photo's blob is end-to-end encrypted, for its load report.
+    let sealed: Bool
 
     func data(handler: @escaping @Sendable (Result<Data, any Error>) -> Void) {
         handler(.failure(NotCached()))

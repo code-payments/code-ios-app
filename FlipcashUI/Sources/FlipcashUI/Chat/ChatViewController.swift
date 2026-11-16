@@ -939,6 +939,7 @@ public final class ChatViewController: UICollectionViewController {
             return ChatMediaViewerRequest.Page(
                 messageID: photo.messageID,
                 blobID: photo.blobID,
+                sealed: content.sealed != nil,
                 localImage: localImage,
                 placeholder: localImage
                     ?? (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))

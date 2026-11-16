@@ -94,7 +94,7 @@ struct ChatMediaCachedDrawTests {
         defer { Task { await removeCached(cached) } }
 
         let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
-        cell.configure(with: ChatMessage(id: "1", content: .media(media), sender: .other, canReact: true), maxWidth: 240, localImage: nil, remote: .cached)
+        cell.configure(with: ChatMessage(id: "1", content: .media(media), sender: .other, canReact: true), maxWidth: 240, localImage: nil, remote: .cached(sealed: false))
 
         let drawn = await drawnImage { cell.imageView }
         #expect(drawn?.cgImage?.width == 7)
@@ -106,7 +106,7 @@ struct ChatMediaCachedDrawTests {
         let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
         var reloads = 0
         cell.onReload = { reloads += 1 }
-        cell.configure(with: ChatMessage(id: "1", content: .media(media), sender: .other, canReact: true), maxWidth: 240, localImage: nil, remote: .cached)
+        cell.configure(with: ChatMessage(id: "1", content: .media(media), sender: .other, canReact: true), maxWidth: 240, localImage: nil, remote: .cached(sealed: false))
 
         for _ in 0..<200 where reloads == 0 {
             try? await Task.sleep(for: .milliseconds(10))
@@ -146,6 +146,25 @@ struct ChatMediaCachedDrawTests {
         let location = resolver.location(for: media, canReact: true, cachedAs: ChatMediaCell.processor(for: media, maxWidth: 240)) { _ in }
         #expect(location != nil)
         #expect(location?.url == nil)
+    }
+
+    @Test("A sealed photo drawn from the cache still logs as sealed")
+    func cachedSealedPhotoLogsAsSealed() async throws {
+        let resolver = ChatMediaURLResolver(fetch: { _ in nil })
+        let media = media(uniqueBlobID(), sealed: SealedBlob(senderID: UUID(), plaintextSize: 10))
+        let processor = ChatMediaCell.processor(for: media, maxWidth: 240)
+        let cached = try await cacheOnDiskOnly(media, processor: processor)
+        defer { Task { await removeCached(cached) } }
+
+        let location = try #require(resolver.location(for: media, canReact: true, cachedAs: processor) { _ in })
+        let result = await ChatMediaImageSource.retrieve(
+            ChatMediaImageSource.source(blobID: media.blobID, location: location),
+            options: ChatMediaImageSource.options(processor: processor)
+        )
+        let report = ChatMediaLoadReport(result, blobID: media.blobID, surface: .bubble)
+
+        #expect(report.cache == .disk)
+        #expect(report.metadata["sealed"] == "true")
     }
 
     @Test("A photo not cached mints its URL")
