@@ -12,12 +12,6 @@ import Kingfisher
 
 nonisolated private let logger = Logger(label: "flipcash.chat-media")
 
-/// What started a photo prefetch, for its log line.
-nonisolated public enum ChatPhotoPrefetchTrigger: String, Sendable {
-    /// The photo's message arrived on the live stream.
-    case stream
-}
-
 /// Downloads a photo when its message arrives, so the bubble draws from the cache when the chat
 /// opens instead of waiting on a URL mint and a CDN download.
 ///
@@ -259,116 +253,5 @@ public final class ChatPhotoPrefetcher {
 
     private static let urlSessionDownload: Download = { url, trace in
         try await session.data(from: url, delegate: trace)
-    }
-}
-
-/// How one photo prefetch went, logged when it ends: one `.info` line per photo considered.
-nonisolated public struct ChatPhotoPrefetchReport: Equatable, Sendable {
-
-    public enum Step: String, Sendable {
-        case mint
-        case fetch
-        case decrypt
-        case decode
-        case store
-    }
-
-    public enum Skip: Equatable, Sendable {
-        case policy(ChatPhotoPrefetchSkip)
-        /// The photo is sealed and the chat's key isn't known yet.
-        case keyPending
-        /// The same copy is already downloading.
-        case inFlight
-
-        var name: String {
-            switch self {
-            case .policy(let skip): skip.rawValue
-            case .keyPending: "keyPending"
-            case .inFlight: "inFlight"
-            }
-        }
-    }
-
-    public enum Outcome: Equatable, Sendable {
-        case downloaded
-        case skipped(Skip)
-        case failed(Step)
-    }
-
-    struct Failure: Error {
-        let step: Step
-        let error: (any Error)?
-    }
-
-    let trigger: ChatPhotoPrefetchTrigger
-    let blobID: BlobID
-    let rendition: MediaRendition.Role
-    public internal(set) var outcome: Outcome
-    var sealed = false
-    var mint: Duration?
-    var transfer: ChatMediaTransfer?
-    var bytes: Int?
-    var decrypt: Duration?
-    var total: Duration?
-    /// The failure's error domain and code. Never its description: a `URLError` prints the failing
-    /// URL, and with it the signature in its query.
-    var errorDomain: String?
-    var errorCode: Int?
-
-    init(trigger: ChatPhotoPrefetchTrigger, blobID: BlobID, rendition: MediaRendition.Role, outcome: Outcome) {
-        self.trigger = trigger
-        self.blobID = blobID
-        self.rendition = rendition
-        self.outcome = outcome
-    }
-
-    mutating func fail(_ step: Step, _ error: (any Error)?) {
-        outcome = .failed(step)
-        guard let error else { return }
-        let bridged = error as NSError
-        errorDomain = bridged.domain
-        errorCode = bridged.code
-    }
-
-    var metadata: Logger.Metadata {
-        var metadata: Logger.Metadata = [
-            "trigger": "\(trigger.rawValue)",
-            "blobId": "\(blobID)",
-            "rendition": "\(rendition.rawValue)",
-            "sealed": "\(sealed)",
-        ]
-        switch outcome {
-        case .downloaded:
-            metadata["outcome"] = "downloaded"
-        case .skipped(let skip):
-            metadata["outcome"] = "skipped"
-            metadata["reason"] = "\(skip.name)"
-        case .failed(let step):
-            metadata["outcome"] = "failed"
-            metadata["step"] = "\(step.rawValue)"
-        }
-        if let mint { metadata["mintMs"] = "\(Self.milliseconds(mint))" }
-        if let transfer {
-            if let firstByte = transfer.firstByte { metadata["firstByteMs"] = "\(Self.milliseconds(firstByte))" }
-            if let body = transfer.body { metadata["bodyMs"] = "\(Self.milliseconds(body))" }
-            if let status = transfer.status { metadata["status"] = "\(status)" }
-            if let xCache = transfer.xCache { metadata["xCache"] = "\(xCache)" }
-            if let pop = transfer.pop { metadata["pop"] = "\(pop)" }
-        }
-        if let bytes { metadata["bytes"] = "\(bytes)" }
-        if let decrypt { metadata["decryptMs"] = "\(Self.milliseconds(decrypt))" }
-        if let total { metadata["totalMs"] = "\(Self.milliseconds(total))" }
-        if let errorDomain { metadata["errorDomain"] = "\(errorDomain)" }
-        if let errorCode { metadata["errorCode"] = "\(errorCode)" }
-        return metadata
-    }
-
-    func log() {
-        logger.info("Chat photo prefetched", metadata: metadata)
-    }
-
-    private static func milliseconds(_ duration: Duration) -> Int {
-        let (seconds, attoseconds) = duration.components
-        return Int(seconds) * 1000 + Int(attoseconds / 1_000_000_000_000_000)
     }
 }
