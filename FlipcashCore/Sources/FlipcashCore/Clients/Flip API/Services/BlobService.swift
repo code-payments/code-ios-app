@@ -134,13 +134,20 @@ extension BlobService: BlobReserving {
     /// Media can arrive without one — the proto leaves the metadata optional —
     /// and the URLs expire, so this is the way to get a usable one.
     func downloadURL(blobID: BlobID, owner: KeyPair, accessContext: BlobAccessContext? = nil) async throws -> URL? {
+        try await downloadLink(blobID: blobID, owner: owner, accessContext: accessContext)?.url
+    }
+
+    /// The freshly minted download URL with the expiry the server gave it.
+    func downloadLink(blobID: BlobID, owner: KeyPair, accessContext: BlobAccessContext? = nil) async throws -> BlobDownloadLink? {
         let blob = try await fetchBlob(blobID: blobID, owner: owner, accessContext: accessContext)
 
-        guard let blob, blob.hasMetadata, blob.metadata.hasDownloadURL else {
+        guard let blob, blob.hasMetadata, blob.metadata.hasDownloadURL,
+              let url = URL(string: blob.metadata.downloadURL.url) else {
             return nil
         }
 
-        return URL(string: blob.metadata.downloadURL.url)
+        let download = blob.metadata.downloadURL
+        return BlobDownloadLink(url: url, expiresAt: download.hasExpiresAt ? download.expiresAt.date : nil)
     }
 
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState {

@@ -6,6 +6,18 @@
 import Foundation
 import FlipcashAPI
 
+/// A blob's signed download URL and when the server says it stops working.
+public struct BlobDownloadLink: Sendable, Equatable {
+    public let url: URL
+    /// When the URL expires, or nil when the server sent no expiry.
+    public let expiresAt: Date?
+
+    public init(url: URL, expiresAt: Date? = nil) {
+        self.url = url
+        self.expiresAt = expiresAt
+    }
+}
+
 /// Where a blob is in its lifecycle.
 enum BlobState: Sendable, Equatable {
     case pending

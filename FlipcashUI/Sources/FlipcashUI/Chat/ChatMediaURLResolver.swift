@@ -18,7 +18,7 @@ private let logger = Logger(label: "flipcash.chat-media")
 public final class ChatMediaURLResolver {
 
     /// Mints a download URL for a blob, or returns nil when the server has none to give.
-    public typealias Fetch = @MainActor (BlobID) async throws -> URL?
+    public typealias Fetch = @MainActor (BlobID) async throws -> BlobDownloadLink?
     /// Decrypts an end-to-end encrypted blob into its image bytes, throwing when it fails to
     /// authenticate or is not the declared length.
     public typealias BlobDecrypt = @Sendable (Data, BlobID, SealedBlob) throws -> Data
@@ -28,6 +28,8 @@ public final class ChatMediaURLResolver {
 
     private let fetch: Fetch
     private let fetchDecrypt: FetchDecrypt
+    /// The current time, read to tell whether a cached URL has expired.
+    private let now: () -> Date
     private var cache: [BlobID: URL] = [:]
     /// Everyone waiting on a blob's fetch, called with its URL, or nil when the fetch failed.
     private var waiters: [BlobID: [(URL?) -> Void]] = [:]
@@ -35,9 +37,10 @@ public final class ChatMediaURLResolver {
     /// Everyone waiting on the decryption, or nil when no fetch of it is in flight.
     private var decryptWaiters: [(BlobDecrypt?) -> Void]?
 
-    public init(fetch: @escaping Fetch, decrypt: @escaping FetchDecrypt = { nil }) {
+    public init(fetch: @escaping Fetch, decrypt: @escaping FetchDecrypt = { nil }, now: @escaping () -> Date = Date.init) {
         self.fetch = fetch
         self.fetchDecrypt = decrypt
+        self.now = now
     }
 
     /// Where to draw `media` from, or nil for now.
@@ -152,7 +155,7 @@ public final class ChatMediaURLResolver {
         guard isFirst else { return }
         Task {
             // Best-effort: the row keeps its BlurHash, and the next dequeue retries.
-            let resolved = await mint(blobID)
+            let resolved = await mint(blobID)?.url
             if let resolved { cache[blobID] = resolved }
             let completions = waiters.removeValue(forKey: blobID) ?? []
             for completion in completions { completion(resolved) }
@@ -160,17 +163,17 @@ public final class ChatMediaURLResolver {
     }
 
     /// Mints `blobID`'s URL, logging how long the server took; nil when it has none or the call failed.
-    private func mint(_ blobID: BlobID) async -> URL? {
+    private func mint(_ blobID: BlobID) async -> BlobDownloadLink? {
         let clock = ContinuousClock()
         let start = clock.now
         do {
-            let url = try await fetch(blobID)
+            let link = try await fetch(blobID)
             logger.info("Chat photo URL minted", metadata: [
                 "blobId": "\(blobID)",
                 "mintMs": "\(ChatMediaLoadReport.milliseconds(clock.now - start))",
-                "outcome": "\(url == nil ? "none" : "ok")",
+                "outcome": "\(link == nil ? "none" : "ok")",
             ])
-            return url
+            return link
         } catch {
             logger.warning("Chat photo URL mint failed", metadata: [
                 "blobId": "\(blobID)",
