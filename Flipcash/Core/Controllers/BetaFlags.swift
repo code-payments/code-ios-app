@@ -260,6 +260,7 @@ extension BetaFlags {
         case enableCoinbase
         case chatCashBill
         case groupMoneyUI
+        case leftAlignedTabBar
 
         var id: String {
             localizedTitle
@@ -275,6 +276,8 @@ extension BetaFlags {
                 return "Chat Cash Bill"
             case .groupMoneyUI:
                 return "Group Money UI"
+            case .leftAlignedTabBar:
+                return "Left-Aligned Tab Bar"
             }
         }
 
@@ -288,6 +291,8 @@ extension BetaFlags {
                 return "Show the bill when someone sends you cash in the chat you have open."
             case .groupMoneyUI:
                 return "If enabled, staff accounts and unlocked devices get Groups and Money in place of the home tabs."
+            case .leftAlignedTabBar:
+                return "If enabled, the Groups and Money tab bar sits at the left edge instead of the center. Needs Group Money UI on."
             }
         }
 
@@ -298,6 +303,7 @@ extension BetaFlags {
             case .enableCoinbase: return .developer
             case .chatCashBill:   return .publicBeta
             case .groupMoneyUI:   return .developer
+            case .leftAlignedTabBar: return .developer
             }
         }
 
@@ -309,12 +315,13 @@ extension BetaFlags {
             case .enableCoinbase: return false
             case .chatCashBill:   return true
             case .groupMoneyUI:   return false
+            case .leftAlignedTabBar: return false
             }
         }
 
         /// Developer flags that staff see without unlocking the device, since
         /// their gate is the account rather than the easter egg.
-        static let staffOptions: Set<Option> = [.groupMoneyUI]
+        static let staffOptions: Set<Option> = [.groupMoneyUI, .leftAlignedTabBar]
     }
 
     /// Where a beta flag's toggle appears in Settings.

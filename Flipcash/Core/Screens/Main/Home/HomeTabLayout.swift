@@ -36,6 +36,15 @@ enum HomeTabLayout: Equatable {
     /// search is a toolbar button).
     var hasSearchTab: Bool { self == .standard }
 
+    /// Where the bar sits across the screen. Only the Group Money shell's bar
+    /// moves, to the leading edge with ``BetaFlags/Option/leftAlignedTabBar``
+    /// on; today's bar spans the width either way, so the flag does nothing
+    /// to it. The legacy pill follows this; the iOS 26 system bar has no
+    /// public API to place it and stays centred.
+    func barAlignment(leftAligned: Bool) -> HorizontalAlignment {
+        self == .groupMoney && leftAligned ? .leading : .center
+    }
+
     /// Whether the Chat tab's list carries a search button in its toolbar:
     /// today's layout on the legacy pill, which has no search tab to do it.
     /// The Group Money shell has no search on either bar.

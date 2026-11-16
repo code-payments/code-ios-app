@@ -92,6 +92,13 @@ struct HomeTabView: View {
         HomeTabLayout(showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session)))
     }
 
+    /// Centred, or at the leading edge with the Group Money shell and
+    /// `leftAlignedTabBar` both on. Read live, like ``layout``. Only the
+    /// legacy pill follows it; the iOS 26 system bar stays centred.
+    private var barAlignment: HorizontalAlignment {
+        layout.barAlignment(leftAligned: betaFlags.hasEnabled(.leftAlignedTabBar))
+    }
+
     /// The signed-in account and the server's staff value for it, nil until
     /// fetched. Holds the account as well as the value, in case a switch
     /// between two accounts keeps this view.
@@ -330,15 +337,16 @@ struct HomeTabView: View {
                         // Every tab stays alive, so only the selected one draws the toast.
                         .toastHost(container.toasts, isEnabled: !isSearchSelected && selection == tab)
                         .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
-                        // The system bar's inset, measured on a 402pt-wide iPhone.
-                        .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: 21))
+                        .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: Self.systemBarInset))
                 } label: {
                     tabLabel(for: tab)
                         .accessibilityLabel(layout.title(for: tab))
                 }
             }
             // The Group Money shell has no search. Without the search tab the
-            // system draws the bar at its two items' width, centred.
+            // system draws the bar at its two items' width, centred. No public
+            // API moves it from there, so `leftAlignedTabBar` leaves this bar
+            // alone and moves only the legacy pill.
             if layout.hasSearchTab {
                 Tab(value: NativeTab.search, role: .search) {
                     NavigationStack {
@@ -427,8 +435,21 @@ struct HomeTabView: View {
         }
     }
 
+    /// The iOS 26 system bar's inset from the screen edge on a 402pt-wide
+    /// iPhone: where its glass starts when the system lays it out from the
+    /// leading edge, as it does beside a prominent tab or a bottom accessory.
+    static let systemBarInset: CGFloat = 21
+
     private static let pillBottomMargin: CGFloat = 8
     private static let legacyPillInset: CGFloat = 42
+
+    /// The legacy pill's side margins. Centred, 42pt each side. At the leading
+    /// edge it keeps that width and starts at the system bar's inset, so the
+    /// two bars start at the same place.
+    static func legacyPillInsets(for alignment: HorizontalAlignment) -> EdgeInsets {
+        let leading = alignment == .leading ? systemBarInset : legacyPillInset
+        return EdgeInsets(top: 0, leading: leading, bottom: 0, trailing: 2 * legacyPillInset - leading)
+    }
 
     /// The room the legacy pill occupies above the safe area. The pill is an
     /// overlay, so unlike the iOS 26 system bar it adds nothing to the safe
@@ -463,7 +484,7 @@ struct HomeTabView: View {
                     // Figma insets the pill ~42pt from each edge (318pt wide on the
                     // 402pt frame); a fixed margin keeps the floating look across
                     // device widths.
-                    .padding(.horizontal, Self.legacyPillInset)
+                    .padding(Self.legacyPillInsets(for: barAlignment))
                     .padding(.bottom, Self.pillBottomMargin)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
