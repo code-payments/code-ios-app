@@ -37,4 +37,12 @@ public enum ChatPhotoBubbleLayout {
     public static func targetPixels(maxWidth: CGFloat, scale: CGFloat) -> Int {
         Int((maxWidth * (scale > 0 ? scale : 3)).rounded())
     }
+
+    /// The copy the bubble for `attachment` loads once its message is drawn in a transcript
+    /// `rowWidth` points wide, on a screen of `scale` pixels per point: the copy a download made
+    /// before the chat opens has to land, so the bubble finds it. Nil before the upload has a blob.
+    public static func rendition(of attachment: MediaAttachment, rowWidth: CGFloat, attributedIncoming: Bool, scale: CGFloat) -> MediaRendition? {
+        let maxWidth = maxWidth(rowWidth: rowWidth, attributedIncoming: attributedIncoming)
+        return attachment.rendition(forPixelSize: targetPixels(maxWidth: maxWidth, scale: scale))
+    }
 }

@@ -88,6 +88,8 @@ public struct ChatMediaTransfer: Equatable, Sendable {
 public enum ChatPhotoPrefetchTrigger: String, Sendable {
     /// The photo's message arrived on the live stream.
     case stream
+    /// The photo's message arrived in a push, and the notification extension downloaded it.
+    case push
 }
 
 /// How one photo prefetch went, logged when it ends: one `.info` line per photo considered.
@@ -107,12 +109,18 @@ public struct ChatPhotoPrefetchReport: Equatable, Sendable {
         case keyPending
         /// The same copy is already downloading.
         case inFlight
+        /// The server sent no size for the copy, so the extension can't tell it fits.
+        case noSize
+        /// The copy is larger than the extension downloads. See ``ChatPhotoPushPrefetcher``.
+        case tooLarge
 
         var name: String {
             switch self {
             case .policy(let skip): skip.rawValue
             case .keyPending: "keyPending"
             case .inFlight: "inFlight"
+            case .noSize: "noSize"
+            case .tooLarge: "tooLarge"
             }
         }
     }
