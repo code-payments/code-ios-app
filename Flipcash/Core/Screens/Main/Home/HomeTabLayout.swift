@@ -39,8 +39,8 @@ enum HomeTabLayout: Equatable {
     /// Where the bar sits across the screen. Only the Group Money shell's bar
     /// moves, to the leading edge with ``BetaFlags/Option/leftAlignedTabBar``
     /// on; today's bar spans the width either way, so the flag does nothing
-    /// to it. The legacy pill follows this; the iOS 26 system bar has no
-    /// public API to place it and stays centred.
+    /// to it. At the leading edge the shell draws its own small bar on every
+    /// OS version, since the iOS 26 system bar has no public API to place it.
     func barAlignment(leftAligned: Bool) -> HorizontalAlignment {
         self == .groupMoney && leftAligned ? .leading : .center
     }

@@ -12,7 +12,9 @@ import FlipcashUI
 ///
 /// On iOS 26 the tabs live in a native `TabView`, which renders the system
 /// Liquid Glass tab bar; below that we fall back to the home-grown floating
-/// `HomeTabBar` pill. The native `TabView` builds and keeps every tab alive, so
+/// `HomeTabBar` pill. The Group Money shell with `leftAlignedTabBar` on draws
+/// a small `HomeTabBar` at the leading edge on both, over a hidden system bar
+/// on iOS 26. The native `TabView` builds and keeps every tab alive, so
 /// two tabs opt out of that in ``tabContent(for:)``: Scan, whose camera is gated
 /// on `selection` so it tears down, and Chat, which is not built until it is
 /// first selected. The selected tab's push target is published to the router via
@@ -93,11 +95,20 @@ struct HomeTabView: View {
     }
 
     /// Centred, or at the leading edge with the Group Money shell and
-    /// `leftAlignedTabBar` both on. Read live, like ``layout``. Only the
-    /// legacy pill follows it; the iOS 26 system bar stays centred.
+    /// `leftAlignedTabBar` both on. Read live, like ``layout``.
     private var barAlignment: HorizontalAlignment {
         layout.barAlignment(leftAligned: betaFlags.hasEnabled(.leftAlignedTabBar))
     }
+
+    /// Whether the shell draws its own small bar at the leading edge, on every
+    /// OS version. No public API moves the iOS 26 system bar off centre, so
+    /// there the system bar is hidden and this bar drawn over the same
+    /// `TabView`, which keeps the selected tab and every stack across a flip.
+    private var drawsLeadingBar: Bool { barAlignment == .leading }
+
+    /// The window's bottom safe area, outside anything the tab bar adds: what
+    /// the small bar's inset is made up from.
+    @State private var windowBottomInset: CGFloat = 0
 
     /// The signed-in account and the server's staff value for it, nil until
     /// fetched. Holds the account as well as the value, in case a switch
@@ -327,16 +338,25 @@ struct HomeTabView: View {
 
     /// iOS 26+: the system Liquid Glass tab bar via a native `TabView`. The bar is
     /// hidden reactively (rather than by a slide-out transition) so the drill-in /
-    /// bill-showing behavior matches the legacy pill.
+    /// bill-showing behavior matches the legacy pill. With the small bar at the
+    /// leading edge the system bar stays hidden and ``nativeLeadingBar`` is
+    /// drawn over the same `TabView`.
     @available(iOS 26, *)
     private var nativeTabs: some View {
         TabView(selection: nativeSelection) {
             ForEach(layout.barTabs) { tab in
                 Tab(value: NativeTab.home(tab)) {
                     tabContent(for: tab)
-                        // Every tab stays alive, so only the selected one draws the toast.
-                        .toastHost(container.toasts, isEnabled: !isSearchSelected && selection == tab)
-                        .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
+                        .environment(\.shellBarBottomPadding, leadingBarSafeAreaPadding)
+                        // Every tab stays alive, so only the selected one draws the toast. Raised over
+                        // the small bar by what its safe area lacks, so it lands where it does over the
+                        // system bar.
+                        .toastHost(
+                            container.toasts,
+                            bottomPadding: 12 + leadingBarSafeAreaPadding,
+                            isEnabled: !isSearchSelected && selection == tab
+                        )
+                        .toolbar(isTabBarHidden || drawsLeadingBar ? .hidden : .visible, for: .tabBar)
                         .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: Self.systemBarInset))
                 } label: {
                     tabLabel(for: tab)
@@ -345,8 +365,8 @@ struct HomeTabView: View {
             }
             // The Group Money shell has no search. Without the search tab the
             // system draws the bar at its two items' width, centred. No public
-            // API moves it from there, so `leftAlignedTabBar` leaves this bar
-            // alone and moves only the legacy pill.
+            // API moves it from there, so with `leftAlignedTabBar` on it is
+            // hidden and the small bar drawn in its place; see `nativeLeadingBar`.
             if layout.hasSearchTab {
                 Tab(value: NativeTab.search, role: .search) {
                     NavigationStack {
@@ -379,6 +399,34 @@ struct HomeTabView: View {
         // list's bottom scroll edge effect is drawn over that inset, so the blur behind the
         // capsules would go too.
         .background(TabBarFade(isFaded: isChatSelecting))
+        .overlay { nativeLeadingBar }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { windowBottomInset = $0 }
+    }
+
+    /// The small bar over the hidden system bar. It hides on the same pushes,
+    /// and fades for select mode as the system bar does, keeping its inset so
+    /// the capsules take its slot.
+    @available(iOS 26, *)
+    private var nativeLeadingBar: some View {
+        LeadingTabBarSlot(isVisible: drawsLeadingBar && !isTabBarHidden) {
+            shellBar(alignment: .leading)
+                .opacity(isChatSelecting ? 0 : 1)
+                .allowsHitTesting(!isChatSelecting)
+                .accessibilityHidden(isChatSelecting)
+        }
+        .animation(.easeInOut(duration: 0.2), value: isChatSelecting)
+        .animation(.easeInOut(duration: 0.2), value: isTabBarHidden)
+    }
+
+    /// What the small bar adds to the bottom safe area on iOS 26, where it
+    /// stands in for a system bar that would have added it: up to the bar's
+    /// top, so scrolling content, the toast and the select-mode capsules sit
+    /// where they do over the system bar. Each tab's root screen applies it
+    /// through ``EnvironmentValues/shellBarBottomPadding``. Nothing while the
+    /// bar is hidden, so a pushed screen keeps the full height.
+    private var leadingBarSafeAreaPadding: CGFloat {
+        guard drawsLeadingBar, !isTabBarHidden else { return 0 }
+        return max(0, Self.leadingBarTop - windowBottomInset)
     }
 
     /// A tab in the iOS 26 bar: one of the shared tabs, or the search tab that sits apart from them.
@@ -440,21 +488,39 @@ struct HomeTabView: View {
     /// leading edge, as it does beside a prominent tab or a bottom accessory.
     static let systemBarInset: CGFloat = 21
 
-    private static let pillBottomMargin: CGFloat = 8
-    private static let legacyPillInset: CGFloat = 42
+    /// The iOS 26 system bar's gap to the bottom of the screen, measured on a
+    /// 402pt-wide iPhone: its glass ends at y=853 in an 874pt window.
+    static let systemBarBottomInset: CGFloat = 21
 
-    /// The legacy pill's side margins. Centred, 42pt each side. At the leading
-    /// edge it keeps that width and starts at the system bar's inset, so the
-    /// two bars start at the same place.
-    static func legacyPillInsets(for alignment: HorizontalAlignment) -> EdgeInsets {
-        let leading = alignment == .leading ? systemBarInset : legacyPillInset
-        return EdgeInsets(top: 0, leading: leading, bottom: 0, trailing: 2 * legacyPillInset - leading)
-    }
+    /// The small bar's top, measured up from the bottom of the screen: 83pt,
+    /// where the system bar's inset ends too.
+    static var leadingBarTop: CGFloat { systemBarBottomInset + HomeTabBar.height(.compact) }
+
+    private static let pillBottomMargin: CGFloat = 8
+    /// The legacy pill's margin from each side when centred: 318pt wide on a 402pt screen.
+    static let legacyPillInset: CGFloat = 42
 
     /// The room the legacy pill occupies above the safe area. The pill is an
     /// overlay, so unlike the iOS 26 system bar it adds nothing to the safe
-    /// area — a tab that scrolls under it has to inset for it itself.
+    /// area — a tab that scrolls under it has to inset for it itself. The small
+    /// bar at the leading edge sits lower, so this clears it with room over.
     static var legacyPillClearance: CGFloat { HomeTabBar.height + pillBottomMargin }
+
+    /// The shell's own bar: the small one for the leading edge, the legacy
+    /// pill for the centre.
+    private func shellBar(alignment: HorizontalAlignment) -> some View {
+        HomeTabBar(
+            selection: Binding { barSelection } set: {
+                isSearchSelected = false
+                selection = $0
+            },
+            layout: layout,
+            size: HomeTabBar.Size(for: alignment),
+            badgeCounts: [.chat: chatBadgeCount],
+            profileSlot: profileSlot,
+            onLongPress: handleLongPress(on:)
+        )
+    }
 
     /// iOS 18–25 fallback: the home-grown floating pill hovering over the tab
     /// content, sliding out when `isTabBarHidden`.
@@ -471,20 +537,18 @@ struct HomeTabView: View {
                     isEnabled: offBarTab == nil
                 )
                 .transition(.opacity)
-                .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: Self.legacyPillInset))
+                .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: drawsLeadingBar ? Self.systemBarInset : Self.legacyPillInset))
 
-            if !isTabBarHidden {
-                HomeTabBar(
-                    selection: Binding { barSelection } set: { selection = $0 },
-                    layout: layout,
-                    badgeCounts: [.chat: chatBadgeCount],
-                    profileSlot: profileSlot,
-                    onLongPress: handleLongPress(on:)
-                )
+            if drawsLeadingBar {
+                LeadingTabBarSlot(isVisible: !isTabBarHidden) {
+                    shellBar(alignment: .leading)
+                }
+            } else if !isTabBarHidden {
+                shellBar(alignment: .center)
                     // Figma insets the pill ~42pt from each edge (318pt wide on the
                     // 402pt frame); a fixed margin keeps the floating look across
                     // device widths.
-                    .padding(Self.legacyPillInsets(for: barAlignment))
+                    .padding(.horizontal, Self.legacyPillInset)
                     .padding(.bottom, Self.pillBottomMargin)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -531,6 +595,62 @@ struct HomeTabView: View {
         case .tipCard:
             TipCardTab()
         }
+    }
+}
+
+/// The small bar's slot: ``HomeTabView/systemBarInset`` in from the leading
+/// edge and ``HomeTabView/systemBarBottomInset`` up from the bottom of the
+/// screen, where the system bar's glass sits when the system lays it out from
+/// the leading edge. Fills what it is offered and reaches past the bottom safe
+/// area to the screen edge; only the bar takes touches. The bar slides out of
+/// the slot when `isVisible` goes false.
+struct LeadingTabBarSlot<Bar: View>: View {
+    let isVisible: Bool
+    let bar: Bar
+
+    init(isVisible: Bool = true, @ViewBuilder bar: () -> Bar) {
+        self.isVisible = isVisible
+        self.bar = bar()
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            if isVisible {
+                bar
+                    .padding(.leading, HomeTabView.systemBarInset)
+                    .padding(.bottom, HomeTabView.systemBarBottomInset)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+extension EnvironmentValues {
+    /// What a tab's root screen adds to its bottom safe area for the shell's
+    /// small bar on iOS 26, which stands in for a hidden system bar that would
+    /// have added it. 0 everywhere else. Safe area set outside a
+    /// `NavigationStack` doesn't reach the screens inside it once the system
+    /// bar is hidden, so each tab stack's root applies this itself with
+    /// ``SwiftUI/View/shellBarSafeArea()``.
+    @Entry var shellBarBottomPadding: CGFloat = 0
+}
+
+extension View {
+    /// Adds ``EnvironmentValues/shellBarBottomPadding`` to the bottom safe
+    /// area. Put it on a tab stack's root view, before its destinations, so
+    /// pushed screens keep their own safe area.
+    func shellBarSafeArea() -> some View {
+        modifier(ShellBarSafeArea())
+    }
+}
+
+private struct ShellBarSafeArea: ViewModifier {
+    @Environment(\.shellBarBottomPadding) private var padding
+
+    func body(content: Content) -> some View {
+        content.safeAreaPadding(.bottom, padding)
     }
 }
 
@@ -593,6 +713,7 @@ private struct ChatTab: View {
         @Bindable var router = router
         NavigationStack(path: $router[.tips]) {
             TipsScreen(isEmbedded: true)
+                .shellBarSafeArea()
                 .appRouterDestinations()
         }
     }
@@ -626,6 +747,7 @@ private struct TipCardTab: View {
                         }
                     }
                 }
+                .shellBarSafeArea()
                 .appRouterDestinations()
         }
     }

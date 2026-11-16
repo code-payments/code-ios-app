@@ -193,6 +193,9 @@ private struct WalletScreenContent: View {
                     moneyBarItems
                 }
             }
+            // Outside the safe-area read above, so the wallet measures the small bar's inset as it
+            // measures the system bar's.
+            .shellBarSafeArea()
             .appRouterDestinations()
             .onAppear {
                 historyController.sync()

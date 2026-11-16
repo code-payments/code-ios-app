@@ -292,7 +292,7 @@ extension BetaFlags {
             case .groupMoneyUI:
                 return "If enabled, staff accounts and unlocked devices get Groups and Money in place of the home tabs."
             case .leftAlignedTabBar:
-                return "If enabled, the Groups and Money tab bar sits at the left edge instead of the center. Needs Group Money UI on."
+                return "If enabled, the Groups and Money tab bar is a small bar at the left edge instead of the center. Needs Group Money UI on."
             }
         }
 
