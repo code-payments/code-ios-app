@@ -29,18 +29,21 @@ enum ProfilePictureLoader {
         // Answered from disk before the round trip below, so a relaunch draws the
         // picture at first paint instead of after a download URL comes back. Safe
         // to trust: a blob is immutable, so a new picture is a new key.
-        if let cached = cache.data(for: blobID), let image = UIImage(data: cached) {
+        if let cached = ProfilePictureDownload.cachedImageData(for: blobID, in: cache),
+           let image = UIImage(data: cached) {
             return image
         }
 
         do {
             // Download URLs expire, so one is minted per load and never stored.
-            guard let url = try await client.blobDownloadURL(blobID: blobID, owner: owner) else {
+            guard let data = try await ProfilePictureDownload.imageData(
+                mintURL: { try await client.blobDownloadURL(blobID: blobID, owner: owner) },
+                fetch: { try await URLSession.shared.data(from: $0) }
+            ) else {
                 logger.info("Profile picture blob has no download URL", metadata: ["blobId": "\(blobID)"])
                 return nil
             }
 
-            let (data, _) = try await URLSession.shared.data(from: url)
             cache.write(data, for: blobID)
             return UIImage(data: data)
         } catch {

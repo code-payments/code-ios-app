@@ -120,6 +120,13 @@ public final class BlobCache: @unchecked Sendable {
         evictDownToLimit()
     }
 
+    /// Deletes the bytes held for one blob.
+    public func remove(_ blobID: BlobID) {
+        lock.lock()
+        defer { lock.unlock() }
+        try? fileManager.removeItem(at: fileURL(for: blobID))
+    }
+
     /// Deletes every blob this cache holds.
     public func clear() {
         lock.lock()
