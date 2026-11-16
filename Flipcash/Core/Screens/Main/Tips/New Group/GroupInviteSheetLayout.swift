@@ -8,8 +8,8 @@
 import SwiftUI
 
 /// What the group share sheet shows for a shell. The Group Money shell's Invite People sheet
-/// (node 13729:672) closes from the left, says what the link is for and draws three square tiles,
-/// with no group avatar or name; with the shell off, the sheet is today's.
+/// (node 13729:672) says what the link is for and draws three square tiles, with no group avatar
+/// or name; with the shell off, the sheet is today's.
 struct GroupInviteSheetLayout: Equatable {
 
     let showsGroupMoney: Bool
@@ -27,8 +27,9 @@ struct GroupInviteSheetLayout: Equatable {
         "Invite People"
     }
 
+    /// The close button's edge: trailing in both shells, though node 13729:672 draws it leading.
     var closeEdge: HorizontalEdge {
-        showsGroupMoney ? .leading : .trailing
+        .trailing
     }
 
     /// The line over the link.

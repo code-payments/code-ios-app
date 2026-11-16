@@ -180,11 +180,11 @@ struct GroupMoneyInviteSpecTests {
         #expect(router.presentedSheets == [.tips, .invitePeople(Self.groupID)])
     }
 
-    @Test("4.6 the shell's sheet: close on the left, the line, the caption and three square tiles")
+    @Test("4.6 the shell's sheet: close on the right, the line, the caption and three square tiles")
     func invite_sheetLayout_shellOn() {
         let layout = GroupInviteSheetLayout(showsGroupMoney: true)
         #expect(layout.title == "Invite People")
-        #expect(layout.closeEdge == .leading)
+        #expect(layout.closeEdge == .trailing)
         #expect(layout.message == "Send this link to the people you want in your group.")
         #expect(layout.linkCaption == "Anyone with the link can join.")
         #expect(layout.tileTitles == ["Copy Link", "Share Link", "QR Code"])
@@ -306,6 +306,22 @@ struct GroupMoneyInviteSpecTests {
         // neither the avatar nor the name is drawn.
         let labels = Self.accessibilityLabels(in: window)
         #expect(!labels.contains { $0.contains(groupName) }, "sheet labels: \(labels)")
+    }
+
+    @Test("4.12 with the shell on, the Invite People sheet closes on the trailing edge, where the classic group sheet keeps its close")
+    func invite_closeEdgeMatchesClassic_shellOn() {
+        let invitePeople = ShareToChatsSheet.layout(for: .group(Self.groupID), isInvitePeople: true, showsGroupMoney: true)
+        // Group Info and Join Requests open the classic sheet, with the shell on or off.
+        let classic = ShareToChatsSheet.layout(for: .group(Self.groupID), isInvitePeople: false, showsGroupMoney: true)
+        let shellOff = ShareToChatsSheet.layout(for: .group(Self.groupID), isInvitePeople: true, showsGroupMoney: false)
+        #expect(invitePeople.showsGroupMoney)
+        #expect(!classic.showsGroupMoney)
+        #expect(!shellOff.showsGroupMoney)
+
+        #expect(classic.closeEdge == .trailing)
+        #expect(shellOff.closeEdge == .trailing)
+        #expect(invitePeople.closeEdge == .trailing)
+        #expect(invitePeople.closeEdge == classic.closeEdge)
     }
 
     /// Every accessibility label on screen in `view`.
