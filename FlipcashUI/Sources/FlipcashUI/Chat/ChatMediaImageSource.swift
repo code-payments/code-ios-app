@@ -39,13 +39,15 @@ public enum ChatMediaImageSource {
 
     /// The photo at `location`, from the cache when held, or nil when it fails to load or decrypt.
     @MainActor
-    public static func image(blobID: BlobID?, location: ChatMediaLocation) async -> UIImage? {
+    public static func image(blobID: BlobID?, location: ChatMediaLocation, surface: ChatMediaSurface) async -> UIImage? {
         let source = source(blobID: blobID, location: location)
-        guard let result = try? await KingfisherManager.shared.retrieveImage(with: source, options: options()) else {
-            return nil
+        let result = await withCheckedContinuation { continuation in
+            KingfisherManager.shared.retrieveImage(with: source, options: options()) {
+                continuation.resume(returning: $0)
+            }
         }
-        persist(.success(result))
-        return result.image
+        finish(result, blobID: blobID, surface: surface)
+        return try? result.get().image
     }
 
     /// The photo for `blobID` if already held in memory, without loading anything.
@@ -121,14 +123,18 @@ public enum ChatMediaImageSource {
         return options
     }
 
-    /// Writes a freshly downloaded photo to disk under `resource`'s key.
+    /// Ends a photo load: writes a freshly downloaded photo to disk under its source's key, and logs
+    /// how the load went.
     ///
     /// The app-wide `.cacheMemoryOnly` default stops Kingfisher writing it there itself, and the
     /// signed URL changes per fetch, so without this every relaunch or memory trim re-downloads it.
-    public static func persist(
+    public static func finish(
         _ result: Result<RetrieveImageResult, KingfisherError>,
+        blobID: BlobID?,
+        surface: ChatMediaSurface,
         processor: ImageProcessor? = nil
     ) {
+        ChatMediaLoadReport(result, blobID: blobID, surface: surface).log()
         guard case .success(let value) = result else { return }
         persist(value.image, cacheType: value.cacheType, forKey: value.source.cacheKey, processor: processor)
     }
@@ -152,21 +158,38 @@ public enum ChatMediaImageSource {
 }
 
 /// Downloads an end-to-end encrypted chat blob and hands Kingfisher its decrypted bytes.
-private struct DecryptingProvider: ImageDataProvider {
+nonisolated struct DecryptingProvider: ImageDataProvider {
     let cacheKey: String
     let url: URL
     let decrypt: @Sendable (Data) throws -> Data
+    /// What this load saw, for its report.
+    let trace = ChatMediaLoadTrace()
 
     var contentURL: URL? { url }
 
     func data(handler: @escaping @Sendable (Result<Data, any Error>) -> Void) {
         Task {
             do {
-                let (blob, response) = try await URLSession.shared.data(from: url)
-                if let status = (response as? HTTPURLResponse)?.statusCode, !(200..<300).contains(status) {
-                    throw URLError(.badServerResponse)
+                let (blob, response) = try await URLSession.shared.data(from: url, delegate: trace)
+                if let response = response as? HTTPURLResponse {
+                    trace.update { state in
+                        var transfer = state.transfer ?? ChatMediaTransfer()
+                        transfer.record(response)
+                        state.transfer = transfer
+                    }
+                    guard (200..<300).contains(response.statusCode) else {
+                        throw ChatMediaHTTPError(status: response.statusCode)
+                    }
                 }
+                trace.update { $0.step = .decrypt }
+                let clock = ContinuousClock()
+                let start = clock.now
                 let image = try decrypt(blob)
+                let decrypted = clock.now - start
+                trace.update {
+                    $0.decrypt = decrypted
+                    $0.step = .decode
+                }
                 ChatMediaImageSource.storeOriginal(image, forKey: cacheKey)
                 // The decoded image is authoritative; bytes that don't decode render as unsupported.
                 guard UIImage(data: image) != nil else { throw BlobOpenFailure.undecodable }

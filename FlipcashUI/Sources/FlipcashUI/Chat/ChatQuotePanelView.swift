@@ -291,7 +291,7 @@ final class ChatQuotePanelView: UIView {
                 .scaleFactor(traitCollection.displayScale),
             ]
         ) { result in
-            ChatMediaImageSource.persist(result, processor: processor)
+            ChatMediaImageSource.finish(result, blobID: blobID, surface: .quote, processor: processor)
         }
     }
 

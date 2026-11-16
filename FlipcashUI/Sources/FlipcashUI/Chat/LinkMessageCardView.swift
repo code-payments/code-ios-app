@@ -443,7 +443,7 @@ private struct MessageCardPhoto: View {
                 continuation.resume(returning: $0)
             }
         }
-        ChatMediaImageSource.persist(result, processor: processor)
+        ChatMediaImageSource.finish(result, blobID: blobID, surface: .link, processor: processor)
         if case .success(let value) = result, !Task.isCancelled { image = value.image }
     }
 }

@@ -487,7 +487,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
             placeholder: page.placeholder,
             options: ChatMediaImageSource.options()
         ) { [weak self, weak pageView] result in
-            ChatMediaImageSource.persist(result)
+            ChatMediaImageSource.finish(result, blobID: page.blobID, surface: .viewer)
             switch result {
             case .success(let value):
                 pageView?.loadedImage = value.image
