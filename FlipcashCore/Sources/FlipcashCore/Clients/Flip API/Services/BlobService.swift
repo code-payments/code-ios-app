@@ -145,7 +145,7 @@ extension BlobService: BlobReserving {
             return nil
         }
 
-        return BlobDownloadLink(blob.metadata.downloadURL)
+        return BlobDownloadLink(metadata: blob.metadata)
     }
 
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState {

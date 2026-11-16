@@ -11,10 +11,24 @@ public struct BlobDownloadLink: Sendable, Equatable {
     public let url: URL
     /// When the URL expires, or nil when the server sent no expiry.
     public let expiresAt: Date?
+    /// The blob's size in bytes, or nil when the server sent none.
+    public let sizeBytes: Int64?
 
-    public init(url: URL, expiresAt: Date? = nil) {
+    public init(url: URL, expiresAt: Date? = nil, sizeBytes: Int64? = nil) {
         self.url = url
         self.expiresAt = expiresAt
+        self.sizeBytes = sizeBytes
+    }
+
+    /// The link a blob record carries, with the record's size, or nil when the record has no
+    /// download URL or its URL doesn't parse. A size of 0 is the field's default, so no size.
+    init?(metadata: Flipcash_Blob_V1_BlobMetadata) {
+        guard metadata.hasDownloadURL, let link = BlobDownloadLink(metadata.downloadURL) else { return nil }
+        self.init(
+            url: link.url,
+            expiresAt: link.expiresAt,
+            sizeBytes: metadata.sizeBytes > 0 ? Int64(clamping: metadata.sizeBytes) : nil
+        )
     }
 
     /// The link the server minted, or nil when its URL doesn't parse. An unset `expires_at` is no

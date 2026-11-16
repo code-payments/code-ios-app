@@ -35,4 +35,27 @@ struct BlobDownloadLinkTests {
     func unparseableURLIsNil() {
         #expect(BlobDownloadLink(.with { $0.url = "" }) == nil)
     }
+
+    @Test("A link minted from a blob record keeps the blob's size")
+    func keepsSize() throws {
+        let link = try #require(BlobDownloadLink(metadata: .with {
+            $0.sizeBytes = 380_502
+            $0.downloadURL = .with { $0.url = "https://cdn.example.invalid/photo?sig=1" }
+        }))
+        #expect(link.sizeBytes == 380_502)
+        #expect(link.url.absoluteString == "https://cdn.example.invalid/photo?sig=1")
+    }
+
+    @Test("A blob record with no size gives a link of unknown size")
+    func zeroSizeIsUnknown() throws {
+        let link = try #require(BlobDownloadLink(metadata: .with {
+            $0.downloadURL = .with { $0.url = "https://cdn.example.invalid/photo" }
+        }))
+        #expect(link.sizeBytes == nil)
+    }
+
+    @Test("A blob record with no download URL gives no link")
+    func noURLIsNil() {
+        #expect(BlobDownloadLink(metadata: .with { $0.sizeBytes = 10 }) == nil)
+    }
 }
