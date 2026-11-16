@@ -48,6 +48,8 @@ public final class ChatPhotoPrefetcher {
     private let screen: () -> Screen
     private let download: Download
     private let cache: ImageCache
+    /// Where the notification extension leaves the photos it downloaded for a push.
+    private let pushedPhotos: BlobCache
     /// The blobs being downloaded, so a photo that arrives twice downloads once.
     private var inFlight: Set<BlobID> = []
 
@@ -73,7 +75,8 @@ public final class ChatPhotoPrefetcher {
         isMuted: @escaping (ConversationID) -> Bool,
         screen: @escaping () -> Screen,
         download: @escaping Download,
-        cache: ImageCache
+        cache: ImageCache,
+        pushedPhotos: BlobCache = .chatPhotos
     ) {
         self.selfUserID = selfUserID
         self.mint = mint
@@ -83,6 +86,7 @@ public final class ChatPhotoPrefetcher {
         self.screen = screen
         self.download = download
         self.cache = cache
+        self.pushedPhotos = pushedPhotos
     }
 
     /// Considers messages that reached the client as live stream events. `countedThrough` is the
@@ -127,8 +131,10 @@ public final class ChatPhotoPrefetcher {
         report.sealed = attachment.sealed != nil
         defer { report.log() }
 
-        let cached = ChatMediaImageSource.isCached(blobID: rendition.blobID, processor: load.processor)
-            || attachment.blobID.map { ChatMediaImageSource.isCached(blobID: $0, processor: load.processor) } ?? false
+        // Either copy the bubble probes, in the chat cache or left there by the notification extension.
+        let cached = [rendition.blobID, attachment.blobID].compactMap(\.self).contains {
+            ChatMediaImageSource.isCached(blobID: $0, processor: load.processor) || pushedPhotos.holds($0)
+        }
         if let skip = ChatPhotoPrefetch.skip(
             own: own,
             redacted: message.redacted,
