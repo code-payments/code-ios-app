@@ -40,14 +40,30 @@ public enum ChatMediaImageSource {
     /// The photo at `location`, from the cache when held, or nil when it fails to load or decrypt.
     @MainActor
     public static func image(blobID: BlobID?, location: ChatMediaLocation, surface: ChatMediaSurface) async -> UIImage? {
-        let source = source(blobID: blobID, location: location)
+        let result = await retrieve(source(blobID: blobID, location: location), options: options())
+        finish(result, blobID: blobID, surface: surface)
+        return try? result.get().image
+    }
+
+    /// Loads `source` through `manager` outside an image view.
+    ///
+    /// Kingfisher reads a download's timings after decoding it, through a weak reference to the
+    /// session task that only the returned ``DownloadTask`` keeps alive. An image view holds that
+    /// task itself; here it is held until the result arrives, or the result has no `metrics`.
+    @MainActor
+    static func retrieve(
+        _ source: Source,
+        options: KingfisherOptionsInfo,
+        manager: KingfisherManager = .shared
+    ) async -> Result<RetrieveImageResult, KingfisherError> {
+        var task: DownloadTask?
         let result = await withCheckedContinuation { continuation in
-            KingfisherManager.shared.retrieveImage(with: source, options: options()) {
+            task = manager.retrieveImage(with: source, options: options) {
                 continuation.resume(returning: $0)
             }
         }
-        finish(result, blobID: blobID, surface: surface)
-        return try? result.get().image
+        withExtendedLifetime(task) {}
+        return result
     }
 
     /// The photo for `blobID` if already held in memory, without loading anything.
