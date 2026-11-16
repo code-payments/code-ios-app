@@ -11,6 +11,7 @@ import FlipcashCore
 @testable import FlipcashUI
 @testable import Flipcash
 import Kingfisher
+import FlipcashStore
 
 /// A photo that arrives on the live stream is downloaded into the cache its bubble draws from, so
 /// opening the chat draws it without a mint or a download.
@@ -351,5 +352,64 @@ struct ChatPhotoPrefetcherTests {
         #expect(tasks.count == 1)
         for task in tasks { _ = await task.value }
         #expect(spy.mints == [new.display])
+    }
+}
+
+/// The conversation controller hands each live batch to the prefetcher.
+@Suite("Chat photo prefetch wiring")
+@MainActor
+struct ChatPhotoPrefetchWiringTests {
+
+    @MainActor
+    private final class Minted {
+        var blobIDs: [BlobID] = []
+    }
+
+    private func photo(id: UInt64, from sender: UserID, display: BlobID) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: id), senderID: sender,
+            content: .media([MediaAttachment(
+                blobID: BlobID(data: Data(UUID().uuidString.utf8)), width: 3024, height: 4032, blurhash: nil,
+                renditions: [MediaRendition(role: .display, blobID: display, width: 1080, height: 1440)]
+            )], caption: nil),
+            date: Date(timeIntervalSince1970: TimeInterval(id)), unreadSeq: id, eventSequence: id
+        )
+    }
+
+    @Test("A photo from someone else that arrives live is prefetched; one of the user's own is not")
+    func livePhotoReachesThePrefetcher() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let me = UUID(), them = UUID()
+        let mock = MockConversations()
+        let controller = ConversationController(
+            fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
+            contactNaming: MockDMContactNaming(),
+            database: database,
+            owner: .generate()!, selfUserID: me
+        )
+        let minted = Minted()
+        controller.photoPrefetcher = ChatPhotoPrefetcher(
+            selfUserID: me,
+            mint: { blobID, _ in
+                minted.blobIDs.append(blobID)
+                return nil
+            },
+            decrypt: { _ in nil },
+            network: { ChatPhotoPrefetchNetwork(connected: true, constrained: false, expensive: false) },
+            isMuted: { _ in false },
+            screen: { ChatPhotoPrefetcher.Screen(rowWidth: 393, scale: 3) }
+        )
+        let theirs = BlobID(data: Data(UUID().uuidString.utf8))
+        let mine = BlobID(data: Data(UUID().uuidString.utf8))
+
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+        mock.emit(.sent([photo(id: 1, from: me, display: mine), photo(id: 2, from: them, display: theirs)], in: .test(1)))
+        try await waitUntil { !minted.blobIDs.isEmpty }
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(minted.blobIDs == [theirs])
+        controller.stop()
     }
 }

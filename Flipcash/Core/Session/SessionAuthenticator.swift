@@ -363,7 +363,43 @@ final class SessionAuthenticator {
         )
         wireReactionAlerts(on: sessionContainer, toasts: container.toasts)
         wireChatCashBills(on: sessionContainer)
+        wirePhotoPrefetch(on: sessionContainer)
         return sessionContainer
+    }
+
+    /// Points the live-stream photo prefetch at this session's blob service, chat keys and network.
+    private func wirePhotoPrefetch(on sessionContainer: SessionContainer) {
+        let session = sessionContainer.session
+        let conversations = sessionContainer.conversationController
+        let networkPath = container.networkPath
+        conversations.photoPrefetcher = ChatPhotoPrefetcher(
+            selfUserID: session.userID,
+            mint: { [flipClient = container.flipClient, owner = session.ownerKeyPair] blobID, conversationID in
+                try await flipClient.blobDownloadLink(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+            },
+            decrypt: { [weak conversations] conversationID in
+                await conversations?.mediaBlobDecrypt(for: conversationID)
+            },
+            network: { [weak networkPath] in
+                let state = networkPath?.state ?? .unknown
+                return ChatPhotoPrefetchNetwork(
+                    connected: state.status == .satisfied,
+                    constrained: state.isConstrained,
+                    expensive: state.isExpensive
+                )
+            },
+            isMuted: { [weak conversations] conversationID in
+                conversations?.isMuted(conversationID: conversationID) ?? false
+            },
+            screen: {
+                // The width a chat's transcript lays out at: the window it fills.
+                let window = UIApplication.shared.currentKeyWindow
+                return ChatPhotoPrefetcher.Screen(
+                    rowWidth: window?.bounds.width ?? UIScreen.main.bounds.width,
+                    scale: window?.screen.scale ?? UIScreen.main.scale
+                )
+            }
+        )
     }
 
     /// Points the received-bill-in-chat flow at this session's bill, router and rates.
