@@ -178,7 +178,7 @@ public struct ChatMessageCellView: UIViewRepresentable {
                 let remote = content.mediaURLResolver?.location(
                     for: media,
                     canReact: message.canReact,
-                    cachedAs: ChatMediaCell.processor(for: media, maxWidth: maxWidth)
+                    drawing: ChatMediaBubbleLoad(media: media, maxWidth: maxWidth, scale: traitCollection.displayScale)
                 ) { [weak self] _ in
                     self?.configure()
                 }

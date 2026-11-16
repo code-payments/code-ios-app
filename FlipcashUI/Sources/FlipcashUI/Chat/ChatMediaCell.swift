@@ -401,8 +401,7 @@ public final class ChatMediaCell: ChatColumnCell {
         progressOverlay.bind(progress, behind: stackProgress, suppressed: message.isFailed, animated: drawnRowID == message.id)
         drawImage(
             for: message.id,
-            blobID: media.blobID,
-            blurhash: media.blurhash,
+            media: media,
             localImage: blurhashOnly ? nil : localImage,
             remote: blurhashOnly ? nil : remote,
             size: size
@@ -568,7 +567,7 @@ public final class ChatMediaCell: ChatColumnCell {
         return (CGSize(width: width, height: frame.height), CGSize(width: width, height: cardHeight))
     }
 
-    private func drawImage(for rowID: String, blobID: BlobID?, blurhash: String?, localImage: UIImage?, remote: ChatMediaLocation?, size: CGSize) {
+    private func drawImage(for rowID: String, media: ChatMediaContent, localImage: UIImage?, remote: ChatMediaLocation?, size: CGSize) {
         let isSameRow = drawnRowID == rowID
         drawnRowID = rowID
         if !isSameRow { showUnavailable(false) }
@@ -583,14 +582,24 @@ public final class ChatMediaCell: ChatColumnCell {
             return
         }
 
+        // The copy this row draws: the one its location was resolved or found cached for, else the
+        // ORIGINAL. It is drawn, reported and evicted under that copy's blob.
+        let drawn = remote?.rendition ?? media.original
+        let blobID = drawn?.blobID
+
         // A reconfigure mid-download keeps the download, whether its URL has since expired or been
-        // minted again: starting over would throw away the bytes already in.
-        if isSameRow, !blurhashOnly, remote?.url != nil || remote == nil, let blobID,
-           downloadingBlobID == blobID, imageView.kf.taskIdentifier != nil {
-            return
+        // minted again: starting over would throw away the bytes already in. With no location yet,
+        // any copy of this photo already downloading is kept.
+        if isSameRow, !blurhashOnly, let downloadingBlobID, imageView.kf.taskIdentifier != nil {
+            let keeps = if let remote {
+                remote.url != nil && downloadingBlobID == blobID
+            } else {
+                media.blobID == downloadingBlobID || media.renditions.contains { $0.blobID == downloadingBlobID }
+            }
+            if keeps { return }
         }
 
-        let preview = BlurHashCache.shared.image(for: blurhash)
+        let preview = BlurHashCache.shared.image(for: media.blurhash)
         guard let remote else {
             imageView.kf.cancelDownloadTask()
             downloadingBlobID = nil
@@ -611,7 +620,7 @@ public final class ChatMediaCell: ChatColumnCell {
                 .transition(.fade(Self.fadeDuration)),
             ]
         ) { [weak self] result in
-            ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, processor: processor)
+            ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, rendition: drawn?.role ?? .original, processor: processor)
             guard case .failure(let error) = result else { return }
             if ChatMediaImageSource.isUndecryptable(error) {
                 self?.showUnavailable(true)

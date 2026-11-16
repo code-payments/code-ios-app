@@ -480,7 +480,8 @@ extension ChatItem {
                             canReply: actions.contains(.reply),
                             canForward: actions.contains(.forward)
                         )
-                    }
+                    },
+                    renditions: attachment?.renditions ?? []
                 ))
             }
 
@@ -736,7 +737,7 @@ extension ChatItem {
                 stableID: original.stableID,
                 authorName: authorName,
                 snippet: ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption)),
-                kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.blobID, sealed: attachments.first?.sealed),
+                kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.quoteThumbnailBlobID, sealed: attachments.first?.sealed),
                 authorID: original.senderID
             )
         case .encrypted, .system:

@@ -113,7 +113,8 @@ extension ChatItem {
                     blurhash: attachment?.blurhash,
                     caption: caption,
                     isRedacted: message.redacted,
-                    sealed: attachment?.sealed
+                    sealed: attachment?.sealed,
+                    renditions: attachment?.renditions ?? []
                 ))
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness

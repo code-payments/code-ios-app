@@ -62,23 +62,31 @@ public final class ChatMediaURLResolver {
 
     /// Where to draw `media` from, or nil for now.
     ///
-    /// A BlurHash-only row returns nil without fetching. A photo already cached as `processor` draws
-    /// it, or the full-size copy, from ``ChatMediaLocation/cached(sealed:)`` without fetching. A URL cache
-    /// miss starts at most one fetch per blob and calls `onResolved` when it lands so the caller
-    /// can redraw the row; a failed fetch leaves the row on its BlurHash, and the next call tries
-    /// again. An encrypted photo also waits on the chat's decryption.
+    /// A BlurHash-only row returns nil without fetching. With `load`, the row draws `load`'s copy of
+    /// the photo: one already cached as `load`'s processor, or full size, draws from
+    /// ``ChatMediaLocation/cached(sealed:rendition:)`` without fetching, and so does the ORIGINAL
+    /// when it is the copy cached, as it is for a photo drawn before renditions were loaded. Without
+    /// `load` the ORIGINAL is fetched. A URL cache miss starts at most one fetch per blob and calls
+    /// `onResolved` when it lands so the caller can redraw the row; a failed fetch leaves the row on
+    /// its BlurHash, and the next call tries again. An encrypted photo also waits on the chat's
+    /// decryption.
     public func location(
         for media: ChatMediaContent,
         canReact: Bool,
-        cachedAs processor: ImageProcessor? = nil,
+        drawing load: ChatMediaBubbleLoad? = nil,
         onResolved: @escaping (ChatMediaLocation) -> Void
     ) -> ChatMediaLocation? {
         guard !ChatMediaCell.isBlurhashOnly(media, canReact: canReact),
               let blobID = media.blobID else { return nil }
-        if let processor, ChatMediaImageSource.isCached(blobID: blobID, processor: processor) {
-            return .cached(sealed: media.sealed != nil)
+        guard let load else {
+            return resolve(blobID, sealed: media.sealed) { $0.map(onResolved) }
         }
-        return resolve(blobID, sealed: media.sealed) { $0.map(onResolved) }
+        let fallback = load.rendition.role == .original ? nil : media.original
+        for copy in [load.rendition, fallback].compactMap(\.self)
+        where ChatMediaImageSource.isCached(blobID: copy.blobID, processor: load.processor) {
+            return .cached(sealed: media.sealed != nil, rendition: copy)
+        }
+        return resolve(load.rendition.blobID, sealed: media.sealed, rendition: load.rendition) { $0.map(onResolved) }
     }
 
     /// Where to draw `media` from, waiting for the fetch; nil when it may not draw or the fetch
@@ -144,23 +152,29 @@ public final class ChatMediaURLResolver {
 
     /// The location for `blobID` when everything it needs is cached, or nil after queueing
     /// `completion` on the fetches it still waits on.
-    private func resolve(_ blobID: BlobID, sealed: SealedBlob?, completion: @escaping (ChatMediaLocation?) -> Void) -> ChatMediaLocation? {
+    /// `rendition` is the copy `blobID` is, carried on the location so its drawer can tell.
+    private func resolve(
+        _ blobID: BlobID,
+        sealed: SealedBlob?,
+        rendition: MediaRendition? = nil,
+        completion: @escaping (ChatMediaLocation?) -> Void
+    ) -> ChatMediaLocation? {
         if let url = usableURL(blobID) {
-            guard let sealed else { return location(url: url, blobID: blobID, sealed: nil, decrypt: nil) }
-            if let decrypt { return location(url: url, blobID: blobID, sealed: sealed, decrypt: decrypt) }
+            guard let sealed else { return location(url: url, blobID: blobID, rendition: rendition, sealed: nil, decrypt: nil) }
+            if let decrypt { return location(url: url, blobID: blobID, rendition: rendition, sealed: sealed, decrypt: decrypt) }
             awaitDecrypt { [weak self] decrypt in
-                completion(decrypt.flatMap { self?.location(url: url, blobID: blobID, sealed: sealed, decrypt: $0) })
+                completion(decrypt.flatMap { self?.location(url: url, blobID: blobID, rendition: rendition, sealed: sealed, decrypt: $0) })
             }
             return nil
         }
         fetchURL(blobID) { [weak self] url in
             guard let self, let url else { return completion(nil) }
-            guard let sealed else { return completion(location(url: url, blobID: blobID, sealed: nil, decrypt: nil)) }
+            guard let sealed else { return completion(location(url: url, blobID: blobID, rendition: rendition, sealed: nil, decrypt: nil)) }
             if let decrypt {
-                return completion(location(url: url, blobID: blobID, sealed: sealed, decrypt: decrypt))
+                return completion(location(url: url, blobID: blobID, rendition: rendition, sealed: sealed, decrypt: decrypt))
             }
             awaitDecrypt { [weak self] decrypt in
-                completion(decrypt.flatMap { self?.location(url: url, blobID: blobID, sealed: sealed, decrypt: $0) })
+                completion(decrypt.flatMap { self?.location(url: url, blobID: blobID, rendition: rendition, sealed: sealed, decrypt: $0) })
             }
         }
         return nil
@@ -176,7 +190,7 @@ public final class ChatMediaURLResolver {
         return minted.url
     }
 
-    private func location(url: URL, blobID: BlobID, sealed: SealedBlob?, decrypt: BlobDecrypt?) -> ChatMediaLocation {
+    private func location(url: URL, blobID: BlobID, rendition: MediaRendition?, sealed: SealedBlob?, decrypt: BlobDecrypt?) -> ChatMediaLocation {
         var open: (@Sendable (Data) throws -> Data)?
         if let sealed, let decrypt {
             open = { try decrypt($0, blobID, sealed) }
@@ -184,6 +198,7 @@ public final class ChatMediaURLResolver {
         return ChatMediaLocation(
             url: url,
             decrypt: open,
+            rendition: rendition,
             reportRefused: { [weak self] in self?.refuse(url, blobID: blobID) ?? false }
         )
     }

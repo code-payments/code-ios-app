@@ -138,6 +138,8 @@ nonisolated struct ChatMediaLoadReport: Equatable {
     let blobID: BlobID?
     let surface: ChatMediaSurface
     let outcome: Outcome
+    /// Which copy of the photo loaded, or nil when the caller can't tell.
+    var rendition: MediaRendition.Role? = .original
     /// Where the image came from on success; nil for a load that failed.
     var cache: CacheType?
     var sealed = false
@@ -154,7 +156,12 @@ nonisolated struct ChatMediaLoadReport: Equatable {
         self.outcome = outcome
     }
 
-    init(_ result: Result<RetrieveImageResult, KingfisherError>, blobID: BlobID?, surface: ChatMediaSurface) {
+    init(
+        _ result: Result<RetrieveImageResult, KingfisherError>,
+        blobID: BlobID?,
+        surface: ChatMediaSurface,
+        rendition: MediaRendition.Role? = .original
+    ) {
         switch result {
         case .success(let value):
             self.init(blobID: blobID, surface: surface, outcome: .ok)
@@ -172,6 +179,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
         case .failure(let error):
             self.init(error, blobID: blobID, surface: surface)
         }
+        self.rendition = rendition
     }
 
     private init(_ error: KingfisherError, blobID: BlobID?, surface: ChatMediaSurface) {
@@ -234,10 +242,9 @@ nonisolated struct ChatMediaLoadReport: Equatable {
     var metadata: Logger.Metadata {
         var metadata: Logger.Metadata = [
             "surface": "\(surface.rawValue)",
-            // Every chat photo loads its ORIGINAL rendition.
-            "rendition": "original",
             "sealed": "\(sealed)",
         ]
+        if let rendition { metadata["rendition"] = "\(rendition.rawValue)" }
         if let blobID { metadata["blobId"] = "\(blobID)" }
         switch outcome {
         case .ok:
