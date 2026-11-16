@@ -5,10 +5,11 @@
 //  Phase 2 of the Group Money redesign: New Group, the group-ready state, the
 //  Invite People sheet and the join preview, behind the same gate as the
 //  phase 1 shell (`BetaFlags.showsGroupMoneyUI(isStaff:)`). Frames: New Group
-//  (nodes 13729:462, 13729:552), group ready (13729:642, 13729:851), Invite
-//  People (13729:672), join preview (13729:1404). Written from the brief and
-//  the frames before the implementation: each item pins the shell-on outcome
-//  and today's outcome with the shell off.
+//  (nodes 13729:462, 13729:552), group ready (13729:642, 13729:851), join
+//  preview (13729:1404). Written from the brief and the frames before the
+//  implementation: each item pins the shell-on outcome and today's outcome with
+//  the shell off. Invite People's frame (13729:672) is not built: the shell's
+//  Invite People opens the share sheet Manage Invites' Share Link opens.
 //
 
 import Foundation
@@ -139,7 +140,7 @@ struct GroupMoneyInviteSpecTests {
         #expect(ComposerCashButtonStyle(showsGroupMoney: false) == .glass)
     }
 
-    // MARK: - 4. Invite People sheet (13729:672) -
+    // MARK: - 4. Invite People sheet -
 
     @Test("4.1 with the shell on, the group-ready button opens the Invite People sheet, never the host's link card")
     func invite_groupReadyRoute_shellOn() {
@@ -178,34 +179,6 @@ struct GroupMoneyInviteSpecTests {
         router.present(.tips)
         router.presentInvitePeople(Self.groupID)
         #expect(router.presentedSheets == [.tips, .invitePeople(Self.groupID)])
-    }
-
-    @Test("4.6 the shell's sheet: close on the right, the line, the caption and three square tiles")
-    func invite_sheetLayout_shellOn() {
-        let layout = GroupInviteSheetLayout(showsGroupMoney: true)
-        #expect(layout.title == "Invite People")
-        #expect(layout.closeEdge == .trailing)
-        #expect(layout.message == "Send this link to the people you want in your group.")
-        #expect(layout.linkCaption == "Anyone with the link can join.")
-        #expect(layout.tileTitles == ["Copy Link", "Share Link", "QR Code"])
-        #expect(layout.tilesAreSquare == true)
-    }
-
-    @Test("4.7 with the shell off, the group share sheet is unchanged")
-    func invite_sheetLayout_shellOff() {
-        let layout = GroupInviteSheetLayout(showsGroupMoney: false)
-        #expect(layout.title == "Invite People")
-        #expect(layout.closeEdge == .trailing)
-        #expect(layout.message == nil)
-        #expect(layout.linkCaption == InviteLinkCopy.groupSheetLine)
-        #expect(layout.tileTitles == ShareToChatsSheet.groupTileTitles)
-        #expect(layout.tilesAreSquare == false)
-    }
-
-    @Test("4.8 the shell's Invite People sheet fits its content, as today's does")
-    func invite_sheetFitsContent_shellOn() {
-        #expect(GroupInviteSheetLayout(showsGroupMoney: true).opensFullHeight == false)
-        #expect(ShareToChatsSheet.layout(for: .group(Self.groupID), isInvitePeople: true, showsGroupMoney: true).opensFullHeight == false)
     }
 
     @Test("4.9 with the shell on, group info's Invite People is today's, never the router's sheet that makes a link as it opens")
@@ -262,8 +235,8 @@ struct GroupMoneyInviteSpecTests {
         }
     }
 
-    @Test("4.11 with the shell on, the Invite People sheet shows no group name or avatar")
-    func invite_sheetHasNoGroupIdentity_shellOn() async throws {
+    @Test("4.11 with the shell on, the chat's Invite People opens the sheet Manage Invites' Share Link opens")
+    func invite_chatSheetIsManageInvitesSheet_shellOn() async throws {
         let flags = BetaFlags()
         let wasOn = flags.hasEnabled(.groupMoneyUI)
         let hadAccess = flags.accessGranted
@@ -274,18 +247,64 @@ struct GroupMoneyInviteSpecTests {
             flags.setAccessGranted(hadAccess)
         }
 
-        // A titled group the viewer can't invite to, so the sheet shares the plain link and never
-        // asks the server for an invite link.
+        // A titled group the viewer can't invite to, so the chat's sheet shares the plain link and
+        // never asks the server for an invite link.
         let groupName = "Kestrel Supper Club"
         let sessionContainer = try SessionContainer.makeTest(holdings: [])
         try sessionContainer.database.upsertConversation(
             Conversation(id: Self.groupID, members: [], lastMessage: nil, lastActivity: .now, type: .group, title: groupName)
         )
         await sessionContainer.conversationController.hydrateFromDatabase()
-        let group = try #require(sessionContainer.conversationController.conversation(withID: Self.groupID))
-        #expect(sessionContainer.conversationController.displayName(for: group) == groupName)
 
-        let view = InvitePeopleSheetRoot(conversationID: Self.groupID)
+        // The chat's Invite People, presented through the router as the group-ready card does.
+        let chat = try await Self.settledSheet(
+            Color.clear.modifier(RootSheetHostModifier()),
+            link: .groupChatInvite(for: Self.groupID),
+            sessionContainer: sessionContainer,
+            flags: flags
+        ) {
+            sessionContainer.appRouter.presentInvitePeople(Self.groupID)
+        }
+        sessionContainer.appRouter.dismissSheet()
+
+        // Manage Invites' Share Link on the group's one active link, built by Manage Invites itself.
+        let links = GroupInviteLinks(conversationID: Self.groupID, service: Self.oneLinkService())
+        try await links.load()
+        let entry = try #require(links.active.first)
+        let url = try #require(entry.url)
+        let manage = try await Self.settledSheet(
+            Color.clear.sheet(isPresented: .constant(true)) {
+                InviteLinksScreen.shareSheet(Self.groupID, links: links, entry: entry.id, isPresented: .constant(true))
+            },
+            link: url,
+            sessionContainer: sessionContainer,
+            flags: flags
+        )
+
+        #expect(chat == manage)
+        // The group's avatar reads as the group's name too, so no label naming the group means
+        // neither the avatar nor the name is drawn.
+        #expect(!chat.contains { $0.label.contains(groupName) }, "sheet: \(chat)")
+    }
+
+    /// One element of a presented sheet: its accessibility label and its frame in the sheet.
+    private struct SheetElement: Equatable, CustomStringConvertible {
+        let label: String
+        let frame: CGRect
+        var description: String { "\(label) \(frame)" }
+    }
+
+    /// Hosts `root` in its own window, runs `present`, and reads the sheet it presents once the
+    /// sheet has fitted its content and stopped moving. The sheet's own link reads as "<link>", so
+    /// two sheets on different links compare equal when everything else is.
+    private static func settledSheet(
+        _ root: some View,
+        link: URL,
+        sessionContainer: SessionContainer,
+        flags: BetaFlags,
+        present: () -> Void = {}
+    ) async throws -> [SheetElement] {
+        let view = root
             .environment(flags)
             .injectingEnvironment(from: sessionContainer)
             .injectingEnvironment(from: Container.mock)
@@ -294,43 +313,47 @@ struct GroupMoneyInviteSpecTests {
         window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         window.rootViewController = UIHostingController(rootView: view)
         window.makeKeyAndVisible()
-        defer { window.isHidden = true }
+        defer {
+            window.rootViewController?.dismiss(animated: false)
+            window.isHidden = true
+        }
+        present()
 
-        // The shell's sheet is up once its body line and tiles are.
+        let shownLink = InviteLinkPanel.display(link)
+        var last: [SheetElement] = []
+        var stableReads = 0
+        // Title and QR Code are drawn by every group sheet, so a sheet that differs fails the
+        // comparison rather than this wait.
         try await waitUntil {
             window.layoutIfNeeded()
-            let labels = Self.accessibilityLabels(in: window)
-            return labels.contains("Send this link to the people you want in your group.") && labels.contains("Copy Link")
+            guard let presented = window.rootViewController?.presentedViewController,
+                  let sheet = presented.sheetPresentationController,
+                  !sheet.detents.isEmpty,
+                  !sheet.detents.map(\.identifier).contains(.large) else { return false }
+            let elements = Self.elements(in: presented.view, link: shownLink)
+            let labels = elements.map(\.label)
+            guard labels.contains("Invite People"), labels.contains("QR Code") else { return false }
+            stableReads = elements == last ? stableReads + 1 : 0
+            last = elements
+            return stableReads >= 20
         }
-        // The group's avatar reads as the group's name too, so no label naming the group means
-        // neither the avatar nor the name is drawn.
-        let labels = Self.accessibilityLabels(in: window)
-        #expect(!labels.contains { $0.contains(groupName) }, "sheet labels: \(labels)")
+        return last
     }
 
-    @Test("4.12 with the shell on, the Invite People sheet closes on the trailing edge, where the classic group sheet keeps its close")
-    func invite_closeEdgeMatchesClassic_shellOn() {
-        let invitePeople = ShareToChatsSheet.layout(for: .group(Self.groupID), isInvitePeople: true, showsGroupMoney: true)
-        // Group Info and Join Requests open the classic sheet, with the shell on or off.
-        let classic = ShareToChatsSheet.layout(for: .group(Self.groupID), isInvitePeople: false, showsGroupMoney: true)
-        let shellOff = ShareToChatsSheet.layout(for: .group(Self.groupID), isInvitePeople: true, showsGroupMoney: false)
-        #expect(invitePeople.showsGroupMoney)
-        #expect(!classic.showsGroupMoney)
-        #expect(!shellOff.showsGroupMoney)
-
-        #expect(classic.closeEdge == .trailing)
-        #expect(shellOff.closeEdge == .trailing)
-        #expect(invitePeople.closeEdge == .trailing)
-        #expect(invitePeople.closeEdge == classic.closeEdge)
-    }
-
-    /// Every accessibility label on screen in `view`.
-    private static func accessibilityLabels(in view: UIView) -> [String] {
-        func walk(_ object: NSObject, depth: Int) -> [String] {
+    /// Every accessibility element on screen in `view`, in reading order, with `link` as "<link>".
+    private static func elements(in view: UIView, link: String) -> [SheetElement] {
+        func walk(_ object: NSObject, depth: Int) -> [SheetElement] {
             guard depth < 40 else { return [] }
             if let view = object as? UIView, view.isHidden || view.alpha <= 0.01 { return [] }
-            var found: [String] = []
-            if object.isAccessibilityElement, let label = object.accessibilityLabel { found.append(label) }
+            var found: [SheetElement] = []
+            if object.isAccessibilityElement, let label = object.accessibilityLabel {
+                let screen = view.window?.windowScene?.screen.coordinateSpace
+                let frame = screen.map { view.convert(object.accessibilityFrame, from: $0) } ?? object.accessibilityFrame
+                found.append(SheetElement(
+                    label: label == link ? "<link>" : label,
+                    frame: CGRect(x: frame.minX.rounded(), y: frame.minY.rounded(), width: frame.width.rounded(), height: frame.height.rounded())
+                ))
+            }
             for case let element as NSObject in object.accessibilityElements ?? [] {
                 found += walk(element, depth: depth + 1)
             }
@@ -341,6 +364,33 @@ struct GroupMoneyInviteSpecTests {
         }
         return walk(view, depth: 0)
     }
+
+    /// A server with one active, never-expiring invite link the viewer made.
+    private static func oneLinkService() -> GroupInviteLinks.Service {
+        let viewer = UUID(uuidString: "00000000-0000-0000-0000-000000000009")!
+        let invite = Invite(
+            id: InviteID(data: Data(repeating: 9, count: 16)),
+            conversationID: groupID,
+            createdBy: viewer,
+            maxUses: 0,
+            useCount: 0,
+            createdAt: .now,
+            expiresAt: nil,
+            status: .active,
+            secretEnvelope: InviteSecretEnvelope(scheme: 1, nonce: Data([9]), ciphertext: Data([9]))
+        )
+        return GroupInviteLinks.Service(
+            selfUserID: viewer,
+            list: { _ in [invite] },
+            create: { _, _, _, _ in throw UnexpectedCreate() },
+            revoke: { _, _ in },
+            secret: { $0.id.data },
+            link: { secret in URL(string: "https://app.flipcash.com/chat/invite#s=\(secret.base64EncodedString())") },
+            newSecret: { Data(repeating: 1, count: 32) }
+        )
+    }
+
+    private struct UnexpectedCreate: Error {}
 
     // MARK: - 5. Join preview (13729:1404) -
 

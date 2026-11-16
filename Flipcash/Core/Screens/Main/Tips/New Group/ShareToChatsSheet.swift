@@ -47,17 +47,11 @@ struct ShareToChatsSheet: View {
 
     @Binding var isPresented: Bool
 
-    /// Whether this is the router's Invite People sheet, the one the Group Money shell redraws
-    /// (node 13729:672). Group info, Manage Invites, Join Requests and the link card keep today's
-    /// sheet.
-    let isInvitePeople: Bool
-
     /// Called after a direct send with the chat picked first, which the presenter opens.
     let onInvited: (ConversationID) -> Void
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
-    @Environment(BetaFlags.self) private var betaFlags
 
     /// How long the copy tile stays on its checkmark before reverting — the beat the tip-card link
     /// row holds.
@@ -77,12 +71,10 @@ struct ShareToChatsSheet: View {
     init(
         subject: ShareToChatsSubject,
         isPresented: Binding<Bool>,
-        isInvitePeople: Bool = false,
         onInvited: @escaping (ConversationID) -> Void
     ) {
         self.subject = subject
         self._isPresented = isPresented
-        self.isInvitePeople = isInvitePeople
         self.onInvited = onInvited
         let url: URL = switch subject {
         case .group(let id): .groupChatInvite(for: id)
@@ -221,24 +213,6 @@ struct ShareToChatsSheet: View {
     /// The group sheet's tiles, left to right.
     nonisolated static let groupTileTitles = ["Copy", "Share", "QR Code"]
 
-    /// What a group's sheet shows: the Group Money shell's Invite People (node 13729:672) for the
-    /// router's Invite People sheet, today's for every other presenter and any other subject.
-    static func layout(for subject: ShareToChatsSubject, isInvitePeople: Bool, showsGroupMoney: Bool) -> GroupInviteSheetLayout {
-        let admitsAnyone = if case .inviteLink = subject { true } else { false }
-        return GroupInviteSheetLayout(
-            showsGroupMoney: showsGroupMoney && isInvitePeople && isGroupSheet(subject),
-            admitsAnyone: admitsAnyone
-        )
-    }
-
-    private var layout: GroupInviteSheetLayout {
-        Self.layout(
-            for: subject,
-            isInvitePeople: isInvitePeople,
-            showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
-        )
-    }
-
     /// The group's own title, which names it in the shared message.
     ///
     /// Read from the record rather than through `displayName(for:)`: that resolves an untitled chat
@@ -323,43 +297,20 @@ struct ShareToChatsSheet: View {
     private var groupContent: some View {
         VStack(spacing: 0) {
             header
-            if layout.showsGroupMoney {
-                invitation
-            } else {
-                VStack(spacing: 16) {
-                    linkPanel
-                    shareTiles
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+            VStack(spacing: 16) {
+                linkPanel
+                shareTiles
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self, of: \.size.height) { fittedHeight = $0 }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .presentationDetents(
-            [layout.opensFullHeight || isShowingGroupCard || fittedHeight == 0 ? .large : .height(fittedHeight)]
+            [isShowingGroupCard || fittedHeight == 0 ? .large : .height(fittedHeight)]
         )
-    }
-
-    /// The shell's sheet under its title bar: what the link is for, the link and the tiles, 16pt
-    /// apart and 16pt in from the title bar and the bottom.
-    private var invitation: some View {
-        VStack(spacing: 16) {
-            if let message = layout.message {
-                Text(message)
-                    .font(.appTextBody)
-                    .foregroundStyle(Color.textMain)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            linkPanel
-            shareTiles
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 16)
-        .padding(.bottom, 16)
     }
 
     private var listContent: some View {
@@ -430,14 +381,13 @@ struct ShareToChatsSheet: View {
     private var header: some View {
         ZStack {
             Text(sheetTitle)
-                .font(layout.showsGroupMoney ? .appTextXL : .appBarButton)
+                .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
 
             HStack {
-                if layout.closeEdge == .trailing { Spacer() }
+                Spacer()
                 CloseButton(style: .glass, binding: $isPresented)
                     .disabled(model.isSending)
-                if layout.closeEdge == .leading { Spacer() }
             }
         }
         .padding(16)
@@ -447,7 +397,7 @@ struct ShareToChatsSheet: View {
     /// A group's tiles are Copy, Share and QR Code; a person's are Share, Copy and, with a card,
     /// Show Profile Card; a message or currency has Share and Copy. Sized to the tallest.
     private var shareTiles: some View {
-        HStack(spacing: layout.tilesAreSquare ? 12 : 10) {
+        HStack(spacing: 10) {
             if Self.isGroupSheet(subject) {
                 copyTile
                 shareTile
@@ -462,7 +412,7 @@ struct ShareToChatsSheet: View {
     }
 
     private var shareTile: some View {
-        ShareTile(title: Self.isGroupSheet(subject) ? layout.tileTitles[1] : "Share", isSquare: layout.tilesAreSquare) {
+        ShareTile(title: "Share") {
             Image.asset(.shareOS)
                 .renderingMode(.template)
                 .resizable()
@@ -477,7 +427,7 @@ struct ShareToChatsSheet: View {
     }
 
     private var copyTile: some View {
-        ShareTile(title: didCopy ? "Copied" : Self.isGroupSheet(subject) ? layout.tileTitles[0] : copyTitle, isSquare: layout.tilesAreSquare) {
+        ShareTile(title: didCopy ? "Copied" : copyTitle) {
             if didCopy {
                 Image.system(.circleCheck)
                     .resizable()
@@ -517,7 +467,7 @@ struct ShareToChatsSheet: View {
     @ViewBuilder
     private var groupCardTile: some View {
         if Self.showsGroupCardTile(for: subject) {
-            ShareTile(title: layout.tileTitles[2], isSquare: layout.tilesAreSquare) {
+            ShareTile(title: "QR Code") {
                 Image(HomeTab.scan.iconName(isSelected: false))
                     .renderingMode(.template)
                     .resizable()
@@ -628,8 +578,7 @@ struct ShareToChatsSheet: View {
     private var linkPanel: some View {
         InviteLinkPanel(
             pill: isInviteMode ? inviteURL.map(InviteLinkPanel.Pill.link) ?? .creating : .link(model.url),
-            meta: layout.linkCaption,
-            isCentered: layout.showsGroupMoney
+            meta: InviteLinkCopy.groupSheetLine
         )
     }
 
@@ -664,19 +613,17 @@ struct ShareToChatsSheet: View {
 private struct ShareTile<Icon: View>: View {
 
     let title: String
-    /// The Group Money shell's tile: as tall as it is wide, a smaller icon and a full-strength title.
-    var isSquare = false
     @ViewBuilder let icon: () -> Icon
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: isSquare ? 10 : 6) {
+            VStack(spacing: 6) {
                 icon()
-                    .frame(width: isSquare ? 24 : 28, height: isSquare ? 24 : 28)
+                    .frame(width: 28, height: 28)
                 Text(title)
-                    .font(.appTextSmall)
-                    .opacity(isSquare ? 1 : 0.5)
+                    .font(.default(size: 14, weight: .bold))
+                    .opacity(0.5)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -684,25 +631,11 @@ private struct ShareTile<Icon: View>: View {
             .padding(.horizontal, 8)
             // Fills the row's height, so a tile whose title wraps doesn't stand taller than the rest.
             .frame(maxWidth: .infinity, minHeight: 95, maxHeight: .infinity)
-            .squared(isSquare)
             .background(Color.backgroundRow)
             .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-}
-
-private extension View {
-
-    /// As tall as it is wide when `isOn`; untouched otherwise.
-    @ViewBuilder
-    func squared(_ isOn: Bool) -> some View {
-        if isOn {
-            aspectRatio(1, contentMode: .fit)
-        } else {
-            self
-        }
     }
 }
 

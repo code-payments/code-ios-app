@@ -9,13 +9,14 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// A group's Invite People sheet as the router presents it in the Group Money shell (node
-/// 13729:672): the group's link and the ways to send it, with no chat picker, Approve New Members
-/// switch or Manage Invites row.
+/// A group's Invite People sheet as the router presents it in the Group Money shell: the share
+/// sheet Manage Invites' Share Link opens, with the group's link and the ways to send it, and no
+/// chat picker, Approve New Members switch or Manage Invites row.
 ///
-/// It shares the link the group-ready card's share sheet does today: a host's current invite link,
-/// made first when the group has none, or the plain link while Approve New Members is on, for a
-/// member who can't invite, or once making a link has failed and the viewer picked the plain one.
+/// It shares the link the group-ready card's share sheet does with the shell off: a host's current
+/// invite link, made first when the group has none, or the plain link while Approve New Members is
+/// on, for a member who can't invite, or once making a link has failed and the viewer picked the
+/// plain one.
 struct InvitePeopleSheetRoot: View {
 
     let conversationID: ConversationID
@@ -60,9 +61,9 @@ struct InvitePeopleSheetRoot: View {
     private var sheet: some View {
         switch target {
         case .currentLink:
-            ShareToChatsSheet(subject: .inviteLink(conversationID, links), isPresented: isPresented, isInvitePeople: true, onInvited: invited)
+            InviteLinksScreen.shareSheet(conversationID, links: links, entry: nil, isPresented: isPresented)
         case .plainLink:
-            ShareToChatsSheet(subject: .group(conversationID), isPresented: isPresented, isInvitePeople: true, onInvited: invited)
+            ShareToChatsSheet(subject: .group(conversationID), isPresented: isPresented, onInvited: invited)
         }
     }
 

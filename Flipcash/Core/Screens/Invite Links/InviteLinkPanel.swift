@@ -25,17 +25,13 @@ struct InviteLinkPanel: View {
     let pill: Pill
     /// "Expires Nov 3 · 0 joined", from the link itself. Nil until the link exists.
     let meta: String?
-    /// Centres the link and the line under it, as the Group Money shell's Invite People sheet draws
-    /// them (node 13729:690).
-    var isCentered = false
 
     var body: some View {
-        VStack(alignment: isCentered ? .center : .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             pillView
             if let meta {
                 Text(meta)
                     .font(.appTextCaption)
-                    .multilineTextAlignment(isCentered ? .center : .leading)
                     .foregroundStyle(Color.textSecondary)
                     .accessibilityIdentifier("invite-link-meta")
             }
@@ -57,9 +53,8 @@ struct InviteLinkPanel: View {
                     .foregroundStyle(Color.textMain)
                     .truncationMode(.middle)
             }
-            if !isCentered { Spacer(minLength: 0) }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
         .font(.default(size: 14, weight: .medium))
         .lineLimit(1)
         .padding(.horizontal, 16)
