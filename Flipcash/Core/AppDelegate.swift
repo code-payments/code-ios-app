@@ -156,8 +156,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             stopTypingForBackground()
         case .active:
             logger.info("scenePhase → active")
-            container.client.warmUpChannel()
-            container.flipClient.warmUpChannel()
+            if !Container.isRunningUnitTests {
+                container.client.warmUpChannel()
+                container.flipClient.warmUpChannel()
+            }
             container.updateAvailability.refresh()
             sessionContainer?.session.didBecomeActive()
             sessionContainer?.usdcSweepOperation.start()

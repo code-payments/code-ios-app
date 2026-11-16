@@ -8,6 +8,9 @@ resolved 2026-09-22)
 > as the record of what the abort was and how it was diagnosed; it no longer describes the current
 > runtime. See [The abort no longer reproduces](#the-abort-no-longer-reproduces-2026-09-22).
 > Step 6a of the release skill is a hard gate again as of the same date.
+>
+> **2026-11-12:** a different `Sanitizers` failure, a real race report inside swift-nio's
+> `ByteBuffer`, is covered in [2026-11-12-tsan-nio-bytebuffer-race.md](2026-11-12-tsan-nio-bytebuffer-race.md).
 
 **Symptom:** any authenticated `FlipcashUITests` run under the `AllTargets` plan loses the app
 within seconds. XCUITest reports `Failed to get matching snapshots: Lost connection to the

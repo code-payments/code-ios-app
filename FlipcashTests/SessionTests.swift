@@ -714,9 +714,8 @@ struct SessionOfflineCacheTests {
         )
     }
 
-    // Tests stay synchronous: the restore runs in `init`, while `updateProfile()`
-    // runs in a main-actor Task that can't execute until the test yields. An
-    // `async` test would race the network fetch against the cache.
+    // The restore runs in `init`. Hosted unit tests skip the launch `updateProfile()`
+    // fetch, so nothing races the cache here.
 
     @Test("A cached verified profile is restored before any network fetch")
     func restoresProfileOnInit() throws {

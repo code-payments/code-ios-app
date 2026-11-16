@@ -66,15 +66,16 @@ removed worktrees along with their DerivedData.
 - **`Sanitizers`** — `FlipcashTests` + `FlipcashCoreTests` under Thread Sanitizer:
   `xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -testPlan Sanitizers`
 
-**`Sanitizers` cannot currently pass.** The TSan runtime aborts the host partway through and
-xcodebuild marks everything in flight as failed, so the run exits 65 with hundreds of failures and
-no race report. Those failures are casualties, not findings — they all report `(0.000 seconds)`
-and record no issue. Neither target completes alone, so there is no narrower scope that works. The
-release checklist runs it as an advisory step and reads only the race count; see
-[the release skill](../skills/release/SKILL.md) step 6a for the classification commands.
+**`Sanitizers` is a release gate and must exit 0** ([the release skill](../skills/release/SKILL.md)
+step 6a). Race reports go to the host app's stderr, not the xcodebuild log, so capture them with
+`TEST_RUNNER_TSAN_OPTIONS=log_path=…`. Hosted unit tests must not send live RPCs: test clients
+are real mainnet clients, and the traffic trips a TSan false positive inside swift-nio's
+`ByteBuffer`. Guard anything that fetches on a timer or at launch with
+`Container.isRunningUnitTests`. Details in
+[2026-11-12-tsan-nio-bytebuffer-race.md](../plans/2026-11-12-tsan-nio-bytebuffer-race.md).
 
 TSan came off the UI tests first, where its runtime crashes during XCUITest's accessibility
-snapshots. The crash is inside the sanitizer, not app code, in both cases. Details, evidence, and
+snapshots. That crash is inside the sanitizer, not app code. Details, evidence, and
 repro steps in [2026-08-25-tsan-ui-test-crash.md](../plans/2026-08-25-tsan-ui-test-crash.md).
 Don't move TSan back onto `AllTargets` without re-checking that analysis against the current Xcode.
 

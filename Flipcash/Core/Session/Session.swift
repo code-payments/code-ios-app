@@ -282,6 +282,9 @@ class Session {
 
     @ObservationIgnored private var poller: Poller?
 
+    /// Whether the balance, limits and flags poller is running.
+    var isPolling: Bool { poller != nil }
+
     @ObservationIgnored private var scanOperation: ScanCashOperation?
     @ObservationIgnored private var sendOperation: SendCashOperation?
 
@@ -329,6 +332,14 @@ class Session {
         }
 
         // User flags are fetched by the poller (`fetchUserFlagsIfNeeded`).
+        startInitialFetches()
+
+        observeBalanceCurrencyChanges()
+    }
+
+    /// Skipped under unit tests, which would otherwise send these to mainnet.
+    private func startInitialFetches() {
+        guard !Container.isRunningUnitTests else { return }
         Task {
             do { try await updateProfile() }
             catch { logger.error("Failed to fetch profile", metadata: ["error": "\(error)"]) }
@@ -337,8 +348,6 @@ class Session {
         Task {
             await syncUserPreferences()
         }
-
-        observeBalanceCurrencyChanges()
     }
 
     /// Skipped under unit tests so seeded `VerifiedProtoService` data isn't
@@ -627,7 +636,9 @@ class Session {
     
     // MARK: - Poller -
 
+    /// Skipped under unit tests: every test `Session` is wired to real mainnet clients.
     private func registerPoller() {
+        guard !Container.isRunningUnitTests else { return }
         poller = Poller(seconds: 10, fireImmediately: true) { [weak self] in
             guard let self else { return }
             // Each fetch is independent, so they run together and a failure doesn't hold up the
