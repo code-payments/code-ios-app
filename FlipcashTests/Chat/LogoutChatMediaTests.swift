@@ -16,6 +16,10 @@ import Kingfisher
 ///
 /// The caches are process-wide and other suites write them in parallel, so this checks the entries
 /// it seeded rather than that each cache is empty.
+///
+/// `logout()` also clears `CoinbaseOrderEmail.unverifiedEmail`, which
+/// `EmailVerificationViewModelTests` reads across an `await`. The test is synchronous on the main
+/// actor, so putting it back before returning hides the reset from every other main-actor test.
 @MainActor
 @Suite("Logout clears cached chat photos")
 struct LogoutChatMediaTests {
@@ -36,6 +40,9 @@ struct LogoutChatMediaTests {
             #expect(cache.memoryStorage.isCached(forKey: key))
             #expect(cache.diskStorage.isCached(forKey: key))
         }
+
+        let priorEmail = CoinbaseOrderEmail.unverifiedEmail
+        defer { CoinbaseOrderEmail.unverifiedEmail = priorEmail }
 
         SessionAuthenticator(container: .mock).logout()
 
