@@ -50,9 +50,11 @@ public struct MediaAttachment: Hashable, Sendable, Codable {
     }
 
     /// The copy a view drawing this photo `targetPixels` on its longest side loads. See
-    /// ``MediaRendition/forPixelSize(_:derived:original:)``.
+    /// ``MediaRendition/forPixelSize(_:derived:original:)``. A sealed photo always loads its
+    /// ORIGINAL: that is the blob its seal decrypts.
     public func rendition(forPixelSize targetPixels: Int) -> MediaRendition? {
-        MediaRendition.forPixelSize(targetPixels, derived: renditions, original: original)
+        guard sealed == nil else { return original }
+        return MediaRendition.forPixelSize(targetPixels, derived: renditions, original: original)
     }
 
     /// The longest side, in pixels, of a quoted photo's thumbnail: 38 pt at 3x, the reply strip's

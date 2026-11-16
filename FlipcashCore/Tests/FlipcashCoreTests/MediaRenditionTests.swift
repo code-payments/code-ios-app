@@ -192,6 +192,14 @@ struct MediaRenditionTests {
         #expect(sealed.rendition(forPixelSize: 780)?.role == .original)
     }
 
+    @Test("A sealed photo loads its ORIGINAL even when derived copies are listed beside it")
+    func sealedIgnoresListedRenditions() throws {
+        let display = MediaRendition(role: .display, blobID: blobID(7), width: 1600, height: 1200)
+        let sealed = MediaAttachment(blobID: blobID(6), width: 4000, height: 3000, blurhash: nil, sealed: SealedBlob(senderID: UUID(), plaintextSize: 10), renditions: [display])
+        #expect(sealed.rendition(forPixelSize: 780)?.role == .original)
+        #expect(sealed.quoteThumbnailBlobID == blobID(6))
+    }
+
     @Test("An attachment encoded before renditions decodes with none")
     func decodesWithoutRenditions() throws {
         let encoded = try JSONEncoder().encode(MediaAttachment(blobID: blobID(6), width: 10, height: 20, blurhash: nil))
