@@ -19,8 +19,8 @@ public struct ChatMediaLocation: Sendable {
     /// Tells whoever minted `url` that the CDN refused it (a 403), and returns whether resolving the
     /// photo again will mint a fresh one.
     public let reportRefused: @MainActor @Sendable () -> Bool
-    /// Whether a photo drawn from the cache alone was end-to-end encrypted, for its load report.
-    let cachedSealed: Bool
+    /// Whether the photo's blob is end-to-end encrypted, for its load report.
+    let sealed: Bool
     /// The copy of the photo this location draws, or nil for the ORIGINAL a caller asked for by
     /// the photo's own blob. A bubble draws, evicts and reports under this copy's blob.
     public let rendition: MediaRendition?
@@ -37,7 +37,7 @@ public struct ChatMediaLocation: Sendable {
         self.url = url
         self.decrypt = decrypt
         self.reportRefused = reportRefused
-        self.cachedSealed = false
+        self.sealed = decrypt != nil
         self.rendition = rendition
         self.caches = caches
     }
@@ -46,7 +46,7 @@ public struct ChatMediaLocation: Sendable {
         self.url = nil
         self.decrypt = nil
         self.reportRefused = { false }
-        self.cachedSealed = sealed
+        self.sealed = sealed
         self.rendition = rendition
         self.caches = caches
     }
@@ -68,7 +68,7 @@ public enum ChatMediaImageSource {
     public static func source(blobID: BlobID?, location: ChatMediaLocation) -> Source {
         let cacheKey = blobID.map(Self.cacheKey(for:)) ?? location.url?.absoluteString ?? ""
         guard let url = location.url else {
-            return .provider(CachedOnlyProvider(cacheKey: cacheKey, sealed: location.cachedSealed))
+            return .provider(CachedOnlyProvider(cacheKey: cacheKey))
         }
         guard let decrypt = location.decrypt else {
             return .network(KF.ImageResource(downloadURL: url, cacheKey: cacheKey))
@@ -81,7 +81,7 @@ public enum ChatMediaImageSource {
     @MainActor
     public static func image(blobID: BlobID?, location: ChatMediaLocation, surface: ChatMediaSurface) async -> UIImage? {
         let result = await retrieve(source(blobID: blobID, location: location), options: options(in: location.caches))
-        finish(result, blobID: blobID, surface: surface, rendition: .original, in: location.caches)
+        finish(result, blobID: blobID, surface: surface, rendition: .original, location: location)
         return try? result.get().image
     }
 
@@ -205,18 +205,19 @@ public enum ChatMediaImageSource {
     /// signed URL changes per fetch, so without this every relaunch or memory trim re-downloads it.
     ///
     /// `rendition` is the role of the copy loaded, nil when the caller can't tell, as a quote can't.
-    /// It has no default so each surface states the copy it loads.
+    /// It has no default so each surface states the copy it loads. `location` is the one the load
+    /// started from: the photo is written to its caches, and its report is sealed when it is.
     public static func finish(
         _ result: Result<RetrieveImageResult, KingfisherError>,
         blobID: BlobID?,
         surface: ChatMediaSurface,
         rendition: MediaRendition.Role?,
         processor: ImageProcessor? = nil,
-        in caches: ChatMediaCaches
+        location: ChatMediaLocation
     ) {
-        ChatMediaLoadReport(result, blobID: blobID, surface: surface, rendition: rendition).log()
+        ChatMediaLoadReport(result, blobID: blobID, surface: surface, rendition: rendition, sealed: location.sealed).log()
         guard case .success(let value) = result else { return }
-        persist(value.image, cacheType: value.cacheType, forKey: value.source.cacheKey, processor: processor, in: caches)
+        persist(value.image, cacheType: value.cacheType, forKey: value.source.cacheKey, processor: processor, in: location.caches)
     }
 
     static func persist(
@@ -244,8 +245,6 @@ nonisolated struct CachedOnlyProvider: ImageDataProvider {
     struct NotCached: Error {}
 
     let cacheKey: String
-    /// Whether the cached photo's blob is end-to-end encrypted, for its load report.
-    let sealed: Bool
 
     func data(handler: @escaping @Sendable (Result<Data, any Error>) -> Void) {
         handler(.failure(NotCached()))

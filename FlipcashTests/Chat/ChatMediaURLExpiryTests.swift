@@ -180,7 +180,7 @@ struct ChatMediaURLExpiryTests {
         }
         func sealed(_ code: Int) -> KingfisherError {
             .imageSettingError(reason: .dataProviderError(
-                provider: CachedOnlyProvider(cacheKey: "k", sealed: false),
+                provider: CachedOnlyProvider(cacheKey: "k"),
                 error: ChatMediaHTTPError(status: code)
             ))
         }

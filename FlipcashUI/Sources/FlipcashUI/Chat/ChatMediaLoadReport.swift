@@ -76,7 +76,8 @@ nonisolated struct ChatMediaLoadReport: Equatable {
     /// prefetch or the viewer left is. Kingfisher reports that as `.none`, which would otherwise
     /// read as a network load.
     var fromFullSize = false
-    var sealed = false
+    /// Whether the photo's blob is end-to-end encrypted, as known before the load started.
+    let sealed: Bool
     var transfer: ChatMediaTransfer?
     var decrypt: Duration?
     /// The failure's error domain and code. Never its description: a `URLError` or `KingfisherError`
@@ -84,44 +85,45 @@ nonisolated struct ChatMediaLoadReport: Equatable {
     var errorDomain: String?
     var errorCode: Int?
 
-    init(blobID: BlobID?, surface: ChatMediaSurface, outcome: Outcome) {
+    init(blobID: BlobID?, surface: ChatMediaSurface, outcome: Outcome, sealed: Bool) {
         self.blobID = blobID
         self.surface = surface
         self.outcome = outcome
+        self.sealed = sealed
     }
 
+    /// The report for a load that ended in `result`. `sealed` comes from where the load started:
+    /// a failed or cancelled result doesn't always carry the provider that would show it.
     init(
         _ result: Result<RetrieveImageResult, KingfisherError>,
         blobID: BlobID?,
         surface: ChatMediaSurface,
-        rendition: MediaRendition.Role? = .original
+        rendition: MediaRendition.Role? = .original,
+        sealed: Bool
     ) {
         switch result {
         case .success(let value):
-            self.init(blobID: blobID, surface: surface, outcome: .ok)
+            self.init(blobID: blobID, surface: surface, outcome: .ok, sealed: sealed)
             cache = value.cacheType
             if case .provider(let provider) = value.source, let provider = provider as? DecryptingProvider {
-                sealed = true
                 let trace = provider.trace.snapshot
                 transfer = trace.transfer
                 decrypt = trace.decrypt
-            } else if case .provider(let provider) = value.source, let provider = provider as? CachedOnlyProvider {
-                sealed = provider.sealed
+            } else if case .provider(let provider) = value.source, provider is CachedOnlyProvider {
                 fromFullSize = value.cacheType == .none
             } else {
                 transfer = value.metrics.map { ChatMediaTransfer(metrics: $0.rawMetrics) }
             }
         case .failure(let error):
-            self.init(error, blobID: blobID, surface: surface)
+            self.init(error, blobID: blobID, surface: surface, sealed: sealed)
         }
         self.rendition = rendition
     }
 
-    private init(_ error: KingfisherError, blobID: BlobID?, surface: ChatMediaSurface) {
+    private init(_ error: KingfisherError, blobID: BlobID?, surface: ChatMediaSurface, sealed: Bool) {
         var underlying: (any Error)?
         var response: HTTPURLResponse?
         var trace: ChatMediaLoadTrace.State?
-        var cachedSealed = false
         let outcome: Outcome
         switch error {
         case .requestError(reason: .taskCancelled):
@@ -140,7 +142,6 @@ nonisolated struct ChatMediaLoadReport: Equatable {
             outcome = .cancelled
         case .imageSettingError(reason: .dataProviderError(let provider, let failure)):
             trace = (provider as? DecryptingProvider)?.trace.snapshot
-            cachedSealed = (provider as? CachedOnlyProvider)?.sealed ?? false
             outcome = .failed(trace?.step ?? .fetch)
             underlying = failure
         case .imageSettingError:
@@ -151,8 +152,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
             outcome = .failed(.cache)
         }
 
-        self.init(blobID: blobID, surface: surface, outcome: outcome)
-        sealed = trace != nil || cachedSealed
+        self.init(blobID: blobID, surface: surface, outcome: outcome, sealed: sealed)
         transfer = trace?.transfer
         decrypt = trace?.decrypt
         if let response {

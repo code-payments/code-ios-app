@@ -648,7 +648,7 @@ public final class ChatMediaCell: ChatColumnCell {
         ) { [weak self] result in
             // Called on success, failure and cancellation alike, so the claim never outlives its load.
             if let claim { remote.caches.downloads.release(claim) }
-            ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, rendition: drawn?.role ?? .original, processor: processor, in: remote.caches)
+            ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, rendition: drawn?.role ?? .original, processor: processor, location: remote)
             guard case .failure(let error) = result else { return }
             if ChatMediaImageSource.isUndecryptable(error) {
                 self?.showUnavailable(true)

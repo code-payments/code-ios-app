@@ -187,8 +187,8 @@ struct ChatQuoteContent: View {
                     if let resolvedThumbnail {
                         KFImage(source: ChatMediaImageSource.source(blobID: thumbnailBlobID, location: resolvedThumbnail))
                             .targetCache(resolvedThumbnail.caches.images)
-                            .onSuccess { ChatMediaImageSource.finish(.success($0), blobID: thumbnailBlobID, surface: .quote, rendition: nil, in: resolvedThumbnail.caches) }
-                            .onFailure { ChatMediaImageSource.finish(.failure($0), blobID: thumbnailBlobID, surface: .quote, rendition: nil, in: resolvedThumbnail.caches) }
+                            .onSuccess { ChatMediaImageSource.finish(.success($0), blobID: thumbnailBlobID, surface: .quote, rendition: nil, location: resolvedThumbnail) }
+                            .onFailure { ChatMediaImageSource.finish(.failure($0), blobID: thumbnailBlobID, surface: .quote, rendition: nil, location: resolvedThumbnail) }
                             .resizable()
                             .scaledToFill()
                     }

@@ -159,7 +159,7 @@ struct ChatMediaCachedDrawTests {
             ChatMediaImageSource.source(blobID: media.blobID, location: location),
             options: ChatMediaImageSource.options(processor: processor, in: caches)
         )
-        let report = ChatMediaLoadReport(result, blobID: media.blobID, surface: .bubble)
+        let report = ChatMediaLoadReport(result, blobID: media.blobID, surface: .bubble, sealed: location.sealed)
 
         #expect(report.cache == .disk)
         #expect(report.metadata["sealed"] == "true")

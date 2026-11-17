@@ -305,14 +305,14 @@ struct ChatMediaRenditionLoadTests {
     @Test("A bubble's load report names the copy it loaded")
     func reportNamesTheRendition() {
         let error = KingfisherError.requestError(reason: .emptyRequest)
-        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .bubble, rendition: .display).metadata["rendition"] == "display")
-        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .bubble, rendition: .thumbnail).metadata["rendition"] == "thumbnail")
+        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .bubble, rendition: .display, sealed: false).metadata["rendition"] == "display")
+        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .bubble, rendition: .thumbnail, sealed: false).metadata["rendition"] == "thumbnail")
     }
 
     @Test("A load that doesn't know its copy logs no rendition rather than guessing")
     func reportOmitsAnUnknownRendition() {
         let error = KingfisherError.requestError(reason: .emptyRequest)
-        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .quote, rendition: nil).metadata["rendition"] == nil)
+        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .quote, rendition: nil, sealed: false).metadata["rendition"] == nil)
     }
 
     // MARK: - Mapping -

@@ -439,7 +439,7 @@ private struct MessageCardPhoto: View {
         let processor = DownsamplingImageProcessor(size: CGSize(width: side, height: side))
         let source = ChatMediaImageSource.source(blobID: blobID, location: location)
         let result = await ChatMediaImageSource.retrieve(source, options: ChatMediaImageSource.options(processor: processor, in: location.caches))
-        ChatMediaImageSource.finish(result, blobID: blobID, surface: .link, rendition: .original, processor: processor, in: location.caches)
+        ChatMediaImageSource.finish(result, blobID: blobID, surface: .link, rendition: .original, processor: processor, location: location)
         if case .success(let value) = result, !Task.isCancelled { image = value.image }
     }
 }
