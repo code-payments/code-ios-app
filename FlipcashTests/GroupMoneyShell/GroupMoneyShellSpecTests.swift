@@ -1099,27 +1099,32 @@ private final class GateFlags: BetaFlags {
 
 extension GroupMoneyShellSpecTests {
 
-    /// Every flag stored on, as a test host can have them, then a ``GateFlags`` given none of
-    /// them. Not async, so nothing else on the main actor reads the store between the write and
-    /// the restore.
-    @Test("8.33 the specs' flag stand-in answers off for every flag it is not given, whatever the test host has stored")
-    func gateFlags_ignoresStoredFlags() throws {
-        var storedOptions = Defaults<Set<String>>(.betaFlags)
-        var appliedDefaults = Defaults<Set<String>>(.appliedBetaFlagDefaults)
-        let savedOptions = storedOptions.wrappedValue
-        let savedDefaults = appliedDefaults.wrappedValue
-        defer {
-            storedOptions.wrappedValue = savedOptions
-            appliedDefaults.wrappedValue = savedDefaults
+    /// Every flag stored on, as a test host can have them, then each of this file's stand-ins
+    /// given none of them.
+    @Test(
+        "8.33 the specs' flag stand-ins answer off for every flag they are not given, whatever the test host has stored",
+        arguments: ShellFlagStandIn.allCases
+    )
+    func standIns_ignoreStoredFlags(_ standIn: ShellFlagStandIn) throws {
+        try BetaFlags.withEveryOptionStored {
+            let flags = standIn.makeGivenNoFlags()
+            for option in BetaFlags.Option.allCases {
+                #expect(!flags.hasEnabled(option), "\(option)")
+            }
         }
-        storedOptions.wrappedValue = Set(BetaFlags.Option.allCases.map(\.rawValue))
+    }
+}
 
-        let stored = BetaFlags()
-        try #require(BetaFlags.Option.allCases.allSatisfy { stored.hasEnabled($0) }, "every flag reads on from the store")
+/// This file's ``BetaFlags`` stand-ins, for the guard that none of them answers from the store.
+enum ShellFlagStandIn: CaseIterable {
+    case gateFlags
+    case flippableGateFlags
 
-        let flags = GateFlags(showsGroupMoney: false)
-        for option in BetaFlags.Option.allCases {
-            #expect(!flags.hasEnabled(option), "\(option)")
+    @MainActor
+    fileprivate func makeGivenNoFlags() -> BetaFlags {
+        switch self {
+        case .gateFlags: GateFlags(showsGroupMoney: false)
+        case .flippableGateFlags: FlippableGateFlags(gate: ShellGate(isOn: false))
         }
     }
 }
@@ -1180,7 +1185,8 @@ private final class ShellGate {
 }
 
 /// ``GateFlags`` whose answer follows a ``ShellGate``. Reading it inside a view's body tracks the
-/// gate, so a flip redraws the hosted view as a stored flag change would.
+/// gate, so a flip redraws the hosted view as a stored flag change would. Every flag reads off,
+/// whatever the test host has stored.
 private final class FlippableGateFlags: BetaFlags {
     let gate: ShellGate
 
@@ -1191,6 +1197,10 @@ private final class FlippableGateFlags: BetaFlags {
 
     override func showsGroupMoneyUI(isStaff: Bool) -> Bool {
         gate.isOn
+    }
+
+    override func hasEnabled(_ option: Option) -> Bool {
+        false
     }
 }
 

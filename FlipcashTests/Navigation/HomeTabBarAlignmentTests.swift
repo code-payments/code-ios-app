@@ -196,6 +196,18 @@ struct HomeTabBarAlignmentTests {
         #expect(abs(restored - systemInset) <= 0.5, "restored \(restored), system bar \(systemInset)")
     }
 
+    // MARK: - Flag stand-in
+
+    @Test("the suite's flag stand-in answers off for every flag it is not given, whatever the test host has stored")
+    func standIn_ignoresStoredFlags() throws {
+        try BetaFlags.withEveryOptionStored {
+            let flags = AlignmentFlags(state: BarFlags(showsGroupMoney: false, leftAligned: false))
+            for option in BetaFlags.Option.allCases {
+                #expect(!flags.hasEnabled(option), "\(option)")
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private static func same(_ a: CGRect, _ b: CGRect) -> Bool {
@@ -297,8 +309,9 @@ private final class BarFlags {
     }
 }
 
-/// Answers the shell's gate and the alignment flag from ``BarFlags`` without touching the stored
-/// flags, which other suites read from `UserDefaults.standard` while this one runs.
+/// Answers the shell's gate and the alignment flag from ``BarFlags``, and every other flag off, so
+/// a flag stored on the test host (other suites write them to `UserDefaults.standard`) does not
+/// reach this suite.
 private final class AlignmentFlags: BetaFlags {
     let state: BarFlags
 
@@ -312,7 +325,7 @@ private final class AlignmentFlags: BetaFlags {
     }
 
     override func hasEnabled(_ option: Option) -> Bool {
-        option == .leftAlignedTabBar ? state.leftAligned : super.hasEnabled(option)
+        option == .leftAlignedTabBar && state.leftAligned
     }
 }
 
