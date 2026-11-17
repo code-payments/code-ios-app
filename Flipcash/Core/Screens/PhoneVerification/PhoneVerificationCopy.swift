@@ -79,6 +79,14 @@ enum PhoneVerificationCopy: Equatable {
         case .onboarding: "Resend code"
         }
     }
+
+    /// The title of the button that submits the code.
+    var codeButtonTitle: String {
+        switch self {
+        case .standard:   "Confirm"
+        case .onboarding: "Next"
+        }
+    }
 }
 
 /// A screen's title and the sentence under it.

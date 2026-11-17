@@ -370,6 +370,7 @@ struct GroupMoneyOnboardingSpecTests {
         #expect(copy.codeHeader(phone: "+1 (202) 555-0148", digits: 6) == nil)
         #expect(copy.codeExplanation == "An SMS message was sent to your phone number with a verification code. Please enter the verification code above.")
         #expect(copy.resendTitle == "Didn't get an SMS? Resend")
+        #expect(copy.codeButtonTitle == "Confirm")
     }
 
     @Test("4.4 the onboarding phone screens use the frames' words")
@@ -384,6 +385,13 @@ struct GroupMoneyOnboardingSpecTests {
         ))
         #expect(copy.codeExplanation == "This confirms that this number belongs to you.")
         #expect(copy.resendTitle == "Resend code")
+    }
+
+    @Test("4.6 the onboarding code screen keeps its button, titled Next as on the other steps")
+    func phoneCopy_onboardingCodeButton() {
+        // Frame 2-04 draws no button. It stays because it carries the loading state while the
+        // code is checked, and Android keeps it too, titled Next.
+        #expect(PhoneVerificationCopy.onboarding.codeButtonTitle == "Next")
     }
 
     // MARK: - 5. Email -

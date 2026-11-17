@@ -66,7 +66,7 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
                 CodeButton(
                     state: viewModel.confirmCodeButtonState,
                     style: .filled,
-                    title: "Confirm",
+                    title: copy.codeButtonTitle,
                     disabled: !viewModel.isCodeComplete
                 ) {
                     viewModel.confirmPhoneNumberCodeAction()
