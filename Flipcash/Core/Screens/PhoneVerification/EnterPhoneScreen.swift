@@ -17,18 +17,31 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
 
     @FocusState private var isFocused: Bool
 
+    private let copy: PhoneVerificationCopy
+
     // MARK: - Init -
 
-    init(viewModel: VM) {
+    init(viewModel: VM, copy: PhoneVerificationCopy = .standard) {
         self.viewModel = viewModel
+        self.copy = copy
     }
 
     // MARK: - Body -
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: .center, spacing: 15) {
-                Spacer()
+            VStack(alignment: copy.entryHeader == nil ? .center : .leading, spacing: 15) {
+                if let header = copy.entryHeader {
+                    OnboardingStepHeader(text: header)
+                        .padding(.bottom, 10)
+                } else {
+                    Spacer()
+                }
+
+                if let fieldLabel = copy.entryFieldLabel {
+                    OnboardingFieldLabel(title: fieldLabel)
+                }
+
                 InputContainer(size: .regular) {
                     HStack(spacing: 0) {
                         Button {
@@ -64,7 +77,7 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
                     }
                 }
 
-                PhoneEntryHint(showsError: viewModel.showsInvalidPhoneHint)
+                PhoneEntryHint(showsError: viewModel.showsInvalidPhoneHint, copy: copy)
 
                 Spacer()
 
@@ -110,12 +123,24 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
 private struct PhoneEntryHint: View {
 
     let showsError: Bool
+    let copy: PhoneVerificationCopy
 
     var body: some View {
-        Text(showsError ? "Phone number invalid" : "Please enter your phone number to continue")
+        if copy == .standard {
+            hint
+                .font(.appTextSmall)
+                .multilineTextAlignment(.center)
+        } else {
+            hint
+                .font(.appTextBody)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var hint: some View {
+        Text(showsError ? "Phone number invalid" : copy.entryHint)
             .foregroundStyle(showsError ? .textError : .textSecondary)
-            .font(.appTextSmall)
-            .multilineTextAlignment(.center)
             .contentTransition(.opacity)
             .animation(.easeInOut(duration: 0.2), value: showsError)
     }

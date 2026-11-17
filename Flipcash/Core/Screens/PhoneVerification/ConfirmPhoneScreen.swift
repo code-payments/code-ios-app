@@ -16,18 +16,32 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
     @Bindable private var viewModel: VM
     @FocusState private var isFocused: Bool
 
+    private let copy: PhoneVerificationCopy
+
     // MARK: - Init -
 
-    init(viewModel: VM) {
+    init(viewModel: VM, copy: PhoneVerificationCopy = .standard) {
         self.viewModel = viewModel
+        self.copy = copy
+    }
+
+    /// The number the code went to, as the user typed it: country code then national form.
+    private var sentToPhone: String {
+        guard let phone = viewModel.phone else { return "" }
+        return "\(viewModel.countryCode) \(phone.national)"
     }
 
     // MARK: - Body -
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(spacing: 5) {
-                Spacer()
+            VStack(alignment: copy == .standard ? .center : .leading, spacing: 5) {
+                if let header = copy.codeHeader(phone: sentToPhone, digits: viewModel.codeLength) {
+                    OnboardingStepHeader(text: header)
+                        .padding(.bottom, 25)
+                } else {
+                    Spacer()
+                }
                 Button {
                     isFocused = true
                 } label: {
@@ -42,43 +56,11 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
                     }
                 }
 
-                let text = "An SMS message was sent to your phone number with a verification code. Please enter the verification code above."
-
-                Group {
-                    if let countdownEnd, countdownEnd > .now {
-                        VStack(spacing: 15) {
-                            Text(text)
-                            VStack(spacing: 0) {
-                                Text("Didn't get an SMS at \(viewModel.phone?.national ?? "")?")
-                                (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
-                                    .contentTransition(.numericText())
-                            }
-                        }
-                        .multilineTextAlignment(.center)
-                    } else {
-                        VStack(spacing: 15) {
-                            Text(text)
-                            Button {
-                                Task {
-                                    try? await viewModel.resendCodeAction()
-                                    countdownEnd = Date.now.addingTimeInterval(60)
-                                }
-                            } label: {
-                                Loadable(isLoading: viewModel.isResending, color: .textSecondary) {
-                                    VStack(spacing: 0) {
-                                        Text("Didn't get an SMS? Resend")
-                                        Text(" ") // Offset to match the two line layout above
-                                    }
-                                }
-                            }
-                        }
-                        .multilineTextAlignment(.center)
-                    }
+                if copy == .standard {
+                    standardFooter
+                } else {
+                    stepFooter
                 }
-                .foregroundStyle(.textSecondary)
-                .font(.appTextSmall)
-                .frame(minHeight: 40, alignment: .top)
-                .padding(20)
 
                 Spacer()
                 CodeButton(
@@ -121,6 +103,85 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
         }
         .onChange(of: notificationController.didBecomeActive) { _, _ in
             viewModel.pasteCodeFromClipboardIfPossible()
+        }
+    }
+
+    // MARK: - Footers -
+
+    /// The on-ramp's centred explanation with the resend line under it.
+    private var standardFooter: some View {
+        let text = copy.codeExplanation
+
+        return Group {
+            if let countdownEnd, countdownEnd > .now {
+                VStack(spacing: 15) {
+                    Text(text)
+                    VStack(spacing: 0) {
+                        Text("Didn't get an SMS at \(viewModel.phone?.national ?? "")?")
+                        (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
+                            .contentTransition(.numericText())
+                    }
+                }
+                .multilineTextAlignment(.center)
+            } else {
+                VStack(spacing: 15) {
+                    Text(text)
+                    Button {
+                        Task {
+                            try? await viewModel.resendCodeAction()
+                            countdownEnd = Date.now.addingTimeInterval(60)
+                        }
+                    } label: {
+                        Loadable(isLoading: viewModel.isResending, color: .textSecondary) {
+                            VStack(spacing: 0) {
+                                Text(copy.resendTitle)
+                                Text(" ") // Offset to match the two line layout above
+                            }
+                        }
+                    }
+                }
+                .multilineTextAlignment(.center)
+            }
+        }
+        .foregroundStyle(.textSecondary)
+        .font(.appTextSmall)
+        .frame(minHeight: 40, alignment: .top)
+        .padding(20)
+    }
+
+    /// The Group Money step's resend line, then the explanation, both leading.
+    private var stepFooter: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if let countdownEnd, countdownEnd > .now {
+                (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
+                    .contentTransition(.numericText())
+                    .font(.appTextSmall)
+                    .foregroundStyle(.textSecondary)
+            } else {
+                Button {
+                    resendCode()
+                } label: {
+                    Loadable(isLoading: viewModel.isResending, color: .textMain) {
+                        Text(copy.resendTitle)
+                    }
+                }
+                .font(.appTextSmall)
+                .foregroundStyle(.textMain)
+            }
+
+            Text(copy.codeExplanation)
+                .font(.appTextBody)
+                .foregroundStyle(.textSecondary)
+                .multilineTextAlignment(.leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 20)
+    }
+
+    private func resendCode() {
+        Task {
+            try? await viewModel.resendCodeAction()
+            countdownEnd = Date.now.addingTimeInterval(60)
         }
     }
 }
