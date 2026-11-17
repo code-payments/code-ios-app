@@ -175,9 +175,14 @@ public struct ChatMessageCellView: UIViewRepresentable {
             case let cell as ChatMediaCell:
                 guard case .media(let media) = message.content else { return }
                 cell.linkCardSource = content.linkCardSource
-                let remote = content.mediaURLResolver?.location(for: media, canReact: message.canReact) { [weak self] _ in
+                let remote = content.mediaURLResolver?.location(
+                    for: media,
+                    canReact: message.canReact,
+                    cachedAs: ChatMediaCell.processor(for: media, maxWidth: maxWidth)
+                ) { [weak self] _ in
                     self?.configure()
                 }
+                cell.onReload = { [weak self] in self?.configure() }
                 cell.configure(with: message, maxWidth: maxWidth, localImage: nil, remote: remote, authorImageData: content.authorImageData)
             default:
                 assertionFailure("Unhandled chat cell class for a message")

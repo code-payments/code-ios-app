@@ -645,10 +645,10 @@ struct ConversationScreen: View {
         }
     }
 
-    private var mintMediaURL: (BlobID) async throws -> URL? {
+    private var mintMediaURL: (BlobID) async throws -> BlobDownloadLink? {
         { [flipClient = container.flipClient, owner = session.ownerKeyPair, conversationID] blobID in
             guard let conversationID else { return nil }
-            return try await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+            return try await flipClient.blobDownloadLink(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
         }
     }
 

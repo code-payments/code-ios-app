@@ -28,7 +28,7 @@ final class PinnedMessagesPresentation {
     /// focus back as it closes, which would raise the keyboard over the sheet.
     @ObservationIgnored let keyboard = KeyboardSuppressor()
     /// The latest photo URL minter, read by ``mediaURLResolver`` at fetch time.
-    @ObservationIgnored var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
+    @ObservationIgnored var mintMediaURL: (BlobID) async throws -> BlobDownloadLink? = { _ in nil }
     /// The latest photo decrypter, read by ``mediaURLResolver``.
     @ObservationIgnored var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? = { nil }
     /// The photo resolver the rows share for the visit.

@@ -879,7 +879,11 @@ public final class ChatViewController: UICollectionViewController {
             guard case .media(let media) = message.content else { return }
             // Before `configure`, which is where the caption's card draws.
             cell.linkCardSource = linkCardSource
-            let remote = mediaURLResolver?.location(for: media, canReact: message.canReact) { [weak self] _ in
+            let remote = mediaURLResolver?.location(
+                for: media,
+                canReact: message.canReact,
+                cachedAs: ChatMediaCell.processor(for: media, maxWidth: cardMaxWidth)
+            ) { [weak self] _ in
                 self?.reconfigureVisibleMessage(id: message.id)
             }
             let localImage = pendingMediaImage?(message.id)
@@ -897,11 +901,14 @@ public final class ChatViewController: UICollectionViewController {
                 captionWidth: linkCardWidth(for: media.captionCard, available: cardAvailable)
             )
             cell.onQuoteTap = { [weak self] id in self?.quoteTapped(id, in: message.messageID) }
+            cell.onReload = { [weak self] in self?.reconfigureVisibleMessage(id: message.id) }
             cell.onImageTap = { [weak self, weak cell] in
                 guard let self, var request = ChatMediaViewerRequest(
                     message: message,
                     localImage: localImage,
-                    remote: remote,
+                    remote: { [weak resolver = mediaURLResolver] in
+                        await resolver?.location(for: media, canReact: message.canReact)
+                    },
                     placeholder: cell?.imageView.image,
                     sourceView: { [weak self] in self?.mediaSourceView(forMessageID: message.id) }
                 ) else { return }
@@ -932,6 +939,7 @@ public final class ChatViewController: UICollectionViewController {
             return ChatMediaViewerRequest.Page(
                 messageID: photo.messageID,
                 blobID: photo.blobID,
+                sealed: content.sealed != nil,
                 localImage: localImage,
                 placeholder: localImage
                     ?? (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
