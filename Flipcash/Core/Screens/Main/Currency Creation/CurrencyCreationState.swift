@@ -47,6 +47,10 @@ final class CurrencyCreationState {
     /// The step the wizard is showing.
     var step: Step = .name
 
+    /// Where the creation flow was launched from: the position beneath the summary screen,
+    /// which the finished flow pops back to. Nothing draws from it.
+    @ObservationIgnored var launchedFrom: AppRouter.StackPosition?
+
     /// UI clamp and validator bound for the description. The server allows
     /// 4096; 500 is the product choice.
     static let descriptionCharLimit = 500
