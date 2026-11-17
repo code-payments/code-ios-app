@@ -582,6 +582,26 @@ struct RatesControllerTests {
         #expect(NotificationPreviewCache.read(for: chat) == nil)
     }
 
+    // MARK: - Shared display currency -
+
+    @Test("A new display currency goes to the injected defaults and leaves the App Group's alone")
+    @MainActor
+    func newDisplayCurrency_writesInjectedDefaults_notAppGroup() throws {
+        let suiteName = "RatesControllerTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let appGroupSelection = DisplayCurrency.sharedSelection
+
+        let controller = RatesController(container: .mock, database: .mock, sharedDefaults: defaults)
+        #expect(DisplayCurrency.sharedSelection(in: defaults) == controller.balanceCurrency)
+
+        let next: CurrencyCode = appGroupSelection == .cad ? .eur : .cad
+        controller.balanceCurrency = next
+
+        #expect(DisplayCurrency.sharedSelection(in: defaults) == next)
+        #expect(DisplayCurrency.sharedSelection == appGroupSelection)
+    }
+
     // MARK: - Helpers -
 
     /// NOTE: RatesController.init reads `balanceCurrency` from

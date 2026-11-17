@@ -7,9 +7,17 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 @testable import Flipcash
 
 extension RatesController {
+    /// Creates a controller that publishes its display currency to a test-only suite, so no test
+    /// writes the App Group defaults the notification extensions read.
+    @MainActor
+    convenience init(container: Container, database: Database) {
+        self.init(container: container, database: database, sharedDefaults: UserDefaults(suiteName: "FlipcashTests.sharedDefaults"))
+    }
+
     /// Configure balance currency and inject rates for tests.
     @MainActor
     func configureTestRates(balanceCurrency: CurrencyCode? = nil, rates: [Rate]) {
