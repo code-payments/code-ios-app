@@ -1073,6 +1073,7 @@ struct GroupMoneyShellSpecTests {
 /// `super.init()` still reads the store, so the inherited members this class does not override
 /// answer from it: `accessGranted` and what is built on it (`canViewAccountInfo`,
 /// `hasVisibleOptions`), `bindingFor(option:)` and `staffStanding(live:userID:)`.
+@MainActor
 private final class GateFlags: BetaFlags {
     let showsGroupMoney: Bool
     let switchesAccounts: Bool
@@ -1179,6 +1180,7 @@ extension GroupMoneyShellSpecTests {
 // MARK: - Hosted chat list -
 
 /// The shell's gate, flipped by a test while one view stays hosted.
+@MainActor
 @Observable
 private final class ShellGate {
     var isOn: Bool
@@ -1188,6 +1190,7 @@ private final class ShellGate {
 /// ``GateFlags`` whose answer follows a ``ShellGate``. Reading it inside a view's body tracks the
 /// gate, so a flip redraws the hosted view as a stored flag change would. Every flag reads off,
 /// whatever the test host has stored.
+@MainActor
 private final class FlippableGateFlags: BetaFlags {
     let gate: ShellGate
 
