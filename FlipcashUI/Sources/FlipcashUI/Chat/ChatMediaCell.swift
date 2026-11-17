@@ -582,7 +582,7 @@ public final class ChatMediaCell: ChatColumnCell {
                 .transition(.fade(Self.fadeDuration)),
             ]
         ) { [weak self] result in
-            ChatMediaImageSource.persist(result, processor: processor)
+            ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, processor: processor)
             if case .failure(let error) = result, ChatMediaImageSource.isUndecryptable(error) {
                 self?.showUnavailable(true)
             }

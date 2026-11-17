@@ -1624,7 +1624,7 @@ struct ConversationScreen: View {
                 var image = attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))
                     ?? ChatMediaImageSource.originalData(blobID: attachment.blobID).flatMap(UIImage.init(data:))
                 if image == nil, let location = await resolver.location(for: attachment) {
-                    image = await ChatMediaImageSource.image(blobID: attachment.blobID, location: location)
+                    image = await ChatMediaImageSource.image(blobID: attachment.blobID, location: location, surface: .save)
                 }
                 guard let image else { continue }
                 do {

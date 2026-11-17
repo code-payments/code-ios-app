@@ -8,6 +8,8 @@
 import Foundation
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.chat-media")
+
 /// Resolves and caches the signed download URL for each photo in one conversation.
 ///
 /// It is the only path from a photo row to the network, so a row that draws only its BlurHash — a
@@ -150,10 +152,33 @@ public final class ChatMediaURLResolver {
         guard isFirst else { return }
         Task {
             // Best-effort: the row keeps its BlurHash, and the next dequeue retries.
-            let resolved = try? await fetch(blobID)
+            let resolved = await mint(blobID)
             if let resolved { cache[blobID] = resolved }
             let completions = waiters.removeValue(forKey: blobID) ?? []
             for completion in completions { completion(resolved) }
+        }
+    }
+
+    /// Mints `blobID`'s URL, logging how long the server took; nil when it has none or the call failed.
+    private func mint(_ blobID: BlobID) async -> URL? {
+        let clock = ContinuousClock()
+        let start = clock.now
+        do {
+            let url = try await fetch(blobID)
+            logger.info("Chat photo URL minted", metadata: [
+                "blobId": "\(blobID)",
+                "mintMs": "\(ChatMediaLoadReport.milliseconds(clock.now - start))",
+                "outcome": "\(url == nil ? "none" : "ok")",
+            ])
+            return url
+        } catch {
+            logger.warning("Chat photo URL mint failed", metadata: [
+                "blobId": "\(blobID)",
+                "mintMs": "\(ChatMediaLoadReport.milliseconds(clock.now - start))",
+                "errorType": "\(type(of: error))",
+                "errorCode": "\((error as NSError).code)",
+            ])
+            return nil
         }
     }
 

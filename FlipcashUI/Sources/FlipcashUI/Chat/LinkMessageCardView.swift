@@ -438,12 +438,8 @@ private struct MessageCardPhoto: View {
         let side = LinkMessageCardContent.Layout.photo * displayScale
         let processor = DownsamplingImageProcessor(size: CGSize(width: side, height: side))
         let source = ChatMediaImageSource.source(blobID: blobID, location: location)
-        let result = await withCheckedContinuation { continuation in
-            KingfisherManager.shared.retrieveImage(with: source, options: ChatMediaImageSource.options(processor: processor)) {
-                continuation.resume(returning: $0)
-            }
-        }
-        ChatMediaImageSource.persist(result, processor: processor)
+        let result = await ChatMediaImageSource.retrieve(source, options: ChatMediaImageSource.options(processor: processor))
+        ChatMediaImageSource.finish(result, blobID: blobID, surface: .link, processor: processor)
         if case .success(let value) = result, !Task.isCancelled { image = value.image }
     }
 }
