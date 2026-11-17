@@ -1067,7 +1067,8 @@ struct GroupMoneyShellSpecTests {
 
 /// Answers the shell's gate, the account-switching gate and every flag from what the test passes
 /// in, so a flag stored on the test host (other suites write them to `UserDefaults.standard`) does
-/// not reach a spec. A flag it is not given reads off; a spec that needs one on passes it.
+/// not reach a spec through this stand-in. A flag it is not given reads off; a spec that needs one
+/// on passes it. Code that reads `BetaFlags.shared` still gets the stored value.
 ///
 /// `super.init()` still reads the store, so the inherited members this class does not override
 /// answer from it: `accessGranted` and what is built on it (`canViewAccountInfo`,

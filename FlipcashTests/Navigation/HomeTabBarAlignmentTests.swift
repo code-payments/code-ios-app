@@ -311,7 +311,8 @@ private final class BarFlags {
 
 /// Answers the shell's gate and the alignment flag from ``BarFlags``, and every other flag off, so
 /// a flag stored on the test host (other suites write them to `UserDefaults.standard`) does not
-/// reach this suite.
+/// reach this suite through this stand-in. The inherited members it does not override, such as
+/// `accessGranted`, and code that reads `BetaFlags.shared` still answer from the store.
 private final class AlignmentFlags: BetaFlags {
     let state: BarFlags
 
