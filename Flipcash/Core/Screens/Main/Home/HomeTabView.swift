@@ -404,15 +404,18 @@ struct HomeTabView: View {
     }
 
     /// The small bar over the hidden system bar. It hides on the same pushes,
-    /// and fades for select mode as the system bar does, keeping its inset so
-    /// the capsules take its slot.
+    /// and fades out for select mode as the system bar does, keeping its inset
+    /// (``leadingBarSafeAreaPadding``) so the capsules take its slot. It leaves
+    /// the hierarchy rather than going transparent: under `accessibilityHidden`
+    /// its items stayed in the accessibility tree, and activating one still
+    /// switched tabs from a bar that wasn't drawn.
     @available(iOS 26, *)
     private var nativeLeadingBar: some View {
         LeadingTabBarSlot(isVisible: drawsLeadingBar && !isTabBarHidden) {
-            shellBar(alignment: .leading)
-                .opacity(isChatSelecting ? 0 : 1)
-                .allowsHitTesting(!isChatSelecting)
-                .accessibilityHidden(isChatSelecting)
+            if !isChatSelecting {
+                shellBar(alignment: .leading)
+                    .transition(.opacity)
+            }
         }
         .animation(.easeInOut(duration: 0.2), value: isChatSelecting)
         .animation(.easeInOut(duration: 0.2), value: isTabBarHidden)

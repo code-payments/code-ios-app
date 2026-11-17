@@ -502,20 +502,30 @@ struct GroupMoneyShellSpecTests {
         #expect(Self.actions(in: menu).map(\.title) == ["Mark as Unread", "Mute", "Archive"])
     }
 
-    @Test("8.5 flag on: Select from a row swaps the tab bar for the select capsules")
-    func groupsList_rowSelectSwapsTabBar() async throws {
+    /// With `leftAligned` the small bar stands in for the system bar, so it has to leave with it:
+    /// not only drawn transparent, but out of the accessibility tree, where activating its items
+    /// still switched tabs.
+    @Test(
+        "8.5 flag on: Select from a row swaps the tab bar for the select capsules",
+        arguments: [false, true]
+    )
+    func groupsList_rowSelectSwapsTabBar(leftAligned: Bool) async throws {
         guard #available(iOS 26, *) else { return }
         let (controller, _) = try await Self.seededChatList()
         let window = try Self.hostWindow(
             HomeTabView()
                 .environment(controller)
-                .environment(GateFlags(showsGroupMoney: true) as BetaFlags)
+                .environment(GateFlags(showsGroupMoney: true, leftAligned: leftAligned) as BetaFlags)
                 .injectingEnvironment(from: try SessionContainer.makeTest(holdings: []))
                 .injectingEnvironment(from: Container.mock)
         )
         defer { window.isHidden = true }
         let menu = try await Self.rowMenu(in: window)
-        #expect(Self.systemTabBar(in: window) != nil)
+        if leftAligned {
+            #expect(Self.drawnTabBar(in: window) != nil)
+        } else {
+            #expect(Self.systemTabBar(in: window) != nil)
+        }
         #expect(Self.element(labelled: "Archive", in: window) == nil)
 
         try Self.perform("Select", in: menu)
