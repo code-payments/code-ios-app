@@ -3,8 +3,8 @@
 //  FlipcashTests
 //
 //  New-account onboarding when the Group Money gate is open: Create registers the account, then
-//  phone number, code, email (linked without a code), name, notification permission, home. The
-//  access key screen is not shown. Frames 2-03 to 2-06. Numbered by the decision table's rules;
+//  phone number, code, email (linked without a code), name, home. Neither the access key screen
+//  nor the notification permission step is shown. Frames 2-03 to 2-06. Numbered by the decision table's rules;
 //  written before the implementation, so each test pins an outcome rather than a mechanism.
 //
 
@@ -143,7 +143,7 @@ struct GroupMoneyOnboardingSpecTests {
         #expect(harness.viewModel.isGroupMoneyFlow)
     }
 
-    @Test("1.2 gate open: phone, code, email, name, then notification permission, never the access key")
+    @Test("1.2 gate open: phone, code, email, name, then home; never the access key or notification permission")
     func gateOpen_stepOrder() async throws {
         let harness = makeHarness(gate: Counter(isOpen: true), push: .notDetermined)
         defer { harness.cleanUp() }
@@ -162,9 +162,12 @@ struct GroupMoneyOnboardingSpecTests {
 
         let name = try #require(harness.viewModel.nameViewModel)
         name.onComplete?()
-        await waitUntil { harness.viewModel.path.last == .pushNotifications }
+        await waitUntil { !harness.finished.accounts.isEmpty || harness.viewModel.path.last == .pushNotifications }
 
-        #expect(harness.viewModel.path == [.enterPhoneNumber, .confirmPhoneNumberCode, .email, .displayName, .pushNotifications])
+        let owner = try #require(harness.registeredOwner)
+        #expect(harness.finished.accounts.map(\.keyAccount.ownerPublicKey) == [owner])
+        #expect(OnboardingProgress.isCompleted(owner: owner))
+        #expect(harness.viewModel.path == [.enterPhoneNumber, .confirmPhoneNumberCode, .email, .displayName])
         #expect(!harness.viewModel.path.contains(.accessKey))
     }
 
@@ -194,6 +197,44 @@ struct GroupMoneyOnboardingSpecTests {
         #expect(harness.remote.registered.isEmpty)
         #expect(harness.viewModel.phoneViewModel == nil)
         #expect(!harness.viewModel.isGroupMoneyFlow)
+    }
+
+    @Test("1.7 gate open: an account resumed after a relaunch keeps today's name words and notification step")
+    func gateOpen_resumedAccountKeepsPushStep() async throws {
+        let harness = makeHarness(gate: Counter(isOpen: true), push: .notDetermined)
+        defer { harness.cleanUp() }
+
+        await harness.viewModel.resumeOnboarding(with: Self.resumedAccount)
+        #expect(harness.viewModel.path == [.displayName])
+        #expect(harness.viewModel.nameCopy == .standard)
+
+        try #require(harness.viewModel.nameViewModel).onComplete?()
+        await waitUntil { harness.viewModel.path.last == .pushNotifications }
+
+        #expect(harness.viewModel.path == [.displayName, .pushNotifications])
+        #expect(harness.finished.accounts.isEmpty)
+    }
+
+    @Test("1.8 gate open: after a failed Create, a Log In keeps today's name words and notification step")
+    func gateOpen_failedCreateThenLogIn_keepsPushStep() async throws {
+        let harness = makeHarness(gate: Counter(isOpen: true), push: .notDetermined)
+        defer { harness.cleanUp() }
+        harness.remote.registerError = RegistrationFailed()
+        await tapCreate(harness)
+
+        await harness.viewModel.resumeOnboarding(with: Self.resumedAccount)
+        #expect(harness.viewModel.nameCopy == .standard)
+
+        try #require(harness.viewModel.nameViewModel).onComplete?()
+        await waitUntil { harness.viewModel.path.last == .pushNotifications || !harness.finished.accounts.isEmpty }
+
+        #expect(harness.viewModel.path == [.displayName, .pushNotifications])
+        #expect(harness.finished.accounts.isEmpty)
+    }
+
+    /// An account already signed in when onboarding resumes: a relaunch or an interactive login.
+    private static var resumedAccount: InitializedAccount {
+        InitializedAccount(keyAccount: .mock, userID: userID)
     }
 
     @Test("1.5 gate open: a failed registration stays on the intro with an error")

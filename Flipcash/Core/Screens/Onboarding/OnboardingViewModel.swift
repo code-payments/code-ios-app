@@ -148,6 +148,10 @@ class OnboardingViewModel {
         do {
             try await registerAccount(mnemonic: mnemonic)
         } catch {
+            // The account never became current on this device, so a Log In from the intro gets
+            // today's onboarding. A failure after the server registered the owner leaves that
+            // account unreachable: the next Create mints a new key.
+            isGroupMoneyFlow = false
             introDialogItem = Self.accountCreationError
             return
         }
@@ -228,8 +232,14 @@ class OnboardingViewModel {
 
     /// Advances past the display-name step: requests push permission when
     /// undetermined, otherwise finishes login. Contacts access is requested
-    /// later, in-app.
+    /// later, in-app. A new Group Money account has no push step and goes home;
+    /// a resumed account keeps it.
     private func advanceFromNameStep() async {
+        if isGroupMoneyFlow {
+            completeOnboardingAndLogin()
+            return
+        }
+
         let pushStatus = await pushStatus()
         switch pushStatus {
         case .notDetermined:

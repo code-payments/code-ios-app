@@ -182,7 +182,7 @@ struct OnboardingResumeTests {
         #expect(!viewModel.hidesBackButton(for: .pushNotificationsDenied))
     }
 
-    @Test("A Group Money account hides back on phone entry, email and name; the code and push steps keep it")
+    @Test("A Group Money account hides back on phone entry, email and name; the code step keeps it")
     func groupMoneyFlow_backButtons() async throws {
         let container = Container()
         container.sessionAuthenticator.remote = AccountRemote(
@@ -212,8 +212,6 @@ struct OnboardingResumeTests {
         #expect(!viewModel.hidesBackButton(for: .confirmPhoneNumberCode))
         #expect(viewModel.hidesBackButton(for: .email))
         #expect(viewModel.hidesBackButton(for: .displayName))
-        #expect(!viewModel.hidesBackButton(for: .pushNotifications))
-        #expect(!viewModel.hidesBackButton(for: .pushNotificationsDenied))
     }
 
     @Test("A resume that starts from a login screen replaces it, so back can't return to the login")
