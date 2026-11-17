@@ -312,7 +312,7 @@ struct WebCardImages {
     init(resolver: ChatMediaURLResolver) {
         load = { [weak resolver] attachment in
             guard let location = await resolver?.location(for: attachment) else { return nil }
-            return await ChatMediaImageSource.image(blobID: attachment.blobID, location: location)
+            return await ChatMediaImageSource.image(blobID: attachment.blobID, location: location, surface: .link)
         }
         cached = { attachment in
             attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))

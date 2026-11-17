@@ -291,7 +291,7 @@ struct GroupInviteScreen: View {
         guard let secret, !isJoining, case .preview(let conversation, _, _) = phase else { return }
         isJoining = true
         defer { isJoining = false }
-        let result = await landing.join(secret, conversationID: id)
+        let result = await landing.join(secret, conversationID: id, memberCount: memberCount)
         if let alert = result.alert {
             let item = DialogItem.error(title: alert.title, subtitle: alert.subtitle)
             dialogItem = alert.popsPreview ? item.onDismiss { router.popTopmost() } : item

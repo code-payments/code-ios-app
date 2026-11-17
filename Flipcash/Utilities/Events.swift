@@ -579,13 +579,15 @@ extension Analytics {
         track(GroupEvents.shared.gateFundingTapped(method: method, gateMint: gateMint?.base58))
     }
 
-    /// `JoinChat` returned; `error` is nil on success.
-    static func groupJoined(error: Error?, memberCount: UInt64, gated: Bool) {
+    /// A join through a private Group invite came to `result`. A private Group has no token
+    /// gate, so `Gated` is always false.
+    static func groupJoined(result: GroupInviteLanding.JoinResult, memberCount: UInt64) {
+        let error = result.analyticsError
         track(GroupEvents.shared.joined(
-            state: .from(error),
-            error: error.map(chatResult),
+            state: error == nil ? .success : .failure,
+            error: error,
             memberCount: Int32(clamping: memberCount),
-            gated: gated
+            gated: false
         ))
     }
 
@@ -633,8 +635,8 @@ extension Analytics {
         track(GroupEvents.shared.memberRemoved(state: .from(error), error: error.map(chatResult)))
     }
 
-    /// The `Error` value the group and mute events send: the chat RPC's result as the proto names
-    /// it, or `Network` for anything the server didn't answer with a result.
+    /// The `Error` value the group, community chat and mute events send: the chat RPC's result as
+    /// the proto names it, or `Network` for anything the server didn't answer with a result.
     ///
     /// iOS folds an unrecognized result into the same `.unknown` case as an unclassified RPC
     /// failure, so `.unknown` reports as `Network`, the more common of the two.
@@ -741,6 +743,21 @@ extension Analytics {
     }
 }
 
+extension GroupInviteLanding.JoinResult {
+    /// The `Error` value `Group: Joined` sends for this result, or nil for a join that went through.
+    var analyticsError: String? {
+        switch self {
+        case .joined:    nil
+        case .dead:      "Dead"
+        case .notFound:  "NotFound"
+        case .groupGone: "GroupGone"
+        case .banned:    "Banned"
+        case .refused:   "Refused"
+        case .failed:    "Failed"
+        }
+    }
+}
+
 extension SilenceDuration {
     /// The shared contract's `Duration` for this choice.
     var shared: SharedCoreKit.SilenceDuration {
@@ -790,6 +807,20 @@ private extension Optional where Wrapped == ConversationType {
         case .group:     .group
         case .none:      .unknown
         }
+    }
+}
+
+// MARK: - Community Chat -
+
+extension Analytics {
+    /// `JoinChat` returned for a join from a Community Chat's gate; `error` is nil on success.
+    static func communityChatJoined(error: Error?, memberCount: UInt64, gateMint: PublicKey?) {
+        track(CommunityChatEvents.shared.joined(
+            state: .from(error),
+            error: error.map(chatResult),
+            memberCount: Int32(clamping: memberCount),
+            gateMint: gateMint?.base58
+        ))
     }
 }
 

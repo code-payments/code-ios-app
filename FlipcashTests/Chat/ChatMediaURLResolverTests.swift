@@ -33,7 +33,7 @@ struct ChatMediaURLResolverTests {
         let url = url
         let resolver = ChatMediaURLResolver { id in
             spy.calls.append(id)
-            return url
+            return BlobDownloadLink(url: url)
         }
 
         #expect(resolver.location(for: photo(isRedacted: true), canReact: true) { _ in }?.url == nil)
@@ -50,7 +50,7 @@ struct ChatMediaURLResolverTests {
         let url = url
         let resolver = ChatMediaURLResolver { id in
             spy.calls.append(id)
-            return url
+            return BlobDownloadLink(url: url)
         }
         let photo = photo(isRedacted: false)
 
@@ -74,7 +74,7 @@ struct ChatMediaURLResolverTests {
         let url = url
         let resolver = ChatMediaURLResolver { id in
             spy.calls.append(id)
-            return url
+            return BlobDownloadLink(url: url)
         }
 
         #expect(resolver.thumbnailLocation(for: .media(thumbnailBlobID: nil, sealed: nil), canReact: true) { _ in }?.url == nil)
@@ -92,7 +92,7 @@ struct ChatMediaURLResolverTests {
         let url = url
         let resolver = ChatMediaURLResolver { id in
             spy.calls.append(id)
-            return url
+            return BlobDownloadLink(url: url)
         }
 
         let resolved = await withCheckedContinuation { continuation in
@@ -113,7 +113,7 @@ struct ChatMediaURLResolverTests {
         let url = url
         let resolver = ChatMediaURLResolver { id in
             spy.calls.append(id)
-            return url
+            return BlobDownloadLink(url: url)
         }
 
         #expect(await resolver.thumbnailLocation(for: .media(thumbnailBlobID: nil, sealed: nil), canReact: true)?.url == nil)
@@ -127,7 +127,7 @@ struct ChatMediaURLResolverTests {
     @Test("Every caller waiting on one fetch hears when it lands")
     func everyWaiterIsCalledBack() async {
         let url = url
-        let resolver = ChatMediaURLResolver { _ in url }
+        let resolver = ChatMediaURLResolver { _ in BlobDownloadLink(url: url) }
         let photo = photo(isRedacted: false)
 
         let (row, quote) = await withCheckedContinuation { continuation in
@@ -148,7 +148,7 @@ struct ChatMediaURLResolverTests {
         let sealed = SealedBlob(senderID: UserID(), plaintextSize: 3)
         let decryptCalls = FetchSpy()
         let resolver = ChatMediaURLResolver(
-            fetch: { _ in url },
+            fetch: { _ in BlobDownloadLink(url: url) },
             decrypt: {
                 decryptCalls.calls.append(BlobID(data: Data()))
                 return { blob, blobID, sealed in Data(blob.reversed()) + blobID.data + Data([UInt8(sealed.plaintextSize)]) }
@@ -174,7 +174,7 @@ struct ChatMediaURLResolverTests {
     @Test("An encrypted photo stays on its BlurHash while the chat's key is unknown")
     func encryptedPhotoWithoutKey() async {
         let url = url
-        let resolver = ChatMediaURLResolver(fetch: { _ in url }, decrypt: { nil })
+        let resolver = ChatMediaURLResolver(fetch: { _ in BlobDownloadLink(url: url) }, decrypt: { nil })
         let sealed = SealedBlob(senderID: UserID(), plaintextSize: 3)
         let photo = ChatMediaContent(blobID: blobID, width: 1, height: 1, blurhash: nil, caption: nil, isRedacted: false, sealed: sealed)
 

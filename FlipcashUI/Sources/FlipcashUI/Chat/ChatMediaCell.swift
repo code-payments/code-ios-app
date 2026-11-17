@@ -102,12 +102,17 @@ public final class ChatMediaCell: ChatColumnCell {
     /// The row the image view is currently drawing, so a pending row that confirms keeps its local
     /// image under the download instead of dropping back to the BlurHash.
     private var drawnRowID: String?
+    /// The blob this row's photo is downloading, while Kingfisher's task for it runs.
+    private var downloadingBlobID: BlobID?
 
     /// Whether the row `configure` last ran with draws only its BlurHash.
     private(set) var blurhashOnly = false
 
     /// Fired when the viewer taps the photo. Never fires for a BlurHash-only or a failed row.
     var onImageTap: (() -> Void)?
+    /// Called when the photo failed in a way resolving it again may fix, so the host configures the
+    /// row afresh: the cached copy it drew from has gone.
+    var onReload: (() -> Void)?
     /// Called with the quoted row's stable id when the viewer taps the quote.
     var onQuoteTap: ((String) -> Void)? {
         get { quotePanel.onTap }
@@ -331,6 +336,7 @@ public final class ChatMediaCell: ChatColumnCell {
         showUnavailable(false)
         progressOverlay.bind(nil, suppressed: false, animated: false)
         drawnRowID = nil
+        downloadingBlobID = nil
         reactionRow.prepareForReuse()
         drawStack([])
     }
@@ -339,6 +345,25 @@ public final class ChatMediaCell: ChatColumnCell {
     /// group they have not joined — the one reason `canReact` is false. Such a row is never fetched.
     static func isBlurhashOnly(_ media: ChatMediaContent, canReact: Bool) -> Bool {
         media.isRedacted || !canReact
+    }
+
+    /// The size the photo draws at in a transcript whose widest bubble is `maxWidth`, which is also
+    /// the size its downloaded copy is downsampled and cached at.
+    static func imageSize(for media: ChatMediaContent, maxWidth: CGFloat) -> CGSize {
+        let size = media.stackPhotos.count > 1
+            ? ChatMediaBubbleSizing.stackSize(maxWidth: Double(maxWidth))
+            : ChatMediaBubbleSizing.size(
+                imageWidth: Double(media.width),
+                imageHeight: Double(media.height),
+                maxWidth: Double(maxWidth)
+            )
+        return CGSize(width: size.width, height: size.height)
+    }
+
+    /// How the photo is downsampled for a transcript whose widest bubble is `maxWidth`, which keys
+    /// its cached copy.
+    static func processor(for media: ChatMediaContent, maxWidth: CGFloat) -> ImageProcessor {
+        DownsamplingImageProcessor(size: imageSize(for: media, maxWidth: maxWidth))
     }
 
     /// - Parameters:
@@ -369,15 +394,9 @@ public final class ChatMediaCell: ChatColumnCell {
         self.blurhashOnly = blurhashOnly
 
         let isStack = media.stackPhotos.count > 1
-        let size = isStack
-            ? ChatMediaBubbleSizing.stackSize(maxWidth: Double(maxWidth))
-            : ChatMediaBubbleSizing.size(
-                imageWidth: Double(media.width),
-                imageHeight: Double(media.height),
-                maxWidth: Double(maxWidth)
-            )
+        let size = Self.imageSize(for: media, maxWidth: maxWidth)
         imageHeightConstraint.constant = size.height
-        layOutStackFan(frame: CGSize(width: size.width, height: size.height), isStack: isStack)
+        layOutStackFan(frame: size, isStack: isStack)
         // The same row losing its progress is a confirmed send, which fades; a new row starts clean.
         progressOverlay.bind(progress, behind: stackProgress, suppressed: message.isFailed, animated: drawnRowID == message.id)
         drawImage(
@@ -386,7 +405,7 @@ public final class ChatMediaCell: ChatColumnCell {
             blurhash: media.blurhash,
             localImage: blurhashOnly ? nil : localImage,
             remote: blurhashOnly ? nil : remote,
-            size: CGSize(width: size.width, height: size.height)
+            size: size
         )
         imageTap.isEnabled = !blurhashOnly && !message.isFailed
         drawStack(media.stackPhotos, localImages: blurhashOnly ? [:] : stackImages)
@@ -559,16 +578,26 @@ public final class ChatMediaCell: ChatColumnCell {
 
         if let localImage {
             imageView.kf.cancelDownloadTask()
+            downloadingBlobID = nil
             imageView.image = localImage
+            return
+        }
+
+        // A reconfigure mid-download keeps the download, whether its URL has since expired or been
+        // minted again: starting over would throw away the bytes already in.
+        if isSameRow, !blurhashOnly, remote?.url != nil || remote == nil, let blobID,
+           downloadingBlobID == blobID, imageView.kf.taskIdentifier != nil {
             return
         }
 
         let preview = BlurHashCache.shared.image(for: blurhash)
         guard let remote else {
             imageView.kf.cancelDownloadTask()
+            downloadingBlobID = nil
             imageView.image = preview
             return
         }
+        downloadingBlobID = remote.url == nil ? nil : blobID
 
         // Whatever this row already shows — its local image, or the photo itself on a reconfigure —
         // stays under the load, so only a BlurHash is ever faded over.
@@ -582,9 +611,23 @@ public final class ChatMediaCell: ChatColumnCell {
                 .transition(.fade(Self.fadeDuration)),
             ]
         ) { [weak self] result in
-            ChatMediaImageSource.persist(result, processor: processor)
-            if case .failure(let error) = result, ChatMediaImageSource.isUndecryptable(error) {
+            ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, processor: processor)
+            guard case .failure(let error) = result else { return }
+            if ChatMediaImageSource.isUndecryptable(error) {
                 self?.showUnavailable(true)
+            } else if ChatMediaImageSource.isRefused(error), remote.reportRefused() {
+                // The URL expired before it was used. The row resolves again, which mints another.
+                guard let self, drawnRowID == rowID else { return }
+                onReload?()
+            } else if remote.url == nil, !error.isNotCurrentTask, let blobID {
+                // The cached copy it drew from has gone or won't read. Once what is left of it is
+                // dropped, resolving again mints a URL.
+                Task { [weak self] in
+                    await ChatMediaImageSource.evict(blobID: blobID, processor: processor)
+                    guard let self, drawnRowID == rowID,
+                          !ChatMediaImageSource.isCached(blobID: blobID, processor: processor) else { return }
+                    onReload?()
+                }
             }
         }
     }
