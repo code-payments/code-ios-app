@@ -28,6 +28,7 @@ final class MockSession:
     // MARK: - Identity
 
     var profile: Profile?
+    var requiresCoinbaseEmailVerification = true
     let owner: AccountCluster
     let ownerKeyPair: KeyPair
 

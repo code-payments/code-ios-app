@@ -210,13 +210,32 @@ struct ProfileTests {
         #expect(profile.isEmailAddressVerified == false)
     }
 
-    @Test("A row persisted before isEmailAddressVerified decodes it as false")
+    @Test("A row persisted before isEmailAddressVerified counts its email as verified")
     func decodesProfilePersistedBeforeEmailVerifiedFlag() throws {
         let legacy = Data(#"{"displayName":"Ted Livingston","email":"ted@example.com"}"#.utf8)
 
         let profile = try JSONDecoder().decode(Profile.self, from: legacy)
 
+        #expect(profile.isEmailAddressVerified)
+    }
+
+    @Test("A row persisted before isEmailAddressVerified, with no email, decodes it as false")
+    func decodesProfilePersistedBeforeEmailVerifiedFlag_noEmail() throws {
+        let legacy = Data(#"{"displayName":"Ted Livingston"}"#.utf8)
+
+        let profile = try JSONDecoder().decode(Profile.self, from: legacy)
+
         #expect(profile.isEmailAddressVerified == false)
+    }
+
+    @Test("A row written with isEmailAddressVerified false keeps it false")
+    func decodesStoredUnverifiedFlag() throws {
+        let profile = Profile(displayName: "Ted", phone: Optional<Phone>.none, email: "ted@example.com", isEmailAddressVerified: false)
+
+        let restored = try JSONDecoder().decode(Profile.self, from: try JSONEncoder().encode(profile))
+
+        #expect(restored.email == "ted@example.com")
+        #expect(restored.isEmailAddressVerified == false)
     }
 
     // MARK: - Username -
