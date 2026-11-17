@@ -21,11 +21,13 @@ struct ChatPhotoPrefetcherTests {
 
     private let folder: TemporaryCacheFolder
     private let caches: ChatMediaCaches
+    private let pushed: BlobCache
 
     init() throws {
         let folder = TemporaryCacheFolder()
         self.folder = folder
         caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
     }
 
     @MainActor
@@ -108,7 +110,8 @@ struct ChatPhotoPrefetcherTests {
                 await MainActor.run { spy.downloads.append(url) }
                 return (body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
             },
-            caches: caches
+            caches: caches,
+            pushedPhotos: pushed
         )
     }
 
@@ -201,7 +204,7 @@ struct ChatPhotoPrefetcherTests {
             let resolver = ChatMediaURLResolver(fetch: { blobID in
                 spy.fetches.append(blobID)
                 return nil
-            }, caches: caches)
+            }, caches: caches, pushedPhotos: pushed)
             let load = ChatMediaBubbleLoad(rendition: bubble.load.rendition, processor: processor)
             let location = try #require(resolver.location(for: bubble.media, canReact: true, drawing: load) { _ in })
             #expect(location.url == nil)
@@ -323,7 +326,8 @@ struct ChatPhotoPrefetcherTests {
             isMuted: { _ in false },
             screen: { screen },
             download: { url, _ in throw URLError(.timedOut, userInfo: [NSURLErrorFailingURLErrorKey: url]) },
-            caches: caches
+            caches: caches,
+            pushedPhotos: pushed
         )
         let report = try #require(await prefetcher.prefetch(photoMessage(attachment(blobs)), in: conversationID, isGroup: false, trigger: .stream))
 
@@ -359,11 +363,13 @@ struct ChatPhotoPrefetchWiringTests {
 
     private let folder: TemporaryCacheFolder
     private let caches: ChatMediaCaches
+    private let pushed: BlobCache
 
     init() throws {
         let folder = TemporaryCacheFolder()
         self.folder = folder
         caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
     }
 
     @MainActor
@@ -406,7 +412,8 @@ struct ChatPhotoPrefetchWiringTests {
             isMuted: { _ in false },
             screen: { ChatPhotoPrefetcher.Screen(rowWidth: 393, scale: 3) },
             download: { _, _ in throw CancellationError() },
-            caches: caches
+            caches: caches,
+            pushedPhotos: pushed
         )
         let theirs = BlobID(data: Data(UUID().uuidString.utf8))
         let mine = BlobID(data: Data(UUID().uuidString.utf8))

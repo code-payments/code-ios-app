@@ -16,11 +16,13 @@ struct ChatMediaURLResolverTests {
 
     private let folder: TemporaryCacheFolder
     private let caches: ChatMediaCaches
+    private let pushed: BlobCache
 
     init() throws {
         let folder = TemporaryCacheFolder()
         self.folder = folder
         caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
     }
 
     /// A resolver over this test's own caches.
@@ -28,7 +30,7 @@ struct ChatMediaURLResolverTests {
         fetch: @escaping ChatMediaURLResolver.Fetch,
         decrypt: @escaping ChatMediaURLResolver.FetchDecrypt = { nil }
     ) -> ChatMediaURLResolver {
-        ChatMediaURLResolver(fetch: fetch, decrypt: decrypt, caches: caches)
+        ChatMediaURLResolver(fetch: fetch, decrypt: decrypt, caches: caches, pushedPhotos: pushed)
     }
 
     private let blobID = BlobID(data: Data([1]))

@@ -64,14 +64,15 @@ public final class ChatMediaURLResolver {
 
     /// - Parameters:
     ///   - caches: the chat photo caches, ``ChatMediaCaches/shared`` in the app.
-    ///   - pushedPhotos: the notification extension's photos, read before a mint.
+    ///   - pushedPhotos: the notification extension's photos, read before a mint,
+    ///   ``BlobCache/chatPhotos`` in the app.
     ///   Both are injected so tests run against a temporary directory.
     public init(
         fetch: @escaping Fetch,
         decrypt: @escaping FetchDecrypt = { nil },
         now: @escaping () -> Date = Date.init,
         caches: ChatMediaCaches,
-        pushedPhotos: BlobCache = .chatPhotos
+        pushedPhotos: BlobCache
     ) {
         self.fetch = fetch
         self.fetchDecrypt = decrypt

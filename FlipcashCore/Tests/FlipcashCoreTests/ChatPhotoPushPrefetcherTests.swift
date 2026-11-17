@@ -41,10 +41,21 @@ struct ChatPhotoPushPrefetcherTests {
     /// A 1×1 PNG.
     private static let photoData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")!
 
+    /// A folder for one test's stores, removed with them when the test ends.
+    private final class Folder: Sendable {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("push-photos-\(UUID().uuidString)", isDirectory: true)
+
+        deinit {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    private let folder = Folder()
+
     private func store() -> BlobCache {
         BlobCache(
-            directory: FileManager.default.temporaryDirectory
-                .appendingPathComponent("push-photos-\(UUID().uuidString)", isDirectory: true),
+            directory: folder.url.appendingPathComponent(UUID().uuidString, isDirectory: true),
             limitBytes: 1 << 20
         )
     }

@@ -18,11 +18,13 @@ struct ChatMediaCachedDrawTests {
 
     private let folder: TemporaryCacheFolder
     private let caches: ChatMediaCaches
+    private let pushed: BlobCache
 
     init() throws {
         let folder = TemporaryCacheFolder()
         self.folder = folder
         caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
     }
 
     @MainActor
@@ -122,7 +124,7 @@ struct ChatMediaCachedDrawTests {
         let resolver = ChatMediaURLResolver(fetch: { blobID in
             spy.calls.append(blobID)
             return BlobDownloadLink(url: URL(string: "https://example.invalid/photo")!)
-        }, caches: caches)
+        }, caches: caches, pushedPhotos: pushed)
         let media = media(uniqueBlobID())
         let processor = ChatMediaCell.processor(for: media, maxWidth: 240)
         _ = try await cacheOnDiskOnly(media, processor: processor)
@@ -136,7 +138,7 @@ struct ChatMediaCachedDrawTests {
 
     @Test("A full-size copy left by the viewer also counts as cached")
     func resolverTakesTheFullSizeCopy() async throws {
-        let resolver = ChatMediaURLResolver(fetch: { _ in nil }, caches: caches)
+        let resolver = ChatMediaURLResolver(fetch: { _ in nil }, caches: caches, pushedPhotos: pushed)
         let media = media(uniqueBlobID())
         _ = try await cacheOnDiskOnly(media, processor: DefaultImageProcessor.default)
 
@@ -147,7 +149,7 @@ struct ChatMediaCachedDrawTests {
 
     @Test("A sealed photo drawn from the cache still logs as sealed")
     func cachedSealedPhotoLogsAsSealed() async throws {
-        let resolver = ChatMediaURLResolver(fetch: { _ in nil }, caches: caches)
+        let resolver = ChatMediaURLResolver(fetch: { _ in nil }, caches: caches, pushedPhotos: pushed)
         let media = media(uniqueBlobID(), sealed: SealedBlob(senderID: UUID(), plaintextSize: 10))
         let processor = ChatMediaCell.processor(for: media, maxWidth: 240)
         _ = try await cacheOnDiskOnly(media, processor: processor)
@@ -169,7 +171,7 @@ struct ChatMediaCachedDrawTests {
         let resolver = ChatMediaURLResolver(fetch: { blobID in
             spy.calls.append(blobID)
             return nil
-        }, caches: caches)
+        }, caches: caches, pushedPhotos: pushed)
         let media = media(uniqueBlobID())
 
         #expect(resolver.location(for: media, canReact: true, drawing: ChatMediaBubbleLoad(media: media, maxWidth: 240, scale: 3)) { _ in } == nil)
@@ -181,7 +183,7 @@ struct ChatMediaCachedDrawTests {
 
     @Test("A redacted photo never resolves to the cache")
     func resolverKeepsRedactedOffTheCache() async throws {
-        let resolver = ChatMediaURLResolver(fetch: { _ in nil }, caches: caches)
+        let resolver = ChatMediaURLResolver(fetch: { _ in nil }, caches: caches, pushedPhotos: pushed)
         let blobID = uniqueBlobID()
         let processor = ChatMediaCell.processor(for: media(blobID), maxWidth: 240)
         _ = try await cacheOnDiskOnly(media(blobID), processor: processor)
@@ -239,7 +241,8 @@ struct ChatMediaCachedDrawTests {
                 return BlobDownloadLink(url: file)
             },
             decrypt: { { blob, _, _ in blob } },
-            caches: caches
+            caches: caches,
+            pushedPhotos: pushed
         )
         let firstWindow = show(opened, message)
         #expect(await drawnImage { photoView(in: opened) }?.cgImage?.width == 7)
@@ -252,7 +255,7 @@ struct ChatMediaCachedDrawTests {
         reopened.mediaURLResolver = ChatMediaURLResolver(fetch: { blobID in
             reopen.calls.append(blobID)
             return nil
-        }, caches: caches)
+        }, caches: caches, pushedPhotos: pushed)
         let window = show(reopened, message)
         defer { window.isHidden = true }
 

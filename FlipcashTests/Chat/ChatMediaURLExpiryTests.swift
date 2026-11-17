@@ -19,11 +19,13 @@ struct ChatMediaURLExpiryTests {
 
     private let folder: TemporaryCacheFolder
     private let caches: ChatMediaCaches
+    private let pushed: BlobCache
 
     init() throws {
         let folder = TemporaryCacheFolder()
         self.folder = folder
         caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
     }
 
     private let blobID = BlobID(data: Data([7]))
@@ -51,7 +53,7 @@ struct ChatMediaURLExpiryTests {
     }
 
     private func resolver(_ minter: Minter) -> ChatMediaURLResolver {
-        ChatMediaURLResolver(fetch: { minter.mint($0) }, now: { minter.clock }, caches: caches)
+        ChatMediaURLResolver(fetch: { minter.mint($0) }, now: { minter.clock }, caches: caches, pushedPhotos: pushed)
     }
 
     private var photo: ChatMediaContent {

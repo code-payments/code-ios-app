@@ -63,7 +63,7 @@ public final class ChatPhotoPrefetcher {
     ) {
         self.init(
             selfUserID: selfUserID, mint: mint, decrypt: decrypt, network: network, isMuted: isMuted,
-            screen: screen, download: Self.urlSessionDownload, caches: .shared
+            screen: screen, download: Self.urlSessionDownload, caches: .shared, pushedPhotos: .chatPhotos
         )
     }
 
@@ -76,7 +76,7 @@ public final class ChatPhotoPrefetcher {
         screen: @escaping () -> Screen,
         download: @escaping Download,
         caches: ChatMediaCaches,
-        pushedPhotos: BlobCache = .chatPhotos
+        pushedPhotos: BlobCache
     ) {
         self.selfUserID = selfUserID
         self.mint = mint

@@ -20,11 +20,13 @@ struct ChatMediaRenditionLoadTests {
 
     private let folder: TemporaryCacheFolder
     private let caches: ChatMediaCaches
+    private let pushed: BlobCache
 
     init() throws {
         let folder = TemporaryCacheFolder()
         self.folder = folder
         caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
     }
 
     @MainActor
@@ -101,7 +103,7 @@ struct ChatMediaRenditionLoadTests {
         ChatMediaURLResolver(fetch: { blobID in
             spy.calls.append(blobID)
             return nil
-        }, caches: caches)
+        }, caches: caches, pushedPhotos: pushed)
     }
 
     /// Waits up to two seconds for `view` to draw an image.
@@ -175,7 +177,7 @@ struct ChatMediaRenditionLoadTests {
     @Test("A minted location says which copy it draws")
     func mintedLocationCarriesItsRendition() async throws {
         let blobs = blobs()
-        let resolver = ChatMediaURLResolver(fetch: { _ in BlobDownloadLink(url: URL(string: "https://example.invalid/display")!) }, caches: caches)
+        let resolver = ChatMediaURLResolver(fetch: { _ in BlobDownloadLink(url: URL(string: "https://example.invalid/display")!) }, caches: caches, pushedPhotos: pushed)
         let load = try load(media(blobs))
 
         let location = await withCheckedContinuation { continuation in
