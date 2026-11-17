@@ -10,6 +10,17 @@ import Kingfisher
 
 public enum RemoteImageCache {
 
+    /// The responses Kingfisher's downloader stores once ``install()`` has run.
+    static let urlCache = URLCache(
+        memoryCapacity: 20 * 1024 * 1024,
+        diskCapacity: 300 * 1024 * 1024
+    )
+
+    /// Removes every response the downloader has stored.
+    public static func clear() {
+        urlCache.removeAllCachedResponses()
+    }
+
     /// Configures remote-image caching so an image's lifetime follows the server's HTTP
     /// headers — `Cache-Control`/`Expires` for freshness, `ETag` for revalidation —
     /// instead of being cached indefinitely. Call once at launch.
@@ -19,10 +30,7 @@ public enum RemoteImageCache {
         // refetched rather than served forever. Kingfisher's downloader defaults to an
         // `.ephemeral` session with no URLCache, so give it one.
         let configuration = URLSessionConfiguration.default
-        configuration.urlCache = URLCache(
-            memoryCapacity: 20 * 1024 * 1024,
-            diskCapacity: 300 * 1024 * 1024
-        )
+        configuration.urlCache = urlCache
         ImageDownloader.default.sessionConfiguration = configuration
 
         KingfisherManager.shared.defaultOptions += [

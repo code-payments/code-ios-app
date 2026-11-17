@@ -60,12 +60,28 @@ jobs:
       # manifest change refreshes it. PR runs can only read caches saved on main
       # or on their own PR ref.
       - name: Restore DerivedData
+        id: restore
         uses: actions/cache@v4
         with:
           path: .derived
           key: vectors-dd-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved', '!.derived/**') }}
           restore-keys: |
             vectors-dd-${{ runner.os }}-
+
+      # A restore-key hit was built against other package versions, and Xcode does
+      # not reliably rebuild from it: after SharedCore 0.20.0 -> 0.21.0, deleting the
+      # precompiled modules was not enough, because Xcode rebuilt SharedCore's .pcm
+      # from the stale SharedCore.framework copy in Build/Products ("SharedCore.h has
+      # been modified since the module file was built"). So keep only the SwiftPM
+      # clones and build the rest cold. actions/cache reports only cache-hit (true on
+      # an exact key); it has no cache-matched-key output.
+      - name: Drop build products restored from other packages
+        if: steps.restore.outputs.cache-hit != 'true'
+        run: |
+          for root in .derived/*/; do
+            [ -d "$root" ] || continue
+            find "$root" -mindepth 1 -maxdepth 1 ! -name SourcePackages -exec rm -rf {} + -print
+          done
 
       # Simulator model names turn over with each runner image, so pick whatever
       # iPhone is installed rather than naming one.
@@ -123,6 +139,7 @@ jobs:
       # what the cache saves is the built SwiftPM packages. Without it, the build
       # reached FlipcashCore after 16.6 minutes instead of 1.3.
       - name: Restore app DerivedData
+        id: restore
         uses: actions/cache/restore@v4
         with:
           path: .derived/app
@@ -130,6 +147,15 @@ jobs:
           restore-keys: |
             ${{ steps.key.outputs.dd }}-
             app-dd-${{ runner.os }}-
+
+      # The last restore key brings back a build made against other package
+      # versions; keep only its SwiftPM clones (see "Drop build products restored
+      # from other packages" in the vectors job). Runs on push too: main computes the
+      # new package hash on merge and takes the same fallback, and a failed build
+      # never saves a fresh seed.
+      - name: Drop build products restored from other packages
+        if: steps.restore.outputs.cache-matched-key != '' && !startsWith(steps.restore.outputs.cache-matched-key, format('{0}-', steps.key.outputs.dd))
+        run: find .derived/app -mindepth 1 -maxdepth 1 ! -name SourcePackages -exec rm -rf {} + -print
 
       - name: Pick a simulator
         id: sim
