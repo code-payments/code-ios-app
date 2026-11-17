@@ -42,7 +42,8 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     // MARK: - Dependencies -
 
     @ObservationIgnored private let flipClient: FlipClient
-    @ObservationIgnored private let owner: KeyPair
+    /// The account the number is linked to.
+    @ObservationIgnored let owner: KeyPair
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
 

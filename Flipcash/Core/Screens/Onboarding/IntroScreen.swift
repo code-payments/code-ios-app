@@ -132,6 +132,7 @@ private struct IntroScreenContent: View {
             .ignoresSafeArea(.keyboard)
             .navigationTitle("")
             .toolbarVisibility(.hidden, for: .navigationBar)
+            .dialog(item: $viewModel.introDialogItem)
             .navigationDestination(for: OnboardingPath.self) { path in
                 switch path {
                 case .accountSelection:
@@ -155,9 +156,24 @@ private struct IntroScreenContent: View {
                 case .pushNotificationsDenied:
                     NotificationPermissionDeniedScreen(viewModel: viewModel)
                         .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .pushNotificationsDenied))
+                case .enterPhoneNumber:
+                    if let phoneVM = viewModel.phoneViewModel {
+                        EnterPhoneScreen(viewModel: phoneVM, copy: .onboarding)
+                            .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .enterPhoneNumber))
+                    }
+                case .confirmPhoneNumberCode:
+                    if let phoneVM = viewModel.phoneViewModel {
+                        ConfirmPhoneScreen(viewModel: phoneVM, copy: .onboarding)
+                            .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .confirmPhoneNumberCode))
+                    }
+                case .email:
+                    if let emailVM = viewModel.emailViewModel {
+                        OnboardingEmailScreen(viewModel: emailVM)
+                            .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .email))
+                    }
                 case .displayName:
                     if let nameVM = viewModel.nameViewModel {
-                        OnboardingNameScreen(viewModel: nameVM)
+                        OnboardingNameScreen(viewModel: nameVM, copy: viewModel.nameCopy)
                             .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .displayName))
                     }
                 }

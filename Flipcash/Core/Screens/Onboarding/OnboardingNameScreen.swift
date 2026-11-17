@@ -19,10 +19,13 @@ struct OnboardingNameScreen: View {
     /// Shown only once the limit is close enough to explain a disabled Next.
     private static let countdownThreshold = 10
 
+    private let copy: OnboardingNameCopy
+
     // MARK: - Init -
 
-    init(viewModel: OnboardingNameViewModel) {
+    init(viewModel: OnboardingNameViewModel, copy: OnboardingNameCopy = .standard) {
         self.viewModel = viewModel
+        self.copy = copy
     }
 
     // MARK: - Body -
@@ -30,10 +33,17 @@ struct OnboardingNameScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("What's your name?")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-                    .padding(.top, 20)
+                switch copy {
+                case .standard:
+                    Text(copy.title)
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.textMain)
+                        .padding(.top, 20)
+                case .groupMoney:
+                    // The hint sits under the title, as in the other Group Money steps.
+                    OnboardingStepHeader(text: StepHeaderText(title: copy.title, subtitle: copy.hint))
+                        .padding(.top, 20)
+                }
 
                 TextField("Your Name", text: $viewModel.displayName)
                     .font(.appDisplayMedium)
@@ -45,10 +55,12 @@ struct OnboardingNameScreen: View {
                     .padding(.top, 32)
                     .disabled(viewModel.isSubmitting)
 
-                Text("This is how you'll appear to others")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .padding(.top, 8)
+                if copy == .standard {
+                    Text(copy.hint)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .padding(.top, 8)
+                }
 
                 Spacer()
 
@@ -86,4 +98,27 @@ struct OnboardingNameScreen: View {
         )
     }
     .injectingEnvironment(from: .mock)
+}
+
+// MARK: - Copy -
+
+/// The words on ``OnboardingNameScreen``. ``standard`` is today's flow; ``groupMoney`` is the
+/// Group Money new-account flow (frame 2-06).
+enum OnboardingNameCopy: Equatable {
+    case standard
+    case groupMoney
+
+    var title: String {
+        switch self {
+        case .standard:   "What's your name?"
+        case .groupMoney: "Your name"
+        }
+    }
+
+    var hint: String {
+        switch self {
+        case .standard:   "This is how you'll appear to others"
+        case .groupMoney: "This is how you'll appear in your groups."
+        }
+    }
 }
