@@ -71,7 +71,7 @@ app can fix itself belongs in the service files that wrap the generated code.
 
 **Bump `Database.schemaVersion` on every change to what the store writes.** The app does not run
 migrations — when the version number increases, the database is deleted and rebuilt from server data
-on next login (`SessionAuthenticator.initializeDatabase`). This means:
+on next login (`DatabaseStore.database(for:)`). This means:
 
 - Adding/removing tables or columns → bump version
 - Changing which table a query reads from → bump version if the old schema can't satisfy the new query
