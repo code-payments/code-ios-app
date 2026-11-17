@@ -41,4 +41,16 @@ struct ModerationAttestationTests {
 
         #expect(currencyProto.rawValue == (try moderationProto.serializedData()))
     }
+
+    @Test("The attested kind survives the trip into the Launch request")
+    func roundTrip_preservesKind() throws {
+        var moderationProto = Flipcash_Moderation_V1_ModerationAttestation()
+        moderationProto.contentHash = Data([0xAA])
+        moderationProto.kind = .currencyDescription
+
+        let currencyProto = try ModerationAttestation(moderationProto).currencyProto
+        let decoded = try Flipcash_Moderation_V1_ModerationAttestation(serializedBytes: currencyProto.rawValue)
+
+        #expect(decoded.kind == .currencyDescription)
+    }
 }

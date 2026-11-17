@@ -106,6 +106,38 @@ final class EmailService: Sendable {
             }
         }
     }
+
+    /// Links `email` to the user without verifying it. No email is sent. A
+    /// different address replaces the one linked before, verified or not, and
+    /// is linked as unverified; linking the address already linked leaves it as
+    /// it was. An unverified address satisfies nothing that requires a verified
+    /// one, such as `ErrorFetchJWT.emailVerificationRequired`.
+    func linkUnverifiedEmail(email: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorLinkUnverifiedEmail>) -> Void) {
+        logger.info("Linking unverified email address")
+
+        let request = Flipcash_Email_V1_LinkUnverifiedRequest.with {
+            $0.emailAddress = .with { $0.value = email }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.linkUnverified(request, options: .unaryDefault)
+                let error = ErrorLinkUnverifiedEmail(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to link unverified email address", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                logger.info("Unverified email address linked successfully")
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -153,6 +185,15 @@ public enum ErrorUnlinkEmail: Int, Error {
     case rejected = -4
 }
 
+public enum ErrorLinkUnverifiedEmail: Int, Error {
+    case ok
+    case denied
+    case unknown = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
 extension ErrorSendEmailCode: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
@@ -176,6 +217,17 @@ extension ErrorCheckEmailCode: ServerError, TransportClassifiableError {
 }
 
 extension ErrorUnlinkEmail: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorLinkUnverifiedEmail: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed

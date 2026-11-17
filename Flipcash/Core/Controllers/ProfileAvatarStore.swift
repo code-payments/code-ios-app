@@ -59,18 +59,18 @@ final class ProfileAvatarStore {
     @ObservationIgnored private let cache: BlobCache
     @ObservationIgnored private let coverCache: BlobCache
     @ObservationIgnored private let mintURL: (BlobID, AvatarSubject) async throws -> URL?
-    @ObservationIgnored private let fetch: (URL) async throws -> Data
+    @ObservationIgnored private let fetch: (URL) async throws -> (Data, URLResponse)
 
     /// - Parameters:
     ///   - mintURL: mints a download URL for a blob. Injected because `FlipClient` is a concrete
     ///     class with a live gRPC channel, so there is no fake to pass a test.
-    ///   - fetch: downloads the bytes at a URL.
+    ///   - fetch: downloads the bytes at a URL, with the response they came with.
     init(
         cache: BlobCache = .profilePictures,
         coverCache: BlobCache = .profileCovers,
         mintURL: @escaping (BlobID, AvatarSubject) async throws -> URL?,
-        fetch: @escaping (URL) async throws -> Data = { url in
-            try await URLSession.shared.data(from: url).0
+        fetch: @escaping (URL) async throws -> (Data, URLResponse) = { url in
+            try await URLSession.shared.data(from: url)
         }
     ) {
         self.cache   = cache
@@ -124,8 +124,7 @@ final class ProfileAvatarStore {
         // A different blob under the same id is a changed picture, not a cache hit.
         if blobBySubject[subject] == blobID, dataBySubject[subject] != nil { return }
 
-        let cache = cache(for: subject)
-        if let cached = cache.data(for: blobID) {
+        if let cached = ProfilePictureDownload.cachedImageData(for: blobID, in: cache(for: subject)) {
             store(cached, subject: subject, blobID: blobID)
             return
         }
@@ -157,9 +156,11 @@ final class ProfileAvatarStore {
     /// Download URLs expire, so one is minted per fetch and never stored.
     private func download(blobID: BlobID, subject: AvatarSubject) async {
         do {
-            guard let url = try await mintURL(blobID, subject) else { return }
+            guard let data = try await ProfilePictureDownload.imageData(
+                mintURL: { try await mintURL(blobID, subject) },
+                fetch: fetch
+            ) else { return }
 
-            let data = try await fetch(url)
             cache(for: subject).write(data, for: blobID)
             store(data, subject: subject, blobID: blobID)
         } catch {

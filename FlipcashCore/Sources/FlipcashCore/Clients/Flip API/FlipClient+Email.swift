@@ -26,4 +26,12 @@ extension FlipClient {
             emailService.unlinkEmail(email: email, owner: owner) { c.resume(with: $0) }
         }
     }
+
+    /// Links `email` without verifying it. The profile then reports the address
+    /// with `isEmailAddressVerified == false`.
+    public func linkUnverifiedEmail(email: String, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            emailService.linkUnverifiedEmail(email: email, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

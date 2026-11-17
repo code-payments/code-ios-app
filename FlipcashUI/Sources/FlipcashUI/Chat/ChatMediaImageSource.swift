@@ -116,6 +116,16 @@ public enum ChatMediaImageSource {
         return try? originals.diskStorage.value(forKey: cacheKey(for: blobID))
     }
 
+    /// Empties both caches, in memory and on disk. They hold other people's photos decrypted, so
+    /// logout clears them before another account can sign in on the device. Synchronous, unlike
+    /// `ImageCache.clearDiskCache`, so nothing survives into the next login.
+    public static func clearCaches() {
+        for cache in [cache, originals] {
+            cache.memoryStorage.removeAll()
+            try? cache.diskStorage.removeAll()
+        }
+    }
+
     /// Whether `data` is an image Photos takes as-is, read from its leading bytes rather than any
     /// label the cache or URL carries.
     public static func isLibraryImage(_ data: Data) -> Bool {

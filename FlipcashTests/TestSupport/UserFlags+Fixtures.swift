@@ -22,6 +22,8 @@ extension UserFlags {
             billExchangeDataTimeout: nil,
             newCurrencyPurchaseAmount: .zero(mint: .usdf),
             newCurrencyFeeAmount: .zero(mint: .usdf),
+            newCurrencyV2PurchaseAmount: .zero(mint: .usdf),
+            newCurrencyV2FeeAmount: .zero(mint: .usdf),
             withdrawalFeeAmount: .zero(mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
             usernameMinBalance: .zero(mint: .usdf),

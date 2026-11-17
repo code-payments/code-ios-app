@@ -17,16 +17,35 @@ final class ModerationService: Sendable {
         self.service = Flipcash_Moderation_V1_Moderation.Client(wrapping: client)
     }
 
+    /// Builds the request with every field set before signing, so the
+    /// signature covers `kind`.
+    static func moderateTextRequest(_ text: String, kind: ModerationTextKind, owner: KeyPair) -> Flipcash_Moderation_V1_ModerateTextRequest {
+        .with {
+            $0.text = text
+            $0.kind = kind.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+    }
+
+    /// Builds the request with every field set before signing, so the
+    /// signature covers `kind`.
+    static func moderateImageRequest(_ imageData: Data, kind: ModerationImageKind, owner: KeyPair) -> Flipcash_Moderation_V1_ModerateImageRequest {
+        .with {
+            $0.imageData = imageData
+            $0.kind = kind.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+    }
+
     func moderateText(
         _ text: String,
-        auth: Flipcash_Common_V1_Auth,
+        kind: ModerationTextKind,
+        owner: KeyPair,
         completion: @Sendable @escaping (Result<ModerationAttestation, ErrorModeration>) -> Void
     ) {
-        logger.info("Moderating text", metadata: ["length": "\(text.count)"])
+        logger.info("Moderating text", metadata: ["length": "\(text.count)", "kind": "\(kind)"])
 
-        var request = Flipcash_Moderation_V1_ModerateTextRequest()
-        request.text = text
-        request.auth = auth
+        let request = Self.moderateTextRequest(text, kind: kind, owner: owner)
 
         Task {
             do {
@@ -63,14 +82,13 @@ final class ModerationService: Sendable {
 
     func moderateImage(
         _ imageData: Data,
-        auth: Flipcash_Common_V1_Auth,
+        kind: ModerationImageKind,
+        owner: KeyPair,
         completion: @Sendable @escaping (Result<ModerationAttestation, ErrorModeration>) -> Void
     ) {
-        logger.info("Moderating image", metadata: ["bytes": "\(imageData.count)"])
+        logger.info("Moderating image", metadata: ["bytes": "\(imageData.count)", "kind": "\(kind)"])
 
-        var request = Flipcash_Moderation_V1_ModerateImageRequest()
-        request.imageData = imageData
-        request.auth = auth
+        let request = Self.moderateImageRequest(imageData, kind: kind, owner: owner)
 
         Task {
             do {

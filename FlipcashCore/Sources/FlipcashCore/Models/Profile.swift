@@ -58,6 +58,12 @@ public struct Profile: Codable, Equatable, Sendable {
     /// shape: an original rendition plus a thumbnail.
     public let coverPicture: ProfilePicture?
 
+    /// Whether ``email`` was verified with a code (`CheckVerificationCode`)
+    /// rather than linked unverified (`LinkUnverified`). Private: the server
+    /// sets it only on the caller's own profile, so it is `false` on anyone
+    /// else's and when there is no email.
+    public let isEmailAddressVerified: Bool
+
     public var isPhoneVerified: Bool {
         phone != nil
     }
@@ -75,7 +81,7 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil && phone?.e164 != previous?.phone?.e164
     }
 
-    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false, bio: String? = nil, coverPicture: ProfilePicture? = nil) throws {
+    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false, bio: String? = nil, coverPicture: ProfilePicture? = nil, isEmailAddressVerified: Bool = false) throws {
 
         // Only parse phone if it's not empty
         var parsedPhone: Phone?
@@ -103,11 +109,12 @@ public struct Profile: Codable, Equatable, Sendable {
             minDmChatInitFee: minDmChatInitFee,
             isUsernameAutoAssigned: isUsernameAutoAssigned,
             bio: bio,
-            coverPicture: coverPicture
+            coverPicture: coverPicture,
+            isEmailAddressVerified: isEmailAddressVerified
         )
     }
 
-    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false, bio: String? = nil, coverPicture: ProfilePicture? = nil) {
+    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil, joinedAt: Date? = nil, tipCardCustomization: TipCardCustomization? = nil, userID: UserID? = nil, username: Username? = nil, minDmChatInitFee: FiatAmount? = nil, isUsernameAutoAssigned: Bool = false, bio: String? = nil, coverPicture: ProfilePicture? = nil, isEmailAddressVerified: Bool = false) {
         self.displayName = displayName
         self.phone = phone
         self.email = email
@@ -120,9 +127,10 @@ public struct Profile: Codable, Equatable, Sendable {
         self.isUsernameAutoAssigned = isUsernameAutoAssigned
         self.bio = bio
         self.coverPicture = coverPicture
+        self.isEmailAddressVerified = isEmailAddressVerified
     }
 
-    /// `isUsernameAutoAssigned`, `bio` and `coverPicture` are decoded with a default so rows
+    /// `isUsernameAutoAssigned`, `bio`, `coverPicture` and `isEmailAddressVerified` are decoded with a default so rows
     /// persisted before they existed still decode, without a `schemaVersion` bump.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -138,6 +146,7 @@ public struct Profile: Codable, Equatable, Sendable {
         self.isUsernameAutoAssigned = try c.decodeIfPresent(Bool.self, forKey: .isUsernameAutoAssigned) ?? false
         self.bio = try c.decodeIfPresent(String.self, forKey: .bio)
         self.coverPicture = try c.decodeIfPresent(ProfilePicture.self, forKey: .coverPicture)
+        self.isEmailAddressVerified = try c.decodeIfPresent(Bool.self, forKey: .isEmailAddressVerified) ?? false
     }
 }
 
@@ -179,7 +188,8 @@ extension Profile {
             isUsernameAutoAssigned: proto.isUsernameAutoAssigned,
             // The proto represents an unset bio as an empty string.
             bio: proto.bio.isEmpty ? nil : proto.bio,
-            coverPicture: proto.hasCoverPicture ? ProfilePicture(proto.coverPicture) : nil
+            coverPicture: proto.hasCoverPicture ? ProfilePicture(proto.coverPicture) : nil,
+            isEmailAddressVerified: proto.isEmailAddressVerified
         )
     }
 }
