@@ -11,6 +11,8 @@ import SwiftUI
 import FlipcashCore
 import Kingfisher
 
+private let logger = Logger(label: "flipcash.chat-media")
+
 /// A recycled cell for a photo row: the photo at the transcript's bubble width and a clamped aspect,
 /// a reply's quote laid over its top-leading corner, its caption as a text bubble directly under it,
 /// and the reaction pills, in a `ChatColumnCell`.
@@ -104,6 +106,9 @@ public final class ChatMediaCell: ChatColumnCell {
     private var drawnRowID: String?
     /// The blob this row's photo is downloading, while Kingfisher's task for it runs.
     private var downloadingBlobID: BlobID?
+    /// The cache key of a download someone else is running for this row's photo, while the row
+    /// waits for it instead of starting its own.
+    private var joinedKey: String?
 
     /// Whether the row `configure` last ran with draws only its BlurHash.
     private(set) var blurhashOnly = false
@@ -337,6 +342,7 @@ public final class ChatMediaCell: ChatColumnCell {
         progressOverlay.bind(nil, suppressed: false, animated: false)
         drawnRowID = nil
         downloadingBlobID = nil
+        joinedKey = nil
         reactionRow.prepareForReuse()
         drawStack([])
     }
@@ -570,7 +576,10 @@ public final class ChatMediaCell: ChatColumnCell {
     private func drawImage(for rowID: String, media: ChatMediaContent, localImage: UIImage?, remote: ChatMediaLocation?, size: CGSize) {
         let isSameRow = drawnRowID == rowID
         drawnRowID = rowID
-        if !isSameRow { showUnavailable(false) }
+        if !isSameRow {
+            showUnavailable(false)
+            joinedKey = nil
+        }
         // The upload is flattened onto white (`ChatMediaEncoder.render`); a local image keeps its
         // alpha, so it needs the same white under it to match what everyone else sees.
         imageView.backgroundColor = localImage == nil ? nil : .white
@@ -578,6 +587,7 @@ public final class ChatMediaCell: ChatColumnCell {
         if let localImage {
             imageView.kf.cancelDownloadTask()
             downloadingBlobID = nil
+            joinedKey = nil
             imageView.image = localImage
             return
         }
@@ -603,6 +613,7 @@ public final class ChatMediaCell: ChatColumnCell {
         guard let remote else {
             imageView.kf.cancelDownloadTask()
             downloadingBlobID = nil
+            joinedKey = nil
             imageView.image = preview
             return
         }
@@ -612,6 +623,21 @@ public final class ChatMediaCell: ChatColumnCell {
         // stays under the load, so only a BlurHash is ever faded over.
         let placeholder = isSameRow ? (imageView.image ?? preview) : preview
         let processor = DownsamplingImageProcessor(size: size)
+
+        // A download of this copy already running, for its prefetch or another row, is waited for
+        // rather than started again.
+        let claim: ChatMediaDownloads.Claim?
+        if remote.url != nil, let blobID {
+            let key = ChatMediaImageSource.cacheKey(for: blobID)
+            claim = remote.caches.downloads.claim(key)
+            guard claim != nil else {
+                join(key, blobID: blobID, rowID: rowID, downloads: remote.caches.downloads, placeholder: placeholder)
+                return
+            }
+        } else {
+            claim = nil
+        }
+        joinedKey = nil
         imageView.kf.setImage(
             with: ChatMediaImageSource.source(blobID: blobID, location: remote),
             placeholder: placeholder,
@@ -620,6 +646,8 @@ public final class ChatMediaCell: ChatColumnCell {
                 .transition(.fade(Self.fadeDuration)),
             ]
         ) { [weak self] result in
+            // Called on success, failure and cancellation alike, so the claim never outlives its load.
+            if let claim { remote.caches.downloads.release(claim) }
             ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, rendition: drawn?.role ?? .original, processor: processor, in: remote.caches)
             guard case .failure(let error) = result else { return }
             if ChatMediaImageSource.isUndecryptable(error) {
@@ -638,6 +666,23 @@ public final class ChatMediaCell: ChatColumnCell {
                     onReload?()
                 }
             }
+        }
+    }
+
+    /// Shows `placeholder` until the download already running for `key` ends, then has the host
+    /// configure the row again: it finds the photo cached, or, when that download failed, starts
+    /// its own.
+    private func join(_ key: String, blobID: BlobID, rowID: String, downloads: ChatMediaDownloads, placeholder: UIImage?) {
+        imageView.kf.cancelDownloadTask()
+        downloadingBlobID = nil
+        imageView.image = placeholder
+        guard joinedKey != key else { return }
+        joinedKey = key
+        logger.info("Chat photo joined an in-flight download", metadata: ["blobId": "\(blobID)"])
+        _ = downloads.whenFinished(key) { [weak self] in
+            guard let self, joinedKey == key, drawnRowID == rowID else { return }
+            joinedKey = nil
+            onReload?()
         }
     }
 

@@ -50,8 +50,6 @@ public final class ChatPhotoPrefetcher {
     private let caches: ChatMediaCaches
     /// Where the notification extension leaves the photos it downloaded for a push.
     private let pushedPhotos: BlobCache
-    /// The blobs being downloaded, so a photo that arrives twice downloads once.
-    private var inFlight: Set<BlobID> = []
 
     public convenience init(
         selfUserID: UserID,
@@ -155,11 +153,12 @@ public final class ChatPhotoPrefetcher {
             }
         }
 
-        guard inFlight.insert(rendition.blobID).inserted else {
+        // A photo that arrives twice, or whose bubble is already downloading it, downloads once.
+        guard let claim = caches.downloads.claim(ChatMediaImageSource.cacheKey(for: rendition.blobID)) else {
             report.outcome = .skipped(.inFlight)
             return report
         }
-        defer { inFlight.remove(rendition.blobID) }
+        defer { caches.downloads.release(claim) }
 
         await run(rendition, of: attachment, in: conversationID, decrypt: decrypt, into: &report)
         return report

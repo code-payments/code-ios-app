@@ -20,6 +20,9 @@ nonisolated public final class ChatMediaCaches: Sendable {
     /// copy re-serialized as JPEG, which would turn a PNG or HEIC into a lossy JPEG on save.
     let originals: ImageCache
 
+    /// The downloads into `images` running in this process, so two loads of one copy share one.
+    let downloads = ChatMediaDownloads()
+
     init(images: ImageCache, originals: ImageCache) {
         images.memoryStorage.config.expiration = .never
         images.diskStorage.config.sizeLimit = 500 * 1024 * 1024
