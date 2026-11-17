@@ -1000,6 +1000,49 @@ struct GroupMoneyShellSpecTests {
         #expect(!barElements.contains { $0 === share }, "share in a bar")
         #expect(bars.allSatisfy { !$0.convert($0.bounds, to: nil).intersects(close.accessibilityFrame) }, "a bar covers the close")
     }
+
+    // MARK: - Currencies in Settings
+
+    @Test("8.31 flag on: Settings lists Create Your Own Currency, then Currency Leaderboard, between Privacy and Advanced")
+    func settings_listsCurrenciesBetweenPrivacyAndAdvanced() async throws {
+        let (window, container) = try await Self.hostedMoney(activities: 0)
+        defer { window.isHidden = true }
+        let router = container.appRouter
+
+        try await Self.activate(identified: "money-profile-button", in: window)
+        try await waitUntil(timeout: .seconds(30)) { router.activeTabStack == .you }
+        // What the You screen's gear does.
+        router.push(.settings)
+
+        // Trusted Websites closes Privacy; Notifications sits inside Advanced.
+        let order = [
+            "settings-trusted-websites-row",
+            "settings-create-currency-row",
+            "settings-currency-leaderboard-row",
+            "settings-notifications-row",
+        ]
+        var tops: [CGFloat] = []
+        for identifier in order {
+            let row = try #require(try await Self.waitForElement(identified: identifier, in: window))
+            tops.append(row.accessibilityFrame.minY)
+        }
+        #expect(tops == tops.sorted(), "\(Array(zip(order, tops)))")
+    }
+
+    @Test("8.32 flag off: Settings has no Currencies section")
+    func standardSettings_hasNoCurrenciesSection() async throws {
+        let (window, container) = try await Self.hostedMoney(activities: 0, showsGroupMoney: false)
+        defer { window.isHidden = true }
+        let router = container.appRouter
+
+        router.showTab(.tipCard)
+        try await waitUntil(timeout: .seconds(30)) { router.activeTabStack == .you }
+        router.push(.settings)
+
+        _ = try await Self.waitForElement(identified: "settings-notifications-row", in: window)
+        #expect(Self.element(identified: "settings-create-currency-row", in: window) == nil)
+        #expect(Self.element(identified: "settings-currency-leaderboard-row", in: window) == nil)
+    }
 }
 
 // MARK: - Hosted tab bar -

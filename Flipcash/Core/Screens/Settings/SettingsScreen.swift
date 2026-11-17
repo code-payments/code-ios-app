@@ -39,10 +39,15 @@ struct SettingsScreen: View {
         Background(color: .backgroundMain) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    securitySection
-                    privacySection
-                    advancedSection
-                    accountSection
+                    ForEach(SettingsSection.visible(showsGroupMoney: showsGroupMoney), id: \.self) { section in
+                        switch section {
+                        case .security:   securitySection
+                        case .privacy:    privacySection
+                        case .currencies: currenciesSection
+                        case .advanced:   advancedSection
+                        case .account:    accountSection
+                        }
+                    }
                     if !cardState.isPinned {
                         versionCard
                             .padding(.top, 8)
@@ -109,6 +114,20 @@ struct SettingsScreen: View {
         }
     }
 
+    /// The wallet tiles the Group Money shell's Money screen leaves out.
+    private var currenciesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsSectionHeader("Currencies")
+
+            ForEach(SettingsCurrencyRow.allCases, id: \.self) { row in
+                SettingsRow(image: row.image, title: row.title, insets: insets) {
+                    row.open(using: router)
+                }
+                .accessibilityIdentifier(row.accessibilityIdentifier)
+            }
+        }
+    }
+
     private var advancedSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsSectionHeader("Advanced")
@@ -170,6 +189,11 @@ struct SettingsScreen: View {
                 }
             }
         }
+    }
+
+    /// Whether the Group Money shell is up, read the way the shell reads it.
+    private var showsGroupMoney: Bool {
+        betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: session))
     }
 
     private var cardState: SettingsVersionCardState {
