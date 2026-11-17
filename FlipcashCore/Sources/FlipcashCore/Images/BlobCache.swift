@@ -159,7 +159,7 @@ public final class BlobCache: @unchecked Sendable {
         return true
     }
 
-    /// Deletes one blob's bytes.
+    /// Deletes the bytes held for one blob.
     public func remove(_ blobID: BlobID) {
         lock.lock()
         defer { lock.unlock() }
