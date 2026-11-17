@@ -32,7 +32,7 @@ class RatesController {
     var balanceCurrency: CurrencyCode = .usd {
         willSet {
             LocalDefaults.balanceCurrency = newValue
-            DisplayCurrency.sharedSelection = newValue
+            DisplayCurrency.setSharedSelection(newValue, in: sharedDefaults)
         }
         didSet {
             // The notification previews hold amounts already formatted in the old currency.
@@ -64,6 +64,9 @@ class RatesController {
 
     @ObservationIgnored private let client: Client
     @ObservationIgnored private let database: Database
+
+    /// Where ``balanceCurrency`` is published for the notification extensions to read.
+    @ObservationIgnored private let sharedDefaults: UserDefaults?
 
     /// Service for verified exchange rate and reserve state proofs
     @ObservationIgnored let verifiedProtoService: VerifiedProtoService
@@ -97,9 +100,12 @@ class RatesController {
 
     // MARK: - Init -
 
-    init(container: Container, database: Database) {
+    /// Creates a controller that publishes ``balanceCurrency`` to `sharedDefaults`, which the app
+    /// sets to ``DisplayCurrency/appGroupDefaults``.
+    init(container: Container, database: Database, sharedDefaults: UserDefaults?) {
         self.client   = container.client
         self.database = database
+        self.sharedDefaults = sharedDefaults
         self.verifiedProtoService = VerifiedProtoService(store: database)
 
         if LocalDefaults.balanceCurrency == nil {
@@ -107,7 +113,7 @@ class RatesController {
         }
 
         balanceCurrency = LocalDefaults.balanceCurrency!
-        DisplayCurrency.sharedSelection = balanceCurrency
+        DisplayCurrency.setSharedSelection(balanceCurrency, in: sharedDefaults)
         let storedUserPicked = LocalDefaults.storedTokenMintUserPicked ?? false
         selectedTokenMint = loadSelectedToken()
         isSelectedTokenUserPicked = storedUserPicked
