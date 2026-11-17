@@ -453,6 +453,8 @@ public struct SwapResponseServerParameters {
         /// Where the buy fee is deposited. The server sets this only when the
         /// client requested a non-zero `fee_amount`; nil means a fee-free buy.
         public let feeDestination: PublicKey?
+        /// The v1 transaction config, set only when the client requested a v1 transaction.
+        public let transactionConfig: SolanaTransactionConfig?
 
         public init(
             payer: PublicKey,
@@ -462,7 +464,8 @@ public struct SwapResponseServerParameters {
             memoValue: String,
             memoryAccount: PublicKey,
             memoryIndex: UInt32,
-            feeDestination: PublicKey? = nil
+            feeDestination: PublicKey? = nil,
+            transactionConfig: SolanaTransactionConfig? = nil
         ) {
             self.payer = payer
             self.alts = alts
@@ -472,6 +475,7 @@ public struct SwapResponseServerParameters {
             self.memoryAccount = memoryAccount
             self.memoryIndex = memoryIndex
             self.feeDestination = feeDestination
+            self.transactionConfig = transactionConfig
         }
     }
 
@@ -486,6 +490,8 @@ public struct SwapResponseServerParameters {
         public let memoValue: String
         public let feeDestination: PublicKey
         public let poolFeeRecipient: PublicKey
+        /// The v1 transaction config, set only when the client requested a v1 transaction.
+        public let transactionConfig: SolanaTransactionConfig?
 
         public init(
             payer: PublicKey,
@@ -496,7 +502,8 @@ public struct SwapResponseServerParameters {
             computeUnitPrice: UInt64,
             memoValue: String,
             feeDestination: PublicKey,
-            poolFeeRecipient: PublicKey
+            poolFeeRecipient: PublicKey,
+            transactionConfig: SolanaTransactionConfig? = nil
         ) {
             self.payer = payer
             self.nonce = nonce
@@ -507,6 +514,7 @@ public struct SwapResponseServerParameters {
             self.memoValue = memoValue
             self.feeDestination = feeDestination
             self.poolFeeRecipient = poolFeeRecipient
+            self.transactionConfig = transactionConfig
         }
     }
 
@@ -533,6 +541,45 @@ public struct SwapResponseServerParameters {
         /// Core-mint quarks the treasury spends on the purchase. The client
         /// must validate this equals the user-accepted purchase amount.
         public let treasuryPurchaseAmount: UInt64
+        /// The v1 transaction config, set only when the client requested a v1 transaction.
+        public let transactionConfig: SolanaTransactionConfig?
+        /// The VM memory accounts a v1 transaction initializes and resizes, in instruction order.
+        public let memoryAccounts: [VmMemoryAccountInitialization]
+        /// The owner of the `to_mint` fee account a v1 transaction opens.
+        public let feeAccountOwner: PublicKey?
+
+        /// One VM memory account a v1 new-currency transaction initializes, tops up and resizes.
+        public struct VmMemoryAccountInitialization: Equatable, Sendable {
+            /// The memory account address, which the client should check against the VM and name.
+            public let address: PublicKey
+            /// The name passed to `VM::InitMemory`.
+            public let name: String
+            /// The number of virtual accounts passed to `VM::InitMemory`.
+            public let numAccounts: UInt32
+            /// The virtual account size passed to `VM::InitMemory`.
+            public let accountSize: UInt32
+            /// The sizes passed to successive `VM::ResizeMemory` instructions, ending at full capacity.
+            public let resizeSizes: [UInt32]
+            /// The lamports the authority transfers to cover rent at the account's final size.
+            public let rentTopUpLamports: UInt64
+
+            /// Creates a memory account initialization from its server-provided values.
+            public init(
+                address: PublicKey,
+                name: String,
+                numAccounts: UInt32,
+                accountSize: UInt32,
+                resizeSizes: [UInt32],
+                rentTopUpLamports: UInt64
+            ) {
+                self.address = address
+                self.name = name
+                self.numAccounts = numAccounts
+                self.accountSize = accountSize
+                self.resizeSizes = resizeSizes
+                self.rentTopUpLamports = rentTopUpLamports
+            }
+        }
 
         public init(
             payer: PublicKey,
@@ -550,7 +597,10 @@ public struct SwapResponseServerParameters {
             vmLockDurationInDays: UInt32,
             feeDestination: PublicKey,
             treasury: PublicKey? = nil,
-            treasuryPurchaseAmount: UInt64 = 0
+            treasuryPurchaseAmount: UInt64 = 0,
+            transactionConfig: SolanaTransactionConfig? = nil,
+            memoryAccounts: [VmMemoryAccountInitialization] = [],
+            feeAccountOwner: PublicKey? = nil
         ) {
             self.payer = payer
             self.nonce = nonce
@@ -568,6 +618,9 @@ public struct SwapResponseServerParameters {
             self.feeDestination = feeDestination
             self.treasury = treasury
             self.treasuryPurchaseAmount = treasuryPurchaseAmount
+            self.transactionConfig = transactionConfig
+            self.memoryAccounts = memoryAccounts
+            self.feeAccountOwner = feeAccountOwner
         }
     }
 }
@@ -599,7 +652,8 @@ extension SwapResponseServerParameters.CurrencyCreatorStateful {
             memoValue: proto.memoValue,
             memoryAccount: memoryAccount,
             memoryIndex: proto.memoryIndex,
-            feeDestination: feeDestination
+            feeDestination: feeDestination,
+            transactionConfig: proto.hasTransactionConfig ? SolanaTransactionConfig(proto.transactionConfig) : nil
         )
     }
 }
@@ -625,6 +679,20 @@ extension SwapResponseServerParameters.ReserveNewCurrency {
             treasury = nil
         }
 
+        let feeAccountOwner: PublicKey?
+        if proto.hasFeeAccountOwner {
+            guard let parsed = try? PublicKey(proto.feeAccountOwner.value) else { return nil }
+            feeAccountOwner = parsed
+        } else {
+            feeAccountOwner = nil
+        }
+
+        var memoryAccounts: [VmMemoryAccountInitialization] = []
+        for account in proto.memoryAccounts {
+            guard let parsed = VmMemoryAccountInitialization(account) else { return nil }
+            memoryAccounts.append(parsed)
+        }
+
         let alts = proto.alts.compactMap { AddressLookupTable($0) }
 
         self.init(
@@ -643,7 +711,28 @@ extension SwapResponseServerParameters.ReserveNewCurrency {
             vmLockDurationInDays: proto.vmLockDurationInDays,
             feeDestination: feeDestination,
             treasury: treasury,
-            treasuryPurchaseAmount: proto.treasuryPurchaseAmount
+            treasuryPurchaseAmount: proto.treasuryPurchaseAmount,
+            transactionConfig: proto.hasTransactionConfig ? SolanaTransactionConfig(proto.transactionConfig) : nil,
+            memoryAccounts: memoryAccounts,
+            feeAccountOwner: feeAccountOwner
+        )
+    }
+}
+
+extension SwapResponseServerParameters.ReserveNewCurrency.VmMemoryAccountInitialization {
+    /// Creates a memory account initialization from the proto, or nil when its address is malformed.
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter.VmMemoryAccountInitialization) {
+        guard let address = try? PublicKey(proto.address.value) else {
+            return nil
+        }
+
+        self.init(
+            address: address,
+            name: proto.name,
+            numAccounts: proto.numAccounts,
+            accountSize: proto.accountSize,
+            resizeSizes: proto.resizeSizes,
+            rentTopUpLamports: proto.rentTopUpLamports
         )
     }
 }
@@ -671,7 +760,8 @@ extension SwapResponseServerParameters.CoinbaseStableSwapServerParameters {
             computeUnitPrice: proto.computeUnitPrice,
             memoValue: proto.memoValue,
             feeDestination: feeDestination,
-            poolFeeRecipient: poolFeeRecipient
+            poolFeeRecipient: poolFeeRecipient,
+            transactionConfig: proto.hasTransactionConfig ? SolanaTransactionConfig(proto.transactionConfig) : nil
         )
     }
 }
