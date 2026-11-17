@@ -79,6 +79,10 @@ final class SessionAuthenticator {
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private var poller: Poller?
 
+    /// The server calls behind a registration or login. A seam for tests; the default goes to
+    /// ``flipClient`` and ``client``.
+    @ObservationIgnored var remote: AccountRemote
+
     /// Whether the server-gate poller is running.
     var isPolling: Bool { poller != nil }
     
@@ -89,6 +93,7 @@ final class SessionAuthenticator {
         self.client         = container.client
         self.flipClient     = container.flipClient
         self.accountManager = container.accountManager
+        self.remote         = .live(client: container.client, flipClient: container.flipClient)
 
         // Update launch state.
         // This is a fresh install.
@@ -525,19 +530,13 @@ final class SessionAuthenticator {
         // Register/login first: the OCP antispam guard for createAccounts
         // requires the owner to already exist as a Flipcash user.
         if isRegistration {
-            userID = try await flipClient.register(owner: keyAccount.owner)
+            userID = try await remote.register(keyAccount.owner)
         } else {
-            userID = try await flipClient.login(owner: keyAccount.owner)
+            userID = try await remote.login(keyAccount.owner)
         }
 
         // No-op when accounts already exist.
-        try await client.createAccounts(
-            owner: cluster.authority.keyPair,
-            mint: .usdf, // USDF is the foundation mint
-            cluster: cluster,
-            kind: .primary,
-            derivationIndex: 0
-        )
+        try await remote.createPrimaryAccounts(cluster)
 
         if marksOnboardingIncomplete {
             OnboardingProgress.setCompleted(false, owner: keyAccount.ownerPublicKey)
@@ -1278,4 +1277,31 @@ struct InitializedAccount {
 
 extension SessionAuthenticator {
     static let mock: SessionAuthenticator = SessionAuthenticator(container: .mock)
+}
+
+// MARK: - AccountRemote -
+
+/// The server calls ``SessionAuthenticator`` makes to register or log in an owner and create its
+/// primary accounts. Tests replace it to run a registration without a server.
+struct AccountRemote {
+    var register: (KeyPair) async throws -> UserID
+    var login: (KeyPair) async throws -> UserID
+    /// Creates the owner's primary USDF accounts; a no-op when they already exist.
+    var createPrimaryAccounts: (AccountCluster) async throws -> Void
+
+    static func live(client: Client, flipClient: FlipClient) -> AccountRemote {
+        AccountRemote(
+            register: { owner in try await flipClient.register(owner: owner) },
+            login: { owner in try await flipClient.login(owner: owner) },
+            createPrimaryAccounts: { cluster in
+                try await client.createAccounts(
+                    owner: cluster.authority.keyPair,
+                    mint: .usdf, // USDF is the foundation mint
+                    cluster: cluster,
+                    kind: .primary,
+                    derivationIndex: 0
+                )
+            }
+        )
+    }
 }
