@@ -184,6 +184,41 @@ struct ProfileTests {
         #expect(try Profile(Flipcash_Profile_V1_UserProfile()).isUsernameAutoAssigned == false)
     }
 
+    // MARK: - Email verified -
+
+    @Test("isEmailAddressVerified maps from the proto and round-trips")
+    func emailVerifiedFlagMapsAndRoundTrips() throws {
+        var proto = Flipcash_Profile_V1_UserProfile()
+        proto.emailAddress = .with { $0.value = "ted@example.com" }
+        proto.isEmailAddressVerified = true
+
+        let profile = try Profile(proto)
+        #expect(profile.isEmailAddressVerified)
+
+        let restored = try JSONDecoder().decode(Profile.self, from: try JSONEncoder().encode(profile))
+        #expect(restored.isEmailAddressVerified)
+    }
+
+    @Test("An email linked without verification maps as unverified")
+    func unverifiedEmailMapsAsUnverified() throws {
+        var proto = Flipcash_Profile_V1_UserProfile()
+        proto.emailAddress = .with { $0.value = "ted@example.com" }
+
+        let profile = try Profile(proto)
+
+        #expect(profile.email == "ted@example.com")
+        #expect(profile.isEmailAddressVerified == false)
+    }
+
+    @Test("A row persisted before isEmailAddressVerified decodes it as false")
+    func decodesProfilePersistedBeforeEmailVerifiedFlag() throws {
+        let legacy = Data(#"{"displayName":"Ted Livingston","email":"ted@example.com"}"#.utf8)
+
+        let profile = try JSONDecoder().decode(Profile.self, from: legacy)
+
+        #expect(profile.isEmailAddressVerified == false)
+    }
+
     // MARK: - Username -
 
     @Test("Username round-trips")
