@@ -19,6 +19,15 @@ import FlipcashStore
 @MainActor
 struct ChatPhotoPrefetcherTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     @MainActor
     private final class Spy {
         var mints: [BlobID] = []
@@ -44,7 +53,6 @@ struct ChatPhotoPrefetcherTests {
         }
     }()
 
-    /// A blob no other test touches, since the cache is shared and on disk.
     private func uniqueBlobID() -> BlobID {
         BlobID(data: Data(UUID().uuidString.utf8))
     }
@@ -100,7 +108,7 @@ struct ChatPhotoPrefetcherTests {
                 await MainActor.run { spy.downloads.append(url) }
                 return (body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
             },
-            cache: ChatMediaImageSource.cache
+            caches: caches
         )
     }
 
@@ -130,12 +138,6 @@ struct ChatPhotoPrefetcherTests {
             attributedIncoming: row.isAttributedTranscript && row.sender != .me
         )
         return (media, try #require(ChatMediaBubbleLoad(media: media, maxWidth: maxWidth, scale: screen.scale)), maxWidth)
-    }
-
-    private func remove(_ blobIDs: [BlobID]) async {
-        for blobID in blobIDs {
-            await ChatMediaImageSource.evict(blobID: blobID, processor: DefaultImageProcessor.default)
-        }
     }
 
     // MARK: - Same copy as the bubble -
@@ -174,13 +176,12 @@ struct ChatPhotoPrefetcherTests {
         let spy = Spy()
         let blobs = blobs()
         let message = photoMessage(attachment(blobs))
-        defer { Task { await remove([blobs.display]) } }
 
         let report = try #require(await prefetcher(spy).prefetch(message, in: conversationID, isGroup: false, trigger: .stream))
         #expect(report.outcome == .downloaded)
         #expect(spy.mints == [blobs.display])
         // Nothing in memory: the bubble has to find the copy on disk, as after a relaunch.
-        #expect(ChatMediaImageSource.cache.imageCachedType(forKey: ChatMediaImageSource.cacheKey(for: blobs.display)) == .disk)
+        #expect(caches.images.imageCachedType(forKey: ChatMediaImageSource.cacheKey(for: blobs.display)) == .disk)
 
         let bubble = try bubbleLoad(try row(message))
         let stacked = ChatMediaCell.processor(
@@ -200,17 +201,17 @@ struct ChatPhotoPrefetcherTests {
             let resolver = ChatMediaURLResolver(fetch: { blobID in
                 spy.fetches.append(blobID)
                 return nil
-            })
+            }, caches: caches)
             let load = ChatMediaBubbleLoad(rendition: bubble.load.rendition, processor: processor)
             let location = try #require(resolver.location(for: bubble.media, canReact: true, drawing: load) { _ in })
             #expect(location.url == nil)
             #expect(location.rendition == bubble.load.rendition)
 
             let source = ChatMediaImageSource.source(blobID: location.rendition?.blobID, location: location)
-            let result = await ChatMediaImageSource.retrieve(source, options: ChatMediaImageSource.options(processor: processor))
+            let result = await ChatMediaImageSource.retrieve(source, options: ChatMediaImageSource.options(processor: processor, in: caches))
             #expect((try? result.get().image) != nil)
             // The draw cached its downsampled copy in memory; drop it so the next processor reads disk.
-            ChatMediaImageSource.cache.clearMemoryCache()
+            caches.images.clearMemoryCache()
         }
         #expect(spy.fetches.isEmpty)
     }
@@ -221,7 +222,6 @@ struct ChatPhotoPrefetcherTests {
         let blobs = blobs()
         let ciphertext = Data("sealed".utf8)
         let message = photoMessage(attachment(blobs, sealed: SealedBlob(senderID: them, plaintextSize: Self.photoData.count)))
-        defer { Task { await remove([blobs.original]) } }
 
         let prefetcher = prefetcher(spy, decrypt: { blob, _, _ in
             #expect(blob == ciphertext)
@@ -233,8 +233,8 @@ struct ChatPhotoPrefetcherTests {
         #expect(report.rendition == .original)
         #expect(report.decrypt != nil)
         #expect(spy.mints == [blobs.original])
-        #expect(ChatMediaImageSource.cache.imageCachedType(forKey: ChatMediaImageSource.cacheKey(for: blobs.original)) == .disk)
-        #expect(ChatMediaImageSource.originalData(blobID: blobs.original) == Self.photoData)
+        #expect(caches.images.imageCachedType(forKey: ChatMediaImageSource.cacheKey(for: blobs.original)) == .disk)
+        #expect(ChatMediaImageSource.originalData(blobID: blobs.original, in: caches) == Self.photoData)
     }
 
     @Test("A sealed photo waits for its chat's key rather than downloading what it can't open")
@@ -272,7 +272,6 @@ struct ChatPhotoPrefetcherTests {
     func expensiveNetwork() async throws {
         let spy = Spy()
         let blobs = blobs()
-        defer { Task { await remove([blobs.display]) } }
         let cellular = ChatPhotoPrefetchNetwork(connected: true, constrained: false, expensive: true)
         let report = try #require(await prefetcher(spy, network: cellular).prefetch(photoMessage(attachment(blobs)), in: conversationID, isGroup: false, trigger: .stream))
         #expect(report.outcome == .downloaded)
@@ -282,8 +281,7 @@ struct ChatPhotoPrefetcherTests {
     func cachedUnderOriginal() async throws {
         let spy = Spy()
         let blobs = blobs()
-        try ChatMediaImageSource.storeFullSize(Self.photoData, blobID: blobs.original, in: ChatMediaImageSource.cache)
-        defer { Task { await remove([blobs.original]) } }
+        try ChatMediaImageSource.storeFullSize(Self.photoData, blobID: blobs.original, in: caches.images)
 
         let report = try #require(await prefetcher(spy).prefetch(photoMessage(attachment(blobs)), in: conversationID, isGroup: false, trigger: .stream))
         #expect(report.outcome == .skipped(.policy(.cached)))
@@ -300,7 +298,7 @@ struct ChatPhotoPrefetcherTests {
 
         #expect(report.outcome == .failed(.fetch))
         #expect(report.metadata["status"] == "403")
-        #expect(!ChatMediaImageSource.isCached(blobID: blobs.display, processor: DefaultImageProcessor.default))
+        #expect(!ChatMediaImageSource.isCached(blobID: blobs.display, processor: DefaultImageProcessor.default, in: caches))
         #expect(!report.metadata.values.contains { "\($0)".contains("secret-signature") })
     }
 
@@ -311,7 +309,7 @@ struct ChatPhotoPrefetcherTests {
         let report = try #require(await prefetcher(spy, body: Data("<html>".utf8)).prefetch(photoMessage(attachment(blobs)), in: conversationID, isGroup: false, trigger: .stream))
 
         #expect(report.outcome == .failed(.decode))
-        #expect(!ChatMediaImageSource.isCached(blobID: blobs.display, processor: DefaultImageProcessor.default))
+        #expect(!ChatMediaImageSource.isCached(blobID: blobs.display, processor: DefaultImageProcessor.default, in: caches))
     }
 
     @Test("A failed transfer logs its error domain and code, never its description")
@@ -325,7 +323,7 @@ struct ChatPhotoPrefetcherTests {
             isMuted: { _ in false },
             screen: { screen },
             download: { url, _ in throw URLError(.timedOut, userInfo: [NSURLErrorFailingURLErrorKey: url]) },
-            cache: ChatMediaImageSource.cache
+            caches: caches
         )
         let report = try #require(await prefetcher.prefetch(photoMessage(attachment(blobs)), in: conversationID, isGroup: false, trigger: .stream))
 
@@ -342,7 +340,6 @@ struct ChatPhotoPrefetcherTests {
         let spy = Spy()
         let old = blobs()
         let new = blobs()
-        defer { Task { await remove([new.display]) } }
         let tasks = prefetcher(spy).handleLive(
             [photoMessage(attachment(old), id: 4), photoMessage(attachment(new), id: 5)],
             in: conversationID,
@@ -359,6 +356,15 @@ struct ChatPhotoPrefetcherTests {
 @Suite("Chat photo prefetch wiring")
 @MainActor
 struct ChatPhotoPrefetchWiringTests {
+
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
 
     @MainActor
     private final class Minted {
@@ -398,7 +404,9 @@ struct ChatPhotoPrefetchWiringTests {
             decrypt: { _ in nil },
             network: { ChatPhotoPrefetchNetwork(connected: true, constrained: false, expensive: false) },
             isMuted: { _ in false },
-            screen: { ChatPhotoPrefetcher.Screen(rowWidth: 393, scale: 3) }
+            screen: { ChatPhotoPrefetcher.Screen(rowWidth: 393, scale: 3) },
+            download: { _, _ in throw CancellationError() },
+            caches: caches
         )
         let theirs = BlobID(data: Data(UUID().uuidString.utf8))
         let mine = BlobID(data: Data(UUID().uuidString.utf8))

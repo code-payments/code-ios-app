@@ -530,7 +530,7 @@ public final class ChatMediaCell: ChatColumnCell {
             }
             let photo = behind[behind.startIndex + position]
             card.image = localImages[photo.messageID]
-                ?? (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
+                ?? (photo.isRedacted ? nil : photo.blobID.flatMap { ChatMediaImageSource.cachedImage(blobID: $0, in: .shared) })
                 ?? BlurHashCache.shared.image(for: photo.blurhash)
             card.isHidden = false
         }
@@ -615,12 +615,12 @@ public final class ChatMediaCell: ChatColumnCell {
         imageView.kf.setImage(
             with: ChatMediaImageSource.source(blobID: blobID, location: remote),
             placeholder: placeholder,
-            options: ChatMediaImageSource.options(processor: processor) + [
+            options: ChatMediaImageSource.options(processor: processor, in: remote.caches) + [
                 .scaleFactor(traitCollection.displayScale),
                 .transition(.fade(Self.fadeDuration)),
             ]
         ) { [weak self] result in
-            ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, rendition: drawn?.role ?? .original, processor: processor)
+            ChatMediaImageSource.finish(result, blobID: blobID, surface: .bubble, rendition: drawn?.role ?? .original, processor: processor, in: remote.caches)
             guard case .failure(let error) = result else { return }
             if ChatMediaImageSource.isUndecryptable(error) {
                 self?.showUnavailable(true)
@@ -632,9 +632,9 @@ public final class ChatMediaCell: ChatColumnCell {
                 // The cached copy it drew from has gone or won't read. Once what is left of it is
                 // dropped, resolving again mints a URL.
                 Task { [weak self] in
-                    await ChatMediaImageSource.evict(blobID: blobID, processor: processor)
+                    await ChatMediaImageSource.evict(blobID: blobID, processor: processor, in: remote.caches)
                     guard let self, drawnRowID == rowID,
-                          !ChatMediaImageSource.isCached(blobID: blobID, processor: processor) else { return }
+                          !ChatMediaImageSource.isCached(blobID: blobID, processor: processor, in: remote.caches) else { return }
                     onReload?()
                 }
             }

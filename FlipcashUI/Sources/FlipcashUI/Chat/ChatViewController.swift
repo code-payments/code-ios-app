@@ -947,7 +947,7 @@ public final class ChatViewController: UICollectionViewController {
                 sealed: content.sealed != nil,
                 localImage: localImage,
                 placeholder: localImage
-                    ?? (photo.isRedacted ? nil : photo.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:)))
+                    ?? (photo.isRedacted ? nil : photo.blobID.flatMap { ChatMediaImageSource.cachedImage(blobID: $0, in: .shared) })
                     ?? BlurHashCache.shared.image(for: photo.blurhash),
                 canReply: photo.canReply,
                 canForward: photo.canForward,

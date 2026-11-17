@@ -186,9 +186,9 @@ struct ChatQuoteContent: View {
                 .overlay {
                     if let resolvedThumbnail {
                         KFImage(source: ChatMediaImageSource.source(blobID: thumbnailBlobID, location: resolvedThumbnail))
-                            .targetCache(ChatMediaImageSource.cache)
-                            .onSuccess { ChatMediaImageSource.finish(.success($0), blobID: thumbnailBlobID, surface: .quote, rendition: nil) }
-                            .onFailure { ChatMediaImageSource.finish(.failure($0), blobID: thumbnailBlobID, surface: .quote, rendition: nil) }
+                            .targetCache(resolvedThumbnail.caches.images)
+                            .onSuccess { ChatMediaImageSource.finish(.success($0), blobID: thumbnailBlobID, surface: .quote, rendition: nil, in: resolvedThumbnail.caches) }
+                            .onFailure { ChatMediaImageSource.finish(.failure($0), blobID: thumbnailBlobID, surface: .quote, rendition: nil, in: resolvedThumbnail.caches) }
                             .resizable()
                             .scaledToFill()
                     }

@@ -315,7 +315,7 @@ struct WebCardImages {
             return await ChatMediaImageSource.image(blobID: attachment.blobID, location: location, surface: .link)
         }
         cached = { attachment in
-            attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))
+            attachment.blobID.flatMap { ChatMediaImageSource.cachedImage(blobID: $0, in: .shared) }
         }
     }
 

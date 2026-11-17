@@ -18,6 +18,15 @@ import Kingfisher
 @MainActor
 struct ChatMediaInFlightTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     @Test("A row reconfigured with a re-minted URL mid-download keeps the download it started")
     func remintedURLKeepsDownload() async throws {
         let server = try LoopbackPhotoServer(holding: true)
@@ -26,9 +35,9 @@ struct ChatMediaInFlightTests {
         let row = Self.row()
         let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
 
-        cell.configure(with: row, maxWidth: 240, localImage: nil, remote: ChatMediaLocation(url: Self.url(port, signature: "1")))
+        cell.configure(with: row, maxWidth: 240, localImage: nil, remote: ChatMediaLocation(url: Self.url(port, signature: "1"), caches: caches))
         await server.waitForRequests(1)
-        cell.configure(with: row, maxWidth: 240, localImage: nil, remote: ChatMediaLocation(url: Self.url(port, signature: "2")))
+        cell.configure(with: row, maxWidth: 240, localImage: nil, remote: ChatMediaLocation(url: Self.url(port, signature: "2"), caches: caches))
         server.release()
         try await Self.untilLoaded(cell)
 
@@ -44,7 +53,7 @@ struct ChatMediaInFlightTests {
         let row = Self.row()
         let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
 
-        cell.configure(with: row, maxWidth: 240, localImage: nil, remote: ChatMediaLocation(url: Self.url(port, signature: "1")))
+        cell.configure(with: row, maxWidth: 240, localImage: nil, remote: ChatMediaLocation(url: Self.url(port, signature: "1"), caches: caches))
         await server.waitForRequests(1)
         cell.configure(with: row, maxWidth: 240, localImage: nil, remote: nil)
         server.release()

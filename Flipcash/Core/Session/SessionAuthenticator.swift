@@ -721,9 +721,9 @@ final class SessionContainer {
             guard let blobID = photo.blobID,
                   let url = try? await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(chatID))
             else { return nil }
-            guard let sealed = photo.sealed else { return ChatMediaLocation(url: url) }
+            guard let sealed = photo.sealed else { return ChatMediaLocation(url: url, caches: .shared) }
             guard let decrypt = await conversationController.mediaBlobDecrypt(for: chatID) else { return nil }
-            return ChatMediaLocation(url: url) { try decrypt($0, blobID, sealed) }
+            return ChatMediaLocation(url: url, caches: .shared) { try decrypt($0, blobID, sealed) }
         },
         chatAvatars: { [profileAvatars, conversationController] chatID in
             guard let conversation = conversationController.conversation(withID: chatID) else { return nil }

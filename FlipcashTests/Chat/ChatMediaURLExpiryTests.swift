@@ -17,6 +17,15 @@ import FlipcashCore
 @MainActor
 struct ChatMediaURLExpiryTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     private let blobID = BlobID(data: Data([7]))
     private let start = Date(timeIntervalSince1970: 1_800_000_000)
 
@@ -42,7 +51,7 @@ struct ChatMediaURLExpiryTests {
     }
 
     private func resolver(_ minter: Minter) -> ChatMediaURLResolver {
-        ChatMediaURLResolver(fetch: { minter.mint($0) }, now: { minter.clock })
+        ChatMediaURLResolver(fetch: { minter.mint($0) }, now: { minter.clock }, caches: caches)
     }
 
     private var photo: ChatMediaContent {

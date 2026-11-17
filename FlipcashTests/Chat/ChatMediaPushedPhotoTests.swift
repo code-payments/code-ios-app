@@ -19,6 +19,15 @@ import Kingfisher
 @MainActor
 struct ChatMediaPushedPhotoTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     @MainActor
     private final class Spy {
         var fetches: [BlobID] = []
@@ -47,18 +56,14 @@ struct ChatMediaPushedPhotoTests {
         let thumbnail: BlobID
     }
 
-    /// Blobs no other test touches, since the chat cache is shared and on disk.
     private func blobs() -> Blobs {
         func unique() -> BlobID { BlobID(data: Data(UUID().uuidString.utf8)) }
         return Blobs(original: unique(), display: unique(), thumbnail: unique())
     }
 
-    /// An empty store in its own directory, standing in for the App Group's.
+    /// An empty store in this test's folder, standing in for the App Group's.
     private func pushedStore() -> BlobCache {
-        BlobCache(
-            directory: FileManager.default.temporaryDirectory.appendingPathComponent("PushedPhotos-\(UUID().uuidString)"),
-            limitBytes: 32 * 1024 * 1024
-        )
+        folder.pushedPhotos()
     }
 
     private func photoMessage(_ blobs: Blobs, sealed: SealedBlob? = nil) -> ConversationMessage {
@@ -104,6 +109,7 @@ struct ChatMediaPushedPhotoTests {
                 spy.fetches.append(blobID)
                 return link
             },
+            caches: caches,
             pushedPhotos: pushed
         )
     }
@@ -124,12 +130,6 @@ struct ChatMediaPushedPhotoTests {
         }
     }
 
-    private func remove(_ blobIDs: [BlobID]) async {
-        for blobID in blobIDs {
-            await ChatMediaImageSource.evict(blobID: blobID, processor: DefaultImageProcessor.default)
-        }
-    }
-
     // MARK: - The bubble -
 
     @Test("A photo the extension downloaded draws with no mint, and moves into the chat cache")
@@ -137,7 +137,6 @@ struct ChatMediaPushedPhotoTests {
         let spy = Spy()
         let blobs = blobs()
         let pushed = pushedStore()
-        defer { Task { await remove([blobs.display]) } }
         let (media, load) = try bubble(photoMessage(blobs))
         #expect(load.rendition.blobID == blobs.display)
         pushed.write(Self.photoData, for: blobs.display)
@@ -147,13 +146,13 @@ struct ChatMediaPushedPhotoTests {
         #expect(location.url == nil)
         #expect(location.rendition == load.rendition)
         #expect(spy.fetches.isEmpty)
-        #expect(ChatMediaImageSource.isCached(blobID: blobs.display, processor: load.processor))
+        #expect(ChatMediaImageSource.isCached(blobID: blobs.display, processor: load.processor, in: caches))
         #expect(!pushed.holds(blobs.display))
 
         // The bubble's own draw, from disk as after a relaunch, still with no network.
-        ChatMediaImageSource.cache.clearMemoryCache()
+        caches.images.clearMemoryCache()
         let source = ChatMediaImageSource.source(blobID: location.rendition?.blobID, location: location)
-        let result = await ChatMediaImageSource.retrieve(source, options: ChatMediaImageSource.options(processor: load.processor))
+        let result = await ChatMediaImageSource.retrieve(source, options: ChatMediaImageSource.options(processor: load.processor, in: caches))
         #expect((try? result.get().image) != nil)
         #expect(spy.fetches.isEmpty)
     }
@@ -163,7 +162,6 @@ struct ChatMediaPushedPhotoTests {
         let spy = Spy()
         let blobs = blobs()
         let pushed = pushedStore()
-        defer { Task { await remove([blobs.original]) } }
         let (media, load) = try bubble(photoMessage(blobs))
         pushed.write(Self.photoData, for: blobs.original)
 
@@ -173,7 +171,7 @@ struct ChatMediaPushedPhotoTests {
         #expect(location.rendition?.role == .original)
         #expect(location.rendition?.blobID == blobs.original)
         #expect(spy.fetches.isEmpty)
-        #expect(ChatMediaImageSource.isCached(blobID: blobs.original, processor: load.processor))
+        #expect(ChatMediaImageSource.isCached(blobID: blobs.original, processor: load.processor, in: caches))
     }
 
     @Test("A pushed sealed photo draws with no mint and keeps its bytes for Save")
@@ -181,7 +179,6 @@ struct ChatMediaPushedPhotoTests {
         let spy = Spy()
         let blobs = blobs()
         let pushed = pushedStore()
-        defer { Task { await remove([blobs.original]) } }
         let (media, load) = try bubble(photoMessage(blobs, sealed: SealedBlob(senderID: them, plaintextSize: Self.photoData.count)))
         #expect(load.rendition.role == .original)
         // The extension decrypts before it stores, so the store holds the photo as sent.
@@ -191,7 +188,7 @@ struct ChatMediaPushedPhotoTests {
 
         #expect(location.url == nil)
         #expect(spy.fetches.isEmpty)
-        #expect(ChatMediaImageSource.originalData(blobID: blobs.original) == Self.photoData)
+        #expect(ChatMediaImageSource.originalData(blobID: blobs.original, in: caches) == Self.photoData)
     }
 
     @Test("With nothing pushed, the bubble mints its rendition")
@@ -227,7 +224,7 @@ struct ChatMediaPushedPhotoTests {
             download: { url, _ in
                 (Self.photoData, HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!)
             },
-            cache: ChatMediaImageSource.cache,
+            caches: caches,
             pushedPhotos: pushed
         )
 

@@ -15,6 +15,15 @@ import Kingfisher
 @MainActor
 struct ChatMediaLoadReportTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     private static let blobID = BlobID(data: Data([1]))
     private static let signedURL = URL(string: "https://d1.cloudfront.net/blob/abc?Expires=1700000000&Signature=SECRETSIG&Key-Pair-Id=KPID")!
 
@@ -26,8 +35,8 @@ struct ChatMediaLoadReportTests {
         .success(RetrieveImageResult(image: UIImage(), cacheType: cacheType, source: source, originalSource: source, data: { nil }))
     }
 
-    private static func sealedProvider() -> DecryptingProvider {
-        DecryptingProvider(cacheKey: "chat-media-test", url: signedURL, decrypt: { $0 })
+    private func sealedProvider() -> DecryptingProvider {
+        DecryptingProvider(cacheKey: "chat-media-test", url: Self.signedURL, decrypt: { $0 }, caches: caches)
     }
 
     @Test("A transfer splits time to first byte from the body, and keeps the CDN edge and cache headers")
@@ -62,7 +71,7 @@ struct ChatMediaLoadReportTests {
 
     @Test("An encrypted photo reports the transfer and decrypt time its provider recorded")
     func sealedLoadReportsTrace() {
-        let provider = Self.sealedProvider()
+        let provider = sealedProvider()
         var transfer = ChatMediaTransfer()
         transfer.firstByte = .milliseconds(300)
         transfer.record(Self.response(status: 200, headers: ["X-Amz-Cf-Pop": "ORD58-P16"]))
@@ -99,7 +108,7 @@ struct ChatMediaLoadReportTests {
         #expect(timedOut.errorDomain == NSURLErrorDomain)
         #expect(timedOut.errorCode == URLError.timedOut.rawValue)
 
-        let provider = Self.sealedProvider()
+        let provider = sealedProvider()
         provider.trace.update { $0.step = .decrypt }
         let undecryptable = ChatMediaLoadReport(
             .failure(.imageSettingError(reason: .dataProviderError(provider: provider, error: BlobOpenFailure.authentication))),
@@ -138,7 +147,7 @@ struct ChatMediaLoadReportTests {
             NSURLErrorFailingURLErrorKey: Self.signedURL,
             NSURLErrorFailingURLStringErrorKey: Self.signedURL.absoluteString,
         ])
-        let provider = Self.sealedProvider()
+        let provider = sealedProvider()
         provider.trace.update { state in
             var transfer = ChatMediaTransfer()
             transfer.record(Self.response(status: 403))

@@ -47,7 +47,7 @@ public final class ChatPhotoPrefetcher {
     private let isMuted: (ConversationID) -> Bool
     private let screen: () -> Screen
     private let download: Download
-    private let cache: ImageCache
+    private let caches: ChatMediaCaches
     /// Where the notification extension leaves the photos it downloaded for a push.
     private let pushedPhotos: BlobCache
     /// The blobs being downloaded, so a photo that arrives twice downloads once.
@@ -63,7 +63,7 @@ public final class ChatPhotoPrefetcher {
     ) {
         self.init(
             selfUserID: selfUserID, mint: mint, decrypt: decrypt, network: network, isMuted: isMuted,
-            screen: screen, download: Self.urlSessionDownload, cache: ChatMediaImageSource.cache
+            screen: screen, download: Self.urlSessionDownload, caches: .shared
         )
     }
 
@@ -75,7 +75,7 @@ public final class ChatPhotoPrefetcher {
         isMuted: @escaping (ConversationID) -> Bool,
         screen: @escaping () -> Screen,
         download: @escaping Download,
-        cache: ImageCache,
+        caches: ChatMediaCaches,
         pushedPhotos: BlobCache = .chatPhotos
     ) {
         self.selfUserID = selfUserID
@@ -85,7 +85,7 @@ public final class ChatPhotoPrefetcher {
         self.isMuted = isMuted
         self.screen = screen
         self.download = download
-        self.cache = cache
+        self.caches = caches
         self.pushedPhotos = pushedPhotos
     }
 
@@ -133,7 +133,7 @@ public final class ChatPhotoPrefetcher {
 
         // Either copy the bubble probes, in the chat cache or left there by the notification extension.
         let cached = [rendition.blobID, attachment.blobID].compactMap(\.self).contains {
-            ChatMediaImageSource.isCached(blobID: $0, processor: load.processor) || pushedPhotos.holds($0)
+            ChatMediaImageSource.isCached(blobID: $0, processor: load.processor, in: caches) || pushedPhotos.holds($0)
         }
         if let skip = ChatPhotoPrefetch.skip(
             own: own,
@@ -214,7 +214,7 @@ public final class ChatPhotoPrefetcher {
 
         let blobID = rendition.blobID
         let sealed = attachment.sealed
-        let cache = self.cache
+        let caches = self.caches
         let opened: Result<Duration?, ChatPhotoPrefetchReport.Failure> = await Task.detached {
             var image = body
             var decrypted: Duration?
@@ -226,11 +226,11 @@ public final class ChatPhotoPrefetcher {
                     return .failure(.init(step: .decrypt, error: error))
                 }
                 decrypted = ContinuousClock.now - start
-                ChatMediaImageSource.storeOriginal(image, forKey: ChatMediaImageSource.cacheKey(for: blobID))
+                ChatMediaImageSource.storeOriginal(image, forKey: ChatMediaImageSource.cacheKey(for: blobID), in: caches)
             }
             guard Self.isImage(image) else { return .failure(.init(step: .decode, error: nil)) }
             do {
-                try ChatMediaImageSource.storeFullSize(image, blobID: blobID, in: cache)
+                try ChatMediaImageSource.storeFullSize(image, blobID: blobID, in: caches.images)
             } catch {
                 return .failure(.init(step: .store, error: error))
             }

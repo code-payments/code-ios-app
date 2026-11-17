@@ -584,7 +584,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             },
             decrypt: { [weak self] in
                 await self?.mediaBlobDecrypt()
-            }
+            },
+            caches: .shared
         )
     }
 }

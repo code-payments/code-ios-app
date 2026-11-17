@@ -24,9 +24,12 @@ public struct ChatMediaLocation: Sendable {
     /// The copy of the photo this location draws, or nil for the ORIGINAL a caller asked for by
     /// the photo's own blob. A bubble draws, evicts and reports under this copy's blob.
     public let rendition: MediaRendition?
+    /// The caches the photo is read from and written to.
+    public let caches: ChatMediaCaches
 
     public init(
         url: URL,
+        caches: ChatMediaCaches,
         decrypt: (@Sendable (Data) throws -> Data)? = nil,
         rendition: MediaRendition? = nil,
         reportRefused: @escaping @MainActor @Sendable () -> Bool = { false }
@@ -36,21 +39,23 @@ public struct ChatMediaLocation: Sendable {
         self.reportRefused = reportRefused
         self.cachedSealed = false
         self.rendition = rendition
+        self.caches = caches
     }
 
-    private init(sealed: Bool, rendition: MediaRendition?) {
+    private init(sealed: Bool, rendition: MediaRendition?, caches: ChatMediaCaches) {
         self.url = nil
         self.decrypt = nil
         self.reportRefused = { false }
         self.cachedSealed = sealed
         self.rendition = rendition
+        self.caches = caches
     }
 
-    /// A photo already in the chat-media cache, which draws without a URL. `sealed` says whether
-    /// its blob is end-to-end encrypted, which the cached image alone can't show; `rendition` is
-    /// the copy found cached.
-    public static func cached(sealed: Bool, rendition: MediaRendition? = nil) -> ChatMediaLocation {
-        ChatMediaLocation(sealed: sealed, rendition: rendition)
+    /// A photo already in `caches`, which draws without a URL. `sealed` says whether its blob is
+    /// end-to-end encrypted, which the cached image alone can't show; `rendition` is the copy found
+    /// cached.
+    public static func cached(sealed: Bool, rendition: MediaRendition? = nil, in caches: ChatMediaCaches) -> ChatMediaLocation {
+        ChatMediaLocation(sealed: sealed, rendition: rendition, caches: caches)
     }
 }
 
@@ -68,15 +73,15 @@ public enum ChatMediaImageSource {
         guard let decrypt = location.decrypt else {
             return .network(KF.ImageResource(downloadURL: url, cacheKey: cacheKey))
         }
-        return .provider(DecryptingProvider(cacheKey: cacheKey, url: url, decrypt: decrypt))
+        return .provider(DecryptingProvider(cacheKey: cacheKey, url: url, decrypt: decrypt, caches: location.caches))
     }
 
     /// The photo at `location`, from the cache when held, or nil when it fails to load or decrypt.
     /// `blobID` is an ORIGINAL: its callers, Save to Photos and link cards, load nothing smaller.
     @MainActor
     public static func image(blobID: BlobID?, location: ChatMediaLocation, surface: ChatMediaSurface) async -> UIImage? {
-        let result = await retrieve(source(blobID: blobID, location: location), options: options())
-        finish(result, blobID: blobID, surface: surface, rendition: .original)
+        let result = await retrieve(source(blobID: blobID, location: location), options: options(in: location.caches))
+        finish(result, blobID: blobID, surface: surface, rendition: .original, in: location.caches)
         return try? result.get().image
     }
 
@@ -102,25 +107,25 @@ public enum ChatMediaImageSource {
     }
 
     /// The photo for `blobID` if already held in memory, without loading anything.
-    public static func cachedImage(blobID: BlobID) -> UIImage? {
-        cache.retrieveImageInMemoryCache(forKey: cacheKey(for: blobID))
+    public static func cachedImage(blobID: BlobID, in caches: ChatMediaCaches) -> UIImage? {
+        return caches.images.retrieveImageInMemoryCache(forKey: cacheKey(for: blobID))
     }
 
     /// Whether `blobID`'s photo is cached, in memory or on disk, as drawn by `processor` or full size,
-    /// so it can draw from ``ChatMediaLocation/cached(sealed:rendition:)`` without a URL. Kingfisher downsamples a
+    /// so it can draw from ``ChatMediaLocation/cached(sealed:rendition:in:)`` without a URL. Kingfisher downsamples a
     /// full-size copy on the way out, which the viewer leaves behind.
-    public static func isCached(blobID: BlobID, processor: ImageProcessor) -> Bool {
+    public static func isCached(blobID: BlobID, processor: ImageProcessor, in caches: ChatMediaCaches) -> Bool {
         let key = cacheKey(for: blobID)
-        return cache.imageCachedType(forKey: key, processorIdentifier: processor.identifier).cached
-            || cache.imageCachedType(forKey: key, processorIdentifier: DefaultImageProcessor.default.identifier).cached
+        return caches.images.imageCachedType(forKey: key, processorIdentifier: processor.identifier).cached
+            || caches.images.imageCachedType(forKey: key, processorIdentifier: DefaultImageProcessor.default.identifier).cached
     }
 
     /// Drops `blobID`'s cached copies after one failed to load, so the next lookup misses and
     /// mints a URL.
-    public static func evict(blobID: BlobID, processor: ImageProcessor) async {
+    public static func evict(blobID: BlobID, processor: ImageProcessor, in caches: ChatMediaCaches) async {
         let key = cacheKey(for: blobID)
         for identifier in [processor.identifier, DefaultImageProcessor.default.identifier] {
-            try? await cache.removeImage(forKey: key, processorIdentifier: identifier)
+            try? await caches.images.removeImage(forKey: key, processorIdentifier: identifier)
         }
     }
 
@@ -129,7 +134,7 @@ public enum ChatMediaImageSource {
     }
 
     /// Writes a photo's downloaded bytes to `cache`'s disk under `blobID` as its full-size copy,
-    /// which ``isCached(blobID:processor:)`` counts for every processor: Kingfisher downsamples it
+    /// which ``isCached(blobID:processor:in:)`` counts for every processor: Kingfisher downsamples it
     /// for whichever bubble asks. For a download made before any bubble asks, which can't know
     /// whether the photo will draw alone or in a stack.
     nonisolated static func storeFullSize(_ data: Data, blobID: BlobID, in cache: ImageCache) throws {
@@ -159,34 +164,15 @@ public enum ChatMediaImageSource {
         }
     }
 
-    /// The cache chat photos read and write. A blob's bytes never change, so unlike the app's other
-    /// remote images they persist to disk and never expire from memory.
-    public static let cache: ImageCache = {
-        let cache = ImageCache(name: "chat-media")
-        cache.memoryStorage.config.expiration = .never
-        cache.diskStorage.config.sizeLimit = 500 * 1024 * 1024
-        cache.diskStorage.config.expiration = .days(30)
-        return cache
-    }()
-
-    /// The decrypted bytes of each downloaded photo exactly as sent. The main cache holds only a
-    /// decoded copy re-serialized as JPEG, which would turn a PNG or HEIC into a lossy JPEG on save.
-    nonisolated static let originals: ImageCache = {
-        let cache = ImageCache(name: "chat-media-originals")
-        cache.diskStorage.config.sizeLimit = 500 * 1024 * 1024
-        cache.diskStorage.config.expiration = .days(30)
-        return cache
-    }()
-
-    nonisolated static func storeOriginal(_ data: Data, forKey key: String) {
-        try? originals.diskStorage.store(value: data, forKey: key)
+    nonisolated static func storeOriginal(_ data: Data, forKey key: String, in caches: ChatMediaCaches) {
+        try? caches.originals.diskStorage.store(value: data, forKey: key)
     }
 
     /// The photo's bytes as sent, or nil when this device never downloaded them (a staged send, or a
     /// photo cached before originals were kept).
-    public static func originalData(blobID: BlobID?) -> Data? {
+    public static func originalData(blobID: BlobID?, in caches: ChatMediaCaches) -> Data? {
         guard let blobID else { return nil }
-        return try? originals.diskStorage.value(forKey: cacheKey(for: blobID))
+        return try? caches.originals.diskStorage.value(forKey: cacheKey(for: blobID))
     }
 
     /// Whether `data` is an image Photos takes as-is, read from its leading bytes rather than any
@@ -206,8 +192,8 @@ public enum ChatMediaImageSource {
     }
 
     /// The options every chat photo load passes, `processor` included when it draws a downsampled copy.
-    public static func options(processor: ImageProcessor? = nil) -> KingfisherOptionsInfo {
-        var options: KingfisherOptionsInfo = [.targetCache(cache)]
+    public static func options(processor: ImageProcessor? = nil, in caches: ChatMediaCaches) -> KingfisherOptionsInfo {
+        var options: KingfisherOptionsInfo = [.targetCache(caches.images)]
         if let processor { options.append(.processor(processor)) }
         return options
     }
@@ -225,11 +211,12 @@ public enum ChatMediaImageSource {
         blobID: BlobID?,
         surface: ChatMediaSurface,
         rendition: MediaRendition.Role?,
-        processor: ImageProcessor? = nil
+        processor: ImageProcessor? = nil,
+        in caches: ChatMediaCaches
     ) {
         ChatMediaLoadReport(result, blobID: blobID, surface: surface, rendition: rendition).log()
         guard case .success(let value) = result else { return }
-        persist(value.image, cacheType: value.cacheType, forKey: value.source.cacheKey, processor: processor)
+        persist(value.image, cacheType: value.cacheType, forKey: value.source.cacheKey, processor: processor, in: caches)
     }
 
     static func persist(
@@ -237,10 +224,11 @@ public enum ChatMediaImageSource {
         cacheType: CacheType,
         forKey key: String,
         processor: ImageProcessor?,
+        in caches: ChatMediaCaches,
         completion: (@Sendable () -> Void)? = nil
     ) {
         guard cacheType == .none else { return }
-        cache.store(
+        caches.images.store(
             image,
             forKey: key,
             processorIdentifier: processor?.identifier ?? DefaultImageProcessor.default.identifier,
@@ -269,6 +257,8 @@ nonisolated struct DecryptingProvider: ImageDataProvider {
     let cacheKey: String
     let url: URL
     let decrypt: @Sendable (Data) throws -> Data
+    /// Where the decrypted bytes are kept as the copy Save to Photos reads.
+    let caches: ChatMediaCaches
     /// What this load saw, for its report.
     let trace = ChatMediaLoadTrace()
 
@@ -297,7 +287,7 @@ nonisolated struct DecryptingProvider: ImageDataProvider {
                     $0.decrypt = decrypted
                     $0.step = .decode
                 }
-                ChatMediaImageSource.storeOriginal(image, forKey: cacheKey)
+                ChatMediaImageSource.storeOriginal(image, forKey: cacheKey, in: caches)
                 // The decoded image is authoritative; bytes that don't decode render as unsupported.
                 guard UIImage(data: image) != nil else { throw BlobOpenFailure.undecodable }
                 handler(.success(image))

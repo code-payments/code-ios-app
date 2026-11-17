@@ -213,7 +213,7 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         self.onMoreReactions = onMoreReactions
         self.entriesForMessage = reactionEntries
         super.init(nibName: nil, bundle: nil)
-        originalData = { [weak self] in self.flatMap { ChatMediaImageSource.originalData(blobID: $0.page.blobID) } }
+        originalData = { [weak self] in self.flatMap { ChatMediaImageSource.originalData(blobID: $0.page.blobID, in: .shared) } }
 
         let zoom = UIViewController.Transition.ZoomOptions()
         // A zoomed-in photo pans instead; the swipe down only dismisses at the fitted size, and in a
@@ -483,9 +483,9 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
             return
         }
         pageView.imageView.image = page.placeholder
-        if let blobID = page.blobID, ChatMediaImageSource.isCached(blobID: blobID, processor: DefaultImageProcessor.default) {
+        if let blobID = page.blobID, ChatMediaImageSource.isCached(blobID: blobID, processor: DefaultImageProcessor.default, in: .shared) {
             // Opened before: the full-size copy draws without waiting on a URL.
-            setImage(page, at: index, from: .cached(sealed: page.sealed))
+            setImage(page, at: index, from: .cached(sealed: page.sealed, in: .shared))
             return
         }
         resolveImage(page, at: index)
@@ -503,9 +503,9 @@ public final class ChatMediaViewerController: UIViewController, UIScrollViewDele
         pageView.imageView.kf.setImage(
             with: ChatMediaImageSource.source(blobID: page.blobID, location: remote),
             placeholder: page.placeholder,
-            options: ChatMediaImageSource.options()
+            options: ChatMediaImageSource.options(in: remote.caches)
         ) { [weak self, weak pageView] result in
-            ChatMediaImageSource.finish(result, blobID: page.blobID, surface: .viewer, rendition: .original)
+            ChatMediaImageSource.finish(result, blobID: page.blobID, surface: .viewer, rendition: .original, in: remote.caches)
             switch result {
             case .success(let value):
                 pageView?.loadedImage = value.image
