@@ -132,8 +132,17 @@ struct GroupInviteLanding {
         }
     }
 
+    /// Joins through the link and sends `Group: Joined` once with what it came to. `memberCount`
+    /// is the group's count before the join.
     @MainActor
-    func join(_ secret: InviteLinkSecret, conversationID: ConversationID) async -> JoinResult {
+    func join(_ secret: InviteLinkSecret, conversationID: ConversationID, memberCount: UInt64) async -> JoinResult {
+        let result = await joinResult(secret, conversationID: conversationID)
+        Analytics.groupJoined(result: result, memberCount: memberCount)
+        return result
+    }
+
+    @MainActor
+    private func joinResult(_ secret: InviteLinkSecret, conversationID: ConversationID) async -> JoinResult {
         guard let parameters = try? secret.joinParameters(owner: service.owner, conversationID: conversationID) else {
             return .failed
         }
