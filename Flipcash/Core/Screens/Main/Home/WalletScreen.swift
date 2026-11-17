@@ -429,11 +429,19 @@ private struct WalletScreenContent: View {
 
     /// The title where Groups draws its own, and the avatar in the slot Groups gives Add.
     @ToolbarContentBuilder private var moneyBarItems: some ToolbarContent {
-        ShellTabTitle(title: MoneyHeaderContent.title, accessibilityIdentifier: "money-title")
+        ShellTabTitle(tab: .wallet, title: MoneyHeaderContent.title, accessibilityIdentifier: "money-title")
         // The photo is the control, so no glass behind it.
         if #available(iOS 26.0, *) {
-            ToolbarItem(placement: .topBarTrailing) { moneyProfileButton }
-                .sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .topBarTrailing) {
+                ShellHeaderCrossfade(tab: .wallet, alignment: .center) {
+                    moneyProfileButton
+                } outgoing: { _ in
+                    NewChatButton.glyph
+                        .frame(width: 44, height: 44)
+                        .glassEffect(.regular, in: .circle)
+                }
+            }
+            .sharedBackgroundVisibility(.hidden)
         } else {
             ToolbarItem(placement: .topBarTrailing) { moneyProfileButton }
         }
@@ -442,13 +450,7 @@ private struct WalletScreenContent: View {
     /// The avatar: a tap opens You, and a hold opens the account switcher, as holding the You tab
     /// does.
     private var moneyProfileButton: some View {
-        ContactAvatarView(
-            id: session.userID.uuidString,
-            displayName: session.profile?.displayName ?? "",
-            imageData: sessionContainer.profileAvatars.data(for: session.userID),
-            blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
-            size: 44
-        )
+        ShellProfileAvatar()
         .contentShape(.circle)
         // One composed gesture on a plain view: a Button runs its action when a hold lifts, which
         // would dismiss the switcher the hold just opened.
@@ -799,6 +801,23 @@ private struct WalletScreenContent: View {
         )
 
         return (cards, total, appreciation)
+    }
+}
+
+/// The account's photo as the Money tab's bar draws it, where Groups draws Add.
+struct ShellProfileAvatar: View {
+
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    var body: some View {
+        let session = sessionContainer.session
+        ContactAvatarView(
+            id: session.userID.uuidString,
+            displayName: session.profile?.displayName ?? "",
+            imageData: sessionContainer.profileAvatars.data(for: session.userID),
+            blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
+            size: 44
+        )
     }
 }
 

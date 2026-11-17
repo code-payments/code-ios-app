@@ -200,7 +200,7 @@ struct TipConversationsScreen: View {
             } else {
                 if showsGroupMoney {
                     // In the slot the "…" menu takes outside the shell.
-                    ShellTabTitle(title: "Groups", accessibilityIdentifier: "chat-list-title")
+                    ShellTabTitle(tab: .chat, title: "Groups", accessibilityIdentifier: "chat-list-title")
                 } else {
                     ToolbarItem(placement: .topBarLeading) {
                         ChatListMoreMenu(
@@ -331,7 +331,15 @@ struct TipConversationsScreen: View {
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            NewChatButton()
+            if showsGroupMoney {
+                ShellHeaderCrossfade(tab: .chat, alignment: .center) {
+                    NewChatButton()
+                } outgoing: { _ in
+                    ShellProfileAvatar()
+                }
+            } else {
+                NewChatButton()
+            }
         }
     }
 
@@ -418,7 +426,7 @@ private struct MuteTarget: Identifiable {
 /// bar's background, so without a bar the list met the status bar on a hard
 /// line; the standard centred title puts the bar back and lets the list fade
 /// under it.
-private struct NewChatButton: View {
+struct NewChatButton: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(BetaFlags.self) private var betaFlags
@@ -434,12 +442,17 @@ private struct NewChatButton: View {
         } label: {
             // Bar items get their glass from the system on iOS 26, so this
             // carries no button style of its own.
-            Image.system(.plus)
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
+            Self.glyph
         }
         .accessibilityLabel(showsGroupMoney ? "New group" : "New chat")
         .accessibilityIdentifier("new-chat-button")
+    }
+
+    /// The button's face, which the Money tab's bar also draws while it fades in over Groups.
+    static var glyph: some View {
+        Image.system(.plus)
+            .font(.appTextLarge)
+            .foregroundStyle(Color.textMain)
     }
 }
 
