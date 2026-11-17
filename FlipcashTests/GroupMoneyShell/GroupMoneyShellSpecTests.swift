@@ -515,7 +515,7 @@ struct GroupMoneyShellSpecTests {
         )
         defer { window.isHidden = true }
         let menu = try await Self.rowMenu(in: window)
-        #expect(Self.visibleTabBar(in: window) != nil)
+        #expect(Self.systemTabBar(in: window) != nil)
         #expect(Self.element(labelled: "Archive", in: window) == nil)
 
         try Self.perform("Select", in: menu)
@@ -717,9 +717,12 @@ struct GroupMoneyShellSpecTests {
         #expect(container.appRouter[.balance] == Self.path(.walletCurrencies))
     }
 
-    @Test("8.16 flag on: a token link while a card is open on the currencies screen opens it on Money, whose tab bar returns on close")
-    func currencies_deepLinkFromOpenCardLandsOnMoney() async throws {
-        let (window, container) = try await Self.hostedCurrencies()
+    @Test(
+        "8.16 flag on: a token link while a card is open on the currencies screen opens it on Money, whose tab bar returns on close",
+        arguments: [false, true]
+    )
+    func currencies_deepLinkFromOpenCardLandsOnMoney(leftAligned: Bool) async throws {
+        let (window, container) = try await Self.hostedCurrencies(leftAligned: leftAligned)
         defer { window.isHidden = true }
         let router = container.appRouter
 
@@ -744,6 +747,11 @@ struct GroupMoneyShellSpecTests {
             window.layoutIfNeeded()
             return Self.element(identified: "currency-info-back", in: window) == nil
                 && Self.visibleTabBar(in: window) != nil
+        }
+        if #available(iOS 26, *) {
+            // The bar that comes back is the one the flag picks.
+            #expect((Self.systemTabBar(in: window) != nil) == !leftAligned)
+            #expect((Self.drawnTabBar(in: window) != nil) == leftAligned)
         }
     }
 
@@ -1047,20 +1055,28 @@ struct GroupMoneyShellSpecTests {
 
 // MARK: - Hosted tab bar -
 
-/// Answers the shell's gate and the account-switching gate without touching the stored flags, which
-/// other suites read from `UserDefaults.standard` while this one runs.
+/// Answers the shell's gate, the account-switching gate and Left-Aligned Tab Bar without touching
+/// the stored flags, which other suites read from `UserDefaults.standard` while this one runs.
+/// Left-Aligned is answered here too because a test host can have it stored on, and with the shell
+/// it swaps the system tab bar for the shell's small one.
 private final class GateFlags: BetaFlags {
     let showsGroupMoney: Bool
     let switchesAccounts: Bool
+    let leftAligned: Bool
 
-    init(showsGroupMoney: Bool, canSwitchAccounts: Bool = false) {
+    init(showsGroupMoney: Bool, canSwitchAccounts: Bool = false, leftAligned: Bool = false) {
         self.showsGroupMoney = showsGroupMoney
         self.switchesAccounts = canSwitchAccounts
+        self.leftAligned = leftAligned
         super.init()
     }
 
     override func showsGroupMoneyUI(isStaff: Bool) -> Bool {
         showsGroupMoney
+    }
+
+    override func hasEnabled(_ option: Option) -> Bool {
+        option == .leftAlignedTabBar ? leftAligned : super.hasEnabled(option)
     }
 
     override var canSwitchAccounts: Bool {
@@ -1175,7 +1191,8 @@ extension GroupMoneyShellSpecTests {
         activities count: Int,
         holdings: [SessionContainer.Holding] = [],
         showsGroupMoney: Bool = true,
-        canSwitchAccounts: Bool = false
+        canSwitchAccounts: Bool = false,
+        leftAligned: Bool = false
     ) async throws -> (UIWindow, SessionContainer) {
         let sessionContainer = try SessionContainer.makeTest(holdings: holdings)
         if !holdings.isEmpty {
@@ -1194,7 +1211,7 @@ extension GroupMoneyShellSpecTests {
         })
         let window = try hostWindow(
             HomeTabView()
-                .environment(GateFlags(showsGroupMoney: showsGroupMoney, canSwitchAccounts: canSwitchAccounts) as BetaFlags)
+                .environment(GateFlags(showsGroupMoney: showsGroupMoney, canSwitchAccounts: canSwitchAccounts, leftAligned: leftAligned) as BetaFlags)
                 .injectingEnvironment(from: sessionContainer)
                 .injectingEnvironment(from: Container.mock)
         )
@@ -1215,8 +1232,8 @@ extension GroupMoneyShellSpecTests {
 
     /// Money with ``currencyHoldings``, with the currencies screen pushed from "N currencies".
     /// The caller hides the window.
-    fileprivate static func hostedCurrencies() async throws -> (UIWindow, SessionContainer) {
-        let (window, container) = try await hostedMoney(activities: 0, holdings: currencyHoldings)
+    fileprivate static func hostedCurrencies(leftAligned: Bool = false) async throws -> (UIWindow, SessionContainer) {
+        let (window, container) = try await hostedMoney(activities: 0, holdings: currencyHoldings, leftAligned: leftAligned)
         _ = try await waitForElement(identified: "money-currencies-button", in: window)
         MoneyAction.currencies.perform(on: container.appRouter)
         return (window, container)
@@ -1545,12 +1562,40 @@ extension GroupMoneyShellSpecTests {
         return nil
     }
 
-    fileprivate static func visibleTabBar(in view: UIView) -> UITabBar? {
+    /// Whichever tab bar is on screen: the system bar, or the shell's small bar drawn in its place
+    /// with Left-Aligned Tab Bar on.
+    fileprivate static func visibleTabBar(in view: UIView) -> NSObject? {
+        systemTabBar(in: view) ?? drawnTabBar(in: view)
+    }
+
+    fileprivate static func systemTabBar(in view: UIView) -> UITabBar? {
         if let bar = view as? UITabBar, !bar.isHidden, bar.alpha > 0.01, bar.window != nil { return bar }
         for subview in view.subviews {
-            if let bar = visibleTabBar(in: subview) { return bar }
+            if let bar = systemTabBar(in: subview) { return bar }
         }
         return nil
+    }
+
+    /// The shell's small bar: the accessibility container it marks as a tab bar, while it holds
+    /// items. Hidden views and the system bar are skipped, and the small bar drops out of the
+    /// accessibility tree when it slides out or fades for select mode.
+    fileprivate static func drawnTabBar(in view: UIView) -> NSObject? {
+        func walk(_ object: NSObject, depth: Int) -> NSObject? {
+            guard depth < 40, !(object is UITabBar) else { return nil }
+            if let view = object as? UIView, view.isHidden || view.alpha <= 0.01 { return nil }
+            let children = (object.accessibilityElements ?? []).compactMap { $0 as? NSObject }
+            if object.accessibilityTraits.contains(.tabBar), !children.isEmpty { return object }
+            for child in children {
+                if let bar = walk(child, depth: depth + 1) { return bar }
+            }
+            if let view = object as? UIView {
+                for subview in view.subviews {
+                    if let bar = walk(subview, depth: depth + 1) { return bar }
+                }
+            }
+            return nil
+        }
+        return walk(view, depth: 0)
     }
 
     /// Visible scroll views under `view` that are not a list's collection view.
