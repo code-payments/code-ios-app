@@ -438,6 +438,18 @@ class OnboardingViewModel {
         return step == .displayName || path.first == step
     }
 
+    /// Whether a step keeps the navigation bar's row when it has no back button, so its title
+    /// sits at the same height as a step that has one.
+    func keepsNavigationBarRow(for step: OnboardingPath) -> Bool {
+        guard isGroupMoneyFlow else { return false }
+        switch step {
+        case .enterPhoneNumber, .confirmPhoneNumberCode, .email, .displayName:
+            return true
+        default:
+            return false
+        }
+    }
+
     private func place(_ step: OnboardingPath) {
         if awaitingResumedRoot {
             awaitingResumedRoot = false

@@ -207,6 +207,7 @@ struct GroupMoneyOnboardingSpecTests {
         await harness.viewModel.resumeOnboarding(with: Self.resumedAccount)
         #expect(harness.viewModel.path == [.displayName])
         #expect(harness.viewModel.nameCopy == .standard)
+        #expect(!harness.viewModel.keepsNavigationBarRow(for: .displayName))
 
         try #require(harness.viewModel.nameViewModel).onComplete?()
         await waitUntil { harness.viewModel.path.last == .pushNotifications }
@@ -435,6 +436,18 @@ struct GroupMoneyOnboardingSpecTests {
         #expect(PhoneVerificationCopy.onboarding.codeButtonTitle == "Next")
     }
 
+    @Test("4.7 gate open: phone, code, email and name keep the navigation bar's row, so their titles sit at one height")
+    func gateOpen_stepsKeepNavigationBarRow() async {
+        let harness = makeHarness(gate: Counter(isOpen: true))
+        defer { harness.cleanUp() }
+        await tapCreate(harness)
+
+        // Only the code step has a back button; without the row the other three titles sit higher.
+        for step: OnboardingPath in [.enterPhoneNumber, .confirmPhoneNumberCode, .email, .displayName] {
+            #expect(harness.viewModel.keepsNavigationBarRow(for: step), "\(step)")
+        }
+    }
+
     // MARK: - 5. Email -
 
     @Test("5.1 the email step links the registered account's address")
@@ -544,6 +557,16 @@ struct GroupMoneyOnboardingSpecTests {
         #expect(harness.viewModel.nameCopy == .standard)
         #expect(OnboardingNameCopy.standard.title == "What's your name?")
         #expect(OnboardingNameCopy.standard.hint == "This is how you'll appear to others")
+    }
+
+    @Test("7.3 gate closed: the access key and name steps keep today's navigation bar")
+    func gateClosed_stepsKeepTodaysNavigationBar() async {
+        let harness = makeHarness(gate: Counter(isOpen: false))
+        defer { harness.cleanUp() }
+        await tapCreate(harness)
+
+        #expect(!harness.viewModel.keepsNavigationBarRow(for: .accessKey))
+        #expect(!harness.viewModel.keepsNavigationBarRow(for: .displayName))
     }
 
     // MARK: - 8. Log In -
