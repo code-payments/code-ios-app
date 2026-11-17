@@ -307,7 +307,8 @@ final class SessionAuthenticator {
 
         let ratesController = RatesController(
             container: container,
-            database: database
+            database: database,
+            sharedDefaults: DisplayCurrency.appGroupDefaults
         )
 
         let pushController = PushController(
