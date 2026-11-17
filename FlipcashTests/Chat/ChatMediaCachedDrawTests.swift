@@ -129,7 +129,7 @@ struct ChatMediaCachedDrawTests {
         let cached = try await cacheOnDiskOnly(media, processor: processor)
         defer { Task { await removeCached(cached) } }
 
-        let location = resolver.location(for: media, canReact: true, cachedAs: processor) { _ in }
+        let location = resolver.location(for: media, canReact: true, drawing: ChatMediaBubbleLoad(media: media, maxWidth: 240, scale: 3)) { _ in }
         #expect(location != nil)
         #expect(location?.url == nil)
         await Task.yield()
@@ -143,7 +143,7 @@ struct ChatMediaCachedDrawTests {
         let cached = try await cacheOnDiskOnly(media, processor: DefaultImageProcessor.default)
         defer { Task { await removeCached(cached) } }
 
-        let location = resolver.location(for: media, canReact: true, cachedAs: ChatMediaCell.processor(for: media, maxWidth: 240)) { _ in }
+        let location = resolver.location(for: media, canReact: true, drawing: ChatMediaBubbleLoad(media: media, maxWidth: 240, scale: 3)) { _ in }
         #expect(location != nil)
         #expect(location?.url == nil)
     }
@@ -156,7 +156,7 @@ struct ChatMediaCachedDrawTests {
         let cached = try await cacheOnDiskOnly(media, processor: processor)
         defer { Task { await removeCached(cached) } }
 
-        let location = try #require(resolver.location(for: media, canReact: true, cachedAs: processor) { _ in })
+        let location = try #require(resolver.location(for: media, canReact: true, drawing: ChatMediaBubbleLoad(media: media, maxWidth: 240, scale: 3)) { _ in })
         let result = await ChatMediaImageSource.retrieve(
             ChatMediaImageSource.source(blobID: media.blobID, location: location),
             options: ChatMediaImageSource.options(processor: processor)
@@ -176,7 +176,7 @@ struct ChatMediaCachedDrawTests {
         })
         let media = media(uniqueBlobID())
 
-        #expect(resolver.location(for: media, canReact: true, cachedAs: ChatMediaCell.processor(for: media, maxWidth: 240)) { _ in } == nil)
+        #expect(resolver.location(for: media, canReact: true, drawing: ChatMediaBubbleLoad(media: media, maxWidth: 240, scale: 3)) { _ in } == nil)
         for _ in 0..<100 where spy.calls.isEmpty {
             try? await Task.sleep(for: .milliseconds(10))
         }
@@ -191,7 +191,7 @@ struct ChatMediaCachedDrawTests {
         let cached = try await cacheOnDiskOnly(media(blobID), processor: processor)
         defer { Task { await removeCached(cached) } }
 
-        #expect(resolver.location(for: media(blobID, isRedacted: true), canReact: true, cachedAs: processor) { _ in } == nil)
+        #expect(resolver.location(for: media(blobID, isRedacted: true), canReact: true, drawing: ChatMediaBubbleLoad(media: media(blobID), maxWidth: 240, scale: 3)) { _ in } == nil)
     }
 
     @Test("A redacted photo stays on its BlurHash even when its bytes are cached")

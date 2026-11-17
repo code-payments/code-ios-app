@@ -21,29 +21,36 @@ public struct ChatMediaLocation: Sendable {
     public let reportRefused: @MainActor @Sendable () -> Bool
     /// Whether a photo drawn from the cache alone was end-to-end encrypted, for its load report.
     let cachedSealed: Bool
+    /// The copy of the photo this location draws, or nil for the ORIGINAL a caller asked for by
+    /// the photo's own blob. A bubble draws, evicts and reports under this copy's blob.
+    public let rendition: MediaRendition?
 
     public init(
         url: URL,
         decrypt: (@Sendable (Data) throws -> Data)? = nil,
+        rendition: MediaRendition? = nil,
         reportRefused: @escaping @MainActor @Sendable () -> Bool = { false }
     ) {
         self.url = url
         self.decrypt = decrypt
         self.reportRefused = reportRefused
         self.cachedSealed = false
+        self.rendition = rendition
     }
 
-    private init(sealed: Bool) {
+    private init(sealed: Bool, rendition: MediaRendition?) {
         self.url = nil
         self.decrypt = nil
         self.reportRefused = { false }
         self.cachedSealed = sealed
+        self.rendition = rendition
     }
 
     /// A photo already in the chat-media cache, which draws without a URL. `sealed` says whether
-    /// its blob is end-to-end encrypted, which the cached image alone can't show.
-    public static func cached(sealed: Bool) -> ChatMediaLocation {
-        ChatMediaLocation(sealed: sealed)
+    /// its blob is end-to-end encrypted, which the cached image alone can't show; `rendition` is
+    /// the copy found cached.
+    public static func cached(sealed: Bool, rendition: MediaRendition? = nil) -> ChatMediaLocation {
+        ChatMediaLocation(sealed: sealed, rendition: rendition)
     }
 }
 
@@ -65,10 +72,11 @@ public enum ChatMediaImageSource {
     }
 
     /// The photo at `location`, from the cache when held, or nil when it fails to load or decrypt.
+    /// `blobID` is an ORIGINAL: its callers, Save to Photos and link cards, load nothing smaller.
     @MainActor
     public static func image(blobID: BlobID?, location: ChatMediaLocation, surface: ChatMediaSurface) async -> UIImage? {
         let result = await retrieve(source(blobID: blobID, location: location), options: options())
-        finish(result, blobID: blobID, surface: surface)
+        finish(result, blobID: blobID, surface: surface, rendition: .original)
         return try? result.get().image
     }
 
@@ -99,7 +107,7 @@ public enum ChatMediaImageSource {
     }
 
     /// Whether `blobID`'s photo is cached, in memory or on disk, as drawn by `processor` or full size,
-    /// so it can draw from ``ChatMediaLocation/cached(sealed:)`` without a URL. Kingfisher downsamples a
+    /// so it can draw from ``ChatMediaLocation/cached(sealed:rendition:)`` without a URL. Kingfisher downsamples a
     /// full-size copy on the way out, which the viewer leaves behind.
     public static func isCached(blobID: BlobID, processor: ImageProcessor) -> Bool {
         let key = cacheKey(for: blobID)
@@ -211,13 +219,17 @@ public enum ChatMediaImageSource {
     ///
     /// The app-wide `.cacheMemoryOnly` default stops Kingfisher writing it there itself, and the
     /// signed URL changes per fetch, so without this every relaunch or memory trim re-downloads it.
+    ///
+    /// `rendition` is the role of the copy loaded, nil when the caller can't tell, as a quote can't.
+    /// It has no default so each surface states the copy it loads.
     public static func finish(
         _ result: Result<RetrieveImageResult, KingfisherError>,
         blobID: BlobID?,
         surface: ChatMediaSurface,
+        rendition: MediaRendition.Role?,
         processor: ImageProcessor? = nil
     ) {
-        ChatMediaLoadReport(result, blobID: blobID, surface: surface).log()
+        ChatMediaLoadReport(result, blobID: blobID, surface: surface, rendition: rendition).log()
         guard case .success(let value) = result else { return }
         persist(value.image, cacheType: value.cacheType, forKey: value.source.cacheKey, processor: processor)
     }

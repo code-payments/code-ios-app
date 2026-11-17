@@ -1863,7 +1863,7 @@ struct ConversationScreen: View {
     ///
     /// A tombstone cannot reach here: `MessageCapability.resolve` grants a deleted message nothing,
     /// so its row has no menu. The branch keeps the switch exhaustive.
-    private static func replyPreview(
+    static func replyPreview(
         for message: ConversationMessage,
         display: DisplayCurrency,
         token: (ExchangedFiat) -> String
@@ -1879,7 +1879,7 @@ struct ConversationScreen: View {
         case .media(let attachments, let caption):
             (
                 ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption)),
-                .media(thumbnailBlobID: message.redacted ? nil : attachments.first?.blobID, sealed: attachments.first?.sealed)
+                .media(thumbnailBlobID: message.redacted ? nil : attachments.first?.quoteThumbnailBlobID, sealed: attachments.first?.sealed)
             )
         case .deleted:
             (ChatQuote.deletedSnippet, .unavailable)

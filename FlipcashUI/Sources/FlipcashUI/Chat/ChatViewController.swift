@@ -882,7 +882,7 @@ public final class ChatViewController: UICollectionViewController {
             let remote = mediaURLResolver?.location(
                 for: media,
                 canReact: message.canReact,
-                cachedAs: ChatMediaCell.processor(for: media, maxWidth: cardMaxWidth)
+                drawing: ChatMediaBubbleLoad(media: media, maxWidth: cardMaxWidth, scale: view.traitCollection.displayScale)
             ) { [weak self] _ in
                 self?.reconfigureVisibleMessage(id: message.id)
             }

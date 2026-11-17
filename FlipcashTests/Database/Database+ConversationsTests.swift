@@ -728,6 +728,32 @@ struct DatabaseConversationsTests {
         #expect(loaded.redacted)
     }
 
+    @Test("A photo's derived renditions reload with it, so a relaunch keeps loading the smaller copy")
+    func mediaRenditionsRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let renditions = [
+            MediaRendition(role: .display, blobID: BlobID(data: Data([10])), width: 1080, height: 1440),
+            MediaRendition(role: .thumbnail, blobID: BlobID(data: Data([11])), width: 120, height: 160),
+        ]
+        let message = ConversationMessage(
+            id: MessageID(value: 1), senderID: otherID,
+            content: .media([MediaAttachment(blobID: BlobID(data: Data([9])), width: 3024, height: 4032, blurhash: nil, renditions: renditions)], caption: nil),
+            date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 3
+        )
+
+        try database.upsertConversationMessages([message], conversationID: id)
+
+        let loaded = try #require(try database.getConversationMessages(conversationID: id).first)
+        #expect(loaded == message)
+        guard case .media(let attachments, _) = loaded.content else {
+            Issue.record("expected media, got \(loaded.content)")
+            return
+        }
+        #expect(attachments.first?.renditions == renditions)
+    }
+
     @Test("the catch-up cursor round-trips and survives a feed replace")
     func catchupCursorRoundTrip() throws {
         let (database, url) = try Database.makeTemp()

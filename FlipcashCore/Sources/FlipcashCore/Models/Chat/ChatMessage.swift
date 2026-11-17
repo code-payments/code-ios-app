@@ -438,9 +438,14 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
     /// Every photo of the card stack this row fronts, in send order with this one first, or empty
     /// for a photo drawn alone. See `ChatMediaGrouping`.
     public var stackPhotos: [ChatMediaStackPhoto] { stack ?? [] }
+    /// Optional so a cached row from before renditions still decodes.
+    private let derived: [MediaRendition]?
+    /// The smaller copies the server derived from the photo. See ``MediaAttachment/renditions``.
+    public var renditions: [MediaRendition] { derived ?? [] }
 
-    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionPreview: LinkPreview? = nil, captionRows: [ChatMediaCaptionRow] = [], isRedacted: Bool, sealed: SealedBlob? = nil, stackPhotos: [ChatMediaStackPhoto] = []) {
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionPreview: LinkPreview? = nil, captionRows: [ChatMediaCaptionRow] = [], isRedacted: Bool, sealed: SealedBlob? = nil, stackPhotos: [ChatMediaStackPhoto] = [], renditions: [MediaRendition] = []) {
         self.stack = stackPhotos.isEmpty ? nil : stackPhotos
+        self.derived = renditions.isEmpty ? nil : renditions
         self.blobID = blobID
         self.width = width
         self.height = height
@@ -450,6 +455,18 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
         self.captionRows = captionRows
         self.isRedacted = isRedacted
         self.sealed = sealed
+    }
+
+    /// The ORIGINAL as a rendition, or nil for a pending row whose upload has not produced a blob.
+    public var original: MediaRendition? {
+        blobID.map { MediaRendition(role: .original, blobID: $0, width: width, height: height) }
+    }
+
+    /// The copy a view drawing this photo `targetPixels` across loads, picked as
+    /// ``MediaAttachment/rendition(forPixelSize:)`` picks it: a sealed photo always loads its ORIGINAL.
+    public func rendition(forPixelSize targetPixels: Int) -> MediaRendition? {
+        guard sealed == nil else { return original }
+        return MediaRendition.forPixelSize(targetPixels, derived: renditions, original: original)
     }
 }
 

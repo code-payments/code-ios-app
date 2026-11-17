@@ -8,8 +8,8 @@
 import Foundation
 import FlipcashAPI
 
-/// One photo attached to a chat message: the ORIGINAL rendition's blob and the intrinsic metadata
-/// needed to lay it out before its bytes arrive.
+/// One photo attached to a chat message: the ORIGINAL rendition's blob, the intrinsic metadata
+/// needed to lay it out before its bytes arrive, and the smaller copies the server derived from it.
 public struct MediaAttachment: Hashable, Sendable, Codable {
 
     /// The ORIGINAL rendition's blob; `nil` only for an optimistic row whose upload has not
@@ -28,12 +28,42 @@ public struct MediaAttachment: Hashable, Sendable, Codable {
     /// How the blob decrypts when it is end-to-end encrypted for the chat; nil for a plaintext blob.
     public let sealed: SealedBlob?
 
-    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, sealed: SealedBlob? = nil) {
+    /// Optional so an attachment encoded before renditions still decodes.
+    private let derived: [MediaRendition]?
+
+    /// The DISPLAY and THUMBNAIL copies the server derived and holds a blob for, in its order. Empty
+    /// for a sealed photo, which the server can't read, and for one it is still processing.
+    public var renditions: [MediaRendition] { derived ?? [] }
+
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, sealed: SealedBlob? = nil, renditions: [MediaRendition] = []) {
         self.blobID   = blobID
         self.width    = width
         self.height   = height
         self.blurhash = blurhash
         self.sealed   = sealed
+        self.derived  = renditions.isEmpty ? nil : renditions
+    }
+
+    /// The ORIGINAL as a rendition, or nil before its upload produced a blob.
+    public var original: MediaRendition? {
+        blobID.map { MediaRendition(role: .original, blobID: $0, width: width, height: height) }
+    }
+
+    /// The copy a view drawing this photo `targetPixels` on its longest side loads. See
+    /// ``MediaRendition/forPixelSize(_:derived:original:)``. A sealed photo always loads its
+    /// ORIGINAL: that is the blob its seal decrypts.
+    public func rendition(forPixelSize targetPixels: Int) -> MediaRendition? {
+        guard sealed == nil else { return original }
+        return MediaRendition.forPixelSize(targetPixels, derived: renditions, original: original)
+    }
+
+    /// The longest side, in pixels, of a quoted photo's thumbnail: 38 pt at 3x, the reply strip's
+    /// square and the larger of the two places a quote draws one.
+    public static let quoteThumbnailPixelSize = 114
+
+    /// The blob a quote of this photo draws its thumbnail from, picked as a bubble picks its copy.
+    public var quoteThumbnailBlobID: BlobID? {
+        rendition(forPixelSize: Self.quoteThumbnailPixelSize)?.blobID
     }
 }
 
@@ -56,7 +86,8 @@ public struct SealedBlob: Hashable, Sendable, Codable {
 
 extension MediaAttachment {
 
-    /// Returns the attachment described by `proto`'s ORIGINAL rendition, or `nil` when it carries none.
+    /// Returns the attachment described by `proto`'s ORIGINAL rendition and the derived copies beside
+    /// it, or `nil` when it carries no ORIGINAL.
     ///
     /// A redacted copy still maps: the server keeps its dimensions and blurhash and drops only the
     /// download URL, which this type never carries.
@@ -69,11 +100,13 @@ extension MediaAttachment {
             blobID: original.hasBlobID ? BlobID(data: original.blobID.value) : nil,
             width: Int(image.width),
             height: Int(image.height),
-            blurhash: image.blurhash.isEmpty ? nil : image.blurhash
+            blurhash: image.blurhash.isEmpty ? nil : image.blurhash,
+            renditions: proto.renditions.compactMap(MediaRendition.init(derived:))
         )
     }
 
     /// The single-ORIGINAL `Media` a client attaches on send; `nil` when there is no blob to attach.
+    /// The server derives the other renditions itself.
     var proto: Flipcash_Blob_V1_Media? {
         guard let blobID else { return nil }
         return .with {

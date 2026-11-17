@@ -1099,6 +1099,8 @@ struct ConversationMessageMediaMappingTests {
 
     private let blobID = BlobID(data: Data([1, 2, 3]))
     private let blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+    /// The THUMBNAIL `media()` derives beside its ORIGINAL.
+    private let thumbnail = MediaRendition(role: .thumbnail, blobID: BlobID(data: Data([9])), width: 50, height: 100)
 
     private func media(withDownloadURL: Bool = true) -> Flipcash_Blob_V1_Media {
         .with {
@@ -1138,11 +1140,11 @@ struct ConversationMessageMediaMappingTests {
         }
     }
 
-    @Test("A media message maps its ORIGINAL rendition and caption")
+    @Test("A media message maps its ORIGINAL rendition, the copies derived from it, and its caption")
     func mediaMapsOriginalAndCaption() throws {
         let message = try #require(ConversationMessage(mediaProto(caption: "from today")))
 
-        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash)
+        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash, renditions: [thumbnail])
         #expect(message.content == .media([expected], caption: "from today"))
         #expect(message.repliedTo == nil)
         #expect(message.redacted == false)
@@ -1201,7 +1203,7 @@ struct ConversationMessageMediaMappingTests {
         }
 
         let message = try #require(ConversationMessage(proto))
-        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash)
+        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash, renditions: [thumbnail])
         #expect(message.content == .media([expected], caption: nil))
         #expect(message.repliedTo == MessageID(value: 7))
     }
