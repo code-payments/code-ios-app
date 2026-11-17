@@ -224,6 +224,9 @@ struct HomeTabView: View {
             }
             .onChange(of: hasPushedScreen) { wasPushed, isPushed in
                 if wasPushed && !isPushed { returnedToHome = true }
+                // A push ends the headers' fade: the root it covers, uncovered later, would
+                // otherwise run it again from the start.
+                if isPushed { headerSwitch = nil }
             }
             .onChange(of: selection) { _, _ in returnedToHome = false }
             .task(id: headerSwitch?.id) {

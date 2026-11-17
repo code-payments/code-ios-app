@@ -719,6 +719,62 @@ struct GroupMoneyShellSpecTests {
         #expect(!Self.mixes(captures, between: money, and: groups), "\(Self.describeMix(captures, between: money, and: groups))")
     }
 
+    /// A screen pushed on Groups soon after a switch into it, once its header has faded in, covers
+    /// the root's header items. When the stack pops back, the root draws Groups' header as it is,
+    /// without running the fade from Money's again. Pushed and popped without animation inside the
+    /// second the shell keeps the switch, so a frame that mixes the two headers can only come
+    /// from a fade.
+    @Test(
+        "8.37 flag on: a push and pop on Groups just after a switch into it shows Groups' header without Money's",
+        arguments: [false, true]
+    )
+    func barSwitch_thenPushAndPopFadesNothing(leftAligned: Bool) async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, sessionContainer) = try await Self.hostedShell(leftAligned: leftAligned)
+        defer { window.isHidden = true }
+        let router = sessionContainer.appRouter
+        let title = try await Self.frame(ofHeader: "Groups", in: window)
+        let add = try await Self.frame(of: "New group", in: window)
+        try await Self.settle(window)
+        let header = title.union(add).insetBy(dx: -4, dy: -4)
+
+        _ = try await Self.switchThroughBar(from: .groups, to: .money, in: window, capturing: header)
+        let money = Self.pixels(in: header, of: window)
+
+        let clock = ContinuousClock()
+        let switched = clock.now
+        try Self.activateBarTab("Groups", in: window)
+        while clock.now < switched.advanced(by: .milliseconds(400)) {
+            window.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        var instant = Transaction()
+        instant.disablesAnimations = true
+        withTransaction(instant) { router.setPath([.newChat], on: .tips) }
+        var covered = false
+        while clock.now < switched.advanced(by: .milliseconds(520)) {
+            window.layoutIfNeeded()
+            if Self.shellHeaderItems(in: window).titles.isEmpty { covered = true }
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        #expect(covered, "the pushed screen never covered Groups' root before the pop")
+        withTransaction(instant) { router.setPath([], on: .tips) }
+        let popped = clock.now - switched
+        var captures: [[UInt8]] = []
+        let end = clock.now.advanced(by: .milliseconds(600))
+        while clock.now < end {
+            window.layoutIfNeeded()
+            captures.append(Self.pixels(in: header, of: window))
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        try await Task.sleep(for: .milliseconds(1000))
+        window.layoutIfNeeded()
+
+        #expect(Self.shellHeaderItems(in: window) == ShellHeaderItems.groups)
+        let groups = Self.pixels(in: header, of: window)
+        #expect(!Self.mixes(captures, between: money, and: groups), "popped at \(popped): \(Self.describeMix(captures, between: money, and: groups))")
+    }
+
     @Test("8.9 flag on: Money's title stays put while the screen scrolls under it, as Groups' does")
     func moneyTitle_pinnedWhileScrolling() async throws {
         let sessionContainer = try SessionContainer.makeTest(holdings: [])
