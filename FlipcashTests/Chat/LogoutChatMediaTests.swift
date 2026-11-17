@@ -56,6 +56,7 @@ struct LogoutChatMediaTests {
     func logoutEmptiesURLCaches() throws {
         let caches = [
             ("URLCache.shared", URLCache.shared),
+            ("RemoteImageCache", RemoteImageCache.urlCache),
         ]
         let seeded = try caches.map { name, cache in (name, cache, try seed(cache, name: name)) }
 

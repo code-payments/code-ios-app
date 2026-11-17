@@ -620,6 +620,7 @@ final class SessionAuthenticator {
         ChatMediaImageSource.clearCaches()
         // Photo downloads also land in the URL caches, as the responses that carried them.
         URLCache.shared.removeAllCachedResponses()
+        RemoteImageCache.clear()
 
         // Drop the locally collected onramp email — it must not leak into
         // another account's Coinbase orders.
