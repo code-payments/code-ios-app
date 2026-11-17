@@ -39,7 +39,16 @@ enum WalletLayout: Equatable {
         case .standard:
             [.balanceHeader, .appreciation, .addMoneyRow, .tokenCards, .recentActivity, .tiles]
         case .money:
-            [.title, .balance, .currencyCount, .actions, .recentActivity]
+            [.title, .balance, .appreciation, .currencyCount, .actions, .recentActivity]
+        }
+    }
+
+    /// How many recent activities the tab lists: a three-row preview on today's wallet, and ten on
+    /// Money, where the section fills what is left of the screen.
+    var recentActivityLimit: Int {
+        switch self {
+        case .standard: 3
+        case .money:    10
         }
     }
 

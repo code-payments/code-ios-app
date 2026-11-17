@@ -68,10 +68,11 @@ struct InviteLinksScreen: View {
         // Share Link opens the invite share sheet (1f) on that row's link.
         .sheet(item: $sharing) { shared in
             if let links {
-                ShareToChatsSheet(
-                    subject: .inviteLink(conversationID, links, entry: shared.id),
-                    isPresented: Binding { sharing != nil } set: { if !$0 { sharing = nil } },
-                    onInvited: { _ in }
+                Self.shareSheet(
+                    conversationID,
+                    links: links,
+                    entry: shared.id,
+                    isPresented: Binding { sharing != nil } set: { if !$0 { sharing = nil } }
                 )
             }
         }
@@ -83,6 +84,21 @@ struct InviteLinksScreen: View {
             }
         }
         .dialog(item: $dialogItem)
+    }
+
+    /// The share sheet (1f) on one of the group's invite links: the row's `entry`, or the current
+    /// link when nil. A group's sheet has no chat picker, so nothing is sent from it to a chat.
+    static func shareSheet(
+        _ conversationID: ConversationID,
+        links: GroupInviteLinks,
+        entry: InviteID?,
+        isPresented: Binding<Bool>
+    ) -> ShareToChatsSheet {
+        ShareToChatsSheet(
+            subject: .inviteLink(conversationID, links, entry: entry),
+            isPresented: isPresented,
+            onInvited: { _ in }
+        )
     }
 
     private var isSelecting: Binding<Bool> {

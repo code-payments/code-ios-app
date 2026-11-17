@@ -77,7 +77,8 @@ public struct ValueAppreciation: View {
 
     // v2 (Figma 8966:1583): a neutral bordered pill — no green/red fill — with the
     // signed delta and a short label, both in secondary text. The (i) info icon in
-    // the design is intentionally omitted for now.
+    // the design is intentionally omitted for now. It carries no bottom padding: the
+    // caller sets the gap to whatever sits below it.
     private var pillBody: some View {
         HStack(spacing: 4) {
             Text("\(prefix)\(amount.formatted())")
@@ -92,6 +93,5 @@ public struct ValueAppreciation: View {
         }
             .font(.appTextSmall)
             .foregroundStyle(Color.textSecondary)
-            .padding(.bottom, 30)
     }
 }

@@ -80,6 +80,9 @@ private struct NestedSheetRootView: View {
             case .addMoney:
                 AddMoneySheetRoot()
 
+            case .invitePeople(let conversationID):
+                InvitePeopleSheetRoot(conversationID: conversationID)
+
             case .give, .downloadApp, .tips, .switchAccount:
                 // Root-only sheets; `presentNested` logs a warning if one
                 // lands here.
@@ -138,9 +141,22 @@ struct TipsSheetRoot: View {
     }
 }
 
+extension AppRouter {
+
+    /// Opens the account switcher for a hold on the account's own avatar, behind the same gate as
+    /// the Switch Accounts row in Settings; does nothing when that gate is closed.
+    ///
+    /// The haptic sits after the gate, so a hold that opens nothing stays silent.
+    func presentAccountSwitcher(gatedBy betaFlags: BetaFlags) {
+        guard betaFlags.canSwitchAccounts else { return }
+        Haptics.medium()
+        present(.switchAccount)
+    }
+}
+
 /// Root view for the `.switchAccount` sheet — the account switcher, reached by
-/// long-pressing the You tab. Owns the `NavigationStack` bound to
-/// `router[.switchAccount]`, which only ever holds the root.
+/// long-pressing the You tab, or Money's avatar in the Groups and Money shell. Owns the
+/// `NavigationStack` bound to `router[.switchAccount]`, which only ever holds the root.
 struct SwitchAccountSheetRoot: View {
 
     @Environment(AppRouter.self) private var router

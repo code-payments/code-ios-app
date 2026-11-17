@@ -18,9 +18,9 @@ struct HomeTabBarItemsTests {
         #expect(HomeTabLayout.standard.barTabs(forItemCount: 4) == [.scan, .chat, .wallet, .tipCard])
     }
 
-    @Test("The Group Money bar pairs Groups and Money with or without the search item")
+    @Test("The Group Money bar pairs Groups and Money, and has no search item")
     func groupMoneyCounts() {
-        #expect(HomeTabLayout.groupMoney.barTabs(forItemCount: 3) == [.chat, .wallet])
+        #expect(HomeTabLayout.groupMoney.barTabs(forItemCount: 3) == nil)
         #expect(HomeTabLayout.groupMoney.barTabs(forItemCount: 2) == [.chat, .wallet])
     }
 
@@ -30,7 +30,7 @@ struct HomeTabBarItemsTests {
         #expect(HomeTabLayout.groupMoney.barTabs(forItemCount: 4) == nil)
     }
 
-    @Test("Turning Group Money off leaves its three items unpaired until the bar rebuilds")
+    @Test("Turning Group Money off leaves its two items unpaired until the bar rebuilds")
     func staleGroupMoneyBarAfterTurningOff() {
         #expect(HomeTabLayout.standard.barTabs(forItemCount: 3) == nil)
         #expect(HomeTabLayout.standard.barTabs(forItemCount: 2) == nil)

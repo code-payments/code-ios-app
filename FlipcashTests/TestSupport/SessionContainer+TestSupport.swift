@@ -12,7 +12,7 @@ import FlipcashStore
 
 extension SessionContainer {
 
-    /// One seeded balance: the mint's metadata and the quarks held in it.
+    /// One seeded balance: the mint's metadata, the quarks held in it, and the USD paid for them.
     ///
     /// Spell this type out at the call site rather than writing `.init(...)`. Swift 6.1 — what
     /// CI's Xcode builds, one minor version behind a current dev machine — cannot resolve
@@ -22,6 +22,7 @@ extension SessionContainer {
     struct Holding {
         let mint: MintMetadata
         let quarks: UInt64
+        var costBasis: Double = 0
     }
 
     /// Builds a `SessionContainer` backed by an isolated on-disk SQLite
@@ -52,7 +53,7 @@ extension SessionContainer {
                 try db.insertBalance(
                     quarks: holding.quarks,
                     mint: holding.mint.address,
-                    costBasis: 0,
+                    costBasis: holding.costBasis,
                     date: now
                 )
             }

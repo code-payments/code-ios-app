@@ -161,6 +161,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var isReadOnlyPreview = false
     /// Lets a received bill lower and restore this screen's keyboard.
     var keyboardHandle: ChatKeyboardHandle?
+    /// How the composer's round `$` is drawn.
+    var cashButtonStyle: ComposerCashButtonStyle = .glass
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
         if isReadOnlyPreview { return makePreviewController(context: context) }
@@ -437,7 +439,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 // Only a member can aim a reply, so the viewer may see what it quotes.
                 quoteThumbnailLocation: { [resolver = coordinator.mediaURLResolver] kind in
                     await resolver.thumbnailLocation(for: kind, canReact: true)
-                }
+                },
+                cashButtonStyle: cashButtonStyle
             )
             .environment(conversationController)
             .toastClearance(toasts, horizontalInset: BarMetrics.compactInset, overlap: BarMetrics.toastOverlap)

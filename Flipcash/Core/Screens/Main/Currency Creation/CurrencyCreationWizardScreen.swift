@@ -239,7 +239,7 @@ struct CurrencyCreationWizardScreen: View {
             NavigationStack {
                 CurrencyLaunchProcessingScreen(viewModel: context.viewModel)
                 .environment(\.dismissParentContainer, {
-                    Self.dismissCreationFlow(router: router)
+                    Self.dismissCreationFlow(router: router, launchedFrom: state.launchedFrom)
                 })
             }
         }
@@ -258,12 +258,18 @@ struct CurrencyCreationWizardScreen: View {
     /// Unwinds the whole creation flow once the launch cover is done with it —
     /// both the finished handoff and the failure dismissal come through here.
     ///
-    /// The flow is pushed onto the Wallet tab's stack, so it comes off by
-    /// popping that stack to its root. Naming the stack rather than using
-    /// `popToRoot()`'s topmost lookup keeps this working while the cover is up,
-    /// since the tab host clears `activeTabStack` when it disappears.
-    static func dismissCreationFlow(router: AppRouter) {
-        router.popToRoot(on: AppRouter.Destination.currencyCreationWizard.owningStack)
+    /// Pops back to `position`, where the summary recorded the flow was
+    /// launched: the Wallet stack's root from the Wallet tile, Settings on the
+    /// You stack from its Currencies row. The position names its stack, so this
+    /// works while the cover is up, when the tab host has cleared
+    /// `activeTabStack`. With no recorded position it pops the Wallet stack to
+    /// its root, as it did when the Wallet tile was the only way in.
+    static func dismissCreationFlow(router: AppRouter, launchedFrom position: AppRouter.StackPosition?) {
+        guard let position else {
+            router.popToRoot(on: AppRouter.Destination.currencyCreationWizard.owningStack)
+            return
+        }
+        router.popTo(position)
     }
 
     // MARK: - Navigation
@@ -656,7 +662,7 @@ struct CurrencyCreationWizardScreen: View {
                     await launch.receiveLaunchedCurrency(
                         session: session,
                         ratesController: ratesController,
-                        dismiss: { Self.dismissCreationFlow(router: router) }
+                        dismiss: { Self.dismissCreationFlow(router: router, launchedFrom: state.launchedFrom) }
                     )
                 },
                 prompt: session.transactionNotificationPrompt

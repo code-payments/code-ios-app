@@ -421,4 +421,11 @@ struct GroupInviteLinksTests {
         #expect(GroupReadyInvite.target(isApproving: true) == .plainLink)
         #expect(GroupReadyInvite.target(isApproving: false) == .currentLink)
     }
+
+    @Test("Invite People closes after a failed link unless the viewer took the plain link or Manage Invites")
+    func sheetClosesAfterFailedLink() {
+        #expect(GroupReadyInvite.closesSheetAfterFailedLink(sharesPlainLink: false, opensManageInvites: false))
+        #expect(!GroupReadyInvite.closesSheetAfterFailedLink(sharesPlainLink: true, opensManageInvites: false))
+        #expect(!GroupReadyInvite.closesSheetAfterFailedLink(sharesPlainLink: false, opensManageInvites: true))
+    }
 }

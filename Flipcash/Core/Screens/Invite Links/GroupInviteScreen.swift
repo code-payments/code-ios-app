@@ -23,6 +23,7 @@ struct GroupInviteScreen: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(ConversationController.self) private var conversationController
     @Environment(AppRouter.self) private var router
+    @Environment(BetaFlags.self) private var betaFlags
 
     @State private var phase: Phase = .loading
     @State private var token: InviteToken?
@@ -101,7 +102,11 @@ struct GroupInviteScreen: View {
                     )
 
                     // A dead link whose reason isn't known gets no line rather than a guessed one.
-                    if let note = dead ? reason.map(Self.deadLine) : "Private group · You’ve been invited to join" {
+                    if let note = GroupInvitePreview.note(
+                        dead: dead,
+                        reason: reason,
+                        showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session))
+                    ) {
                         Label {
                             Text(note)
                         } icon: {
@@ -330,5 +335,19 @@ struct GroupInviteScreen: View {
     /// Replaces this screen, so back from the chat doesn't land on the link again.
     private func openChat(_ id: ConversationID) {
         router.replaceTopmostAny(AppRouter.Destination.tipConversation(id))
+    }
+}
+
+/// The join preview's words.
+enum GroupInvitePreview {
+
+    static let joinTitle = "Join Group"
+
+    /// The line under the group's name: why a dead link is dead, or the invitation on a live one,
+    /// which the Group Money shell's preview drops (node 13729:1404). A dead link whose reason isn't
+    /// known gets no line rather than a guessed one.
+    static func note(dead: Bool, reason: GroupInviteLanding.DeadReason?, showsGroupMoney: Bool) -> String? {
+        if dead { return reason.map(GroupInviteScreen.deadLine) }
+        return showsGroupMoney ? nil : "Private group · You’ve been invited to join"
     }
 }
