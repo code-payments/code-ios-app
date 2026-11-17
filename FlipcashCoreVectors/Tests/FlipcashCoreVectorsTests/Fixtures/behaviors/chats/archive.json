@@ -1,0 +1,13 @@
+{
+  "screen": "Chats",
+  "route": "/tab/chats",
+  "description": "The archive is a hosted screen over the same chats: unarchiving there puts the chat back on Chats.",
+  "steps": [
+    {"ls": true, "expect": {"showsArchivedRow": true, "archivedRowCount": 1}},
+    {"do": "ArchivedOpened", "expectPath": ["Chats", "ArchivedChats"], "expect": {"loading": false, "chatIds": ["05050505050505050505050505050505"]}},
+    {"do": "Unarchive", "input": {}, "expectError": "bad_input"},
+    {"do": "Unarchive", "input": {"chatId": "05050505050505050505050505050505"}, "expectPath": ["Chats", "ArchivedChats"], "expect": {"chatIds": []}},
+    {"do": "Back", "expectPath": ["Chats"], "expect": {"showsArchivedRow": false, "archivedRowCount": 0, "visibleChatIds": ["01010101010101010101010101010101", "02020202020202020202020202020202", "03030303030303030303030303030303", "04040404040404040404040404040404", "05050505050505050505050505050505"]}},
+    {"do": "Unarchive", "input": {"chatId": "05050505050505050505050505050505"}, "expectError": "unknown_action"}
+  ]
+}

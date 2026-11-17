@@ -15,6 +15,7 @@ import Testing
 import FlipcashUI
 @testable import Flipcash
 @testable import FlipcashCore
+import FlipcashStore
 
 @MainActor
 @Suite(

@@ -1,0 +1,12 @@
+{
+  "screen": "Chats",
+  "description": "The seeded list opens on All, with chips hidden and the archived row showing.",
+  "steps": [
+    {"ls": true, "expect": {
+      "loading": false, "filter": "All", "chipsRevealed": false, "showsChips": false,
+      "isSelecting": false, "selection": null, "showsArchivedRow": true, "hasNoChatsAtAll": false,
+      "visibleChatIds": ["01010101010101010101010101010101", "02020202020202020202020202020202", "03030303030303030303030303030303", "04040404040404040404040404040404"],
+      "unreadChipCount": 2, "groupsChipCount": 1, "archivedRowCount": 1, "tabBadge": 2
+    }}
+  ]
+}

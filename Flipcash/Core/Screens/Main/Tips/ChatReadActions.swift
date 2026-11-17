@@ -61,34 +61,22 @@ enum ChatReadSource: Equatable {
 @Observable
 final class ChatSelection {
 
-    private(set) var isActive = false
-    private(set) var selected: Set<ConversationID> = []
+    /// The rules, shared with ``ChatsModel`` so the Puppet host checks the same ones.
+    private var mode = ChatListSelectionMode<ConversationID>()
+
+    var isActive: Bool { mode.isActive }
+    var selected: Set<ConversationID> { mode.selected }
 
     /// Enters select mode with nothing selected.
-    func begin() {
-        selected = []
-        isActive = true
-    }
+    func begin() { mode.begin() }
 
     /// Leaves select mode.
-    func end() {
-        isActive = false
-        selected = []
-    }
+    func end() { mode.end() }
 
-    func toggle(_ id: ConversationID) {
-        if selected.contains(id) {
-            selected.remove(id)
-        } else {
-            selected.insert(id)
-        }
-    }
+    func toggle(_ id: ConversationID) { mode.toggle(id) }
 
     /// Drops picks that are no longer in the list, so an archived or left chat isn't acted on.
-    func retain(_ ids: Set<ConversationID>) {
-        let kept = selected.intersection(ids)
-        if kept != selected { selected = kept }
-    }
+    func retain(_ ids: Set<ConversationID>) { mode.retain(ids) }
 }
 
 /// What the select-mode read capsule does.

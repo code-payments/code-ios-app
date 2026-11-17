@@ -18,12 +18,12 @@ struct TipConversationsScreen: View {
     var showsSearchButton = true
 
     @State private var muteTarget: MuteTarget?
-    @State private var filter: ChatListFilter = .all
+    /// The filter, chip reveal and where a tap goes. Shared with the Puppet host, which replays the
+    /// Chats behavior files against it.
+    @State private var model = ChatsModel<ConversationID>()
     @Environment(ToastController.self) private var toasts
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.floatingTabBar) private var floatingTabBar
-    /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
-    @State private var chipsRevealed = false
     @State private var isTabBarOnSide = false
     /// The chip row's height: while hidden, the list rests scrolled down by exactly this much.
     @State private var chipsHeight: CGFloat = 0
@@ -48,16 +48,29 @@ struct TipConversationsScreen: View {
             conversationController.chatListConversations.map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        return filter.ids(in: projection).compactMap { byID[$0] }
+        return model.visibleIDs(in: projection).compactMap { byID[$0] }
     }
 
     /// A selected filter keeps the chips in view: they explain the list.
-    private var showsChips: Bool { chipsRevealed || filter != .all }
+    private var showsChips: Bool { model.showsChips }
+
+    private var filter: Binding<ChatListFilter> {
+        Binding(get: { model.filter }, set: { model.select($0) })
+    }
+
+    /// Pushes the screen ``ChatsModel`` sends the user to.
+    private func open(_ destination: ChatsDestination<ConversationID>) {
+        switch destination {
+        case .chat(let id): router.push(.tipConversation(id))
+        case .archived: router.push(.archivedChats)
+        case .newChat: router.push(.newChat)
+        }
+    }
 
     var body: some View {
         let projection = self.projection
         let conversations = rows(projection)
-        let nothingAtAll = projection.main.isEmpty && !projection.archivedRowVisible
+        let nothingAtAll = ChatsModel.hasNoChatsAtAll(in: projection)
 
         Background(color: .backgroundMain) {
             if nothingAtAll {
@@ -73,7 +86,7 @@ struct TipConversationsScreen: View {
                         // finger. The chips use a custom button style, which keeps each chip's tap
                         // its own inside the row.
                         FadingChips(fade: chipFade, isShown: showsChips) {
-                            ChatListChips(selection: $filter, projection: projection)
+                            ChatListChips(selection: filter, projection: projection)
                         }
                             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                                 chipsHeight = $0
@@ -83,16 +96,16 @@ struct TipConversationsScreen: View {
                                     chipsHeight: chipsHeight,
                                     isRevealed: showsChips,
                                     fade: chipFade,
-                                    reveal: { chipsRevealed = true }
+                                    reveal: { model.revealChips() }
                                 )
                             }
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                         // Only under All: the other filters narrow the list, and archived chats aren't in it.
-                        if projection.archivedRowVisible, filter == .all {
+                        if model.showsArchivedRow(in: projection) {
                             ArchivedRow(count: projection.archivedRowCount) {
-                                router.push(.archivedChats)
+                                open(model.openArchived())
                             }
                             .listRowSeparator(.hidden, edges: .top)
                             .listRowBackground(Color.clear)
@@ -105,7 +118,7 @@ struct TipConversationsScreen: View {
                                 if isSelecting {
                                     selection.toggle(conversation.id)
                                 } else {
-                                    router.push(.tipConversation(conversation.id))
+                                    open(model.openChat(conversation.id))
                                 }
                             }
                             // Separators divide rows from each other; the first
@@ -165,7 +178,7 @@ struct TipConversationsScreen: View {
                         // Over the List rather than a row in it, so it centres in the whole
                         // screen and the List keeps the pull that reveals the chips.
                         if conversations.isEmpty {
-                            Text(filter.emptyMessage)
+                            Text(model.filter.emptyMessage)
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                                 .allowsHitTesting(false)
@@ -312,7 +325,7 @@ struct TipConversationsScreen: View {
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            NewChatButton()
+            NewChatButton { open(model.openNewChat()) }
         }
     }
 
@@ -401,12 +414,10 @@ private struct MuteTarget: Identifiable {
 /// under it.
 private struct NewChatButton: View {
 
-    @Environment(AppRouter.self) private var router
+    let action: () -> Void
 
     var body: some View {
-        Button {
-            router.push(.newChat)
-        } label: {
+        Button(action: action) {
             // Bar items get their glass from the system on iOS 26, so this
             // carries no button style of its own.
             Image.system(.plus)

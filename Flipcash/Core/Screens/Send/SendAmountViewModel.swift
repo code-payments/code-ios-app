@@ -6,6 +6,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 private let logger = Logger(label: "flipcash.send-amount")
 

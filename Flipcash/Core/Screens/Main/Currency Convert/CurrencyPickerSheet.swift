@@ -6,6 +6,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 /// "Select Currency" bottom sheet listing balances to pick from — the Convert
 /// destination (Dollars + held tokens) or the Get payment source. Picking one

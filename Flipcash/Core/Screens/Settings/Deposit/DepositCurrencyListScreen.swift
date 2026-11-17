@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 struct DepositCurrencyListScreen: View {
 

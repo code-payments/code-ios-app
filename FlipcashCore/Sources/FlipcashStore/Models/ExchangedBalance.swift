@@ -1,20 +1,24 @@
 //
 //  ExchangedBalance.swift
-//  Code
+//  FlipcashStore
 //
 //  Created by Dima Bart on 2025-04-23.
 //
 
 import Foundation
 import FlipcashCore
-import FlipcashStore
 
 /// A stored balance paired with its fiat value at a given rate.
-struct ExchangedBalance: Identifiable, Hashable {
-    let stored: StoredBalance
-    let exchangedFiat: ExchangedFiat
+public struct ExchangedBalance: Identifiable, Hashable, Sendable {
+    public let stored: StoredBalance
+    public let exchangedFiat: ExchangedFiat
 
-    var id: PublicKey {
+    public init(stored: StoredBalance, exchangedFiat: ExchangedFiat) {
+        self.stored = stored
+        self.exchangedFiat = exchangedFiat
+    }
+
+    public var id: PublicKey {
         stored.id
     }
 }
@@ -22,24 +26,24 @@ struct ExchangedBalance: Identifiable, Hashable {
 extension Array where Element == ExchangedBalance {
 
     /// Balances eligible to give, send, or tip.
-    func giveable() -> [ExchangedBalance] {
+    public func giveable() -> [ExchangedBalance] {
         fundable()
     }
 
     /// These balances without Dollars, for a picker that names a community currency: dollars
     /// is the stable token, not one.
-    func excludingUSDF() -> [ExchangedBalance] {
+    public func excludingUSDF() -> [ExchangedBalance] {
         filter { $0.stored.mint != .usdf }
     }
 
     /// The community currencies these balances hold, in the order a community-currency picker lists
     /// them: the giveable balances without Dollars.
-    func communityCurrencies() -> [ExchangedBalance] {
+    public func communityCurrencies() -> [ExchangedBalance] {
         giveable().excludingUSDF()
     }
 
     /// Balances eligible to withdraw.
-    func withdrawable() -> [ExchangedBalance] {
+    public func withdrawable() -> [ExchangedBalance] {
         fundable()
     }
 
@@ -56,9 +60,23 @@ extension Array where Element == ExchangedBalance {
     }
 }
 
+extension Array where Element == StoredBalance {
+    /// These balances at `rate`, as the app's balance lists show them: every mint that converts to
+    /// a displayable value, and Dollars at any value so the wallet can show a zero Dollars card.
+    public func exchanged(with rate: Rate) -> [ExchangedBalance] {
+        compactMap { stored in
+            let balance = stored.exchanged(with: rate)
+            guard stored.mint == .usdf || balance.exchangedFiat.hasDisplayableValue() else {
+                return nil
+            }
+            return balance
+        }
+    }
+}
+
 extension StoredBalance {
     /// This balance paired with its fiat value at `rate`.
-    func exchanged(with rate: Rate) -> ExchangedBalance {
+    public func exchanged(with rate: Rate) -> ExchangedBalance {
         ExchangedBalance(stored: self, exchangedFiat: computeExchangedValue(with: rate))
     }
 }

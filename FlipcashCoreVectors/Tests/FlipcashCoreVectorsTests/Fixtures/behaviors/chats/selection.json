@@ -1,0 +1,11 @@
+{
+  "screen": "Chats",
+  "description": "Select mode opens from the More menu with nothing picked, toggling adds and removes rows, ending clears it.",
+  "steps": [
+    {"do": "SelectionStarted", "expect": {"isSelecting": true, "selection": []}},
+    {"do": "SelectionToggled", "input": {"chatId": "01010101010101010101010101010101"}, "expect": {"selection": ["01010101010101010101010101010101"]}},
+    {"do": "SelectionToggled", "input": {"chatId": "03030303030303030303030303030303"}, "expect": {"selection": ["01010101010101010101010101010101", "03030303030303030303030303030303"]}},
+    {"do": "SelectionToggled", "input": {"chatId": "01010101010101010101010101010101"}, "expect": {"isSelecting": true, "selection": ["03030303030303030303030303030303"]}},
+    {"do": "SelectionEnded", "expect": {"isSelecting": false, "selection": null}}
+  ]
+}

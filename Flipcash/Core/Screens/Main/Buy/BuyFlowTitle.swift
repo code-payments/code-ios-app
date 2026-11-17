@@ -4,6 +4,7 @@
 //
 
 import FlipcashCore
+import FlipcashStore
 
 /// Titles the buy flow's screens after the currency-info tile that opened them.
 enum BuyFlowTitle {

@@ -5,6 +5,7 @@
 
 import UIKit
 import FlipcashCore
+import FlipcashStore
 
 /// Thrown when Create runs against an incomplete form. The button is disabled in that state, so
 /// this is a programming error rather than something the screen puts in front of the user.

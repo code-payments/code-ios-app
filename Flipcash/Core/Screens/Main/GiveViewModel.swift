@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 import Logging
 
 private let logger = Logger(label: "flipcash.send-cash")

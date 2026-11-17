@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import FlipcashStore
 
 /// Entry point for the withdraw flow. With no preselected mint it starts on the
 /// currency picker (every balance, Dollars included). With a preselected mint it
