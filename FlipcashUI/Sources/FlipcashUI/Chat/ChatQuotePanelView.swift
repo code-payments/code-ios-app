@@ -287,11 +287,11 @@ final class ChatQuotePanelView: UIView {
         let processor = DownsamplingImageProcessor(size: CGSize(width: side, height: side))
         thumbnailView.kf.setImage(
             with: ChatMediaImageSource.source(blobID: blobID, location: location),
-            options: ChatMediaImageSource.options(processor: processor) + [
+            options: ChatMediaImageSource.options(processor: processor, in: location.caches) + [
                 .scaleFactor(traitCollection.displayScale),
             ]
         ) { result in
-            ChatMediaImageSource.finish(result, blobID: blobID, surface: .quote, rendition: nil, processor: processor)
+            ChatMediaImageSource.finish(result, blobID: blobID, surface: .quote, rendition: nil, processor: processor, location: location)
         }
     }
 

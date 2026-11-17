@@ -345,4 +345,9 @@ struct ChatViewControllerCardLayoutWidthTests {
     func wideScreen_isCapped() {
         #expect(ChatViewController.cardLayoutWidth(720) == ChatViewController.maxCardLayoutWidth)
     }
+
+    @Test("The gutter a photo prefetch sizes against is the avatar plus its 8 pt of space")
+    func authorGutter_matchesTheAvatar() {
+        #expect(ChatPhotoBubbleLayout.authorGutterWidth == ChatAuthorAvatarView.size + 8)
+    }
 }

@@ -4,6 +4,9 @@
 //
 
 import Foundation
+import Network
+import os
+import UIKit
 import UserNotifications
 import Contacts
 import Intents
@@ -245,7 +248,8 @@ final class NotificationService: UNNotificationServiceExtension {
             isGroup: NotificationPayload.chatType(request.content.userInfo) == .group,
             pushedSenderName: NotificationPayload.senderName(request.content.userInfo),
             viewerUsername: promotableContent != nil ? archiveFile?.viewerUsername : nil,
-            classifyForArchive: promotableContent != nil
+            classifyForArchive: promotableContent != nil,
+            muted: isMuted
         )
     }
 
@@ -260,7 +264,8 @@ final class NotificationService: UNNotificationServiceExtension {
         isGroup: Bool,
         pushedSenderName: String?,
         viewerUsername: String?,
-        classifyForArchive: Bool
+        classifyForArchive: Bool,
+        muted: Bool
     ) {
         let task = Task {
             await cachePreview(
@@ -271,6 +276,7 @@ final class NotificationService: UNNotificationServiceExtension {
                 pushedSenderName: pushedSenderName,
                 viewerUsername: viewerUsername,
                 classifyForArchive: classifyForArchive,
+                muted: muted,
                 replaceBody: { delivery.replaceBody($0) },
                 promote: { delivery.promote() },
                 deliver: { delivery.deliver() }
@@ -400,6 +406,7 @@ final class NotificationService: UNNotificationServiceExtension {
         pushedSenderName: String?,
         viewerUsername: String?,
         classifyForArchive: Bool,
+        muted: Bool,
         replaceBody: @Sendable (String) -> Void,
         promote: @Sendable () -> Void,
         deliver: @Sendable () -> Void
@@ -526,10 +533,22 @@ final class NotificationService: UNNotificationServiceExtension {
             // case iOS kills with `0xdead10cc`.
             await persist(ChatStoreWrite(preview: merge(fetched: messages, embedded: embedded), delta: delta), for: conversationID, account: account)
             deliver()
+            // After `deliver()`, beside the branding, so neither delays the banner. Best-effort: iOS
+            // may end the extension before the photo lands, which leaves nothing in the store.
+            async let photo: Void = prefetchPhoto(
+                of: embedded ?? messages.first { $0.id == messageID },
+                in: conversationID,
+                isGroup: isGroup,
+                muted: muted,
+                owner: owner,
+                selfUserID: account.userID,
+                client: client
+            )
             let branding = (try? await client.resolveMintBranding(in: messages)) ?? [:]
             if !branding.isEmpty {
                 NotificationPreviewCache.write(items(branding), for: conversationID)
             }
+            await photo
         } catch {
             // Best-effort prefetch — a transport failure: the content extension falls back to a live
             // fetch on open. The store write does not fall back, because the embedded message needs
@@ -538,6 +557,53 @@ final class NotificationService: UNNotificationServiceExtension {
             await persist(ChatStoreWrite(preview: merge(fetched: [], embedded: embedded), delta: nil), for: conversationID, account: account)
             deliver()
         }
+    }
+
+    /// Downloads the pushed message's photo into ``BlobCache/chatPhotos``, so the chat draws it with
+    /// no URL mint or download when it opens. What it skips is ``ChatPhotoPushPrefetcher``'s call.
+    private nonisolated static func prefetchPhoto(
+        of message: ConversationMessage?,
+        in conversationID: ConversationID,
+        isGroup: Bool,
+        muted: Bool,
+        owner: KeyPair,
+        selfUserID: UserID,
+        client: ChatNotificationClient
+    ) async {
+        guard let message, case .media = message.content else { return }
+        // The width a chat's transcript lays out at: the screen the app's window fills.
+        let (rowWidth, scale) = await MainActor.run { (UIScreen.main.bounds.width, UIScreen.main.scale) }
+        let prefetcher = ChatPhotoPushPrefetcher { blobID in
+            try await client.blobDownloadLink(blobID: blobID, in: conversationID, owner: owner)
+        }
+        await prefetcher.prefetch(
+            message,
+            selfUserID: selfUserID,
+            isGroup: isGroup,
+            muted: muted,
+            network: await currentNetwork(),
+            rowWidth: rowWidth,
+            scale: scale,
+            decrypt: { await client.blobDecrypt(in: conversationID, owner: owner, selfUserID: selfUserID) }
+        )
+    }
+
+    /// The network the extension is on, from the first path iOS reports for it.
+    private nonisolated static func currentNetwork() async -> ChatPhotoPrefetchNetwork {
+        let monitor = NWPathMonitor()
+        let path = await withCheckedContinuation { (continuation: CheckedContinuation<NWPath, Never>) in
+            let resumed = OSAllocatedUnfairLock(initialState: false)
+            monitor.pathUpdateHandler = { path in
+                let first = resumed.withLock { done in
+                    defer { done = true }
+                    return !done
+                }
+                if first { continuation.resume(returning: path) }
+            }
+            monitor.start(queue: DispatchQueue(label: "flipcash.notification.network-path"))
+        }
+        monitor.cancel()
+        return ChatPhotoPrefetchNetwork(connected: path.status == .satisfied, constrained: path.isConstrained, expensive: path.isExpensive)
     }
 
     /// Display names of every member the shared store knows, empty names dropped. Empty when the

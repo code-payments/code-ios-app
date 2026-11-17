@@ -39,7 +39,9 @@ final class PinnedMessagesPresentation {
         },
         decrypt: { [weak self] in
             await self?.mediaBlobDecrypt()
-        }
+        },
+        caches: .shared,
+        pushedPhotos: .chatPhotos
     )
 
     /// Hands back the message to land on, once.

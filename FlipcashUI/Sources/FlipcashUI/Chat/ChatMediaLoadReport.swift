@@ -21,76 +21,6 @@ public enum ChatMediaSurface: String, Sendable {
     case save
 }
 
-/// A CDN answer that was not a success, carrying its status so an expired link (403) can be told
-/// from any other failure.
-nonisolated struct ChatMediaHTTPError: Error, Equatable {
-    let status: Int
-}
-
-/// The network half of one photo load: when its bytes arrived, how many, and which CDN edge sent them.
-nonisolated struct ChatMediaTransfer: Equatable, Sendable {
-    /// From the request starting to the first byte of the response.
-    var firstByte: Duration?
-    /// From the first byte of the response to the last.
-    var body: Duration?
-    var bytes: Int64?
-    var status: Int?
-    var reusedConnection: Bool?
-    /// Where URLSession took the response from: `network`, `localCache`, `serverPush` or `unknown`.
-    var fetchType: String?
-    /// CloudFront's `X-Cache`: whether the edge held the object or went to the origin.
-    var xCache: String?
-    /// CloudFront's `X-Amz-Cf-Pop`: the edge location that answered.
-    var pop: String?
-
-    init() {}
-
-    init(metrics: URLSessionTaskMetrics) {
-        // The last transaction is the one that answered; any before it were redirects.
-        guard let transaction = metrics.transactionMetrics.last else {
-            self.init()
-            return
-        }
-        self.init(
-            fetchStart: transaction.fetchStartDate,
-            responseStart: transaction.responseStartDate,
-            responseEnd: transaction.responseEndDate,
-            response: transaction.response as? HTTPURLResponse
-        )
-        bytes = transaction.countOfResponseBodyBytesReceived
-        reusedConnection = transaction.isReusedConnection
-        fetchType = Self.name(of: transaction.resourceFetchType)
-    }
-
-    init(fetchStart: Date?, responseStart: Date?, responseEnd: Date?, response: HTTPURLResponse?) {
-        firstByte = Self.duration(from: fetchStart, to: responseStart)
-        body = Self.duration(from: responseStart, to: responseEnd)
-        if let response { record(response) }
-    }
-
-    /// Takes the status and the CDN's headers from `response`.
-    mutating func record(_ response: HTTPURLResponse) {
-        status = response.statusCode
-        xCache = response.value(forHTTPHeaderField: "X-Cache")
-        pop = response.value(forHTTPHeaderField: "X-Amz-Cf-Pop")
-    }
-
-    private static func duration(from start: Date?, to end: Date?) -> Duration? {
-        guard let start, let end else { return nil }
-        return .seconds(end.timeIntervalSince(start))
-    }
-
-    private static func name(of type: URLSessionTaskMetrics.ResourceFetchType) -> String {
-        switch type {
-        case .networkLoad: "network"
-        case .localCache: "localCache"
-        case .serverPush: "serverPush"
-        case .unknown: "unknown"
-        @unknown default: "unknown"
-        }
-    }
-}
-
 /// What an encrypted photo's fetch saw, read back when its load finishes. Kingfisher reports no
 /// network metrics for a data provider, so the provider records its own through this delegate.
 nonisolated final class ChatMediaLoadTrace: NSObject, URLSessionTaskDelegate, Sendable {
@@ -142,7 +72,12 @@ nonisolated struct ChatMediaLoadReport: Equatable {
     var rendition: MediaRendition.Role? = .original
     /// Where the image came from on success; nil for a load that failed.
     var cache: CacheType?
-    var sealed = false
+    /// Whether a photo drawn from the cache was downsampled from its full-size copy, as one a
+    /// prefetch or the viewer left is. Kingfisher reports that as `.none`, which would otherwise
+    /// read as a network load.
+    var fromFullSize = false
+    /// Whether the photo's blob is end-to-end encrypted, as known before the load started.
+    let sealed: Bool
     var transfer: ChatMediaTransfer?
     var decrypt: Duration?
     /// The failure's error domain and code. Never its description: a `URLError` or `KingfisherError`
@@ -150,43 +85,45 @@ nonisolated struct ChatMediaLoadReport: Equatable {
     var errorDomain: String?
     var errorCode: Int?
 
-    init(blobID: BlobID?, surface: ChatMediaSurface, outcome: Outcome) {
+    init(blobID: BlobID?, surface: ChatMediaSurface, outcome: Outcome, sealed: Bool) {
         self.blobID = blobID
         self.surface = surface
         self.outcome = outcome
+        self.sealed = sealed
     }
 
+    /// The report for a load that ended in `result`. `sealed` comes from where the load started:
+    /// a failed or cancelled result doesn't always carry the provider that would show it.
     init(
         _ result: Result<RetrieveImageResult, KingfisherError>,
         blobID: BlobID?,
         surface: ChatMediaSurface,
-        rendition: MediaRendition.Role? = .original
+        rendition: MediaRendition.Role? = .original,
+        sealed: Bool
     ) {
         switch result {
         case .success(let value):
-            self.init(blobID: blobID, surface: surface, outcome: .ok)
+            self.init(blobID: blobID, surface: surface, outcome: .ok, sealed: sealed)
             cache = value.cacheType
             if case .provider(let provider) = value.source, let provider = provider as? DecryptingProvider {
-                sealed = true
                 let trace = provider.trace.snapshot
                 transfer = trace.transfer
                 decrypt = trace.decrypt
-            } else if case .provider(let provider) = value.source, let provider = provider as? CachedOnlyProvider {
-                sealed = provider.sealed
+            } else if case .provider(let provider) = value.source, provider is CachedOnlyProvider {
+                fromFullSize = value.cacheType == .none
             } else {
                 transfer = value.metrics.map { ChatMediaTransfer(metrics: $0.rawMetrics) }
             }
         case .failure(let error):
-            self.init(error, blobID: blobID, surface: surface)
+            self.init(error, blobID: blobID, surface: surface, sealed: sealed)
         }
         self.rendition = rendition
     }
 
-    private init(_ error: KingfisherError, blobID: BlobID?, surface: ChatMediaSurface) {
+    private init(_ error: KingfisherError, blobID: BlobID?, surface: ChatMediaSurface, sealed: Bool) {
         var underlying: (any Error)?
         var response: HTTPURLResponse?
         var trace: ChatMediaLoadTrace.State?
-        var cachedSealed = false
         let outcome: Outcome
         switch error {
         case .requestError(reason: .taskCancelled):
@@ -205,7 +142,6 @@ nonisolated struct ChatMediaLoadReport: Equatable {
             outcome = .cancelled
         case .imageSettingError(reason: .dataProviderError(let provider, let failure)):
             trace = (provider as? DecryptingProvider)?.trace.snapshot
-            cachedSealed = (provider as? CachedOnlyProvider)?.sealed ?? false
             outcome = .failed(trace?.step ?? .fetch)
             underlying = failure
         case .imageSettingError:
@@ -216,8 +152,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
             outcome = .failed(.cache)
         }
 
-        self.init(blobID: blobID, surface: surface, outcome: outcome)
-        sealed = trace != nil || cachedSealed
+        self.init(blobID: blobID, surface: surface, outcome: outcome, sealed: sealed)
         transfer = trace?.transfer
         decrypt = trace?.decrypt
         if let response {
@@ -255,7 +190,7 @@ nonisolated struct ChatMediaLoadReport: Equatable {
             metadata["outcome"] = "failed"
             metadata["step"] = "\(step.rawValue)"
         }
-        if let cache { metadata["cache"] = "\(Self.name(of: cache))" }
+        if let cache { metadata["cache"] = "\(fromFullSize ? "fullSize" : Self.name(of: cache))" }
         if let transfer {
             if let firstByte = transfer.firstByte { metadata["firstByteMs"] = "\(Self.milliseconds(firstByte))" }
             if let body = transfer.body { metadata["bodyMs"] = "\(Self.milliseconds(body))" }

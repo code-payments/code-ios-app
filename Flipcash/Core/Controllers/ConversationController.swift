@@ -477,6 +477,9 @@ final class ConversationController {
     /// Shows the received bill when cash to the user lands live in the open chat; wired at session setup.
     @ObservationIgnored var chatCashBills: ChatCashBillController?
 
+    /// Downloads a photo that arrives live, so its bubble draws from the cache; wired at session setup.
+    @ObservationIgnored var photoPrefetcher: ChatPhotoPrefetcher?
+
     var store: ConversationStore
 
     /// The current blocklist (wired to `BlocklistController`), used to reconcile
@@ -1773,6 +1776,12 @@ final class ConversationController {
                 commitReconciled(pairs, in: conversationID)
                 receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .live)
                 chatCashBills?.handleLive(reconciled, in: conversationID, countedThrough: countedThrough)
+                photoPrefetcher?.handleLive(
+                    reconciled,
+                    in: conversationID,
+                    isGroup: conversation(withID: conversationID)?.type == .group,
+                    countedThrough: countedThrough
+                )
             } else {
                 store.reseatCursor((try? database.catchupCursor(conversationID: conversationID)) ?? 0, for: conversationID)
                 scheduleGapCatchUp(conversationID)

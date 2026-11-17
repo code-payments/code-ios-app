@@ -24,6 +24,7 @@ public final class ChatNotificationClient: Sendable {
     private let resolverService: ResolverService
     private let profileService: ProfileService
     private let paymentRequestService: PaymentRequestService
+    private let blobService: BlobService
     private let coreClient: GRPCClient<AppTransport>
     /// The core client's connection loop; retained for its lifetime — dropping it makes the client
     /// inert and every RPC hangs.
@@ -48,6 +49,7 @@ public final class ChatNotificationClient: Sendable {
         self.resolverService = ResolverService(client: coreClient)
         self.profileService = ProfileService(client: coreClient)
         self.paymentRequestService = PaymentRequestService(client: coreClient)
+        self.blobService = BlobService(client: coreClient)
     }
 
     deinit {
@@ -154,6 +156,24 @@ public final class ChatNotificationClient: Sendable {
             copy: copy,
             now: now
         )
+    }
+
+    // MARK: - Photos -
+
+    /// A freshly minted download URL for a photo in `conversationID`'s messages, with its size and
+    /// expiry; nil when the server has none to give.
+    public func blobDownloadLink(blobID: BlobID, in conversationID: ConversationID, owner: KeyPair) async throws -> BlobDownloadLink? {
+        try await blobService.downloadLink(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+    }
+
+    /// The decryption for `conversationID`'s sealed photos, or nil when this extension can't open the
+    /// chat's key: the chat or a key can't be fetched, or the viewer joined the group by invite,
+    /// whose key copy only the app opens.
+    public func blobDecrypt(in conversationID: ConversationID, owner: KeyPair, selfUserID: UserID) async -> ChatPhotoPushPrefetcher.Decrypt? {
+        guard let conversation = try? await getChat(owner: owner, conversationID: conversationID),
+              case .seal(let seal) = await keyring(owner: owner, selfUserID: selfUserID).opener(for: conversation)
+        else { return nil }
+        return { try seal.decryptBlob($0, blobID: $1, sealed: $2) }
     }
 
     // MARK: - Encryption -

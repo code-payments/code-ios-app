@@ -148,4 +148,77 @@ struct BlobCacheTests {
 
         #expect(avatars.data(for: blob(1))?.count == 1024)
     }
+
+    // MARK: - Moving a downloaded file in -
+
+    private func downloadedFile(_ bytes: [UInt8]) throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("download-\(UUID().uuidString)")
+        try Data(bytes).write(to: url)
+        return url
+    }
+
+    /// The notification extension downloads a photo to a temporary file; moving it in keeps the
+    /// bytes out of the extension's memory.
+    @Test func aMovedInFileReadsBackAndLeavesNoSource() throws {
+        let cache = cache()
+        let file = try downloadedFile([4, 5, 6])
+
+        #expect(cache.moveIn(file, for: blob(1)))
+
+        #expect(cache.data(for: blob(1)) == Data([4, 5, 6]))
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test func movingInReplacesAnEarlierCopy() throws {
+        let cache = cache()
+        cache.write(Data([1]), for: blob(1))
+
+        #expect(cache.moveIn(try downloadedFile([2, 2]), for: blob(1)))
+
+        #expect(cache.data(for: blob(1)) == Data([2, 2]))
+    }
+
+    @Test func aMovedInFileOverTheLimitIsNotCached() throws {
+        let cache = cache(limitBytes: 4)
+        let file = try downloadedFile([1, 2, 3, 4, 5])
+
+        #expect(!cache.moveIn(file, for: blob(1)))
+
+        #expect(!cache.holds(blob(1)))
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test func aMissingFileMovesNothingIn() {
+        let missing = FileManager.default.temporaryDirectory.appendingPathComponent("missing-\(UUID().uuidString)")
+
+        #expect(!cache().moveIn(missing, for: blob(1)))
+    }
+
+    // MARK: - Removing one blob -
+
+    @Test func removeDropsOnlyThatBlob() {
+        let cache = cache()
+        cache.write(Data([1]), for: blob(1))
+        cache.write(Data([2]), for: blob(2))
+
+        cache.remove(blob(1))
+
+        #expect(!cache.holds(blob(1)))
+        #expect(cache.data(for: blob(2)) == Data([2]))
+    }
+
+    // MARK: - Chat photos -
+
+    /// Photos the notification extension downloads are other people's, so they must go when the
+    /// account logs out. ``BlobCache/clearAll()`` removes the `Blobs` directory, which covers a kind
+    /// only if it lives under it.
+    @Test func chatPhotosLiveUnderTheDirectoryLogoutClears() {
+        let photos = BlobCache.chatPhotos.directoryURL.standardizedFileURL.path
+        let root = BlobCache.profilePictures.directoryURL.deletingLastPathComponent().standardizedFileURL.path
+
+        #expect(root.hasSuffix("/Blobs"))
+        #expect(photos.hasPrefix(root + "/"))
+        #expect(photos != BlobCache.profilePictures.directoryURL.standardizedFileURL.path)
+        #expect(photos != BlobCache.profileCovers.directoryURL.standardizedFileURL.path)
+    }
 }

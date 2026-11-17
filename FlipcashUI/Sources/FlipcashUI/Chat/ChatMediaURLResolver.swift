@@ -54,19 +54,41 @@ public final class ChatMediaURLResolver {
         let afterRefusal: Bool
     }
 
-    public init(fetch: @escaping Fetch, decrypt: @escaping FetchDecrypt = { nil }, now: @escaping () -> Date = Date.init) {
+    /// The caches every location this hands out reads and writes.
+    private let caches: ChatMediaCaches
+    /// Where the notification extension leaves the photos it downloaded for a push.
+    private let pushedPhotos: BlobCache
+    /// Everyone waiting on a blob's move from ``pushedPhotos`` into the chat cache, called with
+    /// whether it landed.
+    private var importWaiters: [BlobID: [(Bool) -> Void]] = [:]
+
+    /// - Parameters:
+    ///   - caches: the chat photo caches, ``ChatMediaCaches/shared`` in the app.
+    ///   - pushedPhotos: the notification extension's photos, read before a mint,
+    ///   ``BlobCache/chatPhotos`` in the app.
+    ///   Both are injected so tests run against a temporary directory.
+    public init(
+        fetch: @escaping Fetch,
+        decrypt: @escaping FetchDecrypt = { nil },
+        now: @escaping () -> Date = Date.init,
+        caches: ChatMediaCaches,
+        pushedPhotos: BlobCache
+    ) {
         self.fetch = fetch
         self.fetchDecrypt = decrypt
         self.now = now
+        self.caches = caches
+        self.pushedPhotos = pushedPhotos
     }
 
     /// Where to draw `media` from, or nil for now.
     ///
     /// A BlurHash-only row returns nil without fetching. With `load`, the row draws `load`'s copy of
     /// the photo: one already cached as `load`'s processor, or full size, draws from
-    /// ``ChatMediaLocation/cached(sealed:rendition:)`` without fetching, and so does the ORIGINAL
-    /// when it is the copy cached, as it is for a photo drawn before renditions were loaded. Without
-    /// `load` the ORIGINAL is fetched. A URL cache miss starts at most one fetch per blob and calls
+    /// ``ChatMediaLocation/cached(sealed:rendition:in:)`` without fetching, and so does the ORIGINAL
+    /// when it is the copy cached, as it is for a photo drawn before renditions were loaded. Either
+    /// copy left by the notification extension in `pushedPhotos` is moved into the cache first, then
+    /// drawn the same way. Without `load` the ORIGINAL is fetched. A URL cache miss starts at most one fetch per blob and calls
     /// `onResolved` when it lands so the caller can redraw the row; a failed fetch leaves the row on
     /// its BlurHash, and the next call tries again. An encrypted photo also waits on the chat's
     /// decryption.
@@ -82,11 +104,65 @@ public final class ChatMediaURLResolver {
             return resolve(blobID, sealed: media.sealed) { $0.map(onResolved) }
         }
         let fallback = load.rendition.role == .original ? nil : media.original
-        for copy in [load.rendition, fallback].compactMap(\.self)
-        where ChatMediaImageSource.isCached(blobID: copy.blobID, processor: load.processor) {
-            return .cached(sealed: media.sealed != nil, rendition: copy)
+        let copies = [load.rendition, fallback].compactMap(\.self)
+        let sealed = media.sealed != nil
+        for copy in copies where ChatMediaImageSource.isCached(blobID: copy.blobID, processor: load.processor, in: caches) {
+            return .cached(sealed: sealed, rendition: copy, in: caches)
+        }
+        if let pushed = copies.first(where: { pushedPhotos.holds($0.blobID) }) {
+            importPushed(pushed, sealed: sealed) { [weak self, caches] imported in
+                guard imported else {
+                    // The bytes went missing or would not write: fetch as if none were pushed.
+                    if let location = self?.resolve(load.rendition.blobID, sealed: media.sealed, rendition: load.rendition, completion: { $0.map(onResolved) }) {
+                        onResolved(location)
+                    }
+                    return
+                }
+                onResolved(.cached(sealed: sealed, rendition: pushed, in: caches))
+            }
+            return nil
         }
         return resolve(load.rendition.blobID, sealed: media.sealed, rendition: load.rendition) { $0.map(onResolved) }
+    }
+
+    /// Queues `completion` on the one move of `copy` from ``pushedPhotos`` into the chat cache,
+    /// starting it if none is in flight. The disk work runs off the main thread.
+    private func importPushed(_ copy: MediaRendition, sealed: Bool, completion: @escaping (Bool) -> Void) {
+        let blobID = copy.blobID
+        let isFirst = importWaiters[blobID] == nil
+        importWaiters[blobID, default: []].append(completion)
+        guard isFirst else { return }
+        let pushed = pushedPhotos
+        let caches = caches
+        Task {
+            let imported = await Task.detached(priority: .userInitiated) {
+                Self.movePushed(blobID, sealed: sealed, from: pushed, into: caches)
+            }.value
+            logger.info("Chat photo taken from push", metadata: [
+                "blobId": "\(blobID)",
+                "rendition": "\(copy.role)",
+                "outcome": "\(imported ? "ok" : "failed")",
+            ])
+            let completions = importWaiters.removeValue(forKey: blobID) ?? []
+            for completion in completions { completion(imported) }
+        }
+    }
+
+    /// Writes `blobID`'s bytes from `pushed` into `cache` as its full-size copy, then drops them from
+    /// `pushed`; false when they are gone or would not write. The extension decrypts a sealed photo
+    /// before storing it, so its bytes are also kept as the copy Save to Photos reads.
+    nonisolated private static func movePushed(_ blobID: BlobID, sealed: Bool, from pushed: BlobCache, into caches: ChatMediaCaches) -> Bool {
+        guard let data = pushed.data(for: blobID) else { return false }
+        do {
+            try ChatMediaImageSource.storeFullSize(data, blobID: blobID, in: caches.images)
+        } catch {
+            return false
+        }
+        if sealed {
+            ChatMediaImageSource.storeOriginal(data, forKey: ChatMediaImageSource.cacheKey(for: blobID), in: caches)
+        }
+        pushed.remove(blobID)
+        return true
     }
 
     /// Where to draw `media` from, waiting for the fetch; nil when it may not draw or the fetch
@@ -197,6 +273,7 @@ public final class ChatMediaURLResolver {
         }
         return ChatMediaLocation(
             url: url,
+            caches: caches,
             decrypt: open,
             rendition: rendition,
             reportRefused: { [weak self] in self?.refuse(url, blobID: blobID) ?? false }

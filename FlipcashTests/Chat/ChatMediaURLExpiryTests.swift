@@ -17,6 +17,17 @@ import FlipcashCore
 @MainActor
 struct ChatMediaURLExpiryTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+    private let pushed: BlobCache
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
+    }
+
     private let blobID = BlobID(data: Data([7]))
     private let start = Date(timeIntervalSince1970: 1_800_000_000)
 
@@ -42,7 +53,7 @@ struct ChatMediaURLExpiryTests {
     }
 
     private func resolver(_ minter: Minter) -> ChatMediaURLResolver {
-        ChatMediaURLResolver(fetch: { minter.mint($0) }, now: { minter.clock })
+        ChatMediaURLResolver(fetch: { minter.mint($0) }, now: { minter.clock }, caches: caches, pushedPhotos: pushed)
     }
 
     private var photo: ChatMediaContent {
@@ -169,7 +180,7 @@ struct ChatMediaURLExpiryTests {
         }
         func sealed(_ code: Int) -> KingfisherError {
             .imageSettingError(reason: .dataProviderError(
-                provider: CachedOnlyProvider(cacheKey: "k", sealed: false),
+                provider: CachedOnlyProvider(cacheKey: "k"),
                 error: ChatMediaHTTPError(status: code)
             ))
         }

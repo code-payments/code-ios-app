@@ -18,6 +18,17 @@ import Kingfisher
 @MainActor
 struct ChatMediaRenditionLoadTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+    private let pushed: BlobCache
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
+    }
+
     @MainActor
     private final class FetchSpy {
         var calls: [BlobID] = []
@@ -75,32 +86,24 @@ struct ChatMediaRenditionLoadTests {
     private func cacheOnDiskOnly(_ blobID: BlobID, processor: ImageProcessor) async -> (key: String, processor: ImageProcessor) {
         let key = ChatMediaImageSource.cacheKey(for: blobID)
         await withCheckedContinuation { continuation in
-            ChatMediaImageSource.persist(Self.photo, cacheType: .none, forKey: key, processor: processor) {
+            ChatMediaImageSource.persist(Self.photo, cacheType: .none, forKey: key, processor: processor, in: caches) {
                 continuation.resume()
             }
         }
         await withCheckedContinuation { continuation in
-            ChatMediaImageSource.cache.removeImage(forKey: key, processorIdentifier: processor.identifier, fromMemory: true, fromDisk: false) {
+            caches.images.removeImage(forKey: key, processorIdentifier: processor.identifier, fromMemory: true, fromDisk: false) {
                 continuation.resume()
             }
         }
-        #expect(ChatMediaImageSource.cache.imageCachedType(forKey: key, processorIdentifier: processor.identifier) == .disk)
+        #expect(caches.images.imageCachedType(forKey: key, processorIdentifier: processor.identifier) == .disk)
         return (key, processor)
-    }
-
-    private func removeCached(_ cached: (key: String, processor: ImageProcessor)) async {
-        await withCheckedContinuation { continuation in
-            ChatMediaImageSource.cache.removeImage(forKey: cached.key, processorIdentifier: cached.processor.identifier) {
-                continuation.resume()
-            }
-        }
     }
 
     private func resolver(_ spy: FetchSpy) -> ChatMediaURLResolver {
         ChatMediaURLResolver(fetch: { blobID in
             spy.calls.append(blobID)
             return nil
-        })
+        }, caches: caches, pushedPhotos: pushed)
     }
 
     /// Waits up to two seconds for `view` to draw an image.
@@ -174,7 +177,7 @@ struct ChatMediaRenditionLoadTests {
     @Test("A minted location says which copy it draws")
     func mintedLocationCarriesItsRendition() async throws {
         let blobs = blobs()
-        let resolver = ChatMediaURLResolver(fetch: { _ in BlobDownloadLink(url: URL(string: "https://example.invalid/display")!) })
+        let resolver = ChatMediaURLResolver(fetch: { _ in BlobDownloadLink(url: URL(string: "https://example.invalid/display")!) }, caches: caches, pushedPhotos: pushed)
         let load = try load(media(blobs))
 
         let location = await withCheckedContinuation { continuation in
@@ -193,7 +196,6 @@ struct ChatMediaRenditionLoadTests {
         let media = media(blobs)
         let load = try load(media)
         let cached = await cacheOnDiskOnly(blobs.original, processor: load.processor)
-        defer { Task { await removeCached(cached) } }
 
         let location = try #require(resolver.location(for: media, canReact: true, drawing: load) { _ in })
         #expect(location.url == nil)
@@ -207,8 +209,7 @@ struct ChatMediaRenditionLoadTests {
     func originalFullSizeFallback() async throws {
         let spy = FetchSpy()
         let blobs = blobs()
-        let cached = await cacheOnDiskOnly(blobs.original, processor: DefaultImageProcessor.default)
-        defer { Task { await removeCached(cached) } }
+        _ = await cacheOnDiskOnly(blobs.original, processor: DefaultImageProcessor.default)
 
         let location = resolver(spy).location(for: media(blobs), canReact: true, drawing: try load(media(blobs))) { _ in }
         #expect(location?.url == nil)
@@ -221,9 +222,8 @@ struct ChatMediaRenditionLoadTests {
     func renditionKeyWins() async throws {
         let blobs = blobs()
         let load = try load(media(blobs))
-        let original = await cacheOnDiskOnly(blobs.original, processor: load.processor)
-        let derived = await cacheOnDiskOnly(blobs.display, processor: load.processor)
-        defer { Task { await removeCached(original); await removeCached(derived) } }
+        _ = await cacheOnDiskOnly(blobs.original, processor: load.processor)
+        _ = await cacheOnDiskOnly(blobs.display, processor: load.processor)
 
         let location = resolver(FetchSpy()).location(for: media(blobs), canReact: true, drawing: load) { _ in }
         #expect(location?.url == nil)
@@ -247,8 +247,7 @@ struct ChatMediaRenditionLoadTests {
         let blobs = blobs()
         let media = media(blobs)
         let load = try load(media)
-        let cached = await cacheOnDiskOnly(blobs.display, processor: load.processor)
-        defer { Task { await removeCached(cached) } }
+        _ = await cacheOnDiskOnly(blobs.display, processor: load.processor)
 
         let remote = resolver(spy).location(for: media, canReact: true, drawing: load) { _ in }
         let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
@@ -265,8 +264,7 @@ struct ChatMediaRenditionLoadTests {
         let blobs = blobs()
         let media = media(blobs)
         let load = try load(media)
-        let cached = await cacheOnDiskOnly(blobs.original, processor: load.processor)
-        defer { Task { await removeCached(cached) } }
+        _ = await cacheOnDiskOnly(blobs.original, processor: load.processor)
 
         let remote = resolver(spy).location(for: media, canReact: true, drawing: load) { _ in }
         let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
@@ -285,9 +283,8 @@ struct ChatMediaRenditionLoadTests {
         // Bytes that don't decode, on disk where the drawn copy's key points: Kingfisher files a
         // processed copy under `key@identifier`.
         let key = ChatMediaImageSource.cacheKey(for: blobs.display)
-        try ChatMediaImageSource.cache.diskStorage.store(value: Data("not an image".utf8), forKey: "\(key)@\(load.processor.identifier)")
-        defer { Task { await removeCached((key, load.processor)) } }
-        #expect(ChatMediaImageSource.isCached(blobID: blobs.display, processor: load.processor))
+        try caches.images.diskStorage.store(value: Data("not an image".utf8), forKey: "\(key)@\(load.processor.identifier)")
+        #expect(ChatMediaImageSource.isCached(blobID: blobs.display, processor: load.processor, in: caches))
 
         let remote = try #require(resolver(FetchSpy()).location(for: media, canReact: true, drawing: load) { _ in })
         #expect(remote.rendition == display(blobs))
@@ -300,7 +297,7 @@ struct ChatMediaRenditionLoadTests {
             try? await Task.sleep(for: .milliseconds(10))
         }
         #expect(reloads == 1)
-        #expect(!ChatMediaImageSource.isCached(blobID: blobs.display, processor: load.processor))
+        #expect(!ChatMediaImageSource.isCached(blobID: blobs.display, processor: load.processor, in: caches))
     }
 
     // MARK: - Load report -
@@ -308,14 +305,14 @@ struct ChatMediaRenditionLoadTests {
     @Test("A bubble's load report names the copy it loaded")
     func reportNamesTheRendition() {
         let error = KingfisherError.requestError(reason: .emptyRequest)
-        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .bubble, rendition: .display).metadata["rendition"] == "display")
-        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .bubble, rendition: .thumbnail).metadata["rendition"] == "thumbnail")
+        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .bubble, rendition: .display, sealed: false).metadata["rendition"] == "display")
+        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .bubble, rendition: .thumbnail, sealed: false).metadata["rendition"] == "thumbnail")
     }
 
     @Test("A load that doesn't know its copy logs no rendition rather than guessing")
     func reportOmitsAnUnknownRendition() {
         let error = KingfisherError.requestError(reason: .emptyRequest)
-        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .quote, rendition: nil).metadata["rendition"] == nil)
+        #expect(ChatMediaLoadReport(.failure(error), blobID: nil, surface: .quote, rendition: nil, sealed: false).metadata["rendition"] == nil)
     }
 
     // MARK: - Mapping -

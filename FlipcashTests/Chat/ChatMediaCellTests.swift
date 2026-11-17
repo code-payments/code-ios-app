@@ -15,6 +15,15 @@ import Kingfisher
 @MainActor
 struct ChatMediaCellTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     private static let blurhash = "LEHV6nWB2yk8pyo0adR*.7kCMdnj"
     private static let remoteURL = URL(string: "https://example.com/a.jpg")!
     private static let pill = ReactionPill(emoji: "🔥", count: 1, selfReacted: false, pending: false)
@@ -41,7 +50,7 @@ struct ChatMediaCellTests {
             with: ChatMessage(id: "1", content: .media(media), sender: .other, reactions: [Self.pill], canReact: canReact),
             maxWidth: 240,
             localImage: localImage,
-            remote: remoteURL.map { ChatMediaLocation(url: $0) }
+            remote: remoteURL.map { ChatMediaLocation(url: $0, caches: caches) }
         )
         return cell
     }
@@ -66,7 +75,7 @@ struct ChatMediaCellTests {
             with: ChatMessage(id: "2", content: .media(media()), sender: .other, canReact: true),
             maxWidth: 240,
             localImage: nil,
-            remote: ChatMediaLocation(url: Self.remoteURL)
+            remote: ChatMediaLocation(url: Self.remoteURL, caches: caches)
         )
         #expect(cell.imageView.backgroundColor == nil)
     }
@@ -600,9 +609,9 @@ struct ChatMediaCellTests {
     @Test("A photo caches under its blob, so a freshly signed URL reuses the download")
     func cachesUnderBlob() {
         let blobID = BlobID(data: Data([1]))
-        let first = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!))
-        let second = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=2")!))
-        let other = ChatMediaImageSource.source(blobID: BlobID(data: Data([2])), location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!))
+        let first = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!, caches: caches))
+        let second = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=2")!, caches: caches))
+        let other = ChatMediaImageSource.source(blobID: BlobID(data: Data([2])), location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!, caches: caches))
 
         #expect(first.cacheKey == second.cacheKey)
         #expect(first.cacheKey != other.cacheKey)
@@ -613,8 +622,8 @@ struct ChatMediaCellTests {
     func encryptedPhotoCachesUnderBlob() {
         let blobID = BlobID(data: Data([1]))
         let url = URL(string: "https://cdn.example.com/a.bin?sig=1")!
-        let plain = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url))
-        let sealed = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url) { $0 })
+        let plain = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url, caches: caches))
+        let sealed = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url, caches: caches) { $0 })
 
         #expect(sealed.cacheKey == plain.cacheKey)
         guard case .provider = sealed else {
@@ -630,15 +639,13 @@ struct ChatMediaCellTests {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
 
         await withCheckedContinuation { continuation in
-            ChatMediaImageSource.persist(image, cacheType: .none, forKey: key, processor: processor) {
+            ChatMediaImageSource.persist(image, cacheType: .none, forKey: key, processor: processor, in: caches) {
                 continuation.resume()
             }
         }
 
-        let cache = ChatMediaImageSource.cache
-        cache.clearMemoryCache()
-        #expect(cache.imageCachedType(forKey: key, processorIdentifier: processor.identifier) == .disk)
-        try? await cache.removeImage(forKey: key, processorIdentifier: processor.identifier)
+        caches.images.clearMemoryCache()
+        #expect(caches.images.imageCachedType(forKey: key, processorIdentifier: processor.identifier) == .disk)
     }
 
     @Test("A photo already served from a cache is not written again")
@@ -646,16 +653,16 @@ struct ChatMediaCellTests {
         let key = "chat-media-test-\(UUID().uuidString)"
         let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
 
-        ChatMediaImageSource.persist(image, cacheType: .memory, forKey: key, processor: nil)
+        ChatMediaImageSource.persist(image, cacheType: .memory, forKey: key, processor: nil, in: caches)
 
-        #expect(!ChatMediaImageSource.cache.imageCachedType(forKey: key).cached)
+        #expect(!caches.images.imageCachedType(forKey: key).cached)
     }
 
     // MARK: - Encrypted -
 
     /// A cell drawing an encrypted photo whose blob is a local file and whose decryption is `decrypt`.
     private func encryptedCell(decrypt: @escaping @Sendable (Data) throws -> Data) throws -> ChatMediaCell {
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("chat-media-\(UUID().uuidString)")
+        let file = folder.url.appending(path: "blob-\(UUID().uuidString)")
         try Data([1, 2, 3]).write(to: file)
         let media = ChatMediaContent(
             blobID: BlobID(data: Data(UUID().uuidString.utf8)),
@@ -671,7 +678,7 @@ struct ChatMediaCellTests {
             with: ChatMessage(id: "1", content: .media(media), sender: .other, reactions: [], canReact: true),
             maxWidth: 240,
             localImage: nil,
-            remote: ChatMediaLocation(url: file, decrypt: decrypt)
+            remote: ChatMediaLocation(url: file, caches: caches, decrypt: decrypt)
         )
         return cell
     }

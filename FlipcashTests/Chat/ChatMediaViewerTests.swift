@@ -20,6 +20,15 @@ private final class ReactionsModel {
 @MainActor
 struct ChatMediaViewerTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     private static let blobID = BlobID(data: Data([1]))
     private static let remoteURL = URL(string: "https://example.com/a.jpg")!
     private static let opaqueFormat: UIGraphicsImageRendererFormat = {
@@ -54,7 +63,7 @@ struct ChatMediaViewerTests {
         localImage: UIImage? = nil,
         remoteURL: URL? = ChatMediaViewerTests.remoteURL
     ) -> ChatMediaViewerRequest? {
-        ChatMediaViewerRequest(message: message, localImage: localImage, remote: { remoteURL.map { ChatMediaLocation(url: $0) } }, placeholder: nil) { nil }
+        ChatMediaViewerRequest(message: message, localImage: localImage, remote: { [caches] in remoteURL.map { ChatMediaLocation(url: $0, caches: caches) } }, placeholder: nil) { nil }
     }
 
     // MARK: - Request
@@ -258,8 +267,9 @@ struct ChatMediaViewerTests {
     @Test("Save waits until the photo itself has loaded")
     func saveWaitsForPhoto() throws {
         let placeholder = UIImage(systemName: "photo")!
+        let never = ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!, caches: caches)
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: nil, remote: { ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!) }, placeholder: placeholder
+            message: message(media()), localImage: nil, remote: { never }, placeholder: placeholder
         ) { nil })
         var saved: UIImage?
         let viewer = makeViewer(request, onSave: { image, _ in saved = image })
@@ -336,8 +346,9 @@ struct ChatMediaViewerTests {
         #expect(!reactable.reactButton.isHidden)
 
         let placeholder = UIImage(systemName: "photo")!
+        let never = ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!, caches: caches)
         let unloaded = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: nil, remote: { ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!) }, placeholder: placeholder
+            message: message(media()), localImage: nil, remote: { never }, placeholder: placeholder
         ) { nil })
         #expect(!makeViewer(unloaded).reactButton.isHidden)
 

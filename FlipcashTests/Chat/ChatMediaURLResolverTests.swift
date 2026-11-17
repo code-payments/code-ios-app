@@ -14,6 +14,25 @@ import FlipcashCore
 @MainActor
 struct ChatMediaURLResolverTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+    private let pushed: BlobCache
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+        pushed = folder.pushedPhotos()
+    }
+
+    /// A resolver over this test's own caches.
+    private func makeResolver(
+        fetch: @escaping ChatMediaURLResolver.Fetch,
+        decrypt: @escaping ChatMediaURLResolver.FetchDecrypt = { nil }
+    ) -> ChatMediaURLResolver {
+        ChatMediaURLResolver(fetch: fetch, decrypt: decrypt, caches: caches, pushedPhotos: pushed)
+    }
+
     private let blobID = BlobID(data: Data([1]))
     private let url = URL(string: "https://example.com/a.jpg")!
 
@@ -31,7 +50,7 @@ struct ChatMediaURLResolverTests {
     func blurhashOnlyRowNeverFetches() async {
         let spy = FetchSpy()
         let url = url
-        let resolver = ChatMediaURLResolver { id in
+        let resolver = makeResolver { id in
             spy.calls.append(id)
             return BlobDownloadLink(url: url)
         }
@@ -48,7 +67,7 @@ struct ChatMediaURLResolverTests {
     func joiningFetchesOnceThenServesFromCache() async {
         let spy = FetchSpy()
         let url = url
-        let resolver = ChatMediaURLResolver { id in
+        let resolver = makeResolver { id in
             spy.calls.append(id)
             return BlobDownloadLink(url: url)
         }
@@ -72,7 +91,7 @@ struct ChatMediaURLResolverTests {
     func quoteThumbnailNeverFetchesWhenBlurhashOnly() async {
         let spy = FetchSpy()
         let url = url
-        let resolver = ChatMediaURLResolver { id in
+        let resolver = makeResolver { id in
             spy.calls.append(id)
             return BlobDownloadLink(url: url)
         }
@@ -90,7 +109,7 @@ struct ChatMediaURLResolverTests {
     func quoteThumbnailSharesTheRowCache() async {
         let spy = FetchSpy()
         let url = url
-        let resolver = ChatMediaURLResolver { id in
+        let resolver = makeResolver { id in
             spy.calls.append(id)
             return BlobDownloadLink(url: url)
         }
@@ -111,7 +130,7 @@ struct ChatMediaURLResolverTests {
     func awaitedThumbnail() async {
         let spy = FetchSpy()
         let url = url
-        let resolver = ChatMediaURLResolver { id in
+        let resolver = makeResolver { id in
             spy.calls.append(id)
             return BlobDownloadLink(url: url)
         }
@@ -127,7 +146,7 @@ struct ChatMediaURLResolverTests {
     @Test("Every caller waiting on one fetch hears when it lands")
     func everyWaiterIsCalledBack() async {
         let url = url
-        let resolver = ChatMediaURLResolver { _ in BlobDownloadLink(url: url) }
+        let resolver = makeResolver { _ in BlobDownloadLink(url: url) }
         let photo = photo(isRedacted: false)
 
         let (row, quote) = await withCheckedContinuation { continuation in
@@ -147,7 +166,7 @@ struct ChatMediaURLResolverTests {
         let url = url
         let sealed = SealedBlob(senderID: UserID(), plaintextSize: 3)
         let decryptCalls = FetchSpy()
-        let resolver = ChatMediaURLResolver(
+        let resolver = makeResolver(
             fetch: { _ in BlobDownloadLink(url: url) },
             decrypt: {
                 decryptCalls.calls.append(BlobID(data: Data()))
@@ -174,7 +193,7 @@ struct ChatMediaURLResolverTests {
     @Test("An encrypted photo stays on its BlurHash while the chat's key is unknown")
     func encryptedPhotoWithoutKey() async {
         let url = url
-        let resolver = ChatMediaURLResolver(fetch: { _ in BlobDownloadLink(url: url) }, decrypt: { nil })
+        let resolver = makeResolver(fetch: { _ in BlobDownloadLink(url: url) }, decrypt: { nil })
         let sealed = SealedBlob(senderID: UserID(), plaintextSize: 3)
         let photo = ChatMediaContent(blobID: blobID, width: 1, height: 1, blurhash: nil, caption: nil, isRedacted: false, sealed: sealed)
 

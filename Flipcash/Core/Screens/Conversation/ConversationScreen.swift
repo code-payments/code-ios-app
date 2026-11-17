@@ -1585,9 +1585,9 @@ struct ConversationScreen: View {
     /// bytes when held, otherwise the image this device already drew. Nothing is downloaded here.
     private func savePhoto(_ message: ConversationMessage, stableID: String) {
         guard case .media(let attachments, _) = message.content, let attachment = attachments.first else { return }
-        let original = ChatMediaImageSource.originalData(blobID: attachment.blobID)
+        let original = ChatMediaImageSource.originalData(blobID: attachment.blobID, in: .shared)
         let image = conversationController.pendingMediaImage(forMessageID: stableID)
-            ?? attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))
+            ?? attachment.blobID.flatMap { ChatMediaImageSource.cachedImage(blobID: $0, in: .shared) }
             ?? original.flatMap(UIImage.init(data:))
         guard let image else {
             session.dialogItem = .error(title: "Couldn't Save Photo", subtitle: "Please try again.")
@@ -1621,14 +1621,14 @@ struct ConversationScreen: View {
         Task {
             var saved = 0
             for attachment in attachments {
-                var image = attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))
-                    ?? ChatMediaImageSource.originalData(blobID: attachment.blobID).flatMap(UIImage.init(data:))
+                var image = attachment.blobID.flatMap { ChatMediaImageSource.cachedImage(blobID: $0, in: .shared) }
+                    ?? ChatMediaImageSource.originalData(blobID: attachment.blobID, in: .shared).flatMap(UIImage.init(data:))
                 if image == nil, let location = await resolver.location(for: attachment) {
                     image = await ChatMediaImageSource.image(blobID: attachment.blobID, location: location, surface: .save)
                 }
                 guard let image else { continue }
                 do {
-                    try await PhotoLibrary.save(image: image, original: ChatMediaImageSource.originalData(blobID: attachment.blobID))
+                    try await PhotoLibrary.save(image: image, original: ChatMediaImageSource.originalData(blobID: attachment.blobID, in: .shared))
                     saved += 1
                 } catch {
                     showPhotoLibraryDenied()
