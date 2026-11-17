@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import UIKit
 import Testing
 import FlipcashCore
 @testable import Flipcash
@@ -40,7 +41,20 @@ struct ProfileAvatarStoreTests {
         func increment() { value += 1 }
     }
 
-    private static let bytes = Data([1, 2, 3, 4])
+    /// A real image, since the store keeps only bytes that decode as one.
+    private static let bytes = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).pngData { context in
+        UIColor.red.setFill()
+        context.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+    }
+
+    /// What CloudFront answers an expired signed URL with.
+    private static let accessDenied = Data(
+        #"<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access denied</Message></Error>"#.utf8
+    )
+
+    private static func reply(_ data: Data, status: Int = 200, for url: URL) -> (Data, URLResponse) {
+        (data, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
+    }
 
     private static func picture() -> ProfilePicture {
         let blobID = BlobID(uuid: UUID())
@@ -67,11 +81,11 @@ struct ProfileAvatarStoreTests {
         let store = ProfileAvatarStore(
             cache: Self.cache(),
             mintURL: { _, _ in URL(string: "https://example.test/avatar")! },
-            fetch: { _ in
+            fetch: { url in
                 started.open()
                 await release.wait()
                 try Task.checkCancellation()
-                return Self.bytes
+                return Self.reply(Self.bytes, for: url)
             }
         )
 
@@ -98,12 +112,12 @@ struct ProfileAvatarStoreTests {
         let store = ProfileAvatarStore(
             cache: Self.cache(),
             mintURL: { _, _ in URL(string: "https://example.test/avatar")! },
-            fetch: { _ in
+            fetch: { url in
                 fetches.increment()
                 started.open()
                 await release.wait()
                 try Task.checkCancellation()
-                return Self.bytes
+                return Self.reply(Self.bytes, for: url)
             }
         )
 
@@ -146,7 +160,7 @@ struct ProfileAvatarStoreTests {
                 minted.increment()
                 return URL(string: "https://example.test/\(blobID)")!
             },
-            fetch: { _ in Self.bytes }
+            fetch: { url in Self.reply(Self.bytes, for: url) }
         )
 
         await store.load(.cover(userID), picture: picture)
@@ -175,7 +189,7 @@ struct ProfileAvatarStoreTests {
             cache: avatarCache,
             coverCache: coverCache,
             mintURL: { _, _ in URL(string: "https://example.test/cover")! },
-            fetch: { _ in Self.bytes }
+            fetch: { url in Self.reply(Self.bytes, for: url) }
         )
 
         await store.load(.cover(userID), picture: picture)
@@ -207,7 +221,7 @@ struct ProfileAvatarStoreTests {
                 mintedContexts.append(subject.accessContext)
                 return URL(string: "https://example.test/\(blobID)")!
             },
-            fetch: { _ in Self.bytes }
+            fetch: { url in Self.reply(Self.bytes, for: url) }
         )
 
         await store.load(.groupCover(conversationID), picture: picture)
@@ -232,11 +246,147 @@ struct ProfileAvatarStoreTests {
         let store = ProfileAvatarStore(
             cache: cache,
             mintURL: { _, _ in Issue.record("Minted a URL for bytes already on disk"); return nil },
-            fetch: { _ in Issue.record("Fetched bytes already on disk"); return Data() }
+            fetch: { url in Issue.record("Fetched bytes already on disk"); return Self.reply(Data(), for: url) }
         )
 
         await store.load(userID: userID, picture: picture)
 
         #expect(store.data(for: userID) == Self.bytes)
+    }
+
+    // MARK: - Failed downloads -
+
+    /// A signed URL can expire between minting and fetching, and CloudFront answers with a 403 and an
+    /// XML body. Stored as the picture, that body drew nothing until the cache evicted it.
+    @Test("A 403 mints a fresh URL once and caches only the image")
+    func expiredURLIsRemintedOnce() async {
+        let userID = UUID()
+        let picture = Self.picture()
+        let cache = Self.cache()
+        let minted = Counter()
+
+        let store = ProfileAvatarStore(
+            cache: cache,
+            mintURL: { _, _ in
+                minted.increment()
+                return URL(string: "https://example.test/avatar/\(minted.value)")!
+            },
+            fetch: { url in
+                url.lastPathComponent == "1"
+                    ? Self.reply(Self.accessDenied, status: 403, for: url)
+                    : Self.reply(Self.bytes, for: url)
+            }
+        )
+
+        await store.load(userID: userID, picture: picture)
+
+        #expect(minted.value == 2)
+        #expect(store.data(for: userID) == Self.bytes)
+        #expect(cache.data(for: picture.thumbnailBlobID) == Self.bytes)
+    }
+
+    @Test("A second 403 gives up without caching anything")
+    func repeated403CachesNothing() async {
+        let userID = UUID()
+        let picture = Self.picture()
+        let cache = Self.cache()
+        let minted = Counter()
+
+        let store = ProfileAvatarStore(
+            cache: cache,
+            mintURL: { _, _ in
+                minted.increment()
+                return URL(string: "https://example.test/avatar")!
+            },
+            fetch: { url in Self.reply(Self.accessDenied, status: 403, for: url) }
+        )
+
+        await store.load(userID: userID, picture: picture)
+
+        #expect(minted.value == 2)
+        #expect(store.data(for: userID) == nil)
+        #expect(!cache.holds(picture.thumbnailBlobID))
+    }
+
+    /// Only an expired signature is fixed by a fresh URL; any other error status would fail again.
+    @Test("A non-403 error status is not retried and caches nothing")
+    func otherErrorStatusIsNotRetried() async {
+        let userID = UUID()
+        let picture = Self.picture()
+        let cache = Self.cache()
+        let minted = Counter()
+
+        let store = ProfileAvatarStore(
+            cache: cache,
+            mintURL: { _, _ in
+                minted.increment()
+                return URL(string: "https://example.test/avatar")!
+            },
+            fetch: { url in Self.reply(Data("Service Unavailable".utf8), status: 503, for: url) }
+        )
+
+        await store.load(userID: userID, picture: picture)
+
+        #expect(minted.value == 1)
+        #expect(store.data(for: userID) == nil)
+        #expect(!cache.holds(picture.thumbnailBlobID))
+    }
+
+    @Test("A 200 whose body is not an image caches nothing")
+    func nonImageBodyIsNotCached() async {
+        let userID = UUID()
+        let picture = Self.picture()
+        let cache = Self.cache()
+
+        let store = ProfileAvatarStore(
+            cache: cache,
+            mintURL: { _, _ in URL(string: "https://example.test/avatar")! },
+            fetch: { url in Self.reply(Data("<html>captive portal</html>".utf8), for: url) }
+        )
+
+        await store.load(userID: userID, picture: picture)
+
+        #expect(store.data(for: userID) == nil)
+        #expect(!cache.holds(picture.thumbnailBlobID))
+    }
+
+    /// Devices already hold error bodies cached under avatar blob ids, and a disk hit never fetched,
+    /// so those avatars would stay broken until eviction or logout.
+    @Test("Cached bytes that are not an image are fetched again")
+    func poisonedEntryIsRefetched() async {
+        let userID = UUID()
+        let picture = Self.picture()
+        let cache = Self.cache()
+        cache.write(Self.accessDenied, for: picture.thumbnailBlobID)
+
+        let store = ProfileAvatarStore(
+            cache: cache,
+            mintURL: { _, _ in URL(string: "https://example.test/avatar")! },
+            fetch: { url in Self.reply(Self.bytes, for: url) }
+        )
+
+        await store.load(userID: userID, picture: picture)
+
+        #expect(store.data(for: userID) == Self.bytes)
+        #expect(cache.data(for: picture.thumbnailBlobID) == Self.bytes)
+    }
+
+    @Test("Cached bytes that are not an image are evicted even when the refetch fails")
+    func poisonedEntryIsEvictedWhenRefetchFails() async {
+        let userID = UUID()
+        let picture = Self.picture()
+        let cache = Self.cache()
+        cache.write(Self.accessDenied, for: picture.thumbnailBlobID)
+
+        let store = ProfileAvatarStore(
+            cache: cache,
+            mintURL: { _, _ in URL(string: "https://example.test/avatar")! },
+            fetch: { _ in throw URLError(.notConnectedToInternet) }
+        )
+
+        await store.load(userID: userID, picture: picture)
+
+        #expect(store.data(for: userID) == nil)
+        #expect(!cache.holds(picture.thumbnailBlobID))
     }
 }

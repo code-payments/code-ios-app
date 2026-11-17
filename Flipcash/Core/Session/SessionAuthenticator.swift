@@ -617,6 +617,7 @@ final class SessionAuthenticator {
         // Drop every cached blob for the same reason: other people's photographs, unencrypted, in a
         // container the next account on the device reads from.
         BlobCache.clearAll()
+        ChatMediaImageSource.clearCaches()
 
         // Drop the locally collected onramp email — it must not leak into
         // another account's Coinbase orders.

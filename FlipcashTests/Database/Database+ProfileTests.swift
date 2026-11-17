@@ -21,6 +21,8 @@ struct DatabaseProfileTests {
         billExchangeDataTimeout: 90,
         newCurrencyPurchaseAmount: TokenAmount(quarks: 5_000_000, mint: .usdf),
         newCurrencyFeeAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+        newCurrencyV2PurchaseAmount: TokenAmount(quarks: 7_000_000, mint: .usdf),
+        newCurrencyV2FeeAmount: TokenAmount(quarks: 2_000_000, mint: .usdf),
         withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
         minimumHolderValue: TokenAmount(quarks: 100_000, mint: .usdf),
         usernameMinBalance: TokenAmount(quarks: 250_000, mint: .usdf),
@@ -45,6 +47,8 @@ struct DatabaseProfileTests {
         billExchangeDataTimeout: nil,
         newCurrencyPurchaseAmount: .zero(mint: .usdf),
         newCurrencyFeeAmount: .zero(mint: .usdf),
+        newCurrencyV2PurchaseAmount: .zero(mint: .usdf),
+        newCurrencyV2FeeAmount: .zero(mint: .usdf),
         withdrawalFeeAmount: .zero(mint: .usdf),
         minimumHolderValue: .zero(mint: .usdf),
         usernameMinBalance: .zero(mint: .usdf),
@@ -118,6 +122,8 @@ struct DatabaseProfileTests {
         #expect(restored.billExchangeDataTimeout == original.billExchangeDataTimeout)
         #expect(restored.newCurrencyPurchaseAmount == original.newCurrencyPurchaseAmount)
         #expect(restored.newCurrencyFeeAmount == original.newCurrencyFeeAmount)
+        #expect(restored.newCurrencyV2PurchaseAmount == original.newCurrencyV2PurchaseAmount)
+        #expect(restored.newCurrencyV2FeeAmount == original.newCurrencyV2FeeAmount)
         #expect(restored.withdrawalFeeAmount == original.withdrawalFeeAmount)
         #expect(restored.minimumHolderValue == original.minimumHolderValue)
         #expect(restored.usernameMinBalance == original.usernameMinBalance)
