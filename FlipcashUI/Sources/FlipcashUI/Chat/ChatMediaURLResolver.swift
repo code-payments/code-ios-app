@@ -7,6 +7,9 @@
 
 import Foundation
 import FlipcashCore
+import Kingfisher
+
+private let logger = Logger(label: "flipcash.chat-media")
 
 /// Resolves and caches the signed download URL for each photo in one conversation.
 ///
@@ -16,7 +19,7 @@ import FlipcashCore
 public final class ChatMediaURLResolver {
 
     /// Mints a download URL for a blob, or returns nil when the server has none to give.
-    public typealias Fetch = @MainActor (BlobID) async throws -> URL?
+    public typealias Fetch = @MainActor (BlobID) async throws -> BlobDownloadLink?
     /// Decrypts an end-to-end encrypted blob into its image bytes, throwing when it fails to
     /// authenticate or is not the declared length.
     public typealias BlobDecrypt = @Sendable (Data, BlobID, SealedBlob) throws -> Data
@@ -26,31 +29,55 @@ public final class ChatMediaURLResolver {
 
     private let fetch: Fetch
     private let fetchDecrypt: FetchDecrypt
-    private var cache: [BlobID: URL] = [:]
+    /// The current time, read to tell whether a cached URL has expired.
+    private let now: () -> Date
+    private var cache: [BlobID: MintedURL] = [:]
+    /// Blobs whose URL the CDN refused, so the next mint for each is the retry.
+    private var refusedBlobs: Set<BlobID> = []
     /// Everyone waiting on a blob's fetch, called with its URL, or nil when the fetch failed.
     private var waiters: [BlobID: [(URL?) -> Void]] = [:]
     private var decrypt: BlobDecrypt?
     /// Everyone waiting on the decryption, or nil when no fetch of it is in flight.
     private var decryptWaiters: [(BlobDecrypt?) -> Void]?
 
-    public init(fetch: @escaping Fetch, decrypt: @escaping FetchDecrypt = { nil }) {
+    /// How long before its expiry a URL stops being handed out, so a download started on it has
+    /// time to finish. Also the shortest a URL is kept, so one that arrives already expired by the
+    /// device's clock is used rather than minted again on every redraw.
+    static let expiryMargin: TimeInterval = 30
+
+    /// One minted URL and how long to hand it out.
+    private struct MintedURL {
+        let url: URL
+        /// When to stop handing it out, or nil when the server sent no expiry.
+        let usableUntil: Date?
+        /// Whether it was minted because the CDN refused the one before it.
+        let afterRefusal: Bool
+    }
+
+    public init(fetch: @escaping Fetch, decrypt: @escaping FetchDecrypt = { nil }, now: @escaping () -> Date = Date.init) {
         self.fetch = fetch
         self.fetchDecrypt = decrypt
+        self.now = now
     }
 
     /// Where to draw `media` from, or nil for now.
     ///
-    /// A BlurHash-only row returns nil without fetching. A cache miss starts at most one fetch per
-    /// blob and calls `onResolved` when it lands so the caller can redraw the row; a failed fetch
-    /// leaves the row on its BlurHash, and the next call tries again. An encrypted photo also waits
-    /// on the chat's decryption.
+    /// A BlurHash-only row returns nil without fetching. A photo already cached as `processor` draws
+    /// it, or the full-size copy, from ``ChatMediaLocation/cached(sealed:)`` without fetching. A URL cache
+    /// miss starts at most one fetch per blob and calls `onResolved` when it lands so the caller
+    /// can redraw the row; a failed fetch leaves the row on its BlurHash, and the next call tries
+    /// again. An encrypted photo also waits on the chat's decryption.
     public func location(
         for media: ChatMediaContent,
         canReact: Bool,
+        cachedAs processor: ImageProcessor? = nil,
         onResolved: @escaping (ChatMediaLocation) -> Void
     ) -> ChatMediaLocation? {
         guard !ChatMediaCell.isBlurhashOnly(media, canReact: canReact),
               let blobID = media.blobID else { return nil }
+        if let processor, ChatMediaImageSource.isCached(blobID: blobID, processor: processor) {
+            return .cached(sealed: media.sealed != nil)
+        }
         return resolve(blobID, sealed: media.sealed) { $0.map(onResolved) }
     }
 
@@ -118,29 +145,58 @@ public final class ChatMediaURLResolver {
     /// The location for `blobID` when everything it needs is cached, or nil after queueing
     /// `completion` on the fetches it still waits on.
     private func resolve(_ blobID: BlobID, sealed: SealedBlob?, completion: @escaping (ChatMediaLocation?) -> Void) -> ChatMediaLocation? {
-        if let url = cache[blobID] {
-            guard let sealed else { return ChatMediaLocation(url: url) }
-            if let decrypt { return Self.location(url: url, blobID: blobID, sealed: sealed, decrypt: decrypt) }
-            awaitDecrypt { decrypt in
-                completion(decrypt.map { Self.location(url: url, blobID: blobID, sealed: sealed, decrypt: $0) })
+        if let url = usableURL(blobID) {
+            guard let sealed else { return location(url: url, blobID: blobID, sealed: nil, decrypt: nil) }
+            if let decrypt { return location(url: url, blobID: blobID, sealed: sealed, decrypt: decrypt) }
+            awaitDecrypt { [weak self] decrypt in
+                completion(decrypt.flatMap { self?.location(url: url, blobID: blobID, sealed: sealed, decrypt: $0) })
             }
             return nil
         }
         fetchURL(blobID) { [weak self] url in
-            guard let url else { return completion(nil) }
-            guard let sealed else { return completion(ChatMediaLocation(url: url)) }
-            if let decrypt = self?.decrypt {
-                return completion(Self.location(url: url, blobID: blobID, sealed: sealed, decrypt: decrypt))
+            guard let self, let url else { return completion(nil) }
+            guard let sealed else { return completion(location(url: url, blobID: blobID, sealed: nil, decrypt: nil)) }
+            if let decrypt {
+                return completion(location(url: url, blobID: blobID, sealed: sealed, decrypt: decrypt))
             }
-            self?.awaitDecrypt { decrypt in
-                completion(decrypt.map { Self.location(url: url, blobID: blobID, sealed: sealed, decrypt: $0) })
+            awaitDecrypt { [weak self] decrypt in
+                completion(decrypt.flatMap { self?.location(url: url, blobID: blobID, sealed: sealed, decrypt: $0) })
             }
         }
         return nil
     }
 
-    private static func location(url: URL, blobID: BlobID, sealed: SealedBlob, decrypt: @escaping BlobDecrypt) -> ChatMediaLocation {
-        ChatMediaLocation(url: url) { try decrypt($0, blobID, sealed) }
+    /// `blobID`'s cached URL while it is still safe to start a download on, dropping it once not.
+    private func usableURL(_ blobID: BlobID) -> URL? {
+        guard let minted = cache[blobID] else { return nil }
+        if let usableUntil = minted.usableUntil, now() >= usableUntil {
+            cache[blobID] = nil
+            return nil
+        }
+        return minted.url
+    }
+
+    private func location(url: URL, blobID: BlobID, sealed: SealedBlob?, decrypt: BlobDecrypt?) -> ChatMediaLocation {
+        var open: (@Sendable (Data) throws -> Data)?
+        if let sealed, let decrypt {
+            open = { try decrypt($0, blobID, sealed) }
+        }
+        return ChatMediaLocation(
+            url: url,
+            decrypt: open,
+            reportRefused: { [weak self] in self?.refuse(url, blobID: blobID) ?? false }
+        )
+    }
+
+    /// Drops `url` after the CDN refused it, so the next lookup mints again, and returns whether it
+    /// will. Only the URL still cached is dropped, and a URL minted after a refusal is kept: a
+    /// second refusal is not an expiry, and minting again would not fix it.
+    private func refuse(_ url: URL, blobID: BlobID) -> Bool {
+        guard let minted = cache[blobID], minted.url == url, !minted.afterRefusal else { return false }
+        cache[blobID] = nil
+        refusedBlobs.insert(blobID)
+        logger.info("Chat photo URL refused", metadata: ["blobId": "\(blobID)"])
+        return true
     }
 
     /// Queues `completion` on the one fetch of `blobID`'s URL, starting it if none is in flight.
@@ -150,10 +206,44 @@ public final class ChatMediaURLResolver {
         guard isFirst else { return }
         Task {
             // Best-effort: the row keeps its BlurHash, and the next dequeue retries.
-            let resolved = try? await fetch(blobID)
-            if let resolved { cache[blobID] = resolved }
+            let link = await mint(blobID)
+            if let link {
+                let minted = now()
+                cache[blobID] = MintedURL(
+                    url: link.url,
+                    usableUntil: link.expiresAt.map {
+                        max($0.addingTimeInterval(-Self.expiryMargin), minted.addingTimeInterval(Self.expiryMargin))
+                    },
+                    afterRefusal: refusedBlobs.remove(blobID) != nil
+                )
+            }
+            let resolved = link?.url
             let completions = waiters.removeValue(forKey: blobID) ?? []
             for completion in completions { completion(resolved) }
+        }
+    }
+
+    /// Mints `blobID`'s URL, logging how long the server took; nil when it has none or the call failed.
+    private func mint(_ blobID: BlobID) async -> BlobDownloadLink? {
+        let clock = ContinuousClock()
+        let start = clock.now
+        do {
+            let link = try await fetch(blobID)
+            logger.info("Chat photo URL minted", metadata: [
+                "blobId": "\(blobID)",
+                "mintMs": "\(ChatMediaLoadReport.milliseconds(clock.now - start))",
+                "outcome": "\(link == nil ? "none" : "ok")",
+                "ttlSec": "\(link?.expiresAt.map { String(Int($0.timeIntervalSince(now()))) } ?? "none")",
+            ])
+            return link
+        } catch {
+            logger.warning("Chat photo URL mint failed", metadata: [
+                "blobId": "\(blobID)",
+                "mintMs": "\(ChatMediaLoadReport.milliseconds(clock.now - start))",
+                "errorType": "\(type(of: error))",
+                "errorCode": "\((error as NSError).code)",
+            ])
+            return nil
         }
     }
 

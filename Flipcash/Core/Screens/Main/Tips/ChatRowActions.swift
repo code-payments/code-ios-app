@@ -172,7 +172,7 @@ private struct ChatRowPreview: View {
             // The chat's own photo lookups, as `ConversationScreen` passes them, so a photo row
             // downloads its image instead of staying an empty placeholder.
             mintMediaURL: { [flipClient = sessionContainer.flipClient, owner = session.ownerKeyPair, conversationID] blobID in
-                try await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+                try await flipClient.blobDownloadLink(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
             },
             mediaBlobDecrypt: { [conversationController, conversationID] in
                 await conversationController.mediaBlobDecrypt(for: conversationID)
@@ -236,7 +236,7 @@ struct ChatPreview: View {
     let knownAuthors: KnownAuthorDirectory
     let avatarData: (UserID) -> Data?
     let loadAvatars: ([(userID: UserID?, picture: ProfilePicture?)]) -> Void
-    let mintMediaURL: (BlobID) async throws -> URL?
+    let mintMediaURL: (BlobID) async throws -> BlobDownloadLink?
     let mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt?
     let toasts: ToastController
 
@@ -253,7 +253,7 @@ struct ChatPreview: View {
         knownAuthors: KnownAuthorDirectory,
         avatarData: @escaping (UserID) -> Data?,
         loadAvatars: @escaping ([(userID: UserID?, picture: ProfilePicture?)]) -> Void,
-        mintMediaURL: @escaping (BlobID) async throws -> URL?,
+        mintMediaURL: @escaping (BlobID) async throws -> BlobDownloadLink?,
         mediaBlobDecrypt: @escaping () async -> ChatMediaURLResolver.BlobDecrypt?,
         toasts: ToastController
     ) {

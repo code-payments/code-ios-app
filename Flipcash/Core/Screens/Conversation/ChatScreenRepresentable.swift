@@ -142,7 +142,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var onImagesPasted: ([NSItemProvider]) -> Void = { _ in }
     /// Mints a signed download URL for a photo in this chat. The transcript's resolver caches what it
     /// returns and never asks for a photo drawn only from its BlurHash.
-    var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
+    var mintMediaURL: (BlobID) async throws -> BlobDownloadLink? = { _ in nil }
     /// Decrypts the chat's end-to-end encrypted photo blobs, or nil while its key is unknown.
     var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? = { nil }
     /// Fired when the user taps a photo the viewer may see. The owner opens the full-screen viewer.
@@ -571,7 +571,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
         var lastMessageID: String?
         /// The latest ``ChatScreenRepresentable/mintMediaURL``, read by the resolver.
-        var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
+        var mintMediaURL: (BlobID) async throws -> BlobDownloadLink? = { _ in nil }
         /// The one resolver the transcript and the composer's reply strip share, so a photo is minted
         /// once however many places draw it. Reads ``mintMediaURL`` at fetch time, so a chat created
         /// after this screen opened mints against its real id.

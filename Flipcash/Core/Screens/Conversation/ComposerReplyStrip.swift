@@ -187,7 +187,8 @@ struct ChatQuoteContent: View {
                     if let resolvedThumbnail {
                         KFImage(source: ChatMediaImageSource.source(blobID: thumbnailBlobID, location: resolvedThumbnail))
                             .targetCache(ChatMediaImageSource.cache)
-                            .onSuccess { ChatMediaImageSource.persist(.success($0)) }
+                            .onSuccess { ChatMediaImageSource.finish(.success($0), blobID: thumbnailBlobID, surface: .quote) }
+                            .onFailure { ChatMediaImageSource.finish(.failure($0), blobID: thumbnailBlobID, surface: .quote) }
                             .resizable()
                             .scaledToFill()
                     }

@@ -45,6 +45,11 @@ extension FlipClient {
         try await blobService.downloadURL(blobID: blobID, owner: owner, accessContext: accessContext)
     }
 
+    /// Returns a freshly minted download URL with the expiry the server gave it.
+    public func blobDownloadLink(blobID: BlobID, owner: KeyPair, accessContext: BlobAccessContext? = nil) async throws -> BlobDownloadLink? {
+        try await blobService.downloadLink(blobID: blobID, owner: owner, accessContext: accessContext)
+    }
+
     /// Waits for an already-uploaded blob to finish finalizing.
     ///
     /// Resumes an attempt whose polling timed out, without re-uploading.

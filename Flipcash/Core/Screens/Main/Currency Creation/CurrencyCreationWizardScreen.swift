@@ -344,7 +344,7 @@ struct CurrencyCreationWizardScreen: View {
             // 2. Moderation
             let attestation: ModerationAttestation
             do {
-                attestation = try await flipClient.moderateText(name, owner: session.ownerKeyPair)
+                attestation = try await flipClient.moderateText(name, kind: .currencyName, owner: session.ownerKeyPair)
             } catch ErrorModeration.denied(let category) {
                 logger.info("Currency name moderation denied", metadata: ["category": "\(category)"])
                 errorDialog = DialogItem.error(
@@ -398,7 +398,7 @@ struct CurrencyCreationWizardScreen: View {
 
             let attestation: ModerationAttestation
             do {
-                attestation = try await flipClient.moderateImage(imageData, owner: session.ownerKeyPair)
+                attestation = try await flipClient.moderateImage(imageData, kind: .currencyIcon, owner: session.ownerKeyPair)
             } catch ErrorModeration.denied(let category) {
                 logger.info("Currency icon moderation denied", metadata: ["category": "\(category)"])
                 errorDialog = DialogItem.error(
@@ -436,7 +436,7 @@ struct CurrencyCreationWizardScreen: View {
 
             let attestation: ModerationAttestation
             do {
-                attestation = try await flipClient.moderateText(description, owner: session.ownerKeyPair)
+                attestation = try await flipClient.moderateText(description, kind: .currencyDescription, owner: session.ownerKeyPair)
             } catch ErrorModeration.denied(let category) {
                 logger.info("Currency description moderation denied", metadata: ["category": "\(category)"])
                 errorDialog = DialogItem.error(

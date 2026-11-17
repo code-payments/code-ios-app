@@ -20,6 +20,12 @@ public struct UserFlags: Codable, Sendable {
     public let newCurrencyPurchaseAmount: TokenAmount
     /// USDF amount that must be paid as a fee when launching a new currency.
     public let newCurrencyFeeAmount: TokenAmount
+    /// USDF amount that must be purchased when launching a new currency
+    /// through the v2 launch flow.
+    public let newCurrencyV2PurchaseAmount: TokenAmount
+    /// USDF amount that must be paid as a fee when launching a new currency
+    /// through the v2 launch flow.
+    public let newCurrencyV2FeeAmount: TokenAmount
     /// USDF amount that must be paid as the fee for any withdrawal.
     public let withdrawalFeeAmount: TokenAmount
     /// USDF amount a user must hold to be counted on the Discover leaderboard.
@@ -138,6 +144,14 @@ extension UserFlags {
             ),
             newCurrencyFeeAmount: TokenAmount(
                 quarks: proto.newCurrencyFeeAmount,
+                mint: .usdf
+            ),
+            newCurrencyV2PurchaseAmount: TokenAmount(
+                quarks: proto.newCurrencyV2PurchaseAmount,
+                mint: .usdf
+            ),
+            newCurrencyV2FeeAmount: TokenAmount(
+                quarks: proto.newCurrencyV2FeeAmount,
                 mint: .usdf
             ),
             withdrawalFeeAmount: TokenAmount(

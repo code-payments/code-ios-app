@@ -645,10 +645,10 @@ struct ConversationScreen: View {
         }
     }
 
-    private var mintMediaURL: (BlobID) async throws -> URL? {
+    private var mintMediaURL: (BlobID) async throws -> BlobDownloadLink? {
         { [flipClient = container.flipClient, owner = session.ownerKeyPair, conversationID] blobID in
             guard let conversationID else { return nil }
-            return try await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+            return try await flipClient.blobDownloadLink(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
         }
     }
 
@@ -1624,7 +1624,7 @@ struct ConversationScreen: View {
                 var image = attachment.blobID.flatMap(ChatMediaImageSource.cachedImage(blobID:))
                     ?? ChatMediaImageSource.originalData(blobID: attachment.blobID).flatMap(UIImage.init(data:))
                 if image == nil, let location = await resolver.location(for: attachment) {
-                    image = await ChatMediaImageSource.image(blobID: attachment.blobID, location: location)
+                    image = await ChatMediaImageSource.image(blobID: attachment.blobID, location: location, surface: .save)
                 }
                 guard let image else { continue }
                 do {
@@ -2155,15 +2155,16 @@ struct ConversationScreen: View {
         isJoiningChat = true
         // Read before the join, which seats a roster that already counts the viewer.
         let memberCount = groupConversation?.rosterSummary.memberCount ?? 0
-        let gated = groupConversation?.rules?.listener.isEmpty == false
+        // From the rules, not the gate: a successful join opens the gate, which then names no mint.
+        let gateMint = groupConversation?.rules.gateMint
         Task {
             defer { isJoiningChat = false }
             do {
                 try await conversationController.join(conversationID: conversationID)
-                Analytics.groupJoined(error: nil, memberCount: memberCount, gated: gated)
+                Analytics.communityChatJoined(error: nil, memberCount: memberCount, gateMint: gateMint)
                 await loadTranscript(for: conversationID)
             } catch {
-                Analytics.groupJoined(error: error, memberCount: memberCount, gated: gated)
+                Analytics.communityChatJoined(error: error, memberCount: memberCount, gateMint: gateMint)
                 let banned: Bool = { if case ErrorJoinChat.banned = error { return true } else { return false } }()
                 session.dialogItem = DialogItem.alert(
                     title: banned ? GroupModerationCopy.bannedTitle : "Couldn't Join Chat",
