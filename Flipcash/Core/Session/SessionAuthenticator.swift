@@ -618,6 +618,8 @@ final class SessionAuthenticator {
         // container the next account on the device reads from.
         BlobCache.clearAll()
         ChatMediaImageSource.clearCaches()
+        // Photo downloads also land in the URL caches, as the responses that carried them.
+        URLCache.shared.removeAllCachedResponses()
 
         // Drop the locally collected onramp email — it must not leak into
         // another account's Coinbase orders.
