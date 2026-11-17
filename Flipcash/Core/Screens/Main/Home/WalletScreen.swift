@@ -28,8 +28,15 @@ private struct WalletScreenContent: View {
     /// Reported so the tab bar hides while a card is open — the expansion is an
     /// overlay, so the usual push-based rule does not see it.
     @Environment(WalletCardExpansion.self) private var cardExpansion
+    @Environment(BetaFlags.self) private var betaFlags
+    @Environment(SessionContainer.self) private var sessionContainer
 
     let session: Session
+
+    /// Today's wallet, or the Money screen behind `groupMoneyUI` (node 13729:744).
+    private var layout: WalletLayout {
+        WalletLayout(showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: session)))
+    }
     @State private var cards: [TokenCardData] = []
     @State private var total: ExchangedFiat
     @State private var appreciation: (amount: FiatAmount, isPositive: Bool)
@@ -446,6 +453,10 @@ private struct WalletScreenContent: View {
             pageContentOpacity = 0
             pageIsBuilt = false
             heavyContentReady = false
+            // Money is what the page was covering, and it was faded out when the
+            // card opened. Fading it back in after the page has gone leaves a
+            // frame with neither drawn, so it returns in this same step.
+            if layout.restoresContentWhenCardCloses { deckOpacity = 1 }
             // Brought back here, before the motion, for the same reason it is
             // hidden before the opening one: restoring it relayouts the whole
             // `TabView`. Left until the animation finishes, that cost lands
@@ -486,62 +497,11 @@ private struct WalletScreenContent: View {
 
     private var walletContent: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 0) {
-                // Header + Add Money row scroll off first; the card stack then reaches the
-                // top and collapses into its back card. The stack measures the
-                // scroll itself (via `.visualEffect`), so no height plumbing here.
-                VStack(spacing: 0) {
-                    header
-                        // Figma (8966:1578) drops the balance well down the screen —
-                        // most of the extra space sits above it, less below.
-                        .padding(.top, headerTopPadding)
-                        .padding(.bottom, 44)
-
-                    if addMoneyRowState.isVisible {
-                        addMoneyRow
-                            .padding(.bottom, 20)
-                    }
-                }
-                // The stack is deliberately outside the fade: its cards carry
-                // their own, driven by the same progress, so the opened one can
-                // stay solid while the rest of the deck goes.
-                .opacity(deckOpacity)
-
-                if !cards.isEmpty {
-                    TokenCardStack(
-                        items: cards,
-                        namespace: cardNamespace,
-                        expandingMint: expandingMint,
-                        expansionProgress: expansionProgress,
-                        containerHeight: containerSize.height,
-                        hiddenMint: hiddenMint,
-                        openTopInset: WalletCardGeometry.openCardTopInset,
-                        openExtraOffset: releasedPullOffset,
-                        arrivingMint: arrivingMint,
-                        arrivalProgress: arrivalProgress,
-                        onCardTap: openCard
-                    )
-                }
-
-                Group {
-                    if !recentActivities.isEmpty {
-                        recentActivitySection
-                    }
-
-                    // Returning users (already funded) get the tile shortcuts
-                    // below the activity; new users get the Add Money row
-                    // above instead.
-                    if hasAddedMoney {
-                        walletTiles
-                            .padding(.top, 24)
-                    }
-                }
-                .opacity(deckOpacity)
-
-                // Bottom inset so the last tile clears the tab bar.
-                Color.clear.frame(height: bottomContentInset)
+            if layout == .money {
+                moneyContent
+            } else {
+                standardContent
             }
-            .padding(.horizontal, 20)
         }
         // Gated on the page being up rather than on `expandingMint`, which is
         // held until the closing spring is fully removed — a good deal later
@@ -563,6 +523,172 @@ private struct WalletScreenContent: View {
             .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)
         }
+    }
+
+    // MARK: - Money layout
+
+    /// The Money screen: title and avatar, the balance, the currencies held,
+    /// Add Money and Withdraw, then recent activity. No card stack, so a token
+    /// opens from the currencies list, or straight to its page from a deep link.
+    private var moneyContent: some View {
+        VStack(spacing: 0) {
+            ForEach(layout.sections, id: \.self) { section in
+                moneySection(section)
+            }
+
+            // Bottom inset so the last row clears the tab bar.
+            Color.clear.frame(height: bottomContentInset)
+        }
+        .padding(.horizontal, 20)
+        .opacity(deckOpacity)
+        .task(id: session.profile?.profilePicture?.thumbnailBlobID) {
+            await sessionContainer.profileAvatars.load(userID: session.userID, picture: session.profile?.profilePicture)
+        }
+    }
+
+    @ViewBuilder
+    private func moneySection(_ section: WalletSection) -> some View {
+        switch section {
+        case .title:
+            moneyTitleBar
+                .padding(.top, 20)
+        case .balance:
+            BalanceHeaderButton(balance: total)
+                .frame(height: 60)
+                .padding(.top, 64)
+        case .currencyCount:
+            currencyCountButton
+                .padding(.top, 4)
+        case .actions:
+            moneyActions
+                .padding(.top, 40)
+        case .recentActivity:
+            if !recentActivities.isEmpty {
+                RecentActivitySection(activities: recentActivities, title: MoneyHeaderContent.recentActivityTitle, rowStyle: .money) {
+                    router.push(.activity)
+                }
+                .padding(.top, 44)
+            }
+        case .balanceHeader, .appreciation, .addMoneyRow, .tokenCards, .tiles:
+            EmptyView()
+        }
+    }
+
+    private var moneyTitleBar: some View {
+        HStack(alignment: .center) {
+            Text(MoneyHeaderContent.title)
+                .font(.appTitleLarge)
+                .foregroundStyle(Color.textMain)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            Button {
+                MoneyAction.profile.perform(on: router)
+            } label: {
+                ContactAvatarView(
+                    id: session.userID.uuidString,
+                    displayName: session.profile?.displayName ?? "",
+                    imageData: sessionContainer.profileAvatars.data(for: session.userID),
+                    blurhash: session.profile?.profilePicture?.thumbnailBlurhash,
+                    size: 44
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("You")
+            .accessibilityIdentifier("money-profile-button")
+        }
+    }
+
+    private var currencyCountButton: some View {
+        Button {
+            MoneyAction.currencies.perform(on: router)
+        } label: {
+            HStack(spacing: 4) {
+                Text(MoneyHeaderContent.currencyCountText(cards.count))
+                Image(systemName: "chevron.right")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 7, height: 10)
+            }
+            .font(.appTextSmall)
+            .foregroundStyle(Color.textSecondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("money-currencies-button")
+    }
+
+    private var moneyActions: some View {
+        HStack(spacing: 12) {
+            CodeButton(style: .filled, title: MoneyHeaderContent.addMoneyTitle) {
+                MoneyAction.addMoney.perform(on: router)
+            }
+            .accessibilityIdentifier("money-add-money-button")
+            CodeButton(style: .filledSecondary, title: MoneyHeaderContent.withdrawTitle) {
+                MoneyAction.withdraw.perform(on: router)
+            }
+            .accessibilityIdentifier("money-withdraw-button")
+        }
+    }
+
+    // MARK: - Today's layout
+
+    private var standardContent: some View {
+        VStack(spacing: 0) {
+            // Header + Add Money row scroll off first; the card stack then reaches the
+            // top and collapses into its back card. The stack measures the
+            // scroll itself (via `.visualEffect`), so no height plumbing here.
+            VStack(spacing: 0) {
+                header
+                    // Figma (8966:1578) drops the balance well down the screen —
+                    // most of the extra space sits above it, less below.
+                    .padding(.top, headerTopPadding)
+                    .padding(.bottom, 44)
+
+                if addMoneyRowState.isVisible {
+                    addMoneyRow
+                        .padding(.bottom, 20)
+                }
+            }
+            // The stack is deliberately outside the fade: its cards carry
+            // their own, driven by the same progress, so the opened one can
+            // stay solid while the rest of the deck goes.
+            .opacity(deckOpacity)
+
+            if !cards.isEmpty {
+                TokenCardStack(
+                    items: cards,
+                    namespace: cardNamespace,
+                    expandingMint: expandingMint,
+                    expansionProgress: expansionProgress,
+                    containerHeight: containerSize.height,
+                    hiddenMint: hiddenMint,
+                    openTopInset: WalletCardGeometry.openCardTopInset,
+                    openExtraOffset: releasedPullOffset,
+                    arrivingMint: arrivingMint,
+                    arrivalProgress: arrivalProgress,
+                    onCardTap: openCard
+                )
+            }
+
+            Group {
+                if !recentActivities.isEmpty {
+                    recentActivitySection
+                }
+
+                // Returning users (already funded) get the tile shortcuts
+                // below the activity; new users get the Add Money row
+                // above instead.
+                if hasAddedMoney {
+                    walletTiles
+                        .padding(.top, 24)
+                }
+            }
+            .opacity(deckOpacity)
+
+            // Bottom inset so the last tile clears the tab bar.
+            Color.clear.frame(height: bottomContentInset)
+        }
+        .padding(.horizontal, 20)
     }
 
     private var header: some View {
