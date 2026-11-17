@@ -1065,10 +1065,13 @@ struct GroupMoneyShellSpecTests {
 
 // MARK: - Hosted tab bar -
 
-/// Answers the shell's gate, the account-switching gate and Left-Aligned Tab Bar without touching
-/// the stored flags, which other suites read from `UserDefaults.standard` while this one runs.
-/// Left-Aligned is answered here too because a test host can have it stored on, and with the shell
-/// it swaps the system tab bar for the shell's small one.
+/// Answers the shell's gate, the account-switching gate and every flag from what the test passes
+/// in, so a flag stored on the test host (other suites write them to `UserDefaults.standard`) does
+/// not reach a spec. A flag it is not given reads off; a spec that needs one on passes it.
+///
+/// `super.init()` still reads the store, so the inherited members this class does not override
+/// answer from it: `accessGranted` and what is built on it (`canViewAccountInfo`,
+/// `hasVisibleOptions`), `bindingFor(option:)` and `staffStanding(live:userID:)`.
 private final class GateFlags: BetaFlags {
     let showsGroupMoney: Bool
     let switchesAccounts: Bool
@@ -1086,11 +1089,38 @@ private final class GateFlags: BetaFlags {
     }
 
     override func hasEnabled(_ option: Option) -> Bool {
-        option == .leftAlignedTabBar ? leftAligned : super.hasEnabled(option)
+        option == .leftAlignedTabBar && leftAligned
     }
 
     override var canSwitchAccounts: Bool {
         switchesAccounts
+    }
+}
+
+extension GroupMoneyShellSpecTests {
+
+    /// Every flag stored on, as a test host can have them, then a ``GateFlags`` given none of
+    /// them. Not async, so nothing else on the main actor reads the store between the write and
+    /// the restore.
+    @Test("8.33 the specs' flag stand-in answers off for every flag it is not given, whatever the test host has stored")
+    func gateFlags_ignoresStoredFlags() throws {
+        var storedOptions = Defaults<Set<String>>(.betaFlags)
+        var appliedDefaults = Defaults<Set<String>>(.appliedBetaFlagDefaults)
+        let savedOptions = storedOptions.wrappedValue
+        let savedDefaults = appliedDefaults.wrappedValue
+        defer {
+            storedOptions.wrappedValue = savedOptions
+            appliedDefaults.wrappedValue = savedDefaults
+        }
+        storedOptions.wrappedValue = Set(BetaFlags.Option.allCases.map(\.rawValue))
+
+        let stored = BetaFlags()
+        try #require(BetaFlags.Option.allCases.allSatisfy { stored.hasEnabled($0) }, "every flag reads on from the store")
+
+        let flags = GateFlags(showsGroupMoney: false)
+        for option in BetaFlags.Option.allCases {
+            #expect(!flags.hasEnabled(option), "\(option)")
+        }
     }
 }
 
