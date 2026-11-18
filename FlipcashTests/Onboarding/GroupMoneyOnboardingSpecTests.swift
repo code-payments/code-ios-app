@@ -83,6 +83,7 @@ struct GroupMoneyOnboardingSpecTests {
         func cleanUp() {
             for owner in remote.registered {
                 OnboardingProgress.setCompleted(true, owner: owner)
+                OnboardingProgress.setStartedInGroupMoney(false, owner: owner)
             }
             container.accountManager.nukeForUITesting()
         }
@@ -199,7 +200,7 @@ struct GroupMoneyOnboardingSpecTests {
         #expect(!harness.viewModel.isGroupMoneyFlow)
     }
 
-    @Test("1.7 gate open: an account resumed after a relaunch keeps today's name words and notification step")
+    @Test("1.7 gate open: a resumed account that did not start in Group Money keeps today's name words and notification step")
     func gateOpen_resumedAccountKeepsPushStep() async throws {
         let harness = makeHarness(gate: Counter(isOpen: true), push: .notDetermined)
         defer { harness.cleanUp() }
@@ -233,9 +234,74 @@ struct GroupMoneyOnboardingSpecTests {
         #expect(harness.finished.accounts.isEmpty)
     }
 
+    @Test("1.9 a sign-up started with the gate open resumes after a relaunch in the Group Money name step, with no notification step, even with the gate closed by then")
+    func groupMoneyStart_relaunchResumesInGroupMoneySteps() async throws {
+        let created = makeHarness(gate: Counter(isOpen: true))
+        defer { created.cleanUp() }
+        await tapCreate(created)
+        try await passPhoneAndEmail(created)
+        #expect(created.viewModel.path.last == .displayName)
+        let owner = try #require(created.registeredOwner)
+
+        // Killed on the name step. The relaunch finds the account current and unfinished, and
+        // starts a new flow with the gate closed by then. The account is read first: a test
+        // Container clears the keychain.
+        #expect(OnboardingProgress.launchRoute(for: owner) == .resumeOnboarding)
+        let account = try Self.storedAccount(in: created)
+        let gate = Counter(isOpen: false)
+        let relaunched = makeHarness(gate: gate, push: .notDetermined)
+        await relaunched.viewModel.resumeOnboarding(with: account)
+
+        #expect(relaunched.viewModel.path == [.displayName])
+        #expect(relaunched.viewModel.nameCopy == .groupMoney)
+        #expect(relaunched.viewModel.keepsNavigationBarRow(for: .displayName))
+        #expect(gate.reads == 0)
+
+        try #require(relaunched.viewModel.nameViewModel).onComplete?()
+        await waitUntil { !relaunched.finished.accounts.isEmpty || relaunched.viewModel.path.last == .pushNotifications }
+
+        #expect(relaunched.finished.accounts.map(\.keyAccount.ownerPublicKey) == [owner])
+        #expect(relaunched.viewModel.path == [.displayName])
+        #expect(OnboardingProgress.isCompleted(owner: owner))
+        #expect(!OnboardingProgress.startedInGroupMoney(owner: owner))
+    }
+
+    @Test("1.10 a sign-up started with the gate closed resumes after a relaunch in today's steps, even with the gate open by then")
+    func classicStart_relaunchResumesInTodaysSteps() async throws {
+        let created = makeHarness(gate: Counter(isOpen: false))
+        defer { created.cleanUp() }
+        await tapCreate(created)
+        try await created.viewModel.completeAccountCreation()
+        #expect(created.viewModel.path.last == .displayName)
+        let owner = try #require(created.registeredOwner)
+
+        #expect(OnboardingProgress.launchRoute(for: owner) == .resumeOnboarding)
+        let account = try Self.storedAccount(in: created)
+        let gate = Counter(isOpen: true)
+        let relaunched = makeHarness(gate: gate, push: .notDetermined)
+        await relaunched.viewModel.resumeOnboarding(with: account)
+
+        #expect(relaunched.viewModel.path == [.displayName])
+        #expect(relaunched.viewModel.nameCopy == .standard)
+        #expect(!relaunched.viewModel.keepsNavigationBarRow(for: .displayName))
+        #expect(gate.reads == 0)
+
+        try #require(relaunched.viewModel.nameViewModel).onComplete?()
+        await waitUntil { relaunched.viewModel.path.last == .pushNotifications || !relaunched.finished.accounts.isEmpty }
+
+        #expect(relaunched.viewModel.path == [.displayName, .pushNotifications])
+        #expect(relaunched.finished.accounts.isEmpty)
+    }
+
     /// An account already signed in when onboarding resumes: a relaunch or an interactive login.
     private static var resumedAccount: InitializedAccount {
         InitializedAccount(keyAccount: .mock, userID: userID)
+    }
+
+    /// The current account as a relaunch reads it back from storage.
+    private static func storedAccount(in harness: Harness) throws -> InitializedAccount {
+        let stored = try #require(harness.container.accountManager.fetchCurrentUserAccount())
+        return InitializedAccount(keyAccount: stored.keyAccount, userID: stored.userID)
     }
 
     @Test("1.5 gate open: a failed registration stays on the intro with an error")
@@ -250,6 +316,8 @@ struct GroupMoneyOnboardingSpecTests {
         #expect(harness.viewModel.introDialogItem?.title == "Something Went Wrong")
         #expect(harness.viewModel.phoneViewModel == nil)
         #expect(harness.container.accountManager.fetchCurrentUserAccount() == nil)
+        let owner = DerivedKey.derive(using: .primary(), mnemonic: harness.viewModel.inflightMnemonic).keyPair.publicKey
+        #expect(!OnboardingProgress.startedInGroupMoney(owner: owner))
     }
 
     @Test("1.6 gate open: while the account registers, Create and Log In do nothing")

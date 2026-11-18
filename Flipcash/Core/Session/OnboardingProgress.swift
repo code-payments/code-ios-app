@@ -21,6 +21,9 @@ enum OnboardingProgress {
     @Defaults(.onboardingCompleted)
     private static var markers: [String: Bool]?
 
+    @Defaults(.onboardingGroupMoney)
+    private static var groupMoneyOwners: [String: Bool]?
+
     /// False only when the account was registered or signed in and never finished onboarding.
     static func isCompleted(owner: PublicKey) -> Bool {
         markers?[owner.base58] ?? true
@@ -30,6 +33,22 @@ enum OnboardingProgress {
         var updated = markers ?? [:]
         updated[owner.base58] = completed
         markers = updated
+    }
+
+    /// Whether the account's onboarding started in the Group Money steps.
+    ///
+    /// Written when a Create tap finds the gate open and cleared when onboarding finishes, so a
+    /// launch after a kill resumes in the flow the account started in, even if the gate has
+    /// changed since. No entry means today's steps: accounts created with the gate closed, logins,
+    /// and accounts left mid-onboarding by builds that predate the record.
+    static func startedInGroupMoney(owner: PublicKey) -> Bool {
+        groupMoneyOwners?[owner.base58] ?? false
+    }
+
+    static func setStartedInGroupMoney(_ started: Bool, owner: PublicKey) {
+        var updated = groupMoneyOwners ?? [:]
+        updated[owner.base58] = started ? true : nil
+        groupMoneyOwners = updated.isEmpty ? nil : updated
     }
 
     /// Where a launch with `owner` as the current account should land.
