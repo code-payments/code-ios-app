@@ -74,7 +74,6 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
                     title: "Next",
                     disabled: !viewModel.canSendVerificationCode
                 ) {
-                    isFocused = false
                     viewModel.sendPhoneNumberCodeAction()
                 }
             }
@@ -92,8 +91,13 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
             // number submits without a manual "Next" tap, mirroring the code
             // screen's auto-submit. The button-state guard stops a re-fire while
             // a request is already in flight.
+            //
+            // Neither submit path drops focus. Closing the keyboard here zeroes
+            // this screen's keyboard inset, and the code screen then raises a
+            // keyboard of the same height while this one is off screen. Back
+            // returns under that keyboard with the inset still zero, which puts
+            // Next behind the keypad.
             if viewModel.canSendVerificationCode, viewModel.sendCodeButtonState == .normal {
-                isFocused = false
                 viewModel.sendPhoneNumberCodeAction()
             }
         }
