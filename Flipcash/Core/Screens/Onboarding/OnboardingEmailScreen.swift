@@ -39,7 +39,9 @@ struct OnboardingEmailScreen: View {
 
                 InputContainer(size: .regular) {
                     // Autocorrection stays on, as on EnterEmailScreen: turning it off hides the
-                    // QuickType bar, where iOS offers the contact card's address.
+                    // QuickType bar, where iOS offers the contact card's address. It stays enabled
+                    // while submitting: a disabled field resigns, which takes the keyboard down
+                    // before the name step pushes in.
                     TextField("Email", text: $viewModel.enteredEmail)
                         .font(.appTextXL)
                         .keyboardType(.emailAddress)
@@ -51,7 +53,6 @@ struct OnboardingEmailScreen: View {
                         .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 15)
                         .focused($isFocused)
-                        .disabled(viewModel.isSubmitting)
                 }
 
                 Spacer()
