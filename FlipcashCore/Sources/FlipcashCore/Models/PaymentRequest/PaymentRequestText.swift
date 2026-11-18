@@ -13,10 +13,19 @@ public struct PaymentRequestText: Hashable, Sendable {
     public let title: String
     public let description: String
 
-    /// `request`'s text, opened with `seal` when it is encrypted. `nil` when the text is missing, its
-    /// scheme is unknown, or it fails to open: the card then renders as unsupported.
+    /// What a request with no title is called where a title is drawn, the word the deck card and the
+    /// details screen already head a request with.
+    public static let untitled = "Request"
+
+    /// The title to draw: `title`, or ``untitled`` when the request has none.
+    public var displayTitle: String { title.isEmpty ? Self.untitled : title }
+
+    /// `request`'s text, opened with `seal` when it is encrypted. A split with no text has neither a
+    /// title nor a description, which the contract allows. `nil` when the request isn't a split, or its
+    /// encrypted text has an unknown scheme or fails to open: the card then renders as unsupported.
     public init?(request: GroupPaymentRequest, seal: ChatSeal?) {
-        switch request.split?.text {
+        guard let split = request.split else { return nil }
+        switch split.text {
         case .plaintext(let title, let description):
             self.title = title
             self.description = description
@@ -28,7 +37,8 @@ public struct PaymentRequestText: Hashable, Sendable {
             self.title = opened.title
             self.description = opened.description
         case nil:
-            return nil
+            self.title = ""
+            self.description = ""
         }
     }
 }

@@ -895,7 +895,7 @@ extension PaymentRequests {
         let deadline = request.deadline(at: now)
         return PaymentRequestDeckItem(
             request: request,
-            card: PaymentRequestCardContent(request: request, title: text.title, copy: copy, now: now),
+            card: PaymentRequestCardContent(request: request, title: text.displayTitle, copy: copy, now: now),
             amounts: copy.deckAmounts(request),
             viewerStatus: PaymentRequestViewerStatus(request: request, viewer: viewer, copy: copy),
             owedShare: owed.map { copy.shareText($0, of: request) },

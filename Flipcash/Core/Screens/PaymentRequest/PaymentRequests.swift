@@ -146,7 +146,7 @@ final class PaymentRequests {
         guard request.belongs(to: conversationID, sentBy: sender), request.isDrawable else { return .unsupported }
         if case .encrypted = request.split?.text, seals[conversationID] == nil { return .loading }
         guard let text = text(of: request) else { return .unsupported }
-        return .card(ChatPaymentRequestContent.Card(request: request, title: text.title, copy: copy, now: now))
+        return .card(ChatPaymentRequestContent.Card(request: request, title: text.displayTitle, copy: copy, now: now))
     }
 
     /// The stored copy of `id`, if any.
@@ -159,7 +159,7 @@ final class PaymentRequests {
     func timelines(in conversationID: ConversationID) -> [PaymentRequestID: RequestTimeline] {
         var timelines: [PaymentRequestID: RequestTimeline] = [:]
         for request in requests.values where request.chatID == conversationID && request.isDrawable && !unavailable.contains(request.id) {
-            guard let title = text(of: request)?.title else { continue }
+            guard let title = text(of: request)?.displayTitle else { continue }
             timelines[request.id] = RequestTimeline(request: request, title: title)
         }
         return timelines
