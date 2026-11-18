@@ -26,8 +26,8 @@ public struct PaymentRequestID: Hashable, Sendable {
     }
 }
 
-/// A request for members of a group chat to pay shares of a bill. See
-/// `paymentrequest.v1.PaymentRequestMetadata`.
+/// A request for members of a group chat to pay: shares of a bill (a ``Split``), or a fixed amount
+/// from any number of members (a ``Collection``). See `paymentrequest.v1.PaymentRequestMetadata`.
 public struct GroupPaymentRequest: Hashable, Sendable {
 
     public enum Status: Hashable, Sendable {
@@ -45,7 +45,7 @@ public struct GroupPaymentRequest: Hashable, Sendable {
         case encrypted(scheme: Int, nonce: Data, ciphertext: Data)
     }
 
-    /// How a share was settled.
+    /// How a share was settled, or a payer paid.
     public enum Settlement: Hashable, Sendable {
         /// Paid through a payment intent.
         case intent(Data)
@@ -81,6 +81,7 @@ public struct GroupPaymentRequest: Hashable, Sendable {
         public let text: Text?
         /// The currency code the shares are denominated in.
         public let currency: String
+        /// The contract requires one for a split; like a collection's, `nil` reads as never expiring.
         public let endsAt: Date?
         public let shares: [Share]
 
@@ -93,19 +94,122 @@ public struct GroupPaymentRequest: Hashable, Sendable {
         }
     }
 
+    /// A fixed amount collected from any number of group members, each paying once. See
+    /// `paymentrequest.v1.Collection`. How many have paid is in ``GroupPaymentRequest/payerSummary``.
+    public struct Collection: Hashable, Sendable {
+
+        /// The one amount every contribution pays, in the collection's ``Collection/currency``.
+        public struct FixedAmount: Hashable, Sendable {
+            public let nativeAmount: Double
+
+            public init(nativeAmount: Double) {
+                self.nativeAmount = nativeAmount
+            }
+        }
+
+        /// What each contribution must be.
+        public enum PaymentAmount: Hashable, Sendable {
+            case fixed(FixedAmount)
+        }
+
+        public let text: Text?
+        /// The currency code the payment amount, and every contribution, is in.
+        public let currency: String
+        /// When the collection stops taking contributions; `nil` means it never expires and stays
+        /// open until the creator closes it.
+        public let endsAt: Date?
+        /// `nil` for an amount kind this build doesn't know.
+        public let paymentAmount: PaymentAmount?
+
+        /// Creates a collection from its text, currency, deadline and payment amount.
+        public init(text: Text?, currency: String, endsAt: Date?, paymentAmount: PaymentAmount?) {
+            self.text = text
+            self.currency = currency
+            self.endsAt = endsAt
+            self.paymentAmount = paymentAmount
+        }
+    }
+
+    /// A member asked to pay into a request, or who paid into it. See `paymentrequest.v1.Payer`.
+    public struct Payer: Hashable, Sendable {
+
+        public enum Status: Hashable, Sendable {
+            /// Something is due and nothing is paid.
+            case unpaid
+            /// Paid; `paidAt` is `nil` when the server left it unset.
+            case paid(paidAt: Date?, settlement: Settlement)
+        }
+
+        public let userID: UserID?
+        /// What is due from the member: their share's amount for a split, 0 for a collection.
+        public let nativeAmountDue: Double
+        /// What the member has paid: their share's amount once it is paid for a split, the fixed
+        /// amount once they have contributed to a collection.
+        public let nativeAmountPaid: Double
+        /// `nil` for a status this build doesn't know, or one the server left unset.
+        public let status: Status?
+
+        public var isPaid: Bool {
+            if case .paid = status { return true }
+            return false
+        }
+
+        public init(userID: UserID?, nativeAmountDue: Double, nativeAmountPaid: Double, status: Status?) {
+            self.userID = userID
+            self.nativeAmountDue = nativeAmountDue
+            self.nativeAmountPaid = nativeAmountPaid
+            self.status = status
+        }
+    }
+
+    /// Totals over a request's payers, for showing progress without listing them. See
+    /// `paymentrequest.v1.PayerSummary`.
+    public struct PayerSummary: Hashable, Sendable {
+        /// How many payers the request has, paid and unpaid.
+        public let payerCount: Int
+        /// How many of them have paid.
+        public let paidCount: Int
+        /// The sum of what is due: a split's whole total, the creator's share included; 0 for a collection.
+        public let nativeAmountDue: Double
+        /// The sum of what has been paid, hand marks and the creator's own share included.
+        public let nativeAmountPaid: Double
+
+        public init(payerCount: Int, paidCount: Int, nativeAmountDue: Double, nativeAmountPaid: Double) {
+            self.payerCount = payerCount
+            self.paidCount = paidCount
+            self.nativeAmountDue = nativeAmountDue
+            self.nativeAmountPaid = nativeAmountPaid
+        }
+    }
+
     public let id: PaymentRequestID
     public let creator: UserID?
     public let createdAt: Date?
     public let status: Status
     public let closedAt: Date?
-    /// Advances on every change; apply the greater value, since there are no events to drive a refetch.
+    /// Advances by one on every change; a live update applies only on top of the version before it.
     public let version: UInt64
     public let chatID: ConversationID?
-    /// `nil` for a request kind this build doesn't know.
+    /// Set when the request is a split; `nil` for a collection or a kind this build doesn't know.
     public let split: Split?
+    /// Set when the request is a collection; `nil` for a split or a kind this build doesn't know.
+    public let collection: Collection?
+    /// Totals over the request's payers; `nil` when the server left it unset.
+    public let payerSummary: PayerSummary?
 
     /// Creates a request from its fields; the app builds these only in tests and previews.
-    public init(id: PaymentRequestID, creator: UserID?, createdAt: Date?, status: Status, closedAt: Date?, version: UInt64, chatID: ConversationID?, split: Split?) {
+    public init(
+        id: PaymentRequestID,
+        creator: UserID?,
+        createdAt: Date?,
+        status: Status,
+        closedAt: Date?,
+        version: UInt64,
+        chatID: ConversationID?,
+        split: Split?,
+        collection: Collection? = nil,
+        payerSummary: PayerSummary? = nil
+    ) {
         self.id = id
         self.creator = creator
         self.createdAt = createdAt
@@ -114,6 +218,13 @@ public struct GroupPaymentRequest: Hashable, Sendable {
         self.version = version
         self.chatID = chatID
         self.split = split
+        self.collection = collection
+        self.payerSummary = payerSummary
+    }
+
+    /// When the request stops taking payments, whichever kind it is; `nil` means it never expires.
+    public var endsAt: Date? {
+        split?.endsAt ?? collection?.endsAt
     }
 }
 
@@ -135,12 +246,14 @@ extension GroupPaymentRequest {
 
         var chatID: ConversationID?
         var split: Split?
+        var collection: Collection?
         switch proto.kind {
         case .groupChat(let group):
             chatID = group.hasChatID ? ConversationID(group.chatID) : nil
             switch group.type {
-            case .split(let value): split = Split(value)
-            case nil:               break
+            case .split(let value):      split = Split(value)
+            case .collection(let value): collection = Collection(value)
+            case nil:                    break
             }
         case nil:
             break
@@ -154,8 +267,20 @@ extension GroupPaymentRequest {
             closedAt: proto.hasClosedAt ? proto.closedAt.date : nil,
             version: proto.version,
             chatID: chatID,
-            split: split
+            split: split,
+            collection: collection,
+            payerSummary: proto.hasPayerSummary ? PayerSummary(proto.payerSummary) : nil
         )
+    }
+}
+
+extension GroupPaymentRequest.Text {
+    init(_ proto: Flipcash_Paymentrequest_V1_PaymentRequestText) {
+        self = .plaintext(title: proto.title, description: proto.description_p)
+    }
+
+    init(_ proto: Flipcash_Paymentrequest_V1_EncryptedPaymentRequestText) {
+        self = .encrypted(scheme: proto.scheme.rawValue, nonce: proto.nonce, ciphertext: proto.ciphertext)
     }
 }
 
@@ -163,12 +288,9 @@ extension GroupPaymentRequest.Split {
     init(_ proto: Flipcash_Paymentrequest_V1_Split) {
         let text: GroupPaymentRequest.Text?
         switch proto.text {
-        case .plaintext(let value):
-            text = .plaintext(title: value.title, description: value.description_p)
-        case .encrypted(let value):
-            text = .encrypted(scheme: value.scheme.rawValue, nonce: value.nonce, ciphertext: value.ciphertext)
-        case nil:
-            text = nil
+        case .plaintext(let value): text = .init(value)
+        case .encrypted(let value): text = .init(value)
+        case nil:                   text = nil
         }
         self.init(
             text: text,
@@ -179,24 +301,78 @@ extension GroupPaymentRequest.Split {
     }
 }
 
+extension GroupPaymentRequest.Collection {
+    init(_ proto: Flipcash_Paymentrequest_V1_Collection) {
+        let text: GroupPaymentRequest.Text?
+        switch proto.text {
+        case .plaintext(let value): text = .init(value)
+        case .encrypted(let value): text = .init(value)
+        case nil:                   text = nil
+        }
+        let paymentAmount: PaymentAmount?
+        switch proto.paymentAmount {
+        case .fixed(let fixed): paymentAmount = .fixed(FixedAmount(nativeAmount: fixed.nativeAmount))
+        case nil:               paymentAmount = nil
+        }
+        self.init(
+            text: text,
+            currency: proto.currency,
+            endsAt: proto.hasEndsAt ? proto.endsAt.date : nil,
+            paymentAmount: paymentAmount
+        )
+    }
+}
+
+extension GroupPaymentRequest.Settlement {
+    /// How a `Paid` (a paid share, or a paid payer) was settled.
+    init(_ proto: Flipcash_Paymentrequest_V1_Paid) {
+        switch proto.how {
+        case .intent(let intent): self = .intent(intent.value)
+        case .manual:             self = .manual
+        case .creator:            self = .creator
+        case nil:                 self = .unknown
+        }
+    }
+}
+
 extension GroupPaymentRequest.Share {
     init(_ proto: Flipcash_Paymentrequest_V1_Share) {
-        let settlement: GroupPaymentRequest.Settlement?
-        if proto.hasPaid {
-            switch proto.paid.how {
-            case .intent(let intent): settlement = .intent(intent.value)
-            case .manual:             settlement = .manual
-            case .creator:            settlement = .creator
-            case nil:                 settlement = .unknown
-            }
-        } else {
-            settlement = nil
-        }
         self.init(
             userID: proto.hasUserID ? try? UUID(data: proto.userID.value) : nil,
             nativeAmount: proto.nativeAmount,
             paidAt: proto.hasPaid && proto.paid.hasPaidAt ? proto.paid.paidAt.date : nil,
-            settlement: settlement
+            settlement: proto.hasPaid ? GroupPaymentRequest.Settlement(proto.paid) : nil
+        )
+    }
+}
+
+extension GroupPaymentRequest.Payer {
+    init(_ proto: Flipcash_Paymentrequest_V1_Payer) {
+        let status: Status?
+        switch proto.status {
+        case .unpaid:
+            status = .unpaid
+        case .paid(let paid):
+            status = .paid(paidAt: paid.hasPaidAt ? paid.paidAt.date : nil, settlement: GroupPaymentRequest.Settlement(paid))
+        case nil:
+            status = nil
+        }
+        self.init(
+            userID: proto.hasUserID ? try? UUID(data: proto.userID.value) : nil,
+            nativeAmountDue: proto.nativeAmountDue,
+            nativeAmountPaid: proto.nativeAmountPaid,
+            status: status
+        )
+    }
+}
+
+extension GroupPaymentRequest.PayerSummary {
+    init(_ proto: Flipcash_Paymentrequest_V1_PayerSummary) {
+        self.init(
+            payerCount: Int(proto.payerCount),
+            paidCount: Int(proto.paidCount),
+            nativeAmountDue: proto.nativeAmountDue,
+            nativeAmountPaid: proto.nativeAmountPaid
         )
     }
 }
@@ -207,13 +383,31 @@ extension GroupPaymentRequest.Text {
     var proto: Flipcash_Paymentrequest_V1_Split.OneOf_Text {
         switch self {
         case .plaintext(let title, let description):
-            .plaintext(.with { $0.title = title; $0.description_p = description })
+            .plaintext(Self.plaintext(title: title, description: description))
         case .encrypted(let scheme, let nonce, let ciphertext):
-            .encrypted(.with {
-                $0.scheme = .init(rawValue: scheme) ?? .unknown
-                $0.nonce = nonce
-                $0.ciphertext = ciphertext
-            })
+            .encrypted(Self.encrypted(scheme: scheme, nonce: nonce, ciphertext: ciphertext))
+        }
+    }
+
+    /// The same text as a collection's text arm.
+    var collectionProto: Flipcash_Paymentrequest_V1_Collection.OneOf_Text {
+        switch self {
+        case .plaintext(let title, let description):
+            .plaintext(Self.plaintext(title: title, description: description))
+        case .encrypted(let scheme, let nonce, let ciphertext):
+            .encrypted(Self.encrypted(scheme: scheme, nonce: nonce, ciphertext: ciphertext))
+        }
+    }
+
+    private static func plaintext(title: String, description: String) -> Flipcash_Paymentrequest_V1_PaymentRequestText {
+        .with { $0.title = title; $0.description_p = description }
+    }
+
+    private static func encrypted(scheme: Int, nonce: Data, ciphertext: Data) -> Flipcash_Paymentrequest_V1_EncryptedPaymentRequestText {
+        .with {
+            $0.scheme = .init(rawValue: scheme) ?? .unknown
+            $0.nonce = nonce
+            $0.ciphertext = ciphertext
         }
     }
 }
@@ -252,6 +446,22 @@ extension GroupPaymentRequest {
             }
         }
     }
+
+    /// Which of a request's payers to list.
+    public enum PayerSection: Hashable, Sendable {
+        /// Payers who still owe something, in the order the request defines. Always empty for a
+        /// collection, where nothing is owed.
+        case unpaid
+        /// Payers who have paid.
+        case paid
+
+        var proto: Flipcash_Paymentrequest_V1_GetPayersRequest.Section {
+            switch self {
+            case .unpaid: .unpaid
+            case .paid:   .paid
+            }
+        }
+    }
 }
 
 /// One best-effort, real-time change to a payment request from the chat event stream. See
@@ -259,8 +469,8 @@ extension GroupPaymentRequest {
 ///
 /// Apply rules: `.created` is treated like a fetched copy (keep the greater version). `.updates` at
 /// version V against local version L: V <= L is ignored, V == L + 1 applies its updates in order
-/// then sets the version, V > L + 1 refetches. A ``Change/Update/unknown`` update, or a share update
-/// without a share, also refetches.
+/// then sets the version, V > L + 1 refetches. A ``Change/Update/unknown`` update, or a share,
+/// payer or summary update missing what it carries, also refetches.
 public struct DecodedPaymentRequestUpdate: Hashable, Sendable {
 
     public enum Change: Hashable, Sendable {
@@ -272,7 +482,11 @@ public struct DecodedPaymentRequestUpdate: Hashable, Sendable {
             case sharePaid(GroupPaymentRequest.Share)
             /// The request completed or closed. `closedAt` is `nil` when the server left it unset.
             case statusChanged(GroupPaymentRequest.Status, closedAt: Date?)
-            /// An update kind this build doesn't know, or a share update without its share.
+            /// A payer as it now stands, after a payment into the request.
+            case payerChanged(GroupPaymentRequest.Payer)
+            /// The request's payer totals as they now stand.
+            case payerSummaryChanged(GroupPaymentRequest.PayerSummary)
+            /// An update kind this build doesn't know, or an update missing what it carries.
             case unknown
         }
     }
@@ -315,6 +529,10 @@ extension DecodedPaymentRequestUpdate.Change.Update {
                 GroupPaymentRequest.Status(update.status),
                 closedAt: update.hasClosedAt ? update.closedAt.date : nil
             )
+        case .payerUpdate(let update):
+            self = update.hasPayer ? .payerChanged(GroupPaymentRequest.Payer(update.payer)) : .unknown
+        case .payerSummaryUpdate(let update):
+            self = update.hasPayerSummary ? .payerSummaryChanged(GroupPaymentRequest.PayerSummary(update.payerSummary)) : .unknown
         case nil:
             self = .unknown
         }

@@ -143,7 +143,7 @@ final class PaymentRequests {
     ) -> PaymentRequestCardState {
         if unavailable.contains(id) { return .unsupported }
         guard let request = requests[id] else { return .loading }
-        guard request.belongs(to: conversationID, sentBy: sender) else { return .unsupported }
+        guard request.belongs(to: conversationID, sentBy: sender), request.isDrawable else { return .unsupported }
         if case .encrypted = request.split?.text, seals[conversationID] == nil { return .loading }
         guard let text = text(of: request) else { return .unsupported }
         return .card(ChatPaymentRequestContent.Card(request: request, title: text.title, copy: copy, now: now))
@@ -158,7 +158,7 @@ final class PaymentRequests {
     /// transcript row may name.
     func timelines(in conversationID: ConversationID) -> [PaymentRequestID: RequestTimeline] {
         var timelines: [PaymentRequestID: RequestTimeline] = [:]
-        for request in requests.values where request.chatID == conversationID && !unavailable.contains(request.id) {
+        for request in requests.values where request.chatID == conversationID && request.isDrawable && !unavailable.contains(request.id) {
             guard let title = text(of: request)?.title else { continue }
             timelines[request.id] = RequestTimeline(request: request, title: title)
         }
@@ -167,7 +167,7 @@ final class PaymentRequests {
 
     /// `conversationID`'s requests the deck shows to `viewer` as of `now`, in deck order.
     func deck(for conversationID: ConversationID, viewer: UserID?, at now: Date) -> [GroupPaymentRequest] {
-        GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID }, viewer: viewer, at: now)
+        GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID && $0.isDrawable }, viewer: viewer, at: now)
     }
 
     /// Drops the held requests and chat seals of conversations the user has left, so a card for a
@@ -359,6 +359,12 @@ final class PaymentRequests {
             logger.warning("Failed to read a payment request", metadata: ["error": "\(error)"])
         }
     }
+}
+
+extension GroupPaymentRequest {
+    /// Whether this build has UI for the request: a split. A collection, or a kind this build doesn't
+    /// know, draws as unsupported in the transcript and stays out of the deck and timelines.
+    var isDrawable: Bool { split != nil }
 }
 
 private extension GroupPaymentRequest {

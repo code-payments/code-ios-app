@@ -9,11 +9,12 @@ import Foundation
 
 extension GroupPaymentRequest {
 
-    /// The status as of `now`: an OPEN request whose deadline has passed reads as EXPIRED.
+    /// The status as of `now`: an OPEN request whose deadline has passed reads as EXPIRED. One with
+    /// no deadline stays OPEN.
     public func effectiveStatus(at now: Date) -> Status {
         switch status {
         case .open:
-            if let endsAt = split?.endsAt, endsAt <= now {
+            if let endsAt, endsAt <= now {
                 return .expired
             }
             return .open
@@ -26,10 +27,10 @@ extension GroupPaymentRequest {
     public func effectiveClosedAt(at now: Date) -> Date? {
         switch status {
         case .open:
-            guard let endsAt = split?.endsAt, endsAt <= now else { return nil }
+            guard let endsAt, endsAt <= now else { return nil }
             return endsAt
         case .completed, .closed, .expired, .unknown:
-            return closedAt ?? split?.endsAt
+            return closedAt ?? endsAt
         }
     }
 
@@ -117,21 +118,28 @@ extension GroupPaymentRequest {
     /// V <= L is ignored; V == L + 1 applies every update in order and sets the version to V; V > L + 1
     /// asks for a refetch. A batch holding an update this copy can't apply (an unknown kind, a share
     /// without a user or that the copy doesn't have, a status other than COMPLETED or CLOSED) applies
-    /// none of it and asks for a refetch.
+    /// none of it and asks for a refetch, as does any batch for a copy of a kind this build doesn't know.
+    ///
+    /// A payer update changes nothing here: the copy holds no payer list, and what a payment changes
+    /// on it comes in the same batch, as the share update (a split) and the summary update.
     public func applying(version: UInt64, updates: [DecodedPaymentRequestUpdate.Change.Update]) -> UpdateOutcome {
         guard version > self.version else { return .ignored }
-        guard version == self.version + 1, let split else { return .refetch }
+        guard version == self.version + 1, split != nil || collection != nil else { return .refetch }
 
-        var shares = split.shares
+        var shares = split?.shares
         var status = self.status
         var closedAt = self.closedAt
+        var payerSummary = self.payerSummary
         for update in updates {
             switch update {
             case .sharePaid(let share):
-                guard let userID = share.userID, let index = shares.firstIndex(where: { $0.userID == userID }) else {
+                guard
+                    let userID = share.userID,
+                    let index = shares?.firstIndex(where: { $0.userID == userID })
+                else {
                     return .refetch
                 }
-                shares[index] = share
+                shares?[index] = share
             case .statusChanged(let newStatus, let newClosedAt):
                 switch newStatus {
                 case .completed, .closed:
@@ -141,6 +149,10 @@ extension GroupPaymentRequest {
                 case .open, .expired, .unknown:
                     return .refetch
                 }
+            case .payerChanged:
+                break
+            case .payerSummaryChanged(let summary):
+                payerSummary = summary
             case .unknown:
                 return .refetch
             }
@@ -154,7 +166,9 @@ extension GroupPaymentRequest {
             closedAt: closedAt,
             version: version,
             chatID: chatID,
-            split: Split(text: split.text, currency: split.currency, endsAt: split.endsAt, shares: shares)
+            split: split.map { Split(text: $0.text, currency: $0.currency, endsAt: $0.endsAt, shares: shares ?? $0.shares) },
+            collection: collection,
+            payerSummary: payerSummary
         ))
     }
 }
@@ -168,6 +182,8 @@ extension GroupPaymentRequest {
         case daysLeft(Int)
         case hoursLeft(Int)
         case minutesLeft(Int)
+        /// Open with no deadline: the request stays open until its creator closes it.
+        case noDeadline
         case paidInFull
         case closed
         case expired
@@ -184,7 +200,7 @@ extension GroupPaymentRequest {
         case .closed:             return .closed
         case .expired, .unknown:  return .expired
         case .open:
-            guard let endsAt = split?.endsAt else { return .expired }
+            guard let endsAt else { return .noDeadline }
             let remaining = endsAt.timeIntervalSince(now)
             let hour: TimeInterval = 60 * 60
             let day: TimeInterval = 24 * hour
@@ -221,12 +237,12 @@ extension GroupPaymentRequest {
                     let lhsOwed = lhs.isOwed(by: viewer, at: now)
                     if lhsOwed != rhs.isOwed(by: viewer, at: now) { return lhsOwed }
                 }
-                return (lhs.split?.endsAt ?? .distantFuture) < (rhs.split?.endsAt ?? .distantFuture)
+                return (lhs.endsAt ?? .distantFuture) < (rhs.endsAt ?? .distantFuture)
             }
     }
 
     /// The earliest deadline after `now` among `requests`, when the deck next loses a request on the clock.
     public static func nextExpiry(of requests: [GroupPaymentRequest], after now: Date) -> Date? {
-        requests.compactMap(\.split?.endsAt).filter { $0 > now }.min()
+        requests.compactMap(\.endsAt).filter { $0 > now }.min()
     }
 }

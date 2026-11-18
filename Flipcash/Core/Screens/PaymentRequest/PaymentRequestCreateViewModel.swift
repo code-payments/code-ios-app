@@ -204,7 +204,8 @@ final class PaymentRequestCreateViewModel {
             return DialogCopy(title: "Can't Send Request", subtitle: "Someone you included is no longer in the group. Check who's included and try again.")
         case .invalidCurrency:
             return DialogCopy(title: "Can't Send Request", subtitle: "Requests aren't available in this currency yet.")
-        case .chatNotSupported, .encryptionNotAllowed, .encryptionRequired, .textModerated, .unknown, .rejected:
+        // This flow creates splits only, so `.invalidAmount` (a collection's amount) is unexpected here.
+        case .chatNotSupported, .encryptionNotAllowed, .encryptionRequired, .textModerated, .invalidAmount, .unknown, .rejected:
             logger.error("Payment request create was refused", metadata: ["result": "\(error)"])
             ErrorReporting.captureError(error, reason: "Payment request create was refused")
             return Self.genericError

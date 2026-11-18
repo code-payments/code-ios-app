@@ -17,13 +17,32 @@ extension FlipClient {
         }
     }
 
-    /// Fetches one request. `paymentIntentID` is the intent id a caller holding an unpaid share must
-    /// use for the payment, and `nil` for anyone else.
-    public func getPaymentRequest(owner: KeyPair, id: PaymentRequestID) async throws -> (request: GroupPaymentRequest, paymentIntentID: Data?) {
+    /// Fetches one request. `paymentIntentID` is the intent id a caller holding an unpaid share of a
+    /// split must use for the payment, and `nil` for anyone else, a collection's payers included.
+    /// `callerPayer` is the caller's own part in the request, when they have one.
+    public func getPaymentRequest(owner: KeyPair, id: PaymentRequestID) async throws -> (request: GroupPaymentRequest, paymentIntentID: Data?, callerPayer: GroupPaymentRequest.Payer?) {
         let fetched: PaymentRequestService.Fetched = try await withCheckedThrowingContinuation { c in
             paymentRequestService.getPaymentRequest(owner: owner, id: id) { c.resume(with: $0) }
         }
-        return (fetched.request, fetched.paymentIntentID)
+        return (fetched.request, fetched.paymentIntentID, fetched.callerPayer)
+    }
+
+    /// The intent id the caller pays `id` under. A collection's payers get it only from here; reuse it
+    /// across every retry of one payment.
+    public func getPaymentIntentID(owner: KeyPair, id: PaymentRequestID) async throws -> Data {
+        try await withCheckedThrowingContinuation { c in
+            paymentRequestService.getPaymentIntentID(owner: owner, id: id) { c.resume(with: $0) }
+        }
+    }
+
+    /// One page of `id`'s payers in `section`, with the token for the next page when there is one and
+    /// the request version the page was read at. A collection's payer list has no bound, so this does
+    /// not page to exhaustion.
+    public func getPayersPage(owner: KeyPair, id: PaymentRequestID, section: GroupPaymentRequest.PayerSection, pageSize: Int, pagingToken: Data?) async throws -> (payers: [GroupPaymentRequest.Payer], nextPagingToken: Data?, version: UInt64) {
+        let page: PaymentRequestService.PayersPage = try await withCheckedThrowingContinuation { c in
+            paymentRequestService.getPayers(owner: owner, id: id, section: section, pageSize: pageSize, pagingToken: pagingToken) { c.resume(with: $0) }
+        }
+        return (page.payers, page.hasMore ? page.pagingToken : nil, page.version)
     }
 
     /// Every request in `conversationID` for `section`, paged to exhaustion.
