@@ -73,6 +73,38 @@ public struct PaymentRequestCopy: Sendable {
         return shareAmount(share, of: request)
     }
 
+    // MARK: - Collections -
+
+    /// The fixed amount each contribution to a collection pays, at full precision: "$10.00". `nil`
+    /// for a split, or an amount kind this build doesn't know.
+    public func collectionAmount(_ request: GroupPaymentRequest) -> FiatAmount? {
+        guard let collection = request.collection, case .fixed(let fixed)? = collection.paymentAmount else { return nil }
+        return viewerAmount(Decimal(fixed.nativeAmount), currency: collection.currency)
+    }
+
+    /// A collection card's title line: "$10 each".
+    public func collectionEach(_ request: GroupPaymentRequest) -> String? {
+        collectionAmount(request).map { "\($0.formattedDroppingZeroFraction()) each" }
+    }
+
+    /// A collection card's progress line: "$0 paid", "$30 paid".
+    public func collectionPaid(_ request: GroupPaymentRequest) -> String {
+        "\(short(collectionPaidNative(request), currency: request.collection?.currency ?? "")) paid"
+    }
+
+    /// A collection's Request details header: "$0 paid · $10.00 each", "$22.00 paid · $11.00 each".
+    public func collectionDetailsAmounts(_ request: GroupPaymentRequest) -> String? {
+        guard let each = collectionAmount(request) else { return nil }
+        let paidNative = collectionPaidNative(request)
+        let paid = viewerAmount(paidNative, currency: request.collection?.currency ?? "")
+        let paidText = paidNative == 0 ? (paid?.formattedDroppingZeroFraction() ?? "") : (paid?.formatted() ?? "")
+        return "\(paidText) paid · \(each.formatted()) each"
+    }
+
+    private func collectionPaidNative(_ request: GroupPaymentRequest) -> Decimal {
+        Decimal(request.payerSummary?.nativeAmountPaid ?? 0)
+    }
+
     // MARK: - Static copy -
 
     /// The status line shared by the card, the deck and Request details.

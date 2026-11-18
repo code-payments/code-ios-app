@@ -46,12 +46,25 @@ final class PaymentRequestService: Sendable {
     /// Creates a split in a group chat. `idempotencyKey` is reused across retries; a retry returns
     /// the original request. `.textModerated` carries the category the server flagged.
     func createPaymentRequest(owner: KeyPair, idempotencyKey: Data, chatID: ConversationID, split: GroupPaymentRequest.Split, completion: @Sendable @escaping (Result<GroupPaymentRequest, ErrorCreatePaymentRequest>) -> Void) {
+        createPaymentRequest(owner: owner, idempotencyKey: idempotencyKey, completion: completion) {
+            $0.chatID = chatID.proto
+            $0.split = split.proto
+        }
+    }
+
+    /// Creates a collection in a group chat. `idempotencyKey` is reused across retries; a retry
+    /// returns the original request.
+    func createPaymentRequest(owner: KeyPair, idempotencyKey: Data, chatID: ConversationID, collection: GroupPaymentRequest.Collection, completion: @Sendable @escaping (Result<GroupPaymentRequest, ErrorCreatePaymentRequest>) -> Void) {
+        createPaymentRequest(owner: owner, idempotencyKey: idempotencyKey, completion: completion) {
+            $0.chatID = chatID.proto
+            $0.collection = collection.proto
+        }
+    }
+
+    private func createPaymentRequest(owner: KeyPair, idempotencyKey: Data, completion: @Sendable @escaping (Result<GroupPaymentRequest, ErrorCreatePaymentRequest>) -> Void, groupChat: (inout Flipcash_Paymentrequest_V1_GroupChatPaymentRequest) -> Void) {
         let request = Flipcash_Paymentrequest_V1_CreatePaymentRequestRequest.with {
             $0.idempotencyKey = .with { $0.value = idempotencyKey }
-            $0.groupChat = .with {
-                $0.chatID = chatID.proto
-                $0.split = split.proto
-            }
+            $0.groupChat = .with(groupChat)
             $0.auth = owner.authFor(message: $0)
         }
 

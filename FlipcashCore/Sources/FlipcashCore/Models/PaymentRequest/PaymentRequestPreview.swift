@@ -18,6 +18,20 @@ extension ChatPaymentRequestContent.Card {
             isEnded: request.isEnded(at: now)
         )
     }
+
+    /// Words a collection for the viewer: "$10 each" over "$30 paid", no progress bar, and
+    /// "Closed" once the creator closes it. `nil` for a split, or an amount kind this build
+    /// doesn't know.
+    public init?(collection request: GroupPaymentRequest, copy: PaymentRequestCopy, now: Date) {
+        guard let each = copy.collectionEach(request) else { return nil }
+        self.init(
+            title: each,
+            progressLine: copy.collectionPaid(request),
+            fraction: nil,
+            statusLine: request.status == .closed ? PaymentRequestCopy.statusLine(.closed) : "",
+            isEnded: request.isEnded(at: now)
+        )
+    }
 }
 
 /// What a notification shows for a pushed payment request: the banner line and the transcript card.

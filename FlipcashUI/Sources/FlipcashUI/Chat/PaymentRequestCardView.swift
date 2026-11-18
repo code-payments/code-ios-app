@@ -33,17 +33,29 @@ public struct PaymentRequestCard: View {
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textSecondary)
 
-            PaymentRequestProgressBar(fraction: content?.fraction ?? 0, isEnded: content?.isEnded ?? false)
-
-            Text(content?.statusLine ?? "0 days left to pay")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
+            if let content {
+                if let fraction = content.fraction {
+                    PaymentRequestProgressBar(fraction: fraction, isEnded: content.isEnded)
+                }
+                if !content.statusLine.isEmpty {
+                    statusText(content.statusLine)
+                }
+            } else {
+                PaymentRequestProgressBar(fraction: 0, isEnded: false)
+                statusText("0 days left to pay")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .redacted(reason: content == nil ? .placeholder : [])
         .opacity(content?.isEnded == true ? 0.5 : 1)
         .requestMotion(value: content?.isEnded)
         .accessibilityElement(children: .combine)
+    }
+
+    private func statusText(_ line: String) -> some View {
+        Text(line)
+            .font(.appTextSmall)
+            .foregroundStyle(Color.textSecondary)
     }
 }
 
