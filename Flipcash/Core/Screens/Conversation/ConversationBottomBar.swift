@@ -1427,6 +1427,15 @@ struct ConversationComposer: View {
 
     private func submit() {
         guard let conversationID else { return }
+        // A fast tap on Send can arrive before the keyboard's correction of the last word reaches the
+        // draft binding. Apply it on the field itself and take the field's text, so the corrected word
+        // is what goes out.
+        if isFocused, let field = UIApplication.shared.focusedTextView {
+            field.acceptPendingCorrection()
+            if field.text != composer.draft {
+                composer.draft = field.text
+            }
+        }
         // A photo-only send leaves the draft as it was, so the draft's own dismissal never fires.
         if model.attachPanel.isOpen {
             model.attachPanel.animate { $0.dismiss() }
