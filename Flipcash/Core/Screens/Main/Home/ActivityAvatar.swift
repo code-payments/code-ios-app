@@ -187,17 +187,22 @@ final class ActivityResolution {
         in sessionContainer: SessionContainer,
         resolvingEntryToken: Bool = false
     ) async {
-        await resolveCounterparty(activity: activity, in: sessionContainer)
+        // The counterparty and the mints fill different fields, so they resolve together. No early
+        // return below: leaving scope with the counterparty pending would cancel it.
+        async let counterparty: Void = resolveCounterparty(activity: activity, in: sessionContainer)
 
         let session = sessionContainer.session
         if let swap = activity.swapMetadata {
-            swapFromMint = await resolveMintMetadata(swap.fromMint, session: session)
-            swapToMint   = await resolveMintMetadata(swap.toMint, session: session)
+            async let fromMint = resolveMintMetadata(swap.fromMint, session: session)
+            async let toMint = resolveMintMetadata(swap.toMint, session: session)
+            (swapFromMint, swapToMint) = await (fromMint, toMint)
         } else if resolvingEntryToken || ActivityAvatar.showsTokenBadge(for: activity) {
             let mint = activity.exchangedFiat.mint
-            guard session.balance(for: mint) == nil else { return }
-            entryMint = await resolveMintMetadata(mint, session: session)
+            if session.balance(for: mint) == nil {
+                entryMint = await resolveMintMetadata(mint, session: session)
+            }
         }
+        await counterparty
     }
 
     /// The token's display name: the held balance (instant, from cache) or the

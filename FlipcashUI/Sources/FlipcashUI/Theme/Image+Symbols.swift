@@ -15,21 +15,21 @@ extension Image {
     }
     
     public static func asset(_ name: Asset) -> Image  {
-        Image(name.rawValue, bundle: Bundle.module)
+        Image(name.rawValue, bundle: Bundle.flipcashUI)
     }
     
     public static func regionFlag(_ region: Region) -> Image  {
-        Image(region.rawValue, bundle: Bundle.module)
+        Image(region.rawValue, bundle: Bundle.flipcashUI)
     }
     
     public static func cryptoFlag(_ currency: CurrencyCode) -> Image  {
-        Image(currency.rawValue.uppercased(), bundle: Bundle.module)
+        Image(currency.rawValue.uppercased(), bundle: Bundle.flipcashUI)
     }
 }
 
 extension UIImage {
     public static func asset(_ name: Asset) -> UIImage  {
-        UIImage(named: name.rawValue, in: Bundle.module, compatibleWith: nil)!
+        UIImage(named: name.rawValue, in: Bundle.flipcashUI, compatibleWith: nil)!
     }
 }
 
@@ -54,6 +54,11 @@ public enum SystemSymbol: String {
     case doc = "doc.on.doc"
     case docFill = "doc.on.doc.fill"
     case forwardArrow = "arrowshape.turn.up.right.fill"
+    /// Save to the photo library, matching the full-screen photo viewer's save button.
+    case saveToPhotos = "square.and.arrow.down"
+    case saveAllToPhotos = "square.and.arrow.down.on.square"
+    case pinFill = "pin.fill"
+    case pinSlash = "pin.slash"
     case clipboard = "doc.on.clipboard"
     case paste = "arrow.turn.left.down"
     case touchID = "touchid"
@@ -88,7 +93,9 @@ public enum SystemSymbol: String {
     /// The bare glyph, for a confirm affordance that carries its own backing shape.
     case checkmark = "checkmark"
     
-    case speakerSlash = "speaker.slash.fill"
+    case micSlash = "mic.slash.fill"
+    /// A person with a minus, for taking someone out of a group.
+    case personBadgeMinus = "person.badge.minus"
     
     case lockDashed = "lock.app.dashed"
 }
@@ -219,6 +226,7 @@ public enum Asset: String, Sendable {
     case fileBend = "IconFileBend"
     case bezierCurve = "IconBezierCurve"
     case checklist = "IconChecklist"
+    case listBulletPin = "IconListBulletPin"
     case lock = "IconLock"
     case peopleGear = "IconPeopleGear"
     case peopleCircle = "IconPeopleCircle"

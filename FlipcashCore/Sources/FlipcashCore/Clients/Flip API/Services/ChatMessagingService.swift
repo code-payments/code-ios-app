@@ -157,6 +157,51 @@ final class ChatMessagingService: Sendable {
         }
     }
 
+    /// A capped catch-up for a notification extension: the messages changed since `afterSequence`,
+    /// collected until the stream ends or holds more than `limit`, at which point the stream is
+    /// closed and the page comes back incomplete. Throws `ErrorGetDelta` on `.resetRequired`, denied,
+    /// or a transport failure.
+    func getDeltaPage(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        limit: Int
+    ) async throws -> ChatDeltaPage {
+        let request = Flipcash_Messaging_V1_GetDeltaRequest.with {
+            $0.chatID = conversationID.proto
+            $0.afterSequence = afterSequence
+            $0.viewMode = ConversationViewMode.full.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        do {
+            return try await service.getDelta(request: .init(message: request), options: .defaults) { response in
+                var messages: [ConversationMessage] = []
+                var head: UInt64 = 0
+                for try await message in response.messages {
+                    head = max(head, message.latestSequence)
+                    let result = ErrorGetDelta(rawValue: message.result.rawValue) ?? .unknown
+                    switch result {
+                    case .ok:
+                        guard message.hasMessages else { continue }
+                        messages += message.messages.messages.compactMap(ConversationMessage.init)
+                        // Returning from the handler ends the RPC.
+                        if messages.count > limit {
+                            return ChatDeltaPage(messages: messages, head: head, isComplete: false)
+                        }
+                    case .denied, .resetRequired:
+                        throw result
+                    case .unknown, .transportFailure, .cancelled, .rejected:
+                        throw ErrorGetDelta.unknown
+                    }
+                }
+                return ChatDeltaPage(messages: messages, head: head, isComplete: true)
+            }
+        } catch let error as RPCError {
+            throw ErrorGetDelta.from(transportError: error)
+        }
+    }
+
     /// Sends `text` carrying `linkPreview`, as a reply to `repliedTo` when set. With a `seal` the
     /// text goes out as `EncryptedContent` and the server's copy comes back decrypted.
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, seal: ChatSeal?, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
@@ -274,6 +319,46 @@ final class ChatMessagingService: Sendable {
             completion(.failure(.encryptionFailed))
             return
         }
+        edit(owner: owner, conversationID: conversationID, messageID: messageID, to: content, seal: seal, expectedEventSequence: expectedEventSequence, completion: completion)
+    }
+
+    /// Changes the caption of `photo`, this user's photo message, to `caption`, leaving the photo
+    /// and any reply as they were sent. A sealed photo is resealed with `seal` from its own
+    /// ciphertext; a plaintext one goes back as plaintext.
+    func editCaption(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        photo: ConversationMessage,
+        caption: String,
+        seal: ChatSeal?,
+        expectedEventSequence: UInt64,
+        completion: @Sendable @escaping (Result<MessageMutation, ErrorEditMessage>) -> Void
+    ) {
+        let content: Flipcash_Messaging_V1_Content
+        do {
+            if photo.sealed != nil {
+                guard let seal else { throw CaptionEditFailure.notOwnSealedPhoto }
+                content = try seal.sealCaptionEdit(of: photo, to: caption)
+            } else {
+                content = try .captionEdit(of: photo.content, to: caption, repliedTo: photo.repliedTo)
+            }
+        } catch {
+            logger.error("Failed to build caption edit", metadata: ["error": "\(error)"])
+            completion(.failure(photo.sealed != nil ? .encryptionFailed : .cannotEdit))
+            return
+        }
+        edit(owner: owner, conversationID: conversationID, messageID: photo.id, to: content, seal: seal, expectedEventSequence: expectedEventSequence, completion: completion)
+    }
+
+    private func edit(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        messageID: MessageID,
+        to content: Flipcash_Messaging_V1_Content,
+        seal: ChatSeal?,
+        expectedEventSequence: UInt64,
+        completion: @Sendable @escaping (Result<MessageMutation, ErrorEditMessage>) -> Void
+    ) {
         let request = Flipcash_Messaging_V1_EditMessageRequest.with {
             $0.chatID = conversationID.proto
             $0.messageID = messageID.proto
@@ -489,6 +574,52 @@ final class ChatMessagingService: Sendable {
             } catch {
                 await MainActor.run { completion(.failure(.unknown)) }
             }
+        }
+    }
+
+    /// Where the return of a DM cash message stands. `paymentIntentID` is set only for the message's
+    /// single receiver.
+    func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, completion: @Sendable @escaping (Result<CashReturnStatus, ErrorGetCashMessageReturnStatus>) -> Void) {
+        let request = Flipcash_Messaging_V1_GetCashMessageReturnStatusRequest.with {
+            $0.chatID = conversationID.proto
+            $0.messageID = messageID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getCashMessageReturnStatus(request, options: .unaryDefault)
+                let result = Self.cashMessageReturnStatusResult(response)
+                if case .failure(let error) = result {
+                    logger.error("Failed to get cash message return status", metadata: ["error": "\(error)"])
+                }
+                await MainActor.run { completion(result) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    // MARK: - Cash return response mapping
+
+    /// The return status, or the failure reported. The intent id is read only on OK.
+    static func cashMessageReturnStatusResult(_ response: Flipcash_Messaging_V1_GetCashMessageReturnStatusResponse) -> Result<CashReturnStatus, ErrorGetCashMessageReturnStatus> {
+        let error = ErrorGetCashMessageReturnStatus(rawValue: response.result.rawValue) ?? .unknown
+        switch error {
+        case .ok:
+            let state: CashReturnStatus.State = switch response.status {
+            case .available: .available
+            case .returned: .returned
+            case .unknown, .UNRECOGNIZED: .unknown
+            }
+            return .success(CashReturnStatus(
+                state: state,
+                paymentIntentID: response.hasPaymentIntentID ? response.paymentIntentID.value : nil
+            ))
+        case .denied, .notFound, .unknown, .transportFailure, .cancelled, .rejected:
+            return .failure(error)
         }
     }
 
@@ -851,6 +982,29 @@ extension ErrorGetReactors: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .messageNotFound: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+public enum ErrorGetCashMessageReturnStatus: Int, Error {
+    case ok
+    /// The caller is not a member of the chat.
+    case denied
+    /// The chat has no such message, or the message offers no return.
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+extension ErrorGetCashMessageReturnStatus: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
         case .unknown, .rejected: .error
         }
     }

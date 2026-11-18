@@ -63,6 +63,7 @@ final class AppRouter {
     /// The destination `push` last appended, and onto which stack. Any other change
     /// to `paths` clears it, so it names the top of that stack whenever it is set.
     @ObservationIgnored private var lastPush: (stack: Stack, destination: Destination)?
+    @ObservationIgnored private var pendingCollapse: (stack: Stack, destination: Destination, count: Int)?
 
     /// The stack owned by the currently-selected tab. A tab is the active
     /// surface without being a *sheet*, so `presentedSheet` is nil while a tab
@@ -89,10 +90,10 @@ final class AppRouter {
         requestedCardDismiss &+= 1
     }
 
-    /// A tab the router wants brought forward, named by the stack it owns.
-    /// `HomeTabView` selects it and clears this. Deep-link routing only; nothing
-    /// else drives tab selection.
-    var requestedTabStack: Stack?
+    /// A tab the router wants brought forward. `HomeTabView` selects it and
+    /// clears this. Deep-link routing only; nothing else drives tab selection.
+    /// Named by tab rather than stack so Scan, which owns no stack, can be asked for.
+    var requestedTab: HomeTab?
 
     /// The stack that `push`/`pop`-style calls target: the presented sheet's
     /// stack, or — when no sheet is up and a tab is the active surface — the
@@ -336,6 +337,38 @@ final class AppRouter {
         logger.info("Set path", metadata: navigationMetadata(stack: stack, destination: destinations.last))
     }
 
+    /// Pushes `destination` over the current top as a normal forward push and remembers the
+    /// resulting depth, so `collapseTopmostPath(toTop:)` can later drop everything beneath it.
+    /// Replacing the path outright would animate as a pop whenever the new path is shorter.
+    func pushForCollapse(_ destination: Destination) {
+        guard let stack = topmostStack else {
+            logger.warning("Push for collapse attempted with no topmost stack", metadata: [
+                "destination": "\(destination)",
+            ])
+            return
+        }
+        paths[stack, default: NavigationPath()].append(destination)
+        pendingCollapse = (stack, destination, paths[stack, default: NavigationPath()].count)
+        lastPush = (stack, destination)
+        logger.info("Push", metadata: navigationMetadata(stack: stack, destination: destination))
+    }
+
+    /// Once the push from `pushForCollapse(_:)` has settled, removes everything beneath
+    /// `destination` so the stack becomes `[destination]`. Removing views under the visible top
+    /// is not animated. Does nothing if the stack changed in the meantime (the user already
+    /// popped or something else was pushed), so it never discards a screen the user is on.
+    func collapseTopmostPath(toTop destination: Destination) {
+        guard let pending = pendingCollapse, pending.destination == destination else { return }
+        pendingCollapse = nil
+        guard paths[pending.stack, default: NavigationPath()].count == pending.count else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            setPath([destination], on: pending.stack)
+        }
+        lastPush = (pending.stack, destination)
+    }
+
     /// SwiftUI binding setter — fires when the NavigationStack writes a new
     /// path back through the binding (system swipe-back, NavigationLink
     /// activation, programmatic `dismiss()`). Distinguished from explicit
@@ -400,6 +433,16 @@ final class AppRouter {
             "sheet": "\(sheet)",
             "previousSheet": "\(previousTop.map(String.init(describing:)) ?? "<none>")",
         ])
+    }
+
+    /// Presents a group's Invite People sheet over whatever is showing: the root sheet over a tab,
+    /// or stacked over a chat that is itself in a sheet.
+    func presentInvitePeople(_ conversationID: ConversationID) {
+        if presentedSheets.isEmpty {
+            present(.invitePeople(conversationID))
+        } else {
+            presentNested(.invitePeople(conversationID))
+        }
     }
 
     /// Appends `sheet` on top of the current top, stacking visually. Requires
@@ -568,7 +611,7 @@ final class AppRouter {
             guard !alreadyThere else { return }
 
             while !presentedSheets.isEmpty { dismissSheet() }
-            requestedTabStack = targetStack
+            requestedTab = HomeTab(hosting: targetStack)
             setPath([destination], on: targetStack)
             logger.info("Routed to tab stack", metadata: [
                 "stack": "\(targetStack)",
@@ -613,6 +656,15 @@ final class AppRouter {
         presentedSheets.isEmpty && activeTabStack == destination.owningStack
     }
 
+    /// Brings `tab` forward at its root: dismisses presented sheets and clears the
+    /// tab's own stack. What a tab deep link does.
+    func showTab(_ tab: HomeTab) {
+        while !presentedSheets.isEmpty { dismissSheet() }
+        if let stack = tab.pushStack { setPath([], on: stack) }
+        requestedTab = tab
+        logger.info("Routed to tab", metadata: ["tab": "\(tab)"])
+    }
+
     /// Surfaces the wallet at its root — where a grabbed deposit lands after
     /// "Put in Wallet".
     ///
@@ -622,17 +674,17 @@ final class AppRouter {
     func showWallet() {
         dismissExpandedCard()
 
-        // `requestedTabStack` covers the gap before `HomeTabView` selects the
+        // `requestedTab` covers the gap before `HomeTabView` selects the
         // tab and publishes `activeTabStack` — until then the request is in
         // flight, not yet arrived.
         let alreadyThere = presentedSheets.isEmpty
                         && activeTabStack == .balance
                         && self[.balance].isEmpty
-        guard !alreadyThere, requestedTabStack != .balance else { return }
+        guard !alreadyThere, requestedTab != .wallet else { return }
 
         while !presentedSheets.isEmpty { dismissSheet() }
         setPath([], on: .balance)
-        requestedTabStack = .balance
+        requestedTab = .wallet
         logger.info("Routed to wallet", metadata: ["stack": "\(Stack.balance)"])
     }
 
@@ -645,17 +697,17 @@ final class AppRouter {
     /// frame until its camera tears down, so arriving is not allowed to re-fire
     /// the tab request.
     func showOwnTipCard() {
-        // `requestedTabStack` covers the gap before `HomeTabView` selects the tab
+        // `requestedTab` covers the gap before `HomeTabView` selects the tab
         // and publishes `activeTabStack` — until then the request is in flight,
         // not yet arrived.
         let alreadyThere = presentedSheets.isEmpty
                         && activeTabStack == .you
                         && self[.you].isEmpty
-        guard !alreadyThere, requestedTabStack != .you else { return }
+        guard !alreadyThere, requestedTab != .tipCard else { return }
 
         while !presentedSheets.isEmpty { dismissSheet() }
         setPath([], on: .you)
-        requestedTabStack = .you
+        requestedTab = .tipCard
         logger.info("Routed to own tip card", metadata: ["stack": "\(Stack.you)"])
     }
 }

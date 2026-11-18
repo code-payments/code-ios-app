@@ -702,6 +702,8 @@ struct SessionOfflineCacheTests {
             billExchangeDataTimeout: nil,
             newCurrencyPurchaseAmount: .zero(mint: .usdf),
             newCurrencyFeeAmount: .zero(mint: .usdf),
+            newCurrencyV2PurchaseAmount: .zero(mint: .usdf),
+            newCurrencyV2FeeAmount: .zero(mint: .usdf),
             withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
             usernameMinBalance: .zero(mint: .usdf),
@@ -714,9 +716,8 @@ struct SessionOfflineCacheTests {
         )
     }
 
-    // Tests stay synchronous: the restore runs in `init`, while `updateProfile()`
-    // runs in a main-actor Task that can't execute until the test yields. An
-    // `async` test would race the network fetch against the cache.
+    // The restore runs in `init`. Hosted unit tests skip the launch `updateProfile()`
+    // fetch, so nothing races the cache here.
 
     @Test("A cached verified profile is restored before any network fetch")
     func restoresProfileOnInit() throws {

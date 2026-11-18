@@ -20,6 +20,8 @@ struct ReactionBoostTarget: Hashable, Identifiable {
     let messageID: MessageID
     let messageSender: UserID
     let chat: ReactionBoostSplit.Chat
+    /// The conversation's type, for analytics only. Nil when it isn't known locally.
+    var conversationType: ConversationType?
 
     var id: Self { self }
 }
@@ -136,12 +138,12 @@ final class ReactionBoostViewModel {
 
     /// The balances the "Pay with" picker offers.
     var paymentOptions: [ExchangedBalance] {
-        session.balances(for: ratesController.rateForBalanceCurrency()).giveable()
+        ratesController.paymentOptions(session: session)
     }
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        ratesController.selectToken(exchangedBalance.stored.mint)
+        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
     }
 
     // MARK: - Submit -
@@ -222,14 +224,15 @@ final class ReactionBoostViewModel {
             return .failed
         }
 
-        var payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)] = []
-        for share in shares {
-            do {
-                payments.append((share.amount, try await resolver.resolveUserID(share.share.userID)))
-            } catch {
-                showSendError()
-                return .failed
+        let payments: [(amount: ExchangedFiat, recipientOwner: PublicKey)]
+        do {
+            let owners = try await RecipientBatch.resolveOwners(shares.map(\.share.userID)) { @MainActor [self] in
+                try await self.resolver.resolveUserID($0)
             }
+            payments = zip(shares, owners).map { (amount: $0.amount, recipientOwner: $1) }
+        } catch {
+            showSendError()
+            return .failed
         }
 
         let previousCents = reactions.selfBoostCents(emoji, messageID: target.messageID, in: target.conversationID)
@@ -241,6 +244,7 @@ final class ReactionBoostViewModel {
                 try await multiSender.sendMultiple(payments, verifiedState: pin, chat: chat)
             }
         } catch {
+            Analytics.sentBoost(chatType: target.conversationType, exchangedFiat: total, error: error)
             if !(error is CancellationError) {
                 showSendError()
             }
@@ -253,6 +257,7 @@ final class ReactionBoostViewModel {
             messageID: target.messageID,
             in: target.conversationID
         )
+        Analytics.sentBoost(chatType: target.conversationType, exchangedFiat: total, error: nil)
         return .success
     }
 

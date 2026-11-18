@@ -10,7 +10,7 @@ extension Image {
     /// A Central icon from the FlipcashUI catalog, drawn as a template image tinted by the caller.
     /// It's decorative, so an icon-only control names itself with `.accessibilityLabel`.
     public static func icon(_ icon: Icon) -> Image {
-        Image(decorative: icon.rawValue, bundle: Bundle.module)
+        Image(decorative: icon.rawValue, bundle: Bundle.flipcashUI)
     }
 
     /// Sizes an icon to a square frame, since asset icons ignore `.font` the way SF Symbols don't.
@@ -24,7 +24,7 @@ extension Image {
 extension UIImage {
     /// A Central icon from the FlipcashUI catalog as a template `UIImage`, for UIKit menus and cells.
     public static func icon(_ icon: Icon) -> UIImage {
-        UIImage(named: icon.rawValue, in: Bundle.module, compatibleWith: nil)!
+        UIImage(named: icon.rawValue, in: Bundle.flipcashUI, compatibleWith: nil)!
             .withRenderingMode(.alwaysTemplate)
     }
 }

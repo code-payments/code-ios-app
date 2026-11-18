@@ -17,6 +17,19 @@ public enum MessageCapability: String, Hashable, Sendable, Codable, CaseIterable
     case report
     /// Send a link to the message into other chats, or out through the system share sheet.
     case forward
+    /// Write the photo to the device's photo library, the way the full-screen viewer's save does.
+    case savePhoto
+    /// Write every photo of a card stack to the device's photo library, oldest first. Offered on a
+    /// stack's front photo only, by the transcript, since a message alone can't tell it is in one.
+    case saveAllPhotos
+    /// Pin the message to the top of the chat.
+    case pin
+    /// Take the message off the chat's pins.
+    case unpin
+    /// Host-only: stop the message's sender from posting in this group. Picks a duration next.
+    case silence
+    /// Host-only: put the message's sender out of this group and bar them from rejoining.
+    case remove
 }
 
 extension MessageCapability {
@@ -30,6 +43,14 @@ extension MessageCapability {
         case .delete: "Delete"
         case .report: "Report"
         case .forward: "Forward"
+        // Not "Save": the composer's edit button already carries that accessibility label.
+        case .savePhoto: "Save Photo"
+        case .saveAllPhotos: "Save All"
+        case .pin:    "Pin"
+        case .unpin:  "Unpin"
+        // The transcript menu adds the sender's first name; this is the fallback when none is known.
+        case .silence: "Restrict"
+        case .remove:  "Remove"
         }
     }
 
@@ -37,8 +58,8 @@ extension MessageCapability {
     public var isDestructive: Bool {
         switch self {
         // Report is red to match Report on the profile menus, though nothing is destroyed.
-        case .copy, .reply, .edit, .forward: false
-        case .delete, .report:     true
+        case .copy, .reply, .edit, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin: false
+        case .delete, .report, .silence, .remove: true
         }
     }
 }
@@ -66,6 +87,9 @@ extension MessageCapability {
     /// could not decrypt don't get it. Like Report, it survives `isMember` and `canPost`: a reader
     /// outside a group can still pass a message along.
     ///
+    /// Save Photo is offered on every photo message the menu opens on, whoever sent it: saving is
+    /// device-local, so an end-to-end encrypted chat is no different from a public one.
+    ///
     /// `conversation` is accepted but unread today: it is the seam a group-chat permissions model
     /// plugs into (an admin deleting another member's message, a read-only channel), and taking it
     /// now means adding that model does not change every call site. It is optional because the
@@ -79,6 +103,9 @@ extension MessageCapability {
     /// composer, since a reply is a post, matching Android. Copy, Report, the link rows and the
     /// sender's own Edit/Delete are not posting and stay. Reactions are not decided here.
     ///
+    /// `isPinned` says whether the message is among the chat's pins, which the message itself does not
+    /// carry. Pin and Unpin follow the viewer's server-computed `canPin`, never the chat type.
+    ///
     /// `now` is a parameter rather than `Date.now` so the result stays a function of its inputs.
     public static func resolve(
         for message: ConversationMessage,
@@ -86,6 +113,7 @@ extension MessageCapability {
         as selfUserID: UserID,
         isMember: Bool,
         canPost: Bool = true,
+        isPinned: Bool = false,
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
@@ -93,7 +121,48 @@ extension MessageCapability {
         if !isMember || !canPost {
             capabilities.remove(.reply)
         }
+        capabilities.formUnion(moderationCapabilities(for: message, in: conversation, baseline: capabilities))
+        if let pinning = pinCapability(for: message, in: conversation, isPinned: isPinned) {
+            capabilities.insert(pinning)
+        }
         return capabilities
+    }
+
+    /// Pin, or Unpin for a pinned message, when the viewer may pin. System messages and tombstones
+    /// are refused by the server; payment requests are a client gate, since the request strip and pill
+    /// already keep them at the top. An unconfirmed message has no server id to pin yet.
+    private static func pinCapability(
+        for message: ConversationMessage,
+        in conversation: Conversation?,
+        isPinned: Bool
+    ) -> MessageCapability? {
+        guard conversation?.viewerState?.canPin == true else { return nil }
+        if isPinned { return .unpin }
+        switch message.content {
+        case .deleted, .encrypted, .system, .widget(.paymentRequest), .widget(.unrecognized):
+            return nil
+        case .text, .media, .cash, .widget(.shareProfile):
+            return message.eventSequence > 0 ? .pin : nil
+        }
+    }
+
+    /// Silence and Remove, which follow the viewer's server-computed `canSilence` / `canBan` and
+    /// never an "is creator" check on the viewer. They ride on Report's rule: another participant's
+    /// real message. The group's creator is never offered, whoever holds the flags.
+    private static func moderationCapabilities(
+        for message: ConversationMessage,
+        in conversation: Conversation?,
+        baseline: Set<MessageCapability>
+    ) -> Set<MessageCapability> {
+        guard baseline.contains(.report),
+              let viewerState = conversation?.viewerState,
+              let sender = message.senderID,
+              sender != conversation?.creator
+        else { return [] }
+        var granted: Set<MessageCapability> = []
+        if viewerState.canSilence { granted.insert(.silence) }
+        if viewerState.canBan { granted.insert(.remove) }
+        return granted
     }
 
     private static func memberCapabilities(
@@ -102,10 +171,11 @@ extension MessageCapability {
         policy: MessagePolicy,
         now: Date
     ) -> Set<MessageCapability> {
-        // `hasText` gates Edit, which only a text body has. `hasCopyableText` gates Copy, which a
-        // photo's caption also offers: it copies the caption. Matching Android's resolver.
-        let hasText: Bool
+        // `isEditable` gates Edit: a text body, or a photo's caption. `hasCopyableText` gates Copy,
+        // which a photo's caption also offers: it copies the caption. Matching Android's resolver.
+        let isEditable: Bool
         let hasCopyableText: Bool
+        let isPhoto: Bool
         switch message.content {
         case .deleted, .encrypted, .system:
             // Nothing is left to act on: a tombstone must not be re-deleted, and this client has no
@@ -130,17 +200,21 @@ extension MessageCapability {
             // Server-authored like the profile card: Reply only. Paying and closing live on the card.
             return [.reply]
         case .text:
-            hasText = true
+            isEditable = true
             hasCopyableText = true
+            isPhoto = false
         case .media(_, let caption):
-            hasText = false
-            hasCopyableText = !(caption?.isEmpty ?? true)
+            // Editing a photo changes its caption only, so one sent without a caption can't gain one.
+            isEditable = !(caption?.isEmpty ?? true)
+            hasCopyableText = isEditable
+            isPhoto = true
         }
 
         guard message.isFromSelf(selfUserID) else {
-            return hasCopyableText
-                ? [.copy, .reply, .report, .forward]
-                : [.reply, .report, .forward]
+            var capabilities: Set<MessageCapability> = [.reply, .report, .forward]
+            if hasCopyableText { capabilities.insert(.copy) }
+            if isPhoto { capabilities.insert(.savePhoto) }
+            return capabilities
         }
 
         // An unconfirmed message has no `eventSequence` to send as `expected_event_sequence`, so no
@@ -154,7 +228,10 @@ extension MessageCapability {
         if hasCopyableText {
             capabilities.insert(.copy)
         }
-        if hasText {
+        if isPhoto {
+            capabilities.insert(.savePhoto)
+        }
+        if isEditable {
             if isWithin(policy.editWindow, of: message, at: now) {
                 capabilities.insert(.edit)
             }

@@ -8,14 +8,22 @@
 import Foundation
 import Observation
 import FlipcashCore
+import FlipcashStore
 
 nonisolated private let logger = Logger(label: "flipcash.payment-requests")
 
 /// The group payment requests read this session, merged by version.
 ///
-/// No event carries a request change, so every copy arrives from a fetch: a chat's sections, one
-/// request, or the response to the viewer's own create, close or mark-paid. Each goes through
-/// ``ingest(_:)``, which keeps the greater version and, at an equal version, EXPIRED over OPEN.
+/// A copy arrives from a fetch (a chat's sections, one request, or the response to the viewer's own
+/// create, close or mark-paid) or from a live chat-stream update. Fetched copies go through
+/// ``ingest(_:)``, which keeps the greater version and, at an equal version, EXPIRED over OPEN; live
+/// updates go through ``apply(_:)``, which follows the same version rule. Updates are best effort, so
+/// the polls stay as reconciliation.
+///
+/// Every copy that lands is also written to the database, which applies the same merge rule, and a
+/// chat's or a request's stored copies are read back ahead of the network read so cards and details
+/// draw offline and after a restart. Writes and reads are best effort: a failed one is logged and the
+/// network path carries on. `unavailable`, the seals and the retry sets are session state and are not stored.
 @MainActor
 @Observable
 final class PaymentRequests {
@@ -33,7 +41,8 @@ final class PaymentRequests {
 
     /// The first page of OPEN requests a chat refetch reads.
     static let openPageSize = 100
-    /// The first page of RESOLVED requests a chat refetch reads, enough to fill the deck's 24 hours.
+    /// The first page of RESOLVED requests a chat refetch reads, which tells a held OPEN copy it ended
+    /// when a live update was missed.
     static let resolvedPageSize = 20
     /// How often an on-screen chat or details sheet refetches.
     static let pollInterval: Duration = .seconds(45)
@@ -60,6 +69,7 @@ final class PaymentRequests {
     @ObservationIgnored private let closeRequest: Close
     @ObservationIgnored private let markPaidShare: MarkPaid
     @ObservationIgnored private let getPage: GetPage
+    @ObservationIgnored private let database: Database?
     @ObservationIgnored private var inFlight: Set<PaymentRequestID> = []
     @ObservationIgnored private var sealReads: Set<ConversationID> = []
     /// Requests whose last read failed short of a server answer, retried on the next chat refetch.
@@ -74,8 +84,10 @@ final class PaymentRequests {
         create: @escaping Create = { _, _, _ in throw Unconfigured() },
         close: @escaping Close = { _ in throw Unconfigured() },
         markPaid: @escaping MarkPaid = { _, _ in throw Unconfigured() },
-        getPage: @escaping GetPage = { _, _, _, _ in throw Unconfigured() }
+        getPage: @escaping GetPage = { _, _, _, _ in throw Unconfigured() },
+        database: Database? = nil
     ) {
+        self.database = database
         self.getChatPage = getChatPage
         self.getRequest = getRequest
         self.openingSeal = openingSeal
@@ -142,13 +154,71 @@ final class PaymentRequests {
         requests[id]
     }
 
+    /// `conversationID`'s stored requests whose title the viewer can read, keyed by id: the ones a
+    /// transcript row may name.
+    func timelines(in conversationID: ConversationID) -> [PaymentRequestID: RequestTimeline] {
+        var timelines: [PaymentRequestID: RequestTimeline] = [:]
+        for request in requests.values where request.chatID == conversationID && !unavailable.contains(request.id) {
+            guard let title = text(of: request)?.title else { continue }
+            timelines[request.id] = RequestTimeline(request: request, title: title)
+        }
+        return timelines
+    }
+
     /// `conversationID`'s requests the deck shows to `viewer` as of `now`, in deck order.
     func deck(for conversationID: ConversationID, viewer: UserID?, at now: Date) -> [GroupPaymentRequest] {
         GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID }, viewer: viewer, at: now)
     }
 
-    /// Merges fetched copies into the store.
+    /// Drops the held requests and chat seals of conversations the user has left, so a card for a
+    /// departed chat can't redraw. The database rows go with the conversation's own delete.
+    func forget(conversations departed: Set<ConversationID>) {
+        guard !departed.isEmpty else { return }
+        requests = requests.filter { entry in entry.value.chatID.map { !departed.contains($0) } ?? true }
+        for id in departed { seals[id] = nil }
+    }
+
+    /// Merges fetched copies into the store and writes them through to the database.
     func ingest(_ incoming: [GroupPaymentRequest]) {
+        merge(incoming)
+        unavailable.subtract(incoming.map(\.id))
+        persist(incoming)
+    }
+
+    /// Reads `conversationID`'s stored requests into the store, ahead of the network read.
+    func hydrate(_ conversationID: ConversationID) async {
+        guard let database else { return }
+        do {
+            let stored = try await Task.detached { try database.paymentRequests(in: conversationID) }.value
+            merge(stored)
+        } catch {
+            logger.warning("Failed to read a chat's stored payment requests", metadata: ["error": "\(error)"])
+        }
+    }
+
+    /// Reads the stored copy of `id` into the store, ahead of the network read.
+    private func hydrate(_ id: PaymentRequestID) async {
+        guard let database else { return }
+        do {
+            let stored = try await Task.detached { try database.paymentRequest(id: id) }.value
+            if let stored { merge([stored]) }
+        } catch {
+            logger.warning("Failed to read a stored payment request", metadata: ["error": "\(error)"])
+        }
+    }
+
+    /// Writes `requests` to the database, which keeps the greater version per request. A failure
+    /// leaves the in-memory copy in place and never fails the fetch it came from.
+    private func persist(_ requests: [GroupPaymentRequest]) {
+        guard let database, !requests.isEmpty else { return }
+        do {
+            try database.upsertPaymentRequests(requests)
+        } catch {
+            logger.warning("Failed to store payment requests", metadata: ["error": "\(error)"])
+        }
+    }
+
+    private func merge(_ incoming: [GroupPaymentRequest]) {
         for request in incoming {
             if let existing = requests[request.id] {
                 let kept = GroupPaymentRequest.merged(existing: existing, incoming: request)
@@ -156,13 +226,53 @@ final class PaymentRequests {
             } else {
                 requests[request.id] = request
             }
-            unavailable.remove(request.id)
+        }
+    }
+
+    /// Applies live updates from the chat stream to the copies held, and returns the requests that need
+    /// a refetch (see ``refetch(_:)``).
+    ///
+    /// `.created` merges like a fetched copy. `.updates` apply by version against the held copy; with no
+    /// held copy they are dropped, since the request is fetched when shown.
+    @discardableResult
+    func apply(_ updates: [DecodedPaymentRequestUpdate]) -> [PaymentRequestID] {
+        var refetch: [PaymentRequestID] = []
+        for update in updates {
+            switch update.change {
+            case .created(let request):
+                ingest([request])
+            case .updates(let version, let changes):
+                guard let held = requests[update.id] else { continue }
+                switch held.applying(version: version, updates: changes) {
+                case .ignored:
+                    break
+                case .applied(let applied):
+                    requests[update.id] = applied
+                    persist([applied])
+                case .refetch:
+                    if !refetch.contains(update.id) { refetch.append(update.id) }
+                }
+            }
+        }
+        return refetch
+    }
+
+    /// Reads each of `ids` to reconcile a live update that couldn't be applied. A failed read keeps the
+    /// held copy; the next poll retries.
+    func refetch(_ ids: [PaymentRequestID]) async {
+        await ids.concurrentForEach { @MainActor [self] id in
+            do {
+                try await self.refresh(id)
+            } catch {
+                logger.warning("Failed to refetch a payment request after a live update", metadata: ["error": "\(error)"])
+            }
         }
     }
 
     /// Reads `conversationID`'s OPEN and RESOLVED first pages, and its seal if not held yet. A failed
     /// read keeps what was held.
     func refreshChat(_ conversationID: ConversationID) async {
+        await hydrate(conversationID)
         async let sealed: Void = loadSeal(for: conversationID)
         do {
             async let open = getChatPage(conversationID, .open, Self.openPageSize)
@@ -178,8 +288,8 @@ final class PaymentRequests {
             ])
         }
         await sealed
-        for id in failedReads {
-            await fetchIfMissing(id)
+        await failedReads.concurrentForEach { @MainActor [self] id in
+            await self.fetchIfMissing(id)
         }
     }
 
@@ -216,6 +326,7 @@ final class PaymentRequests {
     /// viewer pays under, `nil` when the viewer has no unpaid share. Throws what the read threw.
     @discardableResult
     func refresh(_ id: PaymentRequestID) async throws -> Data? {
+        if requests[id] == nil { await hydrate(id) }
         do {
             let fetched = try await getRequest(id)
             ingest([fetched.request])

@@ -74,6 +74,11 @@ public enum ConversationStreamEvent: Sendable {
     /// `rules` is the full replacement set. Best-effort and applied as received, like ``titleChanged``.
     case rulesChanged(conversationID: ConversationID, rules: ConversationRules)
 
+    /// A message was pinned or unpinned. Like ``rosterChanged``, a convergent overlay: the store keeps
+    /// `summary` only when its version is greater than the one held. `summary` is always set on the wire,
+    /// so an update without it is dropped at decode.
+    case pinsChanged(conversationID: ConversationID, change: ConversationPinChange?, summary: ConversationPinSummary)
+
     /// Payment requests in the chat changed. Best-effort and outside the gap-detected event log: a
     /// missed update is reconciled by the next fetch of the request. Applying them to request state
     /// follows `PaymentRequestUpdate`'s contract; see ``DecodedPaymentRequestUpdate``.
@@ -256,6 +261,15 @@ extension ConversationStreamEvent {
             case .rulesChanged(let changed):
                 guard changed.hasNewRules else { break }
                 events.append(.rulesChanged(conversationID: conversationID, rules: ConversationRules(changed.newRules)))
+            case .pinsChanged(let changed):
+                guard changed.hasSummary else { break }
+                let change: ConversationPinChange?
+                switch changed.change {
+                case .pinned(let pin): change = .pinned(ConversationPin(pin))
+                case .unpinned(let messageID): change = .unpinned(MessageID(messageID))
+                case nil: change = nil
+                }
+                events.append(.pinsChanged(conversationID: conversationID, change: change, summary: ConversationPinSummary(changed.summary)))
             case nil:
                 break
             }

@@ -11,9 +11,10 @@ import FlipcashCore
 
 // MARK: - Money actions -
 
-/// The sheet a private group's send-cash button opens: send money as today, or request it.
+/// The sheet a private group's send-cash button opens: request money, listed first, or send it.
 ///
-/// Two cards like the Add Money sheet's and nothing else, matching Android (node 12243:1009).
+/// Two cards like the Add Money sheet's and nothing else, matching Android. Request Money comes
+/// first, reversing the order in design frame 02 (node 12243:1009) by product decision.
 struct MoneyActionsSheet: View {
 
     @Environment(\.dismiss) private var dismiss
@@ -24,13 +25,13 @@ struct MoneyActionsSheet: View {
     var body: some View {
         PartialSheet {
             VStack(spacing: 12) {
-                row(icon: .withdraw, title: "Send Money", subtitle: "Send money to someone in the group, or multiple people", identifier: "money-action-send") {
-                    dismiss()
-                    sendMoney()
-                }
                 row(icon: .deposit, title: "Request Money", subtitle: "Collect money from people in the group", identifier: "money-action-request") {
                     dismiss()
                     requestMoney()
+                }
+                row(icon: .withdraw, title: "Send Money", subtitle: "Send money to someone in the group, or multiple people", identifier: "money-action-send") {
+                    dismiss()
+                    sendMoney()
                 }
             }
             .padding(.horizontal)
@@ -51,6 +52,7 @@ struct ActionCardRow: View {
     let title: String
     let subtitle: String
     let identifier: String
+    var fill: Color = Color.white.opacity(0.1)
     let action: () -> Void
 
     var body: some View {
@@ -77,7 +79,7 @@ struct ActionCardRow: View {
             }
             .padding(20)
             .frame(maxWidth: .infinity)
-            .background(Color.white.opacity(0.1))
+            .background(fill)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(Rectangle())
         }
@@ -152,8 +154,8 @@ private struct PaymentRequestFlowContent: View {
                         path.append(.selectPeople)
                     }, sent: { dismiss() })
                 case .name:
-                    PaymentRequestNameScreen(title: viewModel.title) {
-                        viewModel.title = $0
+                    PaymentRequestNameScreen(name: viewModel.name) {
+                        viewModel.name.save($0)
                         path.removeLast()
                     }
                 case .selectPeople:
@@ -373,11 +375,11 @@ private struct PaymentRequestSummaryScreen: View {
             VStack(alignment: .leading, spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.amount?.formatted() ?? "")
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(viewModel.amount?.formattedDroppingZeroFraction() ?? "")
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
-                            Text("per person")
+                            Text("each")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                         }
@@ -481,13 +483,15 @@ private struct PaymentRequestNameScreen: View {
     @State private var text: String
     @FocusState private var isFocused: Bool
 
+    let placeholder: String
     let save: (String) -> Void
 
     /// Same threshold as the profile and group name screens.
     private static let countdownThreshold = 10
 
-    init(title: String, save: @escaping (String) -> Void) {
-        _text = State(initialValue: title)
+    init(name: PaymentRequestName, save: @escaping (String) -> Void) {
+        _text = State(initialValue: name.fieldText)
+        self.placeholder = name.placeholder
         self.save = save
     }
 
@@ -505,7 +509,7 @@ private struct PaymentRequestNameScreen: View {
                     .foregroundStyle(Color.textMain)
                     .padding(.top, 20)
 
-                TextField("Request Name", text: $text)
+                TextField(placeholder, text: $text)
                     .font(.appDisplayMedium)
                     .foregroundStyle(Color.textMain)
                     .focused($isFocused)
@@ -813,7 +817,7 @@ private struct PaymentRequestSelectPeopleScreen: View {
                     .padding(20)
             }
         }
-        .navigationTitle("Select People")
+        .navigationTitle("Request From")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()

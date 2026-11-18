@@ -164,6 +164,29 @@ struct AppRouterTests {
         #expect(router[.balance] == AppRouter.navigationPath(.discoverCurrencies, .currencyCreationSummary))
     }
 
+    @Test("pushForCollapse pushes over the stack, then collapse leaves only the destination")
+    func pushForCollapse_thenCollapse() {
+        let router = AppRouter()
+        router.activeTabStack = .tips
+        router.push(.newPrivateGroup)
+        router.push(.newPublicGroup)
+        router.pushForCollapse(.currencyInfo(.usdc))
+        #expect(router[.tips] == AppRouter.navigationPath(.newPrivateGroup, .newPublicGroup, .currencyInfo(.usdc)))
+        router.collapseTopmostPath(toTop: .currencyInfo(.usdc))
+        #expect(router[.tips] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+    }
+
+    @Test("collapse is skipped when the user already popped")
+    func collapse_skippedAfterPop() {
+        let router = AppRouter()
+        router.activeTabStack = .tips
+        router.push(.newPublicGroup)
+        router.pushForCollapse(.currencyInfo(.usdc))
+        router.pop(on: .tips)
+        router.collapseTopmostPath(toTop: .currencyInfo(.usdc))
+        #expect(router[.tips] == AppRouter.navigationPath(.newPublicGroup))
+    }
+
     @Test("setPath with identical path is a no-op")
     func setPath_identical_isNoop() {
         let router = AppRouter()

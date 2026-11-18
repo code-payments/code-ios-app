@@ -143,9 +143,17 @@ private struct StartChattingSheetContent: View {
             dismiss()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
-                viewModel.selectCurrencyAction(exchangedBalance: balance)
-            }
+            let options = viewModel.paymentOptions
+            CurrencyPickerSheet(
+                options: options,
+                selectedMint: viewModel.selectedBalance?.stored.mint ?? .usdf,
+                onSelect: { mint in
+                    if let balance = options.first(where: { $0.stored.mint == mint }) {
+                        viewModel.selectCurrencyAction(exchangedBalance: balance)
+                    }
+                    isShowingTokenSelection = false
+                }
+            )
         }
     }
 

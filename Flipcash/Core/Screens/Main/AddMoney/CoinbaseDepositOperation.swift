@@ -30,16 +30,19 @@ final class CoinbaseDepositOperation {
     @ObservationIgnored private let coinbaseService: CoinbaseService
     @ObservationIgnored private let session: any (AccountProviding & ProfileProviding)
     @ObservationIgnored private let idleTimer: ApplePayIdleTimer
+    @ObservationIgnored private let timer: AddMoneyTimer
 
     @ObservationIgnored private var runTask: Task<Void, Error>?
 
     init(
         coinbaseService: CoinbaseService,
         session: any (AccountProviding & ProfileProviding),
+        timer: AddMoneyTimer = AddMoneyTimer(),
         applePayIdleTimeout: Duration = .seconds(60)
     ) {
         self.coinbaseService = coinbaseService
         self.session = session
+        self.timer = timer
         self.idleTimer = ApplePayIdleTimer(timeout: applePayIdleTimeout)
     }
 
@@ -77,8 +80,16 @@ final class CoinbaseDepositOperation {
         try checkMinimum(amount)
 
         state = .working
-        let order = try await createOrder(for: amount)
+        let order: OnrampOrderResponse
+        do {
+            order = try await createOrder(for: amount)
+        } catch {
+            Self.trackPurchase(amount, error: error)
+            throw error
+        }
         orderId = order.id
+        timer.mark(.orderPlaced)
+        Self.trackPurchase(amount, error: nil)
         Analytics.addMoneyPaymentInvoked(method: .coinbase, exchangedFiat: amount)
 
         coinbaseService.setOrder(order)
@@ -86,6 +97,17 @@ final class CoinbaseDepositOperation {
 
         state = .awaitingExternal(.applePay)
         try await awaitApplePayCompletion(orderId: order.id, rate: amount.currencyRate)
+    }
+
+    /// `Token Purchase With Coinbase` at the order's outcome, as Android sends it once the order is
+    /// placed. A missing contact or a cancel sends nothing: Android's flow routes to verification
+    /// there instead of failing the purchase.
+    static func trackPurchase(_ amount: ExchangedFiat, error: Error?) {
+        if let error {
+            if error is CancellationError { return }
+            if case DepositError.requirementUnsatisfied = error { return }
+        }
+        Analytics.tokenPurchase(method: .coinbase, mint: amount.mint, amount: amount.nativeAmount, error: error)
     }
 
     private func checkRequirements() throws {
@@ -176,6 +198,7 @@ final class CoinbaseDepositOperation {
             try Task.checkCancellation()
             switch event.event {
             case .pollingSuccess:
+                timer.mark(.paymentCompleted)
                 logger.info("Apple Pay onramp completed", metadata: [
                     "orderId": "\(orderId)",
                 ])
@@ -211,7 +234,15 @@ final class CoinbaseDepositOperation {
                     self?.runTask?.cancel()
                 }
 
-            case .paymentAuthorized, .commitSuccess, .pollingStart:
+            case .paymentAuthorized:
+                timer.mark(.paymentAuthorized)
+                logger.info("Apple Pay onramp progressed", metadata: [
+                    "orderId": "\(orderId)",
+                    "event": "\(event.name)",
+                ])
+                idleTimer.disarm()
+
+            case .commitSuccess, .pollingStart:
                 logger.info("Apple Pay onramp progressed", metadata: [
                     "orderId": "\(orderId)",
                     "event": "\(event.name)",

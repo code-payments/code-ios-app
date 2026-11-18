@@ -111,6 +111,12 @@ extension ChatItem {
         /// How a payment-request widget draws; resolved by the caller from the request store so
         /// the mapper stays pure. Defaults to the loading card.
         paymentRequest: (ConversationMessage) -> PaymentRequestCardState = { _ in .loading },
+        /// The Send Back row under a cash message; nil draws none. See ``SendBackRow/resolve``.
+        sendBack: (ConversationMessage) -> ChatCashContent.SendBack? = { _ in nil },
+        /// The chat's stored, readable payment requests, resolved by the caller from the request
+        /// store. They title a share payment's row and are the source of the marked-paid and
+        /// closed rows, which have no message behind them.
+        requests: [PaymentRequestID: RequestTimeline] = [:],
         /// Where the viewer's unread messages began at open; the divider heads the first message
         /// after it that someone else sent.
         unreadBoundary: UnreadBoundary = .none,
@@ -123,9 +129,37 @@ extension ChatItem {
         // bubble to an invisible row, or steal the "Delivered"/"Read" receipt anchor below.
         // A message still waiting on the peer's key is left out until it decrypts, and a blank
         // system message draws nothing, so it must not head a separator either.
-        let messages: [ConversationMessage] = switch deletedPresentation {
+        let shown: [ConversationMessage] = switch deletedPresentation {
         case .hidden:      messages.filter { !$0.isDeleted && !$0.isAwaitingDecryption && !$0.isBlankSystem }
         case .placeholder: messages.filter { !$0.isAwaitingDecryption && !$0.isBlankSystem }
+        }
+
+        // Photos sent together draw as one card stack fronted by the first (see `ChatMediaGrouping`).
+        // The photos behind it leave the list here, so receipts, runs and separators see one row; a
+        // caption on the last stays that message's own text row under the stack, with its menu,
+        // "Edited" marker, receipt and reactions.
+        var stackMembers: [String: [ConversationMessage]] = [:]
+        var captionRows: Set<String> = []
+        var messages: [ConversationMessage] = []
+        var cursor = 0
+        for range in ChatMediaGrouping.stacks(in: shown) {
+            messages += shown[cursor..<range.lowerBound]
+            let members = Array(shown[range])
+            stackMembers[members[0].stableID] = members
+            messages.append(members[0])
+            if let last = members.last, case .media(_, let caption?) = last.content, !caption.isEmpty {
+                messages.append(last.replacingContent(.text(caption), lastEditedTs: last.lastEditedTs))
+                captionRows.insert(last.stableID)
+            }
+            cursor = range.upperBound
+        }
+        messages += shown[cursor...]
+        // A caption keeps the cards a caption draws: a cash, token or web link stays underlined text.
+        func captionCard(_ links: [DetectedLink]) -> LinkCard? {
+            switch linkCard(links) {
+            case .cash, .token, .web, nil: nil
+            case let card?: card
+            }
         }
 
         // The marker goes where the ciphertext starts: above the first encrypted message with
@@ -172,9 +206,14 @@ extension ChatItem {
         func isSystem(_ message: ConversationMessage) -> Bool {
             if case .system = message.content { true } else { false }
         }
+        // A share payment draws as a centred line too, with no sender to group a bubble under.
+        func isNotice(_ message: ConversationMessage) -> Bool {
+            isSystem(message) || message.isSharePayment
+        }
         let dividerHeadID: String? = {
             var older: ConversationMessage?
-            for message in messages where !isSystem(message) {
+            // A share payment paid to someone else is never unread, so the divider passes it too.
+            for message in messages where !isSystem(message) && message.countsAsUnread(for: selfUserID) {
                 if let older, unreadBoundary.dividerBetween(newer: message, older: older, selfUserID: selfUserID) {
                     return message.stableID
                 }
@@ -206,7 +245,12 @@ extension ChatItem {
         // split around it.
         let layouts = messages.map { message in
             switch message.content {
-            case .text(let text): Self.rows(for: text, preview: detectedLink(in: text, card: linkCard, page: message.linkPreview))
+            case .text(let text):
+                Self.rows(for: text, preview: detectedLink(
+                    in: text,
+                    card: { captionRows.contains(message.stableID) ? captionCard($0) : linkCard($0) },
+                    page: message.linkPreview
+                ))
             case .cash, .deleted, .encrypted, .widget, .media, .system: [RowLayout(part: nil, text: nil, preview: nil)]
             }
         }
@@ -226,14 +270,50 @@ extension ChatItem {
             }
         }
 
+        // The marked-paid and closed rows, each placed after the last message at or before its
+        // time. One older than the oldest loaded message waits for paging to reach it.
+        var storedAfter: [Int: [RequestOccurrence]] = [:]
+        if let oldest = messages.first?.date {
+            for occurrence in RequestOccurrence.stored(in: requests) where occurrence.date >= oldest {
+                guard let index = messages.lastIndex(where: { $0.date <= occurrence.date }) else { continue }
+                storedAfter[index, default: []].append(occurrence)
+            }
+        }
+        // What each request row was built from, so a run of them can collapse once every row is placed.
+        var occurrences: [String: RequestOccurrence] = [:]
+        // The date of the row drawn last. It is not always the previous message's: a stored row
+        // sits between two messages at a time of its own.
+        var lastDrawn: Date?
+        func separates(_ date: Date, fromDrawn earlier: Date) -> Bool {
+            date.timeIntervalSince(earlier) > gap || !calendar.isDate(date, inSameDayAs: earlier)
+        }
+
         var items: [ChatItem] = []
+        func appendRequestRow(_ occurrence: RequestOccurrence, showsSeparator: Bool) {
+            guard let row = RequestOccurrence.row(for: [occurrence], request: requests[occurrence.requestID], selfUserID: selfUserID, nameOf: nameOf) else { return }
+            if showsSeparator {
+                items.append(.dateSeparator(id: "sep-\(row.id)", text: occurrence.date.formattedChatSeparator()))
+            }
+            occurrences[row.id] = occurrence
+            items.append(.requestEvent(row))
+            lastDrawn = occurrence.date
+        }
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
             let previous = index > 0 ? messages[index - 1] : nil
             let next = index + 1 < messages.count ? messages[index + 1] : nil
+            // Rows with no message behind them, drawn between this message and its neighbours.
+            let followsStored = index > 0 && storedAfter[index - 1] != nil
+            let stored = storedAfter[index] ?? []
+            defer {
+                lastDrawn = message.date
+                for occurrence in stored {
+                    appendRequestRow(occurrence, showsSeparator: lastDrawn.map { separates(occurrence.date, fromDrawn: $0) } ?? true)
+                }
+            }
 
             // A separator opens the transcript and breaks any run longer than the gap.
-            let showsSeparator = previous.map { separates(message, from: $0) } ?? true
+            let showsSeparator = lastDrawn.map { separates(message.date, fromDrawn: $0) } ?? true
             let showsMarker = index == markerIndex
             if showsMarker {
                 items.append(.encryptionMarker)
@@ -257,11 +337,12 @@ extension ChatItem {
             // separator is already the heading of what follows it, so a second, shorter threshold
             // would flatten runs the transcript still draws as continuous.
             let groupedAbove = previous.map {
-                $0.senderID == message.senderID && !isSystem($0) && !showsSeparator && !showsDivider && !showsMarker
+                $0.senderID == message.senderID && !isNotice($0) && !showsSeparator && !showsDivider && !showsMarker
+                    && !followsStored
             } ?? false
             let groupedBelow = next.map {
-                $0.senderID == message.senderID && !isSystem($0) && !separates($0, from: message) && !divides($0, from: message)
-                    && index + 1 != markerIndex
+                $0.senderID == message.senderID && !isNotice($0) && !separates($0, from: message) && !divides($0, from: message)
+                    && index + 1 != markerIndex && stored.isEmpty
             } ?? false
 
             // The bubble run, which is not the author run. A bubble stacked above a bare emoji would
@@ -289,22 +370,48 @@ extension ChatItem {
                 continue
             case .text(let text):
                 content = .text(text)
+            case .cash(let fiat) where message.isSharePayment:
+                guard let requestID = message.paymentRequestID else { continue }
+                // The separator above already went in with the loop's own; the row adds none.
+                appendRequestRow(
+                    RequestOccurrence(
+                        kind: .sharePayment(message: message, amount: viewerAmount(fiat)),
+                        requestID: requestID,
+                        // The payment names who it paid, so the row reads right before the request loads.
+                        creator: message.cashReceiverID ?? requests[requestID]?.request.creator,
+                        member: message.senderID,
+                        date: message.date
+                    ),
+                    showsSeparator: false
+                )
+                continue
             case .cash(let fiat):
                 let branding = cashBranding(fiat)
+                let isTip = message.cashAction == .tipped
+                var card = cashCard(
+                    message.cashPayments,
+                    receiver: message.cashReceiverID,
+                    isFromSelf: isFromSelf,
+                    isTip: isTip,
+                    inGroup: namesAuthors,
+                    total: fiat.nativeAmount,
+                    shownAs: viewerAmount(fiat),
+                    sender: author(message)?.name,
+                    counterpartName: counterpartName,
+                    selfUserID: selfUserID,
+                    nameOf: nameOf
+                )
+                // A return is only ever posted into a DM, so it is named for the DM's two people.
+                if message.cashReturn?.returnOf != nil, !namesAuthors {
+                    card.lines = ChatCashContent.Lines.sentBack(isFromSelf: isFromSelf, counterpartName: counterpartName)
+                }
                 content = .cash(ChatCashContent(
-                    amount: viewerAmount(fiat).formatted(),
+                    amount: card.amount,
                     token: branding.token,
                     iconURL: branding.iconURL,
-                    isTip: message.cashAction == .tipped,
-                    group: namesAuthors ? groupSend(
-                        message.cashPayments,
-                        receiver: message.cashReceiverID,
-                        total: fiat.nativeAmount,
-                        shownAs: viewerAmount(fiat),
-                        sender: isFromSelf ? "You" : author(message)?.name,
-                        selfUserID: selfUserID,
-                        nameOf: nameOf
-                    ) : nil
+                    isTip: isTip,
+                    lines: card.lines,
+                    sendBack: sendBack(message)
                 ))
             case .deleted(let deletion):
                 content = .deleted(
@@ -350,7 +457,31 @@ extension ChatItem {
                     captionPreview: captionLayout?.preview,
                     captionRows: captionLayout?.rows ?? [],
                     isRedacted: message.redacted,
-                    sealed: attachment?.sealed
+                    sealed: attachment?.sealed,
+                    stackPhotos: (stackMembers[message.stableID] ?? []).map { member in
+                        let photo: MediaAttachment? = switch member.content {
+                        case .media(let attachments, _): attachments.first
+                        case .text, .cash, .deleted, .encrypted, .widget, .system: nil
+                        }
+                        let actions = capabilities(member)
+                        let memberServerID: MessageID? = switch member.status {
+                        case .sent:              member.id
+                        case .sending, .failed:  nil
+                        }
+                        return ChatMediaStackPhoto(
+                            messageID: member.stableID,
+                            serverID: memberServerID,
+                            blobID: photo?.blobID,
+                            width: photo?.width ?? 0,
+                            height: photo?.height ?? 0,
+                            blurhash: photo?.blurhash,
+                            isRedacted: member.redacted,
+                            sealed: photo?.sealed,
+                            canReply: actions.contains(.reply),
+                            canForward: actions.contains(.forward)
+                        )
+                    },
+                    renditions: attachment?.renditions ?? []
                 ))
             }
 
@@ -404,6 +535,10 @@ extension ChatItem {
             // A split message reads as one: the quote heads its first row, the receipt and the
             // "Edited" marker close its last, and every row between holds the author run and offers
             // the whole message's menu.
+            var actionSet = capabilities(message)
+            if stackMembers[message.stableID] != nil, actionSet.contains(.savePhoto) {
+                actionSet.insert(.saveAllPhotos)
+            }
             let rows = layouts[index]
             for (position, row) in rows.enumerated() {
                 let isFirst = position == 0
@@ -425,7 +560,7 @@ extension ChatItem {
                     receipt: isLast ? receipt : nil,
                     linkPreview: row.preview,
                     isEdited: isLast && message.lastEditedTs != nil && !message.isDeleted,
-                    actions: orderedActions(capabilities(message)),
+                    actions: orderedActions(actionSet),
                     quote: isFirst ? quote : nil,
                     // The viewer's own rows are never attributed: the trailing edge already says who
                     // wrote them, and a name and avatar over them would read as a second speaker.
@@ -451,7 +586,73 @@ extension ChatItem {
                 )))
             }
         }
-        return items
+        return collapsingRequestRows(items, occurrences: occurrences, requests: requests, selfUserID: selfUserID, nameOf: nameOf)
+    }
+
+    /// Joins request rows that sit directly under one another, for one request and of one kind,
+    /// into a single row. Anything drawn between two of them, a date header included, keeps them apart.
+    nonisolated private static func collapsingRequestRows(
+        _ items: [ChatItem],
+        occurrences: [String: RequestOccurrence],
+        requests: [PaymentRequestID: RequestTimeline],
+        selfUserID: UserID,
+        nameOf: (UserID) -> String?
+    ) -> [ChatItem] {
+        guard !occurrences.isEmpty else { return items }
+        var collapsed: [ChatItem] = []
+        var run: [RequestOccurrence] = []
+        func flush() {
+            guard let first = run.first else { return }
+            if let row = RequestOccurrence.row(for: run, request: requests[first.requestID], selfUserID: selfUserID, nameOf: nameOf) {
+                collapsed.append(.requestEvent(row))
+            }
+            run = []
+        }
+        for item in items {
+            switch item {
+            case .requestEvent(let event):
+                guard let occurrence = occurrences[event.id] else {
+                    flush()
+                    collapsed.append(item)
+                    continue
+                }
+                if let last = run.last, !last.collapses(with: occurrence) { flush() }
+                run.append(occurrence)
+            case .message, .dateSeparator, .unreadDivider, .typingIndicator, .encryptionMarker, .systemMessage, .inviteCard:
+                flush()
+                collapsed.append(item)
+            }
+        }
+        flush()
+        return collapsed
+    }
+
+    /// The pin bar's quote of a pinned `message`: the same author, snippet and kind a reply's quote
+    /// of it carries, or "Encrypted message" for one this device can't open. `authorName` names a
+    /// sender other than the viewer, as the reply strip resolves it.
+    nonisolated static func pinQuote(
+        of message: ConversationMessage,
+        selfUserID: UserID,
+        authorName: String,
+        cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?),
+        viewerAmount: (ExchangedFiat) -> FiatAmount
+    ) -> ChatQuote {
+        let quote = quote(
+            resolving: message,
+            selfUserID: selfUserID,
+            counterpartName: authorName,
+            cashBranding: cashBranding,
+            viewerAmount: viewerAmount,
+            author: { _ in nil }
+        )
+        guard case .encrypted = message.content else { return quote }
+        return ChatQuote(
+            stableID: message.stableID,
+            authorName: quote.authorName,
+            snippet: "Encrypted message",
+            kind: .text,
+            authorID: message.senderID
+        )
     }
 
     /// The quoted original, for each of the three states it can be in. A message the local database
@@ -536,7 +737,7 @@ extension ChatItem {
                 stableID: original.stableID,
                 authorName: authorName,
                 snippet: ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption)),
-                kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.blobID, sealed: attachments.first?.sealed),
+                kind: .media(thumbnailBlobID: original.redacted ? nil : attachments.first?.quoteThumbnailBlobID, sealed: attachments.first?.sealed),
                 authorID: original.senderID
             )
         case .encrypted, .system:
@@ -676,49 +877,90 @@ extension ChatItem {
     /// Menu order is fixed here, not at the call site — a `Set` has no order, and the context menu
     /// must not shuffle its rows between renders of the same message.
     ///
-    /// Forward follows Reply, as on Android. Report goes
+    /// Forward follows Reply, as on Android, then Save Photo, and Pin after them. Report goes
     /// last: it is the rarest row and the only one that never appears on your own message, so the
     /// menu reads "yours ends with delete, theirs ends with report".
     nonisolated private static func orderedActions(_ capabilities: Set<MessageCapability>) -> [MessageCapability] {
-        [.copy, .reply, .forward, .edit, .delete, .report].filter(capabilities.contains)
+        [.copy, .reply, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin, .edit, .delete, .report, .silence, .remove].filter(capabilities.contains)
     }
 
-    /// The group lines for a payment in a group chat, or nil when its receiver isn't known; a
-    /// payment to the viewer alone reads "to You". A split between two or more
-    /// members restates each part by its share of `total`, so the parts and the card's `shownAs`
-    /// total use one conversion. `sender` is "You" for the viewer's own send.
-    nonisolated static func groupSend(
+    /// The large line and the lines around it for a cash card in the transcript. A group send to
+    /// two or more draws the part each got with the total under it, or "~" the smallest part when
+    /// the parts differ; a DM and a group send
+    /// to one person draw the amount alone. Every card names the other side at its foot. `sender`
+    /// is the author's name and `counterpartName` a DM's other member; either reads "Someone" when
+    /// nil or empty.
+    nonisolated static func cashCard(
         _ payments: [CashPayment],
         receiver: UserID?,
+        isFromSelf: Bool,
+        isTip: Bool,
+        inGroup: Bool,
         total: FiatAmount,
         shownAs shown: FiatAmount,
         sender: String?,
+        counterpartName: String,
         selfUserID: UserID,
         nameOf: (UserID) -> String?
-    ) -> ChatCashContent.GroupSend? {
-        let sender = sender.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone"
-        func name(_ id: UserID) -> String? {
-            id == selfUserID ? "You" : nameOf(id).flatMap { $0.isEmpty ? nil : $0 }
+    ) -> (amount: String, lines: ChatCashContent.Lines) {
+        func named(_ name: String?) -> String { name.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone" }
+        let plainCaption = ChatCashContent.caption(isFromSelf: isFromSelf, isTip: isTip)
+        guard inGroup else {
+            let other = named(counterpartName)
+            return (shown.formatted(), .init(caption: plainCaption, counterpart: isFromSelf ? "to \(other)" : "from \(other)"))
         }
-        guard payments.count >= 2, total.value > 0 else {
-            guard let receiver, let receiverName = name(receiver) else { return nil }
-            return ChatCashContent.GroupSend(caption: "\(sender) sent", each: nil, recipients: "to \(receiverName)")
+        let senderName = named(sender)
+
+        guard payments.count >= 2 else {
+            // A receiver nobody can name, or none at all, is "Someone": the viewer is never told
+            // they were paid unless the payment names them.
+            let receiver = receiver ?? payments.first?.receiverID
+            let receiverName = named(receiver.flatMap(nameOf))
+            let lines: ChatCashContent.Lines = if isFromSelf {
+                .init(caption: plainCaption, counterpart: "to \(receiverName)")
+            } else if receiver == selfUserID {
+                .init(caption: plainCaption, counterpart: "from \(senderName)")
+            } else {
+                .init(caption: "\(senderName) sent", counterpart: "to \(receiverName)")
+            }
+            return (shown.formatted(), lines)
         }
-        func formatted(_ payment: CashPayment) -> String {
-            FiatAmount(value: shown.value * Decimal(payment.nativeAmount) / total.value, currency: shown.currency).formatted()
+
+        // A part is restated by its share of `total`, so the part and the card's `shownAs` total
+        // use one conversion.
+        func restated(_ part: CashPayment) -> FiatAmount {
+            total.value > 0
+                ? FiatAmount(value: shown.value * Decimal(part.nativeAmount) / total.value, currency: shown.currency)
+                : FiatAmount(value: shown.value / Decimal(payments.count), currency: shown.currency)
         }
+        // Decided by the parts themselves, not the send's date: sends before every member got the
+        // amount entered split a total, and a later send may split again.
+        let isEven = payments.allSatisfy { $0.nativeAmount == payments[0].nativeAmount }
         let smallest = payments.min { $0.nativeAmount < $1.nativeAmount } ?? payments[0]
-        let isEven = Set(payments.map(\.nativeAmount)).count == 1
-        let others = payments.count - 1
-        // A paid viewer leads the list; otherwise it is named by the first recipient in selection order.
-        let first = payments.contains { $0.receiverID == selfUserID } ? selfUserID : payments[0].receiverID
-        let recipients = first.flatMap(name).map { "to \($0) and \(others) \(others == 1 ? "Other" : "Others")" }
-            ?? "to \(payments.count) people"
-        return ChatCashContent.GroupSend(
-            caption: "\(sender) sent",
-            each: isEven ? "\(formatted(smallest)) each" : "~\(formatted(smallest)) each",
-            recipients: recipients
-        )
+        let part: ChatCashContent.Lines.Part = isEven ? .each : .approximateEach
+        let totalLine = "\(shown.formatted()) total"
+        func others(_ count: Int) -> String { "\(count) \(count == 1 ? "other" : "others")" }
+
+        let lines: ChatCashContent.Lines
+        if !isFromSelf, payments.contains(where: { $0.receiverID == selfUserID }) {
+            lines = .init(
+                caption: "You and \(others(payments.count - 1)) received",
+                total: totalLine,
+                part: part,
+                counterpart: "from \(senderName)"
+            )
+        } else {
+            // Named by the first recipient in selection order.
+            let lead = payments[0].receiverID.flatMap { $0 == selfUserID ? "You" : nameOf($0).flatMap { $0.isEmpty ? nil : $0 } }
+            lines = .init(
+                caption: isFromSelf ? plainCaption : "\(senderName) sent",
+                total: totalLine,
+                part: part,
+                counterpart: lead.map { "to \($0) and \(others(payments.count - 1))" } ?? "to \(payments.count) people"
+            )
+        }
+        // Every viewer, paid or not, sees the same part: the one each got, or "~" the smallest.
+        return (restated(smallest).formatted(), lines)
     }
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's

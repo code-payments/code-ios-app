@@ -192,6 +192,9 @@ final class DeepLinkController {
         case .balance:
             return action(.wallet)
 
+        case .tab(let tab):
+            return action(.tab(tab))
+
         case .discover:
             return action(.discoverCurrencies)
 
@@ -240,6 +243,7 @@ struct DeepLinkAction {
     static func routeChat(
         _ conversationID: ConversationID,
         landing: MessageLanding? = nil,
+        request: PaymentRequestID? = nil,
         origin: DeepLinkOrigin,
         in container: SessionContainer
     ) async {
@@ -252,7 +256,8 @@ struct DeepLinkAction {
             for: conversation?.type,
             isPrivateOutsider: isPrivateOutsider,
             conversationID: conversationID,
-            landing: landing
+            landing: landing,
+            request: request
         ) else {
             logger.info("Ignoring non-tip chat deeplink", metadata: [
                 "conversationID": "\(conversationID)",
@@ -287,7 +292,8 @@ struct DeepLinkAction {
         for type: ConversationType?,
         isPrivateOutsider: Bool = false,
         conversationID: ConversationID,
-        landing: MessageLanding? = nil
+        landing: MessageLanding? = nil,
+        request: PaymentRequestID? = nil
     ) -> AppRouter.Destination? {
         switch type {
         case .group where isPrivateOutsider:
@@ -295,6 +301,9 @@ struct DeepLinkAction {
         case .tipDm, .group:
             if let landing {
                 return .chatMessage(conversationID, landing)
+            }
+            if let request {
+                return .chatRequest(conversationID, request)
             }
             return .tipConversation(conversationID)
         case .contactDm, nil:
@@ -370,6 +379,9 @@ struct DeepLinkAction {
             )
         case .lookupFailed:
             showLookupFailed(isScan: isScan, on: session)
+        case .memberSheet:
+            // Only a group transcript asks for it, and a link never does.
+            break
         }
     }
 
@@ -443,7 +455,7 @@ struct DeepLinkAction {
                 // chevron that belongs to a stack the user never navigated.
                 let router = container.appRouter
                 router.setPath([], on: .balance)
-                router.requestedTabStack = .balance
+                router.requestedTab = .wallet
                 router.requestedCardMint = mint
             }
 
@@ -511,10 +523,13 @@ struct DeepLinkAction {
                 Analytics.deeplinkRouted(kind: kind)
                 // `flipcash://balance` means "show me the wallet" — bring the tab
                 // forward at its root rather than pushing anything onto it.
-                let router = container.appRouter
-                while router.presentedSheet != nil { router.dismissSheet() }
-                router.setPath([], on: .balance)
-                router.requestedTabStack = .balance
+                container.appRouter.showTab(.wallet)
+            }
+
+        case .tab(let tab):
+            if let container = sessionAuthenticator.loggedInContainer {
+                Analytics.deeplinkRouted(kind: kind)
+                container.appRouter.showTab(tab)
             }
 
         case .discoverCurrencies:
@@ -564,6 +579,8 @@ extension DeepLinkAction {
         case wallet
         /// Discover, pushed onto the Wallet tab.
         case discoverCurrencies
+        /// A tab, at its root, from a `/tab/<name>` link.
+        case tab(HomeTab)
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -583,6 +600,7 @@ extension DeepLinkAction.Kind {
         case .profile:              "Profile"
         case .wallet:               "Wallet"
         case .discoverCurrencies:   "DiscoverCurrencies"
+        case .tab(let tab):         "Tab:\(tab)"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }

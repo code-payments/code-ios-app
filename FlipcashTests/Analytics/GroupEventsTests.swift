@@ -25,10 +25,13 @@ struct GroupEventsTests {
 
     // MARK: - Group -
 
-    @Test("Group: New Opened has no properties")
-    func newOpened() throws {
-        let sent = Analytics.recordingSends { Analytics.groupNewOpened() }
-        try expectEvent(sent, "Group: New Opened", [:])
+    @Test("Group: New Opened carries the row that was tapped", arguments: [
+        (GroupType.private_, "Private"),
+        (GroupType.community, "Community"),
+    ])
+    func newOpened(_ type: GroupType, _ expected: String) throws {
+        let sent = Analytics.recordingSends { Analytics.groupNewOpened(type: type) }
+        try expectEvent(sent, "Group: New Opened", ["Type": .text(expected)])
     }
 
     @Test("Group: Created carries the gate mint and picture on success")
@@ -124,16 +127,34 @@ struct GroupEventsTests {
         try expectEvent(sent, "Group: Gate Funding Tapped", ["Method": .text(expected)])
     }
 
-    @Test("Group: Joined carries member count and gated")
+    @Test("A private Group: Joined that went through carries member count and Gated false")
     func joined() throws {
-        let sent = Analytics.recordingSends {
-            Analytics.groupJoined(error: ErrorJoinChat.rulesNotSatisfied, memberCount: 3, gated: true)
-        }
+        let joined = GroupInviteLanding.JoinResult.joined(ConversationID(data: Data(repeating: 7, count: 32)))
+        let sent = Analytics.recordingSends { Analytics.groupJoined(result: joined, memberCount: 3) }
+        try expectEvent(sent, "Group: Joined", [
+            "State": .text("Success"),
+            "Member Count": .number(3),
+            "Gated": .flag(false),
+        ])
+    }
+
+    @Test("A failed private Group: Joined names what the join came to", arguments: [
+        (GroupInviteLanding.JoinResult.dead(.exhausted), "Dead"),
+        (.dead(.expired), "Dead"),
+        (.dead(.revoked), "Dead"),
+        (.notFound, "NotFound"),
+        (.groupGone, "GroupGone"),
+        (.banned, "Banned"),
+        (.refused, "Refused"),
+        (.failed, "Failed"),
+    ])
+    func joinedFailure(_ result: GroupInviteLanding.JoinResult, _ expected: String) throws {
+        let sent = Analytics.recordingSends { Analytics.groupJoined(result: result, memberCount: 4) }
         try expectEvent(sent, "Group: Joined", [
             "State": .text("Failure"),
-            "Error": .text("RulesNotSatisfied"),
-            "Member Count": .number(3),
-            "Gated": .flag(true),
+            "Error": .text(expected),
+            "Member Count": .number(4),
+            "Gated": .flag(false),
         ])
     }
 
@@ -152,6 +173,47 @@ struct GroupEventsTests {
         try expectEvent(sent, "Group: Info Opened", [
             "Member Count": .number(7),
             "Is Member": .flag(false),
+        ])
+    }
+
+    // MARK: - Community Chat -
+
+    @Test("Community Chat: Joined carries member count and the gate's mint")
+    func communityChatJoined() throws {
+        let rules: ConversationRules? = Self.jeffyGate
+        let sent = Analytics.recordingSends {
+            Analytics.communityChatJoined(error: nil, memberCount: 12, gateMint: rules.gateMint)
+        }
+        try expectEvent(sent, "Community Chat: Joined", [
+            "State": .text("Success"),
+            "Member Count": .number(12),
+            "Gate Mint": .text(Self.jeffy),
+        ])
+    }
+
+    @Test("A failed Community Chat: Joined carries the proto result name")
+    func communityChatJoinedFailure() throws {
+        let rules: ConversationRules? = Self.jeffyGate
+        let sent = Analytics.recordingSends {
+            Analytics.communityChatJoined(error: ErrorJoinChat.rulesNotSatisfied, memberCount: 3, gateMint: rules.gateMint)
+        }
+        try expectEvent(sent, "Community Chat: Joined", [
+            "State": .text("Failure"),
+            "Error": .text("RulesNotSatisfied"),
+            "Member Count": .number(3),
+            "Gate Mint": .text(Self.jeffy),
+        ])
+    }
+
+    @Test("Community Chat: Joined for a chat with no rules leaves out Gate Mint")
+    func communityChatJoinedUngated() throws {
+        let rules: ConversationRules? = nil
+        let sent = Analytics.recordingSends {
+            Analytics.communityChatJoined(error: nil, memberCount: 2, gateMint: rules.gateMint)
+        }
+        try expectEvent(sent, "Community Chat: Joined", [
+            "State": .text("Success"),
+            "Member Count": .number(2),
         ])
     }
 
@@ -272,3 +334,4 @@ extension GroupInviteSource: @retroactive @unchecked Sendable {}
 extension GroupAccess: @retroactive @unchecked Sendable {}
 extension GroupGateFunding: @retroactive @unchecked Sendable {}
 extension MuteDuration: @retroactive @unchecked Sendable {}
+extension GroupType: @retroactive @unchecked Sendable {}

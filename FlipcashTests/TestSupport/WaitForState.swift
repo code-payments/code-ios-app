@@ -17,11 +17,12 @@ import Testing
 ///
 /// The deadline is wall time, so it has to hold on CI's shared runner, where
 /// parallel simulator clones stretch work that is instant on a dev machine
-/// into tens of seconds. It only bounds how long a *failing* wait takes.
+/// into tens of seconds; a loaded AllTargets run has held a wait past 30 s. It only bounds how
+/// long a *failing* wait takes.
 @MainActor
 func waitUntil<Object: AnyObject>(
     _ object: Object,
-    timeout: Duration = .seconds(30),
+    timeout: Duration = .seconds(90),
     pollInterval: Duration = .milliseconds(5),
     sourceLocation: SourceLocation = #_sourceLocation,
     matches predicate: @MainActor (Object) -> Bool
@@ -51,7 +52,7 @@ func waitUntil<Object: AnyObject>(
 /// land well after 900 ms of wall time there while landing in 5 ms locally.
 @MainActor
 func waitUntil(
-    timeout: Duration = .seconds(30),
+    timeout: Duration = .seconds(90),
     pollInterval: Duration = .milliseconds(5),
     sourceLocation: SourceLocation = #_sourceLocation,
     _ predicate: @MainActor () throws -> Bool

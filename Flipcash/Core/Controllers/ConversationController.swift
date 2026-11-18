@@ -59,7 +59,7 @@ final class ConversationController {
 
     /// The conversation with this ID, if the feed currently holds it.
     func conversation(withID id: ConversationID) -> Conversation? {
-        conversations.first { $0.id == id }
+        store.conversation(withID: id)
     }
 
     /// The visible feed, excluding hidden (blocked-counterpart) conversations.
@@ -103,6 +103,8 @@ final class ConversationController {
     var chatListProjection: ChatListProjection<ConversationID> {
         // Reading the store's tracked set here is what makes archiving re-render the list.
         let archived = chatArchive?.archivedIDs ?? []
+        // Same for the marks: reading the tracked set re-renders rows, chips and the badge.
+        let marked = chatMarkedUnread?.markedIDs ?? []
         let entries = chatListSource.map { conversation in
             ChatListEntry(
                 id: conversation.id,
@@ -111,7 +113,7 @@ final class ConversationController {
                 isArchived: archived.contains(conversation.id),
                 isMuted: conversation.isMuted(at: .now),
                 isHidden: conversation.isHidden,
-                unread: chatListUnread(for: conversation),
+                unread: chatListUnread(for: conversation, isMarked: marked.contains(conversation.id)),
                 joinRequests: chatListJoinRequests(for: conversation.id)
             )
         }
@@ -130,8 +132,14 @@ final class ConversationController {
         return ChatListJoinRequests(count: requests.count, newestEnteredAt: requests.compactMap(\.enteredAt).max())
     }
 
-    private func chatListUnread(for conversation: Conversation) -> ChatListUnread {
-        guard conversation.hasUnread(for: selfUserID) else { return .count(0) }
+    /// The unread state the list rules see for `conversation`, mark included.
+    func chatListUnread(for conversation: Conversation) -> ChatListUnread {
+        chatListUnread(for: conversation, isMarked: isMarkedUnread(conversation.id))
+    }
+
+    /// A marked chat with nothing unread is the no-count unread state; a known count wins over the mark.
+    private func chatListUnread(for conversation: Conversation, isMarked: Bool) -> ChatListUnread {
+        guard hasUnreadMessages(conversation) else { return isMarked ? .unknown : .count(0) }
         return unreadCount(for: conversation).map(ChatListUnread.count) ?? .unknown
     }
 
@@ -169,14 +177,156 @@ final class ConversationController {
         chatArchive?.unarchive(id)
     }
 
+    /// Archives every chat in `ids`.
+    func archive(_ ids: [ConversationID]) {
+        ids.forEach(archive)
+    }
+
+    /// Unarchives every chat in `ids`.
+    func unarchive(_ ids: [ConversationID]) {
+        ids.forEach(unarchive)
+    }
+
+    // MARK: - Mark unread
+
+    /// Whether the user marked the chat unread on this device.
+    func isMarkedUnread(_ id: ConversationID) -> Bool {
+        chatMarkedUnread?.markedIDs.contains(id) ?? false
+    }
+
+    /// Unread messages or a mark: what decides between Mark as Read and Mark as Unread. A pending
+    /// join request doesn't count; it is not something reading the chat clears.
+    func isUnread(_ conversation: Conversation) -> Bool {
+        hasUnreadMessages(conversation) || isMarkedUnread(conversation.id)
+    }
+
+    /// The read action a chat's swipe, menu and selection offer; nil for a chat the user hasn't
+    /// joined, such as one still in Requests, which can't be marked.
+    func readAction(for conversation: Conversation) -> ChatReadAction? {
+        guard !ChatListSelection.source(from: [conversation], isMember: store.isMember(of:)).isEmpty else { return nil }
+        return isUnread(conversation) ? .markRead : .markUnread
+    }
+
+    /// Runs `action` on one chat, and reports it when it is the action the chat offers.
+    func perform(_ action: ChatReadAction, on id: ConversationID, source: ChatReadSource) {
+        if let conversation = conversation(withID: id), readAction(for: conversation) == action {
+            switch action {
+            case .markRead:   Analytics.chatMarkedRead(chatType: conversation.type, source: source)
+            case .markUnread: Analytics.chatMarkedUnread(chatType: conversation.type, source: source)
+            }
+        }
+        switch action {
+        case .markRead:   markRead(id, source: source)
+        case .markUnread: markUnread(id, source: source)
+        }
+    }
+
+    /// Marks the chat unread on this device. Sends nothing.
+    func markUnread(_ id: ConversationID, source: ChatReadSource) {
+        guard let conversation = conversation(withID: id), readAction(for: conversation) != nil else { return }
+        chatMarkedUnread?.mark(id)
+    }
+
+    /// Clears the mark and advances READ to the newest message, the same call opening the chat makes.
+    /// Other members see the receipt. A chat with nothing unread sends nothing.
+    func markRead(_ id: ConversationID, source: ChatReadSource) {
+        chatMarkedUnread?.clear(id)
+        guard let conversation = conversation(withID: id),
+              hasUnreadMessages(conversation),
+              let newest = conversation.lastMessage?.id
+        else { return }
+        advanceReadPointer(to: newest, in: id)
+    }
+
+    /// Read All: reads every unread chat in the main list, muted included, and clears every mark
+    /// there. Archived chats keep theirs. Returns how many chats it read, for analytics.
+    @discardableResult
+    func readAllChats() -> Int {
+        let unread = chatListConversations.filter(isUnread)
+        for conversation in unread {
+            markRead(conversation.id, source: .menu)
+        }
+        Analytics.chatsReadAll(count: unread.count)
+        return unread.count
+    }
+
+    /// The select-mode read capsule: reads every chat in `ids`, or marks them all, per `toggle`.
+    /// Read All with nothing selected goes through ``readAllChats()`` after its confirmation instead.
+    /// Sends one read event per selected chat, whatever that chat's own state was.
+    func apply(_ toggle: ChatSelectionReadToggle, to ids: [ConversationID]) {
+        let types = ids.compactMap(conversation(withID:)).map(\.type)
+        switch toggle {
+        case .readAll:
+            return
+        case .read:
+            types.forEach { Analytics.chatMarkedRead(chatType: $0, source: .selection) }
+            ids.forEach { markRead($0, source: .selection) }
+        case .unread:
+            types.forEach { Analytics.chatMarkedUnread(chatType: $0, source: .selection) }
+            ids.forEach { markUnread($0, source: .selection) }
+        }
+    }
+
+    /// The read capsule for a selection of `ids`.
+    func readToggle(for ids: [ConversationID]) -> ChatSelectionReadToggle {
+        ChatSelectionReadToggle(selectedUnread: ids.compactMap(conversation(withID:)).map(isUnread))
+    }
+
+    /// The mute capsule for a selection of `ids`.
+    func muteToggle(for ids: [ConversationID]) -> ChatSelectionMute {
+        ChatSelectionMute(selectedMuted: ids.map { isMuted(conversationID: $0) })
+    }
+
+    /// Whether Read All has anything to do.
+    var hasUnreadInChatList: Bool {
+        chatListConversations.contains(where: isUnread)
+    }
+
+    /// Called as a chat opens: opening it is reading it, so the mark goes.
+    func chatOpened(_ id: ConversationID) {
+        chatMarkedUnread?.clear(id)
+    }
+
+    /// Whether `conversation` holds a message that is unread for the viewer. A share payment is
+    /// unread only for the member it paid, so one to someone else is looked past.
+    func hasUnreadMessages(_ conversation: Conversation) -> Bool {
+        conversation.hasUnread(for: selfUserID, countedThrough: newestCountingAsUnread(in: conversation))
+    }
+
     /// The unread count a conversation row shows; nil when the chat is unread but its READ
     /// watermark's message is neither stored nor fetched yet. See
-    /// ``Conversation/unreadCount(for:unreadSeqAt:)`` and ``resolveUnreadCount(for:)``.
+    /// ``Conversation/unreadCount(for:countedThrough:uncounted:unreadSeqAt:)`` and
+    /// ``resolveUnreadCount(for:)``.
     func unreadCount(for conversation: Conversation) -> Int? {
-        conversation.unreadCount(for: selfUserID) { pointer in
+        let newest = newestCountingAsUnread(in: conversation)
+        return conversation.unreadCount(
+            for: selfUserID,
+            countedThrough: newest,
+            uncounted: sharePaymentsToOthers(in: conversation, through: newest)
+        ) { pointer in
             storedUnreadSeq(of: pointer, in: conversation.id)
                 ?? watermarkStamps.stamp(for: .init(conversationID: conversation.id, messageID: pointer))
         }
+    }
+
+    /// The newest message that can be unread for the viewer: the chat's latest, or the newest
+    /// stored one under it when the latest is a share payment to someone else.
+    private func newestCountingAsUnread(in conversation: Conversation) -> ConversationMessage? {
+        guard let latest = conversation.lastMessage else { return nil }
+        if latest.countsAsUnread(for: selfUserID) { return latest }
+        _ = messageRevision   // observe: the message under the payment can land after the row draws
+        return (try? database.newestMessageCountingAsUnread(conversationID: conversation.id, for: selfUserID)) ?? nil
+    }
+
+    /// The stored share payments to someone else between the viewer's READ watermark and `newest`.
+    /// Only a group holds any, so a DM skips the read.
+    private func sharePaymentsToOthers(in conversation: Conversation, through newest: ConversationMessage?) -> Int {
+        guard conversation.type == .group, let newest else { return 0 }
+        _ = messageRevision
+        let after = conversation.selfReadPointer(for: selfUserID) ?? MessageID(value: 0)
+        return (try? database.sharePaymentsToOthersCount(
+            conversationID: conversation.id, after: after, through: newest.id, for: selfUserID
+        )) ?? 0
     }
 
     /// Fetches the READ watermark's message when ``unreadCount(for:)`` can't be known without it,
@@ -210,9 +360,15 @@ final class ConversationController {
     /// doesn't hold it yet — the same fetch + apply + persist path stream
     /// events use, so the caller's screen finds the chat populated. Returns
     /// nil when the server doesn't know the chat either.
+    ///
+    /// A group held but not joined, such as one left, has its rules refreshed: the stream doesn't
+    /// carry a non-member's rule changes, and a rejoin has to be weighed against the rules as they
+    /// are now.
     func hydratedConversation(withID conversationID: ConversationID) async -> Conversation? {
         if let conversation = conversation(withID: conversationID) {
-            return conversation
+            guard !store.isMember(of: conversation) else { return conversation }
+            await refreshRules(of: conversationID)
+            return self.conversation(withID: conversationID)
         }
         do {
             let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
@@ -226,6 +382,15 @@ final class ConversationController {
             ErrorReporting.captureError(error, reason: "Failed to hydrate conversation on demand")
             return nil
         }
+    }
+
+    /// Replaces a held chat's rules with the server's. Best-effort: on failure the held rules stand,
+    /// and the server weighs the join against its own.
+    private func refreshRules(of conversationID: ConversationID) async {
+        guard let fetched = try? await fetching.getChat(owner: owner, conversationID: conversationID),
+              let rules = fetched.rules else { return }
+        store.applyRulesChanged(rules, in: conversationID)
+        persistConversation(conversationID)
     }
 
     /// Holds a conversation fetched elsewhere, so a screen opened on it finds it populated. When the
@@ -253,6 +418,26 @@ final class ConversationController {
             return
         }
         applyCover(cover, to: conversationID)
+    }
+
+    /// Re-reads the viewer's permissions for a stored chat. The row keeps the state it was saved with
+    /// and the stream only carries version changes, so a chat saved before the moderation permissions
+    /// existed would never show its host the Silence and Ban actions. A failed fetch leaves it as is.
+    func refreshViewerPermissions(for conversationID: ConversationID) async {
+        // The transcript and the profile both ask when opened; one fetch serves a visit that
+        // touches both, and a later visit asks again.
+        if let last = lastPermissionsRefresh[conversationID], Date.now.timeIntervalSince(last) < 30 {
+            return
+        }
+        lastPermissionsRefresh[conversationID] = .now
+        guard conversation(withID: conversationID) != nil,
+              let fetched = try? await fetching.getChat(owner: owner, conversationID: conversationID),
+              let viewerState = fetched.viewerState else {
+            return
+        }
+        if store.refreshViewerPermissions(from: viewerState, in: conversationID) {
+            persistConversation(conversationID)
+        }
     }
 
     private func applyCover(_ cover: ProfilePicture, to conversationID: ConversationID) {
@@ -288,6 +473,12 @@ final class ConversationController {
 
     /// Raises the in-app pill for reactions on the user's own messages; wired at session setup.
     @ObservationIgnored var reactionAlerts: ReactionAlertController?
+
+    /// Shows the received bill when cash to the user lands live in the open chat; wired at session setup.
+    @ObservationIgnored var chatCashBills: ChatCashBillController?
+
+    /// Downloads a photo that arrives live, so its bubble draws from the cache; wired at session setup.
+    @ObservationIgnored var photoPrefetcher: ChatPhotoPrefetcher?
 
     var store: ConversationStore
 
@@ -331,12 +522,17 @@ final class ConversationController {
     @ObservationIgnored private let contactNaming: any DMContactNaming
     @ObservationIgnored let database: Database
     @ObservationIgnored let owner: KeyPair
+    /// When each chat last had its viewer permissions re-read, so a transcript and a profile opened together share one fetch.
+    @ObservationIgnored private var lastPermissionsRefresh: [ConversationID: Date] = [:]
     @ObservationIgnored private var startTask: Task<Void, Never>?
     /// The feed load in flight, joined by every caller that arrives before it finishes.
     @ObservationIgnored private var feedLoadTask: Task<Void, Never>?
     /// Whether the app was backgrounded while `feedLoadTask` was in flight. Its requests went out
     /// before suspension, so it answers with what the server held then.
     @ObservationIgnored private var feedLoadInterrupted = false
+    /// Whether `prepareForForeground()` already re-read the store for this return to the foreground,
+    /// so `handleForeground()` doesn't read it a second time.
+    @ObservationIgnored private var reloadedForForeground = false
     /// How long a reconcile waits for the slowest feed, and for unread counts, before applying what landed.
     @ObservationIgnored private let reconcileTiming: FeedReconcileTiming
     /// The transcript fetches waiting to run, shared by every feed load.
@@ -378,6 +574,9 @@ final class ConversationController {
     /// `chatDrafts`; tests attach one only when they exercise archive.
     @ObservationIgnored var chatArchive: ChatArchiveStore?
 
+    /// The chats marked unread on this device, wired by `SessionAuthenticator` like ``chatArchive``.
+    @ObservationIgnored var chatMarkedUnread: (any ChatMarkedUnreadStore)?
+
     @ObservationIgnored var chatDrafts: ChatDraftStore? {
         didSet { failedSends = chatDrafts.map(FailedSendDrafts.init(store:)) }
     }
@@ -411,6 +610,9 @@ final class ConversationController {
     /// The emoji reactions concern: the user's taps, their calls, and the stream's updates.
     let reactions: ConversationReactions
 
+    /// The pinned messages of opened chats: the fetched lists, their updates, and the user's pins.
+    let pins: ConversationPins
+
     /// Moves new senders to the front of the mention picker's held suggestions. Set by the session
     /// after init.
     @ObservationIgnored var mentionSearch: ServerMentionSearch?
@@ -418,6 +620,9 @@ final class ConversationController {
     @ObservationIgnored var hostedLobbies: HostedLobbies?
     /// Keeps the private-group rosters the user has opened live. Set by the session after init.
     @ObservationIgnored var groupRosters: GroupRosters?
+    /// The session's payment request store, which live request updates apply to. Weak: the store reads
+    /// this controller for seals. Set by the session after init.
+    @ObservationIgnored weak var paymentRequests: PaymentRequests?
     /// Keeps a photo send running for the time iOS allows after the app leaves the screen.
     private let backgroundTasks: any BackgroundTaskAsserting
 
@@ -469,7 +674,11 @@ final class ConversationController {
             owner: owner,
             selfUserID: selfUserID
         )
-        reactions.didPersist = { [weak self] in self?.bumpMessageRevision() }
+        self.pins = ConversationPins(messaging: messaging, owner: owner, selfUserID: selfUserID)
+        reactions.didPersist = { [weak self] conversationID, messageIDs in
+            self?.noteMessageWrite(.messages(messageIDs, in: conversationID))
+        }
+        pins.didChange = { [weak self] in self?.bumpMessageRevision() }
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
@@ -573,9 +782,11 @@ final class ConversationController {
                 self.logCounterpartRead(event)
                 self.applyTyping(event)
                 self.applyReactions(event)
+                self.pins.apply(event)
                 self.mentionSearch?.apply(event)
                 self.hostedLobbies?.apply(event)
                 self.groupRosters?.apply(event)
+                self.applyPaymentRequests(event)
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }
@@ -647,6 +858,13 @@ final class ConversationController {
         guard !catchUpInFlight.contains(conversationID) else { return }
         catchUpInFlight.insert(conversationID)
         defer { catchUpInFlight.remove(conversationID) }
+        // Every batch is reported once, when the run ends, so a multi-batch catch-up re-reads the
+        // open transcript once instead of once per batch. `catchUpInFlight` keeps this slot to one run.
+        defer {
+            if let written = catchUpWrites.removeValue(forKey: conversationID), !written.isEmpty {
+                noteMessageWrite(.messages(written, in: conversationID))
+            }
+        }
 
         let after = store.appliedCursor(for: conversationID)
         // One baseline for the whole run. A per-batch watermark would let the second
@@ -660,17 +878,24 @@ final class ConversationController {
                 // Batch + checkpoint cursor persist atomically; advance the in-memory checkpoint only
                 // after the write succeeds, so a rolled-back batch isn't skipped on the next catch-up.
                 let cursor = checkpoint ?? self.store.appliedCursor(for: conversationID)
-                let ok = self.persist(operation: "delta-batch") {
+                let outcome = self.persistChanges(operation: "delta-batch", scope: nil) {
                     try self.database.persistMessages(reconciled, cursor: cursor, conversationID: conversationID)
                 }
-                if ok {
+                if outcome == .changed {
+                    self.catchUpWrites[conversationID, default: []] += reconciled.map(\.id)
+                }
+                if outcome.succeeded {
                     self.commitReconciled(pairs, in: conversationID)
                     self.receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .catchUp)
                     if let checkpoint { self.store.setAppliedCursor(checkpoint, for: conversationID) }
                 } else {
                     anyBatchFailed = true
                 }
-                self.refreshFeedPreview(for: conversationID)
+                // A batch of rows already stored, such as the ones the notification extension wrote,
+                // leaves the preview as it was.
+                if outcome != .unchanged {
+                    self.refreshFeedPreview(for: conversationID)
+                }
             }
             // Clean completion: the head is authoritative — but only when every batch landed. Seating
             // head over a rolled-back batch would orphan its messages from every future GetDelta.
@@ -725,7 +950,10 @@ final class ConversationController {
     /// or reorder what was just reloaded. `catchUpInFlight` still dedupes a foreground refresh that
     /// overlaps a reconnect's own catch-up of the same conversation.
     func handleForeground() {
-        reloadFromDatabase()
+        if !reloadedForForeground {
+            reloadFromDatabase()
+        }
+        reloadedForForeground = false
         catchUpOpenChat()
         // Joining a load that was in flight across a suspension would leave the feed as it was
         // before the app went away, so wait that one out and fetch again.
@@ -746,16 +974,38 @@ final class ConversationController {
     /// the next `handleForeground()` fetches again instead of joining it.
     func handleBackground() {
         feedLoadInterrupted = feedLoadTask != nil
+        reloadedForForeground = false
+    }
+
+    /// Will-enter-foreground hook (`AppDelegate`): seats what the notification extension wrote while
+    /// the app was suspended before the first frame draws, so a chat with a pushed message is already
+    /// in its new place rather than moving once the app is on screen. Disk only; the network work
+    /// stays in `handleForeground()`.
+    func prepareForForeground() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            reloadFromDatabase()
+        }
+        reloadedForForeground = true
     }
 
     /// Re-reads every known conversation's transcript and feed preview straight from disk, with no
     /// network involved. Covers the notification extension's writes: it persists pushed messages into
-    /// the shared store with `cursor: 0` (see `NotificationService.persist`), which the running app's
-    /// in-memory `store` never observes, since `Database.transaction` only posts `.databaseDidChange`
-    /// for writes made by this process. Bumping `messageRevision` invalidates the cached transcript
-    /// window so the next read re-queries the DB; `refreshFeedPreview` does the same for each chat's
-    /// last-message preview and unread state, which don't come from the network-only catch-up paths.
+    /// the shared store, which the running app's in-memory `store` never observes, since
+    /// `Database.transaction` only posts `.databaseDidChange` for writes made by this process. Which
+    /// chats it wrote isn't known here, so this reports a write to every chat, which bumps
+    /// `messageRevision` and drops the cached transcript window so the next read re-queries the DB;
+    /// `refreshFeedPreview` does the same for each chat's last-message preview and unread state, which
+    /// don't come from the network-only catch-up paths. The extension also advances a chat's catch-up
+    /// cursor when its delta completed (see `NotificationService.persist`), so the stored cursors are
+    /// re-read too and the next catch-up starts past what the extension already wrote.
     private func reloadFromDatabase() {
+        if let cursors = try? database.getCatchupCursors() {
+            for (conversationID, cursor) in cursors {
+                store.setAppliedCursor(cursor, for: conversationID)
+            }
+        }
         bumpMessageRevision()
         for conversationID in store.conversations.map(\.id) {
             refreshFeedPreview(for: conversationID)
@@ -821,10 +1071,9 @@ final class ConversationController {
             let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
             let floor = messages.map(\.eventSequence).filter({ $0 > 0 }).min() ?? 0
             // Page + floor cursor land atomically (a failed write must not seat the cursor), and a
-            // non-overlapping page drops the stale older epoch first.
-            let ok = persist(operation: "reset-resync") {
-                try dropStaleEpochIfNeeded(before: messages, in: conversationID)
-                try database.persistMessages(reconciled, cursor: floor, conversationID: conversationID)
+            // non-overlapping page records a history gap instead of joining the older rows.
+            let ok = persist(operation: "reset-resync", scope: .conversation(conversationID)) {
+                try database.persistNewestPage(reconciled, cursor: floor, conversationID: conversationID)
             }
             if ok {
                 commitReconciled(pairs, in: conversationID)
@@ -840,11 +1089,13 @@ final class ConversationController {
         }
     }
 
-    /// Persist the store's current catch-up frontier (no-op until one is established).
+    /// Persist the store's current catch-up frontier (no-op until one is established). Forward-only:
+    /// the notification extension also advances the stored cursor, and a catch-up that started before
+    /// its write must not land an older head over it.
     private func persistCursor(for conversationID: ConversationID) {
         let cursor = store.appliedCursor(for: conversationID)
         guard cursor > 0 else { return }
-        persist(operation: "update-cursor") { try database.updateCatchupCursor(cursor, for: conversationID) }
+        persist(operation: "update-cursor") { _ = try database.persistMessages([], cursor: cursor, conversationID: conversationID) }
     }
 
     /// Surfaces a counterpart's READ pointer advance — the signal behind the
@@ -877,6 +1128,13 @@ final class ConversationController {
     private func applyTyping(_ event: ConversationStreamEvent) {
         guard case .typingChanged(let conversationID, let notifications) = event else { return }
         typing.apply(notifications, in: conversationID)
+    }
+
+    private func applyPaymentRequests(_ event: ConversationStreamEvent) {
+        guard case .paymentRequestsChanged(_, let updates) = event, let paymentRequests else { return }
+        let stale = paymentRequests.apply(updates)
+        guard !stale.isEmpty else { return }
+        Task { await paymentRequests.refetch(stale) }
     }
 
     private func applyReactions(_ event: ConversationStreamEvent) {
@@ -964,12 +1222,16 @@ final class ConversationController {
             // Only delivered to a chat's members, same reasoning as `.titleChanged`: the feed brings
             // the current rules with it. Nothing to fetch.
             return
+        case .pinsChanged:
+            // Only delivered to a chat's members, same reasoning as `.titleChanged`: `GetChat` brings
+            // the current pin summary with it. Nothing to fetch.
+            return
         case .paymentRequestsChanged:
             // Best-effort and only meaningful to a chat the viewer holds; the request is fetched
             // with the chat. Nothing to fetch.
             return
         }
-        guard !store.conversations.contains(where: { $0.id == conversationID }),
+        guard !store.contains(conversationID),
               !hydratingConversationIDs.contains(conversationID) else {
             return
         }
@@ -1043,6 +1305,9 @@ final class ConversationController {
     private func reconcileFeeds() async -> [Conversation] {
         let sources: [FeedArrivals.Source] = [.dm(.contactDm), .dm(.tipDm), .groups]
         let arrivals = FeedArrivals(expecting: sources.count)
+        // Before any fetch starts: a join that lands while the feeds are in flight is newer than
+        // the group snapshot, and the apply below must not read its absence as a departure.
+        let groupFeedMark = store.groupFeedMark
         let fetches = sources.map { source in
             Task { [self] in
                 let feed = await fetchFeed(source)
@@ -1052,7 +1317,7 @@ final class ConversationController {
                 }
                 if arrivals.isClosed {
                     guard let feed else { return }
-                    withTransaction(Self.unanimated) { applyFeed(feed, from: source) }
+                    withTransaction(Self.unanimated) { applyFeed(feed, from: source, groupFeedMark: groupFeedMark) }
                     await backfillMessages(for: feed)
                 } else {
                     arrivals.arrive(source, feed)
@@ -1070,7 +1335,7 @@ final class ConversationController {
 
         withTransaction(Self.unanimated) {
             for (source, feed) in landed {
-                applyFeed(feed, from: source)
+                applyFeed(feed, from: source, groupFeedMark: groupFeedMark)
             }
             watermarkStamps.release()
         }
@@ -1090,7 +1355,7 @@ final class ConversationController {
     /// ``FeedReconcileTiming/unreadCap``; the lookups keep going and fill their rows in as they land.
     private func resolveUnreadCounts(in conversations: [Conversation]) async {
         unresolvedUnreadQueue = conversations
-            .filter { $0.hasUnread(for: selfUserID) && unreadCount(for: $0) == nil }
+            .filter { hasUnreadMessages($0) && unreadCount(for: $0) == nil }
         guard !unresolvedUnreadQueue.isEmpty else { return }
         watermarkStamps.hold()
         let wait = BoundedWait(expecting: unresolvedUnreadQueue.count)
@@ -1114,10 +1379,10 @@ final class ConversationController {
         }
     }
 
-    private func applyFeed(_ feed: [Conversation], from source: FeedArrivals.Source) {
+    private func applyFeed(_ feed: [Conversation], from source: FeedArrivals.Source, groupFeedMark: UInt64) {
         switch source {
         case .dm(let type): applyFeed(feed, type: type)
-        case .groups:       applyGroupFeed(feed)
+        case .groups:       applyGroupFeed(feed, requestedAt: groupFeedMark)
         }
     }
 
@@ -1130,8 +1395,9 @@ final class ConversationController {
     /// this feed, so a type-scoped replace would delete it out from under its own open screen.
     @discardableResult
     func loadGroupFeed() async -> [Conversation] {
+        let mark = store.groupFeedMark
         guard let groups = await fetchGroupFeed() else { return [] }
-        applyGroupFeed(groups)
+        applyGroupFeed(groups, requestedAt: mark)
         return groups
     }
 
@@ -1145,11 +1411,14 @@ final class ConversationController {
         }
     }
 
-    private func applyGroupFeed(_ groups: [Conversation]) {
-        let departed = store.setGroupFeed(groups)
+    private func applyGroupFeed(_ groups: [Conversation], requestedAt mark: UInt64) {
+        let departed = store.setGroupFeed(groups, requestedAt: mark)
         reconcileHidden()
-        persist(operation: "replace-group-feed") {
-            try database.replaceGroupFeed(groups.map(withStoreMembers), departed: departed)
+        paymentRequests?.forget(conversations: departed)
+        persistChanges(operation: "replace-group-feed") {
+            // Only the groups the store still counts as joined are recorded as joined: a group
+            // the user left after this feed was requested is listed by it, but is not a member.
+            try database.replaceGroupFeed(groups.filter { store.isMember(of: $0) }.map(withStoreMembers), departed: departed)
         }
         resendUnsyncedReadPointers()
         // Same repair the DM feeds need: the store refuses a tombstone as a preview, so a chat whose
@@ -1184,7 +1453,7 @@ final class ConversationController {
     private func applyFeed(_ conversations: [Conversation], type: ConversationType) {
         store.setFeed(conversations, type: type)
         reconcileHidden()
-        persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
+        persistChanges(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
         resendUnsyncedReadPointers()
         // The store refuses a tombstone as a preview, so a chat whose newest message is deleted
         // seats blank here. Fill it from the newest visible message already cached — the feed
@@ -1298,6 +1567,9 @@ final class ConversationController {
         if let coverPicture = conversation.coverPicture {
             store.applyCoverPictureChanged(coverPicture, in: conversation.id)
         }
+        if let rules = conversation.rules {
+            store.applyRulesChanged(rules, in: conversation.id)
+        }
         persistConversation(conversation.id)
     }
 
@@ -1323,6 +1595,7 @@ final class ConversationController {
         // The server clears archive with mute on leave, so the local record is stale the moment the
         // leave lands. A hidden chat's record is deliberately left alone elsewhere (rule 5).
         chatArchive?.unarchive(conversationID)
+        chatMarkedUnread?.clear(conversationID)
     }
 
     /// Records the signed-in user's own join or leave when a roster update names them, so a membership
@@ -1385,6 +1658,20 @@ final class ConversationController {
     func unmute(conversationID: ConversationID) async throws {
         let viewerState = try await viewerSettings.unmuteChat(owner: owner, conversationID: conversationID)
         applyViewerState(viewerState, in: conversationID)
+    }
+
+    /// Mutes every chat in `ids` until `mute` lapses, one call each, stopping at the first failure.
+    func mute(_ ids: [ConversationID], _ mute: ConversationMuteState) async throws {
+        for id in ids {
+            try await self.mute(conversationID: id, mute)
+        }
+    }
+
+    /// Unmutes every chat in `ids`, one call each, stopping at the first failure.
+    func unmute(_ ids: [ConversationID]) async throws {
+        for id in ids {
+            try await unmute(conversationID: id)
+        }
     }
 
     /// Seats a viewer state the RPC returned through the same version comparison a streamed
@@ -1482,17 +1769,26 @@ final class ConversationController {
             // in-memory cursor optimistically, so if this write rolls back, re-seat the cursor to the
             // persisted value and catch up — otherwise the un-persisted messages are skipped by the next
             // GetDelta and lost (the store no longer holds a confirmed copy).
-            let ok = persist(operation: "apply-chat-events") {
+            let outcome = persistChanges(operation: "apply-chat-events", scope: .messages(reconciled.map(\.id), in: conversationID)) {
                 try database.persistMessages(reconciled, cursor: store.appliedCursor(for: conversationID), conversationID: conversationID)
             }
-            if ok {
+            if outcome.succeeded {
                 commitReconciled(pairs, in: conversationID)
                 receipts.countReceived(reconciled, countedThrough: countedThrough, delivery: .live)
+                chatCashBills?.handleLive(reconciled, in: conversationID, countedThrough: countedThrough)
+                photoPrefetcher?.handleLive(
+                    reconciled,
+                    in: conversationID,
+                    isGroup: conversation(withID: conversationID)?.type == .group,
+                    countedThrough: countedThrough
+                )
             } else {
                 store.reseatCursor((try? database.catchupCursor(conversationID: conversationID)) ?? 0, for: conversationID)
                 scheduleGapCatchUp(conversationID)
             }
-            refreshFeedPreview(for: conversationID)
+            if outcome != .unchanged {
+                refreshFeedPreview(for: conversationID)
+            }
             persistConversation(conversationID)
         case .metadataRefresh(let conversation):
             persistConversation(conversation)
@@ -1522,8 +1818,12 @@ final class ConversationController {
             // Rules are cached with the conversation, so a cold restore gates join/speak on the
             // edited rules rather than the stale ones.
             persistConversation(conversationID)
+        case .pinsChanged(let conversationID, _, let summary):
+            // The database applies the same strictly-newer rule as the store, so a stale or re-delivered
+            // update never overwrites the stored pins.
+            persist(operation: "apply-pin-summary") { try database.applyPinSummary(summary, for: conversationID) }
         case .paymentRequestsChanged:
-            // TODO: apply to payment request state once a consumer holds it; nothing to persist yet.
+            // Request state is session-only and refetched; nothing to persist.
             break
         case .descriptionChanged:
             // Description isn't persisted, so there is nothing to write. Fold this into the
@@ -1573,17 +1873,6 @@ final class ConversationController {
         }
     }
 
-    /// A freshly fetched newest page that does not overlap the retained history proves nothing about
-    /// contiguity — the interior gap would render seamlessly stitched and can never be fetched (older
-    /// paging anchors below the *oldest* persisted row). Drop the stale older epoch; it re-pages from
-    /// the server on scroll. Must run before the page itself is persisted.
-    private func dropStaleEpochIfNeeded(before page: [ConversationMessage], in conversationID: ConversationID) throws {
-        guard let oldestOfPage = page.map(\.id.value).min(),
-              let newestPersisted = try database.newestMessageID(conversationID: conversationID),
-              newestPersisted.value < oldestOfPage else { return }
-        try database.deleteMessages(conversationID: conversationID)
-    }
-
     /// Recompute the feed row's preview from the newest persisted *visible* message (the store no longer
     /// holds the confirmed transcript to derive it from).
     func refreshFeedPreview(for conversationID: ConversationID) {
@@ -1601,12 +1890,14 @@ final class ConversationController {
     /// Persists the store's current version of a conversation. No-ops for
     /// conversations the store doesn't know yet.
     func persistConversation(_ conversationID: ConversationID) {
-        guard let conversation = store.conversations.first(where: { $0.id == conversationID }) else { return }
+        guard let conversation = store.conversation(withID: conversationID) else { return }
         persistConversation(conversation)
     }
 
     private func persistConversation(_ conversation: Conversation) {
-        persist(operation: "upsert-conversation") { try database.upsertConversation(withStoreMembers(conversation)) }
+        // The one message row this writes is the chat's last message.
+        let scope: MessageWriteScope = conversation.lastMessage.map { .messages([$0.id], in: conversation.id) } ?? .conversation(conversation.id)
+        persistChanges(operation: "upsert-conversation", scope: scope) { try database.upsertConversation(withStoreMembers(conversation)) }
     }
 
     /// A server copy of a group carrying the store's member list instead of its own. A group's server
@@ -1615,7 +1906,7 @@ final class ConversationController {
     /// would drop those members from the cache. Call after the copy has been applied to the store.
     private func withStoreMembers(_ conversation: Conversation) -> Conversation {
         guard conversation.type == .group,
-              let stored = store.conversations.first(where: { $0.id == conversation.id }) else {
+              let stored = store.conversation(withID: conversation.id) else {
             return conversation
         }
         var conversation = conversation
@@ -1623,15 +1914,53 @@ final class ConversationController {
         return conversation
     }
 
+    /// - Parameter scope: the message rows the write touches, for a message-write operation.
     @discardableResult
-    func persist(operation: String, _ write: () throws -> Void) -> Bool {
+    func persist(operation: String, scope: MessageWriteScope = .allConversations, _ write: () throws -> Void) -> Bool {
+        guard attempt(operation: operation, write) else { return false }
+        // A successful confirmed-message write invalidates the DB-backed transcript window; report it
+        // so the window re-reads and the views observing `messageRevision` re-evaluate.
+        if Self.messageWriteOperations.contains(operation) {
+            noteMessageWrite(scope)
+        }
+        return true
+    }
+
+    /// What a write that reports its own effect did to the stored messages.
+    enum PersistOutcome {
+        case changed
+        /// Succeeded without changing a message row: a re-delivery of rows already stored.
+        case unchanged
+        case failed
+
+        var succeeded: Bool {
+            switch self {
+            case .changed, .unchanged: true
+            case .failed:              false
+            }
+        }
+    }
+
+    /// Runs a write that returns whether it changed a message row, bumping `messageRevision` only
+    /// when it did. A catch-up that re-fetches what the notification extension already stored then
+    /// redraws nothing, instead of invalidating every chat row's unread count once per batch.
+    ///
+    /// - Parameter scope: the message rows the write touches. Pass nil when the caller reports the
+    ///   write itself, once for several writes.
+    @discardableResult
+    func persistChanges(operation: String, scope: MessageWriteScope? = .allConversations, _ write: () throws -> Bool) -> PersistOutcome {
+        var changed = false
+        guard attempt(operation: operation, { changed = try write() }) else { return .failed }
+        guard changed else { return .unchanged }
+        if let scope {
+            noteMessageWrite(scope)
+        }
+        return .changed
+    }
+
+    private func attempt(operation: String, _ write: () throws -> Void) -> Bool {
         do {
             try write()
-            // A successful confirmed-message write invalidates the DB-backed transcript window; bump the
-            // revision the coordinator observes so it re-reads.
-            if Self.messageWriteOperations.contains(operation) {
-                messageRevision &+= 1
-            }
             return true
         } catch {
             logger.error("Failed to persist conversation state", metadata: [
@@ -1645,14 +1974,12 @@ final class ConversationController {
 
     /// Persist operations that write confirmed messages — the ones that must bump `messageRevision`.
     ///
-    /// The conversation and feed writes are here too: they persist each conversation's `lastMessage`
-    /// as a message row, so a newer message that arrives only as metadata (a join, a feed refresh)
-    /// would otherwise sit in the table behind a transcript window cached before it landed. One
-    /// bump per feed apply costs a single window re-read for the open chat.
+    /// The live-event, catch-up, conversation and feed writes go through ``persistChanges(operation:_:)``
+    /// instead, which bumps only when a row changed: they run on every launch and stream event, and
+    /// mostly rewrite rows already stored.
     private static let messageWriteOperations: Set<String> = [
-        "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
+        "upsert-messages", "load-messages", "load-older",
         "send-message", "send-media-message", "send-payment-request", "reset-resync", "edit-message", "delete-message",
-        "upsert-conversation", "replace-feed", "replace-group-feed",
     ]
 
     // MARK: - Names
@@ -1688,17 +2015,55 @@ final class ConversationController {
             return "Typing…"
         }
         guard let message = conversation.lastMessage else { return nil }
+        return messagePreview(
+            message,
+            in: conversation,
+            knownAuthors: knownAuthors,
+            viewerAmount: viewerAmount,
+            requestTitle: requestTitle,
+            currencyName: currencyName
+        )
+    }
+
+    /// One message as a line of text, attributed to whoever wrote it: what the feed row shows for
+    /// the last message, and what the long-press preview shows for each of the last few.
+    func messagePreview(
+        _ message: ConversationMessage,
+        in conversation: Conversation,
+        knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
+        viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
+        requestTitle: (PaymentRequestID) -> String? = { _ in nil },
+        attributed: Bool = true,
+        currencyName: (PublicKey) -> String?
+    ) -> String? {
         let isFromSelf = message.isFromSelf(selfUserID)
-        let senderName = groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf, knownAuthors: knownAuthors)
+        // Unattributed lines drop the "You:" / "Name:" prefix: the preview's bubble side and sender
+        // label already say who wrote them.
+        let senderName = attributed
+            ? groupSenderName(for: message, in: conversation, isFromSelf: isFromSelf, knownAuthors: knownAuthors)
+            : nil
 
         switch message.content {
         case .text(let text):
             // A bare prefix says less than no line at all, so an empty body previews as nothing.
             guard !text.isEmpty else { return nil }
             let text = InviteLinkText.redacting(text)
-            if isFromSelf { return "You: \(text)" }
+            if isFromSelf && attributed { return "You: \(text)" }
             guard let senderName else { return text }
             return "\(senderName): \(text)"
+
+        case .cash(let amount) where message.isSharePayment:
+            // A share of a request: who paid whom, with the request's title when it can be read.
+            let paid = viewerAmount(amount).formattedDroppingZeroFraction()
+            let subject = message.paymentRequestID.flatMap(requestTitle).map { " for \($0)" } ?? ""
+            if isFromSelf { return "You paid \(paid)\(subject)" }
+            let payer = message.senderID.flatMap { noticeUserName(for: $0, in: conversation, knownAuthors: knownAuthors) } ?? "Someone"
+            // No receiver means no creator to check the request against, so no title either.
+            guard let receiver = message.cashReceiverID else { return "\(payer) paid \(paid)" }
+            let creator = receiver == selfUserID
+                ? "you"
+                : noticeUserName(for: receiver, in: conversation, knownAuthors: knownAuthors) ?? "Someone"
+            return "\(payer) paid \(creator) \(paid)\(subject)"
 
         case .cash(let amount):
             let formatted = viewerAmount(amount).formatted()
@@ -1725,7 +2090,7 @@ final class ConversationController {
 
         case .media(_, let caption):
             let body = ChatMediaStrings.listPreview(caption: caption)
-            if isFromSelf { return "You: \(body)" }
+            if isFromSelf && attributed { return "You: \(body)" }
             guard let senderName else { return body }
             return "\(senderName): \(body)"
 
@@ -1815,7 +2180,7 @@ final class ConversationController {
     /// attribution: the viewer's own message is covered by "You", and a DM's other party is what
     /// the row is already titled after. A sender the chat's roster subset omits is named from
     /// `knownAuthors`, and left unattributed until the directory has a name for them.
-    private func groupSenderName(
+    func groupSenderName(
         for message: ConversationMessage,
         in conversation: Conversation,
         isFromSelf: Bool,
@@ -1833,7 +2198,7 @@ final class ConversationController {
     }
 
     func displayName(forConversationID conversationID: ConversationID) -> String {
-        if let conversation = store.conversations.first(where: { $0.id == conversationID }) {
+        if let conversation = store.conversation(withID: conversationID) {
             return displayName(for: conversation)
         }
         return contactName(for: conversationID) ?? Self.fallbackCounterpartName
@@ -1888,10 +2253,14 @@ final class ConversationController {
         windowedMessages(for: conversationID, limit: Self.recentWindow)
     }
 
-    /// Bumped after every successful confirmed-message DB write, so the coordinator — which reads the
-    /// transcript from the DB, not the store — knows to re-read its window. Pending-overlay changes
-    /// re-fire through the store directly.
+    /// Bumped after every successful confirmed-message DB write, so the views that read the transcript
+    /// from the DB, not the store, re-evaluate. Pending-overlay changes re-fire through the store
+    /// directly. The cached transcript window is not keyed on this: ``noteMessageWrite(_:)`` drops or
+    /// patches it only for the conversation a write touched.
     private(set) var messageRevision = 0
+
+    /// Batch writes of each running catch-up, reported once when the run ends.
+    @ObservationIgnored private var catchUpWrites: [ConversationID: [MessageID]] = [:]
 
     /// Own sends the server has confirmed this session, per chat. Observed by the jump badge, which
     /// reads a rise as the viewer having caught up with the transcript.
@@ -1900,7 +2269,102 @@ final class ConversationController {
     /// Forces the transcript to re-read its window. `persist(operation:)` does this for database
     /// writes; an overlay change writes nothing, so it has to say so explicitly.
     func bumpMessageRevision() {
+        noteMessageWrite(.allConversations)
+    }
+
+    /// The message rows a confirmed write touched.
+    enum MessageWriteScope {
+        /// Unknown, or across the feed: every chat's window re-reads.
+        case allConversations
+        /// One chat's rows may have been removed or rewritten wholesale: its window re-reads.
+        case conversation(ConversationID)
+        /// Exactly these rows of one chat were inserted or rewritten.
+        case messages([MessageID], in: ConversationID)
+    }
+
+    /// Reports a confirmed write: bumps ``messageRevision`` and brings the cached transcript window up
+    /// to date. A write to another chat leaves the window alone, and a write of a few rows to the
+    /// window's own chat patches those rows in, so neither re-decodes the whole window.
+    func noteMessageWrite(_ scope: MessageWriteScope) {
         messageRevision &+= 1
+        guard let cached = confirmedWindowCache else { return }
+        switch scope {
+        case .allConversations:
+            confirmedWindowCache = nil
+        case .conversation(let conversationID):
+            if cached.key.conversationID == conversationID {
+                confirmedWindowCache = nil
+            }
+        case .messages(let messageIDs, let conversationID):
+            guard cached.key.conversationID == conversationID else { return }
+            confirmedWindowCache = patchedWindowCache(cached, writing: messageIDs)
+        }
+    }
+
+    /// `cached` with the rows of `messageIDs` re-read, or nil when re-reading the window is cheaper
+    /// or a read fails.
+    private func patchedWindowCache(
+        _ cached: (key: ConfirmedWindowKey, messages: [ConversationMessage]),
+        writing messageIDs: [MessageID]
+    ) -> (key: ConfirmedWindowKey, messages: [ConversationMessage])? {
+        let key = cached.key
+        do {
+            // An anchored window starts at its anchor. The newest-N window starts at the oldest of the
+            // newest N stored rows, which an arrival moves up.
+            let lowerBound = try key.startID ?? database.newestWindowFloor(conversationID: key.conversationID, limit: key.limit)
+            let inWindow = messageIDs.filter { id in lowerBound.map { id.value >= $0 } ?? true }
+            // Re-reading most of the window row by row costs more than one window read.
+            guard inWindow.count * 4 <= max(cached.messages.count, 4) else { return nil }
+            let rows = try database.messages(conversationID: key.conversationID, ids: inWindow)
+            // A row gone from the newest-N window lets a fresh read pull an older row in to fill the
+            // limit, which a patch can't see, so re-read instead.
+            guard key.startID != nil || rows.count == inWindow.count else { return nil }
+            return (key, Self.patchedWindow(cached.messages, written: inWindow, rows: rows, from: lowerBound))
+        } catch {
+            return nil
+        }
+    }
+
+    /// A confirmed window after a write: `window` with every `written` row replaced by its stored copy
+    /// in `rows` (dropped when absent, inserted in id order when new), and every row below
+    /// `lowerBound` dropped. Equal to a fresh window read when `window` was current before the write
+    /// and `written` lists every row the write touched.
+    static func patchedWindow(
+        _ window: [ConversationMessage],
+        written: [MessageID],
+        rows: [ConversationMessage],
+        from lowerBound: UInt64?
+    ) -> [ConversationMessage] {
+        // `window` is in ascending id order, so each written row is found by binary search and the
+        // patch costs O(written · log window) plus the array shifts, not a pass over every row.
+        var patched = window
+        if let lowerBound {
+            patched.removeFirst(insertionIndex(of: lowerBound, in: patched))
+        }
+        let stored = Dictionary(rows.map { ($0.id.value, $0) }, uniquingKeysWith: { _, last in last })
+        for id in Set(written.map(\.value)) {
+            if let lowerBound, id < lowerBound { continue }
+            let index = insertionIndex(of: id, in: patched)
+            let present = index < patched.count && patched[index].id.value == id
+            switch (present, stored[id]) {
+            case (true, let row?):  patched[index] = row
+            case (true, nil):       patched.remove(at: index)
+            case (false, let row?): patched.insert(row, at: index)
+            case (false, nil):      break
+            }
+        }
+        return patched
+    }
+
+    /// The first index in `messages` (ascending by id) whose id is not below `id`.
+    private static func insertionIndex(of id: UInt64, in messages: [ConversationMessage]) -> Int {
+        var low = 0
+        var high = messages.count
+        while low < high {
+            let mid = (low + high) / 2
+            if messages[mid].id.value < id { low = mid + 1 } else { high = mid }
+        }
+        return low
     }
 
     /// Set when a mutation needs to be reported to the person who made it. The screen presents it
@@ -1930,7 +2394,7 @@ final class ConversationController {
                 case .delete: "Couldn't Delete Message"
                 // Neither of these mutates the transcript, so neither can raise a mutation alert.
                 // Report files straight from its sheet and reports its own outcome there.
-                case .copy, .reply, .report, .forward: "Something Went Wrong"
+                case .copy, .reply, .report, .forward, .savePhoto, .saveAllPhotos, .pin, .unpin, .silence, .remove: "Something Went Wrong"
                 }
             }
         }
@@ -1955,16 +2419,16 @@ final class ConversationController {
         return reactions.displayed(displayed, in: conversationID)
     }
 
-    /// The confirmed rows behind ``windowedMessages(for:startingAt:limit:)``, cached against
-    /// ``messageRevision``.
+    /// The confirmed rows behind ``windowedMessages(for:startingAt:limit:)``, cached until
+    /// ``noteMessageWrite(_:)`` reports a write to this chat that it can't patch in.
     ///
     /// The window read runs synchronously on the main actor on every observation tick, and an
     /// id-anchored window grows without bound as the reader pages back, so re-decoding it per tick
     /// is what a long group transcript feels as scroll jank. Nothing but a confirmed write can
-    /// change these rows, and every such write bumps the revision — the pending overlay is applied
-    /// on top by the caller and stays live.
+    /// change these rows, and every such write is reported — the pending overlay is applied on top by
+    /// the caller and stays live.
     private func confirmedWindow(for conversationID: ConversationID, startingAt startID: UInt64?, limit: Int) -> [ConversationMessage] {
-        let key = ConfirmedWindowKey(conversationID: conversationID, startID: startID, limit: limit, revision: messageRevision)
+        let key = ConfirmedWindowKey(conversationID: conversationID, startID: startID, limit: limit)
         if let cached = confirmedWindowCache, cached.key == key {
             return cached.messages
         }
@@ -1982,7 +2446,6 @@ final class ConversationController {
         let conversationID: ConversationID
         let startID: UInt64?
         let limit: Int
-        let revision: Int
     }
 
     /// One entry, not a table: a screen reads one chat's window, and the next open replaces it.
@@ -2065,6 +2528,13 @@ final class ConversationController {
         ((try? database.messagesWindow(conversationID: conversationID, before: nil, limit: limit)) ?? []).first?.id.value
     }
 
+    /// The history gap in `conversationID`'s stored rows, or nil when they are contiguous. Observes
+    /// `messageRevision`, since every write that opens, narrows or closes a gap bumps it.
+    func historyGap(in conversationID: ConversationID) -> HistoryGap? {
+        _ = messageRevision   // observe: re-read when a confirmed DB write lands
+        return (try? database.historyGap(conversationID: conversationID)) ?? nil
+    }
+
     /// The persisted id `step` rows older than `before` — the loader's next window anchor — or nil when
     /// no older history is persisted locally (time to page the server).
     func olderAnchor(for conversationID: ConversationID, before: UInt64, step: Int) -> UInt64? {
@@ -2112,13 +2582,13 @@ final class ConversationController {
             // head — fetching only genuinely newer messages, appended at the tail — instead of a
             // `GetDelta(after: 0)` that re-pulls the whole history and prepends it, knocking the
             // transcript off the bottom on first open. Page + cursor land atomically (a failed write
-            // must not seat the cursor past messages that never persisted), and a non-overlapping page
-            // drops the stale older epoch first.
+            // must not seat the cursor past messages that never persisted). A page that does not
+            // overlap the stored rows records a history gap: the older rows stay, the transcript reads
+            // only from the page up, and paging back fills the gap until it reaches them.
             let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
             let head = messages.map(\.eventSequence).max() ?? 0
-            let ok = persist(operation: "load-messages") {
-                try dropStaleEpochIfNeeded(before: messages, in: conversationID)
-                try database.persistMessages(reconciled, cursor: head, conversationID: conversationID)
+            let ok = persist(operation: "load-messages", scope: .conversation(conversationID)) {
+                try database.persistNewestPage(reconciled, cursor: head, conversationID: conversationID)
             }
             if ok {
                 commitReconciled(pairs, in: conversationID)
@@ -2167,13 +2637,16 @@ final class ConversationController {
         olderPageState[conversationID]?.isLoading ?? false
     }
 
-    /// Pages strictly older than the oldest loaded message, prepends it to the in-memory window, and
+    /// Pages strictly older than the oldest readable message, prepends it to the in-memory window, and
     /// persists it — retention is on, so paged-in history stays in the DB and a reopen reads it locally
-    /// instead of re-fetching. No-ops while a page is in flight or once history is exhausted.
+    /// instead of re-fetching. Above a history gap this pages before the gap's upper bound, so each
+    /// page fills the gap from the top until it reaches the stored rows below it. No-ops while a page
+    /// is in flight or once history is exhausted.
     func loadOlderMessages(for conversationID: ConversationID) async {
         guard canRead(conversationID) else { return }
         guard hasMoreOlderMessages(for: conversationID), !isLoadingOlderMessages(for: conversationID) else { return }
-        // Page before the oldest PERSISTED id — the DB holds all viewed history; the store may be trimmed.
+        // Page before the oldest PERSISTED readable id — the DB holds all viewed history; the store may
+        // be trimmed. Rows below a history gap are not readable, so this is the gap's upper bound.
         guard let oldest = (try? database.oldestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
 
         olderPageState[conversationID, default: OlderPageState()].isLoading = true
@@ -2181,16 +2654,22 @@ final class ConversationController {
 
         do {
             let older = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: oldest)
+            let hadGap = (try? database.historyGap(conversationID: conversationID)) != nil
             if older.isEmpty {
                 olderPageState[conversationID]?.hasMore = false
+                // Nothing older on the server: rows below a gap are not part of this history.
+                if hadGap {
+                    _ = persist(operation: "load-older", scope: .conversation(conversationID)) { try database.persistOlderPage([], conversationID: conversationID) }
+                }
             } else {
                 // Retention is on, so persist the paged-in history: the next open reads it from the DB
-                // instead of re-fetching. Prepended history must not play insertion transitions — the
-                // revision bump and the resulting re-read ride an animation-suppressed transaction.
+                // instead of re-fetching. The same write narrows or closes a history gap. Prepended
+                // history must not play insertion transitions — the revision bump and the resulting
+                // re-read ride an animation-suppressed transaction.
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    _ = persist(operation: "load-older") { try database.upsertConversationMessages(older, conversationID: conversationID) }
+                    _ = persist(operation: "load-older", scope: .conversation(conversationID)) { try database.persistOlderPage(older, conversationID: conversationID) }
                 }
             }
         } catch {
@@ -2311,7 +2790,7 @@ final class ConversationController {
             // reconciles it later) instead of vanishing it.
             var confirmed = message
             confirmed.clientMessageID = clientMessageID
-            let ok = persist(operation: "send-message") { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
+            let ok = persist(operation: "send-message", scope: .messages([confirmed.id], in: conversationID)) { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
             if ok {
                 store.dropPending(clientMessageID: clientMessageID, confirmedAt: message.id, in: conversationID)
             } else {
@@ -2382,7 +2861,7 @@ final class ConversationController {
                     clientMessageID: clientMessageID
                 )
                 confirmed.clientMessageID = clientMessageID
-                if persist(operation: "send-payment-request", { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
+                if persist(operation: "send-payment-request", scope: .messages([confirmed.id], in: conversationID), { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }) {
                     store.dropPending(clientMessageID: clientMessageID, confirmedAt: confirmed.id, in: conversationID)
                 } else {
                     scheduleGapCatchUp(conversationID)
@@ -2474,9 +2953,21 @@ final class ConversationController {
             insertPending($0.text, repliedTo: nil, linkPreview: $0.linkPreview, into: conversationID)
         }
 
-        var deliveredAll = true
+        // Every upload settles before the first post, then the posts go out back to back, so the
+        // set lands as consecutive messages inside `ChatMediaGrouping.window` and draws as one stack.
+        // A photo whose upload failed stays failed and retryable; the rest still post, in order.
+        var photos: [UploadedPhoto?] = []
         for send in sends {
-            let delivered = await deliverMedia(
+            photos.append(await awaitUpload(clientMessageID: send.clientMessageID, chip: send.message.chip, to: conversationID))
+        }
+        var deliveredAll = true
+        for (send, photo) in zip(sends, photos) {
+            guard let photo else {
+                deliveredAll = false
+                continue
+            }
+            let delivered = await postMedia(
+                photo,
                 clientMessageID: send.clientMessageID,
                 chip: send.message.chip,
                 caption: send.message.caption,
@@ -2689,16 +3180,21 @@ final class ConversationController {
         repliedTo: MessageID?,
         to conversationID: ConversationID
     ) async -> Bool {
+        guard let photo = await awaitUpload(clientMessageID: clientMessageID, chip: chip, to: conversationID) else { return false }
+        return await postMedia(photo, clientMessageID: clientMessageID, chip: chip, caption: caption, repliedTo: repliedTo, to: conversationID)
+    }
+
+    /// Waits for `chip`'s upload, or marks the pending row failed and returns nil when it fails.
+    private func awaitUpload(clientMessageID: UUID, chip: ComposerChip, to conversationID: ConversationID) async -> UploadedPhoto? {
         // Read at await time: a retry replaces the chip's task.
         guard let upload = chip.uploadTask else {
             chip.progress.fail()
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
             logger.error("Photo send has no upload to await", metadata: ["conversationID": "\(conversationID)"])
-            return false
+            return nil
         }
-        let photo: UploadedPhoto
         do {
-            photo = try await upload.value
+            return try await upload.value
         } catch {
             chip.progress.fail()
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
@@ -2710,9 +3206,19 @@ final class ConversationController {
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to upload conversation photo")
-            return false
+            return nil
         }
+    }
 
+    /// Posts an uploaded photo and confirms its pending row, or marks the row failed.
+    private func postMedia(
+        _ photo: UploadedPhoto,
+        clientMessageID: UUID,
+        chip: ComposerChip,
+        caption: String?,
+        repliedTo: MessageID?,
+        to conversationID: ConversationID
+    ) async -> Bool {
         let chatType = conversation(withID: conversationID)?.type
         chip.progress.beginSending()
         do {
@@ -2728,7 +3234,7 @@ final class ConversationController {
             chip.progress.finish()
             var confirmed = message
             confirmed.clientMessageID = clientMessageID
-            let ok = persist(operation: "send-media-message") { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
+            let ok = persist(operation: "send-media-message", scope: .messages([confirmed.id], in: conversationID)) { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
             if ok {
                 keepSentImage(chip.image, clientMessageID: clientMessageID)
                 store.dropPending(clientMessageID: clientMessageID, confirmedAt: message.id, in: conversationID)

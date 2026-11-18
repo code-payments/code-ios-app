@@ -25,6 +25,8 @@ public struct StatelessSwapServerParameters: Sendable {
     public let computeUnitPrice: UInt64
     public let memoValue: String
     public let poolFeeRecipient: PublicKey
+    /// The v1 transaction config, set only when the client requested a v1 transaction.
+    public let transactionConfig: SolanaTransactionConfig?
 
     public init(
         payer: PublicKey,
@@ -33,7 +35,8 @@ public struct StatelessSwapServerParameters: Sendable {
         computeUnitLimit: UInt32,
         computeUnitPrice: UInt64,
         memoValue: String,
-        poolFeeRecipient: PublicKey
+        poolFeeRecipient: PublicKey,
+        transactionConfig: SolanaTransactionConfig? = nil
     ) {
         self.payer = payer
         self.blockhash = blockhash
@@ -42,6 +45,7 @@ public struct StatelessSwapServerParameters: Sendable {
         self.computeUnitPrice = computeUnitPrice
         self.memoValue = memoValue
         self.poolFeeRecipient = poolFeeRecipient
+        self.transactionConfig = transactionConfig
     }
 }
 
@@ -62,7 +66,8 @@ extension StatelessSwapServerParameters {
             computeUnitLimit: proto.computeUnitLimit,
             computeUnitPrice: proto.computeUnitPrice,
             memoValue: proto.memoValue,
-            poolFeeRecipient: poolFeeRecipient
+            poolFeeRecipient: poolFeeRecipient,
+            transactionConfig: proto.hasTransactionConfig ? SolanaTransactionConfig(proto.transactionConfig) : nil
         )
     }
 }

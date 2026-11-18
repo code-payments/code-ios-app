@@ -14,6 +14,8 @@ struct ArchivedChatsScreen: View {
     @Environment(ConversationController.self) private var conversationController
     @Environment(AppRouter.self) private var router
 
+    @State private var muteTarget: ArchivedMuteTarget?
+
     var body: some View {
         let conversations = conversationController.archivedConversations
 
@@ -34,11 +36,19 @@ struct ArchivedChatsScreen: View {
                             Button {
                                 conversationController.unarchive(conversation.id)
                             } label: {
-                                Image.icon(.arrowInbox)
+                                SwipeActionLabel(title: "Unarchive", icon: .arrowInbox)
                             }
                             .tint(.backgroundRow)
                             .accessibilityLabel("Unarchive chat")
                         }
+                        .chatRowActions(
+                            for: conversation,
+                            in: .archived,
+                            isEnabled: true,
+                            onMute: { muteTarget = ArchivedMuteTarget(id: conversation.id) },
+                            onArchive: { conversationController.unarchive(conversation.id) },
+                            onSelect: nil
+                        )
                     }
                 }
                 .listStyle(.plain)
@@ -47,5 +57,16 @@ struct ArchivedChatsScreen: View {
         }
         .navigationTitle("Archived")
         .toolbarTitleDisplayMode(.inline)
+        .tray(item: $muteTarget) { target in
+            MuteChatSheet(
+                conversationID: target.id,
+                isPresented: Binding(get: { muteTarget != nil }, set: { if !$0 { muteTarget = nil } })
+            )
+        }
     }
+}
+
+/// The archived chat whose mute sheet the long-press menu opened.
+private struct ArchivedMuteTarget: Identifiable {
+    let id: ConversationID
 }

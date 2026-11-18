@@ -12,7 +12,9 @@ import FlipcashUI
 ///
 /// On iOS 26 the tabs live in a native `TabView`, which renders the system
 /// Liquid Glass tab bar; below that we fall back to the home-grown floating
-/// `HomeTabBar` pill. The native `TabView` builds and keeps every tab alive, so
+/// `HomeTabBar` pill. The Group Money shell with `leftAlignedTabBar` on draws
+/// a small `HomeTabBar` at the leading edge on both, over a hidden system bar
+/// on iOS 26. The native `TabView` builds and keeps every tab alive, so
 /// two tabs opt out of that in ``tabContent(for:)``: Scan, whose camera is gated
 /// on `selection` so it tears down, and Chat, which is not built until it is
 /// first selected. The selected tab's push target is published to the router via
@@ -36,9 +38,16 @@ struct HomeTabView: View {
     /// The You tab's icon, once the profile has a picture. Owned here rather
     /// than by either bar, because both bars want the same download.
     @State private var profilePhoto = TabBarProfilePhoto()
+    /// The Chats list's select mode. Held here because its capsules take the tab bar's place.
+    @State private var chatSelection = ChatSelection()
+
+    /// The bar tab to go back to when Scan or You is drawn over the shell,
+    /// which happens only with the Group Money layout: it keeps them off the bar.
+    @State private var lastBarTab: HomeTab
 
     init() {
         _selection = State(initialValue: HomeTab.initial)
+        _lastBarTab = State(initialValue: HomeTab.initial)
         _hasOpenedChat = State(initialValue: HomeTab.initial == .chat)
 
         // The iOS 26 tab bar ignores UITabBar.unselectedItemTintColor, so the
@@ -62,6 +71,57 @@ struct HomeTabView: View {
     /// only for the navigation to settle rather than the full dwell.
     @State private var returnedToHome = false
 
+    /// Today's four tabs, or Groups and Money behind `groupMoneyUI` for staff
+    /// and developer-unlocked devices. Read live, so the toggle takes effect
+    /// without a relaunch.
+    private var layout: HomeTabLayout {
+        HomeTabLayout(showsGroupMoney: betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: sessionContainer.session)))
+    }
+
+    /// Centred, or at the leading edge with the Group Money shell and
+    /// `leftAlignedTabBar` both on. Read live, like ``layout``.
+    private var barAlignment: HorizontalAlignment {
+        layout.barAlignment(leftAligned: betaFlags.hasEnabled(.leftAlignedTabBar))
+    }
+
+    /// Whether the shell draws its own small bar at the leading edge, on every
+    /// OS version. No public API moves the iOS 26 system bar off centre, so
+    /// there the system bar is hidden and this bar drawn over the same
+    /// `TabView`, which keeps the selected tab and every stack across a flip.
+    private var drawsLeadingBar: Bool { barAlignment == .leading }
+
+    /// The window's bottom safe area, outside anything the tab bar adds: what
+    /// the small bar's inset is made up from.
+    @State private var windowBottomInset: CGFloat = 0
+
+    /// The signed-in account and the server's staff value for it, nil until
+    /// fetched. Holds the account as well as the value, in case a switch
+    /// between two accounts keeps this view.
+    private struct StaffReading: Equatable {
+        let userID: UserID
+        let isStaff: Bool?
+    }
+
+    private var staffReading: StaffReading {
+        StaffReading(
+            userID: sessionContainer.session.userID,
+            isStaff: sessionContainer.session.userFlags?.isStaff
+        )
+    }
+
+    /// The bar tab in front: `selection`, or the one an off-bar tab covers.
+    /// With today's layout every tab is on the bar, so this is `selection`.
+    private var barSelection: HomeTab {
+        if layout.isOnBar(selection) { return selection }
+        return layout.isOnBar(lastBarTab) ? lastBarTab : layout.initialTab
+    }
+
+    /// The tab drawn over the shell because the bar has no slot for it: Scan
+    /// or You with the Group Money layout. Nil with today's layout.
+    private var offBarTab: HomeTab? {
+        layout.isOnBar(selection) ? nil : selection
+    }
+
     private var hasPushedScreen: Bool {
         guard !isSearchSelected else { return false }
         return selection.pushStack.map { !router[$0].isEmpty } ?? false
@@ -82,11 +142,18 @@ struct HomeTabView: View {
 
     private var isTabBarHidden: Bool {
         if isSearchSelected { return sessionContainer.session.isShowingBill }
+        // The system bar fades out for select mode instead (see `nativeTabs`).
+        if #unavailable(iOS 26), isChatSelecting { return true }
         return selection.hidesTabBar(
             isWalletCardExpanded: cardExpansion.isExpanded,
             isShowingBill: sessionContainer.session.isShowingBill,
             hasPushedScreen: hasPushedScreen
         )
+    }
+
+    /// Whether the Chat list is in select mode, where its capsules take the tab bar's place.
+    private var isChatSelecting: Bool {
+        selection == .chat && !isSearchSelected && chatSelection.isActive
     }
 
     /// Unread chats among the ones the Chat tab lists, surfaced as a badge on the tab.
@@ -119,6 +186,14 @@ struct HomeTabView: View {
 
     var body: some View {
         tabs
+            // VoiceOver stays on Scan or You while it covers the shell.
+            .accessibilityHidden(offBarTab != nil)
+            .overlay { offBarLayer }
+            // A gate flip moves Scan or You between the bar and the overlay in
+            // one update. Animating that would keep the old copy on screen
+            // beside the new one, both bound to the same router stack.
+            .transaction(value: layout) { $0.animation = nil }
+            .animation(.easeInOut(duration: 0.25), value: offBarTab)
             .background(Color.backgroundMain)
             // The app-level sheet host, so `router.present(_:)` works from any tab.
             .modifier(RootSheetHostModifier())
@@ -129,13 +204,21 @@ struct HomeTabView: View {
                 // consume it here so it isn't dropped.
                 selectRequestedTab()
             }
-            .onChange(of: router.requestedTabStack) { _, _ in selectRequestedTab() }
+            .onChange(of: router.requestedTab) { _, _ in selectRequestedTab() }
             .onChange(of: selection) { _, tab in
                 router.activeTabStack = isSearchSelected ? nil : tab.pushStack
                 if tab == .chat { hasOpenedChat = true }
+                // Tracked whatever the layout, so turning Group Money on from
+                // You (the only way to reach the toggle) closes back to the
+                // tab the person came from rather than to Groups.
+                if HomeTabLayout.groupMoney.isOnBar(tab) { lastBarTab = tab }
             }
             .onChange(of: isSearchSelected) { _, isSearching in
                 router.activeTabStack = isSearching ? nil : selection.pushStack
+            }
+            // A gate flip to the shell takes the search tab away; don't leave it selected.
+            .onChange(of: layout.hasSearchTab) { _, hasSearchTab in
+                if !hasSearchTab { isSearchSelected = false }
             }
             .onDisappear { router.activeTabStack = nil }
             .onChange(of: router.presentedSheet != nil || sessionContainer.session.isShowingBill, initial: true) { _, covered in
@@ -154,6 +237,11 @@ struct HomeTabView: View {
             }
             .onChange(of: sessionContainer.session.profile?.username, initial: true) { _, username in
                 sessionContainer.chatArchive.setViewerUsername(username)
+            }
+            // Kept for the next cold start, whose first frame can come before
+            // the server's value does.
+            .onChange(of: staffReading, initial: true) { _, reading in
+                betaFlags.recordStaffStanding(reading.isStaff, for: reading.userID)
             }
             // Fetched here rather than on the You tab, so its groups and their
             // avatars are in hand before the tab is first opened.
@@ -200,7 +288,7 @@ struct HomeTabView: View {
     /// The Chat tab's glyphs with the unread count drawn in, or nil when
     /// nothing is unread; see ``TabBarBadgedIcon``.
     private var chatItemImages: TabBarProfilePhoto.ItemImages? {
-        TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount)
+        TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount, layout: layout)
     }
 
     private var profileItemImages: TabBarProfilePhoto.ItemImages? {
@@ -214,16 +302,11 @@ struct HomeTabView: View {
         }
     }
 
-    /// Holding the You tab opens the account switcher, behind the same gate as
-    /// the Switch Accounts row in Settings. The other tabs have no hold action.
-    ///
-    /// The haptic sits after the gate, so a hold that opens nothing stays silent.
+    /// Holding the You tab opens the account switcher. The other tabs have no hold action.
     private func handleLongPress(on tab: HomeTab) {
         switch tab {
         case .tipCard:
-            guard betaFlags.canSwitchAccounts else { return }
-            Haptics.medium()
-            router.present(.switchAccount)
+            router.presentAccountSwitcher(gatedBy: betaFlags)
         case .scan, .wallet, .chat:
             break
         }
@@ -231,12 +314,24 @@ struct HomeTabView: View {
 
     /// Brings the tab the router asked for forward and clears the request.
     private func selectRequestedTab() {
-        guard let requested = router.requestedTabStack,
-              let tab = HomeTab.allCases.first(where: { $0.pushStack == requested })
-        else { return }
+        guard let tab = router.requestedTab else { return }
         selection = tab
         isSearchSelected = false
-        router.requestedTabStack = nil
+        router.requestedTab = nil
+    }
+
+    /// Scan or You in front of the shell, when the Group Money layout leaves
+    /// them off the bar and something asked for one: a deep link, a route onto
+    /// the You stack, the Money avatar. Its close button goes back to the bar
+    /// tab it covers. Draws nothing with today's layout.
+    @ViewBuilder private var offBarLayer: some View {
+        if let offBarTab {
+            tabContent(for: offBarTab)
+                .environment(\.homeTabClose, HomeTabClose { selection = barSelection })
+                .toastHost(container.toasts)
+                .background(Color.backgroundMain)
+                .transition(.move(edge: .bottom))
+        }
     }
 
     @ViewBuilder private var tabs: some View {
@@ -249,31 +344,45 @@ struct HomeTabView: View {
 
     /// iOS 26+: the system Liquid Glass tab bar via a native `TabView`. The bar is
     /// hidden reactively (rather than by a slide-out transition) so the drill-in /
-    /// bill-showing behavior matches the legacy pill.
+    /// bill-showing behavior matches the legacy pill. With the small bar at the
+    /// leading edge the system bar stays hidden and ``nativeLeadingBar`` is
+    /// drawn over the same `TabView`.
     @available(iOS 26, *)
     private var nativeTabs: some View {
         TabView(selection: nativeSelection) {
-            ForEach(HomeTab.allCases) { tab in
+            ForEach(layout.barTabs) { tab in
                 Tab(value: NativeTab.home(tab)) {
                     tabContent(for: tab)
-                        // Every tab stays alive, so only the selected one draws the toast.
-                        .toastHost(container.toasts, isEnabled: !isSearchSelected && selection == tab)
-                        .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
-                        // The system bar's inset, measured on a 402pt-wide iPhone.
-                        .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: 21))
+                        .environment(\.shellBarBottomPadding, leadingBarSafeAreaPadding)
+                        // Every tab stays alive, so only the selected one draws the toast. Raised over
+                        // the small bar by what its safe area lacks, so it lands where it does over the
+                        // system bar.
+                        .toastHost(
+                            container.toasts,
+                            bottomPadding: 12 + leadingBarSafeAreaPadding,
+                            isEnabled: !isSearchSelected && selection == tab
+                        )
+                        .toolbar(isTabBarHidden || drawsLeadingBar ? .hidden : .visible, for: .tabBar)
+                        .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: Self.systemBarInset))
                 } label: {
                     tabLabel(for: tab)
-                        .accessibilityLabel(tab.title)
+                        .accessibilityLabel(layout.title(for: tab))
                 }
             }
-            Tab(value: NativeTab.search, role: .search) {
-                NavigationStack {
-                    ChatSearchScreen(chrome: .tab, navigate: openFromSearch, isActive: isSearchSelected)
+            // The Group Money shell has no search. Without the search tab the
+            // system draws the bar at its two items' width, centred. No public
+            // API moves it from there, so with `leftAlignedTabBar` on it is
+            // hidden and the small bar drawn in its place; see `nativeLeadingBar`.
+            if layout.hasSearchTab {
+                Tab(value: NativeTab.search, role: .search) {
+                    NavigationStack {
+                        ChatSearchScreen(chrome: .tab, navigate: openFromSearch, isActive: isSearchSelected)
+                    }
+                    .toastHost(container.toasts, isEnabled: isSearchSelected)
+                    .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
+                } label: {
+                    Label("Search", systemImage: "magnifyingglass")
                 }
-                .toastHost(container.toasts, isEnabled: isSearchSelected)
-                .toolbar(isTabBarHidden ? .hidden : .visible, for: .tabBar)
-            } label: {
-                Label("Search", systemImage: "magnifyingglass")
             }
         }
         // Selected-tab highlight over a lightly tinted glass bar — echoes the old
@@ -287,11 +396,46 @@ struct HomeTabView: View {
         // rather than when the drag commits — the binding does not change until
         // the finger lifts.
         .background(TabBarSelectedIcons(
-            tabs: HomeTab.allCases,
+            layout: layout,
             profileImages: profileItemImages,
             chatBadgeCount: chatBadgeCount,
             onLongPress: handleLongPress(on:)
         ))
+        // Faded rather than hidden for select mode: a hidden bar takes its inset with it, and the
+        // list's bottom scroll edge effect is drawn over that inset, so the blur behind the
+        // capsules would go too.
+        .background(TabBarFade(isFaded: isChatSelecting))
+        .overlay { nativeLeadingBar }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { windowBottomInset = $0 }
+    }
+
+    /// The small bar over the hidden system bar. It hides on the same pushes,
+    /// and fades out for select mode as the system bar does, keeping its inset
+    /// (``leadingBarSafeAreaPadding``) so the capsules take its slot. It leaves
+    /// the hierarchy rather than going transparent: under `accessibilityHidden`
+    /// its items stayed in the accessibility tree, and activating one still
+    /// switched tabs from a bar that wasn't drawn.
+    @available(iOS 26, *)
+    private var nativeLeadingBar: some View {
+        LeadingTabBarSlot(isVisible: drawsLeadingBar && !isTabBarHidden) {
+            if !isChatSelecting {
+                shellBar(alignment: .leading)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: isChatSelecting)
+        .animation(.easeInOut(duration: 0.2), value: isTabBarHidden)
+    }
+
+    /// What the small bar adds to the bottom safe area on iOS 26, where it
+    /// stands in for a system bar that would have added it: up to the bar's
+    /// top, so scrolling content, the toast and the select-mode capsules sit
+    /// where they do over the system bar. Each tab's root screen applies it
+    /// through ``EnvironmentValues/shellBarBottomPadding``. Nothing while the
+    /// bar is hidden, so a pushed screen keeps the full height.
+    private var leadingBarSafeAreaPadding: CGFloat {
+        guard drawsLeadingBar, !isTabBarHidden else { return 0 }
+        return max(0, Self.leadingBarTop - windowBottomInset)
     }
 
     /// A tab in the iOS 26 bar: one of the shared tabs, or the search tab that sits apart from them.
@@ -303,7 +447,7 @@ struct HomeTabView: View {
     @available(iOS 26, *)
     private var nativeSelection: Binding<NativeTab> {
         Binding {
-            isSearchSelected ? .search : .home(selection)
+            isSearchSelected ? .search : .home(barSelection)
         } set: { tab in
             switch tab {
             case .home(let tab):
@@ -315,11 +459,12 @@ struct HomeTabView: View {
         }
     }
 
-    /// Opens a search result on the Chat tab, the stack its chats and currencies live on.
+    /// Opens a search result on the Chat tab (Groups, with the Group Money
+    /// layout), the stack its chats and currencies live on.
     private func openFromSearch(_ destination: AppRouter.Destination) {
         router.pushAny(destination, on: .tips)
         isSearchSelected = false
-        selection = .chat
+        selection = layout.searchResultTab
     }
 
     /// The unselected icon for a tab. The filled counterpart is handed to UIKit
@@ -332,7 +477,7 @@ struct HomeTabView: View {
     @ViewBuilder private func tabLabel(for tab: HomeTab) -> some View {
         if TabBarItemStyle.showsNativeTitles {
             Label {
-                Text(tab.title)
+                Text(layout.title(for: tab))
             } icon: {
                 tabIcon(for: tab)
             }
@@ -344,42 +489,75 @@ struct HomeTabView: View {
     private func tabIcon(for tab: HomeTab) -> some View {
         let images = TabBarItemStyle.itemImages(
             for: tab,
+            layout: layout,
             profile: tab == .tipCard ? profileItemImages : nil,
             badged: tab == .chat ? chatItemImages : nil
         )
         return Image(uiImage: images.normal).renderingMode(.original)
     }
 
+    /// The iOS 26 system bar's inset from the screen edge on a 402pt-wide
+    /// iPhone: where its glass starts when the system lays it out from the
+    /// leading edge, as it does beside a prominent tab or a bottom accessory.
+    static let systemBarInset: CGFloat = 21
+
+    /// The iOS 26 system bar's gap to the bottom of the screen, measured on a
+    /// 402pt-wide iPhone: its glass ends at y=853 in an 874pt window.
+    static let systemBarBottomInset: CGFloat = 21
+
+    /// The small bar's top, measured up from the bottom of the screen: 83pt,
+    /// where the system bar's inset ends too.
+    static var leadingBarTop: CGFloat { systemBarBottomInset + HomeTabBar.height(.compact) }
+
     private static let pillBottomMargin: CGFloat = 8
-    private static let legacyPillInset: CGFloat = 42
+    /// The legacy pill's margin from each side when centred: 318pt wide on a 402pt screen.
+    static let legacyPillInset: CGFloat = 42
 
     /// The room the legacy pill occupies above the safe area. The pill is an
     /// overlay, so unlike the iOS 26 system bar it adds nothing to the safe
-    /// area — a tab that scrolls under it has to inset for it itself.
+    /// area — a tab that scrolls under it has to inset for it itself. The small
+    /// bar at the leading edge sits lower, so this clears it with room over.
     static var legacyPillClearance: CGFloat { HomeTabBar.height + pillBottomMargin }
+
+    /// The shell's own bar: the small one for the leading edge, the legacy
+    /// pill for the centre.
+    private func shellBar(alignment: HorizontalAlignment) -> some View {
+        HomeTabBar(
+            selection: Binding { barSelection } set: {
+                isSearchSelected = false
+                selection = $0
+            },
+            layout: layout,
+            size: HomeTabBar.Size(for: alignment),
+            badgeCounts: [.chat: chatBadgeCount],
+            profileSlot: profileSlot,
+            onLongPress: handleLongPress(on:)
+        )
+    }
 
     /// iOS 18–25 fallback: the home-grown floating pill hovering over the tab
     /// content, sliding out when `isTabBarHidden`.
     private var legacyTabs: some View {
         ZStack(alignment: .bottom) {
-            tabContent(for: selection)
+            tabContent(for: barSelection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 // The pill adds nothing to the safe area, so the toast clears it itself, and it draws
                 // below the pill so it grows out from behind it.
                 .toastHost(
                     container.toasts,
-                    bottomPadding: isTabBarHidden ? 12 : 12 + Self.legacyPillClearance
+                    bottomPadding: isTabBarHidden ? 12 : 12 + Self.legacyPillClearance,
+                    // An off-bar tab drawn over the shell hosts the toast itself.
+                    isEnabled: offBarTab == nil
                 )
                 .transition(.opacity)
-                .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: Self.legacyPillInset))
+                .environment(\.floatingTabBar, isTabBarHidden ? nil : FloatingTabBar(horizontalInset: drawsLeadingBar ? Self.systemBarInset : Self.legacyPillInset))
 
-            if !isTabBarHidden {
-                HomeTabBar(
-                    selection: $selection,
-                    badgeCounts: [.chat: chatBadgeCount],
-                    profileSlot: profileSlot,
-                    onLongPress: handleLongPress(on:)
-                )
+            if drawsLeadingBar {
+                LeadingTabBarSlot(isVisible: !isTabBarHidden) {
+                    shellBar(alignment: .leading)
+                }
+            } else if !isTabBarHidden {
+                shellBar(alignment: .center)
                     // Figma insets the pill ~42pt from each edge (318pt wide on the
                     // 402pt frame); a fixed margin keeps the floating look across
                     // device widths.
@@ -423,11 +601,87 @@ struct HomeTabView: View {
             // would discard.
             if selection == .chat || hasOpenedChat {
                 ChatTab()
+                    .environment(chatSelection)
             } else {
                 Color.backgroundMain
             }
         case .tipCard:
             TipCardTab()
+        }
+    }
+}
+
+/// The small bar's slot: ``HomeTabView/systemBarInset`` in from the leading
+/// edge and ``HomeTabView/systemBarBottomInset`` up from the bottom of the
+/// screen, where the system bar's glass sits when the system lays it out from
+/// the leading edge. Fills what it is offered and reaches past the bottom safe
+/// area to the screen edge; only the bar takes touches. The bar slides out of
+/// the slot when `isVisible` goes false.
+struct LeadingTabBarSlot<Bar: View>: View {
+    let isVisible: Bool
+    let bar: Bar
+
+    init(isVisible: Bool = true, @ViewBuilder bar: () -> Bar) {
+        self.isVisible = isVisible
+        self.bar = bar()
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            if isVisible {
+                bar
+                    .padding(.leading, HomeTabView.systemBarInset)
+                    .padding(.bottom, HomeTabView.systemBarBottomInset)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+extension EnvironmentValues {
+    /// What a tab's root screen adds to its bottom safe area for the shell's
+    /// small bar on iOS 26, which stands in for a hidden system bar that would
+    /// have added it. 0 everywhere else. Safe area set outside a
+    /// `NavigationStack` doesn't reach the screens inside it once the system
+    /// bar is hidden, so each tab stack's root applies this itself with
+    /// ``SwiftUI/View/shellBarSafeArea()``.
+    @Entry var shellBarBottomPadding: CGFloat = 0
+}
+
+extension View {
+    /// Adds ``EnvironmentValues/shellBarBottomPadding`` to the bottom safe
+    /// area. Put it on a tab stack's root view, before its destinations, so
+    /// pushed screens keep their own safe area.
+    ///
+    /// On iOS 26 the padding is a bar that draws nothing visible, so scrolling
+    /// content softens under it across the screen's width, as it does under the
+    /// system bar. On the root view rather than the stack, pushed screens get
+    /// neither the inset nor the effect.
+    func shellBarSafeArea() -> some View {
+        modifier(ShellBarSafeArea())
+    }
+}
+
+private struct ShellBarSafeArea: ViewModifier {
+    @Environment(\.shellBarBottomPadding) private var padding
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .safeAreaBar(edge: .bottom, spacing: 0) {
+                    // Not `Color.clear`: a bar of it gets no edge effect at all (checked on an
+                    // iOS 27 simulator). A fill that draws, too faint to see, gets the soft one.
+                    Color.black.opacity(0.001)
+                        .frame(height: padding)
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
+                }
+                // nil keeps the system's own style, so a flag-off tab is unchanged.
+                .scrollEdgeEffectStyle(padding > 0 ? .soft : nil, for: .bottom)
+        } else {
+            content.safeAreaPadding(.bottom, padding)
         }
     }
 }
@@ -445,6 +699,12 @@ extension HomeTab {
     ///
     /// Must agree with `AppRouter.Stack.isTabHosted`, which is what the router
     /// routes on; `AppRouterCrossStackTests` pins the two together.
+    /// The tab that hosts `stack`, or nil for a stack no tab hosts.
+    init?(hosting stack: AppRouter.Stack) {
+        guard let tab = HomeTab.allCases.first(where: { $0.pushStack == stack }) else { return nil }
+        self = tab
+    }
+
     var pushStack: AppRouter.Stack? {
         switch self {
         case .wallet:  return .balance
@@ -485,6 +745,7 @@ private struct ChatTab: View {
         @Bindable var router = router
         NavigationStack(path: $router[.tips]) {
             TipsScreen(isEmbedded: true)
+                .shellBarSafeArea()
                 .appRouterDestinations()
         }
     }
@@ -504,10 +765,21 @@ private struct TipCardTab: View {
 
     @Environment(AppRouter.self) private var router
 
+    /// Set when You is drawn over the shell rather than shown as a tab.
+    @Environment(\.homeTabClose) private var close
+
     var body: some View {
         @Bindable var router = router
         NavigationStack(path: $router[.you]) {
             YouScreen()
+                .toolbar {
+                    if let close {
+                        ToolbarItem(placement: .topBarLeading) {
+                            CloseButton(action: close.action)
+                        }
+                    }
+                }
+                .shellBarSafeArea()
                 .appRouterDestinations()
         }
     }
@@ -529,7 +801,8 @@ private struct TipCardTab: View {
 /// every update because SwiftUI resets the images when it rebuilds the bar.
 @available(iOS 26, *)
 private struct TabBarSelectedIcons: UIViewControllerRepresentable {
-    let tabs: [HomeTab]
+    /// Which tabs the bar holds and which glyph each wears.
+    let layout: HomeTabLayout
 
     /// The You tab's photo, in place of its glyph. Passed by value so the
     /// enclosing body observes it landing and this representable is updated.
@@ -543,11 +816,11 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     let onLongPress: (HomeTab) -> Void
 
     func makeUIViewController(context: Context) -> Probe {
-        Probe(tabs: tabs, profileImages: profileImages, chatBadgeCount: chatBadgeCount, onLongPress: onLongPress)
+        Probe(layout: layout, profileImages: profileImages, chatBadgeCount: chatBadgeCount, onLongPress: onLongPress)
     }
 
     func updateUIViewController(_ probe: Probe, context: Context) {
-        probe.tabs = tabs
+        probe.layout = layout
         probe.profileImages = profileImages
         probe.chatBadgeCount = chatBadgeCount
         probe.onLongPress = onLongPress
@@ -555,18 +828,18 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     }
 
     final class Probe: UIViewController, UIGestureRecognizerDelegate {
-        var tabs: [HomeTab]
+        var layout: HomeTabLayout
         var profileImages: TabBarProfilePhoto.ItemImages?
         var chatBadgeCount: Int
         var onLongPress: (HomeTab) -> Void
 
         init(
-            tabs: [HomeTab],
+            layout: HomeTabLayout,
             profileImages: TabBarProfilePhoto.ItemImages?,
             chatBadgeCount: Int,
             onLongPress: @escaping (HomeTab) -> Void
         ) {
-            self.tabs = tabs
+            self.layout = layout
             self.profileImages = profileImages
             self.chatBadgeCount = chatBadgeCount
             self.onLongPress = onLongPress
@@ -590,10 +863,14 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
         /// with the tabs — the icons then simply stay outlined, rather than the
         /// wrong glyph being pinned to the wrong tab. Retried on the next turn
         /// of the runloop, because the bar's items do not exist yet on the pass
-        /// where this controller is first added.
+        /// where this controller is first added, and still hold the other
+        /// layout's on the pass after a gate flip.
         func apply() {
             // The search tab, when there is one, is the last item and keeps its system glyph.
-            guard let bar = resolvedTabBar, let items = bar.items, items.count >= tabs.count else {
+            guard let bar = resolvedTabBar,
+                  let items = bar.items,
+                  let tabs = layout.barTabs(forItemCount: items.count)
+            else {
                 scheduleRetry()
                 return
             }
@@ -607,15 +884,16 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
                 }
                 let images = TabBarItemStyle.itemImages(
                     for: tab,
+                    layout: layout,
                     profile: tab == .tipCard ? profileImages : nil,
-                    badged: tab == .chat ? TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount) : nil
+                    badged: tab == .chat ? TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount, layout: layout) : nil
                 )
                 item.image = images.normal
                 item.selectedImage = images.selected
                 // A title drawn into the image leaves the item none of its own,
                 // so VoiceOver still needs the name.
-                item.title = TabBarItemStyle.showsNativeTitles ? tab.title : nil
-                item.accessibilityLabel = tab.title
+                item.title = TabBarItemStyle.showsNativeTitles ? layout.title(for: tab) : nil
+                item.accessibilityLabel = layout.title(for: tab)
             }
         }
 
@@ -641,7 +919,7 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
 
         @objc private func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
             guard recognizer.state == .began, let bar = recognizer.view as? UITabBar else { return }
-            guard let tab = TabBarItemLocator.tab(at: recognizer.location(in: bar), in: bar, tabs: tabs) else { return }
+            guard let tab = TabBarItemLocator.tab(at: recognizer.location(in: bar), in: bar, tabs: layout.barTabs) else { return }
             onLongPress(tab)
         }
 
@@ -667,22 +945,58 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
                 self?.apply()
             }
         }
+    }
+}
 
-        /// This controller is attached alongside the `TabView` rather than inside
-        /// a tab, so `tabBarController` is nil — the bar has to be found from the
-        /// window instead.
-        private var resolvedTabBar: UITabBar? {
-            if let bar = tabBarController?.tabBar { return bar }
-            guard let root = view.window?.rootViewController else { return nil }
+/// Fades the system tab bar out and back in, with the animation of the SwiftUI update that changed
+/// `isFaded`. The bar keeps its place and its inset; it only stops drawing and taking touches.
+@available(iOS 26, *)
+private struct TabBarFade: UIViewControllerRepresentable {
+    let isFaded: Bool
 
-            var queue: [UIViewController] = [root]
-            while let next = queue.first {
-                queue.removeFirst()
-                if let tabs = next as? UITabBarController { return tabs.tabBar }
-                queue.append(contentsOf: next.children)
-                if let presented = next.presentedViewController { queue.append(presented) }
-            }
-            return nil
+    func makeUIViewController(context: Context) -> Probe {
+        Probe()
+    }
+
+    /// Re-applies on every update, not only on a change: SwiftUI can rebuild the bar mid-fade.
+    func updateUIViewController(_ probe: Probe, context: Context) {
+        guard probe.isFaded != isFaded else {
+            probe.apply()
+            return
         }
+        probe.isFaded = isFaded
+        context.animate { probe.apply() }
+    }
+
+    final class Probe: UIViewController {
+        var isFaded = false
+
+        func apply() {
+            guard let bar = resolvedTabBar else { return }
+            bar.alpha = isFaded ? 0 : 1
+            // A view mid-fade still takes touches, and the bar sits above the SwiftUI content.
+            bar.isUserInteractionEnabled = !isFaded
+            bar.accessibilityElementsHidden = isFaded
+        }
+    }
+}
+
+private extension UIViewController {
+
+    /// This controller is attached alongside the `TabView` rather than inside
+    /// a tab, so `tabBarController` is nil — the bar has to be found from the
+    /// window instead.
+    var resolvedTabBar: UITabBar? {
+        if let bar = tabBarController?.tabBar { return bar }
+        guard let root = view.window?.rootViewController else { return nil }
+
+        var queue: [UIViewController] = [root]
+        while let next = queue.first {
+            queue.removeFirst()
+            if let tabs = next as? UITabBarController { return tabs.tabBar }
+            queue.append(contentsOf: next.children)
+            if let presented = next.presentedViewController { queue.append(presented) }
+        }
+        return nil
     }
 }

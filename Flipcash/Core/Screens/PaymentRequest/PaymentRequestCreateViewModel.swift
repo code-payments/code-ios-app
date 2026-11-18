@@ -11,7 +11,7 @@ import FlipcashUI
 
 private let logger = Logger(label: "flipcash.payment-request-create")
 
-/// A new request in a private group: the per-person amount, its name, who is asked and when it
+/// A new request in a private group: the amount per person, its name, who is asked and when it
 /// closes, then the create call and the widget that puts it in the chat.
 @MainActor
 @Observable
@@ -31,7 +31,10 @@ final class PaymentRequestCreateViewModel {
     }
 
     var enteredAmount: String = ""
-    var title: String
+    /// The request's title, the weekday default until the creator saves one on the Name screen.
+    var name = PaymentRequestName()
+    /// The title the request is sent with.
+    var title: String { name.title }
     var deadline: PaymentRequestDeadline = .oneWeek
     private(set) var people: PaymentRequestPeople?
     /// Set when checking a member would make a 101st share, until the sheet is dismissed.
@@ -59,13 +62,12 @@ final class PaymentRequestCreateViewModel {
         self.conversationController = sessionContainer.conversationController
         self.requests = sessionContainer.paymentRequests
         self.conversationID = conversationID
-        self.title = defaultPaymentRequestTitle()
     }
 
     /// Clears the draft for a fresh New Request: amount, default title and deadline, everyone selected.
     func startNewRequest() {
         enteredAmount = ""
-        title = defaultPaymentRequestTitle()
+        name = PaymentRequestName()
         deadline = .oneWeek
         people = nil
         idempotencyKey = nil
@@ -75,7 +77,7 @@ final class PaymentRequestCreateViewModel {
 
     // MARK: - Amount -
 
-    /// The per-person amount in the display currency, or nil at zero.
+    /// The amount each selected person is asked for, in the display currency; nil at zero.
     var amount: FiatAmount? {
         guard let value = amountValidator.validate(enteredAmount), value > 0 else { return nil }
         return FiatAmount(value: value, currency: ratesController.balanceCurrency)
@@ -121,11 +123,15 @@ final class PaymentRequestCreateViewModel {
     var peopleValue: String { people?.summaryValue ?? "Choose People" }
     var peopleSecondLine: String? { people?.summarySecondLine }
     var hasValidPeople: Bool { people?.isValid ?? false }
-    var canSend: Bool { amount != nil && hasValidPeople && !isSending }
+    var canSend: Bool { shares != nil && hasValidPeople && !isSending }
 
-    var sendButtonTitle: String {
-        people?.buttonTitle(amount: amount?.formatted() ?? "") ?? "Request"
+    /// One share of the amount per selected person, or nil while there is no amount or nobody to ask.
+    private var shares: [GroupPaymentRequest.Share]? {
+        guard let amount, let people, people.isValid else { return nil }
+        return people.shares(perPerson: amount)
     }
+
+    var sendButtonTitle: String { paymentRequestSendButtonTitle }
 
     // MARK: - Send -
 
@@ -138,6 +144,7 @@ final class PaymentRequestCreateViewModel {
 
     func send(now: Date = .now) async -> Outcome {
         guard let amount, let people, people.isValid else { return .failed(Self.genericError) }
+        let shares = people.shares(perPerson: amount)
         prepareConfirm()
         guard let idempotencyKey else { return .failed(Self.genericError) }
         isSending = true
@@ -148,11 +155,14 @@ final class PaymentRequestCreateViewModel {
             request = created
         } else {
             do {
-                request = try await create(amount: amount, people: people, key: idempotencyKey, now: now)
+                request = try await create(currency: amount.currency, shares: shares, key: idempotencyKey, now: now)
                 created = request
+                Analytics.paymentRequestCreated(payerCount: people.askedCount, amount: amount, error: nil)
             } catch let error as ErrorCreatePaymentRequest {
+                Analytics.paymentRequestCreated(payerCount: people.askedCount, amount: amount, error: error)
                 return .failed(alert(for: error))
             } catch {
+                Analytics.paymentRequestCreated(payerCount: people.askedCount, amount: amount, error: error)
                 ErrorReporting.captureError(error, reason: "Failed to create payment request")
                 return .failed(Self.genericError)
             }
@@ -163,16 +173,16 @@ final class PaymentRequestCreateViewModel {
         return .sent
     }
 
-    private func create(amount: FiatAmount, people: PaymentRequestPeople, key: Data, now: Date) async throws -> GroupPaymentRequest {
+    private func create(currency: CurrencyCode, shares: [GroupPaymentRequest.Share], key: Data, now: Date) async throws -> GroupPaymentRequest {
         guard let seal = try await conversationController.photoSeal(for: conversationID) else {
             throw ErrorCreatePaymentRequest.encryptionRequired
         }
         let title = PaymentRequestTitleValidator().validate(title) ?? defaultPaymentRequestTitle(at: now)
         let split = GroupPaymentRequest.Split(
             text: try seal.sealRequestText(title: title, description: ""),
-            currency: amount.currency.rawValue.lowercased(),
+            currency: currency.rawValue.lowercased(),
             endsAt: deadline.endsAt(sentAt: now),
-            shares: people.shares(nativeAmount: NSDecimalNumber(decimal: amount.value).doubleValue)
+            shares: shares
         )
         return try await requests.create(idempotencyKey: key, in: conversationID, split: split)
     }

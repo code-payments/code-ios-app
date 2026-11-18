@@ -10,7 +10,7 @@ import SwiftUI
 
 public enum FontBook {
     
-    private static let bundle = Bundle.module
+    private static let bundle = Bundle.flipcashUI
     
     public static func registerApplicationFonts() {
         registerFont(named: "AvenirNextLTPro-Demi", extension: "otf")

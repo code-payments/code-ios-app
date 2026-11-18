@@ -48,6 +48,22 @@ struct BetaFlagsTests {
         }
     }
 
+    @Test("Chat Cash Bill is public, starts on, and stays off once the user turns it off")
+    func chatCashBill_publicDefaultOnAndOffSticks() {
+        #expect(BetaFlags.Option.chatCashBill.availability == .publicBeta)
+        #expect(BetaFlags.Option.chatCashBill.isOnByDefault)
+        #expect(BetaFlags.Option.chatCashBill.localizedTitle == "Chat Cash Bill")
+        #expect(BetaFlags.Option.chatCashBill.localizedDescription == "Show the bill when someone sends you cash in the chat you have open.")
+
+        let first = BetaFlags()
+        #expect(first.hasEnabled(.chatCashBill))
+
+        first.set(.chatCashBill, enabled: false)
+
+        let relaunch = BetaFlags()
+        #expect(!relaunch.hasEnabled(.chatCashBill))
+    }
+
     // MARK: - Launch argument overrides -
 
     @Test("An override replaces the whole set, so a default-on flag can run off", needsADefaultOnOption)

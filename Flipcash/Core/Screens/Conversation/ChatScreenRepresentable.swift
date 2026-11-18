@@ -29,6 +29,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onCashCardTap: (String) -> Void
     /// Fired with a payment request's id bytes when its card is tapped. The owner opens Request details.
     var onPaymentRequestTap: (Data) -> Void = { _ in }
+    /// Fired with a cash message's id when its receiver taps Send Back.
+    var onSendBack: (String) -> Void = { _ in }
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
@@ -51,6 +53,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let toasts: ToastController
     /// Fired when the user taps the "Encrypted" marker above a DM's first encrypted message.
     let onEncryptionMarkerTap: () -> Void
+    /// Fired when the user taps Invite People on the group-ready card.
+    let onInviteCardTap: () -> Void
     /// Fired when the user taps an author's face in a group's gutter, with that author's user id.
     let onAuthorTap: (UserID) -> Void
     /// Fired when a context-menu action is chosen on a row, with the row's stable id. Copy never
@@ -63,8 +67,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onMessagesSeen: (MessageID) -> Void
     /// Whether rows on screen count as read right now.
     let reportsReads: Bool
-    /// Inbound messages after the viewer's read pointer, for the jump-to-bottom badge.
-    let unreadBelowCount: Int
+    /// The jump-to-bottom badge's count. Observed by the coordinator, not read by the owning view's
+    /// body, so a change redraws only the button. Nil shows no badge.
+    let jumpBadge: JumpBadgeCount?
     /// Fired on the reader's first drag after the opening scroll.
     let onUserScrollBegan: () -> Void
     /// Fired when a reaction pill is tapped: the row's stable id and the toggled emoji.
@@ -137,7 +142,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var onImagesPasted: ([NSItemProvider]) -> Void = { _ in }
     /// Mints a signed download URL for a photo in this chat. The transcript's resolver caches what it
     /// returns and never asks for a photo drawn only from its BlurHash.
-    var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
+    var mintMediaURL: (BlobID) async throws -> BlobDownloadLink? = { _ in nil }
     /// Decrypts the chat's end-to-end encrypted photo blobs, or nil while its key is unknown.
     var mediaBlobDecrypt: () async -> ChatMediaURLResolver.BlobDecrypt? = { nil }
     /// Fired when the user taps a photo the viewer may see. The owner opens the full-screen viewer.
@@ -150,8 +155,17 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     var snapDistanceFromNewest: CGFloat? = nil
     /// The latest request to land on a message, from a message link; each new token scrolls once.
     var messageJump: MessageJump? = nil
+    /// Draws the transcript alone, for the chat list's long-press preview: no bar, no jump button,
+    /// no touches, opened at the newest message. Read reporting is the caller's to turn off, through
+    /// `reportsReads` and `onMessagesSeen`, as it is for the screen.
+    var isReadOnlyPreview = false
+    /// Lets a received bill lower and restore this screen's keyboard.
+    var keyboardHandle: ChatKeyboardHandle?
+    /// How the composer's round `$` is drawn.
+    var cashButtonStyle: ComposerCashButtonStyle = .glass
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
+        if isReadOnlyPreview { return makePreviewController(context: context) }
         let jump = JumpToBottomModel()
         context.coordinator.jump = jump
         let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
@@ -169,6 +183,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         jumpHost.view.clipsToBounds = false
         jumpHost.safeAreaRegions = []
         let screen = ChatScreenViewController(bar: barHost.view, barController: barHost, jump: jump, jumpButtonController: jumpHost)
+        keyboardHandle?.screen = screen
         screen.focusesComposerOnAppear = focusOnAppear
         screen.isTranscriptObscured = gate.obscuresTranscript
         screen.showsGatePlaceholder = showsGatePlaceholder
@@ -181,6 +196,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onPaymentRequestTap = onPaymentRequestTap
+        screen.onSendBack = onSendBack
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile
@@ -201,6 +217,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             conversationController.pendingMediaProgress(forMessageID: id)
         }
         screen.onEncryptionMarkerTap = onEncryptionMarkerTap
+        screen.onInviteCardTap = onInviteCardTap
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in
@@ -219,18 +236,49 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
-        screen.unreadBelowCount = unreadBelowCount
         screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         perform(messageJump, on: screen, coordinator: context.coordinator)
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
+        context.coordinator.observe(jumpBadge)
+        context.coordinator.lastMessageID = lastMessageID(of: items)
+        return screen
+    }
+
+    /// The transcript with the same rows, cells and attribution as the screen, over a plain empty
+    /// bar the clip closes to nothing. Nothing in it takes a touch.
+    private func makePreviewController(context: Context) -> ChatScreenViewController {
+        let screen = ChatScreenViewController(bar: UIView())
+        screen.opensAtUnreadDivider = false
+        screen.authorAvatars = authorAvatars
+        screen.ownProfile = ownProfile
+        screen.linkCardSource = linkCardSource
+        screen.updateAction = updateAction
+        context.coordinator.mintMediaURL = mintMediaURL
+        context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
+        screen.mediaURLResolver = context.coordinator.mediaURLResolver
+        screen.reactionStripEntries = reactionStripEntries
+        screen.onMessagesSeen = onMessagesSeen
+        screen.reportsReads = reportsReads
+        screen.loadViewIfNeeded()
+        screen.view.isUserInteractionEnabled = false
+        screen.setBarHeight(0, accessories: BarAccessories())
+        screen.update(items: items)
+        context.coordinator.screen = screen
         context.coordinator.lastMessageID = lastMessageID(of: items)
         return screen
     }
 
     func updateUIViewController(_ screen: ChatScreenViewController, context: Context) {
+        if isReadOnlyPreview {
+            screen.authorAvatars = authorAvatars
+            screen.onMessagesSeen = onMessagesSeen
+            screen.reportsReads = reportsReads
+            screen.update(items: items)
+            return
+        }
         // Re-supply the bar with current inputs; SwiftUI diffs it, so the composer's draft and
         // focus survive across updates.
         context.coordinator.barHost?.rootView = bar(coordinator: context.coordinator)
@@ -245,6 +293,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onPaymentRequestTap = onPaymentRequestTap
+        screen.onSendBack = onSendBack
         screen.onOpenURL = onOpenURL
         screen.onMentionTap = onMentionTap
         screen.onShareProfile = onShareProfile
@@ -258,6 +307,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.mintMediaURL = mintMediaURL
         context.coordinator.mediaBlobDecrypt = mediaBlobDecrypt
         screen.onEncryptionMarkerTap = onEncryptionMarkerTap
+        screen.onInviteCardTap = onInviteCardTap
         screen.onAuthorTap = onAuthorTap
         screen.onMessageAction = keyboardFollowing(onMessageAction, screen: screen)
         screen.onQuoteTap = { [weak screen] stableID in
@@ -276,7 +326,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onCancelEdit = { [composer] in composer.endEditing() }
         screen.onMentionRoomChange = { [mentions] room in mentions?.room = room }
         screen.onMessagesSeen = onMessagesSeen
-        screen.unreadBelowCount = unreadBelowCount
+        context.coordinator.observe(jumpBadge)
         screen.onUserScrollBegan = onUserScrollBegan
         screen.reportsReads = reportsReads
         // The backdrop is raised from the menu action itself (see `keyboardFollowing`) because it
@@ -338,8 +388,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             case .reply:
                 screen?.focusComposer()
             // Each raises a sheet over the transcript, so the keyboard goes down first.
-            case .delete, .report, .forward: screen?.dismissKeyboard()
-            case .copy:               break
+            case .delete, .report, .forward, .silence, .remove: screen?.dismissKeyboard()
+            case .copy, .savePhoto, .saveAllPhotos, .pin, .unpin: break
             }
         }
     }
@@ -389,7 +439,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 // Only a member can aim a reply, so the viewer may see what it quotes.
                 quoteThumbnailLocation: { [resolver = coordinator.mediaURLResolver] kind in
                     await resolver.thumbnailLocation(for: kind, canReact: true)
-                }
+                },
+                cashButtonStyle: cashButtonStyle
             )
             .environment(conversationController)
             .toastClearance(toasts, horizontalInset: BarMetrics.compactInset, overlap: BarMetrics.toastOverlap)
@@ -429,11 +480,39 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         var attachActions = AttachActions()
         /// The last message jump performed, so a re-render doesn't scroll again.
         var lastJumpToken: Int?
+        /// The badge whose count is being pushed to the screen.
+        private var jumpBadge: JumpBadgeCount?
 
         init(model: ConversationBarModel, composer: ComposerModel) {
             self.model = model
             self.composer = composer
             self.overlay = AttachKeyboardOverlay(model: model)
+        }
+
+        /// Pushes `badge`'s count to the screen now and on every change, until another badge replaces it.
+        func observe(_ badge: JumpBadgeCount?) {
+            guard badge !== jumpBadge else { return }
+            jumpBadge = badge
+            pushBadgeCount()
+        }
+
+        private func pushBadgeCount() {
+            guard let badge = jumpBadge else {
+                screen?.unreadBelowCount = 0
+                return
+            }
+            let count = withObservationTracking {
+                badge.count
+            } onChange: { [weak self] in
+                Task { @MainActor [weak self] in
+                    // A badge replaced since this was armed has nothing left to push.
+                    guard let self, jumpBadge === badge else { return }
+                    pushBadgeCount()
+                }
+            }
+            if screen?.unreadBelowCount != count {
+                screen?.unreadBelowCount = count
+            }
         }
 
         /// `+` is opening the panel: over the keyboard while it is up and its window or the field's
@@ -495,7 +574,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
         var lastMessageID: String?
         /// The latest ``ChatScreenRepresentable/mintMediaURL``, read by the resolver.
-        var mintMediaURL: (BlobID) async throws -> URL? = { _ in nil }
+        var mintMediaURL: (BlobID) async throws -> BlobDownloadLink? = { _ in nil }
         /// The one resolver the transcript and the composer's reply strip share, so a photo is minted
         /// once however many places draw it. Reads ``mintMediaURL`` at fetch time, so a chat created
         /// after this screen opened mints against its real id.
@@ -508,7 +587,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             },
             decrypt: { [weak self] in
                 await self?.mediaBlobDecrypt()
-            }
+            },
+            caches: .shared,
+            pushedPhotos: .chatPhotos
         )
     }
 }

@@ -92,11 +92,11 @@ struct ChatListJoinRequestsTests {
         #expect(p.tabBadge == 0)
     }
 
-    @Test("A muted archived group's requests leave the Archived row's count alone, as its messages do")
+    @Test("A muted archived group's requests count on the Archived row, as its messages do")
     func mutedArchivedRequests() {
         let p = ChatListProjection.project([
             Self.entry(1, activity: 50, archived: true, muted: true, requests: 1, newestRequest: 60),
         ])
-        #expect(p.archivedRowCount == 0)
+        #expect(p.archivedRowCount == 1)
     }
 }

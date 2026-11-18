@@ -334,3 +334,22 @@ struct ChatRowSpacingTests {
         #expect(gap(after: 0, in: items) == 10)
     }
 }
+
+@Suite("ChatViewController card layout width")
+struct ChatViewControllerCardLayoutWidthTests {
+
+    @Test("A phone's cards size against its full width")
+    func phoneWidth_isUnchanged() {
+        #expect(ChatViewController.cardLayoutWidth(402) == 402)
+    }
+
+    @Test("A wide screen's cards size against a large phone's width")
+    func wideScreen_isCapped() {
+        #expect(ChatViewController.cardLayoutWidth(720) == ChatViewController.maxCardLayoutWidth)
+    }
+
+    @Test("The gutter a photo prefetch sizes against is the avatar plus its 8 pt of space")
+    func authorGutter_matchesTheAvatar() {
+        #expect(ChatPhotoBubbleLayout.authorGutterWidth == ChatAuthorAvatarView.size + 8)
+    }
+}

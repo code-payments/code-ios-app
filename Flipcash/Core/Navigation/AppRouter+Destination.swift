@@ -22,6 +22,9 @@ extension AppRouter {
         /// distinctly from "user opened currency info".
         case currencyInfoForDeposit(PublicKey)
         case discoverCurrencies
+        /// Every currency the wallet holds, from "N currencies" on the Money
+        /// screen (``BetaFlags/Option/groupMoneyUI``).
+        case walletCurrencies
         case currencyCreationSummary
         case currencyCreationWizard
         case transactionHistory(PublicKey)
@@ -96,6 +99,8 @@ extension AppRouter {
         case settingsAppSettings
         case settingsAccountSelection
         case settingsApplicationLogs
+        /// The notification status page, opened from Settings › Advanced.
+        case settingsNotificationStatus
         case blockedUsers
         case trustedWebsites
         case accessKey
@@ -111,9 +116,9 @@ extension AppRouter {
         case usernameLookup
         /// The list of ways to start a chat, pushed from the Chats tab's `+`.
         case newChat
-        /// The "New Public Group" form, opened from the New Chat screen.
+        /// The "New Community Chat" form, opened from the New Chat screen.
         case newPublicGroup
-        /// The "New Private Group" form, opened from the New Chat screen.
+        /// The "New Group" form, opened from the New Chat screen.
         case newPrivateGroup
         /// A tip DM conversation, pushed onto the `.tips` stack — from the
         /// Tips list or a tip-DM push notification.
@@ -127,6 +132,9 @@ extension AppRouter {
         /// Same screen as `tipConversation`, opened on one message from a message link. A sibling
         /// case for the same reason as `tipConversationWithKeyboard`: the ordinary opens stay untouched.
         case chatMessage(ConversationID, MessageLanding)
+        /// Same screen as `tipConversation`, opened with one payment request's details presented over
+        /// it, as when the request is tapped in the chat.
+        case chatRequest(ConversationID, PaymentRequestID)
         /// A person's Flipcash profile, pushed from a tip DM's title/card or a group member's face;
         /// hosts the Block action. `origin` decides whether it offers a way into the DM.
         case userProfile(UserID, origin: UserProfileOrigin)
@@ -144,6 +152,9 @@ extension AppRouter {
         case editGroupCover(ConversationID)
         /// Setting or clearing a group's description, pushed from the Description card of `editGroup`.
         case editGroupDescription(ConversationID)
+        /// Replacing a group's join or chat minimum balance, pushed from a Balance Requirements row
+        /// of `editGroup`.
+        case editGroupBalanceRequirement(ConversationID, role: GroupBalanceRole)
         /// The list of archived chats, pushed from the Archived row on the Chats tab.
         case archivedChats
         /// Chats Search, pushed from the Chats tab's search button.
@@ -160,6 +171,10 @@ extension AppRouter {
         /// The group an invite link admits to, previewed before joining; nil for a link that holds
         /// no usable secret. The secret prints redacted, and ``payload`` never carries it.
         case groupInvite(InviteLinkSecret?)
+        /// The members the host silenced in a group, with Unsilence on each row.
+        case silencedMembers(ConversationID)
+        /// The members the host removed from a group, with Unban on each row.
+        case removedMembers(ConversationID)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present, or which tab
@@ -170,7 +185,7 @@ extension AppRouter {
         /// no Settings sheet to present them in.
         var owningStack: Stack {
             switch self {
-            case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
+            case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies, .walletCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
                  .transactionHistory, .marketCapExplainer, .topCommunityChats, .currencySendAmount, .currencySendRecipient, .activity, .transactionDetails, .give,
                  .buyCurrency, .convertCurrency,
@@ -180,12 +195,13 @@ extension AppRouter {
                  .changeDisplayName, .changeProfilePicture, .username,
                  .setMinimumTip,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
-                 .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw:
+                 .settingsApplicationLogs, .settingsNotificationStatus, .blockedUsers, .trustedWebsites, .accessKey, .withdraw:
                 return .you
             case .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
-                 .tipConversation, .tipConversationWithKeyboard, .chatMessage, .userProfile, .chatProfile,
+                 .tipConversation, .tipConversationWithKeyboard, .chatMessage, .chatRequest, .userProfile, .chatProfile,
                  .editGroup, .editGroupName, .editGroupPicture, .editGroupCover,
-                 .editGroupDescription, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers, .groupInvite:
+                 .editGroupDescription, .editGroupBalanceRequirement, .archivedChats, .chatSearch, .requests, .joinRequests, .inviteLinks, .groupMembers, .groupInvite,
+                 .silencedMembers, .removedMembers:
                 return .tips
             }
         }
@@ -200,6 +216,7 @@ extension AppRouter {
             case .currencyInfo:                 "currencyInfo"
             case .currencyInfoForDeposit:       "currencyInfoForDeposit"
             case .discoverCurrencies:           "discoverCurrencies"
+            case .walletCurrencies:             "walletCurrencies"
             case .currencyCreationSummary:      "currencyCreationSummary"
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
@@ -230,6 +247,7 @@ extension AppRouter {
             case .settingsAppSettings:          "settingsAppSettings"
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
+            case .settingsNotificationStatus:   "settingsNotificationStatus"
             case .blockedUsers:                 "blockedUsers"
             case .trustedWebsites:              "trustedWebsites"
             case .accessKey:                    "accessKey"
@@ -244,6 +262,7 @@ extension AppRouter {
             case .tipConversation:              "tipConversation"
             case .tipConversationWithKeyboard:  "tipConversationWithKeyboard"
             case .chatMessage:                  "chatMessage"
+            case .chatRequest:                  "chatRequest"
             case .userProfile:                  "userProfile"
             case .chatProfile:                  "chatProfile"
             case .editGroup:                    "editGroup"
@@ -251,6 +270,7 @@ extension AppRouter {
             case .editGroupPicture:             "editGroupPicture"
             case .editGroupCover:               "editGroupCover"
             case .editGroupDescription:         "editGroupDescription"
+            case .editGroupBalanceRequirement:  "editGroupBalanceRequirement"
             case .archivedChats:                "archivedChats"
             case .chatSearch:                   "chatSearch"
             case .requests:                     "requests"
@@ -258,6 +278,8 @@ extension AppRouter {
             case .inviteLinks:                  "inviteLinks"
             case .groupMembers:                 "groupMembers"
             case .groupInvite:                  "groupInvite"
+            case .silencedMembers:              "silencedMembers"
+            case .removedMembers:               "removedMembers"
             }
         }
 
@@ -285,6 +307,7 @@ extension AppRouter {
             case .tipConversation(let conversationID),
                  .tipConversationWithKeyboard(let conversationID),
                  .chatMessage(let conversationID, _),
+                 .chatRequest(let conversationID, _),
                  .chatProfile(let conversationID, _),
                  .editGroup(let conversationID),
                  .editGroupName(let conversationID),
@@ -293,8 +316,12 @@ extension AppRouter {
                  .editGroupDescription(let conversationID),
                  .joinRequests(let conversationID),
                  .inviteLinks(let conversationID),
-                 .groupMembers(let conversationID):
+                 .groupMembers(let conversationID),
+                 .silencedMembers(let conversationID),
+                 .removedMembers(let conversationID):
                 return conversationID.description
+            case .editGroupBalanceRequirement(let conversationID, let role):
+                return "\(conversationID.description) \(role)"
             case .userProfile(let userID, _):
                 return userID.uuidString
             case .username(let username):
@@ -302,12 +329,12 @@ extension AppRouter {
             case .setMinimumTip(let isSetupStep):
                 return isSetupStep ? "setup" : "settings"
             case .activity,
-                 .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
+                 .discoverCurrencies, .walletCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settings, .accountInfo, .editProfile, .editBio, .editFeaturedGroups, .changeCoverPicture,
                  .changeDisplayName, .changeProfilePicture,
                  .settingsAdvancedBetaFeatures, .settingsAppSettings, .settingsAccountSelection,
-                 .settingsApplicationLogs, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
+                 .settingsApplicationLogs, .settingsNotificationStatus, .blockedUsers, .trustedWebsites, .accessKey, .withdraw,
                  .profileName, .profilePhoto, .tipcard, .usernameLookup, .newChat, .newPublicGroup, .newPrivateGroup,
                  .archivedChats, .chatSearch, .requests, .groupInvite:
                 return nil

@@ -37,6 +37,10 @@ struct AttachPanelHost {
             typingHeartbeatInterval: .seconds(3), incomingTypingExpiry: .seconds(10)
         )
         let model = ConversationBarModel()
+        // The card closes on any `keyboardWillShow` in the process, and other suites post one
+        // (`KeyboardSuppressorTests`) or raise a real keyboard while these run. None of these tests
+        // shows a keyboard, so a foreign one would only take the card down mid-test.
+        model.attachCard.closesOnKeyboardShow = false
         let composer = ComposerModel()
         self.model = model
         self.composer = composer
@@ -156,11 +160,14 @@ struct AttachPanelPlacementTests {
         await host.settle()
 
         // Inside the panel's rows, above the bar: before the fix the panel hung down from `+`'s top
-        // and nothing of the bar reached here.
+        // and nothing of the bar reached here. Polled, since the open animation can outlast `settle()`
+        // on a loaded machine.
         let point = host.pointAboveBar(by: 40)
         let transcript = host.renderedColor(at: CGPoint(x: point.x, y: 100), backdrop: .black)
-        let probe = host.renderedColor(at: point, backdrop: .black)
-        #expect(!probe.isClose(to: transcript), "Panel is not drawn above the bar")
+        try await waitUntil {
+            host.window.layoutIfNeeded()
+            return !host.renderedColor(at: point, backdrop: .black).isClose(to: transcript)
+        }
 
         // The screen lifts its clip for the panel, so taps there reach the bar rather than the transcript.
         let hit = try #require(host.window.hitTest(point, with: nil))

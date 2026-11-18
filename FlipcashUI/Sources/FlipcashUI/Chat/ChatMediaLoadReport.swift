@@ -1,0 +1,236 @@
+//
+//  ChatMediaLoadReport.swift
+//  FlipcashUI
+//
+//  Copyright © 2026 Code Inc. All rights reserved.
+//
+
+import Foundation
+import Synchronization
+import FlipcashCore
+import Kingfisher
+
+nonisolated private let logger = Logger(label: "flipcash.chat-media")
+
+/// Which view a chat photo load is for, as logged.
+public enum ChatMediaSurface: String, Sendable {
+    case bubble
+    case viewer
+    case quote
+    case link
+    case save
+}
+
+/// What an encrypted photo's fetch saw, read back when its load finishes. Kingfisher reports no
+/// network metrics for a data provider, so the provider records its own through this delegate.
+nonisolated final class ChatMediaLoadTrace: NSObject, URLSessionTaskDelegate, Sendable {
+
+    struct State: Equatable, Sendable {
+        /// The step running when the load stopped.
+        var step: ChatMediaLoadReport.Step = .fetch
+        var transfer: ChatMediaTransfer?
+        var decrypt: Duration?
+    }
+
+    private let state = Mutex(State())
+
+    var snapshot: State { state.withLock { $0 } }
+
+    func update(_ body: (inout State) -> Void) {
+        state.withLock { body(&$0) }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        let measured = ChatMediaTransfer(metrics: metrics)
+        update { $0.transfer = measured }
+    }
+}
+
+/// How one chat photo load went, logged when it finishes.
+nonisolated struct ChatMediaLoadReport: Equatable {
+
+    enum Step: String, Sendable {
+        case fetch
+        case decrypt
+        case decode
+        case process
+        case cache
+        case other
+    }
+
+    enum Outcome: Equatable {
+        case ok
+        /// The view moved on before the load finished.
+        case cancelled
+        case failed(Step)
+    }
+
+    let blobID: BlobID?
+    let surface: ChatMediaSurface
+    let outcome: Outcome
+    /// Which copy of the photo loaded, or nil when the caller can't tell.
+    var rendition: MediaRendition.Role? = .original
+    /// Where the image came from on success; nil for a load that failed.
+    var cache: CacheType?
+    /// Whether a photo drawn from the cache was downsampled from its full-size copy, as one a
+    /// prefetch or the viewer left is. Kingfisher reports that as `.none`, which would otherwise
+    /// read as a network load.
+    var fromFullSize = false
+    /// Whether the photo's blob is end-to-end encrypted, as known before the load started.
+    let sealed: Bool
+    var transfer: ChatMediaTransfer?
+    var decrypt: Duration?
+    /// The failure's error domain and code. Never its description: a `URLError` or `KingfisherError`
+    /// prints the failing URL, and with it the signature in its query.
+    var errorDomain: String?
+    var errorCode: Int?
+
+    init(blobID: BlobID?, surface: ChatMediaSurface, outcome: Outcome, sealed: Bool) {
+        self.blobID = blobID
+        self.surface = surface
+        self.outcome = outcome
+        self.sealed = sealed
+    }
+
+    /// The report for a load that ended in `result`. `sealed` comes from where the load started:
+    /// a failed or cancelled result doesn't always carry the provider that would show it.
+    init(
+        _ result: Result<RetrieveImageResult, KingfisherError>,
+        blobID: BlobID?,
+        surface: ChatMediaSurface,
+        rendition: MediaRendition.Role? = .original,
+        sealed: Bool
+    ) {
+        switch result {
+        case .success(let value):
+            self.init(blobID: blobID, surface: surface, outcome: .ok, sealed: sealed)
+            cache = value.cacheType
+            if case .provider(let provider) = value.source, let provider = provider as? DecryptingProvider {
+                let trace = provider.trace.snapshot
+                transfer = trace.transfer
+                decrypt = trace.decrypt
+            } else if case .provider(let provider) = value.source, provider is CachedOnlyProvider {
+                fromFullSize = value.cacheType == .none
+            } else {
+                transfer = value.metrics.map { ChatMediaTransfer(metrics: $0.rawMetrics) }
+            }
+        case .failure(let error):
+            self.init(error, blobID: blobID, surface: surface, sealed: sealed)
+        }
+        self.rendition = rendition
+    }
+
+    private init(_ error: KingfisherError, blobID: BlobID?, surface: ChatMediaSurface, sealed: Bool) {
+        var underlying: (any Error)?
+        var response: HTTPURLResponse?
+        var trace: ChatMediaLoadTrace.State?
+        let outcome: Outcome
+        switch error {
+        case .requestError(reason: .taskCancelled):
+            outcome = .cancelled
+        case .requestError:
+            outcome = .failed(.fetch)
+        case .responseError(reason: .invalidHTTPStatusCode(let failed)):
+            outcome = .failed(.fetch)
+            response = failed
+        case .responseError(reason: .URLSessionError(let failure)):
+            outcome = .failed(.fetch)
+            underlying = failure
+        case .responseError:
+            outcome = .failed(.fetch)
+        case .imageSettingError(reason: .notCurrentSourceTask):
+            outcome = .cancelled
+        case .imageSettingError(reason: .dataProviderError(let provider, let failure)):
+            trace = (provider as? DecryptingProvider)?.trace.snapshot
+            outcome = .failed(trace?.step ?? .fetch)
+            underlying = failure
+        case .imageSettingError:
+            outcome = .failed(.other)
+        case .processorError:
+            outcome = .failed(.process)
+        case .cacheError:
+            outcome = .failed(.cache)
+        }
+
+        self.init(blobID: blobID, surface: surface, outcome: outcome, sealed: sealed)
+        transfer = trace?.transfer
+        decrypt = trace?.decrypt
+        if let response {
+            var recorded = transfer ?? ChatMediaTransfer()
+            recorded.record(response)
+            transfer = recorded
+        }
+        switch underlying {
+        case is ChatMediaHTTPError:
+            // The trace already holds the status and headers.
+            break
+        case let underlying?:
+            let bridged = underlying as NSError
+            errorDomain = bridged.domain
+            errorCode = bridged.code
+        case nil:
+            errorDomain = "Kingfisher"
+            errorCode = error.errorCode
+        }
+    }
+
+    var metadata: Logger.Metadata {
+        var metadata: Logger.Metadata = [
+            "surface": "\(surface.rawValue)",
+            "sealed": "\(sealed)",
+        ]
+        if let rendition { metadata["rendition"] = "\(rendition.rawValue)" }
+        if let blobID { metadata["blobId"] = "\(blobID)" }
+        switch outcome {
+        case .ok:
+            metadata["outcome"] = "ok"
+        case .cancelled:
+            metadata["outcome"] = "cancelled"
+        case .failed(let step):
+            metadata["outcome"] = "failed"
+            metadata["step"] = "\(step.rawValue)"
+        }
+        if let cache { metadata["cache"] = "\(fromFullSize ? "fullSize" : Self.name(of: cache))" }
+        if let transfer {
+            if let firstByte = transfer.firstByte { metadata["firstByteMs"] = "\(Self.milliseconds(firstByte))" }
+            if let body = transfer.body { metadata["bodyMs"] = "\(Self.milliseconds(body))" }
+            if let bytes = transfer.bytes { metadata["bytes"] = "\(bytes)" }
+            if let status = transfer.status { metadata["status"] = "\(status)" }
+            if let reused = transfer.reusedConnection { metadata["reusedConnection"] = "\(reused)" }
+            if let fetchType = transfer.fetchType { metadata["fetchType"] = "\(fetchType)" }
+            if let xCache = transfer.xCache { metadata["xCache"] = "\(xCache)" }
+            if let pop = transfer.pop { metadata["pop"] = "\(pop)" }
+        }
+        if let decrypt { metadata["decryptMs"] = "\(Self.milliseconds(decrypt))" }
+        if let errorDomain { metadata["errorDomain"] = "\(errorDomain)" }
+        if let errorCode { metadata["errorCode"] = "\(errorCode)" }
+        return metadata
+    }
+
+    /// Writes the report to the app log. A memory-cache hit or a cancelled load is debug-only: each
+    /// redraw of a visible row makes one, and they would crowd out the loads worth reading.
+    func log() {
+        switch outcome {
+        case .ok where cache == .memory:
+            logger.debug("Chat photo loaded", metadata: metadata)
+        case .ok:
+            logger.info("Chat photo loaded", metadata: metadata)
+        case .cancelled:
+            logger.debug("Chat photo load cancelled", metadata: metadata)
+        case .failed:
+            logger.warning("Chat photo load failed", metadata: metadata)
+        }
+    }
+
+    private static func name(of cache: CacheType) -> String {
+        switch cache {
+        case .none: "network"
+        case .memory: "memory"
+        case .disk: "disk"
+        }
+    }
+
+    static func milliseconds(_ duration: Duration) -> Int {
+        Int((duration / .milliseconds(1)).rounded())
+    }
+}

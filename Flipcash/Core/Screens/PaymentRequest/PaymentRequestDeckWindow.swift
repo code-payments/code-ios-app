@@ -22,7 +22,7 @@ final class PaymentRequestDeckWindow {
     var listFrame: CGRect = .zero
     /// The request whose details show over the expanded deck. They open from this window so nothing
     /// of the deck draws over them; as they start to close, while they still cover the screen, the
-    /// deck snaps back to the pill, so going back finds it minimized.
+    /// deck snaps back to the stack, so going back finds it minimized.
     var details: PaymentRequestSelection?
     /// The app's scene phase, which a second window's views don't receive on their own.
     var scenePhase: ScenePhase = .active
@@ -83,20 +83,20 @@ private struct PaymentRequestDeckWindowContent: View {
             details($0.id)
                 // Details poll and fetch the pay intent only while active.
                 .environment(\.scenePhase, window.scenePhase)
-                .background(DisappearanceReader(willDisappear: state.snapToPill))
+                .background(DisappearanceReader(willDisappear: state.snapToStack))
         }
     }
 
-    /// Sits where the app-bar pill does, so it reads as the pill turned into a close. It fades in
-    /// with the backdrop and out over the first quarter of a collapse, before the front card gets
-    /// back to the pill.
+    /// Sits in the app bar's trailing slot, over the backdrop that frosts the bar. It fades in with
+    /// the backdrop and out over the first quarter of a collapse, before the front card gets back to
+    /// the stack.
     @ViewBuilder
     private var closeButton: some View {
-        if let pill = state.barFrame {
+        if let slot = state.closeSlot {
             let opacity = state.isOpen ? state.progress : max(0, (state.progress - 0.75) / 0.25)
             CloseButton(style: .glass) { state.collapse() }
                 .accessibilityLabel("Collapse requests")
-                .position(x: pill.maxX - pill.height / 2, y: pill.midY)
+                .position(x: slot.midX, y: slot.midY)
                 .opacity(opacity)
                 .allowsHitTesting(state.isOpen)
         }

@@ -132,6 +132,7 @@ struct SetMinimumTipScreen: View {
                     fee,
                     owner: sessionContainer.session.ownerKeyPair
                 )
+                Analytics.profileFieldSaved(.minimum)
                 try await sessionContainer.session.updateProfile()
 
                 actionState = .success

@@ -42,6 +42,7 @@ public struct PaymentRequestCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .redacted(reason: content == nil ? .placeholder : [])
         .opacity(content?.isEnded == true ? 0.5 : 1)
+        .requestMotion(value: content?.isEnded)
         .accessibilityElement(children: .combine)
     }
 }
@@ -67,7 +68,8 @@ public struct PaymentRequestProgressBar: View {
             }
         }
         .frame(height: 6)
-        .animation(.easeOut(duration: 0.3), value: fraction)
+        .requestMotion(value: fraction)
+        .requestMotion(value: isEnded)
         .accessibilityHidden(true)
     }
 }

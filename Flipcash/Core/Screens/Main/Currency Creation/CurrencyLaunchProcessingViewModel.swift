@@ -97,8 +97,8 @@ class CurrencyLaunchProcessingViewModel {
     var isFinished: Bool { displayState != .processing }
     var isSuccess: Bool  { displayState == .success }
 
-    var analyticsEvent: Analytics.CurrencyLaunchEvent {
-        paymentMint == .usdf ? .launchWithReserves : .launchWithCurrency
+    var launchMethod: LaunchMethod {
+        paymentMint == .usdf ? .reserves : .currency
     }
 
     // MARK: - Actions -
@@ -250,7 +250,7 @@ class CurrencyLaunchProcessingViewModel {
     }
 
     private func trackLaunch(successful: Bool, error: Error? = nil) {
-        Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: successful, error: error)
+        Analytics.currencyLaunch(method: launchMethod, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: successful, error: error)
     }
 
     /// Polls `session.balance(for: launchedMint)` until the launched currency

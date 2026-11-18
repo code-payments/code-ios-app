@@ -15,6 +15,7 @@ struct PaymentRequestDetailsScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
@@ -66,6 +67,14 @@ struct PaymentRequestDetailsScreen: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             if let content = content(at: context.date) {
                 loaded(content)
+            } else if sessionContainer.paymentRequests.unavailable.contains(requestID) {
+                // DENIED or NOT_FOUND, for example after the viewer left the group.
+                Text("This request is no longer available.")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -110,8 +119,8 @@ struct PaymentRequestDetailsScreen: View {
                 .padding(.vertical, 24)
             }
             .softScrollEdge(for: [.top, .bottom])
-            if let sendTitle = content.sendTitle {
-                CodeButton(isLoading: payFlow.isPreparing, style: .filled, title: sendTitle) {
+            if let payTitle = content.payTitle {
+                CodeButton(isLoading: payFlow.isPreparing, style: .filled, title: payTitle) {
                     pay()
                 }
                 .padding(.horizontal, 20)
@@ -177,6 +186,7 @@ struct PaymentRequestDetailsScreen: View {
                 Text(row.status)
                     .font(.appTextSmall)
                     .foregroundStyle(row.isPaid ? Color.textSuccess : Color.textSecondary)
+                    .contentTransition(.opacity)
             }
             Spacer(minLength: 8)
             Text(row.amount)
@@ -187,6 +197,7 @@ struct PaymentRequestDetailsScreen: View {
         .frame(minHeight: 64)
         .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
         .contentShape(.rect)
+        .requestMotion(value: row.isPaid)
     }
 
     /// The viewer's reading of the request, or nil until it and its title are loaded.
@@ -231,8 +242,8 @@ struct PaymentRequestDetailsScreen: View {
     /// Refetches for the intent ID right before the swipe sheet, as the spec requires.
     private func pay() {
         Task {
-            switch await payFlow.start(requestID, sessionContainer: sessionContainer) {
-            case .ready:
+            switch await payFlow.start(requestID, sessionContainer: sessionContainer, router: router) {
+            case .ready, .noBalance:
                 break
             case .nothingToPay, .closed, .failed:
                 hasPaymentIntent = false
@@ -242,7 +253,7 @@ struct PaymentRequestDetailsScreen: View {
 
     private func presentCloseOptions() {
         present(.options {
-            DialogAction.destructive("Close Request") {
+            DialogAction.standard("Close Request") {
                 queuedDialog = closeConfirm()
             }
             DialogAction.cancel()
@@ -254,8 +265,8 @@ struct PaymentRequestDetailsScreen: View {
             title: "Close Request?",
             subtitle: "This will stop payments. Anyone who hasn't paid will be marked Didn't pay. Payments already made won't be affected."
         ) {
-            DialogAction.destructive("Close Request") {
-                Task { await update { try await $0.close(requestID) } }
+            DialogAction.standard("Close Request") {
+                Task { await close() }
             }
             DialogAction.cancel()
         }
@@ -293,6 +304,18 @@ struct PaymentRequestDetailsScreen: View {
     }
 
     /// Runs a creator action; the store takes the server's response, and a failure refetches.
+    private func close() async {
+        await update { requests in
+            do {
+                try await requests.close(requestID)
+                Analytics.paymentRequestClosed(error: nil)
+            } catch {
+                Analytics.paymentRequestClosed(error: error)
+                throw error
+            }
+        }
+    }
+
     private func update(_ action: (PaymentRequests) async throws -> Void) async {
         isUpdating = true
         defer { isUpdating = false }
@@ -348,17 +371,33 @@ final class PaymentRequestPayFlow {
     private(set) var payment: PaymentRequestPayment?
 
     /// Prepares to pay the viewer's share of `requestID` and shows the sheet when it is payable.
+    /// A payable share the viewer has nothing to pay with gets the "No Balance Yet" dialog instead of
+    /// the sheet; a closed request still reads "Request Closed". `requests` replaces the session's
+    /// store, for tests.
     @discardableResult
-    func start(_ requestID: PaymentRequestID, sessionContainer: SessionContainer) async -> PaymentRequestPayment.Preparation {
+    func start(
+        _ requestID: PaymentRequestID,
+        sessionContainer: SessionContainer,
+        router: AppRouter,
+        requests: PaymentRequests? = nil
+    ) async -> PaymentRequestPayment.Preparation {
         guard !isPreparing else { return .failed }
         isPreparing = true
         defer { isPreparing = false }
         let payment = self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
-            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer)
+            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer, requests: requests)
         self.payment = payment
         let preparation = await payment.prepare()
-        if preparation == .ready { isPaying = true }
-        return preparation
+        guard preparation == .ready else { return preparation }
+        let session = sessionContainer.session
+        let rate = sessionContainer.ratesController.rateForBalanceCurrency()
+        if let dialog = giveCashGate(session: session, rate: rate)
+            .blockingDialog(router: router, addMoneySource: .chat, context: .payRequest) {
+            session.dialogItem = dialog
+            return .noBalance
+        }
+        isPaying = true
+        return .ready
     }
 }
 
@@ -398,8 +437,10 @@ private struct PaymentRequestPaySheetPresenter: ViewModifier {
                 pendingDeposit = nil
                 router.navigate(to: .currencyInfoForDeposit(mint))
             }) {
-            // The share reads paid once the payment lands; the sheet stays up through its success state.
-            if let payment = flow.payment, let request = payment.request, let creator = request.creator {
+            // The share reads paid once the payment lands, so the sheet renders from what it opened
+            // with and stays up through its success state.
+            if let payment = flow.payment, let snapshot = payment.sheetSnapshot, let creator = snapshot.request.creator {
+                let request = snapshot.request
                 PaymentRequestPaySheet(
                     payment: payment,
                     payee: request.chatID.flatMap { chatID in
@@ -408,7 +449,7 @@ private struct PaymentRequestPaySheetPresenter: ViewModifier {
                             .first { $0.userID == creator }
                     },
                     payeeID: creator,
-                    amount: payment.share.map { PaymentRequestCopy(session.displayCurrency).shareText($0, of: request) } ?? ""
+                    amount: PaymentRequestCopy(session.displayCurrency).shareText(snapshot.share, of: request)
                 )
                 .task {
                     // Opened from the chat's strip, nothing else has loaded the roster that names the payee.
@@ -464,7 +505,7 @@ private struct PaymentRequestPaySheet: View {
                     .background(Capsule().fill(Color.white.opacity(0.1)))
                     .padding(.top, 4)
                 }
-                SwipeControl(text: "Swipe to Send") {
+                SwipeControl(text: "Swipe to Pay") {
                     switch await payment.submit() {
                     case .success:
                         didSucceed = true
@@ -485,9 +526,17 @@ private struct PaymentRequestPaySheet: View {
             dismiss()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
-                payment.selectCurrencyAction(exchangedBalance: balance)
-            }
+            let options = payment.paymentOptions
+            CurrencyPickerSheet(
+                options: options,
+                selectedMint: payment.selectedBalance?.stored.mint ?? .usdf,
+                onSelect: { mint in
+                    if let balance = options.first(where: { $0.stored.mint == mint }) {
+                        payment.selectCurrencyAction(exchangedBalance: balance)
+                    }
+                    isShowingTokenSelection = false
+                }
+            )
         }
     }
 

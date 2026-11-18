@@ -23,4 +23,9 @@ struct AddMoneyContextTests {
     func giveCashSubtitle() {
         #expect(AddMoneyContext.giveCash.noBalanceSubtitle == "Add money to give cash")
     }
+
+    @Test("Pay-request context uses the pay-this-request subtitle")
+    func payRequestSubtitle() {
+        #expect(AddMoneyContext.payRequest.noBalanceSubtitle == "Add money to pay this request")
+    }
 }

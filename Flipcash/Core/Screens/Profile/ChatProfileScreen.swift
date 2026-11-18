@@ -43,6 +43,7 @@ struct ChatProfileScreen: View {
     /// The chatter picked in the chatter list, whose profile opens once the list's tray has gone.
     @State private var pickedChatter: UserID?
     @State private var chatters: [SampledChatter] = []
+    @State private var memberSheetTarget: MemberSheetTarget?
     @State private var senders: [UserID] = []
     @State private var mintMetadata: [PublicKey: StoredMintMetadata] = [:]
     @State private var mintNamesTimedOut = false
@@ -145,6 +146,7 @@ struct ChatProfileScreen: View {
             }
         }
         .dialog(item: $dialogItem)
+        .memberSheet($memberSheetTarget)
         .invitePeople(
             conversationID,
             canInvite: conversation?.canInvite ?? false,
@@ -172,9 +174,12 @@ struct ChatProfileScreen: View {
         }
         .task {
             // A favorite group can be one the user isn't in, which the feed doesn't hold.
+            // Hydration goes first: the cover and permission refreshes skip a chat that isn't stored.
             let conversation = await conversationController.hydratedConversation(withID: conversationID)
-            await sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
-            await conversationController.fillCoverPicture(for: conversationID)
+            async let avatar: Void = sessionContainer.profileAvatars.load(.chat(conversationID), picture: conversation?.picture)
+            async let cover: Void = conversationController.fillCoverPicture(for: conversationID)
+            async let permissions: Void = conversationController.refreshViewerPermissions(for: conversationID)
+            _ = await (avatar, cover, permissions)
         }
         // No push says a request was decided, so every visit asks. Keyed on membership so an
         // admission that lands while the profile is open stops the asking.
@@ -306,14 +311,14 @@ struct ChatProfileScreen: View {
                             count: conversation?.rosterSummary.memberCount,
                             onCount: rosterPortraits.isEmpty ? nil : { router.push(.groupMembers(conversationID)) }
                         ) { userID in
-                            router.push(.userProfile(userID, origin: .groupMember))
+                            openMember(userID, portrait: memberPortraits.first { $0.userID == userID })
                         }
                         .padding(.top, 24)
                     }
 
                     if GroupChattingGrid.isVisible(isPrivate: isPrivate, chatters: chatters) {
                         GroupChattingGrid(chatters: chatters) { userID in
-                            router.push(.userProfile(userID, origin: .groupMember))
+                            openMember(userID, portrait: chatters.first { $0.userID == userID }.map(GroupPortrait.init))
                         }
                         .padding(.top, 24)
                     }
@@ -367,7 +372,7 @@ struct ChatProfileScreen: View {
                 await sessionContainer.profileAvatars.load(userID: portrait.userID, picture: portrait.picture)
             },
             onSelectPerson: { userID in
-                router.push(.userProfile(userID, origin: .groupMember))
+                openMember(userID, portrait: chatters.first { $0.userID == userID }.map(GroupPortrait.init))
             },
             onSeeChatters: {
                 isListingChatters = true
@@ -489,12 +494,12 @@ struct ChatProfileScreen: View {
 
     // MARK: - Chatting -
 
-    /// Opens the profile picked in the chatter list once its tray has gone, so the push lands on
-    /// this screen rather than under the tray.
+    /// Opens the member picked in the chatter list once its tray has gone, so the member sheet (or,
+    /// for the viewer's own face, the profile push) lands on this screen rather than under the tray.
     private func openPickedChatter() {
         guard let userID = pickedChatter else { return }
         pickedChatter = nil
-        router.push(.userProfile(userID, origin: .groupMember))
+        openMember(userID, portrait: chatters.first { $0.userID == userID }.map(GroupPortrait.init))
     }
 
     /// Best effort: a sample that fails to load leaves the section hidden, as an empty one does.
@@ -770,8 +775,8 @@ struct ChatProfileScreen: View {
             }
         } catch let error as LobbyRequests.RequestError {
             dialogItem = .info(
-                title: PrivateGroupCopy.unavailableTitle(groupName: title),
-                subtitle: error.explanation
+                title: error == .banned ? GroupModerationCopy.bannedTitle : PrivateGroupCopy.unavailableTitle(groupName: title),
+                subtitle: error == .banned ? GroupModerationCopy.bannedSubtitle(groupName: title) : error.explanation
             ) {
                 DialogAction.okay(kind: .standard)
             }
@@ -816,7 +821,22 @@ struct ChatProfileScreen: View {
         isInviting = true
     }
 
+    /// A portrait opens the member sheet; the viewer's own still opens their profile.
+    private func openMember(_ userID: UserID, portrait: GroupPortrait?) {
+        if userID == conversationController.selfUserID {
+            router.push(.userProfile(userID, origin: .groupMember(conversationID)))
+        } else {
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID, portrait: portrait)
+        }
+    }
+
     // MARK: - Overflow -
+
+    /// Whether the viewer may silence or ban in this group, which is what opens the Moderation row.
+    private var canModerate: Bool {
+        guard let state = conversation?.viewerState else { return false }
+        return state.canSilence || state.canBan
+    }
 
     private var overflowMenu: some View {
         Menu {
@@ -831,6 +851,24 @@ struct ChatProfileScreen: View {
                     isPickingMuteDuration = true
                 } label: {
                     Label("Mute Notifications", systemImage: "bell.slash")
+                }
+            }
+            // The host's two lists, behind one row so the overflow stays short. Gated on the
+            // viewer's server-computed flags, never on being the creator.
+            if canModerate {
+                Menu {
+                    Button {
+                        router.push(.silencedMembers(conversationID))
+                    } label: {
+                        Label("Restricted", systemImage: "mic.slash")
+                    }
+                    Button {
+                        router.push(.removedMembers(conversationID))
+                    } label: {
+                        Label("Removed", systemImage: "person.badge.minus")
+                    }
+                } label: {
+                    Label("Moderation", systemImage: "shield")
                 }
             }
             Divider()

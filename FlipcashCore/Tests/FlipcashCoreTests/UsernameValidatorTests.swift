@@ -97,12 +97,25 @@ struct UsernameValidatorTests {
         #expect(Username(belowMinimum) == nil)
     }
 
-    @Test("The maximum length agrees with what Username itself accepts")
-    func maximumLength_matchesUsername_boundary() {
+    @Test("The claim cap sits within what Username accepts, and the validator enforces it")
+    func maximumLength_withinUsername_boundary() {
         let atMaximum = String(repeating: "a", count: UsernameValidator.maximumLength)
         let aboveMaximum = String(repeating: "a", count: UsernameValidator.maximumLength + 1)
 
         #expect(Username(atMaximum) != nil)
+        #expect(Username(aboveMaximum) != nil)
+        #expect(UsernameValidator().failure(for: aboveMaximum) == .tooLong)
+    }
+
+    @Test("A lookup validator accepts a handle past the claim cap, up to Username's own maximum")
+    func lookupValidator_acceptsServerLengthHandles() {
+        let lookup = UsernameValidator(maximumLength: Username.maximumLength)
+        let atMaximum = String(repeating: "a", count: Username.maximumLength)
+        let aboveMaximum = String(repeating: "a", count: Username.maximumLength + 1)
+
+        #expect(lookup.validate("@Ted_Livingston_2")?.value == "ted_livingston_2")
+        #expect(lookup.validate(atMaximum) != nil)
+        #expect(lookup.failure(for: aboveMaximum) == .tooLong)
         #expect(Username(aboveMaximum) == nil)
     }
 

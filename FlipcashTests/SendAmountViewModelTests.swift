@@ -110,7 +110,7 @@ struct SendAmountViewModelTests {
                 quarks: 1_000_000_000_000
             ),
         ])
-        container.ratesController.selectToken(.usdf)
+        container.ratesController.selectToken(.usdf, source: .automatic)
 
         let viewModel = SendAmountViewModel(sessionContainer: container, target: .contact(Self.makeContact()), mint: nil)
 
@@ -648,12 +648,13 @@ struct SendAmountViewModelTests {
     @Test("Only a profile reached by scanning a Flipcard sends a tip", arguments: [
         (UserProfileOrigin.scan, TipOrigin.tipcard),
         (.directMessage, .chat),
-        (.groupMember, .chat),
+        (.groupMember(.test(1)), .chat),
         (.mention, .chat),
         (.deeplink, .chat),
         (.usernameLookup, .chat),
         (.transaction, .chat),
         (.joinRequest, .chat),
+        (.communityLeader, .chat),
     ])
     func profileOrigin_mapsToTipOrigin(profileOrigin: UserProfileOrigin, expected: TipOrigin) {
         #expect(profileOrigin.tipOrigin == expected)

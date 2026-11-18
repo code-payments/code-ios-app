@@ -3,7 +3,7 @@
 //  Flipcash
 //
 
-import CoreGraphics
+import UIKit
 
 /// Where an opened token card sits, shared by the wallet (which animates the
 /// card there) and the currency info screen (whose hero card must land on the
@@ -16,4 +16,10 @@ enum WalletCardGeometry {
     static let openCardTopInset: CGFloat = 72
     /// The card's height in both places.
     static let cardHeight: CGFloat = 224
+
+    /// The window's top inset: the status bar's alone, which the opened card is
+    /// placed below whether or not a navigation bar shows over it.
+    @MainActor static var statusBarInset: CGFloat {
+        UIApplication.shared.currentKeyWindow?.safeAreaInsets.top ?? 0
+    }
 }

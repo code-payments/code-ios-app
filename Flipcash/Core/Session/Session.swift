@@ -50,6 +50,10 @@ class Session {
     /// received bill is shown until the wallet has played its arrival.
     let walletDeposit = WalletDeposit()
 
+    /// Times a Coinbase add-money purchase across the amount screen, the Coinbase webview and
+    /// both USDC sweeps, which outlive any one screen.
+    let addMoneyTimer = AddMoneyTimer()
+
     /// The currently visible balance-change toast, or `nil` when none is shown.
     /// Set by ``consumeToast()`` and cleared after a 3-second display window.
     var toast: Toast? = nil
@@ -110,6 +114,10 @@ class Session {
     var isShowingBill: Bool {
         billState.bill != nil
     }
+
+    /// Called after any bill closes (Put in Wallet, swipe, scrim, backgrounding, a grab). Lets the
+    /// open chat hand the keyboard back.
+    @ObservationIgnored var onCashBillDismissed: (() -> Void)?
 
     /// Whether a `ScanCashOperation` is currently in flight. Used by
     /// `ScanViewModel` to prevent new codes from being registered while
@@ -274,6 +282,9 @@ class Session {
 
     @ObservationIgnored private var poller: Poller?
 
+    /// Whether the balance, limits and flags poller is running.
+    var isPolling: Bool { poller != nil }
+
     @ObservationIgnored private var scanOperation: ScanCashOperation?
     @ObservationIgnored private var sendOperation: SendCashOperation?
 
@@ -321,6 +332,14 @@ class Session {
         }
 
         // User flags are fetched by the poller (`fetchUserFlagsIfNeeded`).
+        startInitialFetches()
+
+        observeBalanceCurrencyChanges()
+    }
+
+    /// Skipped under unit tests, which would otherwise send these to mainnet.
+    private func startInitialFetches() {
+        guard !Container.isRunningUnitTests else { return }
         Task {
             do { try await updateProfile() }
             catch { logger.error("Failed to fetch profile", metadata: ["error": "\(error)"]) }
@@ -329,8 +348,6 @@ class Session {
         Task {
             await syncUserPreferences()
         }
-
-        observeBalanceCurrencyChanges()
     }
 
     /// Skipped under unit tests so seeded `VerifiedProtoService` data isn't
@@ -368,7 +385,7 @@ class Session {
 
         // No valid selection, default to highest balance (first in sorted list)
         if let highestBalance = currentBalances.first {
-            ratesController.selectToken(highestBalance.mint)
+            ratesController.selectToken(highestBalance.mint, source: .automatic)
         }
     }
 
@@ -619,12 +636,17 @@ class Session {
     
     // MARK: - Poller -
 
+    /// Skipped under unit tests: every test `Session` is wired to real mainnet clients.
     private func registerPoller() {
+        guard !Container.isRunningUnitTests else { return }
         poller = Poller(seconds: 10, fireImmediately: true) { [weak self] in
-            // Each fetch is independent — a failure must not block the ones after it.
-            try? await self?.fetchUserFlagsIfNeeded()
-            try? await self?.fetchLimitsIfNeeded()
-            try? await self?.fetchBalance()
+            guard let self else { return }
+            // Each fetch is independent, so they run together and a failure doesn't hold up the
+            // others. All three finish before the tick does, which `drainPoller()` relies on.
+            async let flags: Void? = try? fetchUserFlagsIfNeeded()
+            async let limits: Void? = try? fetchLimitsIfNeeded()
+            async let balance: Void? = try? fetchBalance()
+            _ = await (flags, limits, balance)
         }
     }
 
@@ -1113,6 +1135,25 @@ class Session {
         )
     }
 
+    /// Returns the payment of cash message `messageID` in DM `chatID` to its sender, `senderOwner`, under
+    /// the server-issued `intentID` from `getCashMessageReturnStatus`; never generate one for this flow.
+    /// It is never logged or reported: anyone holding it before the return settles can use it up.
+    func returnPayment(amount: ExchangedFiat, verifiedState: VerifiedState, to senderOwner: PublicKey, chatID: ConversationID, messageID: MessageID, intentID: PublicKey) async throws {
+        try await submitDirect(
+            amount: amount,
+            verifiedState: verifiedState,
+            to: senderOwner,
+            chat: .returnPayment(chatID: chatID, messageID: messageID),
+            intentID: intentID
+        )
+    }
+
+    /// Whether cash message `messageID` in `conversationID` can still be sent back, and the intent id
+    /// to send it under. The intent id is never logged or reported.
+    func cashMessageReturnStatus(conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus {
+        try await flipClient.getCashMessageReturnStatus(owner: ownerKeyPair, conversationID: conversationID, messageID: messageID)
+    }
+
     private func submitDirect(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?, intentID: PublicKey?) async throws {
         try assertFresh(verifiedState, operation: "send", currency: amount.nativeAmount.currency, mint: amount.mint)
 
@@ -1135,7 +1176,7 @@ class Session {
             "mint": "\(mint.base58)",
             "recipientOwner": "\(recipientOwner.base58)",
             "recipientVault": "\(recipientVault.base58)",
-            "rendezvous": "\(tracesRendezvous ? rendezvous.base58 : "server-issued")",
+            "rendezvous": "\(Self.rendezvousLogValue(rendezvous, serverIssued: !tracesRendezvous))",
             "hasChatMetadata": "\(chat != nil)",
         ])
 
@@ -1156,7 +1197,7 @@ class Session {
             guard !(error is CancellationError) else { throw error }
             logger.error("Send failed", metadata: [
                 "recipientOwner": "\(recipientOwner.base58)",
-                "rendezvous": "\(tracesRendezvous ? rendezvous.base58 : "server-issued")",
+                "rendezvous": "\(Self.rendezvousLogValue(rendezvous, serverIssued: !tracesRendezvous))",
                 "amount": "\(amount.nativeAmount.formatted())",
                 "error": "\(error)",
             ])
@@ -1168,10 +1209,23 @@ class Session {
                     userFacing: true
                 )
             } else {
-                ErrorReporting.captureError(error, reason: "Requested payment failed", userFacing: true)
+                ErrorReporting.captureError(error, reason: Self.serverIssuedFailureReason(chat), userFacing: true)
             }
             throw error
         }
+    }
+
+    /// What the payment logs show for its rendezvous. A server-issued intent id is private to the
+    /// payment, so it is never written out.
+    nonisolated static func rendezvousLogValue(_ rendezvous: PublicKey, serverIssued: Bool) -> String {
+        serverIssued ? "server-issued" : rendezvous.base58
+    }
+
+    /// What a failed payment under a server-issued intent id is reported as: a return of a DM's
+    /// opening payment, or a payment request share.
+    nonisolated static func serverIssuedFailureReason(_ chat: ChatPaymentMetadata?) -> String {
+        if case .returnPayment = chat { return "Send back failed" }
+        return "Requested payment failed"
     }
 
     /// `fiat` (in `pin.rate.currency`) priced in `mint` at `pin`, or nil when it can't be priced.
@@ -1366,8 +1420,9 @@ class Session {
     }
     
     func showCashBill(_ billDescription: BillDescription) {
-        // Only inbound bills enqueue a "+$" deposit toast; sent bills don't.
-        if billDescription.received {
+        // Only inbound bills enqueue a "+$" deposit toast; sent bills don't. A chat bill opts out:
+        // the payment is already a bubble in the open chat.
+        if billDescription.received && billDescription.announcesDeposit {
             enqueue(toast: .init(
                 amount: billDescription.exchangedFiat.nativeAmount,
                 isDeposit: true
@@ -1618,6 +1673,8 @@ class Session {
         // Consume toast after bill state is cleared
         // so isShowingBill returns false
         consumeToast()
+
+        onCashBillDismissed?()
     }
 
     /// Records the wallet's current figures against an incoming deposit in `mint`.
@@ -1857,14 +1914,28 @@ class Session {
                 )
 
                 // Deposit the gift card
-                try await client.receiveCashLink(
-                    usdf: exchangedFiat.onChainAmount,
-                    ownerCluster: owner.use(
-                        mint: vmMint,
-                        timeAuthority: vmAuthority
-                    ),
-                    giftCard: giftCard
-                )
+                do {
+                    try await client.receiveCashLink(
+                        usdf: exchangedFiat.onChainAmount,
+                        ownerCluster: owner.use(
+                            mint: vmMint,
+                            timeAuthority: vmAuthority
+                        ),
+                        giftCard: giftCard
+                    )
+                } catch let error as ErrorSubmitIntent {
+                    // The losing claim of a simultaneous pair fails in the server's commit as
+                    // INTERNAL, not staleState. Route it to the already-claimed catch below.
+                    if await CashLinkClaimRace.lostClaim(
+                        error,
+                        giftCard: giftCardKeyPair,
+                        requestingOwner: ownerKeyPair,
+                        reader: client
+                    ) {
+                        throw ErrorSubmitIntent.staleState([], kinds: [.alreadyClaimed])
+                    }
+                    throw error
+                }
 
                 // Wait for verified state — the stream was subscribed
                 // above, so data should arrive during the blocking calls.
@@ -2027,11 +2098,15 @@ extension Session {
         let exchangedFiat: ExchangedFiat
         let received: Bool
         let verifiedState: VerifiedState?
+        /// Whether a received bill enqueues the "+$X" deposit toast. Off for a payment that arrived
+        /// in the open chat, where the cash bubble already says so.
+        let announcesDeposit: Bool
 
-        init(exchangedFiat: ExchangedFiat, received: Bool, verifiedState: VerifiedState? = nil) {
+        init(exchangedFiat: ExchangedFiat, received: Bool, verifiedState: VerifiedState? = nil, announcesDeposit: Bool = true) {
             self.exchangedFiat = exchangedFiat
             self.received = received
             self.verifiedState = verifiedState
+            self.announcesDeposit = announcesDeposit
         }
     }
 }

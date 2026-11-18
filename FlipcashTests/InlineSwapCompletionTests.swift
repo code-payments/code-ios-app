@@ -25,7 +25,7 @@ struct InlineSwapCompletionTests {
         result: @escaping () throws -> SwapMetadata
     ) -> InlineSwapCompletion {
         InlineSwapCompletion(
-            reporter: SwapCompletionReporter(swapId: .generate(), swapType: .buyWithReserves, targetMint: .jeffy, amount: .mockOne),
+            reporter: SwapCompletionReporter(swapId: .generate(), swapType: .buyWithReserves, amount: .mockOne),
             poll: { attempts, interval in
                 recorder.record(attempts, interval)
                 return try result()

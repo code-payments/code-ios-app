@@ -78,6 +78,9 @@ final class SessionAuthenticator {
     @ObservationIgnored private let client: Client
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private var poller: Poller?
+
+    /// Whether the server-gate poller is running.
+    var isPolling: Bool { poller != nil }
     
     // MARK: - Init -
     
@@ -132,7 +135,7 @@ final class SessionAuthenticator {
 
                 accountManager.set(keyAccount: description.account, userID: userID)
                 completeLogin(with: account)
-                Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
+                Analytics.autoLoginComplete()
 
                 Task { await self.refreshRecentAccount(description.account) }
                 return
@@ -145,7 +148,7 @@ final class SessionAuthenticator {
                 do {
                     let account = try await self.initialize(using: description.account.mnemonic, isRegistration: false, interactive: false)
                     self.completeLogin(with: account)
-                    Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
+                    Analytics.autoLoginComplete()
                 } catch {
                     self.logout()
                 }
@@ -168,6 +171,7 @@ final class SessionAuthenticator {
             logger.info("Resuming onboarding", metadata: ["owner": "\(account.keyAccount.ownerPublicKey)"])
             pendingOnboarding = account
             state = .loggedOut
+            Task { await checkForUnusableAccount() }
         }
     }
 
@@ -176,6 +180,7 @@ final class SessionAuthenticator {
     func beginOnboarding(with initializedAccount: InitializedAccount) {
         pendingOnboarding = initializedAccount
         state = .loggedOut
+        Task { await checkForUnusableAccount() }
     }
 
     private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (AccountDescription) -> Void) {
@@ -240,8 +245,10 @@ final class SessionAuthenticator {
     /// Polls server-driven state that gates app use. Fires immediately and
     /// then every 30s for the lifetime of the authenticator, covering both
     /// ``requiresUpgrade`` (always) and ``requiresForceLogout`` (once
-    /// logged in).
+    /// logged in or held in onboarding).
     private func startPolling() {
+        // Hosted unit tests would otherwise send these fetches to mainnet for the whole run.
+        guard !Container.isRunningUnitTests else { return }
         poller = Poller(seconds: 30, fireImmediately: true) { [weak self] in
             await self?.fetchUnauthenticatedUserFlags()
             await self?.checkForUnusableAccount()
@@ -259,13 +266,20 @@ final class SessionAuthenticator {
 
     /// Checks whether any of the user's primary accounts is in an unusable
     /// management state and, if so, latches ``requiresForceLogout`` to
-    /// `true`. No-op if not logged in or if already latched. Failures are
+    /// `true`. Covers an account held in onboarding as well as a logged-in
+    /// one. No-op if there is neither or if already latched. Failures are
     /// logged but leave the cached value unchanged so transient errors
     /// don't flip the user into the force-logout modal.
     private func checkForUnusableAccount() async {
-        guard case .loggedIn(let sessionContainer) = state else { return }
         guard !requiresForceLogout else { return }
-        let owner = sessionContainer.session.ownerKeyPair
+        let owner: KeyPair
+        if case .loggedIn(let sessionContainer) = state {
+            owner = sessionContainer.session.ownerKeyPair
+        } else if let pendingOnboarding {
+            owner = pendingOnboarding.owner.authority.keyPair
+        } else {
+            return
+        }
 
         do {
             let accounts = try await client.fetchPrimaryAccounts(owner: owner)
@@ -293,7 +307,8 @@ final class SessionAuthenticator {
 
         let ratesController = RatesController(
             container: container,
-            database: database
+            database: database,
+            sharedDefaults: DisplayCurrency.appGroupDefaults
         )
 
         let pushController = PushController(
@@ -348,7 +363,71 @@ final class SessionAuthenticator {
             flipClient: container.flipClient
         )
         wireReactionAlerts(on: sessionContainer, toasts: container.toasts)
+        wireChatCashBills(on: sessionContainer)
+        wirePhotoPrefetch(on: sessionContainer)
         return sessionContainer
+    }
+
+    /// Points the live-stream photo prefetch at this session's blob service, chat keys and network.
+    private func wirePhotoPrefetch(on sessionContainer: SessionContainer) {
+        let session = sessionContainer.session
+        let conversations = sessionContainer.conversationController
+        let networkPath = container.networkPath
+        conversations.photoPrefetcher = ChatPhotoPrefetcher(
+            selfUserID: session.userID,
+            mint: { [flipClient = container.flipClient, owner = session.ownerKeyPair] blobID, conversationID in
+                try await flipClient.blobDownloadLink(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+            },
+            decrypt: { [weak conversations] conversationID in
+                await conversations?.mediaBlobDecrypt(for: conversationID)
+            },
+            network: { [weak networkPath] in
+                let state = networkPath?.state ?? .unknown
+                return ChatPhotoPrefetchNetwork(
+                    connected: state.status == .satisfied,
+                    constrained: state.isConstrained,
+                    expensive: state.isExpensive
+                )
+            },
+            isMuted: { [weak conversations] conversationID in
+                conversations?.isMuted(conversationID: conversationID) ?? false
+            },
+            screen: {
+                // The width a chat's transcript lays out at: the window it fills.
+                let window = UIApplication.shared.currentKeyWindow
+                return ChatPhotoPrefetcher.Screen(
+                    rowWidth: window?.bounds.width ?? UIScreen.main.bounds.width,
+                    scale: window?.screen.scale ?? UIScreen.main.scale
+                )
+            }
+        )
+    }
+
+    /// Points the received-bill-in-chat flow at this session's bill, router and rates.
+    private func wireChatCashBills(on sessionContainer: SessionContainer) {
+        let session = sessionContainer.session
+        let conversations = sessionContainer.conversationController
+        let router = sessionContainer.appRouter
+        let ratesController = sessionContainer.ratesController
+        let bills = ChatCashBillController(selfUserID: session.userID)
+        bills.openConversationID = { [weak conversations] in conversations?.visibleConversationID }
+        bills.somethingOnTop = { [weak session, weak router] in
+            // A dialog draws in its own window. Any view controller presented from the root is a
+            // sheet, the media viewer, or this chat's own sheet; the router's list catches a sheet
+            // still on its way up.
+            session?.dialogItem != nil
+                || !(router?.presentedSheets.isEmpty ?? true)
+                || UIApplication.shared.currentKeyWindow?.rootViewController?.presentedViewController != nil
+        }
+        bills.isBillShowing = { [weak session] in session?.isShowingBill ?? false }
+        bills.verifiedState = { [weak ratesController] amount in
+            guard let ratesController else { return nil }
+            ratesController.ensureMintSubscribed(amount.mint)
+            return await ratesController.awaitVerifiedState(for: amount.nativeAmount.currency, mint: amount.mint)
+        }
+        bills.present = { [weak session] description in session?.showCashBill(description) }
+        session.onCashBillDismissed = { [weak bills] in bills?.billDidClose() }
+        conversations.chatCashBills = bills
     }
 
     /// Points the in-app reaction pill at this session's chats, rates and router. The pill draws
@@ -575,6 +654,10 @@ final class SessionAuthenticator {
         // Drop every cached blob for the same reason: other people's photographs, unencrypted, in a
         // container the next account on the device reads from.
         BlobCache.clearAll()
+        ChatMediaImageSource.clearCaches()
+        // Photo downloads also land in the URL caches, as the responses that carried them.
+        URLCache.shared.removeAllCachedResponses()
+        RemoteImageCache.clear()
 
         // Drop the locally collected onramp email — it must not leak into
         // another account's Coinbase orders.
@@ -635,15 +718,17 @@ final class SessionContainer {
         resolver: linkCardResolver,
         memo: linkCardMemo,
         claims: session.cashLinkClaims,
-        groups: GroupLinkPresenter(avatars: profileAvatars),
+        groups: GroupLinkPresenter(avatars: profileAvatars, storedRules: { [conversationController] id in
+            conversationController.conversation(withID: id)?.rules
+        }),
         users: UserLinkPresenter(avatars: profileAvatars),
         messagePhotos: { [flipClient, owner = session.ownerKeyPair, conversationController] photo, chatID in
             guard let blobID = photo.blobID,
                   let url = try? await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(chatID))
             else { return nil }
-            guard let sealed = photo.sealed else { return ChatMediaLocation(url: url) }
+            guard let sealed = photo.sealed else { return ChatMediaLocation(url: url, caches: .shared) }
             guard let decrypt = await conversationController.mediaBlobDecrypt(for: chatID) else { return nil }
-            return ChatMediaLocation(url: url) { try decrypt($0, blobID, sealed) }
+            return ChatMediaLocation(url: url, caches: .shared) { try decrypt($0, blobID, sealed) }
         },
         chatAvatars: { [profileAvatars, conversationController] chatID in
             guard let conversation = conversationController.conversation(withID: chatID) else { return nil }
@@ -682,7 +767,11 @@ final class SessionContainer {
     /// NotificationService extension reads it to decide whether a push may interrupt.
     let chatArchive: ChatArchiveStore
 
-    /// The signed-in user's private-group chat keys, in memory and reopened from the server.
+    /// The chats the user has marked unread, on this device only. Kept per account: logout leaves
+    /// the file, so signing back in to the same account shows its marks again.
+    let chatMarkedUnread: any ChatMarkedUnreadStore
+
+    /// The signed-in user's private-group chat keys, in memory and reopened from the stored envelope or the server.
     let groupKeys: GroupKeyEnvelopes
 
     /// The private groups the signed-in user has asked to join.
@@ -692,8 +781,15 @@ final class SessionContainer {
     /// The members of the private groups the signed-in user has opened, kept live from the stream.
     let groupRosters: GroupRosters
 
+    /// Who is restricted in the groups the signed-in user moderates, for the Members swipe and member sheet.
+    let groupRestrictions: GroupRestrictions
+
     /// Reads, makes and revokes a hosted private group's invite links, for ``GroupInviteLinks``.
     let inviteLinks: GroupInviteLinks.Service
+    /// The one ``GroupInviteLinks`` per hosted group, shared by the create flow, the group-ready card and Manage Invites.
+    let groupInviteLinks: GroupInviteLinksRegistry
+    /// Which hosted groups' link cards show the plain link (Approve New Members), on this device.
+    let approveNewMembers: ApproveNewMembers
     let inviteLanding: GroupInviteLanding
 
     /// The group payment requests the signed-in user's private chats carry, refetched by the chat screen.
@@ -767,6 +863,7 @@ final class SessionContainer {
             accountFetcher: client,
             swapper: client,
             ownerKeyPair: owner,
+            timer: session.addMoneyTimer,
             onSweepCompleted: { [weak session] in
                 await session?.updatePostTransaction()
             }
@@ -786,6 +883,12 @@ final class SessionContainer {
         )
         self.chatArchive = chatArchive
 
+        let chatMarkedUnread = LocalChatMarkedUnreadStore(
+            directory: .applicationSupportDirectory,
+            owner: owner.publicKey
+        )
+        self.chatMarkedUnread = chatMarkedUnread
+
         let groupKeys = GroupKeyEnvelopes(
             sealer: SharedCoreGroupKeySealer(),
             owner: session.ownerKeyPair,
@@ -798,7 +901,8 @@ final class SessionContainer {
             },
             resolveKey: { [flipClient, owner = session.ownerKeyPair] userID in
                 try await flipClient.resolveUserID(userID, owner: owner)
-            }
+            },
+            envelopeStore: database
         )
         self.groupKeys = groupKeys
 
@@ -814,6 +918,9 @@ final class SessionContainer {
 
         let chatClient = EncryptedChatClient(
             client: flipClient,
+            storedConversation: { [database] conversationID in
+                try? database.getConversations().first { $0.id == conversationID }
+            },
             keyring: ChatKeyring(
                 owner: session.ownerKeyPair,
                 selfUserID: session.userID,
@@ -858,6 +965,7 @@ final class SessionContainer {
         // puts its text back — none of which the controller can do before it has the store.
         conversationController.chatDrafts = chatDrafts
         conversationController.chatArchive = chatArchive
+        conversationController.chatMarkedUnread = chatMarkedUnread
         // Same owner-scoped placement as the drafts; a photo whose send a kill interrupted comes back
         // through `start()`, which needs the uploader to finish it.
         conversationController.pendingMedia = PendingMediaStore(
@@ -872,6 +980,7 @@ final class SessionContainer {
         let recentReactions = RecentReactionsStore(owner: owner.publicKey)
         self.recentReactions = recentReactions
         self.chatSearchRecents = ChatSearchRecents(owner: owner.publicKey)
+        self.approveNewMembers = ApproveNewMembers(owner: owner.publicKey)
         self.discoveredCurrencies = DiscoveredCurrencies(discover: { client.discoverCurrencies(category: $0) })
         self.featuredGroups = FeaturedGroups(fetching: { [weak flipClient] username in
             guard let flipClient else { return [] }
@@ -948,6 +1057,12 @@ final class SessionContainer {
         conversationController.groupRosters = groupRosters
         self.groupRosters = groupRosters
 
+        self.groupRestrictions = GroupRestrictions(
+            getRestrictedUsers: { [flipClient, owner = session.ownerKeyPair] conversationID in
+                try await flipClient.getRestrictedUsers(owner: owner, conversationID: conversationID)
+            }
+        )
+
         self.inviteLanding = GroupInviteLanding(service: .init(
             owner: session.ownerKeyPair,
             getInvite: { [flipClient, owner = session.ownerKeyPair] token in
@@ -997,6 +1112,7 @@ final class SessionContainer {
                 inviteSealer.newSecret()
             }
         )
+        self.groupInviteLinks = GroupInviteLinksRegistry(service: self.inviteLinks)
         self.paymentRequests = PaymentRequests(
             getChatPage: { [flipClient, owner = session.ownerKeyPair] conversationID, section, pageSize in
                 try await flipClient.getChatPaymentRequestsPage(
@@ -1030,8 +1146,10 @@ final class SessionContainer {
                     pageSize: pageSize,
                     pagingToken: pagingToken
                 )
-            }
+            },
+            database: database
         )
+        conversationController.paymentRequests = self.paymentRequests
         self.rosterSearch = mentionSearch
 
         // The blocklist drives which conversations the feed hides: it supplies the

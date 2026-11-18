@@ -134,18 +134,44 @@ struct PaymentRequestPeople: Hashable, Sendable {
         return includesCreator ? [creator] + others : others
     }
 
-    /// One unpaid share per selected member, each of `nativeAmount`.
-    func shares(nativeAmount: Double) -> [GroupPaymentRequest.Share] {
-        orderedSelection.map { GroupPaymentRequest.Share(userID: $0, nativeAmount: nativeAmount) }
-    }
-
-    /// "Request $20 from 25 People", counting only the members asked.
-    func buttonTitle(amount: String) -> String {
-        "Request \(amount) from \(Self.people(askedCount))"
+    /// One unpaid share of `perPerson` for each selected member, in ``orderedSelection`` order.
+    func shares(perPerson: FiatAmount) -> [GroupPaymentRequest.Share] {
+        orderedSelection.map { GroupPaymentRequest.Share(userID: $0, nativeAmount: perPerson.doubleValue) }
     }
 
     private static func people(_ count: Int) -> String {
         count == 1 ? "1 Person" : "\(count) People"
+    }
+}
+
+/// The summary's create button, whatever the amount and selection.
+let paymentRequestSendButtonTitle = "Send Request"
+
+/// A new request's title: the weekday default until the creator saves their own.
+struct PaymentRequestName: Equatable {
+
+    /// The weekday default, "Monday Request".
+    let defaultTitle: String
+    /// The title the creator saved on the Name screen, nil while the default stands.
+    private(set) var customTitle: String?
+
+    init(defaultTitle: String = defaultPaymentRequestTitle()) {
+        self.defaultTitle = defaultTitle
+    }
+
+    /// The title the request is sent with and the summary's Name row shows.
+    var title: String { customTitle ?? defaultTitle }
+
+    /// What the Name screen's field opens with: empty while the default stands, so the default
+    /// shows only as the placeholder.
+    var fieldText: String { customTitle ?? "" }
+
+    /// The Name screen's placeholder.
+    var placeholder: String { defaultTitle }
+
+    /// Keeps `title`, already validated, as the creator's own.
+    mutating func save(_ title: String) {
+        customTitle = title
     }
 }
 

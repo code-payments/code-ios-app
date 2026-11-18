@@ -71,7 +71,7 @@ app can fix itself belongs in the service files that wrap the generated code.
 
 **Bump `Database.schemaVersion` on every change to what the store writes.** The app does not run
 migrations — when the version number increases, the database is deleted and rebuilt from server data
-on next login (`SessionAuthenticator.initializeDatabase`). This means:
+on next login (`DatabaseStore.database(for:)`). This means:
 
 - Adding/removing tables or columns → bump version
 - Changing which table a query reads from → bump version if the old schema can't satisfy the new query
@@ -85,7 +85,7 @@ on next login (`SessionAuthenticator.initializeDatabase`). This means:
 
 The version lives in code, not `Info.plist`. It moved because the notification service extension needs
 the same number to decide whether the store on disk is one it understands, and an extension cannot read
-the app's `Info.plist`. Both targets link `FlipcashStore`, so they cannot disagree.
+the app's `Info.plist`. Both targets load the same `FlipcashStore` module from the shared `FlipcashCore` framework, so they cannot disagree.
 
 Resist making a decoder tolerate the older shape (`decodeIfPresent`, a default value, a custom
 `init(from:)`). It preserves a stale value where the bump would fetch the correct one, and it is a

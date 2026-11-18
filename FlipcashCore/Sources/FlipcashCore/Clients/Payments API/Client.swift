@@ -34,11 +34,7 @@ public class Client: ObservableObject {
     public init(network: Network) throws {
         self.network = network
 
-        let transport = try GRPCTransport.makeTransportServices(
-            host: network.hostForPayments,
-            port: network.port
-        )
-        let client = GRPCClient(transport: transport, interceptors: [UserAgentClientInterceptor()])
+        let client = try GRPCTransport.makeClient(host: network.hostForPayments, port: network.port)
         self.grpcClient = client
         self.connectionTask = Task {
             do {

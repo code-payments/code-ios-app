@@ -88,6 +88,11 @@ struct TransactionDetailsScreen: View {
                                 viewMessage(boost)
                             }
                             .buttonStyle(.filled05)
+                        case .viewRequest(let payment):
+                            Button("View Request") {
+                                viewRequest(payment)
+                            }
+                            .buttonStyle(.filled05)
                         case .viewCounterparty(let userID):
                             let dmID = sessionContainer.conversationController.tipDMID(withUserID: userID)
                             Button(dmID == nil ? "View Profile" : "View in Chat") {
@@ -321,6 +326,17 @@ struct TransactionDetailsScreen: View {
 
     /// Opens the boosted message through the deep link's own hydration, so a chat the viewer has
     /// not synced is fetched first and a private group they are not in lands on its profile.
+    private func viewRequest(_ payment: Activity.RequestedPayment) {
+        Task {
+            await DeepLinkAction.routeChat(
+                payment.conversationID,
+                request: payment.paymentRequestID,
+                origin: .activity,
+                in: sessionContainer
+            )
+        }
+    }
+
     private func viewMessage(_ boost: Activity.BoostedReaction) {
         Task {
             await DeepLinkAction.routeChat(

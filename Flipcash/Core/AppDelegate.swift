@@ -113,6 +113,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             object: nil
         )
 
+        // Posted before the UI returns, unlike scenePhase `.active`, which lands once the app is
+        // already visible.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+
         return true
     }
 
@@ -129,6 +138,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // MARK: - Lifecycle -
 
+    @objc private func applicationWillEnterForeground() {
+        sessionContainer?.conversationController.prepareForForeground()
+    }
+
     func scenePhaseChanged(_ phase: ScenePhase) {
         switch phase {
         case .background:
@@ -143,8 +156,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             stopTypingForBackground()
         case .active:
             logger.info("scenePhase → active")
-            container.client.warmUpChannel()
-            container.flipClient.warmUpChannel()
+            if !Container.isRunningUnitTests {
+                container.client.warmUpChannel()
+                container.flipClient.warmUpChannel()
+            }
             container.updateAvailability.refresh()
             sessionContainer?.session.didBecomeActive()
             sessionContainer?.usdcSweepOperation.start()
@@ -314,6 +329,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         logger.error("Push notification registration failed", metadata: ["error": "\(error)"])
+
+        // Before login there is no session to keep it for; the status page only exists after.
+        sessionContainer?.pushController.didFailToRegisterForRemoteNotifications(with: error)
     }
 
 }

@@ -101,6 +101,7 @@ struct ChangeCoverPictureScreen: View {
                     slot: .cover
                 )
             )
+            Analytics.profileFieldSaved(.cover)
 
             buttonState = .success
             try? await Task.delay(milliseconds: 500)

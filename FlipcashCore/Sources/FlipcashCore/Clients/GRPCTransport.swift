@@ -10,7 +10,7 @@ import NIOCore
 private let logger = Logger(label: "flipcash.grpc-transport")
 
 /// The app's gRPC v2 client transport type (Network.framework on iOS).
-public typealias AppTransport = HTTP2ClientTransport.TransportServices
+public typealias AppTransport = ResolvingClientTransport
 
 extension CallOptions {
     /// Unary RPCs get a 15s deadline (ported from the v1 `CallOptions.default`),
@@ -37,7 +37,12 @@ enum GRPCTransport {
     /// idle for 5 minutes are closed and re-established on the next RPC) so
     /// long-lived bidirectional streams survive idle periods. TLS uses the
     /// system trust store.
-    static func makeTransportServices(host: String, port: Int) throws -> HTTP2ClientTransport.TransportServices {
+    private static func makeTransportServices(
+        host: String,
+        port: Int,
+        transportSecurity: HTTP2ClientTransport.TransportServices.TransportSecurity,
+        resolveRequests: ResolveRequests
+    ) throws -> HTTP2ClientTransport.TransportServices {
         var config = HTTP2ClientTransport.TransportServices.Config.defaults
         config.connection.keepalive = .init(
             time: .seconds(30),
@@ -54,12 +59,31 @@ enum GRPCTransport {
             return channel.eventLoop.makeSucceededFuture(())
         }
         var resolvers = NameResolverRegistry()
-        resolvers.registerFactory(PathAwareDNSResolverFactory())
+        resolvers.registerFactory(PathAwareDNSResolverFactory(resolveRequests: resolveRequests.stream))
         return try HTTP2ClientTransport.TransportServices(
             target: PathAwareDNSTarget(host: host, port: port),
-            transportSecurity: .tls,
+            transportSecurity: transportSecurity,
             config: config,
             resolverRegistry: resolvers
+        )
+    }
+
+    /// Builds a client for the host whose RPCs carry the user agent and recover from a server GOAWAY.
+    static func makeClient(
+        host: String,
+        port: Int,
+        transportSecurity: HTTP2ClientTransport.TransportServices.TransportSecurity = .tls,
+        resolveRequests: ResolveRequests = ResolveRequests()
+    ) throws -> GRPCClient<AppTransport> {
+        let transport = try makeTransportServices(
+            host: host,
+            port: port,
+            transportSecurity: transportSecurity,
+            resolveRequests: resolveRequests
+        )
+        return GRPCClient(
+            transport: ResolvingClientTransport(base: transport, requests: resolveRequests),
+            interceptors: [UserAgentClientInterceptor()]
         )
     }
 }

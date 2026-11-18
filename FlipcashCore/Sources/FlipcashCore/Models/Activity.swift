@@ -31,9 +31,14 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     /// The reaction this payment boosted, when it was a boost.
     public let boostedReaction: BoostedReaction?
 
-    /// The payment request this payment paid a share of, when it was one. Not persisted by the
-    /// activity store yet, so it is `nil` on activities read back from the database.
+    /// The payment request this payment paid a share of, when it was one. A snapshot from payment
+    /// time: the request may since have closed, or the viewer may no longer be able to read it.
     public let requestedPayment: RequestedPayment?
+
+    /// The DM cash message this payment returned, when it was a return: the viewer sent it back, or
+    /// the counterparty sent the viewer's payment back. A snapshot from payment time: the message may
+    /// since have been deleted.
+    public let returnedPayment: ReturnedPayment?
 
     public var cancellableCashLinkMetadata: CashLinkMetadata? {
         switch state {
@@ -55,7 +60,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         return nil
     }
 
-    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = [], counterparty: Counterparty? = nil, boostedReaction: BoostedReaction? = nil, requestedPayment: RequestedPayment? = nil) {
+    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?, textSubstitutions: [TextSubstitution] = [], counterparty: Counterparty? = nil, boostedReaction: BoostedReaction? = nil, requestedPayment: RequestedPayment? = nil, returnedPayment: ReturnedPayment? = nil) {
         self.id = id
         self.state = state
         self.kind = kind
@@ -67,6 +72,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         self.counterparty = counterparty
         self.boostedReaction = boostedReaction
         self.requestedPayment = requestedPayment
+        self.returnedPayment = returnedPayment
     }
 }
 
@@ -228,7 +234,8 @@ extension Activity {
             textSubstitutions: substitutions,
             counterparty: .init(proto.additionalMetadata),
             boostedReaction: .init(proto.additionalMetadata),
-            requestedPayment: .init(proto.additionalMetadata)
+            requestedPayment: .init(proto.additionalMetadata),
+            returnedPayment: .init(proto.additionalMetadata)
         )
     }
 

@@ -38,6 +38,65 @@ struct GroupRostersTests {
         #expect(rosters.members(for: group, creator: host.userID).map(\.displayName) == ["Host", "Late", "Early"])
     }
 
+    private func conversation(isPrivate: Bool) -> Conversation {
+        Conversation(id: group, members: [], lastMessage: nil, lastActivity: .distantPast, type: .group, isPrivate: isPrivate)
+    }
+
+    @Test("A rostered member is confirmed in a private group")
+    func confirmsVerifiedMember() async {
+        let present = member("Present")
+        let rosters = GroupRosters { _ in [present] }
+        await rosters.refresh(group)
+
+        #expect(rosters.membership(of: present.userID!, in: conversation(isPrivate: true)) == .confirmed)
+    }
+
+    @Test("Pending until the roster is read, then enabled for a member")
+    func pendingThenConfirmed() async {
+        let present = member("Present")
+        var reads = 0
+        let rosters = GroupRosters { _ in reads += 1; return [present] }
+        let chat = conversation(isPrivate: true)
+
+        #expect(rosters.membership(of: present.userID!, in: chat) == .pending)
+        let answer = await rosters.checkMembership(of: present.userID!, in: chat)
+
+        #expect(answer == .confirmed)
+        #expect(rosters.membership(of: present.userID!, in: chat) == .confirmed)
+        #expect(reads == 1)
+    }
+
+    @Test("Pending, then not a member when the roster omits them")
+    func pendingThenNotMember() async {
+        let rosters = GroupRosters { _ in [member("Present")] }
+        let chat = conversation(isPrivate: true)
+        let stranger = UUID()
+
+        #expect(rosters.membership(of: stranger, in: chat) == .pending)
+        #expect(await rosters.checkMembership(of: stranger, in: chat) == .notMember)
+        #expect(rosters.membership(of: stranger, in: chat) == .notMember)
+    }
+
+    @Test("Pending, then failed when the read throws, and still pending to the sync check")
+    func pendingThenFailed() async {
+        let rosters = GroupRosters { _ in throw ErrorGetChat.denied }
+        let chat = conversation(isPrivate: true)
+
+        #expect(await rosters.checkMembership(of: UUID(), in: chat) == .failed)
+        #expect(rosters.membership(of: UUID(), in: chat) == .pending)
+    }
+
+    @Test("A public group is confirmed without a read")
+    func publicGroupUnchanged() async {
+        var reads = 0
+        let rosters = GroupRosters { _ in reads += 1; return [] }
+        let chat = conversation(isPrivate: false)
+
+        #expect(rosters.membership(of: UUID(), in: chat) == .confirmed)
+        #expect(await rosters.checkMembership(of: UUID(), in: chat) == .confirmed)
+        #expect(reads == 0)
+    }
+
     @Test("A failed read keeps the roster unloaded")
     func failedRead() async {
         let rosters = GroupRosters { _ in throw ErrorGetChat.denied }
@@ -97,5 +156,58 @@ struct GroupRostersTests {
         await rosters.refresh(group)
 
         #expect(rosters.members(for: group, creator: nil).map(\.displayName) == ["Rejoined"])
+    }
+
+    @Test("A removal the stream doesn't name drops the member on the re-read the count change triggers")
+    func undisclosedRemovalRereads() async {
+        let host = member("Host")
+        let banned = member("Banned")
+        var served = [host, banned]
+        let rosters = GroupRosters { _ in served }
+        await rosters.refresh(group)
+        #expect(rosters.members(for: group, creator: host.userID).count == 2)
+
+        served = [host]
+        rosters.apply(event([(.membershipChanged, 4)]))
+        // The re-read is a task the apply starts; yield until it lands.
+        for _ in 0..<50 where rosters.members(for: group, creator: nil).count != 1 {
+            await Task.yield()
+        }
+
+        #expect(rosters.members(for: group, creator: host.userID).map(\.displayName) == ["Host"])
+    }
+
+    @Test("Removing a member here drops them at once, and a trailing page can't bring them back")
+    func localRemoval() async {
+        let host = member("Host")
+        let banned = member("Banned", version: 3)
+        let rosters = GroupRosters { _ in [host, banned] }
+        await rosters.refresh(group)
+
+        rosters.remove(banned.userID!, from: group)
+        #expect(rosters.members(for: group, creator: host.userID).map(\.displayName) == ["Host"])
+
+        await rosters.refresh(group)
+        #expect(rosters.members(for: group, creator: host.userID).map(\.displayName) == ["Host"])
+    }
+
+    @Test("A member the stream delivered while a read was in flight survives that read")
+    func joinDuringReadSurvives() async {
+        let host = member("Host")
+        let newcomer = member("Newcomer", version: 2)
+        var rosters: GroupRosters!
+        var firstRead = true
+        rosters = GroupRosters { [group] _ in
+            if firstRead { firstRead = false; return [host] }
+            // The stream delivers the join after the read was pinned, so the page lacks them.
+            rosters.apply(.rosterChanged(conversationID: group, updates: [
+                DecodedRosterUpdate(rosterSummary: ConversationRosterSummary(memberCount: 2, version: 5), change: .joined(member: newcomer, chat: nil))
+            ]))
+            return [host]
+        }
+        await rosters.refresh(group)
+        await rosters.refresh(group)
+
+        #expect(Set(rosters.members(for: group, creator: nil).map(\.displayName)) == ["Host", "Newcomer"])
     }
 }

@@ -38,10 +38,10 @@ final class MessageLoader {
     }
 
     /// Whether a rendered window of `windowCount` messages is the entire locally-known history:
-    /// nothing paged back and the window under its limit. The count is passed in because
-    /// `messages` is a DB read the caller already holds.
+    /// nothing paged back, the window under its limit, and no history gap under it. The count is
+    /// passed in because `messages` is a DB read the caller already holds.
     func isEntireHistory(windowCount: Int) -> Bool {
-        startID == nil && windowCount < Self.initialWindow
+        startID == nil && windowCount < Self.initialWindow && controller.historyGap(in: conversationID) == nil
     }
 
     /// Brings `messageID` into the rendered window, returning whether it is now there.
@@ -50,11 +50,13 @@ final class MessageLoader {
     /// forward, so anchoring at or just before the target is enough. The anchor sits `leadIn`
     /// messages early where history allows, so the transcript can center the target instead of
     /// pinning it as the cut-off top row. Nothing is fetched — a message the
-    /// local database has never seen returns `false` and the caller leaves the transcript alone.
+    /// local database has never seen returns `false` and the caller leaves the transcript alone, as
+    /// does one stored below a history gap, which no window reaches until paging fills the gap.
     @discardableResult
     func reveal(_ messageID: MessageID) -> Bool {
         if messages.contains(where: { $0.id == messageID }) { return true }
         guard controller.persistedMessage(messageID, in: conversationID) != nil else { return false }
+        if let gap = controller.historyGap(in: conversationID), messageID.value < gap.above.value { return false }
         startID = controller.olderAnchor(for: conversationID, before: messageID.value, step: Self.leadIn) ?? messageID.value
         return true
     }

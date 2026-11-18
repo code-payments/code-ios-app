@@ -12,7 +12,7 @@ import FlipcashCore
 /// Thrown to reset the SwipeControl knob without its success checkmark when a send doesn't complete.
 private struct GroupSendDismissed: Error {}
 
-/// Send Cash in a private group: the total, then the members it's split between, then the swipe
+/// Send Cash in a private group: the amount each person gets, then the members who get it, then the swipe
 /// in a sheet over that list.
 struct GroupSendFlow: View {
 
@@ -46,7 +46,7 @@ private struct GroupSendFlowContent: View {
     var body: some View {
         NavigationStack(path: $path) {
             GroupSendAmountScreen(viewModel: viewModel) {
-                if viewModel.confirmAmount() { path.append(.selectPeople) }
+                path.append(.selectPeople)
             }
             .toolbar { closeButton }
             .navigationDestination(for: GroupSendStep.self) { step in
@@ -80,52 +80,27 @@ private struct GroupSendAmountScreen: View {
     @Bindable var viewModel: GroupSendViewModel
     let next: () -> Void
 
-    @State private var isShowingTokenSelection = false
-
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
                 mode: .currency,
                 enteredAmount: $viewModel.enteredAmount,
-                subtitle: .balanceWithLimit(viewModel.available),
+                subtitle: .hidden,
                 actionState: .constant(.normal),
                 actionEnabled: { _ in viewModel.canContinue },
                 action: next,
                 actionTitle: "Next",
                 header: AnyView(EnterAmountHeader(
                     enteredAmount: $viewModel.enteredAmount,
-                    hint: .available(viewModel.available)
+                    hint: nil
                 ))
             )
             .foregroundStyle(.textMain)
             .padding(20)
         }
         .ignoresSafeArea(.keyboard)
-        .navigationTitle("")
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                TokenSelectorButton(
-                    selectedBalance: viewModel.selectedBalance,
-                    action: { isShowingTokenSelection = true }
-                )
-                .id(viewModel.selectedBalance?.stored.mint)
-            }
-        }
-        // On the screen, not the button: the button's `.id` changes with the pick, and a sheet
-        // hosted on it would be torn down mid-dismiss, taking the whole flow with it.
-        .sheet(isPresented: $isShowingTokenSelection) {
-            let options = viewModel.paymentOptions
-            CurrencyPickerSheet(
-                options: options,
-                selectedMint: viewModel.selectedBalance?.stored.mint ?? .usdf,
-                onSelect: { mint in
-                    if let balance = options.first(where: { $0.stored.mint == mint }) {
-                        viewModel.selectCurrencyAction(exchangedBalance: balance)
-                    }
-                    isShowingTokenSelection = false
-                }
-            )
-        }
+        .navigationTitle("Amount to Send")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -148,22 +123,21 @@ private struct GroupSendSelectPeopleScreen: View {
                     members: viewModel.members,
                     isSelected: viewModel.isSelected,
                     toggle: viewModel.toggle,
-                    rowIdentifier: "group-send-member-row"
+                    rowIdentifier: "group-send-member-row",
+                    header: nil
                 )
 
                 CodeButton(
                     style: .filled,
-                    title: viewModel.sendButtonTitle,
+                    title: viewModel.sendTitle,
                     disabled: viewModel.selection.isEmpty
                 ) {
-                    if viewModel.confirmSelection() {
-                        isConfirming = true
-                    }
+                    isConfirming = true
                 }
                 .padding(20)
             }
         }
-        .navigationTitle("Select People")
+        .navigationTitle("Send To")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.conversationID) {
             await viewModel.refreshMembers()
@@ -200,18 +174,27 @@ struct SelectPeopleList: View {
     let isSelected: (UserID) -> Bool
     let toggle: (UserID) -> Void
     let rowIdentifier: String
+    /// The section header above the members, or nil for none.
+    var header: String? = "Members"
 
     var body: some View {
         List {
             Section {
                 ForEach(members, id: \.userID) { portrait in
                     row(portrait)
+                        // With no header the first row would draw a divider where the header sat.
+                        .listRowSeparator(
+                            header == nil && portrait.userID == members.first?.userID ? .hidden : .automatic,
+                            edges: .top
+                        )
                 }
             } header: {
-                Text("Members")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .textCase(nil)
+                if let header {
+                    Text(header)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .textCase(nil)
+                }
             }
         }
         .listStyle(.plain)
@@ -256,15 +239,33 @@ private struct GroupSendConfirmSheet: View {
     /// Faces drawn before the rest collapse into a "+N" badge.
     private static let maxFaces = 4
 
-    /// "Alex Morgan and 5 Others", or just "Alex Morgan" for one.
+    /// "Alex Morgan and 5 others", or just "Alex Morgan" for one.
     private var recipientsTitle: String {
         let picked = viewModel.selectedMembers
         guard let first = picked.first else { return "" }
         switch picked.count {
         case 1:  return first.name
-        case 2:  return "\(first.name) and 1 Other"
-        default: return "\(first.name) and \(picked.count - 1) Others"
+        case 2:  return "\(first.name) and 1 other"
+        default: return "\(first.name) and \(picked.count - 1) others"
         }
+    }
+
+    /// Half of ``Font/appDisplayLarge``'s size, as "each" sits on the chat's cash card.
+    private static let eachFont: Font = .default(size: UIFont.appDisplayLarge.pointSize / 2, weight: .medium)
+
+    /// The amount, followed by a smaller "each" for a group. One `Text`, so the runs share a
+    /// baseline and shrink together, and "each" never wraps.
+    private var amountLine: Text {
+        var line = AttributedString(viewModel.eachAmountLabel ?? "")
+        line.swiftUI.font = Font.appDisplayLarge
+        line.swiftUI.foregroundColor = Color.textMain
+        if viewModel.isSplitAcrossSelection {
+            var each = AttributedString(" each")
+            each.swiftUI.font = Self.eachFont
+            each.swiftUI.foregroundColor = Color.textSecondary
+            line.append(each)
+        }
+        return Text(line)
     }
 
     var body: some View {
@@ -278,13 +279,11 @@ private struct GroupSendConfirmSheet: View {
                         .lineLimit(1)
                 }
                 VStack(spacing: 8) {
-                    Text(viewModel.enteredTotal?.formatted() ?? "")
-                        .font(.appDisplayLarge)
-                        .foregroundStyle(Color.textMain)
+                    amountLine
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
-                    if viewModel.selection.count > 1, let each = viewModel.eachLabel {
-                        Text(each)
+                    if let total = viewModel.totalLabel {
+                        Text(total)
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
                     }

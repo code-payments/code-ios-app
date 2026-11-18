@@ -27,10 +27,11 @@ final class CashLinkRegressionTests: BaseUITestCase {
         assertMainScreenReached()
 
         // Step 1: Create a cash link via the Give flow — Wallet → the first
-        // currency card → its Give tile.
+        // currency card → its Send tile → Or Give As Cash.
         let amountEntry = navigateToGiveAmount()
         amountEntry.enterMinimumAmount()
         waitAndTap(amountEntry.nextButton)
+        tapGiveAsCash()
 
         // Bill should appear — tap "Send as a Link" to create the cash link.
         let sendAsLink = app.buttons["Send as a Link"]
@@ -52,14 +53,15 @@ final class CashLinkRegressionTests: BaseUITestCase {
         waitAndTap(app.buttons["Yes"], timeout: 10, "Expected 'Did You Send The Link?' confirmation")
 
         // Step 2: Navigate to the pending cash link via transaction history.
-        // Sending lands back on the currency the give started from — the keypad
-        // popped itself as the bill appeared — so the history is one tap away
-        // rather than a fresh trip through the wallet.
+        // Sending lands back on Select Recipient; backing out reaches the
+        // currency the give started from, so the history is one tap away rather
+        // than a fresh trip through the wallet.
+        backOutOfGiveToCurrencyInfo()
         currencyInfo.assertHeldCurrencyReached(timeout: 30)
 
-        // CurrencyInfoScreen — the "Recent" section header opens the full
-        // per-token history.
-        currencyInfo.tapRecentActivityHeader(from: self)
+        // CurrencyInfoScreen — the Transactions tile opens the full per-token
+        // history.
+        currencyInfo.tapTransactions(from: self)
 
         // Step 3: Open the first "Sending" row. Rows are List cells containing
         // "Sending" as a static text label. There may be multiple pending cash

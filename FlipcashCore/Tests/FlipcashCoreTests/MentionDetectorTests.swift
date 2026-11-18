@@ -49,11 +49,12 @@ struct MentionDetectorTests {
         #expect(handles("@jeff@") == [])
     }
 
-    @Test("Handles outside 2–15 characters are not mentions")
+    @Test("Handles outside 2–30 characters are not mentions")
     func lengthBounds() {
         #expect(handles("@a") == [])
-        #expect(handles("@abcdefghijklmnop") == [])
-        #expect(handles("@abcdefghijklmno") == ["abcdefghijklmno"])
+        #expect(handles("@abcdefghijklmnopqrstuvwxyz12345") == [])
+        #expect(handles("@abcdefghijklmnopqrstuvwxyz1234") == ["abcdefghijklmnopqrstuvwxyz1234"])
+        #expect(handles("@ted_livingston_2") == ["ted_livingston_2"])
     }
 
     @Test("Characters a handle cannot hold end it rather than extend it")

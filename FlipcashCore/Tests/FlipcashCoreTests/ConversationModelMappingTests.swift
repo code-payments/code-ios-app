@@ -268,6 +268,33 @@ struct ConversationModelMappingTests {
         #expect(message.paymentRequestID?.data == Data(repeating: 0x07, count: 32))
     }
 
+    @Test("Cash message maps its single receiver and its return offer and returned message")
+    func cashMessageMapsReturn() throws {
+        let receiver = Data(repeating: 0x05, count: 16)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 15 }
+            $0.content = [.with {
+                $0.cash = .with {
+                    $0.totalAmount = .with {
+                        $0.currency = "usd"
+                        $0.nativeAmount = 1.0
+                        $0.quarks = 1_000_000
+                        $0.mint = .with { $0.value = Data(repeating: 0x02, count: 32) }
+                    }
+                    $0.singleReceiver = .with { $0.value = receiver }
+                    $0.paymentReturn = .with {
+                        $0.offer = .init()
+                        $0.returnOf = .with { $0.messageID = .with { $0.value = 9 } }
+                    }
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.cashReceiverID == (try UUID(data: receiver)))
+        #expect(message.cashReturn == CashReturn(hasOffer: true, returnOf: .init(messageID: MessageID(value: 9))))
+    }
+
     @Test("Viewer state maps silence and moderation permissions")
     func viewerStateMapsModeration() {
         let proto = Flipcash_Chat_V1_ViewerState.with {
@@ -1010,6 +1037,14 @@ struct ConversationMessageContentEncodingTests {
         #expect(Flipcash_Messaging_V1_WidgetContent().shareProfile == nil)
     }
 
+    @Test("A share-profile widget keeps a handle longer than the claim cap")
+    func shareProfileWidgetKeepsLongHandle() throws {
+        let proto = Flipcash_Messaging_V1_WidgetContent.with {
+            $0.shareProfile = .with { $0.username = .with { $0.value = "ted_livingston_2" } }
+        }
+        #expect(ConversationMessage.Widget(proto) == .shareProfile(ShareProfileWidget(username: try #require(Username("ted_livingston_2")))))
+    }
+
     @Test("A share-profile widget message is kept as a widget")
     func widgetMessageIsKept() throws {
         let proto = Flipcash_Messaging_V1_Message.with {
@@ -1064,6 +1099,8 @@ struct ConversationMessageMediaMappingTests {
 
     private let blobID = BlobID(data: Data([1, 2, 3]))
     private let blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+    /// The THUMBNAIL `media()` derives beside its ORIGINAL.
+    private let thumbnail = MediaRendition(role: .thumbnail, blobID: BlobID(data: Data([9])), width: 50, height: 100)
 
     private func media(withDownloadURL: Bool = true) -> Flipcash_Blob_V1_Media {
         .with {
@@ -1103,11 +1140,11 @@ struct ConversationMessageMediaMappingTests {
         }
     }
 
-    @Test("A media message maps its ORIGINAL rendition and caption")
+    @Test("A media message maps its ORIGINAL rendition, the copies derived from it, and its caption")
     func mediaMapsOriginalAndCaption() throws {
         let message = try #require(ConversationMessage(mediaProto(caption: "from today")))
 
-        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash)
+        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash, renditions: [thumbnail])
         #expect(message.content == .media([expected], caption: "from today"))
         #expect(message.repliedTo == nil)
         #expect(message.redacted == false)
@@ -1166,7 +1203,7 @@ struct ConversationMessageMediaMappingTests {
         }
 
         let message = try #require(ConversationMessage(proto))
-        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash)
+        let expected = MediaAttachment(blobID: blobID, width: 100, height: 200, blurhash: blurhash, renditions: [thumbnail])
         #expect(message.content == .media([expected], caption: nil))
         #expect(message.repliedTo == MessageID(value: 7))
     }

@@ -1,0 +1,121 @@
+//
+//  HomeTabLayout.swift
+//  Flipcash
+//
+
+import SwiftUI
+import FlipcashUI
+
+/// Which tab bar the home shell draws: today's four tabs, or the Group Money
+/// redesign's two (Groups, node 13729:413; Money, node 13729:744), behind
+/// ``BetaFlags/Option/groupMoneyUI``.
+///
+/// The redesign takes Scan and You off the bar, not out of the app. The router
+/// still asks for them — a scanned tip card, a `/tab/you` link, the Money
+/// avatar — so both layouts host every ``HomeTab`` and differ only in which of
+/// them the bar shows. That keeps `AppRouter.Stack.isTabHosted` and
+/// `HomeTab.pushStack` true for both, with nothing registered at runtime.
+enum HomeTabLayout: Equatable {
+    case standard
+    case groupMoney
+
+    init(showsGroupMoney: Bool) {
+        self = showsGroupMoney ? .groupMoney : .standard
+    }
+
+    /// The tabs the bar shows, left to right.
+    var barTabs: [HomeTab] {
+        switch self {
+        case .standard:   HomeTab.allCases
+        case .groupMoney: [.chat, .wallet]
+        }
+    }
+
+    /// Whether the iOS 26 bar has a search tab. Today's layout does; the Group
+    /// Money shell has no search, so its bar holds Groups and Money alone and
+    /// the system centres it at their width. The legacy bar never had one (its
+    /// search is a toolbar button).
+    var hasSearchTab: Bool { self == .standard }
+
+    /// Where the bar sits across the screen. Only the Group Money shell's bar
+    /// moves, to the leading edge with ``BetaFlags/Option/leftAlignedTabBar``
+    /// on; today's bar spans the width either way, so the flag does nothing
+    /// to it. At the leading edge the shell draws its own small bar on every
+    /// OS version, since the iOS 26 system bar has no public API to place it.
+    func barAlignment(leftAligned: Bool) -> HorizontalAlignment {
+        self == .groupMoney && leftAligned ? .leading : .center
+    }
+
+    /// Whether the Chat tab's list carries a search button in its toolbar:
+    /// today's layout on the legacy pill, which has no search tab to do it.
+    /// The Group Money shell has no search on either bar.
+    func listShowsSearchButton(onSystemBar: Bool) -> Bool {
+        hasSearchTab && !onSystemBar
+    }
+
+    /// The tabs behind a system bar holding `itemCount` items, left to right, or
+    /// nil when this layout never draws that many. For one pass after a gate
+    /// flip the bar still holds the other layout's items; pairing them with
+    /// these tabs puts one tab's glyph on another.
+    ///
+    /// With a search tab, the count without the search item is accepted too,
+    /// so a bar drawn without it still gets its glyphs rather than waiting
+    /// forever. The two layouts' counts, 4 or 5 and 2, never overlap.
+    func barTabs(forItemCount itemCount: Int) -> [HomeTab]? {
+        let counts = hasSearchTab ? [barTabs.count, barTabs.count + 1] : [barTabs.count]
+        return counts.contains(itemCount) ? barTabs : nil
+    }
+
+    /// The tab selected on launch. Groups is today's Chat tab, so both layouts
+    /// launch on the same tab.
+    var initialTab: HomeTab { HomeTab.initial }
+
+    /// The tab a search result opens on: the stack its chats and currencies live on.
+    var searchResultTab: HomeTab { .chat }
+
+    /// Whether the shell can bring `tab` forward when the router asks for it.
+    /// Every tab, in both layouts: a tab off the bar is still hosted.
+    func isReachable(_ tab: HomeTab) -> Bool {
+        true
+    }
+
+    /// Whether `tab` has a slot on the bar.
+    func isOnBar(_ tab: HomeTab) -> Bool {
+        barTabs.contains(tab)
+    }
+
+    /// The tab's label on the bar in this layout, which is also its VoiceOver label.
+    func title(for tab: HomeTab) -> String {
+        switch (self, tab) {
+        case (.groupMoney, .chat):
+            String(localized: "Groups", comment: "Home tab bar label")
+        case (.groupMoney, .wallet):
+            String(localized: "Money", comment: "Home tab bar label")
+        default:
+            tab.title
+        }
+    }
+
+    /// The tab's Central glyph. Groups wears the two-people glyph from the
+    /// redesign; Money keeps the wallet.
+    func icon(for tab: HomeTab, isSelected: Bool) -> Icon {
+        switch (self, tab) {
+        case (.groupMoney, .chat):
+            // Central has no filled two-people glyph, so Groups wears the outline in
+            // both states; the unselected dim and the selection platter carry the state.
+            .group1
+        default:
+            tab.icon(isSelected: isSelected)
+        }
+    }
+}
+
+/// Closes a tab drawn over the home shell because the bar has no slot for it,
+/// going back to the bar tab it covers. In the environment only while one is.
+struct HomeTabClose {
+    let action: () -> Void
+}
+
+extension EnvironmentValues {
+    @Entry var homeTabClose: HomeTabClose? = nil
+}

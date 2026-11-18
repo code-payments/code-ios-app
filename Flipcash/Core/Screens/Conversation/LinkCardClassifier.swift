@@ -137,7 +137,7 @@ nonisolated struct LinkCardClassifier {
             return nil
 
         case .login, .verifyEmail, .chatSendCash,
-             .give, .balance, .discover, .unknown:
+             .give, .balance, .discover, .tab, .unknown:
             return nil
         }
     }

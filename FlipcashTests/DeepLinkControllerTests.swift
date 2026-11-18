@@ -73,6 +73,41 @@ struct DeepLinkControllerTests {
         #expect(makeController().handle(open: URL(string: urlString)!) != nil)
     }
 
+    // MARK: - Tab links -
+
+    @Test("A tab link dispatches that tab, case-insensitively, on both hosts and the custom scheme",
+          arguments: [
+              ("https://app.flipcash.com/tab/scan", HomeTab.scan),
+              ("https://app.flipcash.com/tab/chats", HomeTab.chat),
+              ("https://app.flipcash.com/tab/wallet", HomeTab.wallet),
+              ("https://app.flipcash.com/tab/you", HomeTab.tipCard),
+              ("https://app.flipcash.com/tab/SCAN", HomeTab.scan),
+              ("flipcash://tab/scan", HomeTab.scan),
+              ("flipcash://tab/chats", HomeTab.chat),
+              ("flipcash://tab/wallet", HomeTab.wallet),
+              ("flipcash://tab/you", HomeTab.tipCard),
+          ])
+    func tabLink_dispatchesTab(urlString: String, expected: HomeTab) throws {
+        let kind = try #require(makeController().handle(open: URL(string: urlString)!)?.kind)
+        guard case .tab(let tab) = kind else {
+            Issue.record("\(urlString) should dispatch .tab, got \(kind.analyticsName)")
+            return
+        }
+        #expect(tab == expected)
+    }
+
+    @Test("An unknown tab name or a bare /tab names no action, and is never a profile",
+          arguments: [
+              "https://app.flipcash.com/tab/bogus",
+              "https://app.flipcash.com/tab",
+              "https://app.flipcash.com/tab/scan/extra",
+              "flipcash://tab",
+              "flipcash://tab/bogus",
+          ])
+    func badTabLink_namesNoAction(urlString: String) {
+        #expect(makeController().handle(open: URL(string: urlString)!) == nil)
+    }
+
     // MARK: - Person links -
 
     private static let userID = UUID(uuidString: "3f2504e0-4f89-41d3-9a0c-0305e82c3301")!
@@ -246,5 +281,19 @@ struct DeepLinkControllerTests {
             DeepLinkAction.chatDestination(for: .group, isPrivateOutsider: true, conversationID: Self.chatID, landing: landing)
                 == .chatProfile(Self.chatID, origin: .featuredGroup)
         )
+    }
+
+    @Test("A requested payment opens its chat with the request, and a private outsider gets the profile")
+    func chatDestination_withRequest() {
+        let request = PaymentRequestID(data: Data([7]))
+        #expect(
+            DeepLinkAction.chatDestination(for: .group, conversationID: Self.chatID, request: request)
+                == .chatRequest(Self.chatID, request)
+        )
+        #expect(
+            DeepLinkAction.chatDestination(for: .group, isPrivateOutsider: true, conversationID: Self.chatID, request: request)
+                == .chatProfile(Self.chatID, origin: .featuredGroup)
+        )
+        #expect(DeepLinkAction.chatDestination(for: .contactDm, conversationID: Self.chatID, request: request) == nil)
     }
 }

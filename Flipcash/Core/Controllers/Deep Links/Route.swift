@@ -165,6 +165,8 @@ nonisolated extension Route {
         case give
         case balance
         case discover
+        /// `/tab/<name>`: a home tab at its root. See ``HomeTab/init(linkName:)``.
+        case tab(HomeTab)
         case unknown(String)
 
         /// The app's custom URL scheme, registered in `Info.plist`.
@@ -245,6 +247,12 @@ nonisolated extension Route {
                 return .give
             case "balance" where scheme == customScheme:
                 return .balance
+            case "tab":
+                // Never a handle, even when the name is missing or unknown.
+                guard components.count == 2, let tab = HomeTab(linkName: components[1]) else {
+                    return .unknown(url.lastPathComponent)
+                }
+                return .tab(tab)
             case "wallet":
                 // Reserved for Phantom callbacks (consumed by
                 // `WalletConnection.didReceiveURL`). Home-screen

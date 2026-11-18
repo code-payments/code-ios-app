@@ -70,6 +70,17 @@ struct NotificationPresentationTests {
         #expect(NotificationPayload.presentationDecision([:]) { _ in false } == .present)
     }
 
+    @Test("A push carrying an empty payload, as the test push does, presents and routes nowhere")
+    func emptyPayloadPresentsNormally() throws {
+        let userInfo: [AnyHashable: Any] = [
+            NotificationPayload.userInfoKey: try Flipcash_Push_V1_Payload().serializedData().base64EncodedString(),
+        ]
+
+        #expect(NotificationPayload.presentationDecision(userInfo) { _ in false } == .present)
+        #expect(NotificationPayload.chatID(userInfo) == nil)
+        #expect(NotificationPayload.isContactJoin(userInfo) == false)
+    }
+
     @Test("An archived chat the extension left passive presents nothing")
     func archivedPassivePresentsNothing() throws {
         let decision = NotificationPayload.presentationDecision(

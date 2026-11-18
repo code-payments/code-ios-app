@@ -138,6 +138,9 @@ protocol ConversationMessaging: AnyObject, Sendable {
     /// server applies the edit only if the message still carries that sequence, and reports a
     /// conflict with the winning state otherwise.
     func editMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, text: String, repliedTo: MessageID?, linkPreview: MessageLinkPreview?, expectedEventSequence: UInt64) async throws -> MessageMutation
+    /// Replaces the caption of `photo`, the owner's captioned photo, keeping its photo and reply as
+    /// sent, guarded by `expectedEventSequence` the same way as `editMessage`.
+    func editCaption(owner: KeyPair, conversationID: ConversationID, photo: ConversationMessage, caption: String, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Tombstones a message, guarded by `expectedEventSequence` the same way as `editMessage`.
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation
     /// Adds the owner's reaction with `emoji`, returning the emoji's new aggregate.
@@ -148,6 +151,15 @@ protocol ConversationMessaging: AnyObject, Sendable {
     func getReactors(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String, pageSize: Int, pagingToken: Data?) async throws -> ReactorPage
     /// The current reactions on up to 100 messages, keyed by message; a message with none is absent.
     func getReactionSummaries(owner: KeyPair, conversationID: ConversationID, messageIDs: [MessageID]) async throws -> [MessageID: ReactionState]
+    /// Where the return of a DM cash message stands, with the server-issued intent id a return must be submitted under.
+    func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus
+    /// Pins a message, returning the chat's new pin summary. Throws `ErrorPinMessage.tooManyPins`
+    /// at the server's cap.
+    func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary
+    /// Unpins a message, returning the chat's new pin summary.
+    func unpinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary
+    /// One page of the chat's pins, most recently pinned first, with sealed messages opened.
+    func getPinnedMessages(owner: KeyPair, conversationID: ConversationID, pagingToken: Data?) async throws -> ConversationPinsPage
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws
     func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws
 }

@@ -7,44 +7,28 @@
 
 import Foundation
 import FlipcashCore
+import SharedCore
 
 // MARK: - Domain Event Enums -
 
 extension Analytics {
-    enum GeneralEvent: String, AnalyticsEvent {
-        case autoLoginComplete     = "Auto-login complete"
-    }
-
-    enum AccountEvent: String, AnalyticsEvent {
-        case createAccount = "Create Account"
-    }
-
-    /// A tapped button. Most are built by the shared contract; the rest are iOS-only or
-    /// unused and keep their names here.
+    /// A tapped button, built by the shared contract.
     enum ButtonEvent {
         case createAccount
         case saveAccessKey
         case wroteAccessKey
-        case allowCamera
         case allowPush
         case skipPush
         case buyWithReserves
         case buyWithCurrency
+        case buyWithCoinbase
+        case buyWithPhantom
         case give
-        case sell
         case shareTokenInfo
-    }
-
-    fileprivate enum NativeButtonEvent: String, AnalyticsEvent {
-        case allowCamera     = "Button: Allow Camera"
-        case buyWithCurrency = "Button: Buy With Currency"
-        case give            = "Button: Give"
-        case sell            = "Button: Sell"
     }
 
     enum TransferEvent: String, AnalyticsEvent {
         case withdrawal      = "Withdrawal"
-        case sentCash        = "Sent Cash"
         case sentTip         = "Sent Tip"
         case sendCashLink    = "Send Cash Link"
         case receiveCashLink = "Receive Cash Link"
@@ -54,6 +38,7 @@ extension Analytics {
 
     /// An onramp verification screen, sent as `Onramp: Show <step>`.
     enum OnrampStep {
+        case showInfo
         case enterPhone
         case confirmPhone
         case enterEmail
@@ -62,21 +47,13 @@ extension Analytics {
         /// The shared contract's step for this screen.
         var shared: SharedCoreKit.OnrampStep {
             switch self {
+            case .showInfo:     .showInfo
             case .enterPhone:   .enterPhone
             case .confirmPhone: .confirmPhone
             case .enterEmail:   .enterEmail
             case .confirmEmail: .confirmEmail
             }
         }
-    }
-
-    enum SendEvent: String, AnalyticsEvent {
-        case showEnterPhone   = "Send: Show Enter Phone"
-        case showConfirmPhone = "Send: Show Confirm Phone"
-    }
-
-    enum ConversationEvent: String, AnalyticsEvent {
-        case tipReceived = "Tip Received"
     }
 
     /// The display name a user is known by. `Set` is a first name, `Updated` a
@@ -93,68 +70,32 @@ extension Analytics {
         case tipCardSetup
     }
 
-    enum GalleryScanEvent: String, AnalyticsEvent {
-        case codeFound    = "Gallery Scan: Code Found"
-        case nothingFound = "Gallery Scan: Nothing Found"
-    }
-
     /// Why a gallery scan came back with nothing. `cancelled` covers both the user tapping
     /// Cancel and the budget running out, which are the same event from the search's side.
-    enum GalleryScanMiss: String {
-        case exhausted    = "Exhausted"
-        case cancelled    = "Cancelled"
-        case routeRefused = "Route Refused"
+    enum GalleryScanMiss {
+        case exhausted
+        case cancelled
+        case routeRefused
+
+        /// The shared `Exhausted` flag: true when the search was stopped before the ladder ended.
+        /// The shared event has no separate user-cancel value, so a Cancel tap reports true too.
+        var stoppedEarly: Bool { self == .cancelled }
     }
 
-    enum WalletEvent: String, AnalyticsEvent {
-        case connect               = "Wallet: Connect"
-        case requestAmount         = "Wallet: Request Amount"
-        case transactionsSubmitted = "Wallet: Transactions Submitted"
-        case transactionsFailed    = "Wallet: Transactions Failed"
-        case cancel                = "Wallet: Cancel"
-    }
-
-    /// Where Token Info was opened from. Deeplink, Wallet, Discovery and Chat are built by the
-    /// shared contract; Give and Send are iOS-only and keep their names here.
+    /// Where Token Info was opened from, built by the shared contract.
     enum TokenInfoEvent {
         case openedFromDeeplink
         case openedFromWallet
         case openedFromDiscovery
+        case openedFromSearch
         case openedFromChat
         case openedFromGive
         case openedFromSend
     }
 
-    fileprivate enum NativeTokenInfoEvent: String, AnalyticsEvent {
-        case openedFromGive = "Token Info: Opened From Give"
-        case openedFromSend = "Token Info: Opened From Send"
-    }
-
-    enum TokenTransactionEvent: String, AnalyticsEvent {
-        case purchaseWithReserves = "Token Purchase With Reserves"
-        case purchaseWithCurrency = "Token Purchase With Currency"
-        case sell                 = "Token Sell"
-        case withdraw             = "Token Withdrawal"
-    }
-
-    enum CurrencyLaunchEvent: String, AnalyticsEvent {
-        case launchWithReserves = "Currency Launch With Reserves"
-        case launchWithCurrency = "Currency Launch With Currency"
-    }
-
     enum DeeplinkEvent: String, AnalyticsEvent {
         case parse  = "Deeplink: Parse"
         case routed = "Deeplink: Routed"
-    }
-
-    /// The Add Money funnel, modeled after the transfer pattern — a single
-    /// terminal event with State/Error properties. Names are shared verbatim
-    /// with Android.
-    enum AddMoneyEvent: String, AnalyticsEvent {
-        case methodSelected  = "Add Money: Method Selected"
-        case amountConfirmed = "Add Money: Amount Confirmed"
-        case paymentInvoked  = "Add Money: Payment Invoked"
-        case terminal        = "Add Money"
     }
 
     /// Where the user entered the Add Money flow, sent as the `Source` of Add Money: Opened.
@@ -194,10 +135,10 @@ extension Analytics {
         case .skipPush:        track(ButtonEvents.shared.tapped(button: .skipPush))
         case .buyWithReserves: track(ButtonEvents.shared.tapped(button: .buyWithReserves))
         case .shareTokenInfo:  track(ButtonEvents.shared.tapped(button: .shareTokenInfo))
-        case .allowCamera:     track(event: NativeButtonEvent.allowCamera)
-        case .buyWithCurrency: track(event: NativeButtonEvent.buyWithCurrency)
-        case .give:            track(event: NativeButtonEvent.give)
-        case .sell:            track(event: NativeButtonEvent.sell)
+        case .buyWithCurrency: track(ButtonEvents.shared.tapped(button: .buyWithCurrency))
+        case .buyWithCoinbase: track(ButtonEvents.shared.tapped(button: .buyWithCoinbase))
+        case .buyWithPhantom:  track(ButtonEvents.shared.tapped(button: .buyWithPhantom))
+        case .give:            track(ButtonEvents.shared.tapped(button: .give))
         }
     }
 }
@@ -205,13 +146,14 @@ extension Analytics {
 // MARK: - Account -
 
 extension Analytics {
-    static func createAccount(owner: PublicKey) {
-        track(
-            event: AccountEvent.createAccount,
-            properties: [
-                .ownerPublicKey: owner.base58,
-            ]
-        )
+    /// The user chose to create an account and registration began.
+    static func createAccount() {
+        track(AccountEvents.shared.createAccount())
+    }
+
+    /// A saved account logged in at launch with no action from the user.
+    static func autoLoginComplete() {
+        track(AccountEvents.shared.autoLoginComplete())
     }
 }
 
@@ -270,58 +212,65 @@ extension Analytics {
         track(ScanEvents.shared.galleryImagePicked())
     }
 
-    /// A Kik code was found, and how deep in the ladder it was. The tier and zoom are the
-    /// reason these events exist: the ladder's constants were inherited without ever being
-    /// measured, and a tier distribution is what would justify or shrink them.
-    static func galleryScanFoundCode(tier: String, zoom: Double, elapsed: TimeInterval) {
-        track(
-            event: GalleryScanEvent.codeFound,
-            properties: [
-                .type:    "Kik",
-                .tier:    tier,
-                .zoom:    zoom,
-                .elapsed: elapsed,
-            ]
-        )
+    /// A code was found, and how deep in the ladder it was. The tier and zoom are the reason
+    /// this event exists: the ladder's constants were inherited without ever being measured, and
+    /// a tier distribution is what would justify or shrink them.
+    static func galleryScanFoundCode(tier: StillImageCodeSearch.Tier, zoom: Double, elapsed: TimeInterval) {
+        track(ScanEvents.shared.gallerySucceeded(tier: galleryTier(tier), zoom: zoom, timeMillis: milliseconds(elapsed)))
     }
 
-    /// A QR code was found. No tier: QR is a single pass over the whole image.
+    /// A QR code was found. QR is a single pass over the whole image, so it reports the first
+    /// tier at zoom 1. The shared event has no Kik or QR type, so the two are no longer told apart.
     static func galleryScanFoundQR(elapsed: TimeInterval) {
-        track(
-            event: GalleryScanEvent.codeFound,
-            properties: [
-                .type:    "QR",
-                .elapsed: elapsed,
-            ]
-        )
+        track(ScanEvents.shared.gallerySucceeded(tier: galleryTier(.wholeImage), zoom: 1, timeMillis: milliseconds(elapsed)))
     }
 
-    /// Nothing usable was found, and how long that took. A search that ran out of ladder is
-    /// a different fact from one that ran out of time.
+    /// Nothing usable was found, and how long that took.
     static func galleryScanFoundNothing(reason: GalleryScanMiss, elapsed: TimeInterval) {
-        track(
-            event: GalleryScanEvent.nothingFound,
-            properties: [
-                .state:   reason.rawValue,
-                .elapsed: elapsed,
-            ]
+        track(ScanEvents.shared.galleryFailed(timeMillis: milliseconds(elapsed), exhausted: reason.stoppedEarly))
+    }
+
+    /// The shared `Tier`: the rung of the crop ladder that decoded, 1 to 3.
+    static func galleryTier(_ tier: StillImageCodeSearch.Tier) -> Int32 {
+        switch tier {
+        case .wholeImage: 1
+        case .quadrant:   2
+        case .window:     3
+        }
+    }
+
+    /// The shared events carry durations in milliseconds.
+    static func milliseconds(_ interval: TimeInterval) -> Int64 {
+        Int64((interval * 1000).rounded())
+    }
+}
+
+extension ExchangedFiat {
+    /// The shared contract's amount block. USDC is the USDF value, which Android always sends.
+    var analyticsAmount: AnalyticsAmount {
+        AnalyticsAmount(
+            fiat: nativeAmount.doubleValue,
+            currency: currencyRate.currency.rawValue,
+            usdc: usdfValue.doubleValue,
+            quarks: Int64(clamping: onChainAmount.quarks),
+            exchangeRate: KotlinDouble(double: currencyRate.fx.analyticsValue),
+            mint: mint.base58
         )
     }
 }
 
-// MARK: - Shared property builders -
-
-private extension Analytics {
-    /// The standard money-amount property block — mint, quarks, native fiat,
-    /// exchange rate, and currency. Shared by the transfer and Add Money events.
-    static func amountProperties(_ exchangedFiat: ExchangedFiat) -> [Property: AnalyticsValue] {
-        [
-            .mint:     exchangedFiat.mint.base58,
-            .quarks:   exchangedFiat.onChainAmount.quarks.analyticsValue,
-            .fiat:     exchangedFiat.nativeAmount.doubleValue,
-            .fx:       exchangedFiat.currencyRate.fx.analyticsValue,
-            .currency: exchangedFiat.currencyRate.currency.rawValue,
-        ]
+extension FiatAmount {
+    /// The shared contract's amount block for a fiat-only amount, as Android builds it: no rate or
+    /// mint, with `USDC` repeating the amount and `Quarks` at six decimals.
+    var analyticsAmount: AnalyticsAmount {
+        AnalyticsAmount(
+            fiat: doubleValue,
+            currency: currency.rawValue,
+            usdc: doubleValue,
+            quarks: Int64((doubleValue * 1_000_000).rounded()),
+            exchangeRate: nil,
+            mint: nil
+        )
     }
 }
 
@@ -338,47 +287,102 @@ extension Analytics {
         track(TransferEvents.shared.giveBillStart())
     }
 
+    /// Cash was sent, or a request share was paid. `error` is nil on success. `recipientCount`
+    /// is for `.groupSend` only.
+    static func sentCash(exchangedFiat: ExchangedFiat, context: SendContext, recipientCount: Int? = nil, error: Error?) {
+        track(
+            TransferEvents.shared.sentCash(
+                state: .from(error),
+                amount: exchangedFiat.analyticsAmount,
+                error: nil,
+                context: context,
+                recipientCount: recipientCount.map { KotlinInt(int: Int32(clamping: $0)) }
+            ),
+            error: error
+        )
+    }
+
+    /// A swiped Send Back ended. `alreadyReturned` is a failure with `Error` = `Already Returned`:
+    /// the server says the payment was sent back already, so this swipe paid nothing. Carries no
+    /// intent, chat or message id.
+    static func sentCashBack(exchangedFiat: ExchangedFiat, error: Error?, alreadyReturned: Bool = false) {
+        track(
+            TransferEvents.shared.sentCash(
+                state: alreadyReturned ? .failure : .from(error),
+                amount: exchangedFiat.analyticsAmount,
+                error: alreadyReturned ? "Already Returned" : nil,
+                context: .sendBack,
+                recipientCount: nil
+            ),
+            error: alreadyReturned ? nil : error
+        )
+    }
+
+    /// The receiver of a DM's opening payment tapped Send Back. `hasBalance` is false when the
+    /// insufficient-balance modal showed instead of the confirm sheet.
+    static func sendBackTapped(hasBalance: Bool) {
+        track(TransferEvents.shared.sendBackTapped(hasBalance: hasBalance))
+    }
+
+    /// A reaction boost was paid for. `exchangedFiat` is the whole boost, before the split.
+    /// `error` is nil on success.
+    static func sentBoost(chatType: ConversationType?, exchangedFiat: ExchangedFiat, error: Error?) {
+        track(
+            TransferEvents.shared.sentBoost(
+                chatType: chatType.sharedChatType,
+                state: .from(error),
+                amount: exchangedFiat.analyticsAmount,
+                error: nil
+            ),
+            error: error
+        )
+    }
+
     static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
-        properties[.state] = successful ? String.success : String.failure
-
         track(
-            event: TransferEvent.withdrawal,
-            properties: properties,
+            TransferEvents.shared.withdrawal(
+                state: successful ? .success : .failure,
+                amount: exchangedFiat?.analyticsAmount,
+                error: nil
+            ),
             error: error
         )
     }
 
-    static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
-        properties[.state] = successful ? String.success : String.failure
-
-        if let grabTime {
-            properties[.grabTime] = grabTime
-        }
-
-        track(
-            event: event,
-            properties: properties,
-            error: error
-        )
+    /// A transfer's outcome. `grabTime` is in seconds; Grab Bill sends it as `Grab Time` in ms,
+    /// as Android does, and the other events ignore it.
+    static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: TimeInterval?, successful: Bool, error: Error?) {
+        transfer(event: event, amount: exchangedFiat?.analyticsAmount, grabTime: grabTime, successful: successful, error: error)
     }
 
+    /// A transfer's outcome when only the fiat amount is known, as for a grab that failed before
+    /// its metadata arrived.
     static func transfer(event: TransferEvent, fiat: FiatAmount?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-        ]
+        transfer(event: event, amount: fiat?.analyticsAmount, grabTime: nil, successful: successful, error: error)
+    }
 
-        if let fiat {
-            properties[.fiat]     = fiat.doubleValue
-            properties[.currency] = fiat.currency.rawValue
+    private static func transfer(event: TransferEvent, amount: AnalyticsAmount?, grabTime: TimeInterval?, successful: Bool, error: Error?) {
+        let state: EventState = successful ? .success : .failure
+        let built: TrackedEvent = switch event {
+        case .withdrawal:
+            TransferEvents.shared.withdrawal(state: state, amount: amount, error: nil)
+        case .sentTip:
+            TransferEvents.shared.sentTip(state: state, amount: amount, error: nil)
+        case .sendCashLink:
+            TransferEvents.shared.sendCashLink(state: state, amount: amount, choice: nil, app: nil, error: nil)
+        case .receiveCashLink:
+            TransferEvents.shared.receiveCashLink(state: state, amount: amount, error: nil)
+        case .grabBill:
+            TransferEvents.shared.grabBill(
+                state: state,
+                amount: amount,
+                grabTimeMillis: grabTime.map { KotlinLong(longLong: Int64(($0 * 1000).rounded())) },
+                error: nil
+            )
+        case .giveBill:
+            TransferEvents.shared.giveBill(state: state, amount: amount, error: nil)
         }
-
-        track(
-            event: event,
-            properties: properties,
-            error: error
-        )
+        track(built, error: error)
     }
 }
 
@@ -412,6 +416,57 @@ extension Analytics.DisplayNameSource {
     }
 }
 
+// MARK: - Profile -
+
+extension Analytics {
+    /// The Settings screen was opened from the You tab.
+    static func profileSettingsViewed() {
+        track(ProfileEvents.shared.settingsViewed())
+    }
+
+    /// The Edit Profile screen was opened from the You tab.
+    static func profileEditProfileViewed() {
+        track(ProfileEvents.shared.editProfileViewed())
+    }
+
+    /// A profile field was saved on the server.
+    static func profileFieldSaved(_ field: SharedCoreKit.ProfileField) {
+        track(ProfileEvents.shared.fieldSaved(field: field))
+    }
+
+    /// The server refused a bio for moderation.
+    static func profileBioModerationFailed() {
+        track(ProfileEvents.shared.bioModerationFailed())
+    }
+
+    /// An entry was picked in another user's profile menu.
+    static func profileMenuAction(_ action: SharedCoreKit.ProfileMenuAction) {
+        track(ProfileEvents.shared.menuAction(action: action))
+    }
+
+    /// An entry was picked in another user's profile menu; entries outside the catalogue send nothing.
+    static func profileMenuAction(for item: ProfileMenuItem) {
+        guard let action = item.analyticsAction else { return }
+        profileMenuAction(action)
+    }
+
+    /// The pinned button under another user's profile was tapped.
+    static func profilePinnedButtonTapped(_ action: SharedCoreKit.ProfilePinnedAction) {
+        track(ProfileEvents.shared.pinnedButtonTapped(action: action))
+    }
+
+    /// The pinned button was tapped; an empty pin sends nothing.
+    static func profilePinnedButtonTapped(for action: ProfilePinnedAction) {
+        guard let shared = action.analyticsAction else { return }
+        profilePinnedButtonTapped(shared)
+    }
+
+    /// The profile card appeared.
+    static func profileCardShown() {
+        track(ProfileEvents.shared.cardShown())
+    }
+}
+
 // MARK: - Conversation -
 
 extension Analytics {
@@ -424,9 +479,7 @@ extension Analytics {
     /// An inbound tipped Cash message the user has now read. Mutually exclusive with
     /// `messageReceived` — a tip reports only as a tip.
     static func tipReceived(chatType: ConversationType?, exchangedFiat: ExchangedFiat) {
-        var properties = amountProperties(exchangedFiat)
-        properties[.chatType] = chatType.analyticsValue
-        track(event: ConversationEvent.tipReceived, properties: properties)
+        track(ChatEvents.shared.tipReceived(chatType: chatType.sharedChatType, amount: exchangedFiat.analyticsAmount))
     }
 
     /// An inbound non-tip message the user has now read.
@@ -452,14 +505,29 @@ extension Analytics {
             error: error.map(chatResult)
         ))
     }
+
+    /// A chat was marked unread from the chat list.
+    static func chatMarkedUnread(chatType: ConversationType?, source: ChatReadSource) {
+        track(ChatEvents.shared.markedUnread(chatType: chatType.sharedChatType, source: source.shared))
+    }
+
+    /// A chat was marked read from the chat list.
+    static func chatMarkedRead(chatType: ConversationType?, source: ChatReadSource) {
+        track(ChatEvents.shared.markedRead(chatType: chatType.sharedChatType, source: source.shared))
+    }
+
+    /// Read All ran over the chat list; `count` is how many chats it read or unmarked.
+    static func chatsReadAll(count: Int) {
+        track(ChatEvents.shared.readAll(count: Int32(count)))
+    }
 }
 
 // MARK: - Group -
 
 extension Analytics {
-    /// The New Group form opened.
-    static func groupNewOpened() {
-        track(GroupEvents.shared.doNewOpened())
+    /// The New Group form opened from the New Chat row of this `type`.
+    static func groupNewOpened(type: GroupType) {
+        track(GroupEvents.shared.doNewOpened(type: type))
     }
 
     /// `StartChat` returned for a new group; `error` is nil on success.
@@ -511,13 +579,15 @@ extension Analytics {
         track(GroupEvents.shared.gateFundingTapped(method: method, gateMint: gateMint?.base58))
     }
 
-    /// `JoinChat` returned; `error` is nil on success.
-    static func groupJoined(error: Error?, memberCount: UInt64, gated: Bool) {
+    /// A join through a private Group invite came to `result`. A private Group has no token
+    /// gate, so `Gated` is always false.
+    static func groupJoined(result: GroupInviteLanding.JoinResult, memberCount: UInt64) {
+        let error = result.analyticsError
         track(GroupEvents.shared.joined(
-            state: .from(error),
-            error: error.map(chatResult),
+            state: error == nil ? .success : .failure,
+            error: error,
             memberCount: Int32(clamping: memberCount),
-            gated: gated
+            gated: false
         ))
     }
 
@@ -535,8 +605,38 @@ extension Analytics {
         track(GroupEvents.shared.infoOpened(memberCount: Int32(clamping: memberCount), isMember: isMember))
     }
 
-    /// The `Error` value the group and mute events send: the chat RPC's result as the proto names
-    /// it, or `Network` for anything the server didn't answer with a result.
+    /// `CreateInvite` returned; `error` is nil on success.
+    static func groupInviteLinkCreated(error: Error?) {
+        track(GroupEvents.shared.inviteLinkCreated(state: .from(error), error: error.map(chatResult)))
+    }
+
+    /// `RevokeInvite` returned after the host confirmed; `error` is nil on success.
+    static func groupInviteLinkRevoked(error: Error?) {
+        track(GroupEvents.shared.inviteLinkRevoked(state: .from(error), error: error.map(chatResult)))
+    }
+
+    /// `AdmitLobbyMember` returned; `error` is nil on success.
+    static func groupJoinRequestApproved(error: Error?) {
+        track(GroupEvents.shared.joinRequestApproved(state: .from(error), error: error.map(chatResult)))
+    }
+
+    /// `DenyLobbyMember` returned; `error` is nil on success.
+    static func groupJoinRequestDenied(error: Error?) {
+        track(GroupEvents.shared.joinRequestDenied(state: .from(error), error: error.map(chatResult)))
+    }
+
+    /// `SilenceUser` returned; `error` is nil on success.
+    static func groupMemberSilenced(duration: SilenceDuration, error: Error?) {
+        track(GroupEvents.shared.memberSilenced(duration: duration.shared, state: .from(error), error: error.map(chatResult)))
+    }
+
+    /// `BanUser` returned after the host confirmed removal; `error` is nil on success.
+    static func groupMemberRemoved(error: Error?) {
+        track(GroupEvents.shared.memberRemoved(state: .from(error), error: error.map(chatResult)))
+    }
+
+    /// The `Error` value the group, community chat and mute events send: the chat RPC's result as
+    /// the proto names it, or `Network` for anything the server didn't answer with a result.
     ///
     /// iOS folds an unrecognized result into the same `.unknown` case as an unclassified RPC
     /// failure, so `.unknown` reports as `Network`, the more common of the two.
@@ -595,8 +695,77 @@ extension Analytics {
             case .notFound:                                       "NotFound"
             case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
             }
+        case let error as ErrorCreateInvite:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .invalidExpiresAt:                               "InvalidExpiresAt"
+            case .tooManyInvites:                                 "TooManyInvites"
+            case .invalidSignature:                               "InvalidSignature"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorRevokeInvite:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorAdmitLobbyMember:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .notInLobby:                                     "NotInLobby"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorDenyLobbyMember:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorSilenceUser:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .cannotRestrictCreator:                          "CannotRestrictCreator"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
+        case let error as ErrorBanUser:
+            switch error {
+            case .denied:                                         "Denied"
+            case .notFound:                                       "NotFound"
+            case .cannotRestrictCreator:                          "CannotRestrictCreator"
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected: "Network"
+            }
         default:
             "Network"
+        }
+    }
+}
+
+extension GroupInviteLanding.JoinResult {
+    /// The `Error` value `Group: Joined` sends for this result, or nil for a join that went through.
+    var analyticsError: String? {
+        switch self {
+        case .joined:    nil
+        case .dead:      "Dead"
+        case .notFound:  "NotFound"
+        case .groupGone: "GroupGone"
+        case .banned:    "Banned"
+        case .refused:   "Refused"
+        case .failed:    "Failed"
+        }
+    }
+}
+
+extension SilenceDuration {
+    /// The shared contract's `Duration` for this choice.
+    var shared: SharedCoreKit.SilenceDuration {
+        switch self {
+        case .oneHour:    .oneHour
+        case .eightHours: .eightHours
+        case .oneWeek:    .oneWeek
+        case .forever:    .forever
         }
     }
 }
@@ -641,6 +810,20 @@ private extension Optional where Wrapped == ConversationType {
     }
 }
 
+// MARK: - Community Chat -
+
+extension Analytics {
+    /// `JoinChat` returned for a join from a Community Chat's gate; `error` is nil on success.
+    static func communityChatJoined(error: Error?, memberCount: UInt64, gateMint: PublicKey?) {
+        track(CommunityChatEvents.shared.joined(
+            state: .from(error),
+            error: error.map(chatResult),
+            memberCount: Int32(clamping: memberCount),
+            gateMint: gateMint?.base58
+        ))
+    }
+}
+
 // MARK: - Add Money -
 
 extension Analytics {
@@ -649,40 +832,57 @@ extension Analytics {
     }
 
     static func addMoneyMethodSelected(method: DepositMethod) {
-        track(event: AddMoneyEvent.methodSelected, properties: [.method: method.analyticsValue])
+        track(AddMoneyEvents.shared.methodSelected(method: method.shared))
     }
 
     static func addMoneyAmountConfirmed(method: DepositMethod, exchangedFiat: ExchangedFiat) {
-        var properties = amountProperties(exchangedFiat)
-        properties[.method] = method.analyticsValue
-        track(event: AddMoneyEvent.amountConfirmed, properties: properties)
+        track(AddMoneyEvents.shared.amountConfirmed(method: method.shared, amount: exchangedFiat.analyticsAmount))
     }
 
     static func addMoneyPaymentInvoked(method: DepositMethod, exchangedFiat: ExchangedFiat) {
-        var properties = amountProperties(exchangedFiat)
-        properties[.method] = method.analyticsValue
-        track(event: AddMoneyEvent.paymentInvoked, properties: properties)
+        track(AddMoneyEvents.shared.paymentInvoked(method: method.shared, amount: exchangedFiat.analyticsAmount))
     }
 
     static func addMoneyAddressCopied(mint: PublicKey) {
         track(AddMoneyEvents.shared.addressCopied(mint: mint.base58))
     }
 
-    static func addMoney(method: DepositMethod, exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
-        properties[.method] = method.analyticsValue
-        properties[.state] = successful ? String.success : String.failure
-        track(event: AddMoneyEvent.terminal, properties: properties, error: error)
+    /// The Add Money outcome. A nil `exchangedFiat` sends no amount, as Android does for a
+    /// Phantom failure.
+    /// `phases` carries the Coinbase purchase's phase durations and is nil for every other method.
+    static func addMoney(
+        method: DepositMethod,
+        exchangedFiat: ExchangedFiat?,
+        successful: Bool,
+        error: Error?,
+        phases: AddMoneyPhases? = nil
+    ) {
+        track(
+            AddMoneyEvents.shared.result(
+                method: method.shared,
+                state: successful ? .success : .failure,
+                amount: exchangedFiat?.analyticsAmount,
+                error: nil,
+                orderTimeMillis: phases?.order.map(KotlinLong.init(longLong:)),
+                paymentTimeMillis: phases?.payment.map(KotlinLong.init(longLong:)),
+                coinbaseTimeMillis: phases?.coinbase.map(KotlinLong.init(longLong:)),
+                depositTimeMillis: phases?.deposit.map(KotlinLong.init(longLong:)),
+                swapTimeMillis: phases?.swap.map(KotlinLong.init(longLong:)),
+                creditTimeMillis: phases?.credit.map(KotlinLong.init(longLong:)),
+                totalTimeMillis: phases.map { KotlinLong(longLong: $0.total) }
+            ),
+            error: error
+        )
     }
 }
 
 extension DepositMethod {
-    /// The `Method` property value, shared verbatim with Android.
-    var analyticsValue: String {
+    /// The shared contract's method.
+    var shared: SharedCoreKit.AddMoneyMethod {
         switch self {
-        case .coinbase:    "Coinbase"
-        case .phantom:     "Phantom"
-        case .otherWallet: "Other Wallet"
+        case .coinbase:    .coinbase
+        case .phantom:     .phantom
+        case .otherWallet: .otherWallet
         }
     }
 }
@@ -690,13 +890,25 @@ extension DepositMethod {
 // MARK: - Wallet -
 
 extension Analytics {
+    /// Phantom returned a connected session. Phantom is the only wallet iOS connects.
+    static func walletConnected() {
+        track(WalletEvents.shared.connect(provider: .phantom))
+    }
+
+    /// The user rejected a Phantom request (code 4001). Other wallet errors are not a cancel.
+    static func walletCancelled() {
+        track(WalletEvents.shared.cancel(provider: .phantom))
+    }
+
+    /// A transaction Phantom signed was refused when sent to the chain. An expired blockhash
+    /// is not counted, as on Android.
+    static func walletTransactionsFailed() {
+        track(WalletEvents.shared.transactionsFailed(provider: .phantom))
+    }
+
+    /// A deposit sent to Phantom for signing. `amount` is the USDC being swapped, in USD.
     static func walletRequestAmount(amount: FiatAmount) {
-        var properties: [Property: AnalyticsValue] = [:]
-
-        properties[.fiat]     = amount.doubleValue
-        properties[.currency] = amount.currency.rawValue
-
-        track(event: WalletEvent.requestAmount, properties: properties)
+        track(WalletEvents.shared.requestAmount(provider: .phantom, amount: amount.analyticsAmount))
     }
 }
 
@@ -711,44 +923,114 @@ extension Analytics {
             track(TokenInfoEvents.shared.opened(source: .wallet, mint: mint.base58))
         case .openedFromDiscovery:
             track(TokenInfoEvents.shared.opened(source: .discovery, mint: mint.base58))
+        case .openedFromSearch:
+            track(TokenInfoEvents.shared.opened(source: .search, mint: mint.base58))
         case .openedFromChat:
             track(TokenInfoEvents.shared.opened(source: .chat, mint: mint.base58))
         case .openedFromGive:
-            track(event: NativeTokenInfoEvent.openedFromGive, properties: [.mint: mint.base58])
+            track(TokenInfoEvents.shared.opened(source: .give, mint: mint.base58))
         case .openedFromSend:
-            track(event: NativeTokenInfoEvent.openedFromSend, properties: [.mint: mint.base58])
+            track(TokenInfoEvents.shared.opened(source: .send, mint: mint.base58))
         }
+    }
+
+    /// An action tile on Currency Info was tapped, before anything opens.
+    static func tokenInfoTileTapped(tile: CurrencyInfoActions.Tile, mint: PublicKey) {
+        track(TokenInfoEvents.shared.tileTapped(tile: tile.shared, mint: mint.base58))
+    }
+
+    /// A row of the More sheet was picked and is about to run.
+    static func tokenInfoMoreOptionPicked(row: CurrencyInfoActions.MoreRow, mint: PublicKey) {
+        track(TokenInfoEvents.shared.moreOptionPicked(option: row.shared, mint: mint.base58))
+    }
+
+    /// A community chat was tapped on Currency Info or its View All list.
+    static func tokenInfoCommunityChatTapped(mint: PublicKey) {
+        track(TokenInfoEvents.shared.communityChatTapped(mint: mint.base58))
+    }
+}
+
+extension CurrencyInfoActions.Tile {
+    /// The shared contract's tile.
+    var shared: CurrencyInfoTile {
+        switch self {
+        case .send:         .send
+        case .buy:          .buy
+        case .buyIn:        .buyIn
+        case .transactions: .transactions
+        case .more:         .more
+        }
+    }
+}
+
+extension CurrencyInfoActions.MoreRow {
+    /// The shared contract's More option.
+    var shared: CurrencyInfoMoreOption {
+        switch self {
+        case .convert:  .convert
+        case .withdraw: .withdraw
+        case .deposit:  .deposit
+        }
+    }
+}
+
+// MARK: - Search -
+
+extension Analytics {
+    /// The Chats search screen was shown.
+    static func searchOpened() {
+        track(SearchEvents.shared.opened())
+    }
+
+    /// A search result row was tapped, at the tap.
+    static func searchResultTapped(_ type: SearchResultType) {
+        track(SearchEvents.shared.resultTapped(resultType: type))
+    }
+}
+
+// MARK: - Payment Requests -
+
+extension Analytics {
+    /// `CreateRequest` returned, once per confirm. `amount` is the per-person amount and
+    /// `payerCount` the people asked, the creator excluded. `error` is nil on success.
+    static func paymentRequestCreated(payerCount: Int, amount: FiatAmount, error: Error?) {
+        track(
+            PaymentRequestEvents.shared.created(
+                payerCount: Int32(clamping: payerCount),
+                state: .from(error),
+                amount: amount.analyticsAmount,
+                error: nil
+            ),
+            error: error
+        )
+    }
+
+    /// The creator closed a request early and the call returned. `error` is nil on success.
+    static func paymentRequestClosed(error: Error?) {
+        track(PaymentRequestEvents.shared.closed(state: .from(error), error: nil), error: error)
     }
 }
 
 // MARK: - Token Transactions -
 
 extension Analytics {
-    /// `Mint` is the token being purchased; `Payment Mint` is the token the
-    /// buyer spent (USDF for reserves buys), taken from `exchangedFiat`.
-    /// A nil `targetMint` omits `Mint` — `exchangedFiat` is payment-denominated,
-    /// so no truthful substitute exists.
-    static func tokenPurchase(method: TokenTransactionEvent, targetMint: PublicKey?, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-            .paymentMint: exchangedFiat.mint.base58,
-            .fiat: exchangedFiat.nativeAmount.doubleValue,
-            .currency: exchangedFiat.currencyRate.currency.rawValue,
-        ]
-        if let targetMint {
-            properties[.mint] = targetMint.base58
-        }
-        track(event: method, properties: properties, error: error)
+    /// A buy submitted, sent as `Token Purchase With {method}`. `mint` is the token bought and
+    /// `amount` the net purchase in the user's currency, as Android sends it. `error` is nil
+    /// when the submit succeeded.
+    static func tokenPurchase(method: SharedCoreKit.PurchaseMethod, mint: PublicKey, amount: FiatAmount, error: Error?) {
+        track(
+            SwapEvents.shared.purchase(method: method, mint: mint.base58, amount: amount.analyticsAmount, error: nil),
+            error: error
+        )
     }
 
-    static func tokenSell(exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
-        let properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-            .mint: exchangedFiat.mint.base58,
-            .fiat: exchangedFiat.nativeAmount.doubleValue,
-            .currency: exchangedFiat.currencyRate.currency.rawValue,
-        ]
-        track(event: TokenTransactionEvent.sell, properties: properties, error: error)
+    /// A sell or convert submitted, sent as `Token Sell`. `mint` is the token sold, `amount` the
+    /// net amount and `fee` the fee, both in the user's currency, as Android sends them.
+    static func tokenSell(mint: PublicKey, amount: FiatAmount, fee: FiatAmount, error: Error?) {
+        track(
+            SwapEvents.shared.sell(mint: mint.base58, amount: amount.analyticsAmount, fee: fee.doubleValue, error: nil),
+            error: error
+        )
     }
 
 }
@@ -758,15 +1040,19 @@ extension Analytics {
 extension Analytics {
     /// `Mint` is the launched currency; `Payment Mint` is the token that paid
     /// the launch cost.
-    static func currencyLaunch(event: CurrencyLaunchEvent, launchedMint: PublicKey, paymentMint: PublicKey, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
-        let properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-            .mint: launchedMint.base58,
-            .paymentMint: paymentMint.base58,
-            .fiat: exchangedFiat.nativeAmount.doubleValue,
-            .currency: exchangedFiat.currencyRate.currency.rawValue,
-        ]
-        track(event: event, properties: properties, error: error)
+    static func currencyLaunch(method: LaunchMethod, launchedMint: PublicKey, paymentMint: PublicKey, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
+        track(
+            CurrencyLaunchEvents.shared.launched(
+                method: method,
+                state: successful ? .success : .failure,
+                mint: launchedMint.base58,
+                paymentMint: paymentMint.base58,
+                fiat: exchangedFiat.nativeAmount.doubleValue,
+                currency: exchangedFiat.currencyRate.currency.rawValue,
+                error: nil
+            ),
+            error: error
+        )
     }
 }
 
@@ -789,6 +1075,12 @@ extension Analytics {
         track(event: DeeplinkEvent.parse, properties: properties)
     }
 
+    /// A scanned QR code that isn't a Flipcash link, as Android's scanner reports it. Query and
+    /// fragment are stripped, so no token or key in them reaches analytics.
+    static func deeplinkParseFailed(url: URL) {
+        track(DeeplinkEvents.shared.parseFailed(url: url.sanitizedForAnalytics))
+    }
+
     static func deeplinkRouted(kind: DeepLinkAction.Kind, error: Error? = nil) {
         track(
             event: DeeplinkEvent.routed,
@@ -803,7 +1095,6 @@ extension Analytics {
 extension Analytics {
     enum Property: String {
 
-        case ownerPublicKey    = "Owner Public Key"
         case grabTime          = "Grab Time"
 
         case state             = "State"
@@ -820,10 +1111,6 @@ extension Analytics {
         case type              = "Type"
         case chatType          = "Chat Type"
         case error             = "Error"
-
-        case tier              = "Tier"
-        case zoom              = "Zoom"
-        case elapsed           = "Elapsed"
 
         case title             = "Title"
         case message           = "Message"

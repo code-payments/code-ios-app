@@ -34,10 +34,10 @@ struct PaymentRequestDetailsContent: Hashable {
     let amounts: String
     let statusLine: String
     let rows: [Row]
-    /// The viewer's unpaid share when they can pay it now; `nil` hides "Send <amount>".
+    /// The viewer's unpaid share when they can pay it now; `nil` hides "Pay <amount>".
     let payableShare: GroupPaymentRequest.Share?
-    /// "Send $20" for ``payableShare``.
-    let sendTitle: String?
+    /// "Pay $20" for ``payableShare``.
+    let payTitle: String?
     /// Whether the "•••" menu with Close Request shows.
     let canClose: Bool
     let isEnded: Bool
@@ -85,10 +85,10 @@ struct PaymentRequestDetailsContent: Hashable {
 
         if isOpen, !isCreator, hasPaymentIntent, let own = request.share(for: viewer), !own.isPaid {
             payableShare = own
-            sendTitle = "Send \(copy.shareText(own, of: request))"
+            payTitle = "Pay \(copy.shareText(own, of: request))"
         } else {
             payableShare = nil
-            sendTitle = nil
+            payTitle = nil
         }
     }
 }

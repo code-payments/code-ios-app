@@ -378,6 +378,8 @@ struct ConversationBottomBar: View {
     var onImagesDropped: ([NSItemProvider]) -> Void = { _ in }
     /// Where the reply strip's quoted photo loads its thumbnail from.
     var quoteThumbnailLocation: (ChatQuote.Kind) async -> ChatMediaLocation? = { _ in nil }
+    /// How the round `$` is drawn.
+    var cashButtonStyle: ComposerCashButtonStyle = .glass
 
     /// The curve the bar narrows and widens on as the keyboard goes and comes.
     private static let widthSpring = ChatMotion.barInset.animation
@@ -509,7 +511,7 @@ struct ConversationBottomBar: View {
                 // Over the row's other controls, which the attach panel floats across.
                 .zIndex(1)
                 if leadingControl == .cash, cashIsShown {
-                    ComposerCashButton(symbol: symbol, action: onSendCash)
+                    ComposerCashButton(symbol: symbol, style: cashButtonStyle, action: onSendCash)
                         // Rides the glass out of the field's trailing end and back into it, never
                         // seen inside the field: it shows once the bud is out and goes as it leaves.
                         .transition(.asymmetric(
@@ -1236,7 +1238,7 @@ struct ConversationComposer: View {
 
     var body: some View {
         let motion = AttachMotion(reduceMotion: reduceMotion)
-        let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.selection, axis: .vertical)
+        let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.fieldSelection, axis: .vertical)
             .font(Self.draftFont)
             .foregroundStyle(Color.textMain)
             .tint(.white)
@@ -1490,6 +1492,18 @@ struct ConversationComposer: View {
     }
 }
 
+/// How the composer's `$` is drawn.
+enum ComposerCashButtonStyle: Equatable {
+    /// Glass drawn by the bar, joined to the field's.
+    case glass
+    /// A blue circle over that glass, as the Group Money shell draws it (node 13729:670).
+    case blue
+
+    init(showsGroupMoney: Bool) {
+        self = showsGroupMoney ? .blue : .glass
+    }
+}
+
 /// The way out of an edit: the bar's leading control while the field holds an existing message,
 /// standing where Send Cash stands the rest of the time. Field-sized and glass, so the swap reads
 /// as the same control changing job rather than a foreign button arriving.
@@ -1497,6 +1511,7 @@ struct ConversationComposer: View {
 private struct ComposerCashButton: View {
 
     let symbol: String
+    var style: ComposerCashButtonStyle = .glass
     let action: () -> Void
 
     var body: some View {
@@ -1505,6 +1520,10 @@ private struct ComposerCashButton: View {
                 .font(.appTextXL)
                 .foregroundStyle(Color.textMain)
                 .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
+                // Over the bar's glass, so the bud still rides out of the field beneath it.
+                .background {
+                    if style == .blue { Circle().fill(Color.blue) }
+                }
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -1525,13 +1544,12 @@ private struct CancelEditButton: View {
                 .foregroundStyle(Color.textMain)
                 .frame(width: BarMetrics.contentHeight, height: BarMetrics.contentHeight)
                 // The glyph is the only drawn content, so without a shape the taps that land on the
-                // glass around it miss the button — the platter lights up (it is `.interactive`) and
-                // the edit stays open. The shape makes the whole pill the target.
-                .contentShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+                // rim around it miss the button and the edit stays open. The shape makes the whole
+                // circle the target.
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .glassBackground(cornerRadius: BarMetrics.cornerRadius)
-        .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+        .composerRim(in: Circle())
         .accessibilityLabel("Cancel editing")
         .accessibilityIdentifier("cancel-edit-button")
     }

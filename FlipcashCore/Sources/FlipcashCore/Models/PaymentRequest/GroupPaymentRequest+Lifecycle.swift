@@ -9,9 +9,6 @@ import Foundation
 
 extension GroupPaymentRequest {
 
-    /// How long an ended request stays in a chat's deck after it closed.
-    public static let deckRetention: TimeInterval = 24 * 60 * 60
-
     /// The status as of `now`: an OPEN request whose deadline has passed reads as EXPIRED.
     public func effectiveStatus(at now: Date) -> Status {
         switch status {
@@ -62,6 +59,24 @@ extension GroupPaymentRequest {
         return min(1, (paidNative / requested).doubleValue)
     }
 
+    /// The paid share of the total as of `date`, from 0 to 1: the creator's own share, which is paid
+    /// from creation, plus every share paid at or before `date`. `counting` is a member whose share
+    /// counts whatever its `paidAt`, for a payment this copy of the request doesn't show yet.
+    ///
+    /// Unlike ``paidFraction`` a COMPLETED request gets no shortcut to 1: this reads a moment in
+    /// the request's past.
+    public func paidFraction(asOf date: Date, counting payer: UserID? = nil) -> Double {
+        let requested = requestedNative
+        guard requested > 0 else { return 0 }
+        let paid = (split?.shares ?? []).filter { share in
+            if share.settlement == .creator { return true }
+            if let payer, share.userID == payer { return true }
+            guard share.isPaid, let paidAt = share.paidAt else { return false }
+            return paidAt <= date
+        }.reduce(Decimal.zero) { $0 + Decimal($1.nativeAmount) }
+        return min(1, (paid / requested).doubleValue)
+    }
+
     /// The share owed by `userID`, if any.
     public func share(for userID: UserID) -> Share? {
         split?.shares.first { $0.userID == userID }
@@ -82,6 +97,68 @@ extension GroupPaymentRequest {
     }
 }
 
+// MARK: - Live updates -
+
+extension GroupPaymentRequest {
+
+    /// What a batch of live updates did to a held copy.
+    public enum UpdateOutcome: Hashable, Sendable {
+        /// The batch is at or below the held version; the copy is unchanged.
+        case ignored
+        /// The batch applied; this is the new copy, at the batch's version.
+        case applied(GroupPaymentRequest)
+        /// The batch can't be trusted against this copy (a missed version, or an update it can't apply);
+        /// nothing was applied and the request needs a refetch.
+        case refetch
+    }
+
+    /// Applies one `updates` batch at `version` to this copy, by `PaymentRequestUpdate`'s rules.
+    ///
+    /// V <= L is ignored; V == L + 1 applies every update in order and sets the version to V; V > L + 1
+    /// asks for a refetch. A batch holding an update this copy can't apply (an unknown kind, a share
+    /// without a user or that the copy doesn't have, a status other than COMPLETED or CLOSED) applies
+    /// none of it and asks for a refetch.
+    public func applying(version: UInt64, updates: [DecodedPaymentRequestUpdate.Change.Update]) -> UpdateOutcome {
+        guard version > self.version else { return .ignored }
+        guard version == self.version + 1, let split else { return .refetch }
+
+        var shares = split.shares
+        var status = self.status
+        var closedAt = self.closedAt
+        for update in updates {
+            switch update {
+            case .sharePaid(let share):
+                guard let userID = share.userID, let index = shares.firstIndex(where: { $0.userID == userID }) else {
+                    return .refetch
+                }
+                shares[index] = share
+            case .statusChanged(let newStatus, let newClosedAt):
+                switch newStatus {
+                case .completed, .closed:
+                    status = newStatus
+                    // An update that leaves closedAt unset keeps the held copy's.
+                    closedAt = newClosedAt ?? closedAt
+                case .open, .expired, .unknown:
+                    return .refetch
+                }
+            case .unknown:
+                return .refetch
+            }
+        }
+
+        return .applied(GroupPaymentRequest(
+            id: id,
+            creator: creator,
+            createdAt: createdAt,
+            status: status,
+            closedAt: closedAt,
+            version: version,
+            chatID: chatID,
+            split: Split(text: split.text, currency: split.currency, endsAt: split.endsAt, shares: shares)
+        ))
+    }
+}
+
 // MARK: - Deadline -
 
 extension GroupPaymentRequest {
@@ -98,6 +175,9 @@ extension GroupPaymentRequest {
 
     /// The status line's state as of `now`. More than 24 hours left reads in days rounded up, so
     /// "1 day" never appears; 1–24 hours in hours rounded up; under an hour in minutes rounded up.
+    /// The days and hours bands forgive a 5-minute grace before rounding up: `endsAt` is the creator's
+    /// device clock plus the preset, so a viewer whose clock runs behind (or a screen that is a minute
+    /// stale) would otherwise read a fresh 7-day request as "8 days". Minutes get no grace.
     public func deadline(at now: Date) -> Deadline {
         switch effectiveStatus(at: now) {
         case .completed:          return .paidInFull
@@ -108,11 +188,12 @@ extension GroupPaymentRequest {
             let remaining = endsAt.timeIntervalSince(now)
             let hour: TimeInterval = 60 * 60
             let day: TimeInterval = 24 * hour
-            if remaining > day {
-                return .daysLeft(Int((remaining / day).rounded(.up)))
+            let grace: TimeInterval = 5 * 60
+            if remaining > day + grace {
+                return .daysLeft(Int(((remaining - grace) / day).rounded(.up)))
             }
             if remaining >= hour {
-                return .hoursLeft(Int((remaining / hour).rounded(.up)))
+                return .hoursLeft(min(24, max(1, Int(((remaining - grace) / hour).rounded(.up)))))
             }
             return .minutesLeft(max(1, Int((remaining / 60).rounded(.up))))
         }
@@ -131,33 +212,21 @@ extension GroupPaymentRequest {
     }
 
     /// The requests a chat's deck shows as of `now`, in deck order: open requests `viewer` owes on,
-    /// then other open requests, each by nearest deadline, then those that ended within
-    /// ``deckRetention``, most recently ended first.
+    /// then the other open requests, each by nearest deadline. A request that has ended is never in it.
     public static func deckOrder(_ requests: [GroupPaymentRequest], viewer: UserID? = nil, at now: Date) -> [GroupPaymentRequest] {
-        var open: [GroupPaymentRequest] = []
-        var ended: [(request: GroupPaymentRequest, closedAt: Date)] = []
-
-        for request in requests {
-            switch request.effectiveStatus(at: now) {
-            case .open:
-                open.append(request)
-            case .completed, .closed, .expired:
-                guard let closedAt = request.effectiveClosedAt(at: now),
-                      now.timeIntervalSince(closedAt) < deckRetention else { continue }
-                ended.append((request, closedAt))
-            case .unknown:
-                continue
+        requests
+            .filter { $0.effectiveStatus(at: now) == .open }
+            .sorted { lhs, rhs in
+                if let viewer {
+                    let lhsOwed = lhs.isOwed(by: viewer, at: now)
+                    if lhsOwed != rhs.isOwed(by: viewer, at: now) { return lhsOwed }
+                }
+                return (lhs.split?.endsAt ?? .distantFuture) < (rhs.split?.endsAt ?? .distantFuture)
             }
-        }
+    }
 
-        open.sort { lhs, rhs in
-            if let viewer {
-                let lhsOwed = lhs.isOwed(by: viewer, at: now)
-                if lhsOwed != rhs.isOwed(by: viewer, at: now) { return lhsOwed }
-            }
-            return (lhs.split?.endsAt ?? .distantFuture) < (rhs.split?.endsAt ?? .distantFuture)
-        }
-        ended.sort { $0.closedAt > $1.closedAt }
-        return open + ended.map(\.request)
+    /// The earliest deadline after `now` among `requests`, when the deck next loses a request on the clock.
+    public static func nextExpiry(of requests: [GroupPaymentRequest], after now: Date) -> Date? {
+        requests.compactMap(\.split?.endsAt).filter { $0 > now }.min()
     }
 }

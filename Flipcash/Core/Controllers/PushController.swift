@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import os
 import UniformTypeIdentifiers
 import FlipcashCore
 
@@ -43,6 +44,9 @@ class PushController {
         set { delegate.isArchived = newValue }
     }
 
+    /// The last `didFailToRegisterForRemoteNotifications` error this launch, for the report.
+    @ObservationIgnored private(set) var lastAPNsError: String?
+
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let client: FlipClient
     @ObservationIgnored private let center: UNUserNotificationCenter
@@ -50,7 +54,10 @@ class PushController {
 
     @ObservationIgnored private var apnsToken: Data?
     @ObservationIgnored private var uploadedFirebaseToken: String?
+    /// The token sent in the latest `AddToken` attempt, or `nil` when that attempt fetched none.
+    @ObservationIgnored private var attemptedFirebaseToken: String?
     @ObservationIgnored private var activeObserver: Any?
+    @ObservationIgnored private let registrationStore: NotificationRegistrationStore
 
     // MARK: - Init -
 
@@ -59,6 +66,7 @@ class PushController {
         self.client   = client
         self.center   = .current()
         self.delegate = NotificationDelegate()
+        self.registrationStore = NotificationRegistrationStore(owner: owner.publicKey)
 
         delegate.didReceiveFCMToken = { [weak self] token in
             try await self?.didReceiveFirebaseToken(token: token)
@@ -109,9 +117,16 @@ class PushController {
             try await didReceiveFirebaseToken(token: token)
         }
     }
+
+    /// Called by the app delegate when APNs registration fails. Kept for the status page's report.
+    func didFailToRegisterForRemoteNotifications(with error: Error) {
+        lastAPNsError = "\(error)"
+    }
     
     /// Deletes the FCM token from the server and unregisters from APNs.
     func prepareForLogout() {
+        registrationStore.clear()
+
         Task {
             guard uploadedFirebaseToken != nil else {
                 return
@@ -148,9 +163,79 @@ class PushController {
 
     /// Re-fetches the notification authorization status from the system.
     func refreshAuthorizationStatus() async {
-        authorizationStatus = await Self.fetchStatus()
+        authorizationStatus = await Self.fetchStatus().authorizationStatus
     }
-    
+
+    // MARK: - Notification Status -
+
+    /// The last recorded `AddToken` outcome for this account, from any call site.
+    var savedRegistration: NotificationStatus.RegistrationRecord? {
+        registrationStore.record
+    }
+
+    /// The last six characters of the token sent in the latest attempt, for the report.
+    var tokenSuffix: String? {
+        attemptedFirebaseToken.map { String($0.suffix(6)) }
+    }
+
+    /// Fetches the current FCM token and calls `AddToken` with it, whether or not this token was
+    /// already uploaded, so the status page sees a fresh answer. One
+    /// ``NotificationStatus/registrationTimeout`` covers the token delete, the fetch and `AddToken`.
+    ///
+    /// Saves the outcome only when a token was fetched, since otherwise `AddToken` never ran, and
+    /// saves nothing when the caller is cancelled.
+    func checkRegistration(deletingToken: Bool = false) async -> NotificationStatus.Registration {
+        let deadline = ContinuousClock.now + NotificationStatus.registrationTimeout
+        let messaging = Messaging.messaging()
+        if deletingToken {
+            do {
+                try await Self.withDeadline(deadline) { try await Messaging.messaging().deleteToken() }
+            } catch {
+                ErrorReporting.captureError(error, reason: "Failed to delete local FCM token")
+            }
+        }
+
+        let token: String
+        do {
+            token = try await Self.withDeadline(deadline) { try await Messaging.messaging().token() }
+        } catch {
+            guard !Task.isCancelled else { return .checking }
+            attemptedFirebaseToken = nil
+            if messaging.apnsToken == nil {
+                logger.warning("No APNs token for registration check", metadata: ["error": "\(error)"])
+                return .noAPNsToken
+            }
+            ErrorReporting.captureError(error, reason: "Failed to fetch FCM token for registration check")
+            return .finished(error is CancellationError ? .transport : .unknown)
+        }
+
+        guard let result = await upload(token: token, source: .statusPage, deadline: deadline) else {
+            return .checking
+        }
+        return .finished(result)
+    }
+
+    /// Asks Flipcash to send its test notification to every phone signed in to this account,
+    /// giving up after ``NotificationStatus/testTimeout``.
+    func sendTestPush() async -> NotificationStatus.TestResult {
+        do {
+            let client = client
+            let owner = owner
+            try await Self.withDeadline(.now + NotificationStatus.testTimeout) {
+                try await client.sendTestPush(owner: owner)
+            }
+            return .sent
+        } catch let error as ErrorSendTestPush {
+            ErrorReporting.captureError(error, reason: "Failed to send test push")
+            return .init(error)
+        } catch is CancellationError {
+            return .transport
+        } catch {
+            ErrorReporting.captureError(error, reason: "Failed to send test push")
+            return .failed
+        }
+    }
+
     // MARK: - Firebase -
     
     private func didReceiveFirebaseToken(token: String?) async throws {
@@ -161,13 +246,67 @@ class PushController {
         }
         
         if uploadedFirebaseToken != token {
-            try await client.addToken(
-                token: token,
-                installationID: try await Self.installationID(),
-                owner: owner
-            )
+            // A first upload this launch follows login or launch; any later one is a rotation.
+            let source: NotificationStatus.RegistrationSource = uploadedFirebaseToken == nil ? .login : .refresh
+            await upload(token: token, source: source, deadline: .now + NotificationStatus.registrationTimeout)
+        }
+    }
+
+    /// Calls `AddToken`, caches the token on success and records the outcome for this account.
+    /// Returns `nil`, saving nothing, when the caller was cancelled before it finished.
+    @discardableResult
+    private func upload(
+        token: String,
+        source: NotificationStatus.RegistrationSource,
+        deadline: ContinuousClock.Instant
+    ) async -> NotificationStatus.RegistrationResult? {
+        let result: NotificationStatus.RegistrationResult
+        do {
+            let client = client
+            let owner = owner
+            try await Self.withDeadline(deadline) {
+                try await client.addToken(
+                    token: token,
+                    installationID: try await Self.installationID(),
+                    owner: owner
+                )
+            }
             uploadedFirebaseToken = token // Cache uploaded token
-            
+            result = .ok
+        } catch let error as ErrorAddToken {
+            result = .init(error)
+            ErrorReporting.captureError(error, reason: "Failed to add push token", metadata: ["source": source.rawValue])
+        } catch is CancellationError {
+            result = .transport
+        } catch {
+            result = .unknown
+            ErrorReporting.captureError(error, reason: "Failed to add push token", metadata: ["source": source.rawValue])
+        }
+
+        // The page closed mid-run, which drops the run; a timeout cancels only the call.
+        guard !Task.isCancelled else { return nil }
+
+        attemptedFirebaseToken = token
+        registrationStore.save(result, source: source)
+        logger.info("Recorded push registration", metadata: ["source": "\(source.rawValue)", "result": "\(result.rawValue)"])
+        return result
+    }
+
+    /// Runs `operation`, throwing `CancellationError` at `deadline` or when the caller is
+    /// cancelled, even if `operation` ignores cancellation.
+    nonisolated static func withDeadline<T: Sendable>(
+        _ deadline: ContinuousClock.Instant,
+        _ operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        // A task group would wait for an operation that ignores cancellation, so the result is
+        // raced through one continuation and the loser is cancelled and left behind.
+        let race = DeadlineRace<T>()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                race.start(continuation, deadline: deadline, operation: operation)
+            }
+        } onCancel: {
+            race.finish(.failure(CancellationError()))
         }
     }
     
@@ -231,8 +370,8 @@ extension PushController {
         return granted
     }
     
-    static func fetchStatus() async -> UNAuthorizationStatus {
-        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    static func fetchStatus() async -> UNNotificationSettings {
+        await UNUserNotificationCenter.current().notificationSettings()
     }
     
     static func installationID() async throws -> String {
@@ -398,4 +537,71 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
 
 extension PushController {
     static let mock: PushController = PushController(owner: .mock, client: .mock)
+}
+
+// MARK: - DeadlineRace -
+
+/// Resumes one continuation with whichever of an operation, its deadline or the caller's
+/// cancellation finishes first, then cancels the rest.
+private nonisolated final class DeadlineRace<T: Sendable>: Sendable {
+
+    private struct State {
+        var continuation: CheckedContinuation<T, any Error>?
+        var result: Result<T, any Error>?
+        var tasks: [Task<Void, Never>] = []
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    func start(
+        _ continuation: CheckedContinuation<T, any Error>,
+        deadline: ContinuousClock.Instant,
+        operation: @escaping @Sendable () async throws -> T
+    ) {
+        // The caller may already be cancelled, in which case `finish` ran first.
+        let early = state.withLock { state in
+            if state.result == nil { state.continuation = continuation }
+            return state.result
+        }
+        if let early {
+            continuation.resume(with: early)
+            return
+        }
+
+        let work = Task {
+            do {
+                finish(.success(try await operation()))
+            } catch {
+                finish(.failure(error))
+            }
+        }
+        let timer = Task {
+            try? await Task.sleep(until: deadline, clock: .continuous)
+            finish(.failure(CancellationError()))
+        }
+        let isFinished = state.withLock { state in
+            if state.result == nil { state.tasks = [work, timer] }
+            return state.result != nil
+        }
+        if isFinished {
+            work.cancel()
+            timer.cancel()
+        }
+    }
+
+    /// Settles the race with `result` if it has not settled yet.
+    func finish(_ result: Result<T, any Error>) {
+        let winner = state.withLock { state -> (CheckedContinuation<T, any Error>?, [Task<Void, Never>])? in
+            guard state.result == nil else { return nil }
+            state.result = result
+            defer {
+                state.continuation = nil
+                state.tasks = []
+            }
+            return (state.continuation, state.tasks)
+        }
+        guard let (continuation, tasks) = winner else { return }
+        tasks.forEach { $0.cancel() }
+        continuation?.resume(with: result)
+    }
 }

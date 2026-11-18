@@ -55,8 +55,8 @@ enum ContractPackage: String, CaseIterable {
     /// The pinned version consumed when this package isn't building against a local checkout.
     var version: Version {
         switch self {
-        case .ocp: return "0.9.0"
-        case .flipcash2: return "0.23.0"
+        case .ocp: return "0.11.0"
+        case .flipcash2: return "0.27.0"
         }
     }
 

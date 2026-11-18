@@ -100,13 +100,21 @@ nonisolated extension Database {
 
             b.conversationID AS boostConversationID,
             b.messageID AS boostMessageID,
-            b.emoji AS boostEmoji
+            b.emoji AS boostEmoji,
+
+            r.conversationID AS requestConversationID,
+            r.paymentRequestID AS requestPaymentRequestID,
+
+            rp.conversationID AS returnConversationID,
+            rp.messageID AS returnMessageID
 
         FROM activity a
 
         LEFT JOIN cashLinkMetadata c ON c.id = a.id
         LEFT JOIN swapMetadata s ON s.id = a.id
         LEFT JOIN boostedReaction b ON b.id = a.id
+        LEFT JOIN requestedPayment r ON r.id = a.id
+        LEFT JOIN returnedPayment rp ON rp.id = a.id
 
         WHERE a.mint = ?
 
@@ -152,13 +160,21 @@ nonisolated extension Database {
 
             b.conversationID AS boostConversationID,
             b.messageID AS boostMessageID,
-            b.emoji AS boostEmoji
+            b.emoji AS boostEmoji,
+
+            r.conversationID AS requestConversationID,
+            r.paymentRequestID AS requestPaymentRequestID,
+
+            rp.conversationID AS returnConversationID,
+            rp.messageID AS returnMessageID
 
         FROM activity a
 
         LEFT JOIN cashLinkMetadata c ON c.id = a.id
         LEFT JOIN swapMetadata s ON s.id = a.id
         LEFT JOIN boostedReaction b ON b.id = a.id
+        LEFT JOIN requestedPayment r ON r.id = a.id
+        LEFT JOIN returnedPayment rp ON rp.id = a.id
 
         ORDER BY a.date DESC
         LIMIT ?;
@@ -199,7 +215,41 @@ nonisolated extension Database {
             date: row[a.date],
             metadata: metadata(for: kind, row: row),
             counterparty: Activity.Counterparty(userID: row[a.counterpartyUserID], phone: row[a.counterpartyPhone]),
-            boostedReaction: boostedReaction(from: row)
+            boostedReaction: boostedReaction(from: row),
+            requestedPayment: requestedPayment(from: row),
+            returnedPayment: returnedPayment(from: row)
+        )
+    }
+
+    /// Reads the joined `returnedPayment` columns, aliased in the SELECT. Both are NULL for a payment
+    /// that returned nothing.
+    private func returnedPayment(from row: RowIterator.Element) -> Activity.ReturnedPayment? {
+        guard
+            let conversationID = row[Expression<Data?>("returnConversationID")],
+            let messageID      = row[Expression<UInt64?>("returnMessageID")]
+        else {
+            return nil
+        }
+
+        return Activity.ReturnedPayment(
+            conversationID: ConversationID(data: conversationID),
+            messageID: MessageID(value: messageID)
+        )
+    }
+
+    /// Reads the joined `requestedPayment` columns, aliased in the SELECT. Both are NULL for a payment
+    /// that paid no request.
+    private func requestedPayment(from row: RowIterator.Element) -> Activity.RequestedPayment? {
+        guard
+            let conversationID   = row[Expression<Data?>("requestConversationID")],
+            let paymentRequestID = row[Expression<Data?>("requestPaymentRequestID")]
+        else {
+            return nil
+        }
+
+        return Activity.RequestedPayment(
+            conversationID: ConversationID(data: conversationID),
+            paymentRequestID: PaymentRequestID(data: paymentRequestID)
         )
     }
 
@@ -335,6 +385,36 @@ nonisolated extension Database {
                 )
             } else {
                 try writer.run(boostTable.table.filter(boostTable.id == activity.id).delete())
+            }
+
+            let requestTable = RequestedPaymentTable()
+            if let payment = activity.requestedPayment {
+                try writer.run(
+                    requestTable.table.upsert(
+                        requestTable.id               <- activity.id,
+                        requestTable.conversationID   <- payment.conversationID.data,
+                        requestTable.paymentRequestID <- payment.paymentRequestID.data,
+
+                        onConflictOf: requestTable.id,
+                    )
+                )
+            } else {
+                try writer.run(requestTable.table.filter(requestTable.id == activity.id).delete())
+            }
+
+            let returnTable = ReturnedPaymentTable()
+            if let payment = activity.returnedPayment {
+                try writer.run(
+                    returnTable.table.upsert(
+                        returnTable.id             <- activity.id,
+                        returnTable.conversationID <- payment.conversationID.data,
+                        returnTable.messageID      <- payment.messageID.value,
+
+                        onConflictOf: returnTable.id,
+                    )
+                )
+            } else {
+                try writer.run(returnTable.table.filter(returnTable.id == activity.id).delete())
             }
         }
     }

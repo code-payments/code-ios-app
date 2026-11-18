@@ -20,9 +20,9 @@ struct GRPCTransportTests {
         Network.mainNet.hostForPayments,
         Network.mainNet.hostForCore,
     ])
-    func makeTransportServicesDoesNotThrow(host: String) {
+    func makeClientDoesNotThrow(host: String) {
         #expect(throws: Never.self) {
-            _ = try GRPCTransport.makeTransportServices(host: host, port: Network.mainNet.port)
+            _ = try GRPCTransport.makeClient(host: host, port: Network.mainNet.port)
         }
     }
 }

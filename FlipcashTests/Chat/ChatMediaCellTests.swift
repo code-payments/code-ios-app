@@ -15,6 +15,15 @@ import Kingfisher
 @MainActor
 struct ChatMediaCellTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     private static let blurhash = "LEHV6nWB2yk8pyo0adR*.7kCMdnj"
     private static let remoteURL = URL(string: "https://example.com/a.jpg")!
     private static let pill = ReactionPill(emoji: "🔥", count: 1, selfReacted: false, pending: false)
@@ -41,13 +50,34 @@ struct ChatMediaCellTests {
             with: ChatMessage(id: "1", content: .media(media), sender: .other, reactions: [Self.pill], canReact: canReact),
             maxWidth: 240,
             localImage: localImage,
-            remote: remoteURL.map { ChatMediaLocation(url: $0) }
+            remote: remoteURL.map { ChatMediaLocation(url: $0, caches: caches) }
         )
         return cell
     }
 
     private func outgoing(id: String = "1", receipt: ChatReceipt? = nil) -> ChatMessage {
         ChatMessage(id: id, content: .media(media()), sender: .me, receipt: receipt)
+    }
+
+    // MARK: - Local image -
+
+    @Test("A staged image draws over white, so its transparency matches the flattened upload")
+    func localImageDrawsOverWhite() {
+        let cell = configuredCell(media(), localImage: UIImage(systemName: "photo"))
+        #expect(cell.imageView.backgroundColor == .white)
+    }
+
+    @Test("A downloaded photo draws over nothing, so its BlurHash shows while it loads")
+    func remoteImageDrawsOverNothing() {
+        let cell = configuredCell(media(), localImage: UIImage(systemName: "photo"))
+        cell.prepareForReuse()
+        cell.configure(
+            with: ChatMessage(id: "2", content: .media(media()), sender: .other, canReact: true),
+            maxWidth: 240,
+            localImage: nil,
+            remote: ChatMediaLocation(url: Self.remoteURL, caches: caches)
+        )
+        #expect(cell.imageView.backgroundColor == nil)
     }
 
     // MARK: - Send progress -
@@ -159,6 +189,138 @@ struct ChatMediaCellTests {
         let cell = configuredCell(media(caption: "hi"))
         #expect(cell.captionBubble.isHidden == false)
         #expect(captionText(cell)?.text == "hi")
+    }
+
+    // MARK: - Card stack -
+
+    private func stack(_ count: Int) -> ChatMediaContent {
+        let photos = (0..<count).map {
+            ChatMediaStackPhoto(
+                messageID: "\($0)", blobID: BlobID(data: Data([UInt8($0)])), width: 1179, height: 2556,
+                blurhash: Self.blurhash, isRedacted: false, sealed: nil, canReply: true, canForward: true
+            )
+        }
+        return ChatMediaContent(
+            blobID: BlobID(data: Data([0])), width: 1179, height: 2556, blurhash: Self.blurhash,
+            caption: nil, isRedacted: false, stackPhotos: count > 1 ? photos : []
+        )
+    }
+
+    private func stackCell(_ count: Int) -> ChatMediaCell {
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(with: ChatMessage(id: "0", content: .media(stack(count)), sender: .other), maxWidth: 240, localImage: nil, remote: nil)
+        cell.layoutIfNeeded()
+        return cell
+    }
+
+    @Test("A stack draws one back card per extra photo, two at most", arguments: [(1, 0), (2, 1), (3, 2), (5, 2)])
+    func backCardsPerPhoto(photos: Int, cards: Int) {
+        #expect(stackCell(photos).stackCards.filter { !$0.isHidden }.count == cards)
+    }
+
+    @Test("A stack still sending draws its picked images behind the front and its whole send's progress")
+    func pendingStackDrawsLocalImagesAndProgress() async {
+        let picked = UIImage()
+        let front = ChatPhotoSendProgress()
+        let back = ChatPhotoSendProgress()
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(
+            with: ChatMessage(id: "0", content: .media(stack(2)), sender: .other),
+            maxWidth: 240, localImage: nil, progress: front,
+            stackImages: ["1": picked], stackProgress: [back], remote: nil
+        )
+        #expect(cell.stackCards.first?.image === picked)
+
+        front.didUpload(BlobUploadProgress(sentBytes: 100, totalBytes: 100))
+        await waitFor { cell.progressOverlay.fraction == 0.5 }
+        #expect(cell.progressOverlay.fraction == 0.5)
+
+        back.didUpload(BlobUploadProgress(sentBytes: 50, totalBytes: 100))
+        await waitFor { cell.progressOverlay.fraction == 0.75 }
+        #expect(cell.progressOverlay.fraction == 0.75)
+    }
+
+    @Test("A stack outlines its cards and shadows its front photo; a single photo draws neither", arguments: [(1, false), (2, true), (3, true)])
+    func stackSeparation(photos: Int, separated: Bool) {
+        let cell = stackCell(photos)
+        #expect(cell.stackShadow.isHidden == !separated)
+        #expect(cell.stackOutline.isHidden == !separated)
+        for card in cell.stackCards where !card.isHidden {
+            #expect(card.layer.borderWidth == ChatMediaCell.stackOutlineWidth)
+        }
+    }
+
+    @Test("Every card in a stack clips its photo to its rounded shape, turned cards included", arguments: [2, 3])
+    func stackCardsClipToTheirShape(photos: Int) {
+        let cell = stackCell(photos)
+        #expect(cell.imageView.clipsToBounds)
+        for card in cell.stackCards where !card.isHidden {
+            #expect(card.clipsToBounds)
+            #expect(card.layer.cornerRadius == BubbleBackgroundView.baseRadius)
+            #expect(card.transform != .identity)
+        }
+    }
+
+    @Test("Two photos draw a single back card, never more cards than photos")
+    func twoPhotosDrawOneBackCard() {
+        let cell = stackCell(2)
+        #expect(cell.stackCards.filter { !$0.isHidden }.count == 1)
+        #expect(cell.stackCountLabel.text == "2 photos")
+    }
+
+    @Test("A stack draws in a square frame as wide as a single photo, whatever its photos' shape", arguments: [2, 3])
+    func stackFrameIsSquare(photos: Int) throws {
+        let cell = stackCell(photos)
+        let single = stackCell(1)
+        let photoFrame = try #require(cell.stackCards.first?.superview).bounds
+        let singleFrame = try #require(single.stackCards.first?.superview).bounds
+        #expect(photoFrame.width == singleFrame.width)
+        #expect(photoFrame.height == photoFrame.width, "\(photoFrame)")
+        #expect(singleFrame.height > singleFrame.width, "a single portrait photo keeps its 5:4 frame")
+        for card in cell.stackCards where !card.isHidden {
+            #expect(photoFrame.insetBy(dx: -0.5, dy: -0.5).contains(card.frame), "\(card.frame) in \(photoFrame)")
+        }
+    }
+
+    @Test("A stack's front photo fills its square frame's full height, so the row has no extra gap", arguments: [2, 3])
+    func stackKeepsFrameHeight(photos: Int) throws {
+        let stack = stackCell(photos)
+        let frame = try #require(stack.stackCards.first?.superview).bounds
+        #expect(stack.imageBubble.bounds.height == frame.height)
+        #expect(stack.imageBubble.bounds.width < frame.width)
+        #expect(stack.imageBubble.transform == .identity)
+    }
+
+    @Test("A fanned card, turned, just meets the frame's edges; flat fans need no room", arguments: [
+        CGSize(width: 240, height: 320), CGSize(width: 240, height: 120),
+    ])
+    func stackFanFillsFrame(frame: CGSize) throws {
+        let flat = try #require(ChatMediaCell.stackFan(in: frame, angle: 0))
+        #expect(flat.photo == frame && flat.card == frame)
+
+        let fan = try #require(ChatMediaCell.stackFan(in: frame, angle: ChatMediaCell.stackFanAngle))
+        #expect(fan.photo.height == frame.height)
+        #expect(fan.card.width == fan.photo.width && fan.card.height < frame.height)
+        let turned = CGRect(origin: .zero, size: fan.card)
+            .applying(CGAffineTransform(rotationAngle: ChatMediaCell.stackFanAngle))
+        #expect(abs(turned.width - frame.width) < 0.001 && abs(turned.height - frame.height) < 0.001)
+    }
+
+    @Test("An edited caption shows the text bubble's Edited marker; an unedited one does not", arguments: [true, false])
+    func editedCaptionShowsMarker(isEdited: Bool) {
+        let cell = ChatMediaCell(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        cell.configure(
+            with: ChatMessage(id: "1", content: .media(media(caption: "hi")), sender: .me, isEdited: isEdited),
+            maxWidth: 240,
+            localImage: nil,
+            remote: nil
+        )
+        let marker = Self.labels(in: cell.captionBubble).first { $0.text == "Edited" }
+        #expect(marker?.isHidden == !isEdited)
+    }
+
+    private static func labels(in view: UIView) -> [UILabel] {
+        view.subviews.flatMap { ($0 as? UILabel).map { [$0] } ?? [] + labels(in: $0) }
     }
 
     @Test("A caption's mentions are drawn as pills on the caption's pill layer")
@@ -456,9 +618,9 @@ struct ChatMediaCellTests {
     @Test("A photo caches under its blob, so a freshly signed URL reuses the download")
     func cachesUnderBlob() {
         let blobID = BlobID(data: Data([1]))
-        let first = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!))
-        let second = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=2")!))
-        let other = ChatMediaImageSource.source(blobID: BlobID(data: Data([2])), location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!))
+        let first = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!, caches: caches))
+        let second = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=2")!, caches: caches))
+        let other = ChatMediaImageSource.source(blobID: BlobID(data: Data([2])), location: ChatMediaLocation(url: URL(string: "https://cdn.example.com/a.jpg?sig=1")!, caches: caches))
 
         #expect(first.cacheKey == second.cacheKey)
         #expect(first.cacheKey != other.cacheKey)
@@ -469,8 +631,8 @@ struct ChatMediaCellTests {
     func encryptedPhotoCachesUnderBlob() {
         let blobID = BlobID(data: Data([1]))
         let url = URL(string: "https://cdn.example.com/a.bin?sig=1")!
-        let plain = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url))
-        let sealed = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url) { $0 })
+        let plain = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url, caches: caches))
+        let sealed = ChatMediaImageSource.source(blobID: blobID, location: ChatMediaLocation(url: url, caches: caches) { $0 })
 
         #expect(sealed.cacheKey == plain.cacheKey)
         guard case .provider = sealed else {
@@ -486,15 +648,13 @@ struct ChatMediaCellTests {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
 
         await withCheckedContinuation { continuation in
-            ChatMediaImageSource.persist(image, cacheType: .none, forKey: key, processor: processor) {
+            ChatMediaImageSource.persist(image, cacheType: .none, forKey: key, processor: processor, in: caches) {
                 continuation.resume()
             }
         }
 
-        let cache = ChatMediaImageSource.cache
-        cache.clearMemoryCache()
-        #expect(cache.imageCachedType(forKey: key, processorIdentifier: processor.identifier) == .disk)
-        try? await cache.removeImage(forKey: key, processorIdentifier: processor.identifier)
+        caches.images.clearMemoryCache()
+        #expect(caches.images.imageCachedType(forKey: key, processorIdentifier: processor.identifier) == .disk)
     }
 
     @Test("A photo already served from a cache is not written again")
@@ -502,16 +662,16 @@ struct ChatMediaCellTests {
         let key = "chat-media-test-\(UUID().uuidString)"
         let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
 
-        ChatMediaImageSource.persist(image, cacheType: .memory, forKey: key, processor: nil)
+        ChatMediaImageSource.persist(image, cacheType: .memory, forKey: key, processor: nil, in: caches)
 
-        #expect(!ChatMediaImageSource.cache.imageCachedType(forKey: key).cached)
+        #expect(!caches.images.imageCachedType(forKey: key).cached)
     }
 
     // MARK: - Encrypted -
 
     /// A cell drawing an encrypted photo whose blob is a local file and whose decryption is `decrypt`.
     private func encryptedCell(decrypt: @escaping @Sendable (Data) throws -> Data) throws -> ChatMediaCell {
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("chat-media-\(UUID().uuidString)")
+        let file = folder.url.appending(path: "blob-\(UUID().uuidString)")
         try Data([1, 2, 3]).write(to: file)
         let media = ChatMediaContent(
             blobID: BlobID(data: Data(UUID().uuidString.utf8)),
@@ -527,7 +687,7 @@ struct ChatMediaCellTests {
             with: ChatMessage(id: "1", content: .media(media), sender: .other, reactions: [], canReact: true),
             maxWidth: 240,
             localImage: nil,
-            remote: ChatMediaLocation(url: file, decrypt: decrypt)
+            remote: ChatMediaLocation(url: file, caches: caches, decrypt: decrypt)
         )
         return cell
     }

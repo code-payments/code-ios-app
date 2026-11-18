@@ -8,7 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// The first row under the chips, shown whenever a chat is archived. Its trailing count is the
-/// unread, non-muted archived chats, in the secondary colour so it does not read as a badge.
+/// unread archived chats (muted included), in the secondary colour so it does not read as a badge.
 struct ArchivedRow: View {
 
     let count: Int
@@ -45,10 +45,20 @@ struct ArchivedRow: View {
 extension ToastController.Toast {
     /// "Chat archived", with an Undo that runs `undo`.
     static func archivedChat(undo: @escaping () -> Void) -> Self {
+        archivedChats(count: 1, undo: undo)
+    }
+
+    /// "Chat archived" for one chat, "%d chats archived" for more, with one Undo that runs `undo`.
+    static func archivedChats(count: Int, undo: @escaping () -> Void) -> Self {
         .init(
-            "Chat archived",
+            archivedChatsTitle(count: count),
             systemImage: "archivebox",
             action: .init("Undo", accessibilityIdentifier: "chat-archive-undo", handler: undo)
         )
+    }
+
+    /// The archive toast's text for `count` chats.
+    static func archivedChatsTitle(count: Int) -> String {
+        count == 1 ? "Chat archived" : "\(count) chats archived"
     }
 }

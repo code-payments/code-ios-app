@@ -280,7 +280,7 @@ final class SendAmountViewModel {
 
     private func syncGlobalTokenSelection(to balance: ExchangedBalance) {
         guard ratesController.selectedTokenMint != balance.stored.mint else { return }
-        ratesController.selectToken(balance.stored.mint)
+        ratesController.selectToken(balance.stored.mint, source: .automatic)
     }
 
     // MARK: - Action -
@@ -438,7 +438,7 @@ final class SendAmountViewModel {
             // is the single source for whether this reports as a tip, so the
             // wire `action` and the analytics event never drift apart.
             let chat = chatPaymentMetadata()
-            let transferEvent: Analytics.TransferEvent = (chat?.isTip ?? false) ? .sentTip : .sentCash
+            let isTip = chat?.isTip ?? false
 
             do {
                 try await sender.send(
@@ -447,10 +447,18 @@ final class SendAmountViewModel {
                     to: recipient,
                     chat: chat
                 )
-                Analytics.transfer(event: transferEvent, exchangedFiat: amountToSend, grabTime: nil, successful: true, error: nil)
+                if isTip {
+                    Analytics.transfer(event: .sentTip, exchangedFiat: amountToSend, grabTime: nil, successful: true, error: nil)
+                } else {
+                    Analytics.sentCash(exchangedFiat: amountToSend, context: .direct, error: nil)
+                }
                 return .success
             } catch {
-                Analytics.transfer(event: transferEvent, exchangedFiat: amountToSend, grabTime: nil, successful: false, error: error)
+                if isTip {
+                    Analytics.transfer(event: .sentTip, exchangedFiat: amountToSend, grabTime: nil, successful: false, error: error)
+                } else {
+                    Analytics.sentCash(exchangedFiat: amountToSend, context: .direct, error: error)
+                }
                 showSendError()
                 return .failed
             }
@@ -637,9 +645,14 @@ final class SendAmountViewModel {
         )
     }
 
+    /// The balances the currency picker offers.
+    var paymentOptions: [ExchangedBalance] {
+        ratesController.paymentOptions(session: session)
+    }
+
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        ratesController.selectToken(exchangedBalance.stored.mint)
+        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
         enteredAmount = ""
         // The warmed proof was for the previous token (and a launchpad mint also
         // needs its own reserve proof) — drop it so submission re-warms/polls.

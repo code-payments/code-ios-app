@@ -24,6 +24,7 @@ public final class ChatNotificationClient: Sendable {
     private let resolverService: ResolverService
     private let profileService: ProfileService
     private let paymentRequestService: PaymentRequestService
+    private let blobService: BlobService
     private let coreClient: GRPCClient<AppTransport>
     /// The core client's connection loop; retained for its lifetime — dropping it makes the client
     /// inert and every RPC hangs.
@@ -37,10 +38,7 @@ public final class ChatNotificationClient: Sendable {
         // Messaging is served by the core host. The payments host (mint metadata) is reached by a
         // transient client in `fetchMintMetadata`, not a resident connection — a content extension's
         // memory budget can't carry a second connection open for its whole lifetime.
-        let coreClient = GRPCClient(
-            transport: try GRPCTransport.makeTransportServices(host: network.hostForCore, port: network.port),
-            interceptors: [UserAgentClientInterceptor()]
-        )
+        let coreClient = try GRPCTransport.makeClient(host: network.hostForCore, port: network.port)
         self.coreClient = coreClient
         self.coreConnectionTask = Task {
             do { try await coreClient.runConnections() }
@@ -51,6 +49,7 @@ public final class ChatNotificationClient: Sendable {
         self.resolverService = ResolverService(client: coreClient)
         self.profileService = ProfileService(client: coreClient)
         self.paymentRequestService = PaymentRequestService(client: coreClient)
+        self.blobService = BlobService(client: coreClient)
     }
 
     deinit {
@@ -159,6 +158,24 @@ public final class ChatNotificationClient: Sendable {
         )
     }
 
+    // MARK: - Photos -
+
+    /// A freshly minted download URL for a photo in `conversationID`'s messages, with its size and
+    /// expiry; nil when the server has none to give.
+    public func blobDownloadLink(blobID: BlobID, in conversationID: ConversationID, owner: KeyPair) async throws -> BlobDownloadLink? {
+        try await blobService.downloadLink(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+    }
+
+    /// The decryption for `conversationID`'s sealed photos, or nil when this extension can't open the
+    /// chat's key: the chat or a key can't be fetched, or the viewer joined the group by invite,
+    /// whose key copy only the app opens.
+    public func blobDecrypt(in conversationID: ConversationID, owner: KeyPair, selfUserID: UserID) async -> ChatPhotoPushPrefetcher.Decrypt? {
+        guard let conversation = try? await getChat(owner: owner, conversationID: conversationID),
+              case .seal(let seal) = await keyring(owner: owner, selfUserID: selfUserID).opener(for: conversation)
+        else { return nil }
+        return { try seal.decryptBlob($0, blobID: $1, sealed: $2) }
+    }
+
     // MARK: - Encryption -
 
     /// `messages` with those in an encrypted DM decrypted or marked with why they couldn't be. When
@@ -241,6 +258,31 @@ public final class ChatNotificationClient: Sendable {
         }
     }
 
+    /// The messages changed since `afterSequence`, capped at about `limit` and at `deadline`; nil
+    /// when the deadline passes first.
+    ///
+    /// Unlike the app's catch-up, this one has a deadline: an extension has seconds, and a delta it
+    /// cannot finish is left to the app, which resumes from the cursor this one didn't advance.
+    public func getDelta(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        limit: Int,
+        deadline: Duration
+    ) async throws -> ChatDeltaPage? {
+        try await withThrowingTaskGroup(of: ChatDeltaPage?.self) { group in
+            group.addTask { [messagingService] in
+                try await messagingService.getDeltaPage(owner: owner, conversationID: conversationID, afterSequence: afterSequence, limit: limit)
+            }
+            group.addTask {
+                try await Task.sleep(for: deadline)
+                return nil
+            }
+            defer { group.cancelAll() }
+            return try await group.next() ?? nil
+        }
+    }
+
     /// Sends a text message, encrypted with `seal` when set, and returns the server-confirmed
     /// `ConversationMessage`. `clientMessageID` must stay stable across retries so the server dedups
     /// the send — generate it once at the call site.
@@ -276,10 +318,7 @@ public final class ChatNotificationClient: Sendable {
         guard !mints.isEmpty else { return [:] }
         // A transient payments connection: opened for this fetch and torn down after, so it never
         // sits resident alongside the core connection in the extension's memory budget.
-        let paymentsClient = GRPCClient(
-            transport: try GRPCTransport.makeTransportServices(host: paymentsHost, port: port),
-            interceptors: [UserAgentClientInterceptor()]
-        )
+        let paymentsClient = try GRPCTransport.makeClient(host: paymentsHost, port: port)
         let connectionTask = Task {
             do { try await paymentsClient.runConnections() }
             catch { logger.error("Payments connection loop terminated", metadata: ["error": "\(error)"]) }

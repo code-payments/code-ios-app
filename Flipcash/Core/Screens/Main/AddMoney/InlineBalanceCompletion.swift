@@ -59,20 +59,33 @@ struct InlineBalanceCompletion {
     let target: FiatAmount
     var window: Duration = InlineCompletion.window
     var interval: Duration = InlineCompletion.pollInterval
+    /// The clock that measures the window and paces the polls.
+    var clock: any Clock<Duration> = ContinuousClock()
 
     func awaitOutcome() async -> Outcome {
-        let deadline = ContinuousClock.now.advanced(by: window)
-        while true {
+        let settled = await clock.poll(window: window, interval: interval) {
             settlement.updateBalance()
-            if let current = settlement.balance(for: .usdf)?.usdf, current >= target {
-                return .succeeded
-            }
-            guard ContinuousClock.now < deadline else { return .pending }
+            guard let current = settlement.balance(for: .usdf)?.usdf else { return false }
+            return current >= target
+        }
+        // A cancelled wait also lands here: the deposit is already submitted, so it is not a failure.
+        return settled ? .succeeded : .pending
+    }
+}
+
+private extension Clock where Duration == Swift.Duration {
+    /// Runs `check` every `interval` until it holds or `window` has passed on this clock; false
+    /// when the window closes or the wait is cancelled first.
+    @MainActor
+    func poll(window: Duration, interval: Duration, until check: @MainActor () -> Bool) async -> Bool {
+        let deadline = now.advanced(by: window)
+        while true {
+            if check() { return true }
+            guard now < deadline else { return false }
             do {
-                try await Task.sleep(for: interval)
+                try await sleep(for: interval)
             } catch {
-                // The deposit is already submitted, so a cancelled wait is not a failure.
-                return .pending
+                return false
             }
         }
     }

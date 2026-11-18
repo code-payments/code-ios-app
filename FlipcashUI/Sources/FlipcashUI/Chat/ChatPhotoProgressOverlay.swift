@@ -31,6 +31,7 @@ final class ChatPhotoProgressOverlay: UIView {
     private let segment = UIView()
 
     private var progress: ChatPhotoSendProgress?
+    private var behind: [ChatPhotoSendProgress?] = []
     /// Set while the row is failed, which hides the bar whatever the progress says.
     private var suppressed = false
     /// Bumped on every bind, so an observation armed for an earlier row is dropped.
@@ -87,20 +88,24 @@ final class ChatPhotoProgressOverlay: UIView {
         if isIndeterminate, segment.layer.animation(forKey: Self.slideKey) == nil { startSliding() }
     }
 
-    /// Follows `progress`, or shows nothing when it is nil. `animated` is false for a row the
-    /// overlay was not already drawing, so a recycled cell never fades another row's state.
-    func bind(_ progress: ChatPhotoSendProgress?, suppressed: Bool, animated: Bool) {
+    /// Follows `progress`, or shows nothing when it is nil. `behind` is the progress of the photos
+    /// behind a stack's front, nil for one already confirmed: the overlay then follows the whole
+    /// send (``ChatPhotoSendProgress/combined(_:)``). `animated` is false for a row the overlay was
+    /// not already drawing, so a recycled cell never fades another row's state.
+    func bind(_ progress: ChatPhotoSendProgress?, behind: [ChatPhotoSendProgress?] = [], suppressed: Bool, animated: Bool) {
         generation += 1
         self.progress = progress
+        self.behind = behind
         self.suppressed = suppressed
         render(animated: animated)
         observe(generation: generation)
     }
 
     private func observe(generation armed: Int) {
-        guard let progress else { return }
+        let tracked = ([progress] + behind).compactMap { $0 }
+        guard !tracked.isEmpty else { return }
         withObservationTracking {
-            _ = progress.phase
+            for progress in tracked { _ = progress.phase }
         } onChange: { [weak self] in
             // Fires before the new value is readable; render once it has landed.
             Task { @MainActor [weak self] in
@@ -112,7 +117,9 @@ final class ChatPhotoProgressOverlay: UIView {
     }
 
     private func render(animated: Bool) {
-        let phase = suppressed ? nil : progress?.phase
+        let phase = suppressed ? nil : behind.isEmpty
+            ? progress?.phase
+            : ChatPhotoSendProgress.combined(([progress] + behind).map { $0?.phase })
         let animated = animated && window != nil
 
         let target: (show: Bool, fraction: CGFloat, indeterminate: Bool)

@@ -92,3 +92,150 @@ struct CurrencyInfoViewModelTests {
         try await waitUntil(viewModel) { $0.mintMetadata?.supplyFromBonding == 999 }
     }
 }
+
+@MainActor
+@Suite("CurrencyInfoViewModel community leader")
+struct CurrencyInfoViewModelCommunityLeaderTests {
+
+    private static let leaderID = UUID()
+
+    private static func leader(displayName: String? = "Jeff Yanta", username: String? = "jeff", userID: UserID? = leaderID) -> Profile {
+        Profile(
+            displayName: displayName,
+            phone: Optional<Phone>.none,
+            email: nil,
+            userID: userID,
+            username: username.flatMap(Username.init)
+        )
+    }
+
+    private static func chat() -> Conversation {
+        Conversation(id: .test(1), members: [], lastMessage: nil, lastActivity: .now, type: .group)
+    }
+
+    private func makeViewModel(
+        mint: PublicKey = MintMetadata.makeLaunchpad().address,
+        fetcher: MockSession
+    ) -> CurrencyInfoViewModel {
+        let database = Database.mock
+        let ratesController = RatesController(container: .mock, database: database)
+        return CurrencyInfoViewModel(
+            mint: mint,
+            session: Session.makeMock(database: database, ratesController: ratesController),
+            database: database,
+            ratesController: ratesController,
+            communityFetcher: fetcher
+        )
+    }
+
+    @Test("A leader with a name, username, photo and user id is shown alongside the chats")
+    func leaderWithChats_isShown() async {
+        let fetcher = MockSession()
+        fetcher.fetchCommunityHandler = { mint in
+            Community(mint: mint, name: "Jeffy", leader: Self.leader(), topHolderChats: [Self.chat()])
+        }
+        let viewModel = makeViewModel(fetcher: fetcher)
+
+        await viewModel.loadCommunityChats()
+
+        #expect(viewModel.communityLeader == Self.leader())
+        #expect(viewModel.communityLeader?.userID == Self.leaderID)
+        #expect(viewModel.communityChats.count == 1)
+    }
+
+    @Test("A leader is shown when there are no ranked chats")
+    func leaderWithoutChats_isShown() async {
+        let fetcher = MockSession()
+        fetcher.fetchCommunityHandler = { mint in
+            Community(mint: mint, name: "Jeffy", leader: Self.leader(), topHolderChats: [])
+        }
+        let viewModel = makeViewModel(fetcher: fetcher)
+
+        await viewModel.loadCommunityChats()
+
+        #expect(viewModel.communityLeader == Self.leader())
+        #expect(viewModel.communityChats.isEmpty)
+    }
+
+    @Test("No leader on the community shows no section")
+    func leaderUnset_isHidden() async {
+        let fetcher = MockSession()
+        fetcher.fetchCommunityHandler = { mint in
+            Community(mint: mint, name: "Jeffy", leader: nil, topHolderChats: [Self.chat()])
+        }
+        let viewModel = makeViewModel(fetcher: fetcher)
+
+        await viewModel.loadCommunityChats()
+
+        #expect(viewModel.communityLeader == nil)
+    }
+
+    @Test("A leader without a display name counts as no leader", arguments: [nil, ""] as [String?])
+    func leaderWithoutDisplayName_isHidden(displayName: String?) async {
+        let fetcher = MockSession()
+        fetcher.fetchCommunityHandler = { mint in
+            Community(mint: mint, name: "Jeffy", leader: Self.leader(displayName: displayName), topHolderChats: [])
+        }
+        let viewModel = makeViewModel(fetcher: fetcher)
+
+        await viewModel.loadCommunityChats()
+
+        #expect(viewModel.communityLeader == nil)
+    }
+
+    @Test("A failed GetCommunity clears a leader shown earlier")
+    func fetchFails_clearsLeader() async {
+        let fetcher = MockSession()
+        fetcher.fetchCommunityHandler = { mint in
+            Community(mint: mint, name: "Jeffy", leader: Self.leader(), topHolderChats: [Self.chat()])
+        }
+        let viewModel = makeViewModel(fetcher: fetcher)
+        await viewModel.loadCommunityChats()
+        #expect(viewModel.communityLeader != nil)
+
+        fetcher.fetchCommunityHandler = { _ in throw URLError(.notConnectedToInternet) }
+        await viewModel.loadCommunityChats()
+
+        #expect(viewModel.communityLeader == nil)
+        #expect(viewModel.communityChats.isEmpty)
+    }
+
+    @Test("USDF shows no leader and makes no GetCommunity call")
+    func usdf_skipsFetch() async {
+        let fetcher = MockSession()
+        var calls = 0
+        fetcher.fetchCommunityHandler = { mint in
+            calls += 1
+            return Community(mint: mint, name: "USDF", leader: Self.leader(), topHolderChats: [Self.chat()])
+        }
+        let viewModel = makeViewModel(mint: .usdf, fetcher: fetcher)
+
+        await viewModel.loadCommunityChats()
+
+        #expect(calls == 0)
+        #expect(viewModel.communityLeader == nil)
+        #expect(viewModel.communityChats.isEmpty)
+    }
+}
+
+@Suite("CommunityLeader row text")
+struct CommunityLeaderTextTests {
+
+    private static func leader(username: String?) -> Profile {
+        Profile(displayName: "Jeff Yanta", phone: Optional<Phone>.none, email: nil, username: username.flatMap(Username.init))
+    }
+
+    @Test("The subtitle is the @username, or nothing without one")
+    func subtitle() {
+        #expect(CommunityLeader.subtitle(for: Self.leader(username: "jeff")) == "@jeff")
+        #expect(CommunityLeader.subtitle(for: Self.leader(username: nil)) == nil)
+    }
+
+    @Test("The label says the row opens the profile only when it can")
+    func accessibilityLabel() {
+        let leader = Self.leader(username: "jeff")
+        #expect(CommunityLeader.accessibilityLabel(for: leader, isTappable: true) == "Community Leader, Jeff Yanta, @jeff. Opens profile.")
+        #expect(CommunityLeader.accessibilityLabel(for: leader, isTappable: false) == "Community Leader, Jeff Yanta, @jeff")
+        #expect(CommunityLeader.accessibilityLabel(for: Self.leader(username: nil), isTappable: false) == "Community Leader, Jeff Yanta")
+    }
+}

@@ -51,6 +51,7 @@ private struct UserProfileContent: View {
     @Environment(ConversationController.self) private var conversationController
     @Environment(BlocklistController.self) private var blocklistController
     @Environment(ToastController.self) private var toasts
+    @Environment(Container.self) private var container
 
     let origin: UserProfileOrigin
 
@@ -60,6 +61,9 @@ private struct UserProfileContent: View {
     @State private var dialogItem: DialogItem?
     @State private var isPickingMuteDuration = false
     @State private var isReporting = false
+    @State private var silenceTarget: ModerationTarget?
+    /// Whether the group's host actions apply, answered alongside the profile load.
+    @State private var rosterReadFailed = false
     @State private var startChattingRequest: StartChattingRequest?
     @State private var postPayment = PostPaymentChat()
     /// Where this screen sits in its stack, recorded when it first appears.
@@ -117,6 +121,40 @@ private struct UserProfileContent: View {
     private var menuItems: [ProfileMenuItem] {
         guard !isSelf else { return [] }
         return ProfileMenuItems.resolve(isBlocked: isBlocked, hasDM: dmID != nil)
+    }
+
+    /// The group this profile was opened from, when the viewer can moderate it.
+    private var moderationGroup: Conversation? {
+        guard case .groupMember(let id) = origin else { return nil }
+        return conversationController.conversation(withID: id)
+    }
+
+    /// What the roster says about this person in the group the profile opened from. The "In <group>"
+    /// items show disabled until it confirms them, and a non-member gets none.
+    private var membership: MembershipCheck {
+        let held = sessionContainer.groupRosters.membership(of: model.userID, in: moderationGroup)
+        return held == .pending && rosterReadFailed ? .failed : held
+    }
+
+    private var moderationItems: [ProfileMenuItem] {
+        // A private group's section waits for the roster to confirm the person is still a member.
+        guard let group = moderationGroup, let state = group.viewerState, membership != .notMember else { return [] }
+        return ProfileMenuItems.moderation(
+            canSilence: state.canSilence,
+            canBan: state.canBan,
+            isCreator: group.creator == model.userID,
+            isSelf: isSelf
+        )
+    }
+
+    private var moderationTarget: ModerationTarget? {
+        guard let group = moderationGroup else { return nil }
+        return ModerationTarget(
+            conversationID: group.id,
+            userID: model.userID,
+            firstName: GroupModerationCopy.firstName(of: model.displayName),
+            groupName: group.title ?? "this group"
+        )
     }
 
     /// Whether this profile is the visible top of its stack, with its tab or sheet active.
@@ -196,7 +234,7 @@ private struct UserProfileContent: View {
         }
         // The system bar carries back and the overflow menu, and the soft edge the banner scrolls under.
         .toolbar {
-            if !menuItems.isEmpty {
+            if !menuItems.isEmpty || !moderationItems.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     overflowMenu
                 }
@@ -216,6 +254,7 @@ private struct UserProfileContent: View {
             }
         }
         .dialog(item: $dialogItem)
+        .silenceUserSheet($silenceTarget)
         .tray(isPresented: $isPickingMuteDuration) {
             if let dmID {
                 MuteChatSheet(conversationID: dmID, isPresented: $isPickingMuteDuration)
@@ -250,6 +289,12 @@ private struct UserProfileContent: View {
         }
         .onAppear {
             if position == nil { position = router.positionOfTopmost() }
+        }
+        .task(id: moderationGroup?.id) {
+            guard let group = moderationGroup else { return }
+            guard membership == .pending else { return }
+            let answer = await sessionContainer.groupRosters.checkMembership(of: model.userID, in: group)
+            rosterReadFailed = answer == .failed
         }
         .task {
             await model.loadProfile()
@@ -293,7 +338,20 @@ private struct UserProfileContent: View {
                 }
                 // Menu icons follow the app's white tint while the title follows the role, so a
                 // destructive entry's icon is tinted red to match its title.
-                .tint(item.isDestructive ? .red : nil)
+                .tint(item.isDestructive ? Color.textError : nil)
+            }
+            if !moderationItems.isEmpty {
+                Section(moderationGroup?.title.map { "In \($0)" } ?? "In this group") {
+                    ForEach(moderationItems, id: \.title) { item in
+                        Button(role: item.isDestructive ? .destructive : nil) {
+                            perform(item)
+                        } label: {
+                            Label(item.title, systemImage: item.systemImage)
+                        }
+                        .tint(item.isDestructive ? Color.textError : nil)
+                        .disabled(membership != .confirmed)
+                    }
+                }
             }
         } label: {
             Image.system(.ellipsis)
@@ -312,6 +370,7 @@ private struct UserProfileContent: View {
     }
 
     private func perform(_ item: ProfileMenuItem) {
+        Analytics.profileMenuAction(for: item)
         switch item {
         case .mute:
             isPickingMuteDuration = true
@@ -321,6 +380,18 @@ private struct UserProfileContent: View {
             dialogItem = blockDialog()
         case .unblock:
             Task { await model.unblock() }
+        case .silence:
+            silenceTarget = moderationTarget
+        case .removeFromGroup:
+            guard let target = moderationTarget else { return }
+            let moderation = GroupModeration(moderation: container.flipClient, owner: sessionContainer.session.ownerKeyPair, conversationID: target.conversationID, didRemove: { [rosters = sessionContainer.groupRosters] in rosters.remove($0, from: target.conversationID) })
+            dialogItem = target.removeDialog(moderation: moderation) { error in
+                sessionContainer.session.dialogItem = .error(
+                    title: "Something Went Wrong",
+                    subtitle: "We were unable to remove \(target.firstName). Please try again"
+                )
+                ErrorReporting.captureError(error, reason: "Failed to remove user")
+            }
         }
     }
 
@@ -349,6 +420,7 @@ private struct UserProfileContent: View {
     }
 
     private func tapPinned() {
+        Analytics.profilePinnedButtonTapped(for: pinnedAction)
         switch pinnedAction {
         case .none:
             break
@@ -404,8 +476,9 @@ private struct UserProfileContent: View {
 nonisolated enum UserProfileOrigin: Hashable {
     /// The title or card of the DM with this person.
     case directMessage
-    /// Their face in a group transcript.
-    case groupMember
+    /// Their face in a group transcript or its member list. Carries the group, since the host's
+    /// Silence and Remove act on that group only.
+    case groupMember(ConversationID)
     /// Their `@handle` or person link card tapped in a message, in a chat that is not a DM with them.
     case mention
     /// A `flipcash.com/<handle>` or `flipcash.com/<userId>` link opened into the app.
@@ -418,6 +491,8 @@ nonisolated enum UserProfileOrigin: Hashable {
     case transaction
     /// A request to join a private group the user hosts.
     case joinRequest
+    /// The leader row on a currency's info screen.
+    case communityLeader
 
     /// Whether Open Chat returns to the DM the profile was opened from rather than pushing a
     /// second copy of it.
@@ -425,7 +500,7 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .directMessage:
             return true
-        case .groupMember, .mention, .deeplink, .scan, .usernameLookup, .transaction, .joinRequest:
+        case .groupMember, .mention, .deeplink, .scan, .usernameLookup, .transaction, .joinRequest, .communityLeader:
             return false
         }
     }
@@ -437,19 +512,19 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .deeplink, .scan, .usernameLookup:
             return true
-        case .directMessage, .groupMember, .mention, .transaction, .joinRequest:
+        case .directMessage, .groupMember, .mention, .transaction, .joinRequest, .communityLeader:
             return false
         }
     }
 
     /// Whether blocking closes just the profile rather than resetting its stack. From a chat the
     /// stack beneath can hold the blocked person's DM, so it resets; a link opened the profile over
-    /// whatever the user was on, and that is where blocking returns them, as does a transaction's
-    /// details. A scan or a username search opens the profile as the Chats tab's only entry, so a
+    /// whatever the user was on, and that is where blocking returns them, as do a transaction's
+    /// details and a currency's leader row. A scan or a username search opens the profile as the Chats tab's only entry, so a
     /// reset lands on the chat list either way.
     var blockReturnsToOpener: Bool {
         switch self {
-        case .deeplink, .transaction, .joinRequest:
+        case .deeplink, .transaction, .joinRequest, .communityLeader:
             return true
         case .directMessage, .groupMember, .mention, .scan, .usernameLookup:
             return false
@@ -462,7 +537,7 @@ nonisolated enum UserProfileOrigin: Hashable {
         switch self {
         case .scan:
             return .tipcard
-        case .directMessage, .groupMember, .mention, .deeplink, .usernameLookup, .transaction, .joinRequest:
+        case .directMessage, .groupMember, .mention, .deeplink, .usernameLookup, .transaction, .joinRequest, .communityLeader:
             return .chat
         }
     }

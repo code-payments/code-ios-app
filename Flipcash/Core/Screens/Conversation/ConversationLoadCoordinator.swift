@@ -48,6 +48,8 @@ final class ConversationLoadCoordinator {
     private let openingUnreadBoundary: UnreadBoundary
     /// The jump-to-bottom badge's count, frozen at the divider's until the reader first scrolls.
     let jumpBadge: JumpBadgeCount
+    /// What the reader has seen on this visit, committed to the READ pointer once scrolling settles.
+    let pendingRead: PendingReadPointer
     /// The newest stored message at open. A message of the viewer's past it is a send made on this
     /// visit, which ends the divider under ``UnreadDividerLifetime/untilSend``.
     private let newestAtOpen: MessageID?
@@ -63,6 +65,8 @@ final class ConversationLoadCoordinator {
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
     /// Where request widgets read their cards; nil draws them loading.
     @ObservationIgnored private let paymentRequests: PaymentRequests?
+    /// Send Back for this open: the status check, the row state and the submit. Nil draws no row.
+    @ObservationIgnored let sendBack: SendBackController?
     /// When this transcript opened; paid-share messages after it refetch their request once.
     @ObservationIgnored private let openedAt: Date = .now
     @ObservationIgnored private var refetchedPayments: Set<UInt64> = []
@@ -87,9 +91,11 @@ final class ConversationLoadCoordinator {
         session: Session,
         knownAuthors: KnownAuthorDirectory,
         paymentRequests: PaymentRequests? = nil,
+        sendBack: SendBackController? = nil,
         openingLoadLanded: Bool = false
     ) {
         self.paymentRequests = paymentRequests
+        self.sendBack = sendBack
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
@@ -97,7 +103,15 @@ final class ConversationLoadCoordinator {
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
         let boundary = controller.unreadBoundary(for: conversationID)
         self.openingUnreadBoundary = boundary
-        self.jumpBadge = JumpBadgeCount(controller: controller, conversationID: conversationID, boundary: boundary, openingLoadLanded: openingLoadLanded)
+        let pendingRead = PendingReadPointer(controller: controller, conversationID: conversationID)
+        self.pendingRead = pendingRead
+        self.jumpBadge = JumpBadgeCount(
+            controller: controller,
+            conversationID: conversationID,
+            boundary: boundary,
+            pendingRead: pendingRead,
+            openingLoadLanded: openingLoadLanded
+        )
         self.newestAtOpen = controller.lastConfirmedMessage(for: conversationID)?.id
         self.claimReplies = CashLinkClaimReplies(claims: session.cashLinkClaims) { [controller] messageID in
             guard CashLinkClaimReplies.isEnabled else { return }
@@ -130,6 +144,27 @@ final class ConversationLoadCoordinator {
     /// this so it names the same person the quoted bubble does.
     func attributedName(for senderID: UserID) -> String? {
         attributedMembers.first { $0.userID == senderID }.map(Self.attributionName(for:))
+    }
+
+    /// The name to show for any user in this chat, whether or not they have a row in the loaded
+    /// window: the transcript's attribution, then the chat's roster, then the device's cache of
+    /// authors. A DM names its one other party. Nil while a group member nothing can name yet; that
+    /// starts their profile fetch, and the read of the directory's snapshot makes a calling view
+    /// redraw when it lands.
+    func senderName(for userID: UserID) -> String? {
+        if let name = attributedName(for: userID) { return name }
+        guard lastInputs?.namesAuthors ?? (controller.conversation(withID: conversationID)?.type == .group) else {
+            return counterpartName.isEmpty ? nil : counterpartName
+        }
+        let rostered = controller.conversation(withID: conversationID)?.members
+            .first { $0.userID == userID && !$0.displayName.isEmpty }
+        if let rostered { return Self.attributionName(for: rostered) }
+        if let known = knownAuthors.snapshot.membersByUserID[userID], !known.displayName.isEmpty {
+            return Self.attributionName(for: known)
+        }
+        let directory = knownAuthors
+        Task { await directory.resolve([userID]) }
+        return nil
     }
 
     /// The name a sender's rows carry: their display name, else their handle, else the generic
@@ -185,6 +220,39 @@ final class ConversationLoadCoordinator {
         unattributedSenders = attribution.unnamed
         items = Self.map(inputs, authors: Self.authors(from: attribution.members))
         scheduleWindowExpiry(for: inputs)
+    }
+
+    /// `message` as its transcript row draws it, on its own: no receipt, reactions, typing or
+    /// neighbours to group with. Nil for a message the transcript doesn't draw as a message row.
+    func row(for message: ConversationMessage) -> ChatMessage? {
+        var message = message
+        message.reactionState = nil
+        var inputs = currentInputs()
+        inputs.messages = [message]
+        inputs.counterpartPointer = nil
+        inputs.counterpartReadDate = nil
+        inputs.typists = []
+        inputs.unreadBoundary = .none
+        if case .cash(let fiat) = message.content, inputs.branding[fiat.mint] == nil,
+           let balance = session.balance(for: fiat.mint) {
+            inputs.branding[fiat.mint] = .init(token: balance.name, iconURL: balance.imageURL)
+        }
+        if let repliedTo = message.repliedTo, inputs.quotedMessages[repliedTo.value] == nil {
+            inputs.quotedMessages[repliedTo.value] = controller.persistedMessage(repliedTo, in: conversationID)
+        }
+        let attribution = Self.attribution(in: inputs)
+        if !attribution.unnamed.isEmpty {
+            // The transcript hands these to its view to fetch; a sheet has no such hook, and the
+            // directory asks once per sender per launch, so asking on every call is cheap.
+            let directory = knownAuthors
+            let unnamed = attribution.unnamed
+            Task { await directory.resolve(unnamed) }
+        }
+        for item in Self.map(inputs, authors: Self.authors(from: attribution.members)) {
+            guard case .message(let row) = item else { continue }
+            return row
+        }
+        return nil
     }
 
     // Wakes once, at the next instant a message loses Edit or Delete, and advances `capabilityClock`
@@ -260,12 +328,18 @@ final class ConversationLoadCoordinator {
         }
         // Read inside the observation scope, so a fetched or refetched request re-maps its row.
         var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
+        var requestTimelines: [PaymentRequestID: RequestTimeline] = [:]
         if let paymentRequests {
+            requestTimelines = paymentRequests.timelines(in: conversationID)
             let copy = PaymentRequestCopy(session.displayCurrency)
             for message in window {
-                if let id = message.paymentRequestID, message.date > openedAt,
-                   refetchedPayments.insert(message.id.value).inserted {
-                    Task { _ = try? await paymentRequests.refresh(id) }
+                if let id = message.paymentRequestID {
+                    if message.date > openedAt, refetchedPayments.insert(message.id.value).inserted {
+                        Task { _ = try? await paymentRequests.refresh(id) }
+                    } else if paymentRequests.request(id) == nil {
+                        // An older share payment's row needs its request for the title and ring.
+                        Task { await paymentRequests.fetchIfMissing(id) }
+                    }
                 }
                 guard case .widget(.paymentRequest(let id)) = message.content else { continue }
                 let state = paymentRequests.cardState(for: id, in: conversationID, sentBy: message.senderID, copy: copy, now: capabilityClock)
@@ -273,6 +347,19 @@ final class ConversationLoadCoordinator {
                 if state == .loading, paymentRequests.request(id) == nil {
                     Task { await paymentRequests.fetchIfMissing(id) }
                 }
+            }
+        }
+        // Read inside the observation scope, so a status answer or a submit re-maps the row.
+        var sendBackRows: [UInt64: ChatCashContent.SendBack] = [:]
+        if let sendBack {
+            let returned = SendBackRow.returnedIDs(in: window)
+            for message in window {
+                guard case .cash = message.content else { continue }
+                if SendBackRow.needsStatus(message, selfUserID: controller.selfUserID, returnedIDs: returned) {
+                    sendBack.checkStatusIfNeeded(message.id)
+                }
+                let row = SendBackRow.resolve(message, selfUserID: controller.selfUserID, returnedIDs: returned, local: sendBack.local(for: message.id))
+                if let row { sendBackRows[message.id.value] = row }
             }
         }
         return Inputs(
@@ -303,7 +390,11 @@ final class ConversationLoadCoordinator {
             knownAuthors: namesAuthors ? knownAuthors.snapshot : .empty,
             headsHistory: headsHistory,
             unreadBoundary: unreadBoundary(in: window),
-            paymentRequestCards: paymentRequestCards
+            paymentRequestCards: paymentRequestCards,
+            requests: requestTimelines,
+            sendBackRows: sendBackRows,
+            // Read inside the observation scope, so a pin or unpin re-maps the menus.
+            pinnedIDs: controller.pins.pinnedIDs(in: conversationID)
         )
     }
 
@@ -351,6 +442,7 @@ final class ConversationLoadCoordinator {
                     as: inputs.selfUserID,
                     isMember: inputs.isMember,
                     canPost: inputs.canPost,
+                    isPinned: inputs.pinnedIDs.contains(message.id),
                     policy: inputs.policy,
                     now: inputs.now
                 )
@@ -369,6 +461,8 @@ final class ConversationLoadCoordinator {
             // here touches the network, and an answer landing cannot re-diff this window.
             linkCard: { links in classifier.firstCard(in: links) },
             paymentRequest: { inputs.paymentRequestCards[$0.id.value] ?? .loading },
+            sendBack: { inputs.sendBackRows[$0.id.value] },
+            requests: inputs.requests,
             unreadBoundary: inputs.unreadBoundary,
             headsHistory: inputs.headsHistory
         )
@@ -390,6 +484,7 @@ final class ConversationLoadCoordinator {
     /// what the transcript is attributing. Everyone it leaves out — the subset a large group embeds
     /// leaves plenty — falls through to whatever the device knows about them from elsewhere. The
     /// senders neither source covers come back in `unnamed`, for the view to fetch.
+    /// The senders of quoted originals follow the window's, so a quote names its writer too.
     /// The group's typists follow the window's senders, so their pictures are fetched too.
     /// Both are empty for every transcript that does not attribute its rows.
     nonisolated private static func attribution(in inputs: Inputs) -> (members: [ConversationMember], unnamed: [UserID]) {
@@ -406,7 +501,10 @@ final class ConversationLoadCoordinator {
         var unnamed: [UserID] = []
         // A system notice has no sender but names the users it is about, so those need profiles too.
         let noticeIDs = inputs.messages.flatMap { $0.systemNoticeUserIDs(excluding: inputs.selfUserID) }
-        for senderID in inputs.messages.compactMap(\.senderID) + noticeIDs + inputs.typists {
+        // A quote names its original's writer, who may have no other message in the window (or, for
+        // a lone pinned row, no message at all), so the quoted senders are attributed too.
+        let quotedIDs = inputs.quotedMessages.keys.sorted().compactMap { inputs.quotedMessages[$0]?.senderID }
+        for senderID in inputs.messages.compactMap(\.senderID) + noticeIDs + quotedIDs + inputs.typists {
             guard seen.insert(senderID).inserted else { continue }
             // The viewer's own rows are never attributed, so their id is not worth a round trip.
             guard senderID != inputs.selfUserID else { continue }
@@ -482,6 +580,13 @@ final class ConversationLoadCoordinator {
         var unreadBoundary: UnreadBoundary
         /// Each request widget's card in the window, keyed by raw message id.
         var paymentRequestCards: [UInt64: PaymentRequestCardState] = [:]
+        /// The chat's stored, readable requests, which title share payment rows and are the
+        /// source of the marked-paid and closed rows.
+        var requests: [PaymentRequestID: RequestTimeline] = [:]
+        /// Each cash message's Send Back row, keyed by raw message id; absent draws none.
+        var sendBackRows: [UInt64: ChatCashContent.SendBack] = [:]
+        /// The chat's pinned messages, which decide Pin or Unpin on each row's menu.
+        var pinnedIDs: Set<MessageID> = []
 
         struct Branding: Equatable, Sendable {
             var token: String

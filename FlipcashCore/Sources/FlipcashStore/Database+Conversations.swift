@@ -109,7 +109,8 @@ nonisolated extension Database {
                 creator: row[c.creator],
                 useE2Ee: row[c.useE2Ee],
                 isPrivate: row[c.isPrivate],
-                coverPicture: conversationCoverPicture(from: row)
+                coverPicture: conversationCoverPicture(from: row),
+                pinSummary: conversationPinSummary(from: row)
             )
         }
     }
@@ -187,11 +188,11 @@ nonisolated extension Database {
     }
 
     /// A bounded window of a conversation's messages, oldest-first: the newest `limit` when `before` is
-    /// nil, otherwise the `limit` messages immediately older than `before`. Index-backed by the
-    /// composite `(conversationId, id)` primary key — no scan, no sort.
+    /// nil, otherwise the `limit` messages immediately older than `before`. Stops at a history gap.
+    /// Index-backed by the composite `(conversationId, id)` primary key — no scan, no sort.
     public func messagesWindow(conversationID: ConversationID, before: MessageID? = nil, limit: Int) throws -> [ConversationMessage] {
         let m = ConversationMessageTable()
-        var query = m.table.filter(m.conversationId == conversationID.data)
+        var query = m.table.filter(m.conversationId == conversationID.data && m.id >= (try historyFloor(conversationID)))
         if let before {
             query = query.filter(m.id < before.value)
         }
@@ -199,24 +200,55 @@ nonisolated extension Database {
         return Array(try rows.map { conversationMessage(from: $0) }.compactMap { $0 }.reversed())
     }
 
+    /// The oldest id among the newest `limit` stored rows — the lower bound of
+    /// ``messagesWindow(conversationID:before:limit:)`` with no `before` — or nil when the conversation
+    /// stores fewer than `limit` rows. One index seek, no decode.
+    public func newestWindowFloor(conversationID: ConversationID, limit: Int) throws -> UInt64? {
+        guard limit > 0 else { return nil }
+        let m = ConversationMessageTable()
+        let query = m.table.select(m.id)
+            .filter(m.conversationId == conversationID.data)
+            .order(m.id.desc)
+            .limit(1, offset: limit - 1)
+        return try reader.pluck(query)?[m.id]
+    }
+
+    /// The stored messages among `ids`, oldest-first. An id that isn't stored, or whose row doesn't
+    /// decode, is absent — as it would be from a window read.
+    public func messages(conversationID: ConversationID, ids: [MessageID]) throws -> [ConversationMessage] {
+        let m = ConversationMessageTable()
+        let unique = Array(Set(ids.map(\.value)))
+        var messages: [ConversationMessage] = []
+        // Chunked to stay under SQLite's bound-variable limit.
+        for start in stride(from: 0, to: unique.count, by: 500) {
+            let chunk = Array(unique[start..<min(start + 500, unique.count)])
+            let rows = try reader.prepareRowIterator(
+                m.table.filter(m.conversationId == conversationID.data && chunk.contains(m.id))
+            )
+            messages += try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
+        }
+        return messages.sorted { $0.id.value < $1.id.value }
+    }
+
     /// Every message from `startID` (inclusive) to the newest, oldest-first — the id-anchored window.
     /// Anchoring by id means an arriving message grows the window at the tail instead of sliding the
-    /// oldest revealed row out from under a reader who has scrolled up.
+    /// oldest revealed row out from under a reader who has scrolled up. Stops at a history gap.
     public func messages(conversationID: ConversationID, from startID: UInt64) throws -> [ConversationMessage] {
         let m = ConversationMessageTable()
+        let floor = max(startID, try historyFloor(conversationID))
         let rows = try reader.prepareRowIterator(
-            m.table.filter(m.conversationId == conversationID.data && m.id >= startID).order(m.id.asc)
+            m.table.filter(m.conversationId == conversationID.data && m.id >= floor).order(m.id.asc)
         )
         return try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
     }
 
     /// Every message in the half-open id interval `(after, through]`, oldest-first — the window a
     /// read-pointer advance just crossed. A nil `after` means the pointer had never been set, so the
-    /// whole stored history up to `through` counts as newly read. Index-backed by the composite
-    /// `(conversationId, id)` primary key.
+    /// whole stored history up to `through` counts as newly read. Stops at a history gap, since rows
+    /// below one were never on screen. Index-backed by the composite `(conversationId, id)` primary key.
     public func messages(conversationID: ConversationID, after: MessageID?, through: MessageID) throws -> [ConversationMessage] {
         let m = ConversationMessageTable()
-        var query = m.table.filter(m.conversationId == conversationID.data && m.id <= through.value)
+        var query = m.table.filter(m.conversationId == conversationID.data && m.id <= through.value && m.id >= (try historyFloor(conversationID)))
         if let after {
             query = query.filter(m.id > after.value)
         }
@@ -225,10 +257,10 @@ nonisolated extension Database {
     }
 
     /// The id `step` rows older than `before` — the next anchor when the reader pages back — falling
-    /// back to the oldest available older row; nil when nothing older is persisted.
+    /// back to the oldest available older row; nil when nothing older is persisted above a history gap.
     public func olderAnchor(conversationID: ConversationID, before: UInt64, step: Int) throws -> UInt64? {
         let m = ConversationMessageTable()
-        let older = m.table.filter(m.conversationId == conversationID.data && m.id < before)
+        let older = m.table.filter(m.conversationId == conversationID.data && m.id < before && m.id >= (try historyFloor(conversationID)))
         if let row = try reader.pluck(older.order(m.id.desc).limit(1, offset: step - 1)) {
             return row[m.id]
         }
@@ -244,16 +276,54 @@ nonisolated extension Database {
 
     /// The number of stored messages after `after` that someone other than `selfUserID` sent and
     /// that are not deleted — the count the unread divider shows. A row with no sender counts as
-    /// someone else's, except a system message, which is never unread. Index-backed by the composite `(conversationId, id)` primary key.
+    /// someone else's, except a system message, which is never unread. Stops at a history gap, like
+    /// every read the transcript makes. Index-backed by the composite `(conversationId, id)` primary key.
     public func inboundMessageCount(conversationID: ConversationID, after: MessageID, excludingSender selfUserID: UUID) throws -> Int {
         let m = ConversationMessageTable()
         return try reader.scalar(
             m.table.filter(
                 m.conversationId == conversationID.data
                     && m.id > after.value
+                    && m.id >= (try historyFloor(conversationID))
                     && m.kind != 2
                     && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
+                    && Self.countsAsUnread(m, for: selfUserID)
+            ).count
+        )
+    }
+
+    /// The SQL form of ``ConversationMessage/countsAsUnread(for:)``: every row but a share payment
+    /// to someone other than `selfUserID`. Written NULL-safe, since most rows have neither column.
+    private static func countsAsUnread(_ m: ConversationMessageTable, for selfUserID: UUID) -> Expression<Bool?> {
+        m.paymentRequestId == nil || (m.cashReceiverId != nil && m.cashReceiverId == selfUserID)
+    }
+
+    /// The newest stored message that can be unread for `selfUserID`, or nil when none is stored:
+    /// the message a chat's unread state reads when its latest is a share payment to someone else.
+    public func newestMessageCountingAsUnread(conversationID: ConversationID, for selfUserID: UUID) throws -> ConversationMessage? {
+        let m = ConversationMessageTable()
+        guard let row = try reader.pluck(
+            m.table.filter(
+                m.conversationId == conversationID.data
+                    && m.id >= (try historyFloor(conversationID))
+                    && Self.countsAsUnread(m, for: selfUserID)
+            ).order(m.id.desc)
+        ) else { return nil }
+        return conversationMessage(from: row)
+    }
+
+    /// How many stored share payments to someone other than `selfUserID` lie after `after` and at
+    /// or before `through`: the messages the server's unread stamp counts that this viewer doesn't.
+    public func sharePaymentsToOthersCount(conversationID: ConversationID, after: MessageID, through: MessageID, for selfUserID: UUID) throws -> Int {
+        let m = ConversationMessageTable()
+        return try reader.scalar(
+            m.table.filter(
+                m.conversationId == conversationID.data
+                    && m.id > after.value
+                    && m.id <= through.value
+                    && m.paymentRequestId != nil
+                    && (m.cashReceiverId == nil || m.cashReceiverId != selfUserID)
             ).count
         )
     }
@@ -282,50 +352,55 @@ nonisolated extension Database {
                 m.conversationId == conversationID.data
                     && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
+                    && Self.countsAsUnread(m, for: selfUserID)
             ).order(m.id.desc)
         ).map { MessageID(value: $0[m.id]) }
     }
 
     /// The oldest stored message id after `after` that someone other than `selfUserID` sent, deleted
     /// or not, or nil when there is none — where the unread divider goes. A row with no sender counts
-    /// as someone else's, except a system message, so the divider never lands above one.
+    /// as someone else's, except a system message, so the divider never lands above one. Stops at a
+    /// history gap, so the divider never points at a row no window reaches.
     public func firstInboundMessageID(conversationID: ConversationID, after: MessageID, excludingSender selfUserID: UUID) throws -> UInt64? {
         let m = ConversationMessageTable()
         return try reader.pluck(
             m.table.filter(
                 m.conversationId == conversationID.data
                     && m.id > after.value
+                    && m.id >= (try historyFloor(conversationID))
                     && m.kind != 6
                     && (m.senderId == nil || m.senderId != selfUserID)
+                    && Self.countsAsUnread(m, for: selfUserID)
             ).order(m.id.asc)
         ).map { $0[m.id] }
     }
 
     /// The newest stored message id at or below `through`, or nil when none is stored — the row the
-    /// unread divider sits under when the READ pointer's own message is gone.
+    /// unread divider sits under when the READ pointer's own message is gone. Stops at a history gap.
     public func newestMessageID(conversationID: ConversationID, through: MessageID) throws -> UInt64? {
         let m = ConversationMessageTable()
         return try reader.pluck(
-            m.table.filter(m.conversationId == conversationID.data && m.id <= through.value).order(m.id.desc)
+            m.table.filter(m.conversationId == conversationID.data && m.id <= through.value && m.id >= (try historyFloor(conversationID))).order(m.id.desc)
         ).map { $0[m.id] }
     }
 
-    /// The ids of up to `limit` stored messages older than `before` (or the newest when nil), newest first.
+    /// The ids of up to `limit` stored messages older than `before` (or the newest when nil), newest
+    /// first, stopping at a history gap.
     public func messageIDs(conversationID: ConversationID, before: UInt64? = nil, limit: Int) throws -> [MessageID] {
         let m = ConversationMessageTable()
-        var query = m.table.select(m.id).filter(m.conversationId == conversationID.data)
+        var query = m.table.select(m.id).filter(m.conversationId == conversationID.data && m.id >= (try historyFloor(conversationID)))
         if let before {
             query = query.filter(m.id < before)
         }
         return try reader.prepareRowIterator(query.order(m.id.desc).limit(limit)).map { MessageID(value: $0[m.id]) }
     }
 
-    /// The oldest persisted message id for a conversation, or nil when none is cached — the anchor for
-    /// paging genuinely older history from the server.
+    /// The oldest persisted message id above any history gap, or nil when none is cached — the anchor
+    /// for paging older history from the server, which fills the gap when there is one.
     public func oldestMessageID(conversationID: ConversationID) throws -> MessageID? {
         let m = ConversationMessageTable()
         return try reader.pluck(
-            m.table.filter(m.conversationId == conversationID.data).order(m.id.asc)
+            m.table.filter(m.conversationId == conversationID.data && m.id >= (try historyFloor(conversationID))).order(m.id.asc)
         ).map { MessageID(value: $0[m.id]) }
     }
 
@@ -333,12 +408,16 @@ nonisolated extension Database {
 
     /// Mirror one type's paged feed load: replaces that type's conversation + member sets (messages
     /// are retained, other types' conversations untouched), then stores each conversation's
-    /// last-message preview.
-    public func replaceConversationFeed(_ conversations: [Conversation], type: ConversationType) throws {
+    /// last-message preview. Returns whether any preview's message row changed.
+    @discardableResult
+    public func replaceConversationFeed(_ conversations: [Conversation], type: ConversationType) throws -> Bool {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
+            let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
             let ids = conversations.map(\.id.data)
+            var changed = false
             // IMMEDIATE: this transaction reads before it writes. A DEFERRED one that reads first fails
             // the write with SQLITE_BUSY at once when another writer holds the lock, without consulting
             // the busy handler.
@@ -356,37 +435,48 @@ nonisolated extension Database {
                 if !doomed.isEmpty {
                     try writer.run(c.table.filter(doomed.contains(c.id)).delete())
                     try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
+                    try writer.run(k.table.filter(doomed.contains(k.conversationID)).delete())
+                    try writer.run(p.table.filter(doomed.contains(p.conversationID)).delete())
                 }
                 for conversation in conversations where conversation.type == type {
-                    try writeConversation(conversation)
+                    changed = try writeConversation(conversation) || changed
                 }
             }
+            return changed
         }
     }
 
     /// Mirror a group feed load: upsert the feed's groups, record them as joined, and delete the
-    /// groups the user left elsewhere (`departed`, as reported by ``ConversationStore/setGroupFeed(_:)``).
+    /// groups the user left elsewhere (`departed`, as reported by ``ConversationStore/setGroupFeed(_:requestedAt:)``).
+    /// Returns whether any group's last-message row changed.
     ///
     /// Deliberately not ``replaceConversationFeed(_:type:)``: the group feed carries only joined
     /// groups, so deleting every group it omits would evict a group the user reached by link and has
     /// not joined — including the one whose join screen is on top.
-    public func replaceGroupFeed(_ groups: [Conversation], departed: Set<ConversationID>) throws {
+    @discardableResult
+    public func replaceGroupFeed(_ groups: [Conversation], departed: Set<ConversationID>) throws -> Bool {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
             let g = GroupMembershipTable()
+            let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
+            var changed = false
             try writer.transaction(.immediate) {
                 let doomed = departed.map(\.data)
                 if !doomed.isEmpty {
+                    try writer.run(k.table.filter(doomed.contains(k.conversationID)).delete())
+                    try writer.run(p.table.filter(doomed.contains(p.conversationID)).delete())
                     try writer.run(c.table.filter(doomed.contains(c.id)).delete())
                     try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
                     try writer.run(g.table.filter(doomed.contains(g.conversationId)).delete())
                 }
                 for group in groups where group.type == .group {
-                    try writeConversation(group)
+                    changed = try writeConversation(group) || changed
                     try writer.run(g.table.insert(or: .replace, g.conversationId <- group.id.data))
                 }
             }
+            return changed
         }
     }
 
@@ -412,12 +502,15 @@ nonisolated extension Database {
     }
 
     /// Upsert one conversation: its row, its members (replaced wholesale), and
-    /// its last-message preview row.
-    public func upsertConversation(_ conversation: Conversation) throws {
+    /// its last-message preview row. Returns whether that preview's message row changed.
+    @discardableResult
+    public func upsertConversation(_ conversation: Conversation) throws -> Bool {
         try write { writer in
+            var changed = false
             try writer.transaction(.immediate) {
-                try writeConversation(conversation)
+                changed = try writeConversation(conversation)
             }
+            return changed
         }
     }
 
@@ -426,9 +519,7 @@ nonisolated extension Database {
     public func upsertConversationMessages(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
         try write { writer in
             try writer.transaction(.immediate) {
-                for message in messages {
-                    try writeMessage(message, conversationId: conversationID.data)
-                }
+                try writeMessages(messages, conversationId: conversationID.data)
             }
         }
     }
@@ -438,52 +529,167 @@ nonisolated extension Database {
     /// the working set, would orphan that message from GetDelta recovery. The cursor advances only when
     /// established (> 0) and only forward — a catch-up batch's interior checkpoint must not regress a
     /// cursor a live event already persisted. The conversation row need not exist yet (the update no-ops
-    /// until it does).
-    public func persistMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws {
+    /// until it does). Returns whether any message row changed; the cursor alone doesn't count.
+    @discardableResult
+    public func persistMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws -> Bool {
         try write { writer in
-            let c = ConversationTable()
+            var changed = false
             // IMMEDIATE: reads the current cursor before updating it (see replaceConversationFeed).
+            try writer.transaction(.immediate) {
+                changed = try writeMessages(messages, cursor: cursor, conversationID: conversationID, writer: writer)
+            }
+            return changed
+        }
+    }
+
+    /// The body of ``persistMessages(_:cursor:conversationID:)``, for callers already inside a transaction.
+    private func writeMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID, writer: Connection) throws -> Bool {
+        let c = ConversationTable()
+        let changed = try writeMessages(messages, conversationId: conversationID.data)
+        if cursor > 0 {
+            let scoped = c.table.filter(c.id == conversationID.data)
+            let current = try writer.pluck(scoped).flatMap { $0[c.catchupCursor] } ?? 0
+            if cursor > current {
+                try writer.run(scoped.update(c.catchupCursor <- cursor))
+            }
+        }
+        return changed
+    }
+
+    // MARK: - History gap
+
+    /// The bounds of a conversation's history gap, or nil when its stored history is contiguous.
+    public func historyGap(conversationID: ConversationID) throws -> HistoryGap? {
+        let g = ConversationHistoryGapTable()
+        return try reader.pluck(g.table.filter(g.conversationId == conversationID.data)).map {
+            HistoryGap(below: MessageID(value: $0[g.belowId]), above: MessageID(value: $0[g.aboveId]))
+        }
+    }
+
+    /// The lowest id the transcript may read: the gap's upper bound, or 0 when there is no gap. Rows
+    /// below it are kept but are not contiguous with the rows above, so no window may join them.
+    func historyFloor(_ conversationID: ConversationID) throws -> UInt64 {
+        try historyGap(conversationID: conversationID)?.above.value ?? 0
+    }
+
+    /// Persists a newest page (and its cursor) the way ``persistMessages(_:cursor:conversationID:)``
+    /// does, first recording a history gap when the page does not overlap the stored rows. The older
+    /// rows are kept, not deleted, so paging back can reconnect to them instead of re-fetching them.
+    /// A page that misses an unfilled gap's upper run as well drops that run — it is bounded by gaps
+    /// on both sides — and moves the gap's upper bound to the new page, keeping its lower bound.
+    @discardableResult
+    public func persistNewestPage(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws -> Bool {
+        try write { writer in
+            let m = ConversationMessageTable()
+            let g = ConversationHistoryGapTable()
+            var changed = false
+            try writer.transaction(.immediate) {
+                if let pageOldest = messages.map(\.id.value).min(),
+                   let newestStored = try writer.pluck(
+                       m.table.select(m.id).filter(m.conversationId == conversationID.data).order(m.id.desc)
+                   )?[m.id],
+                   newestStored < pageOldest {
+                    let existing = try writer.pluck(g.table.filter(g.conversationId == conversationID.data))
+                    let below = existing?[g.belowId] ?? newestStored
+                    if existing != nil {
+                        try writer.run(m.table.filter(m.conversationId == conversationID.data && m.id > below && m.id < pageOldest).delete())
+                    }
+                    try writer.run(g.table.insert(or: .replace,
+                        g.conversationId <- conversationID.data,
+                        g.belowId <- below,
+                        g.aboveId <- pageOldest
+                    ))
+                }
+                changed = try writeMessages(messages, cursor: cursor, conversationID: conversationID, writer: writer)
+            }
+            return changed
+        }
+    }
+
+    /// Persists a page of older history fetched before the transcript's oldest readable row, and
+    /// narrows the history gap when there is one, in one transaction so a reader never sees the page
+    /// without the floor that exposes it. A page reaching the gap's lower bound closes it; a page that
+    /// stops short moves the upper bound down to the page; an empty page means the server holds
+    /// nothing older, so the rows below the gap are not part of this history and are dropped.
+    public func persistOlderPage(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
+        try write { writer in
+            let m = ConversationMessageTable()
+            let g = ConversationHistoryGapTable()
             try writer.transaction(.immediate) {
                 for message in messages {
                     try writeMessage(message, conversationId: conversationID.data)
                 }
-                if cursor > 0 {
-                    let scoped = c.table.filter(c.id == conversationID.data)
-                    let current = try writer.pluck(scoped).flatMap { $0[c.catchupCursor] } ?? 0
-                    if cursor > current {
-                        try writer.run(scoped.update(c.catchupCursor <- cursor))
-                    }
+                let scoped = g.table.filter(g.conversationId == conversationID.data)
+                guard let gap = try writer.pluck(scoped) else { return }
+                guard let pageOldest = messages.map(\.id.value).min() else {
+                    try writer.run(m.table.filter(m.conversationId == conversationID.data && m.id < gap[g.aboveId]).delete())
+                    try writer.run(scoped.delete())
+                    return
+                }
+                if pageOldest <= gap[g.belowId] {
+                    try writer.run(scoped.delete())
+                } else if pageOldest < gap[g.aboveId] {
+                    try writer.run(scoped.update(g.aboveId <- pageOldest))
                 }
             }
         }
     }
 
-    /// Deletes a conversation's persisted messages — used when a freshly fetched newest page does not
-    /// overlap the retained history, so a stale older epoch can't render seamlessly stitched to the new
-    /// page across an unfetchable gap.
+    /// Deletes a conversation's persisted messages and any history gap between them.
     public func deleteMessages(conversationID: ConversationID) throws {
         try write { writer in
             let m = ConversationMessageTable()
-            try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+            let g = ConversationHistoryGapTable()
+            try writer.transaction(.immediate) {
+                try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+                try writer.run(g.table.filter(g.conversationId == conversationID.data).delete())
+            }
         }
     }
 
-    /// Removes a conversation the signed-in user has left (or been removed from): its row and member
-    /// rows. Messages are left in place, orphaned but unread — the same treatment
+    /// Removes a conversation the signed-in user has left (or been removed from): its row, member
+    /// rows and stored key envelope. Messages are left in place, orphaned but unread — the same treatment
     /// `replaceConversationFeed` gives a conversation that drops out of a feed snapshot.
     public func deleteConversation(conversationID: ConversationID) throws {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
+            let k = GroupKeyEnvelopeTable()
+            let p = PaymentRequestTable()
             try writer.transaction(.immediate) {
                 try writer.run(c.table.filter(c.id == conversationID.data).delete())
                 try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
+                try writer.run(k.table.filter(k.conversationID == conversationID.data).delete())
+                try writer.run(p.table.filter(p.conversationID == conversationID.data).delete())
             }
         }
     }
 
-    /// Must be called inside a `writer.transaction`.
-    private func writeConversation(_ conversation: Conversation) throws {
+    /// Store a pin summary delivered by `PinsChanged`: applied only when strictly newer than the stored
+    /// one, like ``ConversationStore/applyPinsChanged(_:in:)``. No-ops for a conversation not yet in
+    /// the feed.
+    public func applyPinSummary(_ summary: ConversationPinSummary, for conversationID: ConversationID) throws {
+        try write { _ in
+            try writePinSummary(summary, conversationID: conversationID, replacingEqualVersion: false)
+        }
+    }
+
+    private func writePinSummary(_ summary: ConversationPinSummary, conversationID: ConversationID, replacingEqualVersion: Bool) throws {
+        try write { writer in
+            let c = ConversationTable()
+            let versionGuard = replacingEqualVersion ? c.pinVersion <= summary.version : c.pinVersion < summary.version
+            try writer.run(
+                c.table.filter(c.id == conversationID.data && versionGuard).update(
+                    c.pinCount   <- UInt64(summary.count),
+                    c.pinVersion <- summary.version,
+                    c.pinLatest  <- summary.latest?.serializedBytes
+                )
+            )
+        }
+    }
+
+    /// Must be called inside a `writer.transaction`. Returns whether the last-message row changed.
+    private func writeConversation(_ conversation: Conversation) throws -> Bool {
         try write { writer in
             let c = ConversationTable()
             let m = ConversationMemberTable()
@@ -528,6 +734,12 @@ nonisolated extension Database {
                 )
             }
 
+            // Same keep rule as ConversationStore: a copy with no summary or an older one leaves the
+            // stored pins alone; an equal or newer version replaces them.
+            if let pins = conversation.pinSummary {
+                try writePinSummary(pins, conversationID: conversation.id, replacingEqualVersion: true)
+            }
+
             try writer.run(m.table.filter(m.conversationId == conversation.id.data).delete())
             for member in conversation.members {
                 try writer.run(
@@ -546,177 +758,289 @@ nonisolated extension Database {
                 )
             }
 
-            if let lastMessage = conversation.lastMessage {
-                try writeMessage(lastMessage, conversationId: conversation.id.data)
-            }
+            guard let lastMessage = conversation.lastMessage else { return false }
+            return try writeMessage(lastMessage, conversationId: conversation.id.data)
         }
     }
 
-    /// Must be called inside a `writer.transaction`.
-    private func writeMessage(_ message: ConversationMessage, conversationId: Data) throws {
-        try write { writer in
+    /// Must be called inside a `writer.transaction`. Returns whether the stored row changed.
+    @discardableResult
+    private func writeMessage(_ message: ConversationMessage, conversationId: Data) throws -> Bool {
+        try writeMessages([message], conversationId: conversationId)
+    }
+
+    /// Must be called inside a `writer.transaction`. Merges each message into its stored row by the
+    /// rules in ``mergeDecision(for:over:)``, reading every stored row the batch touches in one query
+    /// and inserting through one prepared statement. Returns whether any stored row changed.
+    @discardableResult
+    private func writeMessages(_ messages: [ConversationMessage], conversationId: Data) throws -> Bool {
+        guard !messages.isEmpty else { return false }
+        return try write { writer in
             let m = ConversationMessageTable()
+            var stored = try storedMessageStates(ids: messages.map(\.id.value), conversationId: conversationId, writer: writer)
+            var insert: (sql: String, statement: Statement)?
+            var changed = false
 
-            let scoped = m.table.filter(m.conversationId == conversationId && m.id == message.id.value)
-            var message = message
+            for incoming in messages {
+                let scoped = m.table.filter(m.conversationId == conversationId && m.id == incoming.id.value)
+                var message = incoming
 
-            // Last-writer-wins parity with the in-memory `ConversationStore`: never let a stale re-delivery
-            // (e.g. the deprecated `new_messages` overlay landing after the `events` tombstone, or a
-            // duplicate delta batch) overwrite a newer persisted version — that would resurrect a
-            // deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
-            if let existing = try writer.pluck(scoped) {
-                // Reactions sit outside the event log, so they merge on their own versions whatever the
-                // copy's event sequence says.
-                let storedReactions = Self.decodeReactions(existing[m.reactionsJson])
-                let reactions = Self.mergedReactions(stored: storedReactions, incoming: message.reactionState)
-                let existingSequence = existing[m.eventSequence]
-                if existingSequence > message.eventSequence {
-                    // Stale re-delivery: keep the newer stored version.
-                    if reactions != storedReactions {
-                        try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
+                if let existing = stored[message.id.value] {
+                    switch Self.mergeDecision(for: message, over: existing) {
+                    case .keep(let reactions, let adoptClientMessageID):
+                        // Stale or equal version: the stored row stays, taking only what merges outside
+                        // the event log.
+                        var setters: [Setter] = []
+                        if let reactions {
+                            setters.append(m.reactionsJson <- Self.encodeReactions(reactions))
+                            stored[message.id.value]?.reactions = reactions
+                        }
+                        if let adoptClientMessageID {
+                            setters.append(m.clientMessageID <- adoptClientMessageID)
+                            stored[message.id.value]?.clientMessageID = adoptClientMessageID
+                        }
+                        if !setters.isEmpty {
+                            try writer.run(scoped.update(setters))
+                            changed = true
+                        }
+                        continue
+                    case .replace(let reactions, let clientMessageID):
+                        message.reactionState = reactions
+                        message.clientMessageID = clientMessageID
                     }
-                    return
                 }
-                // A copy that settles a row stored as ciphertext (waiting on a key, or unsupported by the
-                // build that stored it) is not a re-delivery. An unknown stored failure counts as final.
-                let storedFailure = existing[m.decryptFailure].map { ConversationMessage.DecryptFailure(rawValue: $0) ?? .authentication }
-                let opensStoredRow = existing[m.kind] == 3 && message.settles(unopenedWith: storedFailure)
-                if existingSequence == message.eventSequence && !opensStoredRow {
-                    // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
-                    // copy landing after a stream echo, or vice versa) so identity stays stable.
-                    if existing[m.clientMessageID] == nil, let clientMessageID = message.clientMessageID {
-                        try writer.run(scoped.update(m.clientMessageID <- clientMessageID))
-                    }
-                    if reactions != storedReactions {
-                        try writer.run(scoped.update(m.reactionsJson <- Self.encodeReactions(reactions)))
-                    }
-                    return
+
+                let (columns, kind) = try Self.messageColumns(message, conversationId: conversationId)
+                let sql = Self.insertMessageSQL(columns.map(\.name))
+                if insert?.sql != sql {
+                    insert = (sql, try writer.prepare(sql))
                 }
-                message.reactionState = reactions
-                // Newer version wins; preserve the row's established identity if the newer copy lacks one.
-                if message.clientMessageID == nil {
-                    message.clientMessageID = existing[m.clientMessageID]
-                }
+                try insert!.statement.run(columns.map(\.value))
+                stored[message.id.value] = StoredMessageState(
+                    eventSequence: message.eventSequence,
+                    reactions: message.reactionState,
+                    clientMessageID: message.clientMessageID,
+                    kind: kind,
+                    decryptFailure: message.decryptFailure?.rawValue
+                )
+                changed = true
             }
+            return changed
+        }
+    }
 
-            let kind: Int
-            var text: String?
-            var quarks: UInt64?
-            var nativeAmount: String?
-            var currency: CurrencyCode?
-            var mint: PublicKey?
-            var deletedBy: UUID?
-            var deletedAt: Double?
-            var encryptedScheme: Int?
-            var encryptedNonce: Data?
-            var encryptedCiphertext: Data?
-            var mediaJson: Data?
-            var linkPreviewJson: Data?
-            var systemUserId: UUID?
-            var systemAdmittedBy: UUID?
-            var systemInvitedBy: UUID?
-            if let sealed = message.sealed {
-                encryptedScheme = sealed.scheme
-                encryptedNonce = sealed.nonce
-                encryptedCiphertext = sealed.ciphertext
-            }
+    /// The parts of a stored message row that decide how an incoming copy of it merges.
+    private struct StoredMessageState {
+        var eventSequence: UInt64
+        var reactions: ReactionState?
+        var clientMessageID: UUID?
+        var kind: Int
+        var decryptFailure: Int?
 
-            switch message.content {
-            case .text(let value):
-                kind = 0
-                text = value
-                linkPreviewJson = try message.linkPreview.map { try JSONEncoder().encode($0) }
-            case .cash(let amount):
-                kind = 1
-                quarks = amount.onChainAmount.quarks
-                nativeAmount = amount.nativeAmount.value.description
-                currency = amount.nativeAmount.currency
-                mint = amount.mint
-            case .deleted(let deletion):
-                kind = 2
-                deletedBy = deletion.deletedBy
-                deletedAt = deletion.deletedAt.timeIntervalSinceReferenceDate
-            case .encrypted(let scheme, let nonce, let ciphertext):
-                kind = 3
-                encryptedScheme = scheme
-                encryptedNonce = nonce
-                encryptedCiphertext = ciphertext
-            case .widget(let widget):
-                // A profile share's username rides in `text`; a widget with none is one this client
-                // can't draw. A payment request is its own kind, its id base64 in `text`.
-                switch widget {
-                case .shareProfile(let share):
-                    kind = 4
-                    text = share.username.value
-                case .paymentRequest(let id):
-                    kind = 7
-                    text = id.data.base64EncodedString()
-                case .unrecognized:
-                    kind = 4
-                    text = nil
-                }
-            case .system(let fallbackText, let event):
-                kind = 6
-                text = fallbackText
-                switch event {
-                case .userJoined(let userID, let admittedBy):
-                    systemUserId = userID
-                    systemAdmittedBy = admittedBy
-                case .userJoinedViaInvite(let userID, let invitedBy):
-                    systemUserId = userID
-                    systemInvitedBy = invitedBy
-                case nil:
-                    break
-                }
-            case .media(let attachments, let caption):
-                kind = 5
-                mediaJson = try JSONEncoder().encode(
-                    StoredMedia(attachments: attachments, caption: caption, redacted: message.redacted)
+        init(eventSequence: UInt64, reactions: ReactionState?, clientMessageID: UUID?, kind: Int, decryptFailure: Int?) {
+            self.eventSequence = eventSequence
+            self.reactions = reactions
+            self.clientMessageID = clientMessageID
+            self.kind = kind
+            self.decryptFailure = decryptFailure
+        }
+    }
+
+    /// The stored state of each of `ids` this conversation already holds, keyed by id. Reads in
+    /// chunks to stay under SQLite's bound-variable limit.
+    private func storedMessageStates(ids: [UInt64], conversationId: Data, writer: Connection) throws -> [UInt64: StoredMessageState] {
+        let m = ConversationMessageTable()
+        var states: [UInt64: StoredMessageState] = [:]
+        let unique = Array(Set(ids))
+        for start in stride(from: 0, to: unique.count, by: 500) {
+            let chunk = Array(unique[start..<min(start + 500, unique.count)])
+            let query = m.table
+                .select(m.id, m.eventSequence, m.reactionsJson, m.clientMessageID, m.kind, m.decryptFailure)
+                .filter(m.conversationId == conversationId && chunk.contains(m.id))
+            let rows = try writer.prepareRowIterator(query)
+            while let row = try rows.failableNext() {
+                states[row[m.id]] = StoredMessageState(
+                    eventSequence: row[m.eventSequence],
+                    reactions: Self.decodeReactions(row[m.reactionsJson]),
+                    clientMessageID: row[m.clientMessageID],
+                    kind: row[m.kind],
+                    decryptFailure: row[m.decryptFailure]
                 )
             }
+        }
+        return states
+    }
 
-            let cashAction: Int? = switch message.cashAction {
-            case .sent:   0
-            case .tipped: 1
-            case .none:   nil
+    /// What writing an incoming copy over a stored row does.
+    private enum MergeDecision {
+        /// Keep the stored row. Write `reactions` and adopt `adoptClientMessageID` when non-nil.
+        case keep(reactions: ReactionState?, adoptClientMessageID: UUID?)
+        /// Replace the row with the incoming copy, carrying these reactions and client id.
+        case replace(reactions: ReactionState?, clientMessageID: UUID?)
+    }
+
+    /// Last-writer-wins parity with the in-memory `ConversationStore`: never let a stale re-delivery
+    /// (e.g. the deprecated `new_messages` overlay landing after the `events` tombstone, or a
+    /// duplicate delta batch) overwrite a newer persisted version — that would resurrect a
+    /// deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
+    nonisolated private static func mergeDecision(for message: ConversationMessage, over existing: StoredMessageState) -> MergeDecision {
+        // Reactions sit outside the event log, so they merge on their own versions whatever the
+        // copy's event sequence says.
+        let reactions = mergedReactions(stored: existing.reactions, incoming: message.reactionState)
+        let reactionsChanged = reactions != existing.reactions
+        if existing.eventSequence > message.eventSequence {
+            // Stale re-delivery: keep the newer stored version.
+            return .keep(reactions: reactionsChanged ? reactions : nil, adoptClientMessageID: nil)
+        }
+        // A copy that settles a row stored as ciphertext (waiting on a key, or unsupported by the
+        // build that stored it) is not a re-delivery. An unknown stored failure counts as final.
+        let storedFailure = existing.decryptFailure.map { ConversationMessage.DecryptFailure(rawValue: $0) ?? .authentication }
+        let opensStoredRow = existing.kind == 3 && message.settles(unopenedWith: storedFailure)
+        if existing.eventSequence == message.eventSequence && !opensStoredRow {
+            // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
+            // copy landing after a stream echo, or vice versa) so identity stays stable.
+            let adopt = existing.clientMessageID == nil ? message.clientMessageID : nil
+            return .keep(reactions: reactionsChanged ? reactions : nil, adoptClientMessageID: adopt)
+        }
+        // Newer version wins; preserve the row's established identity if the newer copy lacks one.
+        return .replace(reactions: reactions, clientMessageID: message.clientMessageID ?? existing.clientMessageID)
+    }
+
+    /// `INSERT OR REPLACE` into `conversation_message` over `columns`, in order.
+    nonisolated private static func insertMessageSQL(_ columns: [String]) -> String {
+        let placeholders = Array(repeating: "?", count: columns.count).joined(separator: ", ")
+        return "INSERT OR REPLACE INTO \"\(ConversationMessageTable.name)\" (\(columns.joined(separator: ", "))) VALUES (\(placeholders))"
+    }
+
+    /// Every stored column of `message`'s row, as quoted column name and bound value, and the row's
+    /// `kind`.
+    nonisolated private static func messageColumns(_ message: ConversationMessage, conversationId: Data) throws -> (columns: [(name: String, value: Binding?)], kind: Int) {
+        let m = ConversationMessageTable()
+        let kind: Int
+        var text: String?
+        var quarks: UInt64?
+        var nativeAmount: String?
+        var currency: CurrencyCode?
+        var mint: PublicKey?
+        var deletedBy: UUID?
+        var deletedAt: Double?
+        var encryptedScheme: Int?
+        var encryptedNonce: Data?
+        var encryptedCiphertext: Data?
+        var mediaJson: Data?
+        var linkPreviewJson: Data?
+        var systemUserId: UUID?
+        var systemAdmittedBy: UUID?
+        var systemInvitedBy: UUID?
+        if let sealed = message.sealed {
+            encryptedScheme = sealed.scheme
+            encryptedNonce = sealed.nonce
+            encryptedCiphertext = sealed.ciphertext
+        }
+
+        switch message.content {
+        case .text(let value):
+            kind = 0
+            text = value
+            linkPreviewJson = try message.linkPreview.map { try JSONEncoder().encode($0) }
+        case .cash(let amount):
+            kind = 1
+            quarks = amount.onChainAmount.quarks
+            nativeAmount = amount.nativeAmount.value.description
+            currency = amount.nativeAmount.currency
+            mint = amount.mint
+        case .deleted(let deletion):
+            kind = 2
+            deletedBy = deletion.deletedBy
+            deletedAt = deletion.deletedAt.timeIntervalSinceReferenceDate
+        case .encrypted(let scheme, let nonce, let ciphertext):
+            kind = 3
+            encryptedScheme = scheme
+            encryptedNonce = nonce
+            encryptedCiphertext = ciphertext
+        case .widget(let widget):
+            // A profile share's username rides in `text`; a widget with none is one this client
+            // can't draw. A payment request is its own kind, its id base64 in `text`.
+            switch widget {
+            case .shareProfile(let share):
+                kind = 4
+                text = share.username.value
+            case .paymentRequest(let id):
+                kind = 7
+                text = id.data.base64EncodedString()
+            case .unrecognized:
+                kind = 4
+                text = nil
             }
-
-            try writer.run(
-                m.table.insert(
-                    or: .replace,
-                    m.conversationId <- conversationId,
-                    m.id             <- message.id.value,
-                    m.senderId       <- message.senderID,
-                    m.kind           <- kind,
-                    m.text           <- text,
-                    m.quarks         <- quarks,
-                    m.nativeAmount   <- nativeAmount,
-                    m.currency       <- currency,
-                    m.mint           <- mint,
-                    m.cashAction     <- cashAction,
-                    m.date           <- message.date.timeIntervalSinceReferenceDate,
-                    m.unreadSeq      <- message.unreadSeq,
-                    m.eventSequence  <- message.eventSequence,
-                    m.clientMessageID <- message.clientMessageID,
-                    m.repliedToId    <- message.repliedTo?.value,
-                    m.lastEditedTs   <- message.lastEditedTs?.timeIntervalSinceReferenceDate,
-                    m.deletedBy      <- deletedBy,
-                    m.deletedAt      <- deletedAt,
-                    m.encryptedScheme     <- encryptedScheme,
-                    m.encryptedNonce      <- encryptedNonce,
-                    m.encryptedCiphertext <- encryptedCiphertext,
-                    m.decryptFailure      <- message.decryptFailure?.rawValue,
-                    m.reactionsJson       <- Self.encodeReactions(message.reactionState),
-                    m.mediaJson           <- mediaJson,
-                    m.linkPreviewJson     <- linkPreviewJson,
-                    m.systemUserId        <- systemUserId,
-                    m.systemAdmittedBy    <- systemAdmittedBy,
-                    m.systemInvitedBy     <- systemInvitedBy,
-                    m.cashPaymentsJson    <- Self.encodeCashPayments(message.cashPayments),
-                    m.cashReceiverId      <- message.cashReceiverID
-                )
+        case .system(let fallbackText, let event):
+            kind = 6
+            text = fallbackText
+            switch event {
+            case .userJoined(let userID, let admittedBy):
+                systemUserId = userID
+                systemAdmittedBy = admittedBy
+            case .userJoinedViaInvite(let userID, let invitedBy):
+                systemUserId = userID
+                systemInvitedBy = invitedBy
+            case nil:
+                break
+            }
+        case .media(let attachments, let caption):
+            kind = 5
+            mediaJson = try JSONEncoder().encode(
+                StoredMedia(attachments: attachments, caption: caption, redacted: message.redacted)
             )
         }
+
+        let cashAction: Int? = switch message.cashAction {
+        case .sent:   0
+        case .tipped: 1
+        case .none:   nil
+        }
+
+        func column<V: Value>(_ expression: SQLite.Expression<V>, _ value: V) -> (name: String, value: Binding?) {
+            (expression.template, value.datatypeValue)
+        }
+        func column<V: Value>(_ expression: SQLite.Expression<V?>, _ value: V?) -> (name: String, value: Binding?) {
+            (expression.template, value?.datatypeValue)
+        }
+
+        let columns = [
+            column(m.conversationId, conversationId),
+            column(m.id, message.id.value),
+            column(m.senderId, message.senderID),
+            column(m.kind, kind),
+            column(m.text, text),
+            column(m.quarks, quarks),
+            column(m.nativeAmount, nativeAmount),
+            column(m.currency, currency),
+            column(m.mint, mint),
+            column(m.cashAction, cashAction),
+            column(m.date, message.date.timeIntervalSinceReferenceDate),
+            column(m.unreadSeq, message.unreadSeq),
+            column(m.eventSequence, message.eventSequence),
+            column(m.clientMessageID, message.clientMessageID),
+            column(m.repliedToId, message.repliedTo?.value),
+            column(m.lastEditedTs, message.lastEditedTs?.timeIntervalSinceReferenceDate),
+            column(m.deletedBy, deletedBy),
+            column(m.deletedAt, deletedAt),
+            column(m.encryptedScheme, encryptedScheme),
+            column(m.encryptedNonce, encryptedNonce),
+            column(m.encryptedCiphertext, encryptedCiphertext),
+            column(m.decryptFailure, message.decryptFailure?.rawValue),
+            column(m.reactionsJson, encodeReactions(message.reactionState)),
+            column(m.mediaJson, mediaJson),
+            column(m.linkPreviewJson, linkPreviewJson),
+            column(m.systemUserId, systemUserId),
+            column(m.systemAdmittedBy, systemAdmittedBy),
+            column(m.systemInvitedBy, systemInvitedBy),
+            column(m.cashPaymentsJson, encodeCashPayments(message.cashPayments)),
+            column(m.cashReceiverId, message.cashReceiverID),
+            column(m.cashReturnOffer, message.cashReturn.map(\.hasOffer)),
+            column(m.cashReturnOfId, message.cashReturn?.returnOf?.messageID.value),
+            column(m.paymentRequestId, message.paymentRequestID?.data),
+        ]
+        return (columns, kind)
     }
 
     /// Replaces a stored message's reactions with `transform` applied to them, returning the new
@@ -792,6 +1116,14 @@ nonisolated extension Database {
         data.flatMap { try? JSONDecoder().decode([CashPayment].self, from: $0) } ?? []
     }
 
+    /// The `CashReturn` a cash row's two columns hold; nil when the row neither offers a return nor
+    /// is one.
+    nonisolated static func decodeCashReturn(offer: Bool?, returnOf: UInt64?) -> CashReturn? {
+        let returnOf = returnOf.map { CashReturn.ReturnOf(messageID: MessageID(value: $0)) }
+        guard offer == true || returnOf != nil else { return nil }
+        return CashReturn(hasOffer: offer == true, returnOf: returnOf)
+    }
+
     nonisolated private static func decodeReactions(_ data: Data?) -> ReactionState? {
         data.flatMap { try? JSONDecoder().decode(ReactionState.self, from: $0) }
     }
@@ -845,6 +1177,17 @@ nonisolated extension Database {
         let c = ConversationTable()
         guard let data = row[c.rules] else { return nil }
         return try? JSONDecoder().decode(ConversationRules.self, from: data)
+    }
+
+    /// Nil for a row that has never held a summary (count 0, version 0, no pin), which is what every
+    /// row reads as before its first pin write. A blob that no longer decodes loads as no latest pin.
+    private func conversationPinSummary(from row: RowIterator.Element) -> ConversationPinSummary? {
+        let c = ConversationTable()
+        let latest = row[c.pinLatest].flatMap { ConversationPin(serializedBytes: $0) }
+        let count = row[c.pinCount]
+        let version = row[c.pinVersion]
+        guard latest != nil || count > 0 || version > 0 else { return nil }
+        return ConversationPinSummary(latest: latest, count: UInt32(clamping: count), version: version)
     }
 
     /// Returns nil when the chat carries no viewer state, and also when the
@@ -968,6 +1311,8 @@ nonisolated extension Database {
             cashAction: cashAction,
             cashReceiverID: row[m.cashReceiverId],
             cashPayments: Self.decodeCashPayments(row[m.cashPaymentsJson]),
+            paymentRequestID: row[m.paymentRequestId].map(PaymentRequestID.init(data:)),
+            cashReturn: Self.decodeCashReturn(offer: row[m.cashReturnOffer], returnOf: row[m.cashReturnOfId]),
             date: date,
             unreadSeq: row[m.unreadSeq],
             eventSequence: row[m.eventSequence],
@@ -980,5 +1325,17 @@ nonisolated extension Database {
             sealed: sealed,
             decryptFailure: row[m.decryptFailure].flatMap(ConversationMessage.DecryptFailure.init(rawValue:))
         )
+    }
+}
+
+/// A break in a conversation's stored history: `below` is the newest stored id under it, `above` the
+/// oldest id of the contiguous run the transcript reads.
+nonisolated public struct HistoryGap: Equatable, Sendable {
+    public let below: MessageID
+    public let above: MessageID
+
+    public init(below: MessageID, above: MessageID) {
+        self.below = below
+        self.above = above
     }
 }

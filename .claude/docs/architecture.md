@@ -63,6 +63,20 @@ Every router mutation logs one INFO entry under `flipcash.router` — filter by 
 
 Floating toasts go through `ToastController` (FlipcashUI), held on `Container` and injected via `@Environment(ToastController.self)`. Call `toasts.show(.init(...))`; **don't add a screen-level toast overlay or `@State` timer.** `HomeTabView` hosts the one toast with `.toastHost(_:)`, which sits it above the floating tab bar (native bar on iOS 26+, legacy pill below) or at the screen's bottom edge when the bar is hidden. A new toast replaces the one showing. A toast with an action takes touches and swipes down to dismiss; one without lets touches through. A sheet, dialog or the bill covers the host: `HomeTabView` sets `isCovered` from router sheets and the bill, which dismisses the toast showing, and `show` drops any toast dispatched while something is presented. For a message that updates as the user acts (a countdown), pass `inPlace: true` so it swaps text without replaying the entrance. The bill screen's balance toast (`Session.toast`) is a separate system.
 
+## Concurrent Fan-out
+
+Run independent per-item calls (one RPC per user, chat, or request) through the existing
+bounded helpers, not a hand-rolled loop:
+
+- `Collection.concurrentForEach(limit:_:)` (`Flipcash/Extensions`): fire-and-forget refreshes; each item handles its own failure.
+- `RecipientBatch.resolveOwners` (`SessionProtocols.swift`) or the `BlocklistController.resolve` shape: results kept in input order. A throwing group cancels the rest on the first failure.
+
+Pass a `@Sendable` closure that captures the main-actor owner, e.g.
+`{ @MainActor [self] in await self.refresh($0) }`. Child tasks must not capture an
+`any Protocol` value or a protocol extension's `self`. Those aren't Sendable, and the
+region checker rejects them even when marked `@MainActor`
+([reflection](../reflections/2026-11-02-fan-out-over-anyobject-protocol.md)).
+
 ## Key Architectural Concepts
 
 1. **Quarks** - Smallest unit of any currency (like cents for dollars)

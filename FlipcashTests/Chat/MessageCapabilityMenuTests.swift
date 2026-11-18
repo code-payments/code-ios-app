@@ -97,6 +97,28 @@ struct MessageCapabilityMenuTests {
         #expect(notified.map(\.1) == [.edit, .delete])
     }
 
+    @Test("Save Photo renders as a plain row and reports the row's id to the screen")
+    func savePhotoNotifies() {
+        let controller = loadedController([
+            .message(ChatMessage(id: "row-4", text: "hi", sender: .other, actions: [.reply, .savePhoto, .report]))
+        ])
+        #expect(titles(menu(controller, at: 0)) == ["Reply", "Save Photo", "Report"])
+        var notified: [(String, MessageCapability)] = []
+        controller.onMessageAction = { notified.append(($0, $1)) }
+
+        guard let save = menu(controller, at: 0)?.children
+            .compactMap({ $0 as? UIAction })
+            .first(where: { $0.title == "Save Photo" }) else {
+            Issue.record("expected a Save Photo action")
+            return
+        }
+        #expect(!save.attributes.contains(.destructive))
+        save.performWithSender(nil, target: nil)
+
+        #expect(notified.map(\.0) == ["row-4"])
+        #expect(notified.map(\.1) == [.savePhoto])
+    }
+
     @Test("Report renders last, and is marked destructive")
     func reportIsOfferedAndDestructive() {
         let controller = loadedController([
@@ -137,5 +159,49 @@ struct MessageCapabilityMenuTests {
             .message(ChatMessage(id: "1", content: .deleted("This message was deleted"), sender: .other))
         ])
         #expect(menu(controller, at: 0) == nil)
+    }
+}
+
+@MainActor
+@Suite("Long-press lift menu rows")
+struct LiftMenuRowsTests {
+
+    private func controller(actions: [MessageCapability]) -> ChatViewController {
+        let controller = ChatViewController()
+        controller.loadViewIfNeeded()
+        controller.update(items: [.message(ChatMessage(id: "1", text: "hi", sender: .other, actions: actions))])
+        return controller
+    }
+
+    @Test("The lift menu carries the moderation rows, which the context menu nests in an inline section")
+    func liftRowsIncludeModeration() {
+        let rows = controller(actions: [.copy, .reply, .forward, .report, .silence, .remove])
+            .liftMenuActions(for: ChatMessage(id: "1", text: "hi", sender: .other, actions: [.copy, .reply, .forward, .report, .silence, .remove]))
+        #expect(rows.map(\.title).count == 6)
+        #expect(rows.map(\.title).first == "Copy")
+        #expect(rows.map(\.title).contains { $0.hasPrefix("Restrict") })
+        #expect(rows.map(\.title).contains { $0.hasPrefix("Remove") })
+    }
+
+    @Test("A divider sets moderation apart from Report, and Remove does not add another")
+    func dividersAroundModeration() {
+        let report = UIAction(title: "Report", attributes: .destructive) { _ in }
+        let silence = UIAction(title: "Silence") { _ in }
+        let remove = UIAction(title: "Remove", attributes: .destructive) { _ in }
+        let copy = UIAction(title: "Copy") { _ in }
+        let rows = [copy, report, silence, remove]
+        let flat = MessageMenuView.size(for: [copy, report])
+        // Two dividers (before Report, before Silence) over two extra rows.
+        #expect(MessageMenuView.size(for: rows).height - flat.height == CGFloat(2 * 44 + 13))
+    }
+}
+
+@MainActor
+@Suite("Moderation row titles")
+struct ModerationRowTitleTests {
+    @Test("Restrict and Remove name the sender with no ellipsis")
+    func titles() {
+        #expect(MessageCapability.silence.menuTitle(naming: "Ada") == "Restrict Ada")
+        #expect(MessageCapability.remove.menuTitle(naming: "Ada") == "Remove Ada")
     }
 }

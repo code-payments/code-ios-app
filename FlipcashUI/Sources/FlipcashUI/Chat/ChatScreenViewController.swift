@@ -204,6 +204,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onPaymentRequestTap = newValue }
     }
 
+    /// Called with a cash message's id when its receiver taps Send Back.
+    public var onSendBack: ((String) -> Void)? {
+        get { transcript.onSendBack }
+        set { transcript.onSendBack = newValue }
+    }
+
     public var onOpenURL: ((URL) -> Void)? {
         get { transcript.onOpenURL }
         set { transcript.onOpenURL = newValue }
@@ -280,6 +286,12 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onEncryptionMarkerTap = newValue }
     }
 
+    /// Forwards the group-ready card's Invite People tap to the owner.
+    public var onInviteCardTap: (() -> Void)? {
+        get { transcript.onInviteCardTap }
+        set { transcript.onInviteCardTap = newValue }
+    }
+
     /// Forwards gutter-avatar taps from the transcript to the owner — see
     /// ``ChatViewController/onAuthorTap``.
     public var onAuthorTap: ((UserID) -> Void)? {
@@ -349,6 +361,11 @@ public final class ChatScreenViewController: UIViewController {
     public var reportsReads: Bool {
         get { transcript.reportsReads }
         set { transcript.reportsReads = newValue }
+    }
+    /// Whether the first open lands on the unread divider — see ``ChatViewController/opensAtUnreadDivider``.
+    public var opensAtUnreadDivider: Bool {
+        get { transcript.opensAtUnreadDivider }
+        set { transcript.opensAtUnreadDivider = newValue }
     }
 
     /// Forwards a reaction-pill tap from the transcript, with the row's id and the toggled emoji.
@@ -475,7 +492,7 @@ public final class ChatScreenViewController: UIViewController {
     private func presentLift(for message: ChatMessage, withMenu: Bool, press: CGPoint? = nil) {
         guard lift == nil, let scene = view.window?.windowScene else { return }
         let entries = stripEntries(for: message)
-        let actions = withMenu ? transcript.contextMenu(for: message)?.children.compactMap { $0 as? UIAction } : nil
+        let actions = withMenu ? transcript.liftMenuActions(for: message) : nil
         guard entries != nil || actions?.isEmpty == false,
               let (copy, frame) = transcript.beginLift(for: message, in: view) else { return }
         if withMenu {
@@ -778,6 +795,11 @@ public final class ChatScreenViewController: UIViewController {
     /// How far the keyboard reaches up into the screen, in points; zero while it is down.
     public var keyboardOverlap: CGFloat {
         keyboardFloor?.overlap ?? 0
+    }
+
+    /// Whether the composer's field is first responder, that is, the keyboard is up for it.
+    public var composerHoldsKeyboard: Bool {
+        bar.firstTextInputResponder?.isFirstResponder ?? false
     }
 
     /// Whether the composer's field holds the keyboard and can take a replacement input view.

@@ -112,32 +112,60 @@ struct MessageCapabilityTests {
         #expect(resolve(cash(from: them), isMember: false) == [.report, .forward])
     }
 
-    @Test("My own photo with a caption can be copied, replied to and deleted, but not edited")
-    func ownMediaOffersCopyButNotEdit() {
-        #expect(resolve(media(from: me)) == [.copy, .reply, .delete, .forward])
+    @Test("My own photo with a caption can be copied, replied to, saved, edited and deleted")
+    func ownCaptionedMediaIsEditable() {
+        #expect(resolve(media(from: me)) == [.copy, .reply, .savePhoto, .edit, .delete, .forward])
     }
 
-    @Test("My own photo with no caption has no text to copy")
+    @Test("My own captioned photo loses Edit outside the edit window, as text does")
+    func ownCaptionedMediaFollowsTheEditWindow() {
+        let policy = windows(edit: 900, delete: 172_800)
+        #expect(!resolve(media(from: me, sentAgo: 1_000), policy: policy).contains(.edit))
+        #expect(resolve(media(from: me, sentAgo: 600), policy: policy).contains(.edit))
+    }
+
+    @Test("A photo sent without a caption can't be edited: there is no caption to change")
     func ownCaptionlessMediaOffersNoCopy() {
-        #expect(resolve(media(from: me, caption: nil)) == [.reply, .delete, .forward])
-        #expect(resolve(media(from: me, caption: "")) == [.reply, .delete, .forward])
+        #expect(resolve(media(from: me, caption: nil)) == [.reply, .savePhoto, .delete, .forward])
+        #expect(resolve(media(from: me, caption: "")) == [.reply, .savePhoto, .delete, .forward])
     }
 
-    @Test("Someone else's captioned photo can be copied, replied to and reported")
+    @Test("Someone else's captioned photo can be copied, replied to and reported, but not edited")
     func otherPersonsMediaIsCopyableAndReportable() {
-        #expect(resolve(media(from: them)) == [.copy, .reply, .report, .forward])
+        #expect(resolve(media(from: them)) == [.copy, .reply, .savePhoto, .report, .forward])
     }
 
     @Test("Someone else's photo with no caption can be replied to and reported, but not copied")
     func otherPersonsCaptionlessMediaIsNotCopyable() {
-        #expect(resolve(media(from: them, caption: nil)) == [.reply, .report, .forward])
+        #expect(resolve(media(from: them, caption: nil)) == [.reply, .savePhoto, .report, .forward])
     }
 
-    private func media(from sender: UUID, caption: String? = "hi") -> ConversationMessage {
+    @Test("Save Photo is offered on photo messages only")
+    func savePhotoOnPhotosOnly() {
+        #expect(resolve(media(from: them)).contains(.savePhoto))
+        #expect(resolve(media(from: me)).contains(.savePhoto))
+        #expect(!resolve(text("hi", from: them)).contains(.savePhoto))
+        #expect(!resolve(text("hi", from: me)).contains(.savePhoto))
+        #expect(!resolve(cash(from: them)).contains(.savePhoto))
+        #expect(!resolve(cash(from: me)).contains(.savePhoto))
+    }
+
+    @Test("Save Photo survives the speaker rule and membership: saving posts nothing")
+    func savePhotoSurvivesSpeakerRule() {
+        #expect(resolve(media(from: them), canPost: false).contains(.savePhoto))
+        #expect(resolve(media(from: them), isMember: false).contains(.savePhoto))
+    }
+
+    @Test("Save Photo has no window")
+    func savePhotoHasNoWindow() {
+        #expect(MessagePolicy.default.window(for: .savePhoto) == nil)
+    }
+
+    private func media(from sender: UUID, caption: String? = "hi", sentAgo: TimeInterval = 0) -> ConversationMessage {
         ConversationMessage(
             id: MessageID(value: 4), senderID: sender,
             content: .media([MediaAttachment(blobID: BlobID(data: Data([1])), width: 1, height: 1, blurhash: nil)], caption: caption),
-            date: now, unreadSeq: 1, eventSequence: 2
+            date: now.addingTimeInterval(-sentAgo), unreadSeq: 1, eventSequence: 2
         )
     }
 
@@ -366,5 +394,67 @@ struct MessageCapabilityTests {
         #expect(MessageCapability.nextExpiry(
             among: [text("hi", from: me)], in: nil, as: me, policy: windows(edit: nil, delete: nil), now: now
         ) == nil)
+    }
+
+    // MARK: - Pin / Unpin
+
+    private func pinning(_ message: ConversationMessage, canPin: Bool = true, isPinned: Bool = false) -> Set<MessageCapability> {
+        let conversation = Conversation(
+            id: ConversationID(data: Data(repeating: 1, count: 32)), members: [], lastMessage: nil,
+            lastActivity: now, viewerState: ConversationViewerState(canPin: canPin)
+        )
+        return MessageCapability.resolve(for: message, in: conversation, as: me, isMember: true, isPinned: isPinned, policy: .default, now: now)
+    }
+
+    @Test("A viewer who may pin gets Pin on any confirmed text, theirs or mine")
+    func canPinOffersPin() {
+        #expect(pinning(text("hi", from: them)).contains(.pin))
+        #expect(pinning(text("hi", from: me)).contains(.pin))
+        #expect(pinning(cash(from: them)).contains(.pin))
+        #expect(pinning(media(from: them)).contains(.pin))
+    }
+
+    @Test("Without can_pin there is neither Pin nor Unpin")
+    func cannotPinOffersNeither() {
+        let actions = pinning(text("hi", from: them), canPin: false, isPinned: true)
+        #expect(!actions.contains(.pin))
+        #expect(!actions.contains(.unpin))
+        #expect(!resolve(text("hi", from: them)).contains(.pin))
+    }
+
+    @Test("A pinned message offers Unpin instead of Pin")
+    func pinnedOffersUnpin() {
+        let actions = pinning(text("hi", from: them), isPinned: true)
+        #expect(actions.contains(.unpin))
+        #expect(!actions.contains(.pin))
+    }
+
+    @Test("System notices, tombstones, payment requests and undecrypted messages can't be pinned")
+    func unpinnableContentOffersNoPin() {
+        let notice = ConversationMessage(
+            id: MessageID(value: 7), senderID: nil,
+            content: .system(fallbackText: "Alex joined", event: nil), date: now, unreadSeq: 1, eventSequence: 2
+        )
+        let tombstone = ConversationMessage(
+            id: MessageID(value: 2), senderID: them,
+            content: .deleted(.init(deletedBy: them, deletedAt: now)), date: now, unreadSeq: 1, eventSequence: 3
+        )
+        let request = ConversationMessage(
+            id: MessageID(value: 8), senderID: them,
+            content: .widget(.paymentRequest(PaymentRequestID(data: Data(repeating: 7, count: 32)))),
+            date: now, unreadSeq: 1, eventSequence: 2
+        )
+        let encrypted = ConversationMessage(
+            id: MessageID(value: 6), senderID: them,
+            content: .encrypted(scheme: 1, nonce: Data(), ciphertext: Data()), date: now, unreadSeq: 1, eventSequence: 2
+        )
+        for message in [notice, tombstone, request, encrypted] {
+            #expect(!pinning(message).contains(.pin))
+        }
+    }
+
+    @Test("An unconfirmed message has no id to pin yet")
+    func unconfirmedOffersNoPin() {
+        #expect(!pinning(text("hi", from: me, eventSequence: 0)).contains(.pin))
     }
 }

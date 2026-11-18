@@ -45,6 +45,8 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         let repliedTo: MessageID?
         var linkPreview: MessageLinkPreview? = nil
         let expectedEventSequence: UInt64
+        /// Whether this was `editCaption`, whose `text` is the new caption.
+        var isCaption = false
     }
 
     struct Deleted: Sendable, Equatable {
@@ -147,6 +149,19 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         get { lock.withLock { _olderMessages } }
         set { lock.withLock { _olderMessages = newValue } }
     }
+    /// When set, older pages are cut from this server history: the newest 50 messages below `before`,
+    /// like the real paging. Takes precedence over `olderMessages`.
+    var olderHistory: [ConversationMessage]? {
+        get { lock.withLock { _olderHistory } }
+        set { lock.withLock { _olderHistory = newValue } }
+    }
+    private var _olderHistory: [ConversationMessage]?
+    /// When set, older-page `getMessages` throws this instead of returning a page.
+    var olderError: Error? {
+        get { lock.withLock { _olderError } }
+        set { lock.withLock { _olderError = newValue } }
+    }
+    private var _olderError: Error?
     /// The `before` cursors `getMessages` was paged with.
     var olderQueries: [MessageID] { lock.withLock { _olderQueries } }
     /// Messages `getMessage` returns by id; an id missing here reads as not found.
@@ -430,6 +445,10 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
             return messages
         }
         lock.withLock { _olderQueries.append(before) }
+        if let error = olderError { throw error }
+        if let history = olderHistory {
+            return Array(history.filter { $0.id.value < before.value }.sorted { $0.id.value < $1.id.value }.suffix(50))
+        }
         return olderMessages
     }
 
@@ -490,6 +509,15 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         return editResult
     }
 
+    func editCaption(owner: KeyPair, conversationID: ConversationID, photo: ConversationMessage, caption: String, expectedEventSequence: UInt64) async throws -> MessageMutation {
+        lock.withLock {
+            _edited.append(Edited(conversationID: conversationID, messageID: photo.id, text: caption, repliedTo: photo.repliedTo, expectedEventSequence: expectedEventSequence, isCaption: true))
+        }
+        if let editError { throw editError }
+        guard let editResult else { throw ErrorEditMessage.unknown }
+        return editResult
+    }
+
     func addReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction {
         try await react(Reacted(op: .add, messageID: messageID, emoji: emoji))
     }
@@ -518,6 +546,10 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         }
     }
 
+    func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus {
+        throw ErrorGetCashMessageReturnStatus.transportFailure
+    }
+
     func deleteMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, expectedEventSequence: UInt64) async throws -> MessageMutation {
         lock.withLock {
             _deleted.append(Deleted(conversationID: conversationID, messageID: messageID, expectedEventSequence: expectedEventSequence))
@@ -540,6 +572,57 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         }
         if let error { throw error }
         return head
+    }
+
+    /// The page `getPinnedMessages` answers with; an empty page at version 0 by default.
+    var pinsPage: ConversationPinsPage {
+        get { lock.withLock { _pinsPage } }
+        set { lock.withLock { _pinsPage = newValue } }
+    }
+    private var _pinsPage = ConversationPinsPage(pins: [], summary: nil, pagingToken: Data(), hasMore: false)
+
+    /// When set, `pinMessage` throws this instead of answering.
+    var pinError: Error? {
+        get { lock.withLock { _pinError } }
+        set { lock.withLock { _pinError = newValue } }
+    }
+    private var _pinError: Error?
+
+    /// The summary `pinMessage` and `unpinMessage` answer with.
+    var pinSummaryResponse: ConversationPinSummary {
+        get { lock.withLock { _pinSummaryResponse } }
+        set { lock.withLock { _pinSummaryResponse = newValue } }
+    }
+    private var _pinSummaryResponse = ConversationPinSummary(latest: nil, count: 0, version: 0)
+
+    /// Every pin and unpin call, in order.
+    var pinCalls: [(pin: Bool, messageID: MessageID)] { lock.withLock { _pinCalls } }
+    private var _pinCalls: [(pin: Bool, messageID: MessageID)] = []
+
+    /// How many times `getPinnedMessages` was called.
+    var pinnedFetchCount: Int { lock.withLock { _pinnedFetchCount } }
+    private var _pinnedFetchCount = 0
+
+    func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
+        try lock.withLock {
+            _pinCalls.append((true, messageID))
+            if let _pinError { throw _pinError }
+            return _pinSummaryResponse
+        }
+    }
+
+    func unpinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
+        lock.withLock {
+            _pinCalls.append((false, messageID))
+            return _pinSummaryResponse
+        }
+    }
+
+    func getPinnedMessages(owner: KeyPair, conversationID: ConversationID, pagingToken: Data?) async throws -> ConversationPinsPage {
+        lock.withLock {
+            _pinnedFetchCount += 1
+            return _pinsPage
+        }
     }
 
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws {

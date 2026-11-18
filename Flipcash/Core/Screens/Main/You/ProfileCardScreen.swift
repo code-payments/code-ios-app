@@ -93,6 +93,7 @@ struct ProfileCardScreen: View {
             )
         }
         .onAppear {
+            Analytics.profileCardShown()
             boostBrightness()
             reveal()
         }

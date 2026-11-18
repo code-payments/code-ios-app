@@ -11,7 +11,7 @@ import Synchronization
 
 private let logger = Logger(label: "flipcash.grpc-resolver")
 
-/// A DNS target whose addresses are looked up again every time the network path changes.
+/// A DNS target whose addresses are looked up again on every network path change or resolve request.
 struct PathAwareDNSTarget: ResolvableTarget, Sendable {
     /// The host name to resolve.
     var host: String
@@ -19,15 +19,22 @@ struct PathAwareDNSTarget: ResolvableTarget, Sendable {
     var port: Int
 }
 
-/// Makes resolvers that push a fresh address list to the channel whenever the network path changes.
+/// Makes resolvers that push a fresh address list to the channel on every network path change or resolve request.
 // grpc-swift's `.dns` resolver only looks up again after an established connection drops or
 // on GOAWAY, so a failed dial retries stale addresses forever: IPv4-only Wi-Fi to IPv6-only
 // cellular left every RPC dialing an unreachable IPv4 address until relaunch.
+// The channel never asks a push resolver to look again, so after a GOAWAY pick-first refuses new
+// RPCs until the going-away connection closes, which a long-lived stream can hold off indefinitely.
+// Any pushed result, even the same addresses, makes the channel dial a replacement connection, so
+// `resolveRequests` stands in for the channel's own re-resolve request.
 struct PathAwareDNSResolverFactory: NameResolverFactory, Sendable {
     typealias Target = PathAwareDNSTarget
 
     /// Emits once per relevant network path change, after the initial path.
     var pathChanges: @Sendable () -> AsyncStream<Void> = NetworkPathChanges.stream
+
+    /// Emits once per request to resolve again outside a path change.
+    var resolveRequests: @Sendable () -> AsyncStream<Void> = { AsyncStream { _ in } }
 
     /// Looks up the socket addresses for a host and port.
     var lookup: @Sendable (_ host: String, _ port: Int) async throws -> [SocketAddress] = AddressLookup.resolve
@@ -42,6 +49,7 @@ struct PathAwareDNSResolverFactory: NameResolverFactory, Sendable {
         let sequence = Sequence(
             target: target,
             pathChanges: pathChanges,
+            resolveRequests: resolveRequests,
             lookup: lookup,
             settleDelays: settleDelays,
             sleep: sleep
@@ -53,7 +61,7 @@ struct PathAwareDNSResolverFactory: NameResolverFactory, Sendable {
         )
     }
 
-    /// Resolution results for one target: one immediately, then one per path change.
+    /// Resolution results for one target: one immediately, then one per path change or resolve request.
     // The channel makes a new iterator after every error, so a failed lookup is retried
     // after its backoff rather than waiting for the next path change.
     struct Sequence: AsyncSequence, Sendable {
@@ -63,6 +71,8 @@ struct PathAwareDNSResolverFactory: NameResolverFactory, Sendable {
         let target: PathAwareDNSTarget
         /// Source of path-change ticks, one stream per iterator.
         let pathChanges: @Sendable () -> AsyncStream<Void>
+        /// Source of resolve requests, one stream per iterator.
+        let resolveRequests: @Sendable () -> AsyncStream<Void>
         /// Looks up the socket addresses for a host and port.
         let lookup: @Sendable (String, Int) async throws -> [SocketAddress]
         /// Waits before each repeat lookup when a path change returns the previous addresses.
@@ -71,15 +81,38 @@ struct PathAwareDNSResolverFactory: NameResolverFactory, Sendable {
         let sleep: @Sendable (Duration) async throws -> Void
 
         func makeAsyncIterator() -> Iterator {
-            Iterator(sequence: self, changes: pathChanges().makeAsyncIterator())
+            Iterator(sequence: self, triggers: triggers().makeAsyncIterator())
         }
 
-        /// Yields the first result immediately and each later one after a path change.
+        /// What prompted a lookup after the first.
+        enum Trigger {
+            case pathChanged
+            case requested
+        }
+
+        /// Path changes and resolve requests in arrival order, finishing when the path stream finishes.
+        private func triggers() -> AsyncStream<Trigger> {
+            let (stream, continuation) = AsyncStream<Trigger>.makeStream()
+            let paths = Task {
+                for await _ in pathChanges() { continuation.yield(.pathChanged) }
+                continuation.finish()
+            }
+            let requests = Task {
+                for await _ in resolveRequests() { continuation.yield(.requested) }
+            }
+            continuation.onTermination = { _ in
+                paths.cancel()
+                requests.cancel()
+            }
+            return stream
+        }
+
+        /// Yields the first result immediately and each later one after a path change or resolve request.
         struct Iterator: AsyncIteratorProtocol {
             /// The sequence this iterator resolves for.
             let sequence: Sequence
-            /// Path-change ticks that gate every result after the first.
-            var changes: AsyncStream<Void>.Iterator
+            /// Path changes and resolve requests that gate every result after the first.
+            var triggers: AsyncStream<Trigger>.Iterator
             /// The addresses last returned, or `nil` before the first result.
             var lastAddresses: [SocketAddress]?
 
@@ -91,11 +124,17 @@ struct PathAwareDNSResolverFactory: NameResolverFactory, Sendable {
 
                 // A finished stream means the task was cancelled; returning nil would
                 // make the channel back off and resolve again instead of stopping.
-                guard await changes.next() != nil else { throw CancellationError() }
-                logger.info("Network path changed, resolving again", metadata: ["host": "\(sequence.target.host)"])
+                guard let trigger = await triggers.next() else { throw CancellationError() }
+                switch trigger {
+                case .requested:
+                    logger.info("Resolve requested, resolving again", metadata: ["host": "\(sequence.target.host)"])
+                    return try await resolve()
+                case .pathChanged:
+                    logger.info("Network path changed, resolving again", metadata: ["host": "\(sequence.target.host)"])
+                }
 
-                // The channel ignores an unchanged address list, and DNS can answer from the
-                // old path for a moment after the switch, so look again before giving up.
+                // DNS can answer from the old path for a moment after the switch, so look
+                // again before settling for the old addresses.
                 var result = try await resolve()
                 for delay in sequence.settleDelays where lastAddresses == previous {
                     try await sequence.sleep(delay)

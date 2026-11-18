@@ -20,9 +20,28 @@ private final class ReactionsModel {
 @MainActor
 struct ChatMediaViewerTests {
 
+    private let folder: TemporaryCacheFolder
+    private let caches: ChatMediaCaches
+
+    init() throws {
+        let folder = TemporaryCacheFolder()
+        self.folder = folder
+        caches = try folder.chatMediaCaches()
+    }
+
     private static let blobID = BlobID(data: Data([1]))
     private static let remoteURL = URL(string: "https://example.com/a.jpg")!
-    private static let localImage = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30)).image { context in
+    private static let opaqueFormat: UIGraphicsImageRendererFormat = {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        return format
+    }()
+    /// A staged image with a transparent left half, like a screenshot exported with alpha.
+    private static let transparentImage = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30)).image { context in
+        UIColor.red.setFill()
+        context.fill(CGRect(x: 20, y: 0, width: 20, height: 30))
+    }
+    private static let localImage = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30), format: opaqueFormat).image { context in
         UIColor.red.setFill()
         context.fill(CGRect(x: 0, y: 0, width: 40, height: 30))
     }
@@ -44,16 +63,16 @@ struct ChatMediaViewerTests {
         localImage: UIImage? = nil,
         remoteURL: URL? = ChatMediaViewerTests.remoteURL
     ) -> ChatMediaViewerRequest? {
-        ChatMediaViewerRequest(message: message, localImage: localImage, remote: remoteURL.map { ChatMediaLocation(url: $0) }, placeholder: nil) { nil }
+        ChatMediaViewerRequest(message: message, localImage: localImage, remote: { [caches] in remoteURL.map { ChatMediaLocation(url: $0, caches: caches) } }, placeholder: nil) { nil }
     }
 
     // MARK: - Request
 
     @Test("A viewable photo opens with its blob and URL")
-    func viewablePhotoOpens() throws {
+    func viewablePhotoOpens() async throws {
         let viewer = try #require(request(message(media())))
         #expect(viewer.blobID == Self.blobID)
-        #expect(viewer.remote?.url == Self.remoteURL)
+        #expect(await viewer.remote()?.url == Self.remoteURL)
     }
 
     @Test("A redacted photo, or one seen while previewing a group, never opens")
@@ -68,9 +87,26 @@ struct ChatMediaViewerTests {
         #expect(request(message(media(), receipt: .failed("Not delivered")), localImage: Self.localImage) == nil)
     }
 
-    @Test("A photo with nothing to show yet opens nothing")
-    func unresolvedPhotoNeverOpens() {
-        #expect(request(message(media()), remoteURL: nil) == nil)
+    @Test("A photo with neither a blob nor a staged image opens nothing")
+    func photoWithoutBlobNeverOpens() {
+        let noBlob = ChatMediaContent(blobID: nil, width: 40, height: 30, blurhash: nil, caption: nil, isRedacted: false)
+        #expect(request(message(noBlob), remoteURL: nil) == nil)
+    }
+
+    @Test("A photo whose URL is still minting opens, and loads once it lands")
+    func unresolvedPhotoOpens() throws {
+        let viewer = try #require(request(message(media()), remoteURL: nil))
+        #expect(viewer.blobID == Self.blobID)
+    }
+
+    @Test("A sealed photo's page says so, for the report of a load drawn from the cache")
+    func sealedPhotoPageIsSealed() throws {
+        let sealed = ChatMediaContent(
+            blobID: Self.blobID, width: 40, height: 30, blurhash: nil, caption: nil, isRedacted: false,
+            sealed: SealedBlob(senderID: UUID(), plaintextSize: 10)
+        )
+        #expect(try #require(request(message(sealed))).pages.map(\.sealed) == [true])
+        #expect(try #require(request(message(media()))).pages.map(\.sealed) == [false])
     }
 
     @Test("A pending send opens on its staged image")
@@ -85,7 +121,7 @@ struct ChatMediaViewerTests {
     func zoomsFromSource() throws {
         let source = UIView()
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: Self.localImage, remote: nil, placeholder: nil
+            message: message(media()), localImage: Self.localImage, remote: { nil }, placeholder: nil
         ) { source })
         let viewer = makeViewer(request)
 
@@ -104,7 +140,7 @@ struct ChatMediaViewerTests {
     @Test("The viewer is always dark, so its glass and glyphs match the black backdrop")
     func viewerIsDark() throws {
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: Self.localImage, remote: nil, placeholder: nil
+            message: message(media()), localImage: Self.localImage, remote: { nil }, placeholder: nil
         ) { nil })
         let viewer = makeViewer(request)
         #expect(viewer.overrideUserInterfaceStyle == .dark)
@@ -120,15 +156,15 @@ struct ChatMediaViewerTests {
 
     private func makeViewer(
         _ request: ChatMediaViewerRequest,
-        onReply: @escaping () -> Void = {},
-        onForward: @escaping () -> Void = {},
+        onReply: @escaping (String) -> Void = { _ in },
+        onForward: @escaping (String) -> Void = { _ in },
         onSave: @escaping (UIImage, Data?) async throws -> Void = { _, _ in },
-        onReact: @escaping (String) -> Void = { _ in },
-        entries: @escaping () -> [ReactionStrip.Entry] = { [ReactionStrip.Entry(emoji: "👍", highlighted: false), ReactionStrip.Entry(emoji: "❤️", highlighted: false)] }
+        onReact: @escaping (String, String) -> Void = { _, _ in },
+        entries: @escaping (String) -> [ReactionStrip.Entry] = { _ in [ReactionStrip.Entry(emoji: "👍", highlighted: false), ReactionStrip.Entry(emoji: "❤️", highlighted: false)] }
     ) -> ChatMediaViewerController {
         let viewer = ChatMediaViewerController(
             request: request, onReply: onReply, onForward: onForward, onSave: onSave,
-            onReact: onReact, onMoreReactions: {}, reactionEntries: entries
+            onReact: onReact, onMoreReactions: { _ in }, reactionEntries: entries
         )
         viewer.view.frame = CGRect(x: 0, y: 0, width: 400, height: 800)
         viewer.view.layoutIfNeeded()
@@ -143,6 +179,60 @@ struct ChatMediaViewerTests {
         #expect(viewer.closeButton.alpha == 0)
         #expect(!viewer.closeButton.isUserInteractionEnabled)
         #expect(viewer.closeButton.accessibilityElementsHidden)
+    }
+
+    @Test("A stack opens with its counter showing on a dark pill, over the hidden controls")
+    func stackOpensWithCounterPill() throws {
+        var stack = try #require(request(message(media()), localImage: Self.localImage))
+        stack.stackPages = Array(repeating: stack.pages[0], count: 3)
+        let viewer = makeViewer(stack)
+
+        #expect(viewer.areControlsHidden)
+        #expect(!viewer.pageCounterPill.isHidden)
+        #expect(viewer.pageCounterPill.alpha == 1)
+        #expect(viewer.pageCounter.text == "1 of 3")
+        #expect(viewer.pageCounter.isDescendant(of: viewer.pageCounterPill))
+    }
+
+    @Test("A stack lays its photos side by side in a pager, one screen each")
+    func stackPagesSideBySide() throws {
+        var stack = try #require(request(message(media()), localImage: Self.localImage))
+        stack.stackPages = Array(repeating: stack.pages[0], count: 3)
+        let viewer = makeViewer(stack)
+
+        #expect(viewer.pager.isPagingEnabled)
+        #expect(viewer.pager.contentSize.width == 3 * viewer.pager.bounds.width)
+
+        viewer.showPage(2)
+        #expect(viewer.pageIndex == 2)
+        #expect(viewer.pager.contentOffset.x == 2 * viewer.pager.bounds.width)
+        #expect(viewer.pageCounter.text == "3 of 3")
+        #expect(viewer.viewForZooming(in: viewer.scrollView) === viewer.imageView)
+    }
+
+    @Test("A zoomed-in photo stops the pager, and paging away puts it back to fit")
+    func zoomLocksPaging() throws {
+        var stack = try #require(request(message(media()), localImage: Self.localImage))
+        stack.stackPages = Array(repeating: stack.pages[0], count: 2)
+        let viewer = makeViewer(stack)
+        let first = viewer.scrollView
+
+        first.setZoomScale(2, animated: false)
+        #expect(!viewer.pager.isScrollEnabled)
+
+        first.setZoomScale(first.minimumZoomScale, animated: false)
+        #expect(viewer.pager.isScrollEnabled)
+
+        first.setZoomScale(2, animated: false)
+        viewer.showPage(1)
+        #expect(first.zoomScale == first.minimumZoomScale)
+        #expect(viewer.pager.isScrollEnabled)
+    }
+
+    @Test("A single photo shows no counter")
+    func singlePhotoHasNoCounter() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)))
+        #expect(viewer.pageCounterPill.isHidden)
     }
 
     @Test("A tap shows the buttons, and a second tap hides them again")
@@ -177,8 +267,9 @@ struct ChatMediaViewerTests {
     @Test("Save waits until the photo itself has loaded")
     func saveWaitsForPhoto() throws {
         let placeholder = UIImage(systemName: "photo")!
+        let never = ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!, caches: caches)
         let request = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
+            message: message(media()), localImage: nil, remote: { never }, placeholder: placeholder
         ) { nil })
         var saved: UIImage?
         let viewer = makeViewer(request, onSave: { image, _ in saved = image })
@@ -187,6 +278,27 @@ struct ChatMediaViewerTests {
         #expect(!viewer.saveButton.isEnabled)
         viewer.saveButton.sendActions(for: .touchUpInside)
         #expect(saved == nil)
+    }
+
+    @Test("A staged image with transparency shows over white, as the upload does")
+    func stagedTransparencyShowsOverWhite() throws {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.transparentImage)))
+        let shown = try #require(viewer.imageView.image?.cgImage)
+        // The left half was transparent; it must now be opaque white.
+        #expect(try Self.rgba(of: shown, x: 0, y: 0) == [255, 255, 255, 255])
+        #expect(viewer.imageView.backgroundColor == nil)
+    }
+
+    /// The 8-bit RGBA of one pixel, read by drawing `image` into a known format.
+    private static func rgba(of image: CGImage, x: Int, y: Int) throws -> [UInt8] {
+        var pixel = [UInt8](repeating: 0, count: 4)
+        let context = try #require(CGContext(
+            data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.draw(image, in: CGRect(x: -x, y: -(image.height - 1 - y), width: image.width, height: image.height))
+        return pixel
     }
 
     @Test("Save is enabled once the photo is loaded, and writes it")
@@ -234,8 +346,9 @@ struct ChatMediaViewerTests {
         #expect(!reactable.reactButton.isHidden)
 
         let placeholder = UIImage(systemName: "photo")!
+        let never = ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!, caches: caches)
         let unloaded = try #require(ChatMediaViewerRequest(
-            message: message(media()), localImage: nil, remote: ChatMediaLocation(url: URL(string: "https://example.invalid/never.jpg")!), placeholder: placeholder
+            message: message(media()), localImage: nil, remote: { never }, placeholder: placeholder
         ) { nil })
         #expect(!makeViewer(unloaded).reactButton.isHidden)
 
@@ -246,7 +359,7 @@ struct ChatMediaViewerTests {
     @Test("React opens the strip, a pick calls the handler and dismisses it, and the viewer stays")
     func reactStripPick() throws {
         var picked: String?
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { picked = $0 })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { _, emoji in picked = emoji })
         viewer.setControlsHidden(false, animated: false)
 
         viewer.reactButton.sendActions(for: .touchUpInside)
@@ -261,7 +374,7 @@ struct ChatMediaViewerTests {
     @Test("Hiding the chrome dismisses the strip without reacting")
     func hidingChromeDismissesStrip() throws {
         var picked: String?
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { picked = $0 })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), onReact: { _, emoji in picked = emoji })
         viewer.setControlsHidden(false, animated: false)
         viewer.reactButton.sendActions(for: .touchUpInside)
         #expect(viewer.reactionStrip != nil)
@@ -275,7 +388,7 @@ struct ChatMediaViewerTests {
     func stripFollowsLiveReactions() async throws {
         let model = ReactionsModel()
         var reads = 0
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in
             reads += 1
             return [ReactionStrip.Entry(emoji: "👍", highlighted: model.liked)]
         })
@@ -300,7 +413,7 @@ struct ChatMediaViewerTests {
 
     @Test("With no reactions of its own the React button keeps the face icon")
     func reactButtonNoOwnReactions() throws {
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries([]) })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in self.ownEntries([]) })
         #expect(viewer.reactButton.configuration?.image != nil)
         #expect(titleText(viewer) == nil)
         #expect(viewer.reactButton.accessibilityLabel == "React")
@@ -308,21 +421,21 @@ struct ChatMediaViewerTests {
 
     @Test("One own reaction replaces the icon with that emoji")
     func reactButtonOneReaction() throws {
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["❤️"]) })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in self.ownEntries(["❤️"]) })
         #expect(titleText(viewer) == "❤️")
         #expect(viewer.reactButton.accessibilityLabel == "React, you reacted ❤️")
     }
 
     @Test("Three own reactions show all three, in strip order")
     func reactButtonThreeReactions() throws {
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["🔥", "👍", "😂"]) })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in self.ownEntries(["🔥", "👍", "😂"]) })
         #expect(titleText(viewer) == "👍😂🔥")
         #expect(viewer.reactButton.accessibilityLabel == "React, you reacted 👍, 😂 and 🔥")
     }
 
     @Test("More than three own reactions show the first two and a +N count")
     func reactButtonOverflow() throws {
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { self.ownEntries(["👍", "❤️", "😂", "🔥", "😮"]) })
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in self.ownEntries(["👍", "❤️", "😂", "🔥", "😮"]) })
         #expect(titleText(viewer) == "👍❤️+3")
         #expect(viewer.reactButton.accessibilityLabel?.hasPrefix("React, you reacted 👍") == true)
     }
@@ -340,7 +453,7 @@ struct ChatMediaViewerTests {
     @Test("The React button follows a pick or unpick while the viewer is open")
     func reactButtonFollowsLiveReactions() async throws {
         let model = ReactionsModel()
-        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: {
+        let viewer = makeViewer(try #require(request(message(media()), localImage: Self.localImage)), entries: { _ in
             [ReactionStrip.Entry(emoji: "👍", highlighted: model.liked)]
         })
         #expect(titleText(viewer) == nil)

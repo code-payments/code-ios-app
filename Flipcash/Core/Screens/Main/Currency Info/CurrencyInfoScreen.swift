@@ -35,12 +35,17 @@ struct CurrencyInfoScreen: View {
         /// `onPull` reports a pull-to-close in progress, 0 to 1, so the host can
         /// run its opening transition backwards under the finger; `onPullEnded`
         /// says whether the finger lifted past the point of no return.
+        ///
+        /// `underHostBar` is for a host whose navigation bar stays up over the
+        /// screen. The close and share buttons then go in that bar rather than
+        /// being drawn under it, where the bar would take their taps.
         case overlay(
             onClose: () -> Void,
             heroOffset: CGFloat = 0,
             contentOpacity: Double = 1,
             onPull: (CGFloat) -> Void = { _ in },
-            onPullEnded: (Bool, CGFloat) -> Void = { _, _ in }
+            onPullEnded: (Bool, CGFloat) -> Void = { _, _ in },
+            underHostBar: Bool = false
         )
         /// Laid out inline beneath the card the wallet keeps on screen, so it
         /// draws neither the hero card nor any top chrome.
@@ -115,32 +120,38 @@ private struct CurrencyInfoScreenContent: View {
 
     /// Overlay hosting draws its own chrome; pushed hosting uses `.toolbar`.
     private var overlayClose: (() -> Void)? {
-        if case .overlay(let onClose, _, _, _, _) = presentation { return onClose }
+        if case .overlay(let onClose, _, _, _, _, _) = presentation { return onClose }
         return nil
     }
 
     /// How far the hero card is displaced from its resting slot while the host
     /// animates it in.
     private var heroOffset: CGFloat {
-        if case .overlay(_, let offset, _, _, _) = presentation { return offset }
+        if case .overlay(_, let offset, _, _, _, _) = presentation { return offset }
         return 0
     }
 
     /// Everything except the hero card, which the host brings in behind it.
     private var contentOpacity: Double {
-        if case .overlay(_, _, let opacity, _, _) = presentation { return opacity }
+        if case .overlay(_, _, let opacity, _, _, _) = presentation { return opacity }
         return 1
     }
 
     /// Reports a pull-to-close to the host, which owns the transition it undoes.
     private var onPull: (CGFloat) -> Void {
-        if case .overlay(_, _, _, let onPull, _) = presentation { return onPull }
+        if case .overlay(_, _, _, let onPull, _, _) = presentation { return onPull }
         return { _ in }
     }
 
     private var onPullEnded: (Bool, CGFloat) -> Void {
-        if case .overlay(_, _, _, _, let onEnded) = presentation { return onEnded }
+        if case .overlay(_, _, _, _, let onEnded, _) = presentation { return onEnded }
         return { _, _ in }
+    }
+
+    /// Laid over a host whose navigation bar stays up, so the buttons go in that bar.
+    private var underHostBar: Bool {
+        if case .overlay(_, _, _, _, _, let underHostBar) = presentation { return underHostBar }
+        return false
     }
 
     /// The wallet keeps its own card above an inline-hosted screen.
@@ -263,11 +274,13 @@ private struct CurrencyInfoScreenContent: View {
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onMore: { isShowingMore = true },
                     onSelectCommunityChat: { chat in
+                        Analytics.tokenInfoCommunityChatTapped(mint: metadata.mint)
                         conversationController.hold(chat)
                         router.push(.chatProfile(chat.id, origin: .featuredGroup))
                     },
                     onShowCommunityRankingInfo: { session.dialogItem = .info(title: CommunityChats.rankingTitle, subtitle: CommunityChats.rankingMessage(currencyName: metadata.name)) },
                     onShowAllCommunityChats: { router.push(.topCommunityChats(metadata.mint)) },
+                    onSelectCommunityLeader: { userID in router.push(.userProfile(userID, origin: .communityLeader)) },
                     onShowMarketCapExplainer: { router.push(.marketCapExplainer(metadata.mint)) },
                     onScrolledPastTitle: { scrolledPast in
                         guard showsToolbarTitle != scrolledPast else { return }
@@ -317,18 +330,34 @@ private struct CurrencyInfoScreenContent: View {
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
-        .toolbar(usesToolbar ? .automatic : .hidden, for: .navigationBar)
+        .toolbar(usesToolbar || underHostBar ? .automatic : .hidden, for: .navigationBar)
         .toolbarTitleDisplayMode(.inline)
         // The bar background is deliberately left in place: it renders the
         // scroll edge effect, and hiding it removes the soft fade the content
         // scrolls under (see CurrencyInfoContentV2's scrollEdgeEffectStyle).
         .toolbar {
-            // The item stays mounted and only fades — churning toolbar items
-            // mid-transition wedges nav-bar layout, and keeping it laid out
-            // while hidden means `titleOffset` is already settled by the time
-            // it appears. In the new UI the content draws its own capsule, so
-            // the system platter stays off.
-            if #available(iOS 26.0, *) {
+            if underHostBar {
+                // In the spot the host's back button leaves, so the one becomes
+                // the other in place. Neither this nor share fades with the
+                // screen or a pull: the bar draws a glass circle behind each
+                // item that their opacity does not reach, so a fade leaves an
+                // empty circle where the button was.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        overlayClose?()
+                    } label: {
+                        Image.icon(.crossMedium)
+                            .iconSize(22)
+                    }
+                    .accessibilityLabel("Close")
+                    .accessibilityIdentifier("currency-info-back")
+                }
+            } else if #available(iOS 26.0, *) {
+                // The item stays mounted and only fades — churning toolbar items
+                // mid-transition wedges nav-bar layout, and keeping it laid out
+                // while hidden means `titleOffset` is already settled by the time
+                // it appears. In the new UI the content draws its own capsule, so
+                // the system platter stays off.
                 ToolbarItem(placement: titlePlacement) {
                     toolbarContent()
                         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleWidth = $0 }
@@ -391,6 +420,7 @@ private struct CurrencyInfoScreenContent: View {
     private func runPendingMoreRow() {
         guard let row = pendingMoreRow else { return }
         pendingMoreRow = nil
+        Analytics.tokenInfoMoreOptionPicked(row: row, mint: mint)
         switch row {
         case .convert:  router.push(.convertCurrency(mint))
         case .withdraw: router.push(.withdrawCurrency(mint))
@@ -442,29 +472,37 @@ private struct CurrencyInfoScreenContent: View {
     /// A close box rather than a back chevron: the screen is lifted over the
     /// wallet rather than pushed onto it, and it does not offer the edge-swipe
     /// that a chevron would imply.
+    ///
+    /// Under a host's bar, the bar holds the close and share, so this draws the
+    /// title pill alone, beside where the close sits.
     @ViewBuilder private var overlayChrome: some View {
         HStack(spacing: 8) {
-            Button {
-                overlayClose?()
-            } label: {
-                Image.icon(.crossMedium)
-                    .iconSize(22)
-                    .foregroundStyle(Color.textMain)
+            if underHostBar {
+                Color.clear
                     .frame(width: Self.overlayBarHeight, height: Self.overlayBarHeight)
-                    // Hit-test the whole target, not just the glyph.
-                    .contentShape(Circle())
-                    .modifier(CircleGlass())
+            } else {
+                Button {
+                    overlayClose?()
+                } label: {
+                    Image.icon(.crossMedium)
+                        .iconSize(22)
+                        .foregroundStyle(Color.textMain)
+                        .frame(width: Self.overlayBarHeight, height: Self.overlayBarHeight)
+                        // Hit-test the whole target, not just the glyph.
+                        .contentShape(Circle())
+                        .modifier(CircleGlass())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
+                .accessibilityIdentifier("currency-info-back")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
-            .accessibilityIdentifier("currency-info-back")
 
             toolbarContent()
                 .opacity(showsToolbarTitle ? 1 : 0)
 
             Spacer(minLength: 0)
 
-            if !isUSDF {
+            if !isUSDF && !underHostBar {
                 Button {
                     Analytics.buttonTapped(name: .shareTokenInfo)
                     isShowingShare = true

@@ -36,7 +36,7 @@ extension Image {
     /// A Central icon in the 1.5 pt set: the large mark at a tray's top left, where the 2 pt set
     /// reads heavy.
     static func trayIcon(_ icon: Icon) -> Image {
-        Image(icon.rawValue.replacingOccurrences(of: "central/", with: "central-light/"), bundle: Bundle.module)
+        Image(icon.rawValue.replacingOccurrences(of: "central/", with: "central-light/"), bundle: Bundle.flipcashUI)
     }
 }
 

@@ -34,6 +34,8 @@ final class LobbyRequests {
         case lobbyFull
         /// The user is waiting on too many groups already.
         case tooManyLobbies
+        /// The host removed the user from the group and hasn't unbanned them.
+        case banned
     }
 
     typealias EnterLobby = @MainActor @Sendable (ConversationID) async throws -> Lobby
@@ -89,6 +91,8 @@ final class LobbyRequests {
             throw RequestError.lobbyFull
         } catch ErrorEnterLobby.tooManyLobbies {
             throw RequestError.tooManyLobbies
+        } catch ErrorEnterLobby.banned {
+            throw RequestError.banned
         }
     }
 

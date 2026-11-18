@@ -35,6 +35,10 @@ extension ChatItem {
             ChatEncryptionMarkerCell.reuseIdentifier
         case .systemMessage:
             ChatSystemMessageCell.reuseIdentifier
+        case .requestEvent:
+            ChatRequestEventCell.reuseIdentifier
+        case .inviteCard:
+            ChatInviteCardCell.reuseIdentifier
         case .message(let message):
             switch message.content {
             case .text:

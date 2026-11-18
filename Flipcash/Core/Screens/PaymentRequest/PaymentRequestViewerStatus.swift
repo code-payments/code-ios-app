@@ -92,9 +92,9 @@ struct PaymentRequestViewerStatusLine: View {
 
 extension View {
     /// Marks a request glyph `diameter` across as paid by the viewer: a success-colored check at its
-    /// bottom-right, ringed in the card surface, grey on an ended request. Drawn as an overlay, so the
+    /// bottom-right, ringed in the card surface. Drawn as an overlay, so the
     /// glyph keeps its own frame and the badge moves and scales with it.
-    func paidBadge(_ isShown: Bool, diameter: CGFloat, isEnded: Bool) -> some View {
+    func paidBadge(_ isShown: Bool, diameter: CGFloat) -> some View {
         overlay(alignment: .bottomTrailing) {
             if isShown {
                 let size = diameter * 10 / 26
@@ -102,7 +102,7 @@ extension View {
                     .font(.system(size: size * 0.55, weight: .heavy))
                     .foregroundStyle(Color.black)
                     .frame(width: size, height: size)
-                    .background(isEnded ? Color.textSecondary : Color.success, in: .circle)
+                    .background(Color.success, in: .circle)
                     .padding(size * 0.12)
                     .background(Color.backgroundSecondary, in: .circle)
                     .offset(x: size * 0.3, y: size * 0.3)

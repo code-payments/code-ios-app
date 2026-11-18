@@ -49,18 +49,25 @@ extension DisplayCurrency {
 
     private static let sharedKey = "com.flipcash.currency.displayCurrency"
 
+    /// The App Group defaults the app shares the selection through with its extensions.
+    public static var appGroupDefaults: UserDefaults? {
+        UserDefaults(suiteName: NotificationPreviewCache.appGroup)
+    }
+
     /// The Money tab selection as the app last wrote it to the App Group, so the
     /// notification extensions show amounts in it too. `nil` until the app has
     /// run once with this build.
     public static var sharedSelection: CurrencyCode? {
-        get {
-            UserDefaults(suiteName: NotificationPreviewCache.appGroup)?
-                .string(forKey: sharedKey)
-                .flatMap { CurrencyCode(rawValue: $0) }
-        }
-        set {
-            UserDefaults(suiteName: NotificationPreviewCache.appGroup)?
-                .set(newValue?.rawValue, forKey: sharedKey)
-        }
+        sharedSelection(in: appGroupDefaults)
+    }
+
+    /// The selection last written to `defaults`.
+    public static func sharedSelection(in defaults: UserDefaults?) -> CurrencyCode? {
+        defaults?.string(forKey: sharedKey).flatMap { CurrencyCode(rawValue: $0) }
+    }
+
+    /// Writes `currency` as the selection held in `defaults`.
+    public static func setSharedSelection(_ currency: CurrencyCode?, in defaults: UserDefaults?) {
+        defaults?.set(currency?.rawValue, forKey: sharedKey)
     }
 }

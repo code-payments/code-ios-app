@@ -47,7 +47,7 @@ final class AccountService: Sendable {
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                await MainActor.run { completion(.failure(.unknown)) }
+                await MainActor.run { completion(.failure(.from(unexpectedError: error))) }
             }
         }
     }
@@ -79,7 +79,7 @@ final class AccountService: Sendable {
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                await MainActor.run { completion(.failure(.unknown)) }
+                await MainActor.run { completion(.failure(.from(unexpectedError: error))) }
             }
         }
     }
@@ -117,7 +117,7 @@ final class AccountService: Sendable {
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                await MainActor.run { completion(.failure(.unknown)) }
+                await MainActor.run { completion(.failure(.from(unexpectedError: error))) }
             }
         }
     }
@@ -144,7 +144,7 @@ final class AccountService: Sendable {
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                await MainActor.run { completion(.failure(.unknown)) }
+                await MainActor.run { completion(.failure(.from(unexpectedError: error))) }
             }
         }
     }

@@ -37,6 +37,10 @@ enum ConversationGateRequirement: Equatable {
     case creator
     /// A speaker rule this build can't read. Blocks for everyone; the fix is updating the app.
     case unsupported
+    /// The group's host silenced the viewer. Not a rule of the chat, so ``conversationGate`` never
+    /// produces it; ``ConversationGatePresentation/silenced(by:at:)`` lays it over the verdict.
+    /// There is no action a user can take, so no CTA.
+    case silenced(ConversationSilenceState)
 }
 
 /// Whether one class of rules is met, and if not, which of them aren't.
@@ -167,7 +171,7 @@ func conversationGate(
     // can fail (never, balance, staff) blocks both, and so does an unmet listener rule.
     let blocksReactions = !listenerUnmet.isEmpty || speakerUnmet.contains { requirement in
         switch requirement {
-        case .creator, .unsupported:               return false
+        case .creator, .unsupported, .silenced:    return false
         case .minimumBalance, .staff, .never:      return true
         }
     }
@@ -285,11 +289,11 @@ enum ConversationGatePresentation: Equatable {
     /// rule, and the contract gives a non-member of such a group no read at all,
     /// so it stays blurred until the join. Android draws the same line.
     case join(ConversationGateRequirement?)
-    /// Listener rules unmet: blurred transcript, the requirement named, and a
-    /// CTA when the requirement has one (node 10125:19153).
+    /// Listener rules unmet by a non-member: blurred transcript, the requirement
+    /// named, and a CTA when the requirement has one (node 10125:19153).
     case blocked(ConversationGateRequirement)
-    /// A member who can read but not send: sharp transcript, the requirement in
-    /// place of the composer.
+    /// A member who can read but not send, including one short of the listener
+    /// rules: sharp transcript, the requirement in place of the composer.
     case readOnly(ConversationGateRequirement)
 
     /// Whether the transcript is blurred and its messages left unfetched.
@@ -345,6 +349,23 @@ enum ConversationGatePresentation: Equatable {
     }
 }
 
+extension ConversationGatePresentation {
+
+    /// Lays the viewer's silence over the rules' verdict: a member the host silenced reads and
+    /// reacts but doesn't post, so an open composer or any other read-only reason becomes the
+    /// silence pill. A viewer who isn't in the chat yet, or who is refused it, sees no change.
+    ///
+    /// Takes `now` rather than reading the clock, because a timed silence lapses with no event
+    /// and the caller owns the wake-up that re-asks.
+    func silenced(by silence: ConversationSilenceState?, at now: Date) -> ConversationGatePresentation {
+        guard let silence, silence.isActive(at: now) else { return self }
+        switch self {
+        case .open, .readOnly:               return .readOnly(.silenced(silence))
+        case .join, .blocked, .undetermined: return self
+        }
+    }
+}
+
 /// Why a cash link in a chat can't be collected from it.
 enum CashCollectionBlock: Equatable {
     /// The viewer reads the chat but hasn't joined it.
@@ -363,7 +384,9 @@ enum CashCollectionBlock: Equatable {
 func conversationGatePresentation(_ gate: ConversationGate, isMember: Bool) -> ConversationGatePresentation {
     switch gate.listener {
     case .unsatisfied(_, let primary):
-        return .blocked(primary)
+        // Rules never remove anyone: a member who no longer meets them, whether their balance fell
+        // or the rules rose, keeps reading but can't speak until they meet them again.
+        return isMember ? .readOnly(primary) : .blocked(primary)
     case .satisfied:
         // Satisfying the rules earns the transcript; joining earns the composer. A verdict that
         // guessed at a missing rate stays undetermined, so the transcript is never shown and then
@@ -391,7 +414,7 @@ func groupRequirementLine(_ headline: ConversationGateRequirement?, mintName: St
         return "Balance Requirement:\n\(holding)"
     case .staff:
         return "This chat is for Flipcash staff"
-    case .never, .creator, .unsupported:
+    case .never, .creator, .unsupported, .silenced:
         return nil
     case nil:
         return nil

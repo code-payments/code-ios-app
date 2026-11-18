@@ -75,7 +75,11 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
     /// Whether the viewer may create invites to this chat. Server-computed; never derive it client-side.
     public let canInvite: Bool
 
-    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false, canInvite: Bool = false) {
+    /// Whether the viewer may pin and unpin messages in this chat. Server-computed; never derive it
+    /// client-side. Defaults to `false`, so an unset permission always means not permitted.
+    public let canPin: Bool
+
+    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false, canInvite: Bool = false, canPin: Bool = false) {
         self.mute = mute
         self.canEdit = canEdit
         self.version = version
@@ -83,6 +87,28 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
         self.canSilence = canSilence
         self.canBan = canBan
         self.canInvite = canInvite
+        self.canPin = canPin
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case mute, canEdit, version, silence, canSilence, canBan, canInvite, canPin
+    }
+
+    /// Reads a row stored before a field existed. The synthesized decoder throws on a missing key,
+    /// and the store reads that as "no viewer state", which would drop the saved mute along with
+    /// the new permission. A missing permission is `false`, the same as an unset one on the wire.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            mute: try container.decodeIfPresent(ConversationMuteState.self, forKey: .mute),
+            canEdit: try container.decodeIfPresent(Bool.self, forKey: .canEdit) ?? false,
+            version: try container.decodeIfPresent(UInt64.self, forKey: .version) ?? 0,
+            silence: try container.decodeIfPresent(ConversationSilenceState.self, forKey: .silence),
+            canSilence: try container.decodeIfPresent(Bool.self, forKey: .canSilence) ?? false,
+            canBan: try container.decodeIfPresent(Bool.self, forKey: .canBan) ?? false,
+            canInvite: try container.decodeIfPresent(Bool.self, forKey: .canInvite) ?? false,
+            canPin: try container.decodeIfPresent(Bool.self, forKey: .canPin) ?? false
+        )
     }
 }
 
@@ -95,7 +121,8 @@ extension ConversationViewerState {
             silence: (proto.hasRestrictions && proto.restrictions.hasSilence) ? ConversationSilenceState(proto.restrictions.silence) : nil,
             canSilence: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canSilence : false,
             canBan: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canBan : false,
-            canInvite: proto.hasPermissions ? proto.permissions.canInvite : false
+            canInvite: proto.hasPermissions ? proto.permissions.canInvite : false,
+            canPin: proto.hasPermissions ? proto.permissions.canPin : false
         )
     }
 }
@@ -235,6 +262,15 @@ public struct ConversationRestrictedUser: Hashable, Sendable, Identifiable {
     public let bannedAt: Date?
 
     public var id: String { userID?.uuidString ?? displayName }
+
+    public init(userID: UserID?, displayName: String, username: Username? = nil, profilePicture: ProfilePicture? = nil, silence: ConversationSilenceState? = nil, bannedAt: Date? = nil) {
+        self.userID = userID
+        self.displayName = displayName
+        self.username = username
+        self.profilePicture = profilePicture
+        self.silence = silence
+        self.bannedAt = bannedAt
+    }
 }
 
 extension ConversationRestrictedUser {
@@ -263,18 +299,45 @@ public struct ConversationRules: Hashable, Codable, Sendable {
     /// Empty means any member can send.
     public var speaker: [ConversationSpeakerRule]
 
+    /// The rules exactly as the server last sent them, serialized, so ``ConversationRulesEdit`` can
+    /// send back the rules this client can't read. Nil for rules built locally. Left out of
+    /// equality: two rule sets that read the same are the same rules.
+    let wire: Data?
+
     public init(listener: [ConversationListenerRule] = [], speaker: [ConversationSpeakerRule] = []) {
         self.listener = listener
         self.speaker = speaker
+        self.wire = nil
+    }
+
+    public static func == (lhs: ConversationRules, rhs: ConversationRules) -> Bool {
+        lhs.listener == rhs.listener && lhs.speaker == rhs.speaker
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(listener)
+        hasher.combine(speaker)
     }
 }
 
 extension ConversationRules {
     public init(_ proto: Flipcash_Chat_V1_Rules) {
-        self.init(
-            listener: proto.listener.compactMap(ConversationListenerRule.init),
-            speaker: proto.speaker.map(ConversationSpeakerRule.init)
-        )
+        self.listener = proto.listener.compactMap(ConversationListenerRule.init)
+        self.speaker = proto.speaker.map(ConversationSpeakerRule.init)
+        self.wire = try? proto.serializedData()
+    }
+
+    /// Whether decoding dropped a listener rule this client can't read, such as a minimum balance
+    /// in a currency it doesn't recognize. Such a set reads as more open than the chat is.
+    public var dropsListenerRule: Bool {
+        guard let wire, let proto = try? Flipcash_Chat_V1_Rules(serializedBytes: wire) else { return false }
+        return proto.listener.count != listener.count
+    }
+
+    /// The server's form of these rules: what it last sent when there is one, else the rules as built.
+    var wireProto: Flipcash_Chat_V1_Rules {
+        guard let wire, let proto = try? Flipcash_Chat_V1_Rules(serializedBytes: wire) else { return self.proto }
+        return proto
     }
 }
 
@@ -429,5 +492,67 @@ extension MinimumBalanceRequirement {
             }
             $0.mints = mints.map { mint in .with { $0.value = mint.data } }
         }
+    }
+}
+
+/// A replacement rule set for `EditChatRequest.rules`, built from the rules the server last sent
+/// rather than from the decoded ``ConversationRules``, so rules this client can't read go back as the
+/// group carries them.
+///
+/// Only the edits the server accepts can be expressed: the listener minimum balance's amount, and
+/// adding, changing or removing a speaker minimum balance in the listener's currency and mints.
+public struct ConversationRulesEdit: Equatable, Sendable {
+
+    let proto: Flipcash_Chat_V1_Rules
+
+    /// Returns nil when `rules` has no listener minimum balance to edit, or when an amount isn't in
+    /// that requirement's currency.
+    ///
+    /// - Parameters:
+    ///   - rules: the chat's current rules.
+    ///   - listener: the new listener minimum, in the listener requirement's currency.
+    ///   - speaker: the new speaker minimum in that currency, or nil for no speaker minimum.
+    public init?(editing rules: ConversationRules, listener: FiatAmount, speaker: FiatAmount?) {
+        var proto = rules.wireProto
+        guard let index = proto.listener.firstIndex(where: {
+            guard case .minimumBalance = $0.kind else { return false }
+            return true
+        }), case .minimumBalance(let current)? = proto.listener[index].kind else { return nil }
+
+        let currency = current.amount.currency
+        guard currency.lowercased() == listener.currency.rawValue,
+              speaker.map({ $0.currency == listener.currency }) ?? true else { return nil }
+
+        proto.listener[index].minimumBalance.amount.nativeAmount = listener.doubleValue
+
+        // The listener's mints are copied as sent, not as decoded, which drops a malformed one.
+        let speakerRule = speaker.map { amount in
+            Flipcash_Chat_V1_SpeakerRules.with {
+                $0.minimumBalance = .with {
+                    $0.amount = .with {
+                        $0.currency = currency
+                        $0.nativeAmount = amount.doubleValue
+                    }
+                    $0.mints = current.mints
+                }
+            }
+        }
+        let speakerIndex = proto.speaker.firstIndex {
+            guard case .minimumBalance = $0.kind else { return false }
+            return true
+        }
+        switch (speakerIndex, speakerRule) {
+        case (let index?, let rule?): proto.speaker[index] = rule
+        case (let index?, nil):       proto.speaker.remove(at: index)
+        case (nil, let rule?):        proto.speaker.append(rule)
+        case (nil, nil):              break
+        }
+
+        self.proto = proto
+    }
+
+    /// The edited rules as this client reads them.
+    public var rules: ConversationRules {
+        ConversationRules(proto)
     }
 }

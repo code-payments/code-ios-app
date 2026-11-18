@@ -148,6 +148,9 @@ public nonisolated enum ChatMotion {
     /// Rows resizing in place (a receipt moving, a reaction, a status or an edit changing a row's
     /// height), which glides the transcript to its new layout and never bounces it.
     public static let reflow = ChatSpring(duration: 0.35, bounce: 0)
+    /// The rows sliding up into the space the group-ready card leaves, while it fades out. No bounce,
+    /// and a touch quicker than `reflow`, to match Android's 320 ms collapse.
+    public static let inviteCardExit = ChatSpring(duration: 0.32, bounce: 0)
     /// The typing bubble growing into the incoming message that replaces it. The whole update rides
     /// it, so the rows above make room on the same curve the bubble grows on and its top edge never
     /// runs into the row above.

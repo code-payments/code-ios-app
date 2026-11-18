@@ -37,6 +37,13 @@ protocol MintMetadataFetching: AnyObject {
     func fetchMintMetadata(mint: PublicKey) async throws -> StoredMintMetadata
 }
 
+// MARK: - Community
+
+/// The community around a launched currency: its leader and ranked top-holder chats.
+protocol CommunityFetching: AnyObject {
+    func fetchCommunity(mint: PublicKey) async throws -> Community
+}
+
 // MARK: - Buy paths
 
 /// Reserve-funded buys (existing currency or freshly launched).
@@ -84,6 +91,39 @@ protocol RecipientResolving: AnyObject {
 
     func resolveContact(e164: String) async throws -> PublicKey
     func resolveUserID(_ userID: UserID) async throws -> PublicKey
+}
+
+/// Resolves several recipients at once for a multi-recipient send.
+enum RecipientBatch {
+
+    /// Resolves each user id to its owner, returned in input order; throws the first failure.
+    static func resolveOwners(
+        _ userIDs: [UserID],
+        concurrency: Int = 4,
+        resolve: @escaping @Sendable (UserID) async throws -> PublicKey
+    ) async throws -> [PublicKey] {
+        var owners = [PublicKey?](repeating: nil, count: userIDs.count)
+        // A throw out of the group cancels the lookups still in flight, so the first failure
+        // ends the batch as a sequential loop would.
+        try await withThrowingTaskGroup(of: (index: Int, owner: PublicKey).self) { group in
+            var next = 0
+            func addTask(at index: Int) {
+                let userID = userIDs[index]
+                group.addTask { (index, try await resolve(userID)) }
+            }
+            while next < min(concurrency, userIDs.count) {
+                addTask(at: next)
+                next += 1
+            }
+            while let result = try await group.next() {
+                owners[result.index] = result.owner
+                guard next < userIDs.count else { continue }
+                addTask(at: next)
+                next += 1
+            }
+        }
+        return owners.compactMap { $0 }
+    }
 }
 
 // MARK: - Direct send
@@ -137,6 +177,7 @@ extension Session: AccountProviding,
                     ProfileProviding,
                     ProfileManaging,
                     MintMetadataFetching,
+                    CommunityFetching,
                     ReservesBuying,
                     CurrencyLaunching,
                     RecipientResolving,

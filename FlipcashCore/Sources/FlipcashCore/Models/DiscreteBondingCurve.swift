@@ -57,8 +57,8 @@ public struct DiscreteBondingCurve: Sendable {
     /// from another `DiscreteBondingCurve` instance is harmless.
     private static let tablesLoaded: Void = {
         guard
-            let pricingURL = Bundle.module.url(forResource: "discrete_pricing_table", withExtension: "bin"),
-            let cumulativeURL = Bundle.module.url(forResource: "discrete_cumulative_table", withExtension: "bin"),
+            let pricingURL = Bundle.flipcashCore.url(forResource: "discrete_pricing_table", withExtension: "bin"),
+            let cumulativeURL = Bundle.flipcashCore.url(forResource: "discrete_cumulative_table", withExtension: "bin"),
             let pricingData = try? Data(contentsOf: pricingURL),
             let cumulativeData = try? Data(contentsOf: cumulativeURL)
         else {

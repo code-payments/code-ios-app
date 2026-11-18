@@ -56,6 +56,7 @@ struct TransportClassificationTests {
     @Test func errorSendEmailCode() { assertClassifies(ErrorSendEmailCode.self) }
     @Test func errorCheckEmailCode() { assertClassifies(ErrorCheckEmailCode.self) }
     @Test func errorUnlinkEmail() { assertClassifies(ErrorUnlinkEmail.self) }
+    @Test func errorLinkUnverifiedEmail() { assertClassifies(ErrorLinkUnverifiedEmail.self) }
     @Test func errorGetCommunity() { assertClassifies(ErrorGetCommunity.self) }
     @Test func errorFetchProfile() { assertClassifies(ErrorFetchProfile.self) }
     @Test func errorUpdateFlipcard() { assertClassifies(ErrorUpdateFlipcard.self) }
@@ -75,6 +76,7 @@ struct TransportClassificationTests {
     @Test func errorGetMessages() { assertClassifies(ErrorGetMessages.self) }
     @Test func errorSendMessage() { assertClassifies(ErrorSendMessage.self) }
     @Test func errorGetDelta() { assertClassifies(ErrorGetDelta.self) }
+    @Test func errorGetCashMessageReturnStatus() { assertClassifies(ErrorGetCashMessageReturnStatus.self) }
     @Test func errorAdvancePointer() { assertClassifies(ErrorAdvancePointer.self) }
     @Test func errorNotifyIsTyping() { assertClassifies(ErrorNotifyIsTyping.self) }
     @Test("ENCRYPTION_REQUIRED maps positionally onto encryptionRequired for send and edit")
@@ -111,6 +113,9 @@ struct TransportClassificationTests {
     @Test func errorBanUser() { assertClassifies(ErrorBanUser.self) }
     @Test func errorUnbanUser() { assertClassifies(ErrorUnbanUser.self) }
     @Test func errorGetRestrictedUsers() { assertClassifies(ErrorGetRestrictedUsers.self) }
+    @Test func errorPinMessage() { assertClassifies(ErrorPinMessage.self) }
+    @Test func errorUnpinMessage() { assertClassifies(ErrorUnpinMessage.self) }
+    @Test func errorGetPinnedMessages() { assertClassifies(ErrorGetPinnedMessages.self) }
     @Test func errorCreatePaymentRequest() { assertClassifies(ErrorCreatePaymentRequest.self) }
     @Test func errorGetPaymentRequest() { assertClassifies(ErrorGetPaymentRequest.self) }
     @Test func errorGetChatPaymentRequests() { assertClassifies(ErrorGetChatPaymentRequests.self) }

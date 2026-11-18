@@ -41,6 +41,11 @@ public final class BlobCache: @unchecked Sendable {
     /// cannot evict the avatar thumbnails.
     public static let profileCovers = BlobCache(name: "Covers", limitBytes: 48 * 1024 * 1024)
 
+    /// Chat photos the notification extension downloaded when their message's push arrived, waiting
+    /// for the app to move them into its image cache the first time their bubble draws. An entry
+    /// leaves when it is drawn, so the ceiling only matters for chats that are never opened.
+    public static let chatPhotos = BlobCache(name: "ChatPhotos", limitBytes: 32 * 1024 * 1024)
+
     /// The parent of every kind's directory.
     ///
     /// Having one lets ``clearAll()`` delete the lot without a registry of kinds to keep in sync. A
@@ -120,6 +125,47 @@ public final class BlobCache: @unchecked Sendable {
         evictDownToLimit()
     }
 
+    /// Moves a downloaded file in as the bytes for a blob, evicting the coldest entries if that
+    /// puts the directory over its limit. `file` is gone afterwards either way. Returns whether the
+    /// blob is now cached.
+    ///
+    /// The file is moved under a hidden name first and then renamed into place, so a process
+    /// suspended or killed partway leaves nothing under the blob's name. A cut-off photo can still
+    /// decode, and would draw damaged with nothing to tell it from a whole one.
+    @discardableResult
+    public func moveIn(_ file: URL, for blobID: BlobID) -> Bool {
+        defer { try? fileManager.removeItem(at: file) }
+        guard let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
+              size <= limitBytes
+        else { return false }
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        let staging = directory.appendingPathComponent(".\(blobID.description)-\(UUID().uuidString)")
+        do {
+            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            try fileManager.moveItem(at: file, to: staging)
+        } catch {
+            return false
+        }
+        // rename(2) replaces an earlier copy in one step.
+        guard rename(staging.path, fileURL(for: blobID).path) == 0 else {
+            try? fileManager.removeItem(at: staging)
+            return false
+        }
+
+        evictDownToLimit()
+        return true
+    }
+
+    /// Deletes the bytes held for one blob.
+    public func remove(_ blobID: BlobID) {
+        lock.lock()
+        defer { lock.unlock() }
+        try? fileManager.removeItem(at: fileURL(for: blobID))
+    }
+
     /// Deletes every blob this cache holds.
     public func clear() {
         lock.lock()
@@ -134,6 +180,9 @@ public final class BlobCache: @unchecked Sendable {
     }
 
     // MARK: - Internal -
+
+    /// Where this kind's bytes live, for tests.
+    var directoryURL: URL { directory }
 
     /// `ID.description` is the blob's 32 hex characters, which is already a valid file name.
     private func fileURL(for blobID: BlobID) -> URL {

@@ -38,4 +38,18 @@ struct ProfileMenuItemsTests {
         #expect(!ProfileMenuItem.unblock.isDestructive)
         #expect(!ProfileMenuItem.mute.isDestructive)
     }
+
+    @Test("The host's section follows the viewer's flags")
+    func moderation_followsFlags() {
+        #expect(ProfileMenuItems.moderation(canSilence: true, canBan: true, isCreator: false, isSelf: false) == [.silence, .removeFromGroup])
+        #expect(ProfileMenuItems.moderation(canSilence: true, canBan: false, isCreator: false, isSelf: false) == [.silence])
+        #expect(ProfileMenuItems.moderation(canSilence: false, canBan: true, isCreator: false, isSelf: false) == [.removeFromGroup])
+        #expect(ProfileMenuItems.moderation(canSilence: false, canBan: false, isCreator: false, isSelf: false).isEmpty)
+    }
+
+    @Test("The group's creator and the viewer get no host section")
+    func moderation_neverOnCreatorOrSelf() {
+        #expect(ProfileMenuItems.moderation(canSilence: true, canBan: true, isCreator: true, isSelf: false).isEmpty)
+        #expect(ProfileMenuItems.moderation(canSilence: true, canBan: true, isCreator: false, isSelf: true).isEmpty)
+    }
 }

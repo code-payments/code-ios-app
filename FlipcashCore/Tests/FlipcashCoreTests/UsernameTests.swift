@@ -17,7 +17,8 @@ struct UsernameTests {
               "ted",
               "ted_1",
               "t_9",
-              "abcdefghijklmno", // longest allowed, 15 chars
+              "ted_livingston_2", // 16 chars, past the claim cap but a valid server handle
+              "abcdefghijklmnopqrstuvwxyz1234", // longest allowed, 30 chars
           ])
     func acceptsWellFormedHandles(input: String) {
         #expect(Username(input)?.value == input)
@@ -27,7 +28,7 @@ struct UsernameTests {
           arguments: [
               "",                 // unclaimed, carried as an empty proto value
               "a",                // too short
-              "abcdefghijklmnop", // 16 chars, too long
+              "abcdefghijklmnopqrstuvwxyz12345", // 31 chars, too long
               "Ted",              // uppercase — the server stores lowercase only
               "ted bart",         // space
               "ted-bart",         // hyphen is outside the X character set

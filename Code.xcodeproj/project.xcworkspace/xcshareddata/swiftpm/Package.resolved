@@ -1,5 +1,5 @@
 {
-  "originHash" : "0949e333ed9deff2d24a867708577c820b601cd4655fa62ed4d469a4d88f6147",
+  "originHash" : "e1b55158fa8200129457bfa4d25e5d44924f189ea7618c141520a56c881eb4e4",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/flipcash-shared-core-spm",
       "state" : {
-        "revision" : "01c05c5d7a7a2ed234189e806801b03058f2dc16",
-        "version" : "0.17.0"
+        "revision" : "f878e5642e8c4298f260987c9697caf3083bf0b3",
+        "version" : "0.21.0"
       }
     },
     {
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/flipcash2-client-protocol",
       "state" : {
-        "revision" : "297e75a42b77b77da359ac553251e161abbf1f81",
-        "version" : "0.23.0"
+        "revision" : "de76f74c274fe4922c0ba3f31b0e80fada67a4cd",
+        "version" : "0.27.0"
       }
     },
     {
@@ -213,8 +213,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/code-payments/ocp-client-protocol",
       "state" : {
-        "revision" : "831b209e37c482143b8da2b0f850ed534755bf10",
-        "version" : "0.9.0"
+        "revision" : "d2f1133e8ab2b1a9e944154c9780b7678a97e14c",
+        "version" : "0.11.0"
       }
     },
     {
@@ -357,8 +357,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-http2.git",
       "state" : {
-        "revision" : "61d1b44f6e4e118792be1cff88ee2bc0267c6f9a",
-        "version" : "1.44.0"
+        "revision" : "0f3e54e29c944c2e835ad52159da7d9e1c94ac69",
+        "version" : "1.46.0"
       }
     },
     {
@@ -411,8 +411,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system.git",
       "state" : {
-        "revision" : "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
-        "version" : "1.6.4"
+        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
+        "version" : "1.8.1"
       }
     },
     {

@@ -17,7 +17,7 @@ struct CurrencyCreationSummaryScreen: View {
     /// screen is that boundary: it is pushed once per creation attempt, and
     /// popping the wizard back to it doesn't unmount it — so this stays true
     /// across the wizard's whole lifetime and flips back only on a fresh entry
-    /// from the Wallet.
+    /// from the Wallet or Settings.
     @State private var hasStartedCreation = false
 
     private var purchaseAmount: ExchangedFiat {
@@ -77,8 +77,16 @@ struct CurrencyCreationSummaryScreen: View {
         .onAppear {
             guard !hasStartedCreation else { return }
             hasStartedCreation = true
-            sessionContainer.currencyCreation.reset()
+            Self.beginCreation(sessionContainer.currencyCreation, router: router)
         }
+    }
+
+    /// Starts a creation attempt from this screen while it is on top: clears the draft and
+    /// records the position beneath it, so the finished flow returns to wherever it was opened
+    /// from (the Wallet tile, or the Currencies row in Settings).
+    static func beginCreation(_ state: CurrencyCreationState, router: AppRouter) {
+        state.reset()
+        state.launchedFrom = router.positionBeneathTopmost()
     }
 }
 

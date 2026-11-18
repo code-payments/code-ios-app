@@ -19,20 +19,20 @@ struct NewChatScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 12) {
                 ChatActionRow(
+                    icon: .asset(.group),
+                    title: "Create a New Group",
+                    accessibilityIdentifier: "new-chat-private-group"
+                ) {
+                    Analytics.groupNewOpened(type: .private_)
+                    router.push(.newPrivateGroup)
+                }
+
+                ChatActionRow(
                     icon: .asset(.at),
                     title: "Find Someone by Username",
                     accessibilityIdentifier: "new-chat-find-by-username"
                 ) {
                     router.push(.usernameLookup)
-                }
-
-                ChatActionRow(
-                    icon: .asset(.group),
-                    title: "Create a New Group",
-                    accessibilityIdentifier: "new-chat-private-group"
-                ) {
-                    Analytics.groupNewOpened()
-                    router.push(.newPrivateGroup)
                 }
 
                 ChatActionRow(
@@ -68,7 +68,7 @@ struct NewChatScreen: View {
             return
         }
 
-        Analytics.groupNewOpened()
+        Analytics.groupNewOpened(type: .community)
         router.push(.newPublicGroup)
     }
 }

@@ -252,7 +252,7 @@ struct ChatSearchTests {
     }
 
     @Test("Reset returns the model to a first open and keeps the loaded messages")
-    func resetStartsFresh() async {
+    func resetStartsFresh() async throws {
         let hit = text(1, "hello jeff")
         let model = ChatSearchModel(
             conversations: { [] },
@@ -271,8 +271,7 @@ struct ChatSearchTests {
         #expect(model.results == .empty)
 
         model.query = "hello"
-        try? await Task.sleep(for: .milliseconds(400))
-        #expect(model.results.messages.count == 1)
+        try await waitUntil(model) { $0.results.messages.count == 1 }
     }
 
     @Test("A currency card shows weekly change and new members only from Discover's weekly metrics")

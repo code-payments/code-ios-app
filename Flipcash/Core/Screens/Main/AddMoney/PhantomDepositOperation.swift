@@ -167,6 +167,9 @@ final class PhantomDepositOperation {
             // The node refused the transaction at its preflight — commonly an
             // expired blockhash after a slow Phantom approval — so nothing was
             // submitted and the user can simply retry.
+            if !Self.isBlockhashNotFound(message: response.message) {
+                Analytics.walletTransactionsFailed()
+            }
             logger.error("Chain submission rejected at preflight", metadata: [
                 "code": "\(response.code ?? -1)",
                 "message": "\(response.message ?? "nil")",
@@ -177,12 +180,21 @@ final class PhantomDepositOperation {
                 subtitle: "The transaction simulation failed. Check your Phantom wallet and try again."
             )
         } catch {
+            Analytics.walletTransactionsFailed()
             logger.error("Chain submission failed", metadata: [
                 "error": "\(error)",
                 "swapId": "\(swapId.publicKey.base58)",
             ])
             throw DepositError.chainSubmitFailed("\(error)")
         }
+    }
+
+    /// Whether a send refusal is an expired blockhash, matched as Android's
+    /// `RpcException.isBlockhashNotFound` matches it.
+    nonisolated static func isBlockhashNotFound(message: String?) -> Bool {
+        guard let message else { return false }
+        return message.range(of: "Blockhash not found", options: .caseInsensitive) != nil
+            || message.range(of: "BlockhashNotFound", options: .caseInsensitive) != nil
     }
 
     /// Pre-flights the signed transaction, throwing only on an explicit RPC
@@ -199,6 +211,9 @@ final class PhantomDepositOperation {
                 )
             )
         } catch SolanaRPCError.transactionSimulationError(let logs) {
+            // Android sends without a separate simulation, so its send preflight refuses this
+            // transaction instead; count it the same way.
+            Analytics.walletTransactionsFailed()
             logger.error("Phantom signed transaction failed simulation", metadata: [
                 "logs": "\(logs.suffix(5).joined(separator: " | "))",
                 "swapId": "\(swapId.publicKey.base58)",
@@ -208,6 +223,9 @@ final class PhantomDepositOperation {
                 subtitle: "The network wouldn't accept this transaction"
             )
         } catch SolanaRPCError.responseError(let response) {
+            if !Self.isBlockhashNotFound(message: response.message) {
+                Analytics.walletTransactionsFailed()
+            }
             logger.error("Phantom signed transaction rejected at preflight", metadata: [
                 "code": "\(response.code ?? -1)",
                 "message": "\(response.message ?? "nil")",

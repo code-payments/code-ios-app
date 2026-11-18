@@ -91,7 +91,11 @@ final class AddMoneyProcessingViewModel {
     /// Drives settlement until the USDF balance rises by roughly the deposited
     /// amount, then flips `displayState`. `performSweep`'s result is advisory —
     /// the balance-rise poll is the authoritative completion signal.
-    func run(settlement: any AddMoneySettling, performSweep: @MainActor () async -> Bool) async {
+    func run(
+        settlement: any AddMoneySettling,
+        timer: AddMoneyTimer = AddMoneyTimer(),
+        performSweep: @MainActor () async -> Bool
+    ) async {
         guard displayState == .processing else { return }
 
         let baseline = settlement.balance(for: .usdf)?.usdf ?? .zero(in: .usd)
@@ -117,7 +121,14 @@ final class AddMoneyProcessingViewModel {
                     "depositRef": "\(input.depositRef ?? "nil")",
                 ])
                 displayState = .success
-                Analytics.addMoney(method: input.method, exchangedFiat: input.amount, successful: true, error: nil)
+                timer.mark(.credited)
+                Analytics.addMoney(
+                    method: input.method,
+                    exchangedFiat: input.amount,
+                    successful: true,
+                    error: nil,
+                    phases: timer.finish(for: input.method)
+                )
                 return
             }
 
@@ -139,7 +150,8 @@ final class AddMoneyProcessingViewModel {
             method: input.method,
             exchangedFiat: input.amount,
             successful: false,
-            error: SettlementError.deliveryTimedOut
+            error: SettlementError.deliveryTimedOut,
+            phases: timer.finish(for: input.method)
         )
     }
 

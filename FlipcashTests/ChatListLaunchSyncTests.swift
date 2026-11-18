@@ -198,6 +198,44 @@ struct ChatListLaunchSyncTests {
         controller.stop()
     }
 
+    @Test("a resume moves a chat the extension wrote to before any feed answers")
+    func resumeReordersFromExtensionWrites() async throws {
+        let db = try cached([tipDm(1, activity: 200), tipDm(2, activity: 100)])
+        let mock = MockConversations()
+        mock.feed = [tipDm(1, activity: 200), tipDm(2, activity: 100)]
+        mock.feedDelay = .seconds(30)
+        let controller = makeController(mock, database: db)
+        controller.start()
+        try await waitUntil { ids(controller) == [.test(1), .test(2)] }
+
+        // The notification extension stores a pushed message while the app is suspended.
+        try db.persistMessages([message(7, at: 300)], cursor: 0, conversationID: .test(2))
+        controller.handleForeground()
+
+        #expect(ids(controller) == [.test(2), .test(1)])
+        controller.stop()
+    }
+
+    @Test("will-enter-foreground seats the extension's writes before the app becomes active")
+    func willEnterForegroundReordersBeforeActive() async throws {
+        let db = try cached([tipDm(1, activity: 200), tipDm(2, activity: 100)])
+        let mock = MockConversations()
+        mock.feed = [tipDm(1, activity: 200), tipDm(2, activity: 100)]
+        mock.feedDelay = .seconds(30)
+        let controller = makeController(mock, database: db)
+        controller.start()
+        try await waitUntil { ids(controller) == [.test(1), .test(2)] }
+        controller.handleBackground()
+
+        try db.persistMessages([message(7, at: 300)], cursor: 0, conversationID: .test(2))
+        controller.prepareForForeground()
+
+        #expect(ids(controller) == [.test(2), .test(1)])
+        controller.handleForeground()
+        #expect(ids(controller) == [.test(2), .test(1)])
+        controller.stop()
+    }
+
     // MARK: - Empty store
 
     @Test("with nothing cached each feed shows as it lands")

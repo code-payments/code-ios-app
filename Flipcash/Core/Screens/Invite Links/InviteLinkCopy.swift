@@ -12,8 +12,19 @@ import FlipcashCore
 enum InviteLinkCopy {
 
     static let creating = "Creating link…"
-    static let footnote = "Anyone with this link can join and see who’s in the group. Share it only with people you want in the group"
+    /// Under the link pill on a group's Invite People sheet, for both kinds of link.
+    static let groupSheetLine = "Send this link to the people you want to join your group"
     static let cantShare = "Can’t share from this device"
+
+    /// Under an invite link's group card QR.
+    static let cardScan = "Scan to join"
+    /// Under an invite link's group card (frame 1j).
+    static let cardFootnote = "Anyone who scans this card joins without approval until the link expires or you revoke it."
+
+    /// "Link expires Nov 3", or "Link never expires", under an invite link's group card QR.
+    static func cardExpiry(_ expiresAt: Date?) -> String {
+        expiresAt.map { "Link expires \(day($0))" } ?? "Link never expires"
+    }
 
     static func sheetTitle(groupName: String) -> String {
         groupName.isEmpty ? "Invite People" : "Invite to \(groupName)"
@@ -34,9 +45,19 @@ enum InviteLinkCopy {
         invite.expiresAt.map { "Expires \(day($0))" } ?? "Never expires"
     }
 
-    /// The sheet's meta line under the current link: "Expires Nov 3 · 0 joined".
-    static func sheetMeta(_ invite: Invite) -> String {
-        "\(expiry(invite)) · \(joined(invite))"
+    /// The host sheet's caption under the invite link (frame 1m): "0 joined · Expires Nov 3".
+    static func cardCaption(_ invite: Invite) -> String {
+        "\(joined(invite)) · \(expiry(invite))"
+    }
+
+    /// The host sheet's caption under the plain link (frame 1m′).
+    static let plainLinkCaption = "People who open this link ask to join"
+    /// The host sheet's pill before the current link exists: nothing is made on open (Decision 9).
+    static let noLinkYet = "No link yet"
+
+    /// The Approve New Members row's subtitle for the switch's position.
+    static func approveSubtitle(isOn: Bool) -> String {
+        isOn ? "You approve each person" : "Anyone with the link joins right away"
     }
 
     /// A Manage Invites row's second line.

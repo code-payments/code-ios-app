@@ -33,14 +33,15 @@ struct InlineBalanceCompletionTests {
         return settling
     }
 
-    /// The default window only bounds a failing wait: a rise ends it early, so it can be long enough
-    /// to hold under the Thread Sanitizer. Tests that expect `.pending` pass a short one.
-    private static func completion(_ settling: Settling, window: Duration = .seconds(30)) -> InlineBalanceCompletion {
+    /// Polls on an `ImmediateClock`, so the window is counted in polls rather than wall time: 30
+    /// polls for the default, however slowly the runner schedules each one.
+    private static func completion(_ settling: Settling, window: Duration = .milliseconds(30)) -> InlineBalanceCompletion {
         InlineBalanceCompletion(
             settlement: settling,
             target: AddMoneyBalanceTarget.target(baseline: .zero(in: .usd), amount: tenDollars),
             window: window,
-            interval: .milliseconds(1)
+            interval: .milliseconds(1),
+            clock: ImmediateClock()
         )
     }
 
@@ -54,6 +55,7 @@ struct InlineBalanceCompletionTests {
         )
         viewModel.inlineWindow = .milliseconds(200)
         viewModel.inlineInterval = .milliseconds(1)
+        viewModel.inlineClock = ImmediateClock()
         viewModel.successHold = .zero
         return (viewModel, container.session)
     }
@@ -71,7 +73,7 @@ struct InlineBalanceCompletionTests {
     @Test("A credit short of the 98% target stays pending")
     func shortfallStaysPending() async throws {
         let settling = try Self.settling(risesAfter: 1, to: 9.7)
-        let outcome = await Self.completion(settling, window: .milliseconds(30)).awaitOutcome()
+        let outcome = await Self.completion(settling).awaitOutcome()
         #expect(outcome == .pending)
     }
 
@@ -85,9 +87,9 @@ struct InlineBalanceCompletionTests {
     @Test("A balance that never rises is pending once the window closes")
     func timesOutPending() async throws {
         let settling = try Self.settling(risesAfter: .max)
-        let outcome = await Self.completion(settling, window: .milliseconds(30)).awaitOutcome()
+        let outcome = await Self.completion(settling).awaitOutcome()
         #expect(outcome == .pending)
-        #expect(settling.updateCount >= 1)
+        #expect(settling.updateCount == 31)
     }
 
     // MARK: - View model hand-off
@@ -137,15 +139,17 @@ struct InlineBalanceCompletionTests {
     func processingTimeoutDeductsElapsed() async throws {
         let settling = try Self.settling(risesAfter: .max)
         let input = AddMoneyProcessingInput(
-            amount: Self.tenDollars, method: .phantom, depositRef: nil, elapsed: .milliseconds(9_950)
+            amount: Self.tenDollars, method: .phantom, depositRef: nil, elapsed: .milliseconds(119_950)
         )
-        let viewModel = AddMoneyProcessingViewModel(input: input, pollInterval: .milliseconds(1), timeout: .seconds(10))
+        // 50 ms left of a two-minute budget. The bound sits halfway, so a loaded runner's stalls (20 s
+        // under the Thread Sanitizer) don't read as the full budget being spent.
+        let viewModel = AddMoneyProcessingViewModel(input: input, pollInterval: .milliseconds(1), timeout: .seconds(120))
 
         let started = ContinuousClock.now
         await viewModel.run(settlement: settling, performSweep: { true })
 
         #expect(viewModel.displayState == .failed)
-        #expect(ContinuousClock.now - started < .seconds(5))
+        #expect(ContinuousClock.now - started < .seconds(60))
     }
 
     // MARK: - Card timing

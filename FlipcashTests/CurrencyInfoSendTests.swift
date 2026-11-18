@@ -75,6 +75,36 @@ struct CurrencyInfoSendTests {
         #expect(names(result) == ["Bea", "Al"])
     }
 
+    private func flipcashChat(_ n: UInt8, userID: UserID) -> Conversation {
+        Conversation(
+            id: .test(n),
+            members: [
+                ConversationMember(userID: me, displayName: "Me"),
+                ConversationMember(userID: userID, displayName: "Flipcash", username: Username("flipcash")),
+            ],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: Double(n)),
+            type: .tipDm,
+            title: nil
+        )
+    }
+
+    @Test("The @flipcash chat is left out, other DMs stay")
+    func flipcashChatHidden() throws {
+        let flipcashID = try #require(E2eePolicy.flipcashUserID)
+        let chats = [flipcashChat(9, userID: flipcashID), chat(1, type: .tipDm, name: "Al")]
+        let name: (Conversation) -> String = { $0.counterpart(excluding: me)?.displayName ?? "" }
+        #expect(names(CurrencySendRecipients.recipients(in: chats, query: "", selfUserID: me, name: name)) == ["Al"])
+        #expect(CurrencySendRecipients.recipients(in: chats, query: "flipcash", selfUserID: me, name: name).isEmpty)
+    }
+
+    @Test("A member named Flipcash with an ordinary user id still appears")
+    func flipcashLookalikeStays() {
+        let chats = [flipcashChat(1, userID: UUID())]
+        let name: (Conversation) -> String = { $0.counterpart(excluding: me)?.displayName ?? "" }
+        #expect(names(CurrencySendRecipients.recipients(in: chats, query: "", selfUserID: me, name: name)) == ["Flipcash"])
+    }
+
     @Test("Search matches a name or a username, with or without @")
     func search() {
         let chats = [

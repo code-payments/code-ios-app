@@ -41,7 +41,7 @@ final class ConvertToDollarsRegressionTests: BaseUITestCase {
         currencyInfo.assertHeldTokenReached()
 
         // Convert → $0.01 → Next. The destination is already Dollars.
-        waitAndTap(currencyInfo.convertButton)
+        currencyInfo.tapConvert(from: self)
         convert.assertAmountStepReached()
         amountEntry.enterMinimumAmount()
         waitUntilHittableAndTap(amountEntry.nextButton)

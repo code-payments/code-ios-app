@@ -52,7 +52,7 @@ class OnboardingViewModel {
     ///   - finishLogin: opens the session once onboarding is done.
     init(
         container: Container,
-        pushStatus: @escaping () async -> UNAuthorizationStatus = { await PushController.fetchStatus() },
+        pushStatus: @escaping () async -> UNAuthorizationStatus = { await PushController.fetchStatus().authorizationStatus },
         hasDisplayName: ((InitializedAccount) async -> Bool)? = nil,
         finishLogin: ((InitializedAccount) -> Void)? = nil
     ) {
@@ -251,9 +251,7 @@ class OnboardingViewModel {
     // MARK: - Registration -
 
     private func registerAccount(mnemonic: MnemonicPhrase) async throws {
-        let owner = mnemonic.solanaKeyPair()
-
-        Analytics.createAccount(owner: owner.publicKey)
+        Analytics.createAccount()
 
         let account = try await sessionAuthenticator.initialize(
             using: mnemonic,

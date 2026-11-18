@@ -16,12 +16,13 @@ final class GiveSmokeTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Wallet → first currency card → Give tile → keypad.
+        // Wallet → first currency card → Send tile → keypad.
         let amountEntry = navigateToGiveAmount()
 
-        // Enter $0.01 and proceed to bill
+        // Enter $0.01, then give it as cash from Select Recipient
         amountEntry.enterMinimumAmount()
         waitAndTap(amountEntry.nextButton)
+        tapGiveAsCash()
 
         // Bill should appear with "Send as a Link" button
         let sendAsLink = app.buttons["Send as a Link"]
@@ -33,10 +34,10 @@ final class GiveSmokeTests: BaseUITestCase {
         // Dismiss the bill
         waitAndTap(app.buttons["Cancel"])
 
-        // The keypad popped itself as the bill appeared, so the bill sits over
-        // the currency's info screen — that, not a tab root, is what cancelling
-        // reveals. The tab bar stays hidden while the wallet stack is pushed, so
+        // Cancelling reveals Select Recipient; back out to the currency's info
+        // screen. The tab bar stays hidden while the wallet stack is pushed, so
         // `assertMainScreenReached` would not hold here.
+        backOutOfGiveToCurrencyInfo()
         currencyInfo.assertHeldCurrencyReached(
             timeout: 30
         )

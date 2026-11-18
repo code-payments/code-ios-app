@@ -10,6 +10,10 @@ import UIKit
 import FlipcashCore
 @testable import Flipcash
 
+/// An invite link of the shape `CreateInvite` returns: the secret rides in the fragment.
+private let inviteLinkURL = "https://app.flipcash.com/chat/invite#s=kQ3vR8mZp4LwN2yTb7cXe1aFhJ6sDg0uVq5oIrKxT9a"
+private let plainLinkURL = "https://app.flipcash.com/chat/52fba6a9-3940-899e-af16-eddf7c6364b2"
+
 @Suite("Group scan card")
 struct GroupCardTests {
 
@@ -27,8 +31,17 @@ struct GroupCardTests {
 
     @Test("1: the card URL is the dashed lowercase UUID invite")
     func url() {
-        let card = GroupCardScreen.Card(id: Self.id, title: nil, avatar: nil, blurhash: nil, memberCount: 0)
+        let card = GroupCardScreen.Card(id: Self.id, title: nil, avatar: nil, blurhash: nil, memberCount: 0, link: .plain)
         #expect(card.url.absoluteString == Self.expectedURL)
+    }
+
+    @Test("An invite link's card encodes the invite link, not the plain link")
+    func inviteURL() {
+        let card = GroupCardScreen.Card(
+            id: Self.id, title: nil, avatar: nil, blurhash: nil, memberCount: 0,
+            link: .invite(URL(string: inviteLinkURL)!, expiresAt: nil)
+        )
+        #expect(card.url.absoluteString == inviteLinkURL)
     }
 
     @Test("2: any group id matches the invite pattern")
@@ -50,9 +63,9 @@ struct GroupCardTests {
         #expect(modules.errorCorrection == .quartile)
     }
 
-    @Test("3: the styled QR rendered with its logo decodes to the URL")
-    func styledDecodes() throws {
-        let geometry = try Self.geometry()
+    @Test("3: the styled QR rendered with its logo decodes to the URL", arguments: [plainLinkURL, inviteLinkURL])
+    func styledDecodes(url: String) throws {
+        let geometry = GroupQRGeometry(modules: try #require(QRModules.encode(url)))
         let data = try #require(GroupCardExport.png(geometry))
         let image = try #require(CIImage(data: data))
         let detector = try #require(CIDetector(
@@ -60,17 +73,17 @@ struct GroupCardTests {
             options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]
         ))
         let messages = detector.features(in: image).compactMap { ($0 as? CIQRCodeFeature)?.messageString }
-        #expect(messages.contains(Self.expectedURL))
+        #expect(messages.contains(url))
     }
 
     // MARK: - Naming and copy -
 
     @Test("5, 6: the card's title falls back as specified")
     func displayText() {
-        let owls = GroupCardScreen.Card(id: Self.id, title: "Night Owls", avatar: nil, blurhash: nil, memberCount: 0)
+        let owls = GroupCardScreen.Card(id: Self.id, title: "Night Owls", avatar: nil, blurhash: nil, memberCount: 0, link: .plain)
         #expect(owls.displayTitle == "Night Owls")
 
-        let untitled = GroupCardScreen.Card(id: Self.id, title: "", avatar: nil, blurhash: nil, memberCount: 0)
+        let untitled = GroupCardScreen.Card(id: Self.id, title: "", avatar: nil, blurhash: nil, memberCount: 0, link: .plain)
         #expect(untitled.displayTitle == "Group Chat")
     }
 

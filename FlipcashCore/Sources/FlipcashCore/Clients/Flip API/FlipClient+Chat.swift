@@ -96,6 +96,29 @@ extension FlipClient {
         return all
     }
 
+    /// Pins `messageID` in `conversationID` and returns the pin summary after the change.
+    public func pinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
+        try await withCheckedThrowingContinuation { c in
+            chatService.pinMessage(owner: owner, conversationID: conversationID, messageID: messageID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Unpins `messageID` in `conversationID` and returns the pin summary after the change. Succeeds
+    /// as a no-op when the message isn't pinned.
+    public func unpinMessage(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> ConversationPinSummary {
+        try await withCheckedThrowingContinuation { c in
+            chatService.unpinMessage(owner: owner, conversationID: conversationID, messageID: messageID) { c.resume(with: $0) }
+        }
+    }
+
+    /// One page of the pins in `conversationID`, most recently pinned first. Pass the previous page's
+    /// `pagingToken` to continue while `hasMore` is set.
+    public func getPinnedMessages(owner: KeyPair, conversationID: ConversationID, pagingToken: Data? = nil, viewMode: ConversationViewMode = .full) async throws -> ConversationPinsPage {
+        try await withCheckedThrowingContinuation { c in
+            chatService.getPinnedMessages(owner: owner, conversationID: conversationID, pagingToken: pagingToken, viewMode: viewMode) { c.resume(with: $0) }
+        }
+    }
+
     /// Page the group chat feed to exhaustion against a single pinned snapshot. Unlike a DM feed, the
     /// caller's own membership can change mid-read (a join or a leave lands as a `rosterChanged`
     /// stream event, not a feed mutation) — the same live-stream caveat as `getDmChatFeed` applies.
@@ -245,7 +268,7 @@ extension FlipClient {
     ///
     /// `rules`, when set, fully replaces the chat's rules (public groups with a listener minimum balance
     /// only); fails with `.invalidRules` or `.rulesNotSatisfied`. `nil` leaves the rules as they are.
-    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRules? = nil) async throws -> Conversation {
+    public func editChat(owner: KeyPair, conversationID: ConversationID, title: String?, description: ConversationDescriptionEdit = .unchanged, pictureBlobID: BlobID?, coverPictureBlobID: BlobID? = nil, rules: ConversationRulesEdit? = nil) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
             chatService.editChat(owner: owner, conversationID: conversationID, title: title, description: description, pictureBlobID: pictureBlobID, coverPictureBlobID: coverPictureBlobID, rules: rules) { c.resume(with: $0) }
         }
@@ -338,6 +361,28 @@ extension FlipClient {
         }
     }
 
+    /// Changes the caption of `photo`, the owner's photo message, to `caption`; the photo and any
+    /// reply go back as they were sent.
+    public func editCaption(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        photo: ConversationMessage,
+        caption: String,
+        seal: ChatSeal?,
+        expectedEventSequence: UInt64
+    ) async throws -> MessageMutation {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.editCaption(
+                owner: owner,
+                conversationID: conversationID,
+                photo: photo,
+                caption: caption,
+                seal: seal,
+                expectedEventSequence: expectedEventSequence
+            ) { c.resume(with: $0) }
+        }
+    }
+
     /// Adds the owner's reaction with `emoji` to a message and returns the emoji's new aggregate.
     public func addReaction(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, emoji: String) async throws -> EmojiReaction {
         try await withCheckedThrowingContinuation { c in
@@ -363,6 +408,14 @@ extension FlipClient {
     public func getReactionSummaries(owner: KeyPair, conversationID: ConversationID, messageIDs: [MessageID]) async throws -> [MessageID: ReactionState] {
         try await withCheckedThrowingContinuation { c in
             chatMessagingService.getReactionSummaries(owner: owner, conversationID: conversationID, messageIDs: messageIDs) { c.resume(with: $0) }
+        }
+    }
+
+    /// Where the return of a DM cash message stands. The status carries the server-issued intent id
+    /// the return must be submitted under, for the message's single receiver only.
+    public func getCashMessageReturnStatus(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws -> CashReturnStatus {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.getCashMessageReturnStatus(owner: owner, conversationID: conversationID, messageID: messageID) { c.resume(with: $0) }
         }
     }
 

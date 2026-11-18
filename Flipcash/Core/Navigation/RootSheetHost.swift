@@ -58,6 +58,8 @@ private struct RoutedSheet: View {
             SendAmountSheetRoot(target: target)
         case .switchAccount:
             SwitchAccountSheetRoot()
+        case .invitePeople(let conversationID):
+            InvitePeopleSheetRoot(conversationID: conversationID)
         }
     }
 }

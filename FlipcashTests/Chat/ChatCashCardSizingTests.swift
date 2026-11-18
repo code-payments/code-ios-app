@@ -12,7 +12,7 @@ import FlipcashCore
 @testable import FlipcashUI
 
 /// Every chat row self-sizes to its own content: text and date rows to their text, and the cash
-/// card to its fixed-height card plus the inline receipt line below it. `ChatViewController`
+/// card to its lines plus the inline receipt line below it. `ChatViewController`
 /// overrides no per-row sizes, so each reports ChatLayout's `.auto` default.
 @MainActor
 @Suite("Every chat row self-sizes (.auto)")

@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 
 /// The action list under a long-pressed bubble, drawn like a system context menu on a Liquid Glass
 /// platter. Rows come from the message's `UIAction`s, so the menu and its tests share one mapping.
@@ -34,7 +35,7 @@ final class MessageMenuView: UIView {
 
     /// The menu's size for `actions`, with room for `header` above them when there is one.
     static func size(for actions: [UIAction], header: String? = nil) -> CGSize {
-        let dividers: CGFloat = dividerIndex(in: actions) == nil ? 0 : 1
+        let dividers = CGFloat(dividerIndices(in: actions).count)
         let headerRow: CGFloat = header == nil ? 0 : headerHeight
         return CGSize(
             width: width,
@@ -42,13 +43,21 @@ final class MessageMenuView: UIView {
         )
     }
 
-    /// The index of the first destructive action when a non-destructive one comes before it, which
-    /// is where the divider goes.
-    private static func dividerIndex(in actions: [UIAction]) -> Int? {
-        guard let index = actions.firstIndex(where: { $0.attributes.contains(.destructive) }), index > 0 else {
-            return nil
+    /// Where the dividers go: before the first destructive action when a non-destructive one comes
+    /// before it, and before any non-destructive action that follows a destructive one. That second
+    /// case is the moderation rows, which trail Report; the destructive Remove that follows Silence
+    /// stays in their group.
+    private static func dividerIndices(in actions: [UIAction]) -> Set<Int> {
+        var indices: Set<Int> = []
+        var seenDestructive = actions.first?.attributes.contains(.destructive) ?? false
+        for (index, action) in actions.enumerated() where index > 0 {
+            let destructive = action.attributes.contains(.destructive)
+            let previous = actions[index - 1].attributes.contains(.destructive)
+            if destructive, !seenDestructive, !previous { indices.insert(index) }
+            if !destructive, previous { indices.insert(index) }
+            seenDestructive = seenDestructive || destructive
         }
-        return index
+        return indices
     }
 
     /// - Parameter header: the message's full send time, drawn muted above the actions; nil draws
@@ -72,7 +81,7 @@ final class MessageMenuView: UIView {
         addSubview(surface)
         let content = (surface as? UIVisualEffectView)?.contentView ?? surface
 
-        let dividerIndex = Self.dividerIndex(in: actions)
+        let dividerIndices = Self.dividerIndices(in: actions)
         var y = Self.verticalInset
         if let header {
             let label = UILabel(frame: CGRect(
@@ -91,7 +100,7 @@ final class MessageMenuView: UIView {
             y += Self.headerHeight
         }
         for (index, action) in actions.enumerated() {
-            if index == dividerIndex {
+            if dividerIndices.contains(index) {
                 let hairline: CGFloat = 0.5
                 let divider = UIView(frame: CGRect(
                     x: Self.horizontalInset,
@@ -120,7 +129,7 @@ final class MessageMenuView: UIView {
 
     private static func row(for action: UIAction) -> UIControl {
         let destructive = action.attributes.contains(.destructive)
-        let tint: UIColor = destructive ? .systemRed : .label
+        let tint: UIColor = destructive ? UIColor(Color.textError) : .label
         let row = MenuRow()
         row.accessibilityLabel = action.title
         row.accessibilityTraits = .button

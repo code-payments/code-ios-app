@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import FlipcashCore
 import FlipcashUI
 
@@ -18,9 +19,19 @@ import FlipcashUI
 /// and it appears only once there is a mute to clear.
 struct MuteChatSheet: View {
 
-    let conversationID: ConversationID
+    /// The chats a choice applies to: one from a row or the chat's settings, several from select mode.
+    let conversationIDs: [ConversationID]
 
     @Binding var isPresented: Bool
+
+    init(conversationID: ConversationID, isPresented: Binding<Bool>) {
+        self.init(conversationIDs: [conversationID], isPresented: isPresented)
+    }
+
+    init(conversationIDs: [ConversationID], isPresented: Binding<Bool>) {
+        self.conversationIDs = conversationIDs
+        self._isPresented = isPresented
+    }
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
@@ -56,8 +67,9 @@ struct MuteChatSheet: View {
     /// away: read live, the list gained or lost its first row on the way out.
     @State private var pinnedOffersUnmute: Bool?
 
+    /// Every chat muted; with any audible one the choice mutes, so "Never" would do nothing to it.
     private var isMuted: Bool {
-        conversationController.conversation(withID: conversationID)?.isMuted(at: .now) ?? false
+        !conversationIDs.isEmpty && conversationIDs.allSatisfy { conversationController.isMuted(conversationID: $0) }
     }
 
     /// Whether to offer the unmute at all — on an audible chat it is a row that would do nothing.
@@ -136,20 +148,20 @@ struct MuteChatSheet: View {
         pinnedOffersUnmute = offersUnmute
         isWorking = true
         defer { isWorking = false }
-        let chatType = conversationController.conversation(withID: conversationID)?.type
+        let chatTypes = conversationIDs.map { conversationController.conversation(withID: $0)?.type }
         do {
             switch option {
             case .until(let offset, _):
-                try await conversationController.mute(conversationID: conversationID, .until(.now.addingTimeInterval(offset)))
+                try await conversationController.mute(conversationIDs, .until(.now.addingTimeInterval(offset)))
             case .forever:
-                try await conversationController.mute(conversationID: conversationID, .forever)
+                try await conversationController.mute(conversationIDs, .forever)
             case .never:
-                try await conversationController.unmute(conversationID: conversationID)
+                try await conversationController.unmute(conversationIDs)
             }
-            track(option, chatType: chatType, error: nil)
+            chatTypes.forEach { track(option, chatType: $0, error: nil) }
             isPresented = false
         } catch {
-            track(option, chatType: chatType, error: error)
+            track(option, chatType: chatTypes.first ?? nil, error: error)
             isPresented = false
             let unmuting = option == .never
             sessionContainer.session.dialogItem = .error(
@@ -169,5 +181,65 @@ struct MuteChatSheet: View {
         case .forever:                Analytics.chatMuted(chatType: chatType, duration: .always, error: error)
         case .never:                  Analytics.chatUnmuted(chatType: chatType, error: error)
         }
+    }
+}
+
+/// The layout the chat duration sheets share: a title bar with a close button, one caption saying
+/// what the choice does, and a stack of ``ChatActionRow``s. ``SilenceUserSheet`` draws with it;
+/// ``MuteChatSheet`` is a tray instead.
+struct ChatDurationSheet<Rows: View>: View {
+
+    let title: String
+    let caption: String
+    @Binding var isPresented: Bool
+    @ViewBuilder let rows: () -> Rows
+
+    var body: some View {
+        PartialSheet(background: .backgroundMain) {
+            VStack(spacing: 20) {
+                header
+
+                Text(caption)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    // The only flexible row in this stack, so a height proposal short of what the
+                    // content needs lands here -- and a `Text` answers that by dropping lines and
+                    // ellipsizing. `PartialSheet` opens at the full screen height and corrects to
+                    // its measured height, and the row count can change, so short proposals do
+                    // happen. `fixedSize` makes the wrapped height a floor instead.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+
+                VStack(spacing: 12) {
+                    rows()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+            .padding(.bottom, bottomPadding)
+        }
+    }
+
+    /// The sheet's own title bar — ``PartialSheet`` sizes itself to its content, so there is no
+    /// navigation bar to hang a title on. Mirrors ``ShareToChatsSheet/header``.
+    private var header: some View {
+        ZStack {
+            Text(title)
+                .font(.appBarButton)
+                .foregroundStyle(Color.textMain)
+
+            HStack {
+                Spacer()
+                CloseButton(style: .glass, binding: $isPresented)
+            }
+        }
+    }
+
+    /// The design's 16 under the last row, less whatever the sheet already holds back for the home
+    /// indicator.
+    private var bottomPadding: CGFloat {
+        let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
+        return max(0, 16 - reserved)
     }
 }

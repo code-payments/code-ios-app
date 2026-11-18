@@ -128,6 +128,66 @@ nonisolated public struct BoostedReactionTable: Sendable {
     public let emoji          = Expression <String>    ("emoji")
 }
 
+// Side table for payments that paid a share of a payment request: the chat and request paid. Joined
+// 1:1 to `activity` by id; a row exists only for such a payment. A snapshot from payment time, so the
+// request may since have closed and the viewer may no longer be able to read it.
+nonisolated public struct RequestedPaymentTable: Sendable {
+    public static let name = "requestedPayment"
+
+    public init() {}
+
+    public let table            = Table(Self.name)
+    public let id               = Expression <PublicKey> ("id")
+    public let conversationID   = Expression <Data>      ("conversationID")
+    public let paymentRequestID = Expression <Data>      ("paymentRequestID")
+}
+
+// Side table for payments that returned a DM's opening payment: the DM and the cash message returned.
+// Joined 1:1 to `activity` by id; a row exists only for such a payment. A snapshot from payment time,
+// so the message may since have been deleted.
+nonisolated public struct ReturnedPaymentTable: Sendable {
+    public static let name = "returnedPayment"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let id             = Expression <PublicKey> ("id")
+    public let conversationID = Expression <Data>      ("conversationID")
+    public let messageID      = Expression <UInt64>    ("messageID")
+}
+
+// One row per payment request, kept so a chat's request cards and details draw offline. The whole
+// `PaymentRequestMetadata` is stored serialized (private-chat text still sealed); `version`, `status`
+// and `conversationID` sit beside it as columns for the merge rule and the per-chat read. A request
+// the server shows no chat for keeps a nil `conversationID`.
+nonisolated public struct PaymentRequestTable: Sendable {
+    public static let name = "paymentRequest"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let id             = Expression <Data>    ("id")
+    public let conversationID = Expression <Data?>   ("conversationID")
+    public let version        = Expression <UInt64>  ("version")
+    public let status         = Expression <Int>     ("status")
+    public let endsAt         = Expression <Double?> ("endsAt")
+    public let createdAt      = Expression <Double?> ("createdAt")
+    public let metadata       = Expression <Data>    ("metadata")
+}
+
+// One row per private group: the viewer's key envelope exactly as the server returned it, so the
+// chat opens offline and after a restart. `envelope` is the serialized `GetKeyEnvelopeResponse`
+// (scheme, nonce, ciphertext, and who wrapped it); the unwrapped chat key is never stored.
+nonisolated public struct GroupKeyEnvelopeTable: Sendable {
+    public static let name = "groupKeyEnvelope"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationID = Expression <Data> ("conversationID")
+    public let envelope       = Expression <Data> ("envelope")
+}
+
 nonisolated public struct LimitsTable: Sendable {
     public static let name = "limits"
 
@@ -308,6 +368,13 @@ nonisolated public struct ConversationTable: Sendable {
     // as its until-timestamp, never as a computed muted boolean, because a
     // timed mute lapses with no server signal.
     public let viewerState       = Expression <Data?>  ("viewerState")
+    // Pin summary. Count and version default to 0, which also reads back as "no summary". The latest
+    // pin is the serialized `chat.v1.Pin`: the pinned message may not be in the local message store.
+    // Written only by a copy whose version is not older than the stored one, so a feed row without a
+    // summary never clears pins.
+    public let pinCount          = Expression <UInt64> ("pinCount")
+    public let pinVersion        = Expression <UInt64> ("pinVersion")
+    public let pinLatest         = Expression <Data?>  ("pinLatest")
 }
 
 // The group chats the signed-in user has joined. Its own table rather than a
@@ -323,6 +390,21 @@ nonisolated public struct GroupMembershipTable: Sendable {
 
     public let table          = Table(Self.name)
     public let conversationId = Expression <Data> ("conversationId")
+}
+
+/// A break in a conversation's stored history, left when a newest page arrived that did not overlap
+/// the rows already stored. Rows at or above `aboveId` are the contiguous run the transcript reads;
+/// rows at or below `belowId` are older history kept for when paging back reaches them. At most one
+/// row per conversation.
+nonisolated public struct ConversationHistoryGapTable: Sendable {
+    public static let name = "conversation_history_gap"
+
+    public init() {}
+
+    public let table          = Table(Self.name)
+    public let conversationId = Expression <Data>   ("conversationId")
+    public let belowId        = Expression <UInt64> ("belowId")
+    public let aboveId        = Expression <UInt64> ("aboveId")
 }
 
 nonisolated public struct ConversationMemberTable: Sendable {
@@ -409,8 +491,16 @@ nonisolated public struct ConversationMessageTable: Sendable {
     public let systemInvitedBy = Expression <UUID?>        ("systemInvitedBy")
     // JSON-encoded `[CashPayment]` of a multi-receiver cash row; nil for every other row.
     public let cashPaymentsJson = Expression <Data?>       ("cashPaymentsJson")
-    // The member a single-receiver group cash row paid; nil for DM cash and every other row.
+    // The member a single-receiver cash row paid (its `single_receiver`); nil for a multi-receiver
+    // row and every other row.
     public let cashReceiverId = Expression <UUID?>         ("cashReceiverId")
+    // A cash row's `CashReturn`: whether its receiver is offered a return, and the message it
+    // returns. Both nil for a cash row that is neither, and for every other row.
+    public let cashReturnOffer = Expression <Bool?>        ("cashReturnOffer")
+    public let cashReturnOfId = Expression <UInt64?>       ("cashReturnOfId")
+    // The payment request a cash row pays a share of (`CashContent.payment_request_id`); nil for
+    // every other row.
+    public let paymentRequestId = Expression <Data?>       ("paymentRequestId")
 }
 
 
@@ -522,6 +612,54 @@ nonisolated extension Database {
                     t.column(boostedReactionTable.emoji)
 
                     t.foreignKey(boostedReactionTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let requestedPaymentTable = RequestedPaymentTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(requestedPaymentTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(requestedPaymentTable.id, primaryKey: true)
+                    t.column(requestedPaymentTable.conversationID)
+                    t.column(requestedPaymentTable.paymentRequestID)
+
+                    t.foreignKey(requestedPaymentTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let returnedPaymentTable = ReturnedPaymentTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(returnedPaymentTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(returnedPaymentTable.id, primaryKey: true)
+                    t.column(returnedPaymentTable.conversationID)
+                    t.column(returnedPaymentTable.messageID)
+
+                    t.foreignKey(returnedPaymentTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
+                })
+            }
+
+            let paymentRequestTable = PaymentRequestTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(paymentRequestTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(paymentRequestTable.id, primaryKey: true)
+                    t.column(paymentRequestTable.conversationID)
+                    t.column(paymentRequestTable.version)
+                    t.column(paymentRequestTable.status)
+                    t.column(paymentRequestTable.endsAt)
+                    t.column(paymentRequestTable.createdAt)
+                    t.column(paymentRequestTable.metadata)
+                })
+                try writer.run(paymentRequestTable.table.createIndex(paymentRequestTable.conversationID, ifNotExists: true))
+            }
+
+            let groupKeyEnvelopeTable = GroupKeyEnvelopeTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(groupKeyEnvelopeTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(groupKeyEnvelopeTable.conversationID, primaryKey: true)
+                    t.column(groupKeyEnvelopeTable.envelope)
                 })
             }
 
@@ -646,6 +784,9 @@ nonisolated extension Database {
                     t.column(conversationTable.creator)
                     t.column(conversationTable.useE2Ee, defaultValue: false)
                     t.column(conversationTable.isPrivate, defaultValue: false)
+                    t.column(conversationTable.pinCount, defaultValue: 0)
+                    t.column(conversationTable.pinVersion, defaultValue: 0)
+                    t.column(conversationTable.pinLatest)
                 })
             }
 
@@ -675,6 +816,9 @@ nonisolated extension Database {
                     t.column(conversationMemberTable.profilePictureThumbnailBlurhash)
                     t.column(conversationMemberTable.username)
                 })
+                // Every member write deletes by `conversationId` first. Created with
+                // `ifNotExists` so existing stores pick it up on open without a rebuild.
+                try writer.run(conversationMemberTable.table.createIndex(conversationMemberTable.conversationId, ifNotExists: true))
             }
 
             let conversationMessageTable = ConversationMessageTable()
@@ -711,7 +855,20 @@ nonisolated extension Database {
                     t.column(conversationMessageTable.systemInvitedBy)
                     t.column(conversationMessageTable.cashPaymentsJson)
                     t.column(conversationMessageTable.cashReceiverId)
+                    t.column(conversationMessageTable.cashReturnOffer)
+                    t.column(conversationMessageTable.cashReturnOfId)
+                    t.column(conversationMessageTable.paymentRequestId)
                     t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
+                })
+            }
+
+            let historyGapTable = ConversationHistoryGapTable()
+
+            try writer.transaction(.immediate) {
+                try writer.run(historyGapTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                    t.column(historyGapTable.conversationId, primaryKey: true)
+                    t.column(historyGapTable.belowId)
+                    t.column(historyGapTable.aboveId)
                 })
             }
 

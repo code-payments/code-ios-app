@@ -26,6 +26,10 @@ public enum ChatPaymentMetadata: Sendable {
     case reactionBoost(chatID: ConversationID, messageID: MessageID, emoji: String)
     /// A payment of the payer's share of a group payment request, paid to its creator.
     case requestedPayment(chatID: ConversationID, paymentRequestID: PaymentRequestID)
+    /// A payment returning the payment of cash message `messageID` in the same DM, to its sender. The
+    /// intent must be submitted under the server-issued `paymentIntentID` from
+    /// `getCashMessageReturnStatus`, never a client-generated one.
+    case returnPayment(chatID: ConversationID, messageID: MessageID)
 
     /// The chat this payment posts into.
     public var chatID: ConversationID {
@@ -40,6 +44,8 @@ public enum ChatPaymentMetadata: Sendable {
             return chatID
         case .requestedPayment(let chatID, _):
             return chatID
+        case .returnPayment(let chatID, _):
+            return chatID
         }
     }
 
@@ -48,7 +54,7 @@ public enum ChatPaymentMetadata: Sendable {
     /// carries instead of re-deriving it.
     public var isTip: Bool {
         switch self {
-        case .contactDm, .groupPayment, .reactionBoost, .requestedPayment:
+        case .contactDm, .groupPayment, .reactionBoost, .requestedPayment, .returnPayment:
             return false
         case .tipDm(_, _, let action):
             return action == .tip
@@ -81,6 +87,8 @@ public enum ChatPaymentMetadata: Sendable {
                     }
                 case .requestedPayment(_, let paymentRequestID):
                     $0.requestedPayment = .with { $0.paymentRequestID = paymentRequestID.proto }
+                case .returnPayment(_, let messageID):
+                    $0.returnPayment = .with { $0.messageID = messageID.proto }
                 }
             }
         }.serializedData()

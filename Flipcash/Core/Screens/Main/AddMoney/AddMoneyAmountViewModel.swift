@@ -34,6 +34,7 @@ final class AddMoneyAmountViewModel {
     @ObservationIgnored var successHold: Duration = InlineCompletion.successHold
     @ObservationIgnored var inlineWindow: Duration = InlineCompletion.window
     @ObservationIgnored var inlineInterval: Duration = InlineCompletion.pollInterval
+    @ObservationIgnored var inlineClock: any Clock<Duration> = ContinuousClock()
 
     var screenTitle: String { "Amount to Add" }
 
@@ -122,13 +123,17 @@ final class AddMoneyAmountViewModel {
         verificationCoordinator: VerificationCoordinator,
         onProceed: @escaping (AddMoneyProcessingInput) -> Void
     ) {
+        Analytics.buttonTapped(name: .buyWithCoinbase)
         Analytics.addMoneyAmountConfirmed(method: .coinbase, exchangedFiat: amount)
         verificationCoordinator.runGated(
             for: session,
             bind: { [weak self] vm in self?.verificationViewModel = vm }
         ) { [weak self] in
             guard let self else { return }
-            let operation = CoinbaseDepositOperation(coinbaseService: coinbaseService, session: session)
+            // Starts here, not at confirm: a verification detour restarts the clocks.
+            let timer = session.addMoneyTimer
+            timer.start()
+            let operation = CoinbaseDepositOperation(coinbaseService: coinbaseService, session: session, timer: timer)
             depositTask = Task { [weak self, operation] in
                 self?.actionButtonState = .loading
                 defer { self?.actionButtonState = .normal }
@@ -149,7 +154,8 @@ final class AddMoneyAmountViewModel {
                         method: .coinbase,
                         exchangedFiat: amount,
                         successful: false,
-                        error: DepositError.externalRejected(title: title, subtitle: subtitle)
+                        error: DepositError.externalRejected(title: title, subtitle: subtitle),
+                        phases: timer.finish(for: .coinbase)
                     )
                     self?.dialogItem = .error(title: title, subtitle: subtitle)
                 } catch {
@@ -159,7 +165,13 @@ final class AddMoneyAmountViewModel {
                         "orderId": "\(operation.orderId ?? "nil")",
                     ])
                     ErrorReporting.captureError(error)
-                    Analytics.addMoney(method: .coinbase, exchangedFiat: amount, successful: false, error: error)
+                    Analytics.addMoney(
+                        method: .coinbase,
+                        exchangedFiat: amount,
+                        successful: false,
+                        error: error,
+                        phases: timer.finish(for: .coinbase)
+                    )
                     self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                 }
             }
@@ -172,6 +184,7 @@ final class AddMoneyAmountViewModel {
         dismiss: @escaping () -> Void,
         onProceed: @escaping (AddMoneyProcessingInput) -> Void
     ) {
+        Analytics.buttonTapped(name: .buyWithPhantom)
         Analytics.addMoneyAmountConfirmed(method: .phantom, exchangedFiat: amount)
         let operation = PhantomDepositOperation(walletConnection: walletConnection)
         depositTask = Task { [weak self, operation] in
@@ -194,9 +207,10 @@ final class AddMoneyAmountViewModel {
             } catch DepositError.userCancelled {
                 // User rejected the transaction in Phantom — silent.
             } catch let DepositError.externalRejected(title, subtitle) {
+                // Android sends a Phantom failure with no amount.
                 Analytics.addMoney(
                     method: .phantom,
-                    exchangedFiat: amount,
+                    exchangedFiat: nil,
                     successful: false,
                     error: DepositError.externalRejected(title: title, subtitle: subtitle)
                 )
@@ -207,7 +221,7 @@ final class AddMoneyAmountViewModel {
                     "amount": "\(amount.nativeAmount.formatted())",
                 ])
                 ErrorReporting.captureError(error)
-                Analytics.addMoney(method: .phantom, exchangedFiat: amount, successful: false, error: error)
+                Analytics.addMoney(method: .phantom, exchangedFiat: nil, successful: false, error: error)
                 self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
             }
         }
@@ -227,7 +241,8 @@ final class AddMoneyAmountViewModel {
             settlement: settlement,
             target: AddMoneyBalanceTarget.target(baseline: baseline, amount: amount),
             window: inlineWindow,
-            interval: inlineInterval
+            interval: inlineInterval,
+            clock: inlineClock
         )
         switch await completion.awaitOutcome() {
         case .succeeded:

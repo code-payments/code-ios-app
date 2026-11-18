@@ -47,6 +47,8 @@ struct CurrencyInfoContentV2: View {
     let onSelectCommunityChat: (Conversation) -> Void
     let onShowCommunityRankingInfo: () -> Void
     let onShowAllCommunityChats: () -> Void
+    /// Opens the community leader's profile.
+    let onSelectCommunityLeader: (UserID) -> Void
     /// Opens "How Market Cap Works".
     let onShowMarketCapExplainer: () -> Void
     /// Fires when the hero card's title scrolls out from under the toolbar, so
@@ -137,16 +139,26 @@ struct CurrencyInfoContentV2: View {
                     actionTiles
                     .padding(.horizontal, 20)
 
-                    CommunityChatsSection(
-                        chats: viewModel.communityChats,
-                        currencyName: metadata.name,
-                        subtitle: viewModel.communitySubtitle(for:),
-                        onSelect: onSelectCommunityChat,
-                        onInfo: onShowCommunityRankingInfo,
-                        onViewAll: onShowAllCommunityChats
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
+                    // Gated as a whole so a currency with neither section (USDF among them)
+                    // keeps About where it was, rather than under an empty, padded stack.
+                    if !viewModel.communityChats.isEmpty || viewModel.communityLeader != nil {
+                        VStack(spacing: 24) {
+                            CommunityChatsSection(
+                                chats: viewModel.communityChats,
+                                currencyName: metadata.name,
+                                subtitle: viewModel.communitySubtitle(for:),
+                                onSelect: onSelectCommunityChat,
+                                onInfo: onShowCommunityRankingInfo,
+                                onViewAll: onShowAllCommunityChats
+                            )
+
+                            if let leader = viewModel.communityLeader {
+                                CommunityLeaderSection(leader: leader, onSelect: onSelectCommunityLeader)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
+                    }
 
                 CurrencyInfoAboutSection(
                     description: currencyDescription,
@@ -293,15 +305,15 @@ struct CurrencyInfoContentV2: View {
             ForEach(CurrencyInfoActions.tiles(isOwned: isOwned, isUSDF: isUSDF), id: \.self) { tile in
                 switch tile {
                 case .send:
-                    actionTile("Send", icon: .send, action: onSend)
+                    actionTile("Send", tile: tile, icon: .send, action: onSend)
                 case .buy:
-                    actionTile("Buy", icon: .arrowDown, action: onBuy)
+                    actionTile("Buy", tile: tile, icon: .arrowDown, action: onBuy)
                 case .buyIn:
-                    actionTile("Buy In", icon: .arrowDown, action: onBuy)
+                    actionTile("Buy In", tile: tile, icon: .arrowDown, action: onBuy)
                 case .transactions:
-                    actionTile("Transactions", icon: .history, action: onShowTransactionHistory)
+                    actionTile("Transactions", tile: tile, icon: .history, action: onShowTransactionHistory)
                 case .more:
-                    actionTile("More", icon: .dotGrid1x3Horizontal, action: onMore)
+                    actionTile("More", tile: tile, icon: .dotGrid1x3Horizontal, action: onMore)
                 }
             }
         }
@@ -309,11 +321,15 @@ struct CurrencyInfoContentV2: View {
 
     private func actionTile(
         _ title: String,
+        tile: CurrencyInfoActions.Tile,
         icon: Icon,
         isEnabled: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button {
+            Analytics.tokenInfoTileTapped(tile: tile, mint: metadata.mint)
+            action()
+        } label: {
             VStack(spacing: 12) {
                 Image.icon(icon)
                     .iconSize(28)
@@ -331,6 +347,7 @@ struct CurrencyInfoContentV2: View {
         .buttonStyle(.plain)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.4)
+        .accessibilityIdentifier("currency-tile-\(tile)")
     }
 
     // MARK: - Copy

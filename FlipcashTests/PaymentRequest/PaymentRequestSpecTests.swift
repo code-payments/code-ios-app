@@ -59,6 +59,10 @@ struct PaymentRequestSpecTests {
         PaymentRequestCopy.statusLine(request(endsAt: now.addingTimeInterval(seconds)).deadline(at: now))
     }
 
+    private func deadline(endingIn seconds: TimeInterval) -> GroupPaymentRequest.Deadline {
+        request(endsAt: now.addingTimeInterval(seconds)).deadline(at: now)
+    }
+
     // MARK: - Amounts -
 
     @Test("1: 26 shares of $20 with only the creator's paid")
@@ -84,6 +88,7 @@ struct PaymentRequestSpecTests {
         #expect(PaymentRequestCopy.statusLine(r.deadline(at: now)) == "Paid in full")
         #expect(r.paidFraction == 1)
         #expect(r.isEnded(at: now))
+        #expect(GroupPaymentRequest.deckOrder([r], at: now).isEmpty)
     }
 
     // MARK: - Status line -
@@ -95,6 +100,13 @@ struct PaymentRequestSpecTests {
     @Test("7: exactly 1 hour") func oneHour() { #expect(status(endingIn: 3_600) == "1 hour left to pay") }
     @Test("8: 30 s reads 1 minute") func thirtySeconds() { #expect(status(endingIn: 30) == "1 minute left to pay") }
 
+    @Test("52: 7 d 59 s reads 7 days, not 8") func sevenDaysPlusSeconds() { #expect(deadline(endingIn: 7 * 86_400 + 59) == .daysLeft(7)) }
+    @Test("53: 7 d 4 min still reads 7 days") func sevenDaysPlusFourMinutes() { #expect(deadline(endingIn: 7 * 86_400 + 4 * 60) == .daysLeft(7)) }
+    @Test("54: 7 d 6 min reads 8 days") func sevenDaysPlusSixMinutes() { #expect(deadline(endingIn: 7 * 86_400 + 6 * 60) == .daysLeft(8)) }
+    @Test("55: 24 h 30 s reads 24 hours") func dayPlusSeconds() { #expect(deadline(endingIn: 24 * 3_600 + 30) == .hoursLeft(24)) }
+    @Test("56: 24 h 6 min reads 2 days") func dayPlusSixMinutes() { #expect(deadline(endingIn: 24 * 3_600 + 6 * 60) == .daysLeft(2)) }
+    @Test("57: 1 h 2 min reads 1 hour") func hourPlusTwoMinutes() { #expect(deadline(endingIn: 3_600 + 2 * 60) == .hoursLeft(1)) }
+
     @Test("9: OPEN past its deadline reads as EXPIRED at ends_at")
     func pastDeadline() {
         let endsAt = now.addingTimeInterval(-1)
@@ -103,6 +115,7 @@ struct PaymentRequestSpecTests {
         #expect(r.effectiveClosedAt(at: now) == endsAt)
         #expect(PaymentRequestCopy.statusLine(r.deadline(at: now)) == "Expired")
         #expect(r.isEnded(at: now))
+        #expect(GroupPaymentRequest.deckOrder([r], at: now).isEmpty)
     }
 
     // MARK: - Merge -
@@ -133,7 +146,7 @@ struct PaymentRequestSpecTests {
 
     // MARK: - Deck -
 
-    @Test("13: open by nearest deadline, then ended within 24 h")
+    @Test("13: open by nearest deadline; ended requests are not in the deck")
     func deckOrder() {
         let twoDays = request(id: 1, endsAt: now.addingTimeInterval(2 * 86_400))
         let fiveDays = request(id: 2, endsAt: now.addingTimeInterval(5 * 86_400))
@@ -142,7 +155,104 @@ struct PaymentRequestSpecTests {
 
         let deck = GroupPaymentRequest.deckOrder([closed, expired, fiveDays, twoDays], at: now)
 
-        #expect(deck.map(\.id) == [twoDays.id, fiveDays.id, closed.id])
+        #expect(deck.map(\.id) == [twoDays.id, fiveDays.id])
+    }
+
+    private func emptyStore() -> PaymentRequests {
+        PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in throw ErrorGetPaymentRequest.unknown })
+    }
+
+    private func deckItems(_ store: PaymentRequests, at now: Date) -> [PaymentRequestDeckItem] {
+        store.deckItems(for: chat, viewer: viewer, order: PaymentRequestDeckOrder(), copy: copy, now: now)
+    }
+
+    private func timelineStatus(_ store: PaymentRequests, _ id: PaymentRequestID) -> String? {
+        guard case .card(let card) = store.cardState(for: id, in: chat, sentBy: creator, copy: copy, now: now) else { return nil }
+        return card.statusLine
+    }
+
+    @Test("58: the last unpaid share is paid, so the request leaves the deck and the deck fades out")
+    func completingLeavesDeck() async throws {
+        let store = emptyStore()
+        store.ingest([request(id: 1, paid: 3)])
+        let before = deckItems(store, at: now)
+        #expect(before.count == 1)
+
+        let presence = PaymentRequestDeckPresence()
+        presence.update(before, completed: { _ in nil }, animates: true)
+        #expect(presence.isVisible)
+
+        store.ingest([request(id: 1, paid: 4, status: .completed, closedAt: now, version: 2)])
+        let after = deckItems(store, at: now)
+        #expect(after.isEmpty)
+        #expect(timelineStatus(store, before[0].id) == "Paid in full")
+
+        // The completed card stays, its ring swept to full, before the deck fades out.
+        let completed = store.completedDeckItem(before[0].id, viewer: viewer, copy: copy, now: now)
+        #expect(completed?.card.fraction == 1)
+        presence.update(after, completed: { store.completedDeckItem($0, viewer: viewer, copy: copy, now: now) }, animates: true)
+        #expect(presence.held?.map(\.card.fraction) == [1])
+        #expect(presence.isVisible)
+
+        // Polled: the sweep's clock starts when its task first gets the main actor, which other
+        // suites in the same process can hold well past any fixed margin.
+        try await waitUntil(presence) { $0.held == nil }
+        #expect(!presence.isVisible)
+    }
+
+    @Test("58: under Reduce Motion the completed request leaves at once")
+    func completingLeavesWithoutMotion() {
+        let store = emptyStore()
+        store.ingest([request(id: 1, paid: 3)])
+        let presence = PaymentRequestDeckPresence()
+        presence.update(deckItems(store, at: now), completed: { _ in nil }, animates: true)
+        store.ingest([request(id: 1, paid: 4, status: .completed, closedAt: now, version: 2)])
+        presence.update(deckItems(store, at: now), completed: { store.completedDeckItem($0, viewer: viewer, copy: copy, now: now) }, animates: false)
+        #expect(presence.held == nil)
+        #expect(!presence.isVisible)
+    }
+
+    @Test("58: a closed or expired request leaves without holding its place")
+    func closedLeavesWithoutSweep() throws {
+        let store = emptyStore()
+        store.ingest([request(id: 1), request(id: 2, endsAt: now.addingTimeInterval(86_400))])
+        let previous = deckItems(store, at: now)
+        let live = Array(previous.dropFirst())
+        let held = try #require(PaymentRequestDeckPresence.holding(previous: previous, live: live, completed: { _ in nil }))
+        #expect(!held.sweeps)
+        #expect(held.items.map(\.id) == previous.map(\.id))
+        #expect(PaymentRequestDeckPresence.holding(previous: live, live: live, completed: { _ in nil }) == nil)
+    }
+
+    @Test("59: of OPEN, COMPLETED, CLOSED and EXPIRED, only the OPEN one is in the deck")
+    func onlyOpenInDeck() {
+        let store = emptyStore()
+        let open = request(id: 1)
+        let completed = request(id: 2, paid: 4, status: .completed, closedAt: now.addingTimeInterval(-3_600))
+        let closed = request(id: 3, status: .closed, closedAt: now.addingTimeInterval(-3_600))
+        let expired = request(id: 4, status: .expired, endsAt: now.addingTimeInterval(-3_600), closedAt: now.addingTimeInterval(-3_600))
+        store.ingest([open, completed, closed, expired])
+
+        #expect(deckItems(store, at: now).map(\.id) == [open.id])
+        #expect(timelineStatus(store, completed.id) == "Paid in full")
+        #expect(timelineStatus(store, closed.id) != nil)
+        #expect(timelineStatus(store, expired.id) == "Expired")
+    }
+
+    @Test("60: the front card leaves at its ends_at and the other comes to the front")
+    func frontExpiresOnScreen() {
+        let store = emptyStore()
+        let endsAt = now.addingTimeInterval(90)
+        let front = request(id: 1, endsAt: endsAt)
+        let back = request(id: 2, endsAt: now.addingTimeInterval(86_400))
+        store.ingest([front, back])
+
+        #expect(deckItems(store, at: now).map(\.id) == [front.id, back.id])
+        // The deck wakes at ends_at itself, not at the next minute's refresh.
+        #expect(GroupPaymentRequest.nextExpiry(of: [front, back], after: now) == endsAt)
+        #expect(deckItems(store, at: endsAt.addingTimeInterval(-1)).map(\.id) == [front.id, back.id])
+        #expect(deckItems(store, at: endsAt).map(\.id) == [back.id])
+        #expect(GroupPaymentRequest.nextExpiry(of: [back], after: endsAt) == back.split?.endsAt)
     }
 
     @Test("23: an OPEN request the viewer owes on sorts before one they have paid")
@@ -178,81 +288,48 @@ struct PaymentRequestSpecTests {
         #expect(!paid.isOwed(by: viewer, at: now))
     }
 
-    @Test("26: viewer owes and scrolls away, so the strip shrinks into the pill")
-    func stripShrinksWhenScrolledAway() {
-        #expect(PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: false) == .strip)
-        #expect(PaymentRequestDeckStyle.collapsed(owes: true, isScrolledAway: true) == .pill)
-        #expect(PaymentRequestDeckStyle.collapsed(owes: false, isScrolledAway: false) == .pill)
+    @Test("24–25: every viewer gets the stack, and only a viewer who owes gets You owe and Pay")
+    @MainActor
+    func stackForEveryViewer() {
+        let store = PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in throw ErrorGetPaymentRequest.unknown })
+        store.ingest([request(id: 1, paid: 1)])
+        func front(for viewer: UUID) -> PaymentRequestDeckItem? {
+            store.deckItems(for: chat, viewer: viewer, order: PaymentRequestDeckOrder(), copy: copy, now: now).first
+        }
+
+        let owing = front(for: viewer)
+        #expect(owing?.owedShare != nil)
+        if case .owes = owing?.viewerStatus {} else { Issue.record("expected .owes, got \(String(describing: owing?.viewerStatus))") }
+
+        let asCreator = front(for: creator)
+        #expect(asCreator != nil)
+        #expect(asCreator?.owedShare == nil)
+        #expect(asCreator?.viewerStatus == .creator)
+
+        let outsider = front(for: UUID())
+        #expect(outsider != nil)
+        #expect(outsider?.owedShare == nil)
+        #expect(outsider?.viewerStatus == .noShare)
+
+        store.ingest([request(id: 1, paid: 2, version: 2)])
+        let paid = front(for: viewer)
+        #expect(paid != nil)
+        #expect(paid?.owedShare == nil)
+        if case .paid = paid?.viewerStatus {} else { Issue.record("expected .paid, got \(String(describing: paid?.viewerStatus))") }
     }
 
-    @Test("26: the strip shrinks in step with the scroll, not at a single point")
+    @Test("27: dragging the stack up only pulls the front card a few points")
     @MainActor
-    func stripTracksScroll() {
-        let collapse = PaymentRequestStripCollapse()
-        let distance = PaymentRequestStripCollapse.distance
+    func upwardDragIsElastic() {
+        let cap = PaymentRequestStack.maxUpwardPull
 
-        collapse.update(distanceFromNewest: distance / 4)
-        #expect(collapse.progress == 0.25)
-        collapse.update(distanceFromNewest: distance / 2)
-        #expect(collapse.progress == 0.5)
-        collapse.update(distanceFromNewest: -20)
-        #expect(collapse.progress == 0)
-        #expect(!collapse.isPinned)
-    }
-
-    @Test("26: once fully shrunk, scrolling back to the newest messages leaves the strip in the pill")
-    @MainActor
-    func stripStaysPinned() {
-        let collapse = PaymentRequestStripCollapse()
-        let distance = PaymentRequestStripCollapse.distance
-
-        collapse.update(distanceFromNewest: distance * 3)
-        #expect(collapse.isPinned)
-        collapse.update(distanceFromNewest: 0)
-        #expect(collapse.progress == 1)
-        #expect(collapse.isScrolledAway)
-    }
-
-    @Test("27: reopening the chat while still owing shows the strip again")
-    @MainActor
-    func reopenShowsStrip() {
-        let pinned = PaymentRequestStripCollapse()
-        pinned.update(distanceFromNewest: PaymentRequestStripCollapse.distance)
-        #expect(pinned.isPinned)
-
-        // A visit owns its collapse, so a reopened chat starts from a fresh one.
-        let reopened = PaymentRequestStripCollapse()
-        #expect(reopened.progress == 0)
-        #expect(!reopened.isScrolledAway)
-    }
-
-    @Test("28: a new owed request while the chat is open brings the strip back")
-    @MainActor
-    func newOwedRequestUnpins() {
-        let collapse = PaymentRequestStripCollapse()
-        collapse.update(distanceFromNewest: PaymentRequestStripCollapse.distance)
-        collapse.unpin()
-        #expect(!collapse.isPinned)
-        #expect(!collapse.isScrolledAway)
-        #expect(collapse.progress == 0)
-        collapse.update(distanceFromNewest: PaymentRequestStripCollapse.distance / 2)
-        #expect(collapse.progress == 0.5)
-    }
-
-    @Test("26: a small scroll back and forth past the middle never flaps the style")
-    @MainActor
-    func stripStyleHasHysteresis() {
-        let collapse = PaymentRequestStripCollapse()
-        let distance = PaymentRequestStripCollapse.distance
-
-        collapse.update(distanceFromNewest: distance * 0.55)
-        #expect(!collapse.isScrolledAway)
-        collapse.update(distanceFromNewest: distance * 0.7)
-        #expect(collapse.isScrolledAway)
-        collapse.update(distanceFromNewest: distance * 0.45)
-        #expect(collapse.isScrolledAway)
-        collapse.update(distanceFromNewest: distance * 0.3)
-        #expect(!collapse.isScrolledAway)
+        #expect(PaymentRequestStack.upwardPull(40) == 0)
+        #expect(PaymentRequestStack.upwardPull(0) == 0)
+        let short = PaymentRequestStack.upwardPull(-10)
+        let long = PaymentRequestStack.upwardPull(-400)
+        #expect(short < 0 && short > -10)
+        #expect(long < short)
+        #expect(long > -cap)
     }
 
     // MARK: - Viewer status -
@@ -345,24 +422,25 @@ struct PaymentRequestSpecTests {
         PaymentRequestPeople(members: [creator] + (1..<count).map { _ in UUID() }, creator: creator)
     }
 
-    @Test("14: everyone selected in a 26-member group")
+    @Test("14: $20 per person, everyone selected in a 26-member group")
     func everyone() {
         let p = people(count: 26)
         #expect(p.summaryValue == "Everyone, Including You")
         #expect(p.summarySecondLine == "You'll be marked as paid")
-        #expect(p.buttonTitle(amount: "$20") == "Request $20 from 25 People")
-        let shares = p.shares(nativeAmount: 20)
+        #expect(paymentRequestSendButtonTitle == "Send Request")
+        let shares = p.shares(perPerson: .usd(20))
         #expect(shares.count == 26)
         #expect(shares.first?.userID == creator)
         #expect(shares.allSatisfy { !$0.isPaid && $0.nativeAmount == 20 })
     }
 
-    @Test("15: the creator and one other")
+    @Test("15: $20 per person, the creator and one other")
     func creatorAndOne() {
         var p = people(count: 3)
         p.toggle(p.members[2])
         #expect(p.summaryValue == "1 Person, Including You")
-        #expect(p.buttonTitle(amount: "$20") == "Request $20 from 1 Person")
+        #expect(paymentRequestSendButtonTitle == "Send Request")
+        #expect(p.shares(perPerson: .usd(20)).map(\.nativeAmount) == [20, 20])
     }
 
     @Test("16: everyone except the creator")
@@ -371,7 +449,7 @@ struct PaymentRequestSpecTests {
         p.toggle(creator)
         #expect(p.summaryValue == "Everyone Except You")
         #expect(p.summarySecondLine == nil)
-        #expect(!p.shares(nativeAmount: 20).contains { $0.userID == creator })
+        #expect(p.shares(perPerson: .usd(20)).contains { $0.userID == creator } == false)
     }
 
     @Test("17: only the creator selected disables the button")
@@ -407,6 +485,38 @@ struct PaymentRequestSpecTests {
         #expect(p.selected == before)
     }
 
+    // MARK: - Amount per person -
+
+    @Test("49: $33.33 per person, the creator and two others")
+    func perPersonWithCreator() {
+        let p = people(count: 3)
+        let amount = FiatAmount.usd(Decimal(string: "33.33")!)
+        let shares = p.shares(perPerson: amount)
+        #expect(shares.map(\.nativeAmount) == [33.33, 33.33, 33.33])
+        #expect(shares.compactMap(\.userID) == p.members)
+        #expect(paymentRequestSendButtonTitle == "Send Request")
+    }
+
+    @Test("50: $20 per person, the creator deselected, one other")
+    func perPersonToOne() {
+        var p = people(count: 3)
+        p.toggle(creator)
+        p.toggle(p.members[2])
+        #expect(p.shares(perPerson: .usd(20)).map(\.nativeAmount) == [20])
+        #expect(paymentRequestSendButtonTitle == "Send Request")
+    }
+
+    @Test("51: unchecking the creator in a 26-member group keeps Send Request and drops a share")
+    func uncheckingCreator() {
+        var p = people(count: 26)
+        #expect(paymentRequestSendButtonTitle == "Send Request")
+        p.toggle(creator)
+        #expect(paymentRequestSendButtonTitle == "Send Request")
+        let shares = p.shares(perPerson: .usd(20))
+        #expect(shares.count == 25)
+        #expect(shares.allSatisfy { $0.nativeAmount == 20 })
+    }
+
     @Test("Groups of 100 or fewer start with everyone selected")
     func hundredStartsFull() {
         #expect(people(count: 100).selected.count == 100)
@@ -431,8 +541,8 @@ struct PaymentRequestSpecTests {
     func noIntentNoSend() throws {
         let r = request()
         let debtor = try #require(r.split?.shares[1].userID)
-        #expect(details(r, viewer: debtor, intent: false).sendTitle == nil)
-        #expect(details(r, viewer: debtor, intent: true).sendTitle == "Send $10")
+        #expect(details(r, viewer: debtor, intent: false).payTitle == nil)
+        #expect(details(r, viewer: debtor, intent: true).payTitle == "Pay $10")
     }
 
     @Test("Details rows: You, Paid, and the creator's mark-paid action only while OPEN")
@@ -485,6 +595,27 @@ struct PaymentRequestCreateCopyTests {
         // 2027-01-15 08:00 UTC, a Friday from UTC−8 to UTC+15.
         let friday = Date(timeIntervalSince1970: 1_800_000_000)
         #expect(defaultPaymentRequestTitle(at: friday, locale: Locale(identifier: "en_US")) == "Friday Request")
+    }
+
+    @Test("61: the Name screen opens empty over the weekday default, and back keeps it")
+    func nameScreenDefault() {
+        // 2027-01-18 08:00 UTC, a Monday from UTC−8 to UTC+15.
+        let monday = Date(timeIntervalSince1970: 1_800_000_000 + 3 * 86_400)
+        let name = PaymentRequestName(defaultTitle: defaultPaymentRequestTitle(at: monday, locale: Locale(identifier: "en_US")))
+        #expect(name.fieldText.isEmpty)
+        #expect(name.placeholder == "Monday Request")
+        // Done is disabled while the field is empty.
+        #expect(PaymentRequestTitleValidator().validate(name.fieldText) == nil)
+        // Going back without Done saves nothing, so the default stands.
+        #expect(name.title == "Monday Request")
+    }
+
+    @Test("62: the Name screen opened after saving Rent reads Rent")
+    func nameScreenSaved() {
+        var name = PaymentRequestName(defaultTitle: "Monday Request")
+        name.save("Rent")
+        #expect(name.fieldText == "Rent")
+        #expect(name.title == "Rent")
     }
 
     @Test("Titles are trimmed and limited to 100 scalars")

@@ -96,7 +96,7 @@ private struct ReviewCapsule: ViewModifier {
     }
 }
 
-private extension View {
+extension View {
 
     /// The reply strip's ground: Liquid Glass at the bar's corner radius, or the field background
     /// before iOS 26.

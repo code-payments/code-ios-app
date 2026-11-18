@@ -61,6 +61,6 @@ struct SwitchAccountSheetTests {
         router.showOwnTipCard()
 
         #expect(router.presentedSheet == nil)
-        #expect(router.requestedTabStack == .you)
+        #expect(router.requestedTab == .tipCard)
     }
 }

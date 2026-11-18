@@ -371,6 +371,11 @@ public struct ChatAuthor: Hashable, Sendable, Codable {
     /// picture.
     public let blurhash: String?
 
+    /// The first word of ``name``, or `nil` when the roster does not name this sender.
+    public var firstName: String? {
+        name.split(separator: " ").first.map(String.init)
+    }
+
     public init(id: UserID, name: String, blurhash: String? = nil) {
         self.id = id
         self.name = name
@@ -428,8 +433,19 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
     public let isRedacted: Bool
     /// What decrypting the blob needs when it is end-to-end encrypted, nil for a plaintext blob.
     public let sealed: SealedBlob?
+    /// Optional so a cached row from before stacks still decodes.
+    private let stack: [ChatMediaStackPhoto]?
+    /// Every photo of the card stack this row fronts, in send order with this one first, or empty
+    /// for a photo drawn alone. See `ChatMediaGrouping`.
+    public var stackPhotos: [ChatMediaStackPhoto] { stack ?? [] }
+    /// Optional so a cached row from before renditions still decodes.
+    private let derived: [MediaRendition]?
+    /// The smaller copies the server derived from the photo. See ``MediaAttachment/renditions``.
+    public var renditions: [MediaRendition] { derived ?? [] }
 
-    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionPreview: LinkPreview? = nil, captionRows: [ChatMediaCaptionRow] = [], isRedacted: Bool, sealed: SealedBlob? = nil) {
+    public init(blobID: BlobID?, width: Int, height: Int, blurhash: String?, caption: String?, captionPreview: LinkPreview? = nil, captionRows: [ChatMediaCaptionRow] = [], isRedacted: Bool, sealed: SealedBlob? = nil, stackPhotos: [ChatMediaStackPhoto] = [], renditions: [MediaRendition] = []) {
+        self.stack = stackPhotos.isEmpty ? nil : stackPhotos
+        self.derived = renditions.isEmpty ? nil : renditions
         self.blobID = blobID
         self.width = width
         self.height = height
@@ -439,6 +455,54 @@ public struct ChatMediaContent: Hashable, Sendable, Codable {
         self.captionRows = captionRows
         self.isRedacted = isRedacted
         self.sealed = sealed
+    }
+
+    /// The ORIGINAL as a rendition, or nil for a pending row whose upload has not produced a blob.
+    public var original: MediaRendition? {
+        blobID.map { MediaRendition(role: .original, blobID: $0, width: width, height: height) }
+    }
+
+    /// The copy a view drawing this photo `targetPixels` across loads, picked as
+    /// ``MediaAttachment/rendition(forPixelSize:)`` picks it: a sealed photo always loads its ORIGINAL.
+    public func rendition(forPixelSize targetPixels: Int) -> MediaRendition? {
+        guard sealed == nil else { return original }
+        return MediaRendition.forPixelSize(targetPixels, derived: renditions, original: original)
+    }
+}
+
+/// One photo of a card stack: the message it is, and what drawing and opening it needs.
+public struct ChatMediaStackPhoto: Hashable, Sendable, Codable {
+    /// The photo message's stable id.
+    public let messageID: String
+    /// The photo message's confirmed server id, or nil while it is still sending.
+    public let serverID: MessageID?
+    public let blobID: BlobID?
+    public let width: Int
+    public let height: Int
+    public let blurhash: String?
+    public let isRedacted: Bool
+    public let sealed: SealedBlob?
+    /// Whether this photo's message offers Reply, so its viewer page does too.
+    public let canReply: Bool
+    /// Whether this photo's message offers Forward, so its viewer page does too.
+    public let canForward: Bool
+
+    public init(messageID: String, serverID: MessageID? = nil, blobID: BlobID?, width: Int, height: Int, blurhash: String?, isRedacted: Bool, sealed: SealedBlob?, canReply: Bool, canForward: Bool) {
+        self.messageID = messageID
+        self.serverID = serverID
+        self.blobID = blobID
+        self.width = width
+        self.height = height
+        self.blurhash = blurhash
+        self.isRedacted = isRedacted
+        self.sealed = sealed
+        self.canReply = canReply
+        self.canForward = canForward
+    }
+
+    /// The photo alone, as a row of its own would draw it, with no caption.
+    public var content: ChatMediaContent {
+        ChatMediaContent(blobID: blobID, width: width, height: height, blurhash: blurhash, caption: nil, isRedacted: isRedacted, sealed: sealed)
     }
 }
 
@@ -478,7 +542,8 @@ public struct ChatPaymentRequestContent: Hashable, Sendable, Codable {
 
 /// A cash payment row's display data — already formatted, so the cell renders strings + images.
 public struct ChatCashContent: Hashable, Sendable, Codable {
-    /// The amount in the viewer's display currency, formatted for display (e.g. "$5.00").
+    /// The card's large line, in the viewer's display currency (e.g. "$5.00"): the amount each
+    /// person got on a group send to two or more, else the payment's amount.
     public let amount: String
     /// The token's display name (e.g. "Cash").
     public let token: String
@@ -486,34 +551,68 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
     public let iconURL: URL?
     /// Whether the payment was a tip, which selects the caption verb ("tipped" vs "sent").
     public let isTip: Bool
-    /// The lines a payment in a group adds to a plain cash card; nil outside a group, or when the
-    /// card needs only the plain caption.
-    public let group: GroupSend?
+    /// The caption, total and counterpart lines a transcript card draws around the amount; nil
+    /// where only the plain caption is wanted.
+    public let lines: Lines?
+    /// The Send Back row attached to the card's bottom edge; nil draws the card without one.
+    public let sendBack: SendBack?
 
-    /// The lines a payment in a group adds to a plain cash card.
-    public struct GroupSend: Hashable, Sendable, Codable {
-        /// Replaces the caption: "You sent", or the sender's name in place of "You".
+    /// The row under a DM's opening payment that returns it. The receiver sees every state; the
+    /// original sender sees only ``sentBack``.
+    public enum SendBack: String, Hashable, Sendable, Codable {
+        /// The receiver can tap to send the payment back.
+        case available
+        /// The return was swiped and its intent has not resolved.
+        case sending
+        /// The payment was sent back. Not tappable.
+        case sentBack
+    }
+
+    /// The lines a transcript cash card draws around its amount.
+    public struct Lines: Hashable, Sendable, Codable {
+        /// Who did what: "You sent", "You received", "You and 2 others received", "Alex sent".
         public let caption: String
-        /// The per-person line: "$1.00 Each", or "~$0.33 Each" (the smallest part) when uneven; nil
-        /// for a payment to one member.
-        public let each: String?
-        /// Who was paid, at the foot of the card: "to Alex Morgan and 1 Other", or "to You and 1 Other"
-        /// when the viewer was paid.
-        public let recipients: String
+        /// "$3.00 total" on a group send to two or more; nil otherwise.
+        public let total: String?
+        /// How the amount reads as one person's part of a group send to two or more; nil when it
+        /// is the whole payment.
+        public let part: Part?
+        /// The other side of the payment, at the foot of the card: "to Alex Morgan and 2 others",
+        /// "from Fred Wilson".
+        public let counterpart: String
 
-        public init(caption: String, each: String?, recipients: String) {
+        /// A group send's amount as one person's part.
+        public enum Part: String, Hashable, Sendable, Codable {
+            /// Every part is the same: "$1.00 each".
+            case each
+            /// The parts differ and the amount is the smallest: "~$0.33 each".
+            case approximateEach
+        }
+
+        public init(caption: String, total: String? = nil, part: Part? = nil, counterpart: String) {
             self.caption = caption
-            self.each = each
-            self.recipients = recipients
+            self.total = total
+            self.part = part
+            self.counterpart = counterpart
+        }
+
+        /// A return of a DM's opening payment: "You sent back" / "to Alex" to its sender, "Alex sent
+        /// back" / "to You" to its receiver. An unknown name reads "Someone".
+        public static func sentBack(isFromSelf: Bool, counterpartName: String) -> Lines {
+            let name = counterpartName.isEmpty ? "Someone" : counterpartName
+            return isFromSelf
+                ? .init(caption: "You sent back", counterpart: "to \(name)")
+                : .init(caption: "\(name) sent back", counterpart: "to You")
         }
     }
 
-    public init(amount: String, token: String, iconURL: URL? = nil, isTip: Bool = false, group: GroupSend? = nil) {
+    public init(amount: String, token: String, iconURL: URL? = nil, isTip: Bool = false, lines: Lines? = nil, sendBack: SendBack? = nil) {
         self.amount = amount
         self.token = token
         self.iconURL = iconURL
         self.isTip = isTip
-        self.group = group
+        self.lines = lines
+        self.sendBack = sendBack
     }
 
     /// The caption shown above the amount on a cash card, selected by side and tip vs. plain send.
@@ -522,7 +621,7 @@ public struct ChatCashContent: Hashable, Sendable, Codable {
         case (true, false):  "You sent"
         case (false, false): "You received"
         case (true, true):   "You tipped"
-        case (false, true):  "You received a tip"
+        case (false, true):  "You received"
         }
     }
 }

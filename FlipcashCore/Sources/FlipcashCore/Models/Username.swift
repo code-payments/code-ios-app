@@ -14,7 +14,7 @@ import FlipcashAPI
 /// not just the caller.
 public struct Username: Codable, Equatable, Hashable, Sendable {
 
-    /// The handle as the server stores it: lowercase, 2–15 characters.
+    /// The handle as the server stores it: lowercase, 2–30 characters.
     public let value: String
 
     /// Returns the handle `string` names, or `nil` when it isn't well formed.
@@ -39,9 +39,12 @@ public struct Username: Codable, Equatable, Hashable, Sendable {
         URL(string: "https://flipcash.com/\(value)")!
     }
 
+    /// The longest handle the contract allows; `pattern`'s upper bound.
+    public static let maximumLength = 30
+
     // Mirrors the `validate.rules.string.pattern` on `common.v1.Username`;
     // keep the two in step when the contract moves.
-    private nonisolated(unsafe) static let pattern = /^[a-z0-9_]{2,15}$/
+    private nonisolated(unsafe) static let pattern = /^[a-z0-9_]{2,30}$/
 }
 
 // MARK: - Codable -

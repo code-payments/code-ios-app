@@ -45,6 +45,9 @@ struct ConversationScreen: View {
     /// The message a message link opened this chat on, or nil for every other entry point.
     var landing: MessageLanding? = nil
 
+    /// The payment request whose details open over this chat on arrival, or nil.
+    var openRequest: PaymentRequestID? = nil
+
     @Environment(ConversationController.self) private var conversationController
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
@@ -53,9 +56,14 @@ struct ConversationScreen: View {
     @Environment(PushController.self) private var pushController
     @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
+    @Environment(BetaFlags.self) private var betaFlags
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var didInitialRead = false
+    /// The chat's keyboard, handed to the received-bill flow while this screen is up.
+    @State private var keyboardHandle = ChatKeyboardHandle()
+    @State private var didOpenRequest = false
     /// The chat whose opening load has landed, for a coordinator built after it.
     @State private var loadedConversationID: ConversationID?
     /// The chat whose stored draft has been put back, which is also what permits saving: an empty
@@ -78,7 +86,17 @@ struct ConversationScreen: View {
     @State private var isJoiningChat = false
     /// Whether the encryption explainer opened from the transcript's marker is showing.
     @State private var isShowingEncryptionInfo = false
+    /// Whether the group-ready card's Invite People sheet is up.
+    @State private var isInviting = false
+    /// Whether the group-ready card's row is held in the transcript. It is set while the card shows
+    /// and cleared once its exit has run, so the row is still there on the render where the card
+    /// stops showing and the exit plays; the plain delete follows.
     @State private var messageReport: MessageReportRequest?
+    @State private var silenceTarget: ModerationTarget?
+    @State private var memberSheetTarget: MemberSheetTarget?
+    /// The instant ``gate`` judges a timed silence against. A silence lapses with no event, so
+    /// ``silenceExpiry`` moves this to the end and the composer returns without reopening the chat.
+    @State private var silenceClock = Date.now
     @State private var messageShare: MessageShareRequest?
     /// Whether `Group: Gate Shown` has gone out for this visit. The destination is keyed by
     /// conversation ID, so a new push is a new visit; a return from a pushed screen is not.
@@ -87,20 +105,25 @@ struct ConversationScreen: View {
     @State private var reactionPickerRequest: ReactionPickerRequest?
     /// The paid reaction whose sheet is open, once the "$" picker has chosen its emoji.
     @State private var paidReactionTarget: ReactionBoostTarget?
+    /// The Send Back offer whose confirm sheet is open.
+    @State private var sendBackOffer: SendBackOffer?
     /// The group send whose card was tapped, shown in the details sheet.
     @State private var groupSendDetails: GroupSendDetails?
     /// The payment request whose details sheet is open.
     @State private var paymentRequestDetails: PaymentRequestSelection?
     @State private var paymentRequestDeck = PaymentRequestDeckState()
     @State private var deckWindow = PaymentRequestDeckWindow()
-    @State private var requestPillPresence = PaymentRequestPillPresence()
-    /// Paying a share from the owed strip's Pay button.
+    @State private var requestDeckPresence = PaymentRequestDeckPresence()
+    /// The instant the request deck is worded at; it advances each minute and at every deadline it holds.
+    @State private var requestDeckClock = Date.now
+    /// Paying a share from the request stack's Pay button.
     @State private var requestPayFlow = PaymentRequestPayFlow()
-    /// How far the reader's scroll away from the newest messages has shrunk the owed strip into
-    /// the app-bar pill.
-    @State private var stripCollapse = PaymentRequestStripCollapse()
-    /// The owed strip's measured height, reserved at the transcript's top; 0 while hidden.
-    @State private var stripHeight: CGFloat = 0
+    /// The request stack's measured height, reserved at the transcript's top; 0 while hidden.
+    @State private var stackHeight: CGFloat = 0
+    /// The pin bar's measured height, reserved at the transcript's top; 0 while hidden.
+    @State private var pinBarHeight: CGFloat = 0
+    /// The pinned list sheet and the jump a row asks for.
+    @State private var pinnedList = PinnedMessagesPresentation()
     /// Whether a private group's Money sheet (Send or Request) is open.
     @State private var isShowingMoneyActions = false
     /// The Money sheet's choice, run once that sheet has gone so the next one can present.
@@ -152,8 +175,6 @@ struct ConversationScreen: View {
     private static let titleLeadingInset: CGFloat = 72
     /// Where the title ends: the bar's trailing margin, since nothing sits on that side.
     private static let titleTrailingInset: CGFloat = 16
-    /// Room the request pill takes at the bar's trailing edge.
-    private static let requestPillWidth: CGFloat = 150
 
     /// The synced contact for the counterpart, resolved live from the directory
     /// so a `dmChatID` stored after the first payment flows in. Falls back to
@@ -212,10 +233,19 @@ struct ConversationScreen: View {
         return { router.push(.userProfile(userID, origin: .directMessage)) }
     }
 
-    /// Tapping a face in the gutter opens that person's profile — the same screen the counterpart's
-    /// own card opens in a DM.
+    /// Tapping a face in the gutter opens the member sheet in a group, and the profile otherwise —
+    /// the same screen the counterpart's own card opens in a DM.
     private func openAuthorProfile(_ userID: UserID) {
-        router.push(.userProfile(userID, origin: .groupMember))
+        if groupConversation != nil, let conversationID, userID != session.userID {
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID)
+        } else {
+            router.push(.userProfile(userID, origin: groupMemberOrigin))
+        }
+    }
+
+    /// Where a profile opened from this transcript says it came from. Only a group has members.
+    private var groupMemberOrigin: UserProfileOrigin {
+        conversationID.map(UserProfileOrigin.groupMember) ?? .directMessage
     }
 
     /// Tapping the title opens the counterpart's contact card: their address-book
@@ -266,6 +296,16 @@ struct ConversationScreen: View {
             return awaitingMetadata ? .undetermined : .open
         }
         return conversationGatePresentation(gateVerdicts, isMember: conversationController.isMember(of: conversation))
+            .silenced(by: conversation.viewerState?.silence, at: silenceClock)
+    }
+
+    /// The silence the viewer is under, when the host has set one that hasn't lapsed.
+    private var activeSilence: ConversationSilenceState? {
+        guard let conversationID,
+              let silence = conversationController.conversation(withID: conversationID)?.viewerState?.silence,
+              silence.isActive(at: silenceClock)
+        else { return nil }
+        return silence
     }
 
     /// Whether this chat's rules are simply unknown, rather than absent.
@@ -337,6 +377,44 @@ struct ConversationScreen: View {
         groupConversation?.rosterSummary.peopleCount
     }
 
+    /// Whether the group-ready card belongs in the transcript right now.
+    private var showsInviteCard: Bool {
+        GroupReadyCard.isShown(groupConversation)
+    }
+
+    private var showsGroupMoney: Bool {
+        betaFlags.showsGroupMoneyUI(isStaff: betaFlags.staffStanding(of: session))
+    }
+
+    /// The loaded transcript with the group-ready card ahead of it, as the oldest row, while it
+    /// shows. When it stops, the row is deleted and the transcript plays the card's exit.
+    private var transcriptItems: [ChatItem] {
+        let items = coordinator?.items ?? []
+        guard showsInviteCard else { return items }
+        let card = ChatItem.inviteCard(
+            groupName: groupConversation?.title ?? "",
+            style: GroupReadyCard.style(showsGroupMoney: showsGroupMoney)
+        )
+        return [card] + items
+    }
+
+    private func openInvite() {
+        Analytics.groupInviteSheetOpened(
+            source: .chat,
+            memberCount: groupConversation?.rosterSummary.memberCount ?? 0
+        )
+        let route = InvitePeopleRoute.forGroupReady(
+            showsGroupMoney: showsGroupMoney,
+            canInvite: groupConversation?.canInvite ?? false,
+            isPrivate: groupConversation?.isPrivate ?? false
+        )
+        if route == .invitePeopleSheet, let conversationID {
+            afterKeyboardLowered { router.presentInvitePeople(conversationID) }
+        } else {
+            afterKeyboardLowered { isInviting = true }
+        }
+    }
+
     /// The group's own picture, fetched under the chat's access context rather than any member's.
     private var groupAvatarSubject: ProfileAvatarStore.AvatarSubject? {
         groupConversation.map { .chat($0.id) }
@@ -390,7 +468,7 @@ struct ConversationScreen: View {
         switch requirement {
         case .minimumBalance(let amount, let mint):
             return balanceShortfall(of: amount, mint: mint, holdings: session, rates: ratesController.cachedRates)
-        case .staff, .never, .creator, .unsupported:
+        case .staff, .never, .creator, .unsupported, .silenced:
             return nil
         }
     }
@@ -398,7 +476,7 @@ struct ConversationScreen: View {
     private static func mint(of requirement: ConversationGateRequirement) -> PublicKey? {
         switch requirement {
         case .minimumBalance(_, let mint):  mint
-        case .staff, .never, .creator, .unsupported:  nil
+        case .staff, .never, .creator, .unsupported, .silenced:  nil
         }
     }
 
@@ -424,7 +502,7 @@ struct ConversationScreen: View {
         pagesHistory: Bool
     ) -> ChatScreenRepresentable {
         ChatScreenRepresentable(
-            items: coordinator?.items ?? [],
+            items: transcriptItems,
             // Paging history for a chat the server hasn't created yet fetches
             // against an id it doesn't know and error-reports.
             onReachTop: { if pagesHistory { coordinator?.reachedTop() } },
@@ -433,6 +511,7 @@ struct ConversationScreen: View {
             onPaymentRequestTap: { data in
                 afterKeyboardLowered { paymentRequestDetails = PaymentRequestSelection(id: PaymentRequestID(data: data)) }
             },
+            onSendBack: { id in afterKeyboardLowered { tapSendBack(id) } },
             onOpenURL: openLink,
             onMentionTap: openMention,
             onShareProfile: shareProfile,
@@ -442,12 +521,15 @@ struct ConversationScreen: View {
             updateAction: updateAction,
             toasts: container.toasts,
             onEncryptionMarkerTap: { isShowingEncryptionInfo = true },
+            onInviteCardTap: openInvite,
             onAuthorTap: openAuthorProfile,
             onMessageAction: handleMessageAction,
             onQuoteTap: jumpToQuote,
             onMessagesSeen: markSeen,
             reportsReads: reportsReads(gate: gate),
-            unreadBelowCount: coordinator?.jumpBadge.count ?? 0,
+            // The badge object, not its count: the count moves with every row the reader passes,
+            // and reading it here would re-run this whole body for each one.
+            jumpBadge: coordinator?.jumpBadge,
             onUserScrollBegan: { coordinator?.jumpBadge.userDidScroll() },
             onReactionTap: toggleReaction,
             onReactionLongPress: openReactors,
@@ -472,8 +554,14 @@ struct ConversationScreen: View {
             // which is why this reads `withholdsTranscript` and not `obscuresTranscript`: a chat
             // whose rules haven't landed yet is blurred without yet refusing anything.
             // Also stands in while an empty transcript's first load is out, so a chat with nothing
-            // cached opens on the placeholder and paints once with its history.
-            showsGatePlaceholder: (gate.withholdsTranscript || !didInitialRead) && (coordinator?.items.isEmpty ?? true),
+            // cached opens on the placeholder and paints once with its history, except under the
+            // group-ready card.
+            showsGatePlaceholder: GroupReadyCard.showsGatePlaceholder(
+                withholdsTranscript: gate.withholdsTranscript,
+                didInitialRead: didInitialRead,
+                transcriptIsEmpty: coordinator?.items.isEmpty ?? true,
+                cardShown: showsInviteCard
+            ),
             gateMintName: gateMintName,
             gateShortfall: gateShortfall,
             gateDisplayCurrency: ratesController.displayCurrency,
@@ -490,12 +578,10 @@ struct ConversationScreen: View {
             mintMediaURL: mintMediaURL,
             mediaBlobDecrypt: mediaBlobDecrypt,
             onMediaTap: openMediaViewer,
-            // Each anchor shown takes its height and the stack's 8-point gap.
-            transcriptTopInset: [anchorHeight, stripHeight].filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 },
-            onDistanceFromNewestChange: { [stripCollapse] in stripCollapse.update(distanceFromNewest: $0) },
-            // Released mid-way, the strip finishes the move it's nearer to rather than resting half-shrunk.
-            snapDistanceFromNewest: viewerOwes && !stripCollapse.isPinned ? PaymentRequestStripCollapse.distance : nil,
-            messageJump: messageJump
+            transcriptTopInset: Self.transcriptTopInset(slots: [anchorHeight, stackHeight, showsPinBar ? pinBarHeight : 0]),
+            messageJump: messageJump,
+            keyboardHandle: keyboardHandle,
+            cashButtonStyle: ComposerCashButtonStyle(showsGroupMoney: showsGroupMoney)
         )
     }
 
@@ -557,15 +643,14 @@ struct ConversationScreen: View {
         while let presented = presenter.presentedViewController {
             presenter = presented
         }
-        let stableID = request.messageID
         let viewer = ChatMediaViewerController(
             request: request,
-            onReply: { handleMessageAction(stableID, .reply) },
-            onForward: { handleMessageAction(stableID, .forward) },
+            onReply: { handleMessageAction($0, .reply) },
+            onForward: { handleMessageAction($0, .forward) },
             onSave: { image, original in try await PhotoLibrary.save(image: image, original: original) },
-            onReact: { emoji in toggleReaction(stableID, emoji: emoji) },
-            onMoreReactions: { openReactionPicker(stableID) },
-            reactionEntries: { chatMessage(withStableID: stableID).map(reactionStripEntries) ?? [] }
+            onReact: { stableID, emoji in toggleReaction(stableID, emoji: emoji) },
+            onMoreReactions: { openReactionPicker($0) },
+            reactionEntries: { stableID in reactionStripEntries(forStableID: stableID) }
         )
         presenter.present(viewer, animated: true)
     }
@@ -579,10 +664,10 @@ struct ConversationScreen: View {
         }
     }
 
-    private var mintMediaURL: (BlobID) async throws -> URL? {
+    private var mintMediaURL: (BlobID) async throws -> BlobDownloadLink? {
         { [flipClient = container.flipClient, owner = session.ownerKeyPair, conversationID] blobID in
             guard let conversationID else { return nil }
-            return try await flipClient.blobDownloadURL(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
+            return try await flipClient.blobDownloadLink(blobID: blobID, owner: owner, accessContext: .chatMessage(conversationID))
         }
     }
 
@@ -628,10 +713,23 @@ struct ConversationScreen: View {
             Task { await sessionContainer.hostedLobbies.refresh(hostedConversationID) }
         }
         .onChange(of: requestDeckItems, initial: true) { _, items in
-            requestPillPresence.update(items)
+            requestDeckPresence.update(items, completed: completedDeckItem, animates: !reduceMotion)
+        }
+        // Wakes at the deck's next deadline, so a request leaves at its `ends_at`, and at least once a
+        // minute so the time left stays current.
+        .task(id: requestDeckWake) {
+            let wake = requestDeckWake
+            try? await Task.sleep(for: .seconds(max(0, wake.timeIntervalSinceNow)) + .milliseconds(50))
+            guard !Task.isCancelled else { return }
+            requestDeckClock = max(.now, wake)
         }
         .onChange(of: conversationController.reactions.error) { _, _ in
             scheduleReactionErrorDismissal()
+        }
+        .sheet(item: $pinnedList.request, onDismiss: {
+            if let messageID = pinnedList.takePendingJump() { land(on: messageID) }
+        }) { request in
+            pinnedListSheet(request)
         }
         .sheet(item: $reactionPickerRequest) { request in
             EmojiPickerSheet(
@@ -653,12 +751,18 @@ struct ConversationScreen: View {
                     router.push(.currencyInfo(mint))
                 },
                 openProfile: { userID in
-                    router.push(.userProfile(userID, origin: .groupMember))
+                    router.push(.userProfile(userID, origin: groupMemberOrigin))
                 }
             )
             .task {
                 if let conversationID { await sessionContainer.groupRosters.refresh(conversationID) }
             }
+        }
+        .task(id: didInitialRead) {
+            // Once, when the chat has loaded, so the details come up over the chat rather than the push.
+            guard didInitialRead, let openRequest, !didOpenRequest else { return }
+            didOpenRequest = true
+            paymentRequestDetails = PaymentRequestSelection(id: openRequest)
         }
         .fullScreenCover(item: $paymentRequestDetails) { selection in
             PaymentRequestDetailsScreen(requestID: selection.id)
@@ -677,10 +781,15 @@ struct ConversationScreen: View {
         .sheet(item: $paidReactionTarget) { target in
             PaidReactionSheet(target: target, selfReactions: selfReactions(on: target.messageID))
         }
+        .sheet(item: $sendBackOffer) { offer in
+            SendBackSheet(offer: offer) { offer in
+                _ = await coordinator?.sendBack?.confirm(offer)
+            }
+        }
         .sheet(item: $reactorsRequest, onDismiss: {
             guard let userID = pendingReactorProfile else { return }
             pendingReactorProfile = nil
-            router.push(.userProfile(userID, origin: groupConversation == nil ? .directMessage : .groupMember))
+            router.push(.userProfile(userID, origin: groupConversation == nil ? .directMessage : groupMemberOrigin))
         }) { request in
             ReactorsSheet(pills: request.pills, model: request.model) { userID in
                 pendingReactorProfile = userID
@@ -694,7 +803,14 @@ struct ConversationScreen: View {
             let lookup = await sessionContainer.linkCardFeed.person(.username(username))
             guard !Task.isCancelled else { return }
             tappedMention = nil
-            open(MentionDestination.destination(for: lookup, counterpart: tipCounterpart?.userID), for: username)
+            open(
+                MentionDestination.destination(
+                    for: lookup,
+                    counterpart: tipCounterpart?.userID,
+                    inGroup: groupConversation != nil
+                ),
+                for: username
+            )
         }
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
@@ -732,24 +848,7 @@ struct ConversationScreen: View {
                     .onDisappear { anchorHeight = 0 }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                // Mounted for as long as the viewer owes, so scrolling only moves it: its slot at the
-                // transcript's top stays put, and the strip shrinks into the pill in step with the scroll.
-                if viewerOwes {
-                    PaymentRequestPill(
-                        items: requestDeckItems,
-                        style: .strip,
-                        accessibilityLabel: requestDeckAccessibilityLabel,
-                        state: paymentRequestDeck,
-                        pay: payRequest
-                    )
-                    .modifier(PaymentRequestStripCollapseEffect(collapse: stripCollapse))
-                    // The slot, not the moving strip: the collapse's transforms leave it alone.
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.stripFrame = $0 }
-                    .padding(.horizontal, BarMetrics.edgeInset)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stripHeight = $0 }
-                    .onDisappear { stripHeight = 0 }
-                    .transition(.scale(scale: 0.3, anchor: .topTrailing).combined(with: .opacity))
-                }
+                requestAndPinSlot
                 if let reactionToastText {
                     ToastLabel(reactionToastText)
                         .allowsHitTesting(false)
@@ -757,15 +856,9 @@ struct ConversationScreen: View {
                 }
             }
             .padding(.top, 8)
-            .animation(Self.deckStyleMotion, value: viewerOwes)
+            .animation(Self.slotMotion, value: showsPinBar)
         }
         .paymentRequestPaySheet(requestPayFlow)
-        .onChange(of: requestDeckStyle, initial: true) { _, style in
-            paymentRequestDeck.source = style
-        }
-        .onChange(of: owedRequestIDs) { owed, owing in
-            if !owing.isSubset(of: owed) { stripCollapse.unpin() }
-        }
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
@@ -794,7 +887,8 @@ struct ConversationScreen: View {
                         Button {
                             paymentRequestDeck.collapse()
                         } label: {
-                            Image(systemName: "chevron.backward")
+                            Image.icon(.arrowLeft)
+                                .iconSize(22)
                                 .foregroundStyle(Color.textMain)
                         }
                         .accessibilityLabel("Collapse requests")
@@ -816,19 +910,20 @@ struct ConversationScreen: View {
                             ?? tipCounterpart?.profilePicture?.thumbnailBlurhash,
                         // Too wide to centre, the bar lays the item out from just past the back
                         // button, so the width alone sets where it ends; no offset is needed.
-                        width: max(navBarWidth - Self.titleLeadingInset - titleTrailingInset, 0),
+                        width: max(navBarWidth - Self.titleLeadingInset - Self.titleTrailingInset, 0),
                         mute: viewerMute,
                         onTap: titleTapAction,
                         opensProfile: profileTapAction != nil
                     )
                 }
-                if requestPillPresence.isInBar {
-                    // The pill draws its own capsule, so the iOS 26 platter stays off.
+                if paymentRequestDeck.phase != .collapsed {
+                    // The expanded deck's window draws its close button here, over the backdrop
+                    // that frosts the bar; the item only holds the slot, so the platter stays off.
                     if #available(iOS 26.0, *) {
-                        ToolbarItem(placement: .topBarTrailing) { requestPill }
+                        ToolbarItem(placement: .topBarTrailing) { closeSlot }
                             .sharedBackgroundVisibility(.hidden)
                     } else {
-                        ToolbarItem(placement: .topBarTrailing) { requestPill }
+                        ToolbarItem(placement: .topBarTrailing) { closeSlot }
                     }
                 }
             }
@@ -837,7 +932,7 @@ struct ConversationScreen: View {
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { deckWindow.listFrame = $0 }
         .onChange(of: paymentRequestDeck.phase != .collapsed) { _, isUp in
             if isUp {
-                deckWindow.items = requestDeckItems
+                deckWindow.items = requestDeckPresence.listItems(requestDeckItems)
                 deckWindow.present(state: paymentRequestDeck) { id in
                     PaymentRequestDetailsScreen(requestID: id)
                         .injectingEnvironment(from: sessionContainer)
@@ -847,7 +942,14 @@ struct ConversationScreen: View {
                 deckWindow.dismiss()
             }
         }
-        .onChange(of: requestDeckItems.map(\.id)) { deckWindow.items = requestDeckItems }
+        .onChange(of: requestDeckPresence.listItems(requestDeckItems)) { _, items in
+            deckWindow.items = items
+            // An expanded list that loses its last card collapses as the stack fades out. Details
+            // opened from it stay up; closing them puts the deck back at rest.
+            if items.isEmpty, paymentRequestDeck.isOpen, deckWindow.details == nil {
+                paymentRequestDeck.collapse()
+            }
+        }
         .onChange(of: scenePhase, initial: true) { _, phase in deckWindow.scenePhase = phase }
         .onDisappear { deckWindow.dismiss() }
         // Each refetch puts the deck back in its default order.
@@ -856,7 +958,7 @@ struct ConversationScreen: View {
         }
     }
 
-    /// The private group's open and recently ended requests, worded for the viewer, in deck order.
+    /// The private group's open requests, worded for the viewer, in deck order.
     private var requestDeckItems: [PaymentRequestDeckItem] {
         guard let group = groupConversation, group.isPrivate else { return [] }
         return sessionContainer.paymentRequests.deckItems(
@@ -864,67 +966,205 @@ struct ConversationScreen: View {
             viewer: session.userID,
             order: paymentRequestDeck.order,
             copy: PaymentRequestCopy(session.displayCurrency),
-            now: .now
+            now: requestDeckClock
         )
     }
 
-    private static let deckStyleMotion = Animation.spring(duration: 0.4, bounce: 0.12)
-
-    /// Where the collapsed deck sits: the strip under the bar while the viewer owes and reads the
-    /// newest messages, otherwise the app-bar pill.
-    private var requestDeckStyle: PaymentRequestDeckStyle {
-        .collapsed(owes: viewerOwes, isScrolledAway: stripCollapse.isScrolledAway)
+    /// When the deck's clock next advances: the nearest deadline it holds, or a minute on.
+    private var requestDeckWake: Date {
+        let minute = requestDeckClock.addingTimeInterval(60)
+        guard let expiry = GroupPaymentRequest.nextExpiry(of: requestDeckItems.map(\.request), after: requestDeckClock) else {
+            return minute
+        }
+        return min(expiry, minute)
     }
 
-    private var viewerOwes: Bool {
-        requestDeckItems.contains { $0.owedShare != nil }
-    }
-
-    private var owedRequestIDs: Set<PaymentRequestID> {
-        Set(requestDeckItems.filter { $0.owedShare != nil }.map(\.id))
-    }
-
-    /// Kept in the bar under the strip, hidden, so the bar never rebuilds its item as the strip comes
-    /// and goes. Hidden, it still marks the bar's slot for the expanded deck's close button.
-    private var requestPill: some View {
-        let style = requestDeckStyle
-        return PaymentRequestPill(
-            items: requestPillPresence.items(requestDeckItems),
-            style: .pill,
-            accessibilityLabel: requestDeckAccessibilityLabel,
-            state: paymentRequestDeck
+    /// A request that just left the deck, as its card reads now that it completed.
+    private func completedDeckItem(_ id: PaymentRequestID) -> PaymentRequestDeckItem? {
+        sessionContainer.paymentRequests.completedDeckItem(
+            id,
+            viewer: session.userID,
+            copy: PaymentRequestCopy(session.displayCurrency),
+            now: requestDeckClock
         )
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stripCollapse.pillFrame = $0 }
-        .modifier(PaymentRequestPillRevealEffect(collapse: stripCollapse, isBehindStrip: viewerOwes))
-        .allowsHitTesting(style != .strip)
-        .accessibilityHidden(style == .strip)
-        .animation(Self.deckStyleMotion, value: viewerOwes)
-        .modifier(PaymentRequestPillAppearance(presence: requestPillPresence))
+    }
+
+    private static let slotMotion = Animation.spring(duration: 0.4, bounce: 0.12)
+
+    /// The transcript's top inset for the slots stacked under the bar (the join-requests anchor, the
+    /// request stack, the pin bar): each one showing takes its height and the stack's 8-point gap.
+    static func transcriptTopInset(slots: [CGFloat]) -> CGFloat {
+        slots.filter { $0 > 0 }.reduce(0) { $0 + $1 + 8 }
+    }
+
+    /// The request stack, then the pin bar directly below it. Neither moves the other.
+    private var requestAndPinSlot: some View {
+        VStack(spacing: 8) {
+            if requestDeckPresence.isMounted {
+                PaymentRequestStack(
+                    items: requestDeckPresence.items(requestDeckItems),
+                    accessibilityLabel: requestDeckAccessibilityLabel,
+                    state: paymentRequestDeck,
+                    pay: payRequest
+                )
+                .modifier(PaymentRequestDeckAppearance(presence: requestDeckPresence))
+                .padding(.horizontal, BarMetrics.edgeInset)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { stackHeight = $0 }
+                .onDisappear { stackHeight = 0 }
+            }
+            if let conversationID, let pin = conversationController.pins.barPin(in: conversationID) {
+                PinBar(
+                    quote: pinQuote(pin),
+                    count: visiblePins.count,
+                    index: visiblePins.firstIndex { $0.messageID == pin.messageID } ?? 0,
+                    thumbnailLocation: pinThumbnailLocation,
+                    onTap: { jumpToBarPin(pin, in: conversationID) },
+                    onList: { openPinnedList(waiting: nil) }
+                )
+                .padding(.horizontal, BarMetrics.edgeInset)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pinBarHeight = $0 }
+                .onDisappear { pinBarHeight = 0 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    // MARK: - Pins
+
+    /// The pins the viewer can see, newest first.
+    private var visiblePins: [ConversationPin] {
+        conversationID.map(conversationController.pins.visible(in:)) ?? []
+    }
+
+    /// Whether the bar is shown, read before its exit transition ends so the transcript moves
+    /// with it rather than after it.
+    private var showsPinBar: Bool {
+        conversationID.flatMap(conversationController.pins.barPin(in:)) != nil
+    }
+
+    /// Whether the viewer may pin and unpin here, as the server decides it.
+    private var canPin: Bool {
+        conversationID.flatMap(conversationController.conversation(withID:))?.viewerState?.canPin ?? false
+    }
+
+    /// The bar's quote of a pin, named the way the reply strip names a message's author.
+    private func pinQuote(_ pin: ConversationPin) -> ChatQuote {
+        guard let message = pin.message else {
+            return ChatQuote(stableID: nil, authorName: "", snippet: "", kind: .text)
+        }
+        return pinQuote(message)
+    }
+
+    private func pinQuote(_ message: ConversationMessage) -> ChatQuote {
+        ChatItem.pinQuote(
+            of: message,
+            selfUserID: session.userID,
+            authorName: message.senderID.flatMap { coordinator?.senderName(for: $0) }
+                ?? ConversationController.fallbackCounterpartName,
+            cashBranding: { fiat in
+                guard let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
+                return (balance.name, balance.imageURL)
+            },
+            viewerAmount: session.displayCurrency.amount
+        )
+    }
+
+    /// Where the bar's pinned photo loads from, through the pinned list's resolver.
+    private func pinThumbnailLocation(_ kind: ChatQuote.Kind) async -> ChatMediaLocation? {
+        pinnedList.mintMediaURL = mintMediaURL
+        pinnedList.mediaBlobDecrypt = mediaBlobDecrypt
+        return await pinnedList.mediaURLResolver.thumbnailLocation(for: kind, canReact: true)
+    }
+
+    /// Lands on the bar's pin, then moves the bar on to the next older one.
+    private func jumpToBarPin(_ pin: ConversationPin, in conversationID: ConversationID) {
+        land(on: pin.messageID)
+        conversationController.pins.advanceBar(in: conversationID)
+    }
+
+    /// Opens the pinned list; with a `waiting` message, as the prompt to unpin one so it can pin.
+    private func openPinnedList(waiting: ConversationMessage?) {
+        pinnedList.mintMediaURL = mintMediaURL
+        pinnedList.mediaBlobDecrypt = mediaBlobDecrypt
+        pinnedList.keyboard.suppress()
+        afterKeyboardLowered {
+            pinnedList.request = PinnedMessagesRequest(waiting: waiting)
+        }
+    }
+
+    /// The pictures of everyone who sent a visible pin, the viewer included.
+    private var pinnedSenderAvatars: [UserID: Data] {
+        var avatars: [UserID: Data] = [:]
+        for senderID in Set(visiblePins.compactMap { $0.message?.senderID }) {
+            avatars[senderID] = sessionContainer.profileAvatars.data(for: senderID)
+        }
+        return avatars
+    }
+
+    /// Who the pinned list names over `message`: "You" for the viewer, else the sender as the
+    /// transcript names them.
+    private func pinnedListAuthor(of message: ConversationMessage, in row: ChatMessage) -> ChatAuthor {
+        let senderID = message.senderID ?? UUID()
+        let name = senderID == session.userID ? "You" : pinnerName(senderID)
+        return ChatAuthor(id: senderID, name: name, blurhash: row.author?.blurhash)
+    }
+
+    /// The name "Pinned by" gives `userID`: "you", else their name in this chat.
+    private func pinnerName(_ userID: UserID) -> String {
+        if userID == session.userID { return "you" }
+        if let name = coordinator?.senderName(for: userID), !name.isEmpty { return name }
+        return "Member"
+    }
+
+    @ViewBuilder
+    private func pinnedListSheet(_ request: PinnedMessagesRequest) -> some View {
+        if let conversationID {
+            PinnedMessagesSheet(
+                conversationID: conversationID,
+                pins: conversationController.pins,
+                canPin: canPin,
+                selfUserID: session.userID,
+                waitingSnippet: request.waiting.map { pinQuote($0).snippet },
+                waiting: request.waiting,
+                row: { message in
+                    coordinator?.row(for: message).map { $0.pinnedListRow(author: pinnedListAuthor(of: message, in: $0)) }
+                },
+                quote: pinQuote,
+                name: pinnerName,
+                avatarData: pinnedSenderAvatars,
+                linkCardSource: sessionContainer.linkCardFeed,
+                mediaURLResolver: pinnedList.mediaURLResolver,
+                onSelect: { pinnedList.pendingJump = $0 }
+            )
+        }
+    }
+
+    /// Holds the bar's trailing slot while the deck is expanded and reports where it is, so the
+    /// deck's window can put its close button there.
+    private var closeSlot: some View {
+        Color.clear
+            .frame(width: 44, height: 44)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { paymentRequestDeck.closeSlot = $0 }
+            .accessibilityHidden(true)
     }
 
     private var requestDeckAccessibilityLabel: String {
         guard let front = requestDeckItems.first else { return "" }
-        if requestDeckStyle == .strip, let share = front.owedShare {
+        if let share = front.owedShare {
             return PaymentRequestCopy.owedAccessibilityLabel(
                 share: share,
                 title: front.card.title,
-                deadline: front.request.deadline(at: .now),
+                deadline: front.request.deadline(at: requestDeckClock),
                 count: requestDeckItems.count
             )
         }
         return PaymentRequestCopy(session.displayCurrency)
-            .deckAccessibilityLabel(front: front.request, title: front.card.title, viewerStatus: front.viewerStatus, count: requestDeckItems.count, now: .now)
-    }
-
-    /// The title's right margin, widened to clear the request pill while one shows in the bar.
-    private var titleTrailingInset: CGFloat {
-        // Behind the strip the pill is only transparent, so it still takes its slot in the bar.
-        Self.titleTrailingInset + (requestPillPresence.isVisible ? Self.requestPillWidth : 0)
+            .deckAccessibilityLabel(front: front.request, title: front.card.title, viewerStatus: front.viewerStatus, count: requestDeckItems.count, now: requestDeckClock)
     }
 
     private func payRequest(_ id: PaymentRequestID) {
         afterKeyboardLowered {
-            Task { await requestPayFlow.start(id, sessionContainer: sessionContainer) }
+            Task { await requestPayFlow.start(id, sessionContainer: sessionContainer, router: router) }
         }
     }
 
@@ -984,6 +1224,17 @@ struct ConversationScreen: View {
             guard groupConversation != nil else { return }
             await sessionContainer.knownAuthors.reload()
         }
+        // A group saved before the moderation permissions existed holds them as false, so the host
+        // would see no Silence or Remove row. The controller fetches once per open, shared with the profile.
+        .task(id: groupConversation?.id) {
+            guard let id = groupConversation?.id else { return }
+            await conversationController.refreshViewerPermissions(for: id)
+        }
+        // Once per open; `PinsChanged` keeps the list current from there.
+        .task(id: conversationID) {
+            guard let conversationID else { return }
+            await conversationController.pins.load(conversationID)
+        }
         // Payment requests change with no event, so poll while the chat is on screen in the
         // foreground. A return to the foreground re-keys the task, which refetches at once.
         .task(id: PaymentRequestPoll(conversationID: groupConversation?.id, isActive: scenePhase == .active)) {
@@ -1005,6 +1256,17 @@ struct ConversationScreen: View {
         // One picker per visit, so its suggestion fetch runs once per visit.
         .onChange(of: groupConversation?.id, initial: true) { _, groupID in
             mentions = groupID.map { MentionPickerModel(source: sessionContainer.rosterSearch, chatID: $0) }
+        }
+        .onChange(of: activeSilence) { previous, current in
+            guard GroupModerationCopy.silenceLifted(from: previous, to: current) else { return }
+            container.toasts.show(.init(GroupModerationCopy.silenceLiftedToast, systemImage: "bubble.left", duration: .seconds(3)))
+        }
+        .task(id: activeSilence) {
+            silenceClock = .now
+            guard case .until(let end)? = activeSilence else { return }
+            try? await Task.sleep(for: .seconds(max(0, end.timeIntervalSinceNow)) + .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            silenceClock = .now
         }
         // Name the senders the chat's roster and the local cache both leave out. Keyed on that set,
         // so it runs when a page of older messages reveals a sender nothing here can name — and not
@@ -1046,6 +1308,7 @@ struct ConversationScreen: View {
     /// What this screen puts on top of itself, and the measurement the title bar needs.
     private func presentation(_ content: some View) -> some View {
         content
+        .groupReadyInvite(conversationID: conversationID, canInvite: groupConversation?.canInvite ?? false, isPrivate: groupConversation?.isPrivate ?? false, isPresented: $isInviting, router: router)
         .sheet(item: $presentedCard) { card in
             ContactCardView(card: card)
                 .ignoresSafeArea()
@@ -1067,6 +1330,8 @@ struct ConversationScreen: View {
                 router.push(.tipConversation(chatID))
             }
         }
+        .silenceUserSheet($silenceTarget)
+        .memberSheet($memberSheetTarget)
         .fullScreenCover(item: $messageReport) { report in
             NavigationStack {
                 ReportFlowScreen(
@@ -1105,6 +1370,8 @@ struct ConversationScreen: View {
         content
         .task(id: conversationID) {
             guard let conversationID else { return }
+            // Opening a chat is reading it, so a mark from the list goes, whatever the gate says.
+            conversationController.chatOpened(conversationID)
             // Ensure the conversation metadata is in the store before the title, tip styling, and Send
             // Cash target rely on it. The post-tip open (and any push/link that lands here before the
             // feed or stream has the freshly-created chat) would otherwise render the unresolved
@@ -1143,12 +1410,15 @@ struct ConversationScreen: View {
             guard old != nil, didInitialRead,
                   let last = latestConfirmedMessage,
                   last.buzzesOnReceive(selfUserID: conversationController.selfUserID),
-                  conversationController.visibleConversationID == conversationID
+                  conversationController.visibleConversationID == conversationID,
+                  // One buzz: a message that raises the received bill is felt through the bill.
+                  conversationController.chatCashBills?.isBilling(last.id) != true
             else { return false }
             return true
         }
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
+            conversationController.chatCashBills?.keyboard = keyboardHandle
             syncCoordinator(conversationID)
             composer.linkPreview.load = ComposerLinkPreview.loader(
                 metadata: sessionContainer.linkMetadataSource,
@@ -1177,12 +1447,17 @@ struct ConversationScreen: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase != .active else { return }
             saveDraft(flushing: true)
+            coordinator?.pendingRead.commit()
             if let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
             }
         }
         .onDisappear {
+            if conversationController.chatCashBills?.keyboard === keyboardHandle {
+                conversationController.chatCashBills?.keyboard = nil
+            }
             saveDraft(flushing: true)
+            coordinator?.pendingRead.commit()
             if let conversationID {
                 conversationController.flushReadPointer(in: conversationID)
             }
@@ -1285,8 +1560,15 @@ struct ConversationScreen: View {
                 kind: preview.kind
             ))
         case .edit:
-            guard case .text(let text) = message.content else { return }
-            composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
+            // A photo's edit is its caption; the photo itself can't change.
+            switch message.content {
+            case .text(let text):
+                composer.beginEditing(messageID: message.id, stableID: stableID, currentText: text)
+            case .media(_, let caption?) where !caption.isEmpty:
+                composer.beginEditing(messageID: message.id, stableID: stableID, currentText: caption)
+            case .media, .cash, .deleted, .encrypted, .widget, .system:
+                return
+            }
         case .delete:
             confirmDelete(message.id)
         case .report:
@@ -1298,7 +1580,149 @@ struct ConversationScreen: View {
         case .forward:
             guard let conversationID else { return }
             messageShare = MessageShareRequest(id: stableID, url: .messageLink(in: conversationID, messageID: message.id))
+        case .savePhoto:
+            savePhoto(message, stableID: stableID)
+        case .saveAllPhotos:
+            saveAllPhotos(inStackFrontedBy: stableID)
+        case .pin:
+            pin(message)
+        case .unpin:
+            unpin(message.id)
+        case .silence:
+            silenceTarget = moderationTarget(for: message)
+        case .remove:
+            guard let target = moderationTarget(for: message) else { return }
+            session.dialogItem = target.removeDialog(moderation: groupModeration(target.conversationID)) { error in
+                session.dialogItem = .error(
+                    title: "Something Went Wrong",
+                    subtitle: "We were unable to remove \(target.firstName). Please try again"
+                )
+                ErrorReporting.captureError(error, reason: "Failed to remove user")
+            }
         }
+    }
+
+    /// Saves the photo in `message` to the library the way the full-screen viewer does: its original
+    /// bytes when held, otherwise the image this device already drew. Nothing is downloaded here.
+    private func savePhoto(_ message: ConversationMessage, stableID: String) {
+        guard case .media(let attachments, _) = message.content, let attachment = attachments.first else { return }
+        let original = ChatMediaImageSource.originalData(blobID: attachment.blobID, in: .shared)
+        let image = conversationController.pendingMediaImage(forMessageID: stableID)
+            ?? attachment.blobID.flatMap { ChatMediaImageSource.cachedImage(blobID: $0, in: .shared) }
+            ?? original.flatMap(UIImage.init(data:))
+        guard let image else {
+            session.dialogItem = .error(title: "Couldn't Save Photo", subtitle: "Please try again.")
+            return
+        }
+        Task {
+            do {
+                try await PhotoLibrary.save(image: image, original: original)
+                container.toasts.show(.init("Saved to Photos", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
+            } catch {
+                showPhotoLibraryDenied()
+            }
+        }
+    }
+
+    /// Saves every photo of the card stack `stableID` fronts to the library, oldest first, the way
+    /// Save Photo saves one. A photo this device hasn't drawn yet is downloaded first; one that still
+    /// can't be had is skipped and counted in the failure dialog.
+    private func saveAllPhotos(inStackFrontedBy stableID: String) {
+        guard let front = chatMessage(withStableID: stableID),
+              case .media(let media) = front.content else { return }
+        let messages = coordinator?.loader.messages ?? []
+        let attachments: [MediaAttachment] = media.stackPhotos.compactMap { photo in
+            guard !photo.isRedacted, let message = messages.first(where: { $0.stableID == photo.messageID }) else { return nil }
+            switch message.content {
+            case .media(let attachments, _): return attachments.first
+            case .text, .cash, .deleted, .encrypted, .widget, .system: return nil
+            }
+        }
+        let resolver = pinnedList.mediaURLResolver
+        Task {
+            var saved = 0
+            for attachment in attachments {
+                var image = attachment.blobID.flatMap { ChatMediaImageSource.cachedImage(blobID: $0, in: .shared) }
+                    ?? ChatMediaImageSource.originalData(blobID: attachment.blobID, in: .shared).flatMap(UIImage.init(data:))
+                if image == nil, let location = await resolver.location(for: attachment) {
+                    image = await ChatMediaImageSource.image(blobID: attachment.blobID, location: location, surface: .save)
+                }
+                guard let image else { continue }
+                do {
+                    try await PhotoLibrary.save(image: image, original: ChatMediaImageSource.originalData(blobID: attachment.blobID, in: .shared))
+                    saved += 1
+                } catch {
+                    showPhotoLibraryDenied()
+                    return
+                }
+            }
+            let total = media.stackPhotos.filter { !$0.isRedacted }.count
+            if saved == total {
+                container.toasts.show(.init("Saved to Photos", systemImage: "checkmark.circle.fill", duration: .seconds(2)))
+            } else {
+                session.dialogItem = .error(
+                    title: "Couldn't Save All Photos",
+                    subtitle: "\(saved) of \(total) photos were saved. Please try again."
+                )
+            }
+        }
+    }
+
+    /// The dialog for a save the photo library refused, which only Settings can fix.
+    private func showPhotoLibraryDenied() {
+        session.dialogItem = .error(
+            title: "Failed to Save",
+            subtitle: "Please allow Flipcash access to Photos in Settings in order to save this photo."
+        ) {
+            .destructive("Open Settings") {
+                URL.openSettings()
+            };
+            .notNow()
+        }
+    }
+
+    /// Pins `message`. At the server's cap the viewer is asked to unpin one first.
+    private func pin(_ message: ConversationMessage) {
+        guard let conversationID else { return }
+        let pins = conversationController.pins
+        Task {
+            switch await pins.pin(message, in: conversationID) {
+            case .pinned:
+                break
+            case .full:
+                openPinnedList(waiting: message)
+            case .failed:
+                session.dialogItem = .error(title: "Couldn't Pin Message", subtitle: "Please try again.")
+            }
+        }
+    }
+
+    /// Unpins the message `messageID`.
+    private func unpin(_ messageID: MessageID) {
+        guard let conversationID else { return }
+        let pins = conversationController.pins
+        Task {
+            guard await pins.unpin(messageID, in: conversationID) else {
+                session.dialogItem = .error(title: "Couldn't Unpin Message", subtitle: "Please try again.")
+                return
+            }
+        }
+    }
+
+    /// The sender of `message` as the host's Silence and Remove prompts address them.
+    private func moderationTarget(for message: ConversationMessage) -> ModerationTarget? {
+        guard let conversationID, let senderID = message.senderID else { return nil }
+        let name = coordinator?.attributedName(for: senderID) ?? ""
+        return ModerationTarget(
+            conversationID: conversationID,
+            userID: senderID,
+            firstName: name.isEmpty ? "Member" : GroupModerationCopy.firstName(of: name),
+            groupName: title
+        )
+    }
+
+    private func groupModeration(_ conversationID: ConversationID) -> GroupModeration {
+        GroupModeration(moderation: container.flipClient, owner: session.ownerKeyPair, conversationID: conversationID, didRemove: { [rosters = sessionContainer.groupRosters] in rosters.remove($0, from: conversationID) })
     }
 
     /// The transcript's own `ChatMessage` for a row, by its stable id — what the reaction handlers
@@ -1361,7 +1785,8 @@ struct ConversationScreen: View {
             conversationID: conversationID,
             messageID: message.id,
             messageSender: sender,
-            chat: chat
+            chat: chat,
+            conversationType: conversationController.conversation(withID: conversationID)?.type
         )
     }
 
@@ -1374,6 +1799,20 @@ struct ConversationScreen: View {
     /// most used, then the row's own reactions, then the start of the catalog, filtered to what the
     /// current OS build can draw. Empty suppresses the strip.
     private func reactionStripEntries(for message: ChatMessage) -> [ReactionStrip.Entry] {
+        reactionStripEntries(selfReactions: message.selfReactions)
+    }
+
+    /// The viewer's strip for a photo, including one behind a card stack's front, which has no row
+    /// of its own and so is read from the message.
+    private func reactionStripEntries(forStableID stableID: String) -> [ReactionStrip.Entry] {
+        if let row = chatMessage(withStableID: stableID) {
+            return reactionStripEntries(for: row)
+        }
+        guard let message = coordinator?.loader.messages.first(where: { $0.stableID == stableID }) else { return [] }
+        return reactionStripEntries(selfReactions: message.reactionState?.selfReactions ?? [])
+    }
+
+    private func reactionStripEntries(selfReactions: [SelfReaction]) -> [ReactionStrip.Entry] {
         let fixed = RecentReactions.defaults.filter { !undrawableEmoji.contains($0) }
         let mostUsed = sessionContainer.recentReactions
             .row(limit: fixed.count + RecentReactionsStore.stripLimit, undrawable: undrawableEmoji)
@@ -1381,7 +1820,7 @@ struct ConversationScreen: View {
             .prefix(RecentReactionsStore.stripLimit)
         let recents = fixed + mostUsed
         return ReactionStrip.filled(
-            ReactionStrip.entries(recents: recents, selfReactions: message.selfReactions),
+            ReactionStrip.entries(recents: recents, selfReactions: selfReactions),
             from: stripCatalog,
             limit: RecentReactionsStore.stripFillLimit
         )
@@ -1445,7 +1884,7 @@ struct ConversationScreen: View {
     ///
     /// A tombstone cannot reach here: `MessageCapability.resolve` grants a deleted message nothing,
     /// so its row has no menu. The branch keeps the switch exhaustive.
-    private static func replyPreview(
+    static func replyPreview(
         for message: ConversationMessage,
         display: DisplayCurrency,
         token: (ExchangedFiat) -> String
@@ -1461,7 +1900,7 @@ struct ConversationScreen: View {
         case .media(let attachments, let caption):
             (
                 ChatQuote.snippet(forText: ChatMediaStrings.quoteSnippet(caption: caption)),
-                .media(thumbnailBlobID: message.redacted ? nil : attachments.first?.blobID, sealed: attachments.first?.sealed)
+                .media(thumbnailBlobID: message.redacted ? nil : attachments.first?.quoteThumbnailBlobID, sealed: attachments.first?.sealed)
             )
         case .deleted:
             (ChatQuote.deletedSnippet, .unavailable)
@@ -1602,6 +2041,45 @@ struct ConversationScreen: View {
         }
     }
 
+    /// Send Back for one open of `id`. Not gated on chat type: the row follows the message's offer.
+    private func makeSendBack(_ id: ConversationID) -> SendBackController? {
+        let router = router
+        return SendBackController(
+            conversationID: id,
+            services: LiveSendBackServices(session: session, ratesController: ratesController),
+            analytics: LiveSendBackAnalytics(),
+            presenter: LiveSendBackPresenter(session: session, ratesController: ratesController) { mint in
+                router.push(.currencyInfoForDeposit(mint))
+            }
+        )
+    }
+
+    /// The receiver's tap on Send Back: the balance check, then the confirm sheet or the
+    /// insufficient-balance modal. The id is the row's stable id; resolve it to the cash message.
+    private func tapSendBack(_ messageID: String) {
+        guard let conversationID,
+              let sendBack = coordinator?.sendBack,
+              let message = (coordinator?.loader.messages ?? []).first(where: { $0.stableID == messageID }),
+              case .cash(let fiat) = message.content,
+              let senderID = message.senderID
+        else { return }
+        let balance = session.balance(for: fiat.mint)
+        let offer = SendBackOffer(
+            conversationID: conversationID,
+            messageID: message.id,
+            senderID: senderID,
+            original: fiat,
+            recipientName: title,
+            token: balance?.name ?? "Cash",
+            iconURL: balance?.imageURL
+        )
+        Task {
+            if let confirmed = await sendBack.tap(offer) {
+                sendBackOffer = confirmed
+            }
+        }
+    }
+
     /// The gate panel's CTA: buys the mint the requirement names, or opens add-cash when there is no
     /// one token to buy — a requirement spanning every holding, and a dollar-token one, which is
     /// satisfied by adding cash rather than by swapping into the thing the cash already is. Both
@@ -1652,10 +2130,14 @@ struct ConversationScreen: View {
         )
     }
 
-    /// Moves the READ pointer past a message the transcript reports on screen.
+    /// Moves the READ pointer past a message the transcript reports on screen, once scrolling settles.
     private func markSeen(_ messageID: MessageID) {
         guard let conversationID else { return }
-        conversationController.advanceReadPointer(to: messageID, in: conversationID)
+        if let coordinator, coordinator.conversationID == conversationID {
+            coordinator.pendingRead.markSeen(messageID)
+        } else {
+            conversationController.advanceReadPointer(to: messageID, in: conversationID)
+        }
     }
 
     /// Whether rows on screen count as read: only while the app is in front, since UIKit keeps
@@ -1694,18 +2176,20 @@ struct ConversationScreen: View {
         isJoiningChat = true
         // Read before the join, which seats a roster that already counts the viewer.
         let memberCount = groupConversation?.rosterSummary.memberCount ?? 0
-        let gated = groupConversation?.rules?.listener.isEmpty == false
+        // From the rules, not the gate: a successful join opens the gate, which then names no mint.
+        let gateMint = groupConversation?.rules.gateMint
         Task {
             defer { isJoiningChat = false }
             do {
                 try await conversationController.join(conversationID: conversationID)
-                Analytics.groupJoined(error: nil, memberCount: memberCount, gated: gated)
+                Analytics.communityChatJoined(error: nil, memberCount: memberCount, gateMint: gateMint)
                 await loadTranscript(for: conversationID)
             } catch {
-                Analytics.groupJoined(error: error, memberCount: memberCount, gated: gated)
+                Analytics.communityChatJoined(error: error, memberCount: memberCount, gateMint: gateMint)
+                let banned: Bool = { if case ErrorJoinChat.banned = error { return true } else { return false } }()
                 session.dialogItem = DialogItem.alert(
-                    title: "Couldn't Join Chat",
-                    subtitle: joinFailureSubtitle(error)
+                    title: banned ? GroupModerationCopy.bannedTitle : "Couldn't Join Chat",
+                    subtitle: banned ? GroupModerationCopy.bannedSubtitle(groupName: title) : joinFailureSubtitle(error)
                 ) {
                     DialogAction.okay(kind: .standard)
                 }
@@ -1773,6 +2257,9 @@ struct ConversationScreen: View {
 
     private func open(_ destination: MentionDestination, for username: Username) {
         switch destination {
+        case .memberSheet(let userID):
+            guard let conversationID else { return }
+            memberSheetTarget = MemberSheetTarget(conversationID: conversationID, userID: userID)
         case .ownTipCard:
             router.showOwnTipCard()
         case .profile(let userID, let origin):
@@ -1869,17 +2356,18 @@ struct ConversationScreen: View {
     /// a re-resolution to a *different* id (a contact's pre-assigned chat id replaced by the
     /// server-assigned one), which must re-window the new conversation, not keep rendering the old.
     private func syncCoordinator(_ id: ConversationID?) {
+        guard coordinator?.conversationID != id else { return }
+        coordinator?.pendingRead.commit()
         guard let id else { coordinator = nil; return }
-        if coordinator?.conversationID != id {
-            coordinator = ConversationLoadCoordinator(
-                conversationID: id,
-                controller: conversationController,
-                session: session,
-                knownAuthors: sessionContainer.knownAuthors,
-                paymentRequests: sessionContainer.paymentRequests,
-                openingLoadLanded: loadedConversationID == id
-            )
-        }
+        coordinator = ConversationLoadCoordinator(
+            conversationID: id,
+            controller: conversationController,
+            session: session,
+            knownAuthors: sessionContainer.knownAuthors,
+            paymentRequests: sessionContainer.paymentRequests,
+            sendBack: makeSendBack(id),
+            openingLoadLanded: loadedConversationID == id
+        )
     }
 
 

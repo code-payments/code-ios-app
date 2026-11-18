@@ -33,28 +33,31 @@ enum TabBarItemStyle {
     /// Whether the bar shows the system's titles, which can't be dimmed, rather than the titles drawn into each image.
     static let showsNativeTitles = false
 
-    /// Both images the bar shows for `tab`. A profile photo or badged glyph
-    /// arrives already dimmed for its state, so only its title is dimmed here.
+    /// Both images the bar shows for `tab` in `layout`, titled and glyphed for
+    /// that layout. A profile photo or badged glyph arrives already dimmed for
+    /// its state, so only its title is dimmed here.
     static func itemImages(
         for tab: HomeTab,
+        layout: HomeTabLayout = .standard,
         profile: TabBarProfilePhoto.ItemImages?,
         badged: TabBarProfilePhoto.ItemImages?
     ) -> TabBarProfilePhoto.ItemImages {
+        let title = layout.title(for: tab)
         if let prerendered = profile ?? badged {
             return TabBarProfilePhoto.ItemImages(
-                normal: compose(prerendered.normal, glyphAlpha: 1, title: tab.title, isSelected: false),
-                selected: compose(prerendered.selected, glyphAlpha: 1, title: tab.title, isSelected: true)
+                normal: compose(prerendered.normal, glyphAlpha: 1, title: title, isSelected: false),
+                selected: compose(prerendered.selected, glyphAlpha: 1, title: title, isSelected: true)
             )
         }
         return TabBarProfilePhoto.ItemImages(
-            normal: compose(glyph(for: tab, isSelected: false), glyphAlpha: unselectedOpacity, title: tab.title, isSelected: false),
-            selected: compose(glyph(for: tab, isSelected: true), glyphAlpha: 1, title: tab.title, isSelected: true)
+            normal: compose(glyph(for: tab, layout: layout, isSelected: false), glyphAlpha: unselectedOpacity, title: title, isSelected: false),
+            selected: compose(glyph(for: tab, layout: layout, isSelected: true), glyphAlpha: 1, title: title, isSelected: true)
         )
     }
 
     /// The tab's glyph at ``glyphSize`` in the text colour.
-    private static func glyph(for tab: HomeTab, isSelected: Bool) -> UIImage {
-        let glyph = UIImage.icon(tab.icon(isSelected: isSelected)).withTintColor(UIColor(Color.textMain))
+    private static func glyph(for tab: HomeTab, layout: HomeTabLayout, isSelected: Bool) -> UIImage {
+        let glyph = UIImage.icon(layout.icon(for: tab, isSelected: isSelected)).withTintColor(UIColor(Color.textMain))
         let size = CGSize(width: glyphSize, height: glyphSize)
         return UIGraphicsImageRenderer(size: size).image { _ in
             glyph.draw(in: CGRect(origin: .zero, size: size))

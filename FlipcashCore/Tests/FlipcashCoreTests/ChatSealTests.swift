@@ -297,4 +297,58 @@ struct ChatSealTests {
         media.items[0].renditions[0].blob.downloadURL = .with { $0.url = "https://example.com/x" }
         #expect(try openHandSealed(media).decryptFailure == nil)
     }
+
+    // MARK: - Caption edit -
+
+    @Test("A caption edit reseals the photo as sent, with only the caption changed")
+    func captionEditKeepsPhotoAndReply() throws {
+        let aliceSeal = try seal(owner: alice, peer: bob, selfID: aliceID)
+        let sent = try message(aliceSeal.seal(photo: photo(), caption: "sunset", repliedTo: MessageID(value: 9)), from: aliceID)
+        let edited = try message(aliceSeal.sealCaptionEdit(of: sent, to: "sunrise"), from: aliceID)
+
+        let bobSeal = try seal(owner: bob, peer: alice, selfID: bobID)
+        let before = bobSeal.open(sent)
+        let after = bobSeal.open(edited)
+        let (originalMedia, _) = try attachment(before.content)
+        let (editedMedia, caption) = try attachment(after.content)
+        #expect(editedMedia == originalMedia)
+        #expect(caption == "sunrise")
+        #expect(after.repliedTo == MessageID(value: 9))
+    }
+
+    @Test("A caption edit refuses a photo the peer sealed")
+    func captionEditRefusesPeersPhoto() throws {
+        let sent = try message(seal(owner: bob, peer: alice, selfID: bobID).seal(photo: photo(), caption: "sunset", repliedTo: nil), from: bobID)
+        #expect(throws: CaptionEditFailure.notOwnSealedPhoto) {
+            try seal(owner: alice, peer: bob, selfID: aliceID).sealCaptionEdit(of: sent, to: "mine now")
+        }
+    }
+
+    @Test("A caption edit refuses a photo sent without a caption")
+    func captionEditRefusesUncaptionedPhoto() throws {
+        let aliceSeal = try seal(owner: alice, peer: bob, selfID: aliceID)
+        let sent = try message(aliceSeal.seal(photo: photo(), caption: nil, repliedTo: nil), from: aliceID)
+        #expect(throws: CaptionEditFailure.notCaptionedPhoto) {
+            try aliceSeal.sealCaptionEdit(of: sent, to: "added")
+        }
+    }
+
+    @Test("A plaintext caption edit sends the photo's single ORIGINAL under the new caption, still a reply")
+    func plaintextCaptionEdit() throws {
+        let attachment = MediaAttachment(blobID: blobID, width: 640, height: 480, blurhash: nil, sealed: nil)
+        let content = try Flipcash_Messaging_V1_Content.captionEdit(
+            of: .media([attachment], caption: "sunset"), to: "sunrise", repliedTo: MessageID(value: 9)
+        )
+        guard case .reply(let reply) = content.type, case .media(let media) = reply.content.first?.type else {
+            Issue.record("Expected a reply carrying media, got \(content)")
+            return
+        }
+        #expect(reply.repliedMessageID == MessageID(value: 9).proto)
+        #expect(media.items.count == 1)
+        #expect(media.items.first?.renditions.first?.blobID.value == blobID.data)
+        #expect(media.caption.text == "sunrise")
+        #expect(throws: CaptionEditFailure.notCaptionedPhoto) {
+            try Flipcash_Messaging_V1_Content.captionEdit(of: .media([attachment], caption: nil), to: "added", repliedTo: nil)
+        }
+    }
 }

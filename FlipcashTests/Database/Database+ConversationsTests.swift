@@ -9,7 +9,9 @@ import Foundation
 import Testing
 @testable import FlipcashCore
 import FlipcashStore
+import SQLite
 @testable import Flipcash
+import FlipcashAPI
 
 @Suite("Conversation offline cache round-trip")
 struct DatabaseConversationsTests {
@@ -162,6 +164,35 @@ struct DatabaseConversationsTests {
         let loaded = try database.getConversationMessages(conversationID: id)
 
         #expect(loaded.map(\.cashReceiverID) == [receiver, nil])
+    }
+
+    @Test("A cash message's return offer and returned message round-trip, and a plain cash message reads back nil")
+    func cashReturnRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        func cash(_ n: UInt64, _ cashReturn: CashReturn?) -> ConversationMessage {
+            ConversationMessage(
+                id: MessageID(value: n),
+                senderID: UUID(),
+                content: .cash(ExchangedFiat(
+                    onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+                    nativeAmount: FiatAmount(value: 1, currency: .usd),
+                    currencyRate: Rate(fx: 1, currency: .usd)
+                )),
+                cashReturn: cashReturn,
+                date: Date(timeIntervalSince1970: TimeInterval(n)),
+                unreadSeq: n
+            )
+        }
+        let offer = CashReturn(hasOffer: true, returnOf: nil)
+        let returning = CashReturn(hasOffer: false, returnOf: .init(messageID: MessageID(value: 1)))
+        let both = CashReturn(hasOffer: true, returnOf: .init(messageID: MessageID(value: 2)))
+
+        try database.upsertConversationMessages([cash(1, offer), cash(2, returning), cash(3, both), cash(4, nil)], conversationID: id)
+        let loaded = try database.getConversationMessages(conversationID: id)
+
+        #expect(loaded.map(\.cashReturn) == [offer, returning, both, nil])
     }
 
     @Test("Widget messages round-trip, including a payment request, and a widget with no username reads back as unrecognized")
@@ -471,6 +502,29 @@ struct DatabaseConversationsTests {
         #expect(try database.getCatchupCursors()[id] == nil)   // nothing written
     }
 
+    @Test("persistMessages reports a change only when a message row changed")
+    func persistMessagesReportsChange() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversation(conversation(byte: 1))
+        #expect(try database.persistMessages([textMessage(id: 5)], cursor: 0, conversationID: id))
+        // The same row again, as a catch-up re-fetching what the notification extension stored.
+        #expect(try database.persistMessages([textMessage(id: 5)], cursor: 42, conversationID: id) == false)
+        #expect(try database.catchupCursor(conversationID: id) == 42)   // the cursor still advances
+        let edited = ConversationMessage(id: MessageID(value: 5), senderID: otherID, content: .text("edited"), date: Date(timeIntervalSince1970: 0), unreadSeq: 5, eventSequence: 2)
+        #expect(try database.persistMessages([edited], cursor: 0, conversationID: id))
+    }
+
+    @Test("upsertConversation reports a change only when its last-message row changed")
+    func upsertConversationReportsChange() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let stored = conversation(byte: 1, lastMessage: textMessage(id: 5))
+        #expect(try database.upsertConversation(stored))
+        #expect(try database.upsertConversation(stored) == false)
+    }
+
     @Test("catchupCursor round-trips the persisted cursor for one conversation")
     func catchupCursorRoundTrips() throws {
         let (database, url) = try Database.makeTemp()
@@ -674,6 +728,32 @@ struct DatabaseConversationsTests {
         #expect(loaded.redacted)
     }
 
+    @Test("A photo's derived renditions reload with it, so a relaunch keeps loading the smaller copy")
+    func mediaRenditionsRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let renditions = [
+            MediaRendition(role: .display, blobID: BlobID(data: Data([10])), width: 1080, height: 1440),
+            MediaRendition(role: .thumbnail, blobID: BlobID(data: Data([11])), width: 120, height: 160),
+        ]
+        let message = ConversationMessage(
+            id: MessageID(value: 1), senderID: otherID,
+            content: .media([MediaAttachment(blobID: BlobID(data: Data([9])), width: 3024, height: 4032, blurhash: nil, renditions: renditions)], caption: nil),
+            date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 3
+        )
+
+        try database.upsertConversationMessages([message], conversationID: id)
+
+        let loaded = try #require(try database.getConversationMessages(conversationID: id).first)
+        #expect(loaded == message)
+        guard case .media(let attachments, _) = loaded.content else {
+            Issue.record("expected media, got \(loaded.content)")
+            return
+        }
+        #expect(attachments.first?.renditions == renditions)
+    }
+
     @Test("the catch-up cursor round-trips and survives a feed replace")
     func catchupCursorRoundTrip() throws {
         let (database, url) = try Database.makeTemp()
@@ -708,6 +788,74 @@ struct DatabaseConversationsTests {
         let newer = ConversationMessage(id: MessageID(value: 1), senderID: otherID, content: .text("edited"), date: Date(timeIntervalSince1970: 30), unreadSeq: 1, eventSequence: 12)
         try database.upsertConversationMessages([newer], conversationID: id)
         #expect(try database.getConversationMessages(conversationID: id).first?.content == .text("edited"))
+    }
+
+    // MARK: - Batched writes -
+
+    private func versioned(_ id: UInt64, _ text: String, sequence: UInt64) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: id), senderID: otherID, content: .text(text),
+            date: Date(timeIntervalSince1970: TimeInterval(id)), unreadSeq: id, eventSequence: sequence)
+    }
+
+    @Test("one batch keeps stored rows newer than the copy, replaces older ones, and inserts new ids")
+    func batchMergesEachRowOnItsOwnVersion() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages([
+            versioned(1, "stored-newer", sequence: 10),
+            versioned(2, "stored-older", sequence: 3),
+        ], conversationID: id)
+
+        try database.upsertConversationMessages([
+            versioned(1, "stale-redelivery", sequence: 5),
+            versioned(2, "edited", sequence: 8),
+            versioned(3, "new", sequence: 9),
+        ], conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded == [
+            versioned(1, "stored-newer", sequence: 10),
+            versioned(2, "edited", sequence: 8),
+            versioned(3, "new", sequence: 9),
+        ])
+    }
+
+    @Test("a stale copy later in the same batch does not overwrite the newer copy written before it")
+    func batchDuplicateIdsAreLastWriterWins() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+
+        try database.upsertConversationMessages([
+            versioned(1, "newer", sequence: 7),
+            versioned(1, "stale", sequence: 4),
+            versioned(2, "first", sequence: 2),
+            versioned(2, "second", sequence: 6),
+        ], conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded == [versioned(1, "newer", sequence: 7), versioned(2, "second", sequence: 6)])
+    }
+
+    @Test("a batch larger than one stored-row read still merges every row against its stored version")
+    func batchPastReadChunkMergesEveryRow() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let ids = Array(UInt64(1)...1_200)
+        try database.upsertConversationMessages(ids.map { versioned($0, "stored", sequence: 10) }, conversationID: id)
+
+        // Odd ids arrive stale, even ids arrive newer.
+        try database.upsertConversationMessages(ids.map {
+            $0.isMultiple(of: 2) ? versioned($0, "newer", sequence: 11) : versioned($0, "stale", sequence: 9)
+        }, conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded.count == ids.count)
+        #expect(loaded == ids.map {
+            $0.isMultiple(of: 2) ? versioned($0, "newer", sequence: 11) : versioned($0, "stored", sequence: 10)
+        })
     }
 
     @Test("the feed preview skips a deleted newest message and shows the newest visible one")
@@ -800,6 +948,19 @@ struct DatabaseConversationsTests {
 
         let loaded = try #require(try database.getConversations().first)
         #expect(loaded.viewerState?.canInvite == true)
+    }
+
+    @Test("canPin round-trips, so a pinner's pin controls survive a cold start")
+    func viewerStateCanPinRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        var stored = conversation(byte: 1)
+        stored.viewerState = ConversationViewerState(canPin: true)
+
+        try database.upsertConversation(stored)
+
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.viewerState?.canPin == true)
     }
 
     @Test("A conversation with no viewer state round-trips as none")
@@ -990,6 +1151,114 @@ struct DatabaseConversationsTests {
         // A copy that carries one replaces it.
         try database.upsertConversation(group(cover: cover(0x20)))
         #expect(try database.getConversations().first?.coverPicture == cover(0x20))
+    }
+
+    // MARK: - Pin summary -
+
+    private func pin(_ id: UInt64) -> ConversationPin {
+        ConversationPin(.with {
+            $0.messageID = .with { $0.value = id }
+            $0.pinnedAt = .init(date: Date(timeIntervalSince1970: 700))
+            $0.message = .with {
+                $0.messageID = .with { $0.value = id }
+                $0.ts = .init(date: Date(timeIntervalSince1970: 600))
+                $0.content = [.with { $0.text = .with { $0.text = "pin-\(id)" } }]
+            }
+        })
+    }
+
+    private func pinned(_ summary: ConversationPinSummary?) -> Conversation {
+        Conversation(
+            id: ConversationID.test(9),
+            members: [],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 100),
+            type: .group,
+            pinSummary: summary
+        )
+    }
+
+    private func storedPins(_ database: Database) throws -> ConversationPinSummary? {
+        try database.getConversations().first?.pinSummary
+    }
+
+    @Test("A row that never held pins loads without a summary")
+    func pinSummaryAbsentByDefault() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(pinned(nil))
+        #expect(try storedPins(database) == nil)
+    }
+
+    @Test("The pin summary, with the latest pin's message, survives a cold load")
+    func pinSummaryRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let summary = ConversationPinSummary(latest: pin(5), count: 2, version: 4)
+        try database.upsertConversation(pinned(summary))
+
+        let loaded = try #require(try storedPins(database))
+        #expect(loaded == summary)
+        #expect(loaded.latest?.message?.content == .text("pin-5"))
+    }
+
+    @Test("A write with no summary, or an older one, keeps the stored pins; equal or newer replaces")
+    func pinSummaryWriteRules() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let v3 = ConversationPinSummary(latest: pin(3), count: 3, version: 3)
+        try database.upsertConversation(pinned(v3))
+
+        try database.upsertConversation(pinned(nil))
+        #expect(try storedPins(database) == v3)
+
+        try database.upsertConversation(pinned(ConversationPinSummary(latest: pin(2), count: 2, version: 2)))
+        #expect(try storedPins(database) == v3)
+
+        let equal = ConversationPinSummary(latest: pin(4), count: 4, version: 3)
+        try database.upsertConversation(pinned(equal))
+        #expect(try storedPins(database) == equal)
+
+        let newer = ConversationPinSummary(latest: nil, count: 0, version: 4)
+        try database.upsertConversation(pinned(newer))
+        #expect(try storedPins(database) == newer)
+    }
+
+    @Test("A feed replace without a summary keeps the stored pins")
+    func pinSummarySurvivesFeedReplace() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let v3 = ConversationPinSummary(latest: pin(3), count: 1, version: 3)
+        try database.upsertConversation(pinned(v3))
+        try database.replaceGroupFeed([pinned(nil)], departed: [])
+        #expect(try storedPins(database) == v3)
+    }
+
+    @Test("PinsChanged applies only when strictly newer than the stored version")
+    func applyPinSummaryStrictlyNewer() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(9)
+        let v3 = ConversationPinSummary(latest: pin(3), count: 1, version: 3)
+        try database.upsertConversation(pinned(v3))
+
+        try database.applyPinSummary(ConversationPinSummary(latest: pin(2), count: 5, version: 2), for: id)
+        #expect(try storedPins(database) == v3)
+
+        try database.applyPinSummary(ConversationPinSummary(latest: pin(8), count: 5, version: 3), for: id)
+        #expect(try storedPins(database) == v3)
+
+        let v4 = ConversationPinSummary(latest: pin(4), count: 2, version: 4)
+        try database.applyPinSummary(v4, for: id)
+        #expect(try storedPins(database) == v4)
+    }
+
+    @Test("PinsChanged for a conversation that is not stored writes nothing")
+    func applyPinSummaryUnknownConversation() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.applyPinSummary(ConversationPinSummary(latest: nil, count: 1, version: 1), for: ConversationID.test(9))
+        #expect(try database.getConversations().isEmpty)
     }
 
     @Test("A typed feed replace keeps the other type's conversations and members")
@@ -1252,5 +1521,18 @@ struct DatabaseConversationsTests {
         #expect(Set(updated.keys) == [MessageID(value: 1), MessageID(value: 2)])
         let stored = try database.getConversationMessages(conversationID: id)
         #expect(Dictionary(uniqueKeysWithValues: stored.map { ($0.id, $0.reactionState) }) == updated.mapValues { Optional($0) })
+    }
+
+    @Test("Replacing a conversation's members looks them up by index, not a table scan")
+    func memberDeleteUsesIndex() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+
+        let plan = try database.reader
+            .prepare("EXPLAIN QUERY PLAN DELETE FROM \(ConversationMemberTable.name) WHERE conversationId = x''")
+            .map { $0[3] as? String ?? "" }
+            .joined(separator: "\n")
+
+        #expect(plan.contains("USING INDEX"), "\(plan)")
     }
 }
