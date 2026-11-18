@@ -41,6 +41,36 @@ class OnboardingViewModel {
     /// runs pre-login, so it owns its submission against the in-flight owner.
     var nameViewModel: OnboardingNameViewModel?
 
+    // MARK: - Group Money flow -
+
+    /// Whether this new account goes through the Group Money steps (phone, code, email, then
+    /// name) instead of the access key. Read from the gate once, at the Create tap; a resumed
+    /// account reads the record that tap left in ``OnboardingProgress`` instead.
+    private(set) var isGroupMoneyFlow = false
+
+    /// An error shown over the intro, where the Group Money flow registers the account.
+    var introDialogItem: DialogItem?
+
+    /// The account creation started by the last Create tap, for tests to await.
+    @ObservationIgnored private(set) var accountCreation: Task<Void, Never>?
+
+    /// Shared by the phone entry and code steps; built once the account is registered.
+    var phoneViewModel: PhoneVerificationViewModel?
+
+    /// Built when the phone is verified.
+    var emailViewModel: OnboardingEmailViewModel?
+
+    /// True while the Create tap registers a Group Money account. Create and Log In do nothing
+    /// until it finishes: a second registration would mint a second account.
+    private(set) var isCreatingAccount = false
+
+    @ObservationIgnored private let isGroupMoneyGateOpen: () -> Bool
+
+    /// The name step's words for this flow.
+    var nameCopy: OnboardingNameCopy {
+        isGroupMoneyFlow ? .groupMoney : .standard
+    }
+
     // MARK: - Init -
 
     /// The closures are seams for tests; the defaults read the real notification status and
@@ -50,11 +80,14 @@ class OnboardingViewModel {
     ///   - pushStatus: the current notification authorization.
     ///   - hasDisplayName: whether the account's profile already has a display name.
     ///   - finishLogin: opens the session once onboarding is done.
+    ///   - isGroupMoneyGateOpen: whether a new account takes the Group Money steps. Defaults to
+    ///     ``BetaFlags/opensGroupMoneyOnboarding``.
     init(
         container: Container,
         pushStatus: @escaping () async -> UNAuthorizationStatus = { await PushController.fetchStatus().authorizationStatus },
         hasDisplayName: ((InitializedAccount) async -> Bool)? = nil,
-        finishLogin: ((InitializedAccount) -> Void)? = nil
+        finishLogin: ((InitializedAccount) -> Void)? = nil,
+        isGroupMoneyGateOpen: (() -> Bool)? = nil
     ) {
         self.container            = container
         self.sessionAuthenticator = container.sessionAuthenticator
@@ -65,11 +98,16 @@ class OnboardingViewModel {
         self.finishLogin          = finishLogin ?? { [authenticator = container.sessionAuthenticator] account in
             authenticator.completeLogin(with: account)
         }
+        self.isGroupMoneyGateOpen = isGroupMoneyGateOpen ?? { [betaFlags = container.betaFlags] in
+            betaFlags.opensGroupMoneyOnboarding
+        }
     }
 
     // MARK: - Action -
 
     func loginAction() {
+        guard !isCreatingAccount else { return }
+
         let hasAccounts = !sessionAuthenticator.accountManager
             .fetchActiveHistorical()
             .isEmpty
@@ -82,12 +120,50 @@ class OnboardingViewModel {
     }
 
     func createAccountAction() {
+        guard !isCreatingAccount else { return }
+
         inflightMnemonic = MnemonicPhrase.generate(.words12)
         nameViewModel = nil
+        phoneViewModel = nil
+        emailViewModel = nil
+        isGroupMoneyFlow = isGroupMoneyGateOpen()
 
-        navigateToAccessKey()
+        if isGroupMoneyFlow {
+            // The access key step is skipped, so the account is registered here, behind the
+            // Create button's loading state, before the phone step can link a number to it.
+            isCreatingAccount = true
+            let mnemonic = inflightMnemonic
+            accountCreation = Task { [weak self] in
+                await self?.registerGroupMoneyAccount(mnemonic: mnemonic)
+            }
+        } else {
+            navigateToAccessKey()
+        }
 
         Analytics.buttonTapped(name: .createAccount)
+    }
+
+    private func registerGroupMoneyAccount(mnemonic: MnemonicPhrase) async {
+        defer { isCreatingAccount = false }
+
+        // Recorded before the server call: registration makes the account current, and a kill
+        // from then on must resume in these steps. The owner is derived as registration does.
+        let owner = DerivedKey.derive(using: .primary(), mnemonic: mnemonic).keyPair.publicKey
+        OnboardingProgress.setStartedInGroupMoney(true, owner: owner)
+
+        do {
+            try await registerAccount(mnemonic: mnemonic)
+        } catch {
+            // The account never became current on this device, so a Log In from the intro gets
+            // today's onboarding. A failure after the server registered the owner leaves that
+            // account unreachable: the next Create mints a new key.
+            OnboardingProgress.setStartedInGroupMoney(false, owner: owner)
+            isGroupMoneyFlow = false
+            introDialogItem = Self.accountCreationError
+            return
+        }
+
+        navigateToEnterPhoneNumber()
     }
 
     func saveToPhotosAction() {
@@ -141,7 +217,7 @@ class OnboardingViewModel {
         }
     }
 
-    private func completeAccountCreation() async throws {
+    func completeAccountCreation() async throws {
         accessKeyButtonState = .loading
         defer {
             accessKeyButtonState = .normal
@@ -163,8 +239,14 @@ class OnboardingViewModel {
 
     /// Advances past the display-name step: requests push permission when
     /// undetermined, otherwise finishes login. Contacts access is requested
-    /// later, in-app.
+    /// later, in-app. A Group Money account, new or resumed, has no push step and
+    /// goes home; any other resumed account keeps it.
     private func advanceFromNameStep() async {
+        if isGroupMoneyFlow {
+            completeOnboardingAndLogin()
+            return
+        }
+
         let pushStatus = await pushStatus()
         switch pushStatus {
         case .notDetermined:
@@ -177,7 +259,11 @@ class OnboardingViewModel {
     }
 
     private func showAccountCreationError() {
-        dialogItem = .error(
+        dialogItem = Self.accountCreationError
+    }
+
+    private static var accountCreationError: DialogItem {
+        .error(
             title: "Something Went Wrong",
             subtitle: "We couldn't create your account. Please try again."
         )
@@ -269,6 +355,8 @@ class OnboardingViewModel {
         }
 
         OnboardingProgress.setCompleted(true, owner: initializedAccount.keyAccount.ownerPublicKey)
+        // Onboarding is over, so a later Log In with this account takes today's steps.
+        OnboardingProgress.setStartedInGroupMoney(false, owner: initializedAccount.keyAccount.ownerPublicKey)
         finishLogin(initializedAccount)
 
         Analytics.onboardingCompleted()
@@ -280,6 +368,10 @@ class OnboardingViewModel {
     /// after a kill mid-onboarding, or an interactive login (seed entry, account picker, deep
     /// link). Asks for a display name only when the profile has none, then applies the same
     /// push rule as a new account, so already-decided permissions finish straight away.
+    ///
+    /// An account whose Create took the Group Money steps resumes in them: the Group Money name
+    /// step and no push step. That comes from the record the Create tap wrote, not the gate as it
+    /// reads now, so a flag change mid-sign-up can't switch flows.
     func resumeOnboarding(with account: InitializedAccount) async {
         // The task that calls this restarts when the intro swaps for the stack; one run is enough.
         guard resumedOwner != account.keyAccount.ownerPublicKey else { return }
@@ -288,6 +380,7 @@ class OnboardingViewModel {
         nameViewModel = nil
         isResumedFlow = true
         awaitingResumedRoot = true
+        isGroupMoneyFlow = OnboardingProgress.startedInGroupMoney(owner: account.keyAccount.ownerPublicKey)
 
         guard !(await hasDisplayName(account)) else {
             await advanceFromNameStep()
@@ -342,14 +435,33 @@ class OnboardingViewModel {
 
     /// Whether `step` hides its back button, which also turns off swipe-back.
     ///
-    /// A new account hides it on the access key and name steps only. A resumed flow also hides
+    /// A new account hides it on the access key and name steps only; a Group Money account hides
+    /// it on phone entry, email and name. A resumed flow also hides
     /// it on its first screen so it can't back out to the intro or login; a later push step may
     /// return to the name step only when the name step is in this flow's path.
     func hidesBackButton(for step: OnboardingPath) -> Bool {
         guard isResumedFlow else {
+            if isGroupMoneyFlow {
+                // The account is registered before phone entry, so backing out to the intro would
+                // invite a second Create. The code step may return to phone entry; the email step
+                // follows a verified number and has nothing to return to.
+                return step == .enterPhoneNumber || step == .email || step == .displayName
+            }
             return step == .accessKey || step == .displayName
         }
         return step == .displayName || path.first == step
+    }
+
+    /// Whether a step keeps the navigation bar's row when it has no back button, so its title
+    /// sits at the same height as a step that has one.
+    func keepsNavigationBarRow(for step: OnboardingPath) -> Bool {
+        guard isGroupMoneyFlow else { return false }
+        switch step {
+        case .enterPhoneNumber, .confirmPhoneNumberCode, .email, .displayName:
+            return true
+        default:
+            return false
+        }
     }
 
     private func place(_ step: OnboardingPath) {
@@ -367,6 +479,39 @@ class OnboardingViewModel {
 
     func navigateToPushNotificationsDenied() {
         path.append(.pushNotificationsDenied)
+    }
+
+    /// Phone entry, the first Group Money step. One view model serves phone entry and the code
+    /// step, so a back from the code step keeps the number.
+    func navigateToEnterPhoneNumber() {
+        guard let initializedAccount else { return }
+
+        let vm = PhoneVerificationViewModel(
+            owner: initializedAccount.keyAccount.owner,
+            flipClient: container.flipClient,
+        )
+        vm.onCodeRequested = { [weak self] in
+            self?.path.append(.confirmPhoneNumberCode)
+        }
+        vm.onVerified = { [weak self] in
+            self?.navigateToEmail()
+        }
+        phoneViewModel = vm
+        path = [.enterPhoneNumber]
+    }
+
+    func navigateToEmail() {
+        guard let initializedAccount else { return }
+
+        let vm = OnboardingEmailViewModel(
+            owner: initializedAccount.keyAccount.owner,
+            flipClient: container.flipClient
+        )
+        vm.onComplete = { [weak self] in
+            self?.navigateToDisplayName(owner: initializedAccount.keyAccount.owner)
+        }
+        emailViewModel = vm
+        path.append(.email)
     }
 
     func navigateToDisplayName(owner: KeyPair? = nil) {
@@ -395,6 +540,9 @@ nonisolated enum OnboardingPath {
     case displayName
     case pushNotifications
     case pushNotificationsDenied
+    case enterPhoneNumber
+    case confirmPhoneNumberCode
+    case email
 }
 
 private struct LookupTimedOut: Error {}

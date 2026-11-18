@@ -92,7 +92,7 @@ struct NewPublicGroupScreen: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: create) {
                         createLabel
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.textMain)
                     }
                     .prominentButtonStyle()
                     .disabled(!isCreateEnabled)

@@ -19,61 +19,86 @@ struct OnboardingNameScreen: View {
     /// Shown only once the limit is close enough to explain a disabled Next.
     private static let countdownThreshold = 10
 
+    private let copy: OnboardingNameCopy
+
     // MARK: - Init -
 
-    init(viewModel: OnboardingNameViewModel) {
+    init(viewModel: OnboardingNameViewModel, copy: OnboardingNameCopy = .standard) {
         self.viewModel = viewModel
+        self.copy = copy
     }
 
     // MARK: - Body -
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("What's your name?")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-                    .padding(.top, 20)
+            switch copy {
+            case .standard:
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(copy.title)
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.textMain)
+                        .padding(.top, 20)
 
-                TextField("Your Name", text: $viewModel.displayName)
-                    .font(.appDisplayMedium)
-                    .foregroundStyle(Color.textMain)
-                    .focused($isNameFocused)
-                    .textContentType(.name)
-                    .submitLabel(.next)
-                    .onSubmit(viewModel.submit)
-                    .padding(.top, 32)
-                    .disabled(viewModel.isSubmitting)
+                    nameField
+                        .padding(.top, 32)
 
-                Text("This is how you'll appear to others")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .padding(.top, 8)
-
-                Spacer()
-
-                if viewModel.remainingCharacters < Self.countdownThreshold {
-                    Text("\(viewModel.remainingCharacters) characters")
+                    Text(copy.hint)
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 12)
-                }
+                        .padding(.top, 8)
 
-                Button(action: viewModel.submit) {
-                    ButtonStateLabel("Next", state: viewModel.buttonState)
+                    Spacer()
+
+                    nextControls
+                        .padding(.bottom, 20)
                 }
-                .buttonStyle(.filled)
-                .disabled(viewModel.validatedDisplayName == nil || viewModel.isSubmitting)
-                .accessibilityIdentifier("onboarding-name-next-button")
-                .padding(.bottom, 20)
+                .padding(.horizontal, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            case .groupMoney:
+                // The hint sits under the title, as in the other Group Money steps.
+                OnboardingStepLayout(header: StepHeaderText(title: copy.title, subtitle: copy.hint)) {
+                    nameField
+                } action: {
+                    nextControls
+                }
             }
-            .padding(.horizontal, 20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
-        .onAppear { isNameFocused = true }
+        .focusAfterPush($isNameFocused)
+    }
+
+    // MARK: - Subviews -
+
+    private var nameField: some View {
+        TextField("Your Name", text: $viewModel.displayName)
+            .font(.appDisplayMedium)
+            .foregroundStyle(Color.textMain)
+            .focused($isNameFocused)
+            .textContentType(.name)
+            .submitLabel(.next)
+            .onSubmit(viewModel.submit)
+            .disabled(viewModel.isSubmitting)
+    }
+
+    private var nextControls: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if viewModel.remainingCharacters < Self.countdownThreshold {
+                Text("\(viewModel.remainingCharacters) characters")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 12)
+            }
+
+            Button(action: viewModel.submit) {
+                ButtonStateLabel("Next", state: viewModel.buttonState)
+            }
+            .buttonStyle(.filled)
+            .disabled(viewModel.validatedDisplayName == nil || viewModel.isSubmitting)
+            .accessibilityIdentifier("onboarding-name-next-button")
+        }
     }
 }
 
@@ -86,4 +111,27 @@ struct OnboardingNameScreen: View {
         )
     }
     .injectingEnvironment(from: .mock)
+}
+
+// MARK: - Copy -
+
+/// The words on ``OnboardingNameScreen``. ``standard`` is today's flow; ``groupMoney`` is the
+/// Group Money new-account flow (frame 2-06).
+enum OnboardingNameCopy: Equatable {
+    case standard
+    case groupMoney
+
+    var title: String {
+        switch self {
+        case .standard:   "What's your name?"
+        case .groupMoney: "Your name"
+        }
+    }
+
+    var hint: String {
+        switch self {
+        case .standard:   "This is how you'll appear to others"
+        case .groupMoney: "This is how you'll appear in your groups."
+        }
+    }
 }
