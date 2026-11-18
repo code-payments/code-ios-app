@@ -19,19 +19,23 @@ public struct PaymentRequestCard: View {
     }
 
     public var body: some View {
+        // A collection has no total, so its card leads with what's been paid and its amount each
+        // is the quiet line.
+        let isCollection = content.map { $0.fraction == nil } ?? false
+
         VStack(alignment: .leading, spacing: 8) {
             Text("Request")
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textSecondary)
 
             Text(content?.title ?? "Request title")
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
+                .font(isCollection ? Font.appTextSmall : Font.appTextLarge)
+                .foregroundStyle(isCollection ? Color.textSecondary : Color.textMain)
                 .lineLimit(2)
 
             Text(content?.progressLine ?? "$0 paid, $0 requested")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
+                .font(isCollection ? Font.appTextLarge : Font.appTextSmall)
+                .foregroundStyle(isCollection ? Color.textMain : Color.textSecondary)
 
             if let content {
                 if let fraction = content.fraction {
