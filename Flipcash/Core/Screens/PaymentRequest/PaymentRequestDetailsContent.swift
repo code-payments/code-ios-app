@@ -29,11 +29,15 @@ struct PaymentRequestDetailsContent: Hashable {
         var id: UserID { userID }
     }
 
-    let title: String
+    /// The large title over the summary; `nil` for a collection, which has none.
+    let title: String?
     let requestedBy: String
     let amounts: String
+    /// The line under ``amounts``; empty hides it.
     let statusLine: String
     let rows: [Row]
+    /// "No payments yet" in place of the rows of a collection nobody has paid into.
+    let emptyLine: String?
     /// The viewer's unpaid share when they can pay it now; `nil` hides "Pay <amount>".
     let payableShare: GroupPaymentRequest.Share?
     /// "Pay $20" for ``payableShare``.
@@ -60,6 +64,7 @@ struct PaymentRequestDetailsContent: Hashable {
         let isCreator = request.creator == viewer
 
         self.title = title
+        emptyLine = nil
         if isCreator {
             requestedBy = "Requested by you"
         } else {
@@ -90,6 +95,56 @@ struct PaymentRequestDetailsContent: Hashable {
             payableShare = nil
             payTitle = nil
         }
+    }
+
+    /// A collection put into words: no title, "<total paid> paid · <amount> each", "Closed" once
+    /// closed, a row for each paid payer newest first, and "Pay <amount>" while the viewer may pay.
+    /// `paidPayers` is `nil` until a page is read, and `viewerHasPaid` until a read of the request
+    /// answers; Pay shows only once that read says the viewer hasn't paid. `nil` when the amount kind
+    /// isn't one this build knows.
+    init?(
+        collection request: GroupPaymentRequest,
+        paidPayers: [GroupPaymentRequest.Payer]?,
+        viewerHasPaid: Bool?,
+        viewer: UserID,
+        copy: PaymentRequestCopy,
+        now: Date,
+        name: (UserID) -> String
+    ) {
+        guard let amounts = copy.collectionDetailsAmounts(request), let each = copy.collectionAmount(request) else { return nil }
+        let isOpen: Bool
+        switch request.effectiveStatus(at: now) {
+        case .open:                                    isOpen = true
+        case .completed, .closed, .expired, .unknown:  isOpen = false
+        }
+        let isCreator = request.creator == viewer
+
+        title = nil
+        if isCreator {
+            requestedBy = "Requested by you"
+        } else {
+            requestedBy = "Requested by \(request.creator.map(name) ?? "")"
+        }
+        self.amounts = amounts
+        statusLine = request.status == .closed ? PaymentRequestCopy.statusLine(.closed) : ""
+        isEnded = !isOpen
+        canClose = isOpen && isCreator
+
+        rows = (paidPayers ?? []).compactMap { payer in
+            guard let userID = payer.userID, payer.isPaid else { return nil }
+            return Row(
+                userID: userID,
+                name: userID == viewer ? "You" : name(userID),
+                amount: copy.collectionPaid(payer, of: request),
+                status: "✓ Paid",
+                isPaid: true,
+                action: .none
+            )
+        }
+        emptyLine = paidPayers != nil && rows.isEmpty ? "No payments yet" : nil
+
+        payableShare = nil
+        payTitle = isOpen && !isCreator && viewerHasPaid == false ? "Pay \(each.formatted())" : nil
     }
 }
 

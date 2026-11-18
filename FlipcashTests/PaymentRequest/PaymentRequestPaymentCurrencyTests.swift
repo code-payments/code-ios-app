@@ -199,7 +199,11 @@ struct PaymentRequestPaymentSheetSnapshotTests {
 
         #expect(payment.share == nil)
         #expect(payment.sheetSnapshot == opened)
-        #expect(opened.share.nativeAmount == 10)
-        #expect(opened.share.isPaid == false)
+        guard case .share(let share) = opened.payable else {
+            Issue.record("Expected a split share, got \(opened.payable)")
+            return
+        }
+        #expect(share.nativeAmount == 10)
+        #expect(share.isPaid == false)
     }
 }

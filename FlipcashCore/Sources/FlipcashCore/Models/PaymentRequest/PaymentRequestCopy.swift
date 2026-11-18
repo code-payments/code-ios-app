@@ -101,6 +101,11 @@ public struct PaymentRequestCopy: Sendable {
         return "\(paidText) paid · \(each.formatted()) each"
     }
 
+    /// What one payer paid into a collection, at full precision: "$10.00".
+    public func collectionPaid(_ payer: GroupPaymentRequest.Payer, of request: GroupPaymentRequest) -> String {
+        viewerAmount(Decimal(payer.nativeAmountPaid), currency: request.collection?.currency ?? "")?.formatted() ?? ""
+    }
+
     private func collectionPaidNative(_ request: GroupPaymentRequest) -> Decimal {
         Decimal(request.payerSummary?.nativeAmountPaid ?? 0)
     }

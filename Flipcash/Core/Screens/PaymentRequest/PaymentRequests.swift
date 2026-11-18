@@ -396,15 +396,18 @@ final class PaymentRequests {
     }
 
     /// Reads one request for Request details: the request, and for a collection its first page of paid
-    /// payers too. Throws what the request read threw; a failed payers read keeps the held list.
-    func refreshDetails(_ id: PaymentRequestID) async throws {
-        try await refresh(id)
-        guard requests[id]?.collection != nil else { return }
+    /// payers too. Returns the split share's intent ID as ``refresh(_:)`` does. Throws what the request
+    /// read threw; a failed payers read keeps the held list.
+    @discardableResult
+    func refreshDetails(_ id: PaymentRequestID) async throws -> Data? {
+        let intentID = try await refresh(id)
+        guard requests[id]?.collection != nil else { return intentID }
         do {
             try await refreshPayers(id)
         } catch {
             logger.warning("Failed to read a collection's payers", metadata: ["error": "\(error)"])
         }
+        return intentID
     }
 
     private func refreshPayers(_ id: PaymentRequestID) async throws {

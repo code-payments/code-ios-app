@@ -65,16 +65,14 @@ struct PaymentRequestDetailsScreen: View {
     private var screen: some View {
         // The status line counts down, so redraw at least once a minute.
         TimelineView(.periodic(from: .now, by: 60)) { context in
-            if let content = content(at: context.date) {
+            // A collection's intent read can answer DENIED or NOT_FOUND while its copy is still held.
+            if isUnavailableCollection {
+                unavailable
+            } else if let content = content(at: context.date) {
                 loaded(content)
             } else if sessionContainer.paymentRequests.unavailable.contains(requestID) {
                 // DENIED or NOT_FOUND, for example after the viewer left the group.
-                Text("This request is no longer available.")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                unavailable
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -104,6 +102,20 @@ struct PaymentRequestDetailsScreen: View {
 
     // MARK: - Content -
 
+    private var isUnavailableCollection: Bool {
+        let requests = sessionContainer.paymentRequests
+        return requests.request(requestID)?.collection != nil && requests.unavailable.contains(requestID)
+    }
+
+    private var unavailable: some View {
+        Text("This request is no longer available.")
+            .font(.appTextMedium)
+            .foregroundStyle(Color.textSecondary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 40)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private func loaded(_ content: PaymentRequestDetailsContent) -> some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -113,6 +125,12 @@ struct PaymentRequestDetailsScreen: View {
                         ForEach(content.rows) { row in
                             shareRow(row)
                         }
+                    }
+                    if let emptyLine = content.emptyLine {
+                        Text(emptyLine)
+                            .font(.appTextMedium)
+                            .foregroundStyle(Color.textSecondary)
+                            .frame(maxWidth: .infinity, minHeight: 170)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -136,10 +154,12 @@ struct PaymentRequestDetailsScreen: View {
     private func header(_ content: PaymentRequestDetailsContent) -> some View {
         let creator = sessionContainer.paymentRequests.request(requestID)?.creator
         return VStack(alignment: .leading, spacing: 16) {
-            Text(content.title)
-                .font(.appDisplayCompact)
-                .foregroundStyle(Color.textMain)
-                .fixedSize(horizontal: false, vertical: true)
+            if let title = content.title {
+                Text(title)
+                    .font(.appDisplayCompact)
+                    .foregroundStyle(Color.textMain)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: 8) {
                 if let creator {
                     PaymentRequestAvatar(userID: creator, member: member(creator), size: 24)
@@ -152,9 +172,11 @@ struct PaymentRequestDetailsScreen: View {
                 Text(content.amounts)
                     .font(.appDisplayXS)
                     .foregroundStyle(Color.textMain)
-                Text(content.statusLine)
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
+                if !content.statusLine.isEmpty {
+                    Text(content.statusLine)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
             }
         }
         .accessibilityElement(children: .combine)
@@ -204,18 +226,34 @@ struct PaymentRequestDetailsScreen: View {
         .requestMotion(value: row.isPaid)
     }
 
-    /// The viewer's reading of the request, or nil until it and its title are loaded.
+    /// The viewer's reading of the request, or nil until it and its title are loaded. A collection
+    /// has no title, so it reads as soon as it is held.
     private func content(at now: Date) -> PaymentRequestDetailsContent? {
         let requests = sessionContainer.paymentRequests
-        guard let request = requests.request(requestID), let text = requests.text(of: request) else { return nil }
+        guard let request = requests.request(requestID) else { return nil }
+        let copy = PaymentRequestCopy(session.displayCurrency)
+        let name: (UserID) -> String = { member($0).map(ConversationLoadCoordinator.attributionName(for:)) ?? "Someone" }
+        if request.collection != nil {
+            guard requests.isDrawable(request) else { return nil }
+            return PaymentRequestDetailsContent(
+                collection: request,
+                paidPayers: requests.payers.paidPayers(of: requestID),
+                viewerHasPaid: requests.payers.hasPaid(requestID, viewer: session.userID),
+                viewer: session.userID,
+                copy: copy,
+                now: now,
+                name: name
+            )
+        }
+        guard let text = requests.text(of: request) else { return nil }
         return PaymentRequestDetailsContent(
             request: request,
             title: text.displayTitle,
             viewer: session.userID,
             hasPaymentIntent: hasPaymentIntent,
-            copy: PaymentRequestCopy(session.displayCurrency),
+            copy: copy,
             now: now,
-            name: { member($0).map(ConversationLoadCoordinator.attributionName(for:)) ?? "Someone" }
+            name: name
         )
     }
 
@@ -237,7 +275,7 @@ struct PaymentRequestDetailsScreen: View {
 
     private func refresh() async {
         do {
-            hasPaymentIntent = try await sessionContainer.paymentRequests.refresh(requestID) != nil
+            hasPaymentIntent = try await sessionContainer.paymentRequests.refreshDetails(requestID) != nil
         } catch {
             hasPaymentIntent = false
         }
@@ -405,6 +443,19 @@ final class PaymentRequestPayFlow {
     }
 }
 
+extension PaymentRequestPaySheetPresenter {
+    /// The swipe sheet's amount: a split share as the chat words it, a collection's fixed amount in full.
+    fileprivate func sheetAmount(_ snapshot: PaymentRequestPayment.SheetSnapshot) -> String {
+        let copy = PaymentRequestCopy(session.displayCurrency)
+        switch snapshot.payable {
+        case .share(let share):
+            return copy.shareText(share, of: snapshot.request)
+        case .fixed:
+            return copy.collectionAmount(snapshot.request)?.formatted() ?? ""
+        }
+    }
+}
+
 extension View {
     /// Shows `flow`'s swipe-to-send sheet while it is paying.
     func paymentRequestPaySheet(_ flow: PaymentRequestPayFlow) -> some View {
@@ -453,7 +504,7 @@ private struct PaymentRequestPaySheetPresenter: ViewModifier {
                             .first { $0.userID == creator }
                     },
                     payeeID: creator,
-                    amount: PaymentRequestCopy(session.displayCurrency).shareText(snapshot.share, of: request)
+                    amount: sheetAmount(snapshot)
                 )
                 .task {
                     // Opened from the chat's strip, nothing else has loaded the roster that names the payee.

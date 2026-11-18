@@ -8,11 +8,12 @@
 import Foundation
 import FlipcashCore
 
-/// Pays the viewer's share of one payment request to its creator.
+/// Pays the viewer's part of one payment request to its creator: their share of a split, or a
+/// collection's fixed amount.
 ///
-/// The share is paid under the intent ID the server issued for it, so a retry, a second tap or a
+/// The part is paid under the intent ID the server issued for it, so a retry, a second tap or a
 /// second device can land only once. That ID is held in memory for this payment only and never
-/// logged: anyone holding it before the share is paid can use it up.
+/// logged: anyone holding it before the part is paid can use it up.
 @MainActor
 @Observable
 final class PaymentRequestPayment {
@@ -35,10 +36,17 @@ final class PaymentRequestPayment {
         case noBalance
     }
 
-    /// The request and the viewer's unpaid share as they read when the swipe sheet opened.
+    /// What the viewer pays: an unpaid share of a split, or a collection's fixed amount in the
+    /// request's currency.
+    enum Payable: Equatable {
+        case share(GroupPaymentRequest.Share)
+        case fixed(nativeAmount: Double)
+    }
+
+    /// The request and what the viewer pays as they read when the swipe sheet opened.
     struct SheetSnapshot: Equatable {
         let request: GroupPaymentRequest
-        let share: GroupPaymentRequest.Share
+        let payable: Payable
     }
 
     let requestID: PaymentRequestID
@@ -90,6 +98,18 @@ final class PaymentRequestPayment {
         return own
     }
 
+    /// What the viewer still pays: their unpaid share of a split, or a collection's fixed amount
+    /// until a read says they've paid it. `nil` when there is nothing to pay.
+    var payable: Payable? {
+        guard let request else { return nil }
+        if request.collection != nil {
+            guard case .fixed(let fixed)? = request.collection?.paymentAmount,
+                  requests.payers.hasPaid(requestID, viewer: session.userID) != true else { return nil }
+            return .fixed(nativeAmount: fixed.nativeAmount)
+        }
+        return share.map(Payable.share)
+    }
+
     /// The balances the currency picker offers.
     var paymentOptions: [ExchangedBalance] {
         ratesController.paymentOptions(session: session)
@@ -100,8 +120,10 @@ final class PaymentRequestPayment {
         ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
     }
 
-    /// Refetches the request right before the swipe sheet shows, taking the intent ID from it.
+    /// Refetches the request right before the swipe sheet shows, taking the intent ID from it. A
+    /// collection's intent ID comes from its own read, which also says when there is nothing to pay.
     func prepare() async -> Preparation {
+        if request?.collection != nil { return await prepareCollection() }
         do {
             intentID = try await requests.refresh(requestID)
         } catch {
@@ -115,15 +137,66 @@ final class PaymentRequestPayment {
             return .closed
         }
         guard intentID != nil, let request, let share else { return .nothingToPay }
-        sheetSnapshot = SheetSnapshot(request: request, share: share)
+        sheetSnapshot = SheetSnapshot(request: request, payable: .share(share))
         return .ready
     }
 
-    /// The share in the request's currency, nil when the request's currency or amount can't be read.
-    private func shareFiat(_ share: GroupPaymentRequest.Share, of request: GroupPaymentRequest) -> FiatAmount? {
-        guard let currency = request.split.flatMap({ try? CurrencyCode(currencyCode: $0.currency) }),
-              let value = Decimal(string: "\(share.nativeAmount)") else { return nil }
+    private func prepareCollection() async -> Preparation {
+        do {
+            intentID = try await requests.paymentIntentID(for: requestID)
+        } catch let error as ErrorGetPaymentIntentID {
+            intentID = nil
+            switch error {
+            case .notOpen:
+                try? await requests.refreshDetails(requestID)
+                showRequestClosed()
+                return .closed
+            case .alreadyPaid, .notAPayer:
+                try? await requests.refreshDetails(requestID)
+                return .nothingToPay
+            case .denied, .notFound:
+                // The store marked the request unavailable; the screen says so in place of its body.
+                return .nothingToPay
+            case .ok, .unknown, .transportFailure, .cancelled, .rejected:
+                showSendError()
+                return .failed
+            }
+        } catch {
+            intentID = nil
+            showSendError()
+            return .failed
+        }
+        needsRefetch = false
+        guard let request, let payable else {
+            intentID = nil
+            return .nothingToPay
+        }
+        sheetSnapshot = SheetSnapshot(request: request, payable: payable)
+        return .ready
+    }
+
+    /// `payable` in the request's currency, nil when the request's currency or amount can't be read.
+    private func payableFiat(_ payable: Payable, of request: GroupPaymentRequest) -> FiatAmount? {
+        let currencyCode: String?
+        let nativeAmount: Double
+        switch payable {
+        case .share(let share):
+            currencyCode = request.split?.currency
+            nativeAmount = share.nativeAmount
+        case .fixed(let fixed):
+            currencyCode = request.collection?.currency
+            nativeAmount = fixed
+        }
+        guard let currency = currencyCode.flatMap({ try? CurrencyCode(currencyCode: $0) }),
+              let value = Decimal(string: "\(nativeAmount)") else { return nil }
         return FiatAmount(value: value, currency: currency)
+    }
+
+    /// The funding step a payment takes when the picked balance falls short: add or convert money,
+    /// then return whether the balance may now cover the payment, which is then priced again at a
+    /// fresh rate. Nothing funds yet, so it returns false and the insufficient-funds dialog shows.
+    private func coverShortfall(_ shortfall: ExchangedFiat?, in balance: ExchangedBalance) async -> Bool {
+        false
     }
 
     /// `fiat` priced into `mint` at a fresh rate.
@@ -133,11 +206,15 @@ final class PaymentRequestPayment {
         return (amount, pin)
     }
 
-    /// Pays exactly the share: its amount in the request's currency, priced into the picked token.
+    /// Pays exactly what the viewer owes: its amount in the request's currency, priced into the
+    /// picked token.
     func submit() async -> Outcome {
         if needsRefetch {
             switch await prepare() {
             case .ready: break
+            case .nothingToPay where hasPaidCollection:
+                // ALREADY_PAID: the attempt whose outcome was unknown landed, so don't pay again.
+                return .success
             case .nothingToPay, .closed, .failed, .noBalance: return .failed
             }
         }
@@ -151,14 +228,26 @@ final class PaymentRequestPayment {
             return .failed
         }
 
-        guard let request, let share, let creator = request.creator,
+        guard let request, let payable, let creator = request.creator,
               let intentID, let intentKey = try? PublicKey(intentID),
               let chatID = request.chatID,
-              let fiat = shareFiat(share, of: request) else {
+              let fiat = payableFiat(payable, of: request) else {
             showSendError()
             return .failed
         }
 
+        return await pay(fiat, as: payable, to: creator, in: chatID, intentKey: intentKey, from: selectedBalance, mayFund: true)
+    }
+
+    private func pay(
+        _ fiat: FiatAmount,
+        as payable: Payable,
+        to creator: UserID,
+        in chatID: ConversationID,
+        intentKey: PublicKey,
+        from selectedBalance: ExchangedBalance,
+        mayFund: Bool
+    ) async -> Outcome {
         let mint = selectedBalance.stored.mint
         guard let (amount, pin) = await price(fiat, mint: mint) else {
             ErrorReporting.captureError(
@@ -173,14 +262,34 @@ final class PaymentRequestPayment {
             return .failed
         }
 
-        // Gate on the uncapped share: `amount` is capped at the balance, so it always passes.
-        let uncapped = selectedBalance.enteredFiat(for: fiat.value, rate: pin.rate) ?? amount
+        // Gate on the uncapped amount: `amount` is capped at the balance, so it always passes.
+        let entered = selectedBalance.enteredFiat(for: fiat.value, rate: pin.rate)
+        let uncapped: ExchangedFiat
+        switch payable {
+        case .share:
+            uncapped = entered ?? amount
+        case .fixed:
+            // A collection takes only its fixed amount, so never gate on a capped one.
+            guard let entered else {
+                showInsufficientFunds(shortfall: nil)
+                return .failed
+            }
+            uncapped = entered
+        }
         switch session.hasSufficientFunds(for: uncapped) {
         case .insufficient(let shortfall):
-            showInsufficientFunds(shortfall: shortfall)
-            return .failed
+            guard mayFund, await coverShortfall(shortfall, in: selectedBalance) else {
+                showInsufficientFunds(shortfall: shortfall)
+                return .failed
+            }
+            return await pay(fiat, as: payable, to: creator, in: chatID, intentKey: intentKey, from: selectedBalance, mayFund: false)
         case .sufficient:
             break
+        }
+        // `amount` is capped at the balance; a collection never sends less than its fixed amount.
+        if case .fixed = payable, !covers(amount.nativeAmount, fiat) {
+            showInsufficientFunds(shortfall: nil)
+            return .failed
         }
 
         let sendLimit = session.sendLimitFor(currency: amount.nativeAmount.currency) ?? .zero
@@ -211,14 +320,14 @@ final class PaymentRequestPayment {
             )
             self.intentID = nil
             Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: nil)
-            try? await requests.refresh(requestID)
+            try? await requests.refreshDetails(requestID)
             return .success
         } catch {
             Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: error)
             needsRefetch = true
             guard !(error is CancellationError) else { return .failed }
             // A refusal because the request ended reads as "Request Closed", not a send failure.
-            try? await requests.refresh(requestID)
+            try? await requests.refreshDetails(requestID)
             if isOpen {
                 showSendError()
             } else {
@@ -227,6 +336,17 @@ final class PaymentRequestPayment {
             }
             return .failed
         }
+    }
+
+    /// Whether `priced` pays `fiat` to within half its currency's smallest unit.
+    private func covers(_ priced: FiatAmount, _ fiat: FiatAmount) -> Bool {
+        guard priced.currency == fiat.currency else { return false }
+        let halfUnit = Decimal(sign: .plus, exponent: -fiat.currency.maximumFractionDigits, significand: 5) / 10
+        return priced.value >= fiat.value - halfUnit
+    }
+
+    private var hasPaidCollection: Bool {
+        request?.collection != nil && requests.payers.hasPaid(requestID, viewer: session.userID) == true
     }
 
     private var isOpen: Bool {
