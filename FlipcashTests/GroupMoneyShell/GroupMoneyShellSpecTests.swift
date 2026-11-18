@@ -159,7 +159,8 @@ struct GroupMoneyShellSpecTests {
         guard #available(iOS 26, *) else { return }
         let (window, bar) = try await hostedTabBar(showsGroupMoney: true)
         defer { window.isHidden = true }
-        #expect(bar.items?.map(\.title) == ["Groups", "Money"])
+        // The redesign draws each title into the item's image, so the name rides on the label.
+        #expect(bar.items?.map(\.accessibilityLabel) == ["Groups", "Money"])
         let frames = TabBarItemLocator.itemFrames(in: bar)
         let items = frames.dropFirst().reduce(frames[0]) { $0.union($1) }
         #expect(abs(items.midX - bar.bounds.midX) <= 1, "items \(items) in bar \(bar.bounds)")
@@ -450,7 +451,13 @@ struct GroupMoneyShellSpecTests {
         defer { window.isHidden = true }
         #expect(bar.topItem?.title == "Chat")
         let labels = Self.titleLabels(in: bar)
-        #expect(labels.map(\.text) == ["Chat"])
+        // On iOS 26 the redesign sets "Chat" as a large title in the content; the bar's centred
+        // title stays hidden until the list scrolls under it.
+        if #available(iOS 26, *) {
+            #expect(labels.isEmpty, "centred titles: \(labels)")
+        } else {
+            #expect(labels.map(\.text) == ["Chat"])
+        }
         if let label = labels.first {
             let frame = label.convert(label.bounds, to: bar)
             #expect(abs(frame.midX - bar.bounds.midX) <= 1, "title \(frame) in bar \(bar.bounds)")

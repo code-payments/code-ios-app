@@ -33,7 +33,7 @@ public final class ChatCashCardCell: ChatColumnCell {
     /// Above the caption.
     private static let topInset = ChatStyle.cardPaddingTop
     /// Between the caption and the money block, and between the money block and the counterpart.
-    private static let blockSpacing = ChatStyle.cardHeaderGap
+    private static let blockSpacing = ChatStyle.cardBlockGap
     /// From the amount, or the total when there is one, down to the token row.
     private static let tokenSpacing: CGFloat = 6
     /// Below the counterpart, to the card's foot or to the Send Back row.

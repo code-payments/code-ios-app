@@ -560,7 +560,8 @@ struct TipConversationRow: View {
         let hasUnreadMessages = conversationController.hasUnreadMessages(conversation)
         let unreadMessageCount = hasUnreadMessages ? conversationController.unreadCount(for: conversation) : nil
         let subtitle = joinRequests.subtitle(preview: self.subtitle, hasUnreadMessages: hasUnreadMessages)
-        // Marked unread with nothing unread draws the no-count state; a known count still wins.
+        // Marked unread counts only when nothing is unread: it lights the dot, and a real unread
+        // count still goes to VoiceOver.
         let isMarkedUnread = !hasUnreadMessages && conversationController.isMarkedUnread(conversation.id)
         let hasUnread = hasUnreadMessages || joinRequests.count > 0 || isMarkedUnread
         // A pending request moves the row up, so the time shown is the one it sorts by.

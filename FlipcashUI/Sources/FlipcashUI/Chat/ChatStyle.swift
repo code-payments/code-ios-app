@@ -8,6 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 import SwiftUI
+import FlipcashCore
 
 /// The chat transcript's look: bubble shape and type, sender colours, row spacing, the money card
 /// and reaction pills. Values come from the Chat v2 design (Figma `v2/Platform` iOS, `v2/Color`
@@ -36,7 +37,7 @@ enum ChatStyle {
     /// Whether bubbles draw the faint hairline outline the v1 chat had.
     static let drawsHairline = false
     /// The widest a bubble may grow, as a share of the transcript's width.
-    static let maxWidthFraction: CGFloat = 0.78
+    static let maxWidthFraction = ChatPhotoBubbleLayout.widthFraction
 
     /// The message body font.
     static let bodyFont: UIFont = .default(size: bodySize, weight: bodyWeight)
@@ -143,13 +144,13 @@ enum ChatStyle {
     static let cardWidth: CGFloat = 240
     /// The money card's inset from its leading and trailing edges.
     static let cardPaddingX: CGFloat = 16
-    /// The money card's inset above its header.
+    /// Above the caption.
     static let cardPaddingTop: CGFloat = 14
-    /// The money card's inset below its amount.
+    /// Below the counterpart, to the card's foot or the Send Back row.
     static let cardPaddingBottom: CGFloat = 22
-    /// Between the card's header and its caption.
-    static let cardHeaderGap: CGFloat = 14
-    /// The token badge in the header.
+    /// Between the caption, the money block and the counterpart.
+    static let cardBlockGap: CGFloat = 14
+    /// The token's icon, beside its name under the amount.
     static let cardBadgeSize: CGFloat = 20
     /// The card's label point size.
     static let cardLabelSize: CGFloat = 13

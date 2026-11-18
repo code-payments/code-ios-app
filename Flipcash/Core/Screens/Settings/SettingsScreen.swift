@@ -122,7 +122,7 @@ struct SettingsScreen: View {
             SettingsSectionHeader("Currencies")
 
             ForEach(SettingsCurrencyRow.allCases, id: \.self) { row in
-                let settingsRow = SettingsRow(image: row.image, title: LocalizedStringKey(row.title), insets: insets) {
+                let settingsRow = SettingsRow(icon: row.icon, title: LocalizedStringKey(row.title), insets: insets) {
                     row.open(using: router)
                 }
                 Group {

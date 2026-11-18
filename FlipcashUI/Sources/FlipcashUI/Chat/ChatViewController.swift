@@ -152,7 +152,7 @@ public final class ChatViewController: UICollectionViewController {
     public var pendingMediaProgress: ((String) -> ChatPhotoSendProgress?)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
-    static let maxBubbleWidthFraction = ChatPhotoBubbleLayout.widthFraction
+    static let maxBubbleWidthFraction = ChatStyle.maxWidthFraction
 
     /// The widest transcript a card is sized against, in points: a large phone's width. A row that
     /// fills a share of the width (a photo, a cash or link card) keeps its phone size on a wide screen.
