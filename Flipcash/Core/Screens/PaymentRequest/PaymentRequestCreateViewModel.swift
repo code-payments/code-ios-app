@@ -173,6 +173,45 @@ final class PaymentRequestCreateViewModel {
         return .sent
     }
 
+    /// Creates a collection of ``amount`` from each member who pays, with no text and no deadline,
+    /// and posts it to the chat. A retry after a failed post reuses the created request.
+    func sendCollection() async -> Outcome {
+        guard let amount else { return .failed(Self.genericError) }
+        prepareConfirm()
+        guard let idempotencyKey else { return .failed(Self.genericError) }
+        isSending = true
+        defer { isSending = false }
+
+        let request: GroupPaymentRequest
+        if let created {
+            request = created
+        } else {
+            do {
+                request = try await requests.create(idempotencyKey: idempotencyKey, in: conversationID, collection: Self.collection(asking: amount))
+                created = request
+            } catch let error as ErrorCreatePaymentRequest {
+                return .failed(alert(for: error))
+            } catch {
+                ErrorReporting.captureError(error, reason: "Failed to create payment request")
+                return .failed(Self.genericError)
+            }
+        }
+
+        await conversationController.sendPaymentRequest(request.id, in: conversationID)
+        finish()
+        return .sent
+    }
+
+    /// The collection Send Request creates: `amount` from each member who pays, no text, no deadline.
+    nonisolated static func collection(asking amount: FiatAmount) -> GroupPaymentRequest.Collection {
+        GroupPaymentRequest.Collection(
+            text: nil,
+            currency: amount.currency.rawValue.lowercased(),
+            endsAt: nil,
+            paymentAmount: .fixed(.init(nativeAmount: amount.value.doubleValue))
+        )
+    }
+
     private func create(currency: CurrencyCode, shares: [GroupPaymentRequest.Share], key: Data, now: Date) async throws -> GroupPaymentRequest {
         guard let seal = try await conversationController.photoSeal(for: conversationID) else {
             throw ErrorCreatePaymentRequest.encryptionRequired
@@ -204,7 +243,8 @@ final class PaymentRequestCreateViewModel {
             return DialogCopy(title: "Can't Send Request", subtitle: "Someone you included is no longer in the group. Check who's included and try again.")
         case .invalidCurrency:
             return DialogCopy(title: "Can't Send Request", subtitle: "Requests aren't available in this currency yet.")
-        // This flow creates splits only, so `.invalidAmount` (a collection's amount) is unexpected here.
+        // The keypad holds a collection's amount to the currency's decimals and above zero, so
+        // `.invalidAmount` is unexpected.
         case .chatNotSupported, .encryptionNotAllowed, .encryptionRequired, .textModerated, .invalidAmount, .unknown, .rejected:
             logger.error("Payment request create was refused", metadata: ["result": "\(error)"])
             ErrorReporting.captureError(error, reason: "Payment request create was refused")

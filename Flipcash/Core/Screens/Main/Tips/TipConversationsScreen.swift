@@ -675,6 +675,9 @@ struct TipConversationRow: View {
             requestTitle: { id in
                 sessionContainer.paymentRequests.request(id).flatMap(sessionContainer.paymentRequests.text)?.title
             },
+            requestSubject: { id in
+                sessionContainer.paymentRequests.collectionSubject(of: id, copy: PaymentRequestCopy(session.displayCurrency))
+            },
             currencyName: { session.balance(for: $0)?.name }
         ) {
             var line = AttributedString(preview)

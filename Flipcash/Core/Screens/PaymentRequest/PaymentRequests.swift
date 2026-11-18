@@ -187,6 +187,13 @@ final class PaymentRequests {
 
     /// Whether this build draws `request`: a split, or a collection while the Group Money UI is on.
     /// Anything else draws as unsupported in the transcript and stays out of the deck and timelines.
+    /// A drawable collection's "<amount> each", which names it on the chat list's "sent request for"
+    /// line; `nil` for a split, or for a collection while the Group Money flag is off.
+    func collectionSubject(of id: PaymentRequestID, copy: PaymentRequestCopy) -> String? {
+        guard let request = requests[id], request.collection != nil, isDrawable(request) else { return nil }
+        return copy.collectionEach(request)
+    }
+
     func isDrawable(_ request: GroupPaymentRequest) -> Bool {
         if request.split != nil { return true }
         return request.collection != nil && showsCollections()

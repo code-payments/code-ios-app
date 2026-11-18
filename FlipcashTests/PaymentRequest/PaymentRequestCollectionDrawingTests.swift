@@ -145,4 +145,12 @@ struct PaymentRequestCollectionDrawingTests {
         #expect(timelines[collection.id]?.title == nil)
         #expect(timelines[split.id]?.title == "Dinner")
     }
+
+    @Test("The chat list names a collection by its amount each only with the flag on, and never a split")
+    func collectionSubjectFollowsFlag() {
+        let collection = collection()
+        #expect(store(holding: [collection, split], showsCollections: true).collectionSubject(of: collection.id, copy: copy) == "$10 each")
+        #expect(store(holding: [collection, split], showsCollections: false).collectionSubject(of: collection.id, copy: copy) == nil)
+        #expect(store(holding: [collection, split], showsCollections: true).collectionSubject(of: split.id, copy: copy) == nil)
+    }
 }

@@ -100,14 +100,73 @@ private enum PaymentRequestStep: Hashable {
 }
 
 /// Request Money in a private group: the history, then New Request's amount, summary and confirm.
+/// With `collects` set (the Group Money flag), the amount and a confirm, creating a collection.
 struct PaymentRequestFlow: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
     let conversationID: ConversationID
+    var collects = false
 
     var body: some View {
-        PaymentRequestFlowContent(sessionContainer: sessionContainer, conversationID: conversationID)
+        if collects {
+            PaymentRequestCollectionFlowContent(sessionContainer: sessionContainer, conversationID: conversationID)
+        } else {
+            PaymentRequestFlowContent(sessionContainer: sessionContainer, conversationID: conversationID)
+        }
+    }
+}
+
+/// A collection's Request Money: the amount keypad, then "Request <amount> each?" and Send Request.
+/// There is no history, no people and no deadline.
+private struct PaymentRequestCollectionFlowContent: View {
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var viewModel: PaymentRequestCreateViewModel
+    @State private var dialogItem: DialogItem?
+
+    init(sessionContainer: SessionContainer, conversationID: ConversationID) {
+        _viewModel = State(initialValue: PaymentRequestCreateViewModel(
+            sessionContainer: sessionContainer,
+            conversationID: conversationID
+        ))
+    }
+
+    var body: some View {
+        NavigationStack {
+            PaymentRequestAmountScreen(viewModel: viewModel) {
+                viewModel.prepareConfirm()
+                dialogItem = confirm()
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton(action: { dismiss() })
+                }
+            }
+            .dialog(item: $dialogItem)
+        }
+    }
+
+    private func confirm() -> DialogItem {
+        let amount = viewModel.amount?.formattedDroppingZeroFraction() ?? ""
+        return .info(title: "Request \(amount) each?", subtitle: "You will receive and hold the money collected") {
+            DialogAction.standard("Send Request") {
+                Task { await send() }
+            }
+            DialogAction.cancel()
+        }
+    }
+
+    private func send() async {
+        switch await viewModel.sendCollection() {
+        case .sent:
+            dismiss()
+        case .failed(let copy):
+            dialogItem = .alert(title: copy.title, subtitle: copy.subtitle) {
+                DialogAction.okay(kind: .standard)
+            }
+        }
     }
 }
 
@@ -345,8 +404,8 @@ private struct PaymentRequestAmountScreen: View {
                 mode: .currency,
                 enteredAmount: $viewModel.enteredAmount,
                 subtitle: .hidden,
-                actionState: .constant(.normal),
-                actionEnabled: { _ in viewModel.canContinue },
+                actionState: .constant(viewModel.isSending ? .loading : .normal),
+                actionEnabled: { _ in viewModel.canContinue && !viewModel.isSending },
                 action: next,
                 actionTitle: "Next"
             )
