@@ -281,6 +281,35 @@ struct SharePaymentRowTests {
         #expect(row.requestID == nil)
     }
 
+    @Test("A collection's payment reads per viewer with no title or ring, and taps through to it", arguments: [
+        (jordan, "You paid $40"),
+        (alex, "Jordan paid you $40"),
+        (sam, "Jordan paid Alex $40"),
+    ])
+    func collectionPayment(viewer: UserID, expected: String) throws {
+        let collection = RequestTimeline(
+            request: GroupPaymentRequest(
+                id: tahoe,
+                creator: alex,
+                createdAt: noon.addingTimeInterval(-3600),
+                status: .open,
+                closedAt: nil,
+                version: 1,
+                chatID: chat,
+                split: nil,
+                collection: .init(text: nil, currency: "usd", endsAt: nil, paymentAmount: .fixed(.init(nativeAmount: 40))),
+                payerSummary: .init(payerCount: 1, paidCount: 1, nativeAmountDue: 0, nativeAmountPaid: 40)
+            ),
+            title: nil
+        )
+        let row = try #require(rows([payment(1, by: jordan)], viewer: viewer, requests: [collection]).first)
+        #expect(line(row) == expected)
+        #expect(row.kind == .sharePayment)
+        #expect(row.title == nil)
+        #expect(row.ringFraction == nil)
+        #expect(row.requestID == tahoe.data)
+    }
+
     @Test("A share payment heads the unread divider only for the member it paid")
     func unreadDivider() {
         let messages = [text(1, from: alex), payment(2, by: jordan), text(3, from: alex)]

@@ -158,6 +158,23 @@ struct PaymentRequestCollectionPaymentTests {
         #expect(server.intentReads == readsBeforeRetry + 1)
         #expect(payer.payments.count == 1)
     }
+
+    @Test("The intent ID reaches no log line through the read, a failed send, or the retry")
+    func intentIDIsNeverLogged() async throws {
+        let issued = Data((0..<32).map { _ in UInt8.random(in: 0...255) })
+        let server = Server(intentResult: .success(issued))
+        let (payment, _, payer, _) = try await payment(server, amount: 10)
+
+        #expect(await payment.prepare() == .ready)
+        payer.failure = URLError(.timedOut)
+        #expect(await payment.submit() == .failed)
+        payer.failure = nil
+        #expect(await payment.submit() == .success)
+
+        let forms = [issued.hexString(), issued.base64EncodedString(), try PublicKey(issued).base58]
+        let leaked = LogStore.shared.recentEntries().filter { line in forms.contains { line.contains($0) } }
+        #expect(leaked.isEmpty)
+    }
 }
 
 @MainActor
