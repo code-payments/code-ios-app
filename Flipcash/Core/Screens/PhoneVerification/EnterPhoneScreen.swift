@@ -30,67 +30,32 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: copy.entryHeader == nil ? .center : .leading, spacing: 15) {
+            Group {
                 if let header = copy.entryHeader {
-                    OnboardingStepHeader(text: header)
-                        .padding(.bottom, 10)
-                } else {
-                    Spacer()
-                }
-
-                if let fieldLabel = copy.entryFieldLabel {
-                    OnboardingFieldLabel(title: fieldLabel)
-                }
-
-                InputContainer(size: .regular) {
-                    HStack(spacing: 0) {
-                        Button {
-                            isShowingRegionSelection = true
-                        } label: {
-                            HStack(spacing: 10) {
-                                Flag(style: viewModel.regionFlagStyle)
-                                Text(viewModel.countryCode)
-                                    .font(.appTextXL)
+                    OnboardingStepLayout(header: header) {
+                        VStack(alignment: .leading, spacing: OnboardingStepMetrics.formSpacing) {
+                            VStack(alignment: .leading, spacing: OnboardingStepMetrics.labelToField) {
+                                if let fieldLabel = copy.entryFieldLabel {
+                                    OnboardingFieldLabel(title: fieldLabel)
+                                }
+                                phoneField
                             }
-                            .padding([.leading, .trailing], 15)
-                            .frame(maxHeight: .infinity)
+                            PhoneEntryHint(showsError: viewModel.showsInvalidPhoneHint, copy: copy)
                         }
-                        .background(
-                            RectEdgeShape(edge: .right)
-                                .strokeBorder(Metrics.inputFieldStrokeColor(highlighted: false), lineWidth: Metrics.inputFieldBorderWidth(highlighted: false))
-                        )
-                        .sheet(isPresented: $isShowingRegionSelection) {
-                            CountryCodeSelectionScreen(
-                                isPresented: $isShowingRegionSelection,
-                                didSelectRegion: didSelectRegion
-                            )
-                        }
-
-                        TextField("Phone Number", text: viewModel.adjustingPhoneNumberBinding)
-                            .font(.appTextXL)
-                            .keyboardType(.phonePad)
-                            .textContentType(.telephoneNumber)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .multilineTextAlignment(.leading)
-                            .padding([.leading, .trailing], 15)
-                            .focused($isFocused)
+                    } action: {
+                        nextButton
                     }
-                }
-
-                PhoneEntryHint(showsError: viewModel.showsInvalidPhoneHint, copy: copy)
-
-                Spacer()
-
-                CodeButton(
-                    state: viewModel.sendCodeButtonState,
-                    style: .filled,
-                    title: "Next",
-                    disabled: !viewModel.canSendVerificationCode
-                ) {
-                    viewModel.sendPhoneNumberCodeAction()
+                } else {
+                    VStack(spacing: 15) {
+                        Spacer()
+                        phoneField
+                        PhoneEntryHint(showsError: viewModel.showsInvalidPhoneHint, copy: copy)
+                        Spacer()
+                        nextButton
+                    }
+                    .padding(20)
                 }
             }
-            .padding(20)
             .foregroundStyle(.textMain)
         }
         .dialog(item: $viewModel.dialogItem)
@@ -110,6 +75,56 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
             if viewModel.canSendVerificationCode, viewModel.sendCodeButtonState == .normal {
                 viewModel.sendPhoneNumberCodeAction()
             }
+        }
+    }
+
+    // MARK: - Subviews -
+
+    private var phoneField: some View {
+        InputContainer(size: .regular) {
+            HStack(spacing: 0) {
+                Button {
+                    isShowingRegionSelection = true
+                } label: {
+                    HStack(spacing: 10) {
+                        Flag(style: viewModel.regionFlagStyle)
+                        Text(viewModel.countryCode)
+                            .font(.appTextXL)
+                    }
+                    .padding([.leading, .trailing], 15)
+                    .frame(maxHeight: .infinity)
+                }
+                .background(
+                    RectEdgeShape(edge: .right)
+                        .strokeBorder(Metrics.inputFieldStrokeColor(highlighted: false), lineWidth: Metrics.inputFieldBorderWidth(highlighted: false))
+                )
+                .sheet(isPresented: $isShowingRegionSelection) {
+                    CountryCodeSelectionScreen(
+                        isPresented: $isShowingRegionSelection,
+                        didSelectRegion: didSelectRegion
+                    )
+                }
+
+                TextField("Phone Number", text: viewModel.adjustingPhoneNumberBinding)
+                    .font(.appTextXL)
+                    .keyboardType(.phonePad)
+                    .textContentType(.telephoneNumber)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .multilineTextAlignment(.leading)
+                    .padding([.leading, .trailing], 15)
+                    .focused($isFocused)
+            }
+        }
+    }
+
+    private var nextButton: some View {
+        CodeButton(
+            state: viewModel.sendCodeButtonState,
+            style: .filled,
+            title: "Next",
+            disabled: !viewModel.canSendVerificationCode
+        ) {
+            viewModel.sendPhoneNumberCodeAction()
         }
     }
 

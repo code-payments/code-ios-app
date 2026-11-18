@@ -32,60 +32,73 @@ struct OnboardingNameScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: .leading, spacing: 0) {
-                switch copy {
-                case .standard:
+            switch copy {
+            case .standard:
+                VStack(alignment: .leading, spacing: 0) {
                     Text(copy.title)
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
                         .padding(.top, 20)
-                case .groupMoney:
-                    // The hint sits under the title, as in the other Group Money steps.
-                    OnboardingStepHeader(text: StepHeaderText(title: copy.title, subtitle: copy.hint))
-                        .padding(.top, 20)
-                }
 
-                TextField("Your Name", text: $viewModel.displayName)
-                    .font(.appDisplayMedium)
-                    .foregroundStyle(Color.textMain)
-                    .focused($isNameFocused)
-                    .textContentType(.name)
-                    .submitLabel(.next)
-                    .onSubmit(viewModel.submit)
-                    .padding(.top, 32)
-                    .disabled(viewModel.isSubmitting)
+                    nameField
+                        .padding(.top, 32)
 
-                if copy == .standard {
                     Text(copy.hint)
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .padding(.top, 8)
-                }
 
-                Spacer()
+                    Spacer()
 
-                if viewModel.remainingCharacters < Self.countdownThreshold {
-                    Text("\(viewModel.remainingCharacters) characters")
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 12)
+                    nextControls
+                        .padding(.bottom, 20)
                 }
-
-                Button(action: viewModel.submit) {
-                    ButtonStateLabel("Next", state: viewModel.buttonState)
+                .padding(.horizontal, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            case .groupMoney:
+                // The hint sits under the title, as in the other Group Money steps.
+                OnboardingStepLayout(header: StepHeaderText(title: copy.title, subtitle: copy.hint)) {
+                    nameField
+                } action: {
+                    nextControls
                 }
-                .buttonStyle(.filled)
-                .disabled(viewModel.validatedDisplayName == nil || viewModel.isSubmitting)
-                .accessibilityIdentifier("onboarding-name-next-button")
-                .padding(.bottom, 20)
             }
-            .padding(.horizontal, 20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
         .focusAfterPush($isNameFocused)
+    }
+
+    // MARK: - Subviews -
+
+    private var nameField: some View {
+        TextField("Your Name", text: $viewModel.displayName)
+            .font(.appDisplayMedium)
+            .foregroundStyle(Color.textMain)
+            .focused($isNameFocused)
+            .textContentType(.name)
+            .submitLabel(.next)
+            .onSubmit(viewModel.submit)
+            .disabled(viewModel.isSubmitting)
+    }
+
+    private var nextControls: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if viewModel.remainingCharacters < Self.countdownThreshold {
+                Text("\(viewModel.remainingCharacters) characters")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 12)
+            }
+
+            Button(action: viewModel.submit) {
+                ButtonStateLabel("Next", state: viewModel.buttonState)
+            }
+            .buttonStyle(.filled)
+            .disabled(viewModel.validatedDisplayName == nil || viewModel.isSubmitting)
+            .accessibilityIdentifier("onboarding-name-next-button")
+        }
     }
 }
 

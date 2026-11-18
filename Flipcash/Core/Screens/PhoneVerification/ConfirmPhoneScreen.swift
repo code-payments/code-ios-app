@@ -35,44 +35,29 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: copy == .standard ? .center : .leading, spacing: 5) {
+            Group {
                 if let header = copy.codeHeader(phone: sentToPhone, digits: viewModel.codeLength) {
-                    OnboardingStepHeader(text: header)
-                        .padding(.bottom, 25)
-                } else {
-                    Spacer()
-                }
-                Button {
-                    isFocused = true
-                } label: {
-                    ZStack {
-                        TwoFactorCodeView(digitCount: viewModel.codeLength, content: $viewModel.enteredCode)
-                        TextField("", text: viewModel.adjustingCodeBinding)
-                            .foregroundStyle(.backgroundMain)
-                            .keyboardType(.numberPad)
-                            .textContentType(.oneTimeCode)
-                            .offset(x: 999999, y: 999999)
-                            .focused($isFocused)
+                    // The boxes span the step's width, so they start at the same edge as the
+                    // subtitle above and the resend row below.
+                    OnboardingStepLayout(header: header) {
+                        VStack(alignment: .leading, spacing: OnboardingStepMetrics.formSpacing) {
+                            codeField(fillsWidth: true)
+                            stepFooter
+                        }
+                    } action: {
+                        confirmButton
                     }
-                }
-
-                if copy == .standard {
-                    standardFooter
                 } else {
-                    stepFooter
-                }
-
-                Spacer()
-                CodeButton(
-                    state: viewModel.confirmCodeButtonState,
-                    style: .filled,
-                    title: copy.codeButtonTitle,
-                    disabled: !viewModel.isCodeComplete
-                ) {
-                    viewModel.confirmPhoneNumberCodeAction()
+                    VStack(spacing: 5) {
+                        Spacer()
+                        codeField(fillsWidth: false)
+                        standardFooter
+                        Spacer()
+                        confirmButton
+                    }
+                    .padding(20)
                 }
             }
-            .padding(20)
             .foregroundStyle(.textMain)
         }
         .dialog(item: $viewModel.dialogItem)
@@ -100,6 +85,35 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
         }
         .onChange(of: notificationController.didBecomeActive) { _, _ in
             viewModel.pasteCodeFromClipboardIfPossible()
+        }
+    }
+
+    // MARK: - Subviews -
+
+    private func codeField(fillsWidth: Bool) -> some View {
+        Button {
+            isFocused = true
+        } label: {
+            ZStack {
+                TwoFactorCodeView(digitCount: viewModel.codeLength, fillsWidth: fillsWidth, content: $viewModel.enteredCode)
+                TextField("", text: viewModel.adjustingCodeBinding)
+                    .foregroundStyle(.backgroundMain)
+                    .keyboardType(.numberPad)
+                    .textContentType(.oneTimeCode)
+                    .offset(x: 999999, y: 999999)
+                    .focused($isFocused)
+            }
+        }
+    }
+
+    private var confirmButton: some View {
+        CodeButton(
+            state: viewModel.confirmCodeButtonState,
+            style: .filled,
+            title: copy.codeButtonTitle,
+            disabled: !viewModel.isCodeComplete
+        ) {
+            viewModel.confirmPhoneNumberCodeAction()
         }
     }
 
@@ -148,7 +162,7 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
 
     /// The Group Money step's resend line, then the explanation, both leading.
     private var stepFooter: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: OnboardingStepMetrics.formSpacing) {
             if let countdownEnd, countdownEnd > .now {
                 (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
                     .contentTransition(.numericText())
@@ -172,7 +186,6 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
                 .multilineTextAlignment(.leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 20)
     }
 
     private func resendCode() {

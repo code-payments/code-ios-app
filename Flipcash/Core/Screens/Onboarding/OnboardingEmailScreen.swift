@@ -28,35 +28,32 @@ struct OnboardingEmailScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: .leading, spacing: 15) {
-                OnboardingStepHeader(text: StepHeaderText(
-                    title: "Your email",
-                    subtitle: "Add an email address to your account."
-                ))
-                .padding(.bottom, 10)
+            OnboardingStepLayout(header: StepHeaderText(
+                title: "Your email",
+                subtitle: "Add an email address to your account."
+            )) {
+                VStack(alignment: .leading, spacing: OnboardingStepMetrics.labelToField) {
+                    OnboardingFieldLabel(title: "Email")
 
-                OnboardingFieldLabel(title: "Email")
-
-                InputContainer(size: .regular) {
-                    // Autocorrection stays on, as on EnterEmailScreen: turning it off hides the
-                    // QuickType bar, where iOS offers the contact card's address. It stays enabled
-                    // while submitting: a disabled field resigns, which takes the keyboard down
-                    // before the name step pushes in.
-                    TextField("Email", text: $viewModel.enteredEmail)
-                        .font(.appTextXL)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .submitLabel(.next)
-                        .onSubmit(viewModel.submit)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .multilineTextAlignment(.leading)
-                        .padding([.leading, .trailing], 15)
-                        .focused($isFocused)
+                    InputContainer(size: .regular) {
+                        // Autocorrection stays on, as on EnterEmailScreen: turning it off hides the
+                        // QuickType bar, where iOS offers the contact card's address. It stays enabled
+                        // while submitting: a disabled field resigns, which takes the keyboard down
+                        // before the name step pushes in.
+                        TextField("Email", text: $viewModel.enteredEmail)
+                            .font(.appTextXL)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .submitLabel(.next)
+                            .onSubmit(viewModel.submit)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .multilineTextAlignment(.leading)
+                            .padding([.leading, .trailing], 15)
+                            .focused($isFocused)
+                    }
                 }
-
-                Spacer()
-
+            } action: {
                 Button(action: viewModel.submit) {
                     ButtonStateLabel("Next", state: viewModel.buttonState)
                 }
@@ -64,8 +61,6 @@ struct OnboardingEmailScreen: View {
                 .disabled(!viewModel.canSubmit)
                 .accessibilityIdentifier("onboarding-email-next-button")
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
