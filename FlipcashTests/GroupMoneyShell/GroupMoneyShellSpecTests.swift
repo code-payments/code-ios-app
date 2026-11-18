@@ -614,6 +614,167 @@ struct GroupMoneyShellSpecTests {
         #expect(abs(avatarCentre.y - moneyTitle.midY) <= 0.5, "avatar \(avatar), title \(moneyTitle)")
     }
 
+    /// The title switched to fades in over the one left, so for a moment the bar draws a mix of
+    /// the two. The first switch to Money builds it, which is when its bar items draw late. The
+    /// copy of the header left is drawn only: whenever the bar offers VoiceOver the new tab's
+    /// title or control, it offers neither of the old tab's. Once the fade is done the bar holds
+    /// one title and one control, counting views drawn fully transparent, and draws them as a
+    /// switch without the fade leaves them.
+    @Test(
+        "8.34 flag on: a switch through the bar fades the title in over the one left, and settles on one title and one control",
+        arguments: [false, true]
+    )
+    func barSwitch_fadesTitleAndSettlesOnOne(leftAligned: Bool) async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, sessionContainer) = try await Self.hostedShell(leftAligned: leftAligned)
+        defer { window.isHidden = true }
+        // Groups is the wider title, and both draw from the same spot (8.7).
+        let titleRect = try await Self.frame(ofHeader: "Groups", in: window).insetBy(dx: -4, dy: -4)
+        _ = try await Self.frame(of: "New group", in: window)
+        try await Self.settle(window)
+        let groups = Self.pixels(in: titleRect, of: window)
+
+        let toMoney = try await Self.switchThroughBar(from: .groups, to: .money, in: window, capturing: titleRect)
+        #expect(Self.shellHeaderItems(in: window) == ShellHeaderItems.money)
+        let money = Self.pixels(in: titleRect, of: window)
+        #expect(Self.mixes(toMoney, between: groups, and: money), "\(Self.describeMix(toMoney, between: groups, and: money))")
+
+        let toGroups = try await Self.switchThroughBar(from: .money, to: .groups, in: window, capturing: titleRect)
+        #expect(Self.shellHeaderItems(in: window) == ShellHeaderItems.groups)
+        let back = Self.pixels(in: titleRect, of: window)
+        #expect(Self.mixes(toGroups, between: money, and: back), "\(Self.describeMix(toGroups, between: money, and: back))")
+
+        let unfaded = try await Self.groupsAfterRouterTrip(sessionContainer, in: window, capturing: titleRect)
+        #expect(Self.difference(back, unfaded) < 0.01, "\(Self.difference(back, unfaded))")
+    }
+
+    @Test(
+        "8.35 flag on: Money and straight back to Groups through the bar ends on Groups' title and Add alone, drawn as without the fade",
+        arguments: [false, true]
+    )
+    func barSwitch_backBeforeTheFadeEndsSettlesOnGroups(leftAligned: Bool) async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, sessionContainer) = try await Self.hostedShell(leftAligned: leftAligned)
+        defer { window.isHidden = true }
+        let title = try await Self.frame(ofHeader: "Groups", in: window)
+        let add = try await Self.frame(of: "New group", in: window)
+        try await Self.settle(window)
+        let header = title.union(add).insetBy(dx: -4, dy: -4)
+
+        try Self.activateBarTab("Money", in: window)
+        try await waitUntil(timeout: .seconds(5)) {
+            Self.shellHeaderItems(in: window, includingTransparent: false).titles == ["Money"]
+        }
+        // Back while Money's header is still fading in.
+        try Self.activateBarTab("Groups", in: window)
+        try await Task.sleep(for: .milliseconds(1300))
+        window.layoutIfNeeded()
+
+        #expect(Self.shellHeaderItems(in: window) == ShellHeaderItems.groups)
+        let back = Self.pixels(in: header, of: window)
+        let unfaded = try await Self.groupsAfterRouterTrip(sessionContainer, in: window, capturing: header)
+        #expect(Self.difference(back, unfaded) < 0.01, "\(Self.difference(back, unfaded))")
+    }
+
+    /// A switch into a tab with a screen pushed lands on that screen, not on the root whose header
+    /// would fade. When the stack pops back, the root draws Groups' header as it is, with no copy
+    /// of Money's over it, however soon after the switch that is. Popped without animation at
+    /// once, so a frame that mixes the two headers can only come from a fade.
+    @Test(
+        "8.36 flag on: through the bar into Groups with a screen pushed, a pop at once shows Groups' header without Money's",
+        arguments: [false, true]
+    )
+    func barSwitch_intoPushedStackFadesNothingOnPop(leftAligned: Bool) async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, sessionContainer) = try await Self.hostedShell(leftAligned: leftAligned)
+        defer { window.isHidden = true }
+        let router = sessionContainer.appRouter
+        let title = try await Self.frame(ofHeader: "Groups", in: window)
+        let add = try await Self.frame(of: "New group", in: window)
+        try await Self.settle(window)
+        let header = title.union(add).insetBy(dx: -4, dy: -4)
+
+        _ = try await Self.switchThroughBar(from: .groups, to: .money, in: window, capturing: header)
+        let money = Self.pixels(in: header, of: window)
+        router.setPath([.newChat], on: .tips)
+        try await Self.settle(window)
+
+        try Self.activateBarTab("Groups", in: window)
+        var popAtOnce = Transaction()
+        popAtOnce.disablesAnimations = true
+        withTransaction(popAtOnce) { router.setPath([], on: .tips) }
+        var captures: [[UInt8]] = []
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: .milliseconds(700))
+        while clock.now < end {
+            window.layoutIfNeeded()
+            captures.append(Self.pixels(in: header, of: window))
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        try await Task.sleep(for: .milliseconds(600))
+        window.layoutIfNeeded()
+
+        #expect(Self.shellHeaderItems(in: window) == ShellHeaderItems.groups)
+        let groups = Self.pixels(in: header, of: window)
+        #expect(!Self.mixes(captures, between: money, and: groups), "\(Self.describeMix(captures, between: money, and: groups))")
+    }
+
+    /// A screen pushed on Groups soon after a switch into it, once its header has faded in, covers
+    /// the root's header items. When the stack pops back, the root draws Groups' header as it is,
+    /// without running the fade from Money's again. Pushed and popped without animation inside the
+    /// second the shell keeps the switch, so a frame that mixes the two headers can only come
+    /// from a fade.
+    @Test(
+        "8.37 flag on: a push and pop on Groups just after a switch into it shows Groups' header without Money's",
+        arguments: [false, true]
+    )
+    func barSwitch_thenPushAndPopFadesNothing(leftAligned: Bool) async throws {
+        guard #available(iOS 26, *) else { return }
+        let (window, sessionContainer) = try await Self.hostedShell(leftAligned: leftAligned)
+        defer { window.isHidden = true }
+        let router = sessionContainer.appRouter
+        let title = try await Self.frame(ofHeader: "Groups", in: window)
+        let add = try await Self.frame(of: "New group", in: window)
+        try await Self.settle(window)
+        let header = title.union(add).insetBy(dx: -4, dy: -4)
+
+        _ = try await Self.switchThroughBar(from: .groups, to: .money, in: window, capturing: header)
+        let money = Self.pixels(in: header, of: window)
+
+        let clock = ContinuousClock()
+        let switched = clock.now
+        try Self.activateBarTab("Groups", in: window)
+        while clock.now < switched.advanced(by: .milliseconds(400)) {
+            window.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        var instant = Transaction()
+        instant.disablesAnimations = true
+        withTransaction(instant) { router.setPath([.newChat], on: .tips) }
+        var covered = false
+        while clock.now < switched.advanced(by: .milliseconds(520)) {
+            window.layoutIfNeeded()
+            if Self.shellHeaderItems(in: window).titles.isEmpty { covered = true }
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        #expect(covered, "the pushed screen never covered Groups' root before the pop")
+        withTransaction(instant) { router.setPath([], on: .tips) }
+        let popped = clock.now - switched
+        var captures: [[UInt8]] = []
+        let end = clock.now.advanced(by: .milliseconds(600))
+        while clock.now < end {
+            window.layoutIfNeeded()
+            captures.append(Self.pixels(in: header, of: window))
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        try await Task.sleep(for: .milliseconds(1000))
+        window.layoutIfNeeded()
+
+        #expect(Self.shellHeaderItems(in: window) == ShellHeaderItems.groups)
+        let groups = Self.pixels(in: header, of: window)
+        #expect(!Self.mixes(captures, between: money, and: groups), "popped at \(popped): \(Self.describeMix(captures, between: money, and: groups))")
+    }
+
     @Test("8.9 flag on: Money's title stays put while the screen scrolls under it, as Groups' does")
     func moneyTitle_pinnedWhileScrolling() async throws {
         let sessionContainer = try SessionContainer.makeTest(holdings: [])
@@ -1738,11 +1899,200 @@ extension GroupMoneyShellSpecTests {
         return try #require(settled)
     }
 
+    /// The full shell, Groups first, with the bar `leftAligned` picks.
+    fileprivate static func hostedShell(leftAligned: Bool) async throws -> (UIWindow, SessionContainer) {
+        let (controller, _) = try await seededChatList()
+        let sessionContainer = try SessionContainer.makeTest(holdings: [])
+        let window = try hostWindow(
+            HomeTabView()
+                .environment(controller)
+                .environment(GateFlags(showsGroupMoney: true, leftAligned: leftAligned) as BetaFlags)
+                .injectingEnvironment(from: sessionContainer)
+                .injectingEnvironment(from: Container.mock)
+        )
+        return (window, sessionContainer)
+    }
+
+    /// What the window draws in `rect` once Groups is back from Money through the router, which
+    /// switches without the headers' fade: Groups' header with nothing of a fade left on it.
+    ///
+    /// Compared with Groups after a switch through the bar rather than with Groups at launch: on
+    /// the system bar a tab brought back draws a slightly darker backdrop behind its title than it
+    /// did the first time, with or without the fade.
+    fileprivate static func groupsAfterRouterTrip(
+        _ sessionContainer: SessionContainer,
+        in window: UIWindow,
+        capturing rect: CGRect
+    ) async throws -> [UInt8] {
+        sessionContainer.appRouter.showTab(.wallet)
+        try await waitUntil(timeout: .seconds(5)) {
+            shellHeaderItems(in: window, includingTransparent: false).titles == ["Money"]
+        }
+        sessionContainer.appRouter.showTab(.chat)
+        try await waitUntil(timeout: .seconds(5)) {
+            shellHeaderItems(in: window, includingTransparent: false).titles == ["Groups"]
+        }
+        try await settle(window)
+        return pixels(in: rect, of: window)
+    }
+
+    /// Picks the tab labelled `label` on whichever tab bar is on screen: a switch through the bar
+    /// rather than through the router. The small bar's item is activated as VoiceOver's double tap
+    /// does. The system bar's buttons take no accessibility activation in a test host, so its tab
+    /// is picked the way UIKit picks it on a tap: the delegate is asked, the tab selected, and the
+    /// delegate told.
+    fileprivate static func activateBarTab(_ label: String, in window: UIWindow) throws {
+        window.layoutIfNeeded()
+        let bar = try #require(visibleTabBar(in: window), "no tab bar")
+        if let tabBar = bar as? UITabBar {
+            let controller = try #require(tabBar.delegate as? UITabBarController, "the system bar has no tab bar controller")
+            let tab = try #require(
+                controller.tabs.first { $0.title == label },
+                "no \(label) on the system bar; on it: \(controller.tabs.map(\.title))"
+            )
+            let previous = try #require(controller.selectedTab, "the system bar has no tab selected")
+            let delegate = controller.delegate
+            guard delegate?.tabBarController?(controller, shouldSelectTab: tab) ?? true else {
+                Issue.record("the system bar refused \(label)")
+                return
+            }
+            controller.selectedTab = tab
+            delegate?.tabBarController?(controller, didSelectTab: tab, previousTab: previous)
+            return
+        }
+        let items = elements(under: bar)
+        let item = try #require(
+            items.first { $0.accessibilityLabel == label },
+            "no \(label) on the bar; on it: \(items.compactMap(\.accessibilityLabel))"
+        )
+        #expect(item.accessibilityActivate(), "\(label) did not activate")
+    }
+
+    /// Switches from one shell tab to the other through the bar and returns once its header fade
+    /// has run out, with what the window drew in `rect` on the way.
+    ///
+    /// Throughout, whenever the bar offers VoiceOver `to`'s title or control, it must offer
+    /// neither of `from`'s.
+    fileprivate static func switchThroughBar(
+        from: ShellHeaderItems,
+        to: ShellHeaderItems,
+        in window: UIWindow,
+        capturing rect: CGRect
+    ) async throws -> [[UInt8]] {
+        try activateBarTab(to.titles[0], in: window)
+        var captures: [[UInt8]] = []
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: .milliseconds(700))
+        while clock.now < end {
+            let offered = shellHeaderItems(in: window, includingTransparent: false)
+            let arrived = !Set(offered.titles + offered.controls).isDisjoint(with: to.titles + to.controls)
+            let stayed = Set(offered.titles + offered.controls).intersection(from.titles + from.controls)
+            if arrived && !stayed.isEmpty {
+                Issue.record("the bar offers \(stayed.sorted()) beside \(to.titles[0])'s header: \(offered)")
+            }
+            captures.append(pixels(in: rect, of: window))
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        // The shell clears its switch a second after it starts.
+        try await Task.sleep(for: .milliseconds(600))
+        window.layoutIfNeeded()
+        return captures
+    }
+
+    /// The shell's titles and trailing controls the bar on screen offers VoiceOver, by label.
+    struct ShellHeaderItems: Equatable, CustomStringConvertible {
+        let titles: [String]
+        let controls: [String]
+
+        static let groups = ShellHeaderItems(titles: ["Groups"], controls: ["New group"])
+        static let money = ShellHeaderItems(titles: ["Money"], controls: ["You"])
+
+        var description: String { "titles \(titles), controls \(controls)" }
+    }
+
+    /// What the bar on screen offers of the shell's titles and trailing controls. With
+    /// `includingTransparent`, views drawn fully transparent count too, so a header left in
+    /// place but hidden still shows up.
+    fileprivate static func shellHeaderItems(in window: UIWindow, includingTransparent: Bool = true) -> ShellHeaderItems {
+        window.layoutIfNeeded()
+        guard let bar = navigationBar(in: window) else { return ShellHeaderItems(titles: [], controls: []) }
+        // The walk reaches an element both as an accessibility child and through its view, so
+        // each is counted once. By identity, so a second element on the same spot still counts.
+        var seen = Set<ObjectIdentifier>()
+        let found = elements(under: bar, includingTransparent: includingTransparent)
+            .filter { seen.insert(ObjectIdentifier($0)).inserted }
+        let titles = found
+            .filter { $0.accessibilityTraits.contains(.header) }
+            .compactMap(\.accessibilityLabel)
+            .filter { ["Groups", "Money"].contains($0) }
+        let controls = found.compactMap(\.accessibilityLabel).filter { ["New group", "You"].contains($0) }
+        return ShellHeaderItems(titles: titles, controls: controls)
+    }
+
+    /// What the window draws in `rect`, one pixel to a point, as red, green, blue and alpha bytes.
+    fileprivate static func pixels(in rect: CGRect, of window: UIWindow) -> [UInt8] {
+        let width = Int(rect.width.rounded(.up))
+        let height = Int(rect.height.rounded(.up))
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(
+                data: buffer.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return }
+            context.translateBy(x: -rect.minX, y: CGFloat(height) + rect.minY)
+            context.scaleBy(x: 1, y: -1)
+            UIGraphicsPushContext(context)
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
+            UIGraphicsPopContext()
+        }
+        return bytes
+    }
+
+    /// How far apart two captures of the same rect are: the mean difference per channel, 0 to 1.
+    fileprivate static func difference(_ a: [UInt8], _ b: [UInt8]) -> Double {
+        guard a.count == b.count, !a.isEmpty else { return 1 }
+        var total = 0
+        for index in a.indices { total += abs(Int(a[index]) - Int(b[index])) }
+        return Double(total) / Double(a.count) / 255
+    }
+
+    /// Where each capture sits between `start` and `end`: its distance from each, as a share of
+    /// theirs. A mix of the two at `t` reads (t, 1 - t). A frame with neither drawn reads about
+    /// (1, 1), which is why the sum is checked too.
+    fileprivate static func mixPositions(_ captures: [[UInt8]], between start: [UInt8], and end: [UInt8]) -> [(Double, Double)] {
+        let span = difference(start, end)
+        guard span > 0 else { return [] }
+        return captures.map { (difference($0, start) / span, difference($0, end) / span) }
+    }
+
+    /// Whether some capture is a mix of `start` and `end`, at least 15% of the way from each.
+    fileprivate static func mixes(_ captures: [[UInt8]], between start: [UInt8], and end: [UInt8]) -> Bool {
+        guard difference(start, end) > 0.005 else { return false }
+        return mixPositions(captures, between: start, and: end).contains { $0 > 0.15 && $1 > 0.15 && $0 + $1 < 1.3 }
+    }
+
+    fileprivate static func describeMix(_ captures: [[UInt8]], between start: [UInt8], and end: [UInt8]) -> String {
+        let positions = mixPositions(captures, between: start, and: end)
+            .map { String(format: "(%.2f, %.2f)", $0, $1) }
+        return "rest frames \(String(format: "%.4f", difference(start, end))) apart; captures: \(positions)"
+    }
+
     /// Every accessibility element under `view`, including SwiftUI's hosted nodes.
     fileprivate static func elements(in view: UIView) -> [NSObject] {
+        elements(under: view)
+    }
+
+    /// Every accessibility element under `object`. Views drawn fully transparent are skipped
+    /// unless `includingTransparent`.
+    fileprivate static func elements(under object: NSObject, includingTransparent: Bool = false) -> [NSObject] {
         func walk(_ object: NSObject, depth: Int) -> [NSObject] {
             guard depth < 40 else { return [] }
-            if let view = object as? UIView, view.isHidden || view.alpha <= 0.01 { return [] }
+            if let view = object as? UIView, view.isHidden || (!includingTransparent && view.alpha <= 0.01) { return [] }
             var found: [NSObject] = []
             if object.isAccessibilityElement { found.append(object) }
             for case let element as NSObject in object.accessibilityElements ?? [] {
@@ -1753,6 +2103,6 @@ extension GroupMoneyShellSpecTests {
             }
             return found
         }
-        return walk(view, depth: 0)
+        return walk(object, depth: 0)
     }
 }

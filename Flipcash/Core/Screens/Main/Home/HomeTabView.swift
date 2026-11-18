@@ -45,6 +45,10 @@ struct HomeTabView: View {
     /// which happens only with the Group Money layout: it keeps them off the bar.
     @State private var lastBarTab: HomeTab
 
+    /// The switch between the shell's bar tabs whose header fade is running. Set in the same
+    /// update as `selection`, and cleared once the fade is done.
+    @State private var headerSwitch: ShellTabSwitch?
+
     init() {
         _selection = State(initialValue: HomeTab.initial)
         _lastBarTab = State(initialValue: HomeTab.initial)
@@ -220,8 +224,19 @@ struct HomeTabView: View {
             }
             .onChange(of: hasPushedScreen) { wasPushed, isPushed in
                 if wasPushed && !isPushed { returnedToHome = true }
+                // A push ends the headers' fade: the root it covers, uncovered later, would
+                // otherwise run it again from the start.
+                if isPushed { headerSwitch = nil }
             }
             .onChange(of: selection) { _, _ in returnedToHome = false }
+            .task(id: headerSwitch?.id) {
+                guard headerSwitch != nil else { return }
+                // Well past the latest an item can start its fade and finish it. Each item drops
+                // its copy itself once its own fade is done.
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                headerSwitch = nil
+            }
             .task(id: updateToastMoment) {
                 guard let moment = updateToastMoment else { return }
                 try? await Task.sleep(for: moment.isReturn ? UpdatePolicy.returnSettle : UpdatePolicy.homeDwell)
@@ -309,9 +324,24 @@ struct HomeTabView: View {
     /// Brings the tab the router asked for forward and clears the request.
     private func selectRequestedTab() {
         guard let tab = router.requestedTab else { return }
+        // Without the headers' fade: a request can clear the tab's stack as it lands, and the
+        // root it uncovers would come in drawing the header of the tab left.
+        headerSwitch = nil
         selection = tab
         isSearchSelected = false
         router.requestedTab = nil
+    }
+
+    /// Brings `tab` forward from a bar. On iOS 26 with the shell, a move between its bar tabs also
+    /// starts the headers' fade; the system bar swaps the tabs themselves without one. Not into a
+    /// tab with a screen pushed: the switch lands on that screen, and its root, uncovered later,
+    /// would come in drawing the header of the tab left.
+    private func select(_ tab: HomeTab) {
+        if #available(iOS 26, *), layout == .groupMoney, layout.isOnBar(tab), tab != barSelection {
+            let covered = tab.pushStack.map { !router[$0].isEmpty } ?? false
+            headerSwitch = covered ? nil : ShellTabSwitch(from: barSelection, to: tab)
+        }
+        selection = tab
     }
 
     /// Scan or You in front of the shell, when the Group Money layout leaves
@@ -348,6 +378,7 @@ struct HomeTabView: View {
                 Tab(value: NativeTab.home(tab)) {
                     tabContent(for: tab)
                         .environment(\.shellBarBottomPadding, leadingBarSafeAreaPadding)
+                        .environment(\.shellTabSwitch, headerSwitch)
                         // Every tab stays alive, so only the selected one draws the toast. Raised over
                         // the small bar by what its safe area lacks, so it lands where it does over the
                         // system bar.
@@ -446,7 +477,7 @@ struct HomeTabView: View {
             switch tab {
             case .home(let tab):
                 isSearchSelected = false
-                selection = tab
+                select(tab)
             case .search:
                 isSearchSelected = true
             }
@@ -515,7 +546,7 @@ struct HomeTabView: View {
         HomeTabBar(
             selection: Binding { barSelection } set: {
                 isSearchSelected = false
-                selection = $0
+                select($0)
             },
             layout: layout,
             size: HomeTabBar.Size(for: alignment),
