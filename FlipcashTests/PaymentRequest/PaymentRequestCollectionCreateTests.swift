@@ -11,6 +11,13 @@ import FlipcashCore
 @Suite("Group payment requests: creating a collection")
 struct PaymentRequestCollectionCreateTests {
 
+    @Test("Request Money creates a collection with the Group Money flag, and the shipped split without it")
+    @MainActor
+    func flagPicksTheKind() {
+        #expect(PaymentRequestFlowKind(showsGroupMoney: true) == .collection)
+        #expect(PaymentRequestFlowKind(showsGroupMoney: false) == .split)
+    }
+
     @Test("Send Request asks for the keypad amount from each member, in its currency, with no text or deadline")
     func collectionAsksForTheEnteredAmount() {
         let collection = PaymentRequestCreateViewModel.collection(asking: FiatAmount(value: Decimal(string: "10.25")!, currency: .usd))

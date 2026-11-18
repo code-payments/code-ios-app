@@ -775,7 +775,7 @@ struct ConversationScreen: View {
         }
         .fullScreenCover(isPresented: $isShowingRequestMoney) {
             if let conversationID {
-                PaymentRequestFlow(conversationID: conversationID, collects: showsGroupMoney)
+                PaymentRequestFlow(conversationID: conversationID, kind: PaymentRequestFlowKind(showsGroupMoney: showsGroupMoney))
             }
         }
         .sheet(item: $paidReactionTarget) { target in

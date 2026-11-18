@@ -99,19 +99,31 @@ private enum PaymentRequestStep: Hashable {
     case details(PaymentRequestID)
 }
 
-/// Request Money in a private group: the history, then New Request's amount, summary and confirm.
-/// With `collects` set (the Group Money flag), the amount and a confirm, creating a collection.
+/// What Request Money creates in a private group.
+enum PaymentRequestFlowKind: Equatable {
+    /// The shipped split: the history, then New Request's amount, summary and confirm.
+    case split
+    /// A collection, under the Group Money flag: the amount and a confirm.
+    case collection
+
+    init(showsGroupMoney: Bool) {
+        self = showsGroupMoney ? .collection : .split
+    }
+}
+
+/// Request Money in a private group, creating a split or a collection by its ``PaymentRequestFlowKind``.
 struct PaymentRequestFlow: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
     let conversationID: ConversationID
-    var collects = false
+    var kind: PaymentRequestFlowKind = .split
 
     var body: some View {
-        if collects {
+        switch kind {
+        case .collection:
             PaymentRequestCollectionFlowContent(sessionContainer: sessionContainer, conversationID: conversationID)
-        } else {
+        case .split:
             PaymentRequestFlowContent(sessionContainer: sessionContainer, conversationID: conversationID)
         }
     }

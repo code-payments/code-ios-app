@@ -156,3 +156,41 @@ extension GroupPaymentRequest {
         chatID == conversationID && creator != nil && creator == sender
     }
 }
+
+extension PaymentRequestDetailsContent {
+
+    /// The details of `request` as `requests` holds it, or nil until it can draw: a collection once it is drawable, a split once its title reads.
+    @MainActor
+    static func reading(
+        _ request: GroupPaymentRequest,
+        in requests: PaymentRequests,
+        viewer: UserID,
+        hasPaymentIntent: Bool,
+        copy: PaymentRequestCopy,
+        now: Date,
+        name: (UserID) -> String
+    ) -> PaymentRequestDetailsContent? {
+        if request.collection != nil {
+            guard requests.isDrawable(request) else { return nil }
+            return PaymentRequestDetailsContent(
+                collection: request,
+                paidPayers: requests.payers.paidPayers(of: request.id),
+                viewerHasPaid: requests.payers.hasPaid(request.id, viewer: viewer),
+                viewer: viewer,
+                copy: copy,
+                now: now,
+                name: name
+            )
+        }
+        guard let text = requests.text(of: request) else { return nil }
+        return PaymentRequestDetailsContent(
+            request: request,
+            title: text.displayTitle,
+            viewer: viewer,
+            hasPaymentIntent: hasPaymentIntent,
+            copy: copy,
+            now: now,
+            name: name
+        )
+    }
+}

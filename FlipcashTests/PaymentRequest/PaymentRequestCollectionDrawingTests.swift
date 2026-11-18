@@ -133,6 +133,24 @@ struct PaymentRequestCollectionDrawingTests {
         #expect(card.fraction != nil)
     }
 
+    @Test("With the flag on, a split's Request details are still the split's: its title, its share rows and Mark as Paid")
+    func flagOnSplitDetails() throws {
+        let store = store(holding: [split], showsCollections: true)
+
+        let content = try #require(PaymentRequestDetailsContent.reading(
+            split,
+            in: store,
+            viewer: creator,
+            hasPaymentIntent: false,
+            copy: copy,
+            now: now,
+            name: { _ in "Jordan" }
+        ))
+        #expect(content.title == "Dinner")
+        #expect(content.emptyLine == nil)
+        #expect(content.rows.first { $0.userID == viewer }?.action == .markPaid)
+    }
+
     @Test("With the flag on, nothing is in the deck, and a collection's rows tap through with no title")
     func flagOnDeckAndTimelines() {
         let collection = collection()

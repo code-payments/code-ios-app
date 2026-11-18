@@ -235,22 +235,9 @@ struct PaymentRequestDetailsScreen: View {
         guard let request = requests.request(requestID) else { return nil }
         let copy = PaymentRequestCopy(session.displayCurrency)
         let name: (UserID) -> String = { member($0).map(ConversationLoadCoordinator.attributionName(for:)) ?? "Someone" }
-        if request.collection != nil {
-            guard requests.isDrawable(request) else { return nil }
-            return PaymentRequestDetailsContent(
-                collection: request,
-                paidPayers: requests.payers.paidPayers(of: requestID),
-                viewerHasPaid: requests.payers.hasPaid(requestID, viewer: session.userID),
-                viewer: session.userID,
-                copy: copy,
-                now: now,
-                name: name
-            )
-        }
-        guard let text = requests.text(of: request) else { return nil }
-        return PaymentRequestDetailsContent(
-            request: request,
-            title: text.displayTitle,
+        return PaymentRequestDetailsContent.reading(
+            request,
+            in: requests,
             viewer: session.userID,
             hasPaymentIntent: hasPaymentIntent,
             copy: copy,

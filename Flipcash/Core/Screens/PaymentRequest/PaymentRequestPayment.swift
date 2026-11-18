@@ -102,12 +102,14 @@ final class PaymentRequestPayment {
     /// until a read says they've paid it. `nil` when there is nothing to pay.
     var payable: Payable? {
         guard let request else { return nil }
-        if request.collection != nil {
-            guard case .fixed(let fixed)? = request.collection?.paymentAmount,
-                  requests.payers.hasPaid(requestID, viewer: session.userID) != true else { return nil }
+        guard let collection = request.collection else { return share.map(Payable.share) }
+        guard requests.payers.hasPaid(requestID, viewer: session.userID) != true else { return nil }
+        switch collection.paymentAmount {
+        case .fixed(let fixed):
             return .fixed(nativeAmount: fixed.nativeAmount)
+        case nil:
+            return nil
         }
-        return share.map(Payable.share)
     }
 
     /// The balances the currency picker offers.
@@ -148,11 +150,11 @@ final class PaymentRequestPayment {
             intentID = nil
             switch error {
             case .notOpen:
-                try? await requests.refreshDetails(requestID)
+                _ = try? await requests.refreshDetails(requestID)
                 showRequestClosed()
                 return .closed
             case .alreadyPaid, .notAPayer:
-                try? await requests.refreshDetails(requestID)
+                _ = try? await requests.refreshDetails(requestID)
                 return .nothingToPay
             case .denied, .notFound:
                 // The store marked the request unavailable; the screen says so in place of its body.
@@ -287,9 +289,12 @@ final class PaymentRequestPayment {
             break
         }
         // `amount` is capped at the balance; a collection never sends less than its fixed amount.
-        if case .fixed = payable, !covers(amount.nativeAmount, fiat) {
+        switch payable {
+        case .fixed where !covers(amount.nativeAmount, fiat):
             showInsufficientFunds(shortfall: nil)
             return .failed
+        case .fixed, .share:
+            break
         }
 
         let sendLimit = session.sendLimitFor(currency: amount.nativeAmount.currency) ?? .zero
@@ -320,14 +325,14 @@ final class PaymentRequestPayment {
             )
             self.intentID = nil
             Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: nil)
-            try? await requests.refreshDetails(requestID)
+            _ = try? await requests.refreshDetails(requestID)
             return .success
         } catch {
             Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: error)
             needsRefetch = true
             guard !(error is CancellationError) else { return .failed }
             // A refusal because the request ended reads as "Request Closed", not a send failure.
-            try? await requests.refreshDetails(requestID)
+            _ = try? await requests.refreshDetails(requestID)
             if isOpen {
                 showSendError()
             } else {
