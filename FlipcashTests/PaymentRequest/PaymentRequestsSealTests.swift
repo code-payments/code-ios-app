@@ -115,7 +115,7 @@ struct PaymentRequestsSealTests {
             getRequest: { _ in
                 reads += 1
                 if fails { throw ErrorGetPaymentRequest.transportFailure }
-                return (request, nil)
+                return (request, nil, nil)
             },
             openingSeal: { _ in try? Self.seal() }
         )

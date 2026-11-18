@@ -888,7 +888,7 @@ extension PaymentRequests {
     }
 
     private func deckItem(_ request: GroupPaymentRequest, viewer: UserID?, copy: PaymentRequestCopy, now: Date) -> PaymentRequestDeckItem? {
-        guard request.isDrawable, let text = text(of: request) else { return nil }
+        guard request.split != nil, let text = text(of: request) else { return nil }
         let owed = viewer.flatMap { viewer in
             request.isOwed(by: viewer, at: now) ? request.share(for: viewer) : nil
         }
