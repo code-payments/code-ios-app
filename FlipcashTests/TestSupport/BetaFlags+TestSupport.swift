@@ -17,6 +17,7 @@ extension BetaFlags {
     ///
     /// Not async, so nothing else on the main actor reads the store between the write and the
     /// restore.
+    @MainActor
     static func withEveryOptionStored(
         sourceLocation: SourceLocation = #_sourceLocation,
         _ body: () throws -> Void

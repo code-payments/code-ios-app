@@ -30,8 +30,8 @@ struct LogoutChatMediaTests {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
         let data = try #require(image.pngData())
         let caches = [
-            ("chat-media", ChatMediaImageSource.cache),
-            ("chat-media-originals", ChatMediaImageSource.originals),
+            ("chat-media", ChatMediaCaches.shared.images),
+            ("chat-media-originals", ChatMediaCaches.shared.originals),
         ]
 
         for (_, cache) in caches {

@@ -179,7 +179,7 @@ public enum ChatMediaImageSource {
     /// logout clears them before another account can sign in on the device. Synchronous, unlike
     /// `ImageCache.clearDiskCache`, so nothing survives into the next login.
     public static func clearCaches() {
-        for cache in [cache, originals] {
+        for cache in [ChatMediaCaches.shared.images, ChatMediaCaches.shared.originals] {
             cache.memoryStorage.removeAll()
             try? cache.diskStorage.removeAll()
         }
