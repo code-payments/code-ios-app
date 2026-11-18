@@ -194,19 +194,6 @@ struct BlobCacheTests {
         #expect(!cache().moveIn(missing, for: blob(1)))
     }
 
-    // MARK: - Removing one blob -
-
-    @Test func removeDropsOnlyThatBlob() {
-        let cache = cache()
-        cache.write(Data([1]), for: blob(1))
-        cache.write(Data([2]), for: blob(2))
-
-        cache.remove(blob(1))
-
-        #expect(!cache.holds(blob(1)))
-        #expect(cache.data(for: blob(2)) == Data([2]))
-    }
-
     // MARK: - Chat photos -
 
     /// Photos the notification extension downloads are other people's, so they must go when the

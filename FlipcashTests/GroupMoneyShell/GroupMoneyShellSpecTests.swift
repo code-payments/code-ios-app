@@ -1234,6 +1234,7 @@ struct GroupMoneyShellSpecTests {
 /// `super.init()` still reads the store, so the inherited members this class does not override
 /// answer from it: `accessGranted` and what is built on it (`canViewAccountInfo`,
 /// `hasVisibleOptions`), `bindingFor(option:)` and `staffStanding(live:userID:)`.
+@MainActor
 private final class GateFlags: BetaFlags {
     let showsGroupMoney: Bool
     let switchesAccounts: Bool
@@ -1297,6 +1298,7 @@ extension GroupMoneyShellSpecTests {
     /// once every item in that bar is laid out. The caller hides the window.
     @available(iOS 26, *)
     fileprivate func hostedTabBar(showsGroupMoney: Bool) async throws -> (UIWindow, UITabBar) {
+        UIAccessibility.enableForHostedTests()
         let sessionContainer = try SessionContainer.makeTest(holdings: [])
         let view = HomeTabView()
             .environment(GateFlags(showsGroupMoney: showsGroupMoney) as BetaFlags)
@@ -1321,7 +1323,7 @@ extension GroupMoneyShellSpecTests {
             }
         } catch {
             let bar = Self.tabBar(in: window)
-            Issue.record("bar items: \(bar?.items?.map { $0.title ?? "-" } ?? []), frames: \(bar.map(TabBarItemLocator.itemFrames(in:)) ?? [])")
+            Issue.record("bar items: \(bar?.items?.map { $0.title ?? "-" } ?? []), frames: \(bar.map(TabBarItemLocator.itemFrames(in:)) ?? []), \(UIAccessibility.hostedTestsState)")
             window.isHidden = true
             throw error
         }
@@ -1340,6 +1342,7 @@ extension GroupMoneyShellSpecTests {
 // MARK: - Hosted chat list -
 
 /// The shell's gate, flipped by a test while one view stays hosted.
+@MainActor
 @Observable
 private final class ShellGate {
     var isOn: Bool
@@ -1349,6 +1352,7 @@ private final class ShellGate {
 /// ``GateFlags`` whose answer follows a ``ShellGate``. Reading it inside a view's body tracks the
 /// gate, so a flip redraws the hosted view as a stored flag change would. Every flag reads off,
 /// whatever the test host has stored.
+@MainActor
 private final class FlippableGateFlags: BetaFlags {
     let gate: ShellGate
 
@@ -1390,7 +1394,7 @@ extension GroupMoneyShellSpecTests {
             }
         } catch {
             let bar = Self.navigationBar(in: window)
-            Issue.record("bar title: \(bar?.topItem?.title ?? "-"), labels: \(bar.map { Self.elements(in: $0).compactMap(\.accessibilityLabel) } ?? [])")
+            Issue.record("bar title: \(bar?.topItem?.title ?? "-"), labels: \(bar.map { Self.elements(in: $0).compactMap(\.accessibilityLabel) } ?? []), \(UIAccessibility.hostedTestsState)")
             window.isHidden = true
             throw error
         }
@@ -1466,7 +1470,7 @@ extension GroupMoneyShellSpecTests {
                 return found != nil
             }
         } catch {
-            Issue.record("no \(identifier); on screen: \(elements(in: window).compactMap { self.identifier(of: $0) })")
+            Issue.record("no \(identifier); on screen: \(elements(in: window).compactMap { self.identifier(of: $0) }), \(UIAccessibility.hostedTestsState)")
             throw error
         }
         return found
@@ -1594,7 +1598,7 @@ extension GroupMoneyShellSpecTests {
         let items = elements(in: stack.navigationBar).map {
             "\($0.accessibilityLabel ?? "?")[\(identifier(of: $0) ?? "-")] \($0.accessibilityFrame)"
         }
-        return "bar: \(items)"
+        return "bar: \(items), \(UIAccessibility.hostedTestsState)"
     }
 
     /// Whether two frames are the same to within a point.
@@ -1682,6 +1686,7 @@ extension GroupMoneyShellSpecTests {
 
     /// `view` in an iPhone-sized key window.
     fileprivate static func hostWindow(_ view: some View) throws -> UIWindow {
+        UIAccessibility.enableForHostedTests()
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)

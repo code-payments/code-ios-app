@@ -434,7 +434,16 @@ private struct WalletScreenContent: View {
         if #available(iOS 26.0, *) {
             ToolbarItem(placement: .topBarTrailing) {
                 ShellHeaderCrossfade(tab: .wallet, alignment: .center) {
-                    moneyProfileButton
+                    if #available(iOS 27.0, *) {
+                        moneyProfileButton
+                    } else {
+                        // iOS 26 sets an item whose glass is hidden 4pt further in than a glass
+                        // item, which leaves the avatar's centre 4pt short of Add's; this draws the
+                        // photo that far towards the edge without changing the size the bar lays out.
+                        moneyProfileButton
+                            .padding(.leading, 4)
+                            .padding(.trailing, -4)
+                    }
                 } outgoing: { _ in
                     NewChatButton.glyph
                         .frame(width: 44, height: 44)
