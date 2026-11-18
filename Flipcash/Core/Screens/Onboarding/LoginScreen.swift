@@ -98,9 +98,7 @@ struct LoginScreen: View {
                 .padding(.leading, 20)
                 .padding(.bottom, 15)
             }
-            .onAppear {
-                showKeyboard()
-            }
+            .focusAfterPush($isFocused)
         }
         .navigationTitle("Enter Access Key Words")
         .toolbarTitleDisplayMode(.inline)
@@ -184,10 +182,6 @@ struct LoginScreen: View {
         enteredWords.removeLast()
         enteredWords.append(word)
         inputText = "\(enteredWords.joinedTokens()) " // <- Insert space
-    }
-    
-    private func showKeyboard() {
-        isFocused = true
     }
     
     private func dismissKeyboard() {

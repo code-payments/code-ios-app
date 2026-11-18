@@ -80,10 +80,7 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
         .onAppear {
             countdownEnd = Date.now.addingTimeInterval(60)
         }
-        .task {
-            try? await Task.sleep(for: .milliseconds(100))
-            isFocused = true
-        }
+        .focusAfterPush($isFocused)
         .task(id: countdownEnd) {
             guard let countdownEnd else { return }
             let remaining = countdownEnd.timeIntervalSinceNow

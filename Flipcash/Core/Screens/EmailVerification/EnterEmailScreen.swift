@@ -65,9 +65,6 @@ struct EnterEmailScreen<VM: EmailVerifying>: View {
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Email")
         .toolbarTitleDisplayMode(.inline)
-        .task {
-            try? await Task.sleep(for: .milliseconds(100))
-            isFocused = true
-        }
+        .focusAfterPush($isFocused)
     }
 }

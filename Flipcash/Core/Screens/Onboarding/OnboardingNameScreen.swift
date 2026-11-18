@@ -85,7 +85,7 @@ struct OnboardingNameScreen: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
-        .onAppear { isNameFocused = true }
+        .focusAfterPush($isNameFocused)
     }
 }
 

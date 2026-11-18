@@ -96,10 +96,7 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
         }
         .dialog(item: $viewModel.dialogItem)
         .toolbarTitleDisplayMode(.inline)
-        .task {
-            try? await Task.sleep(for: .milliseconds(100))
-            isFocused = true
-        }
+        .focusAfterPush($isFocused)
         .onChange(of: viewModel.enteredPhone) { _, _ in
             // Advance as soon as the number is valid — a completed or pasted
             // number submits without a manual "Next" tap, mirroring the code

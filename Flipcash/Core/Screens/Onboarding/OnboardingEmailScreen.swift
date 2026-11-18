@@ -68,10 +68,7 @@ struct OnboardingEmailScreen: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
-        .task {
-            try? await Task.sleep(for: .milliseconds(100))
-            isFocused = true
-        }
+        .focusAfterPush($isFocused)
     }
 }
 
