@@ -1137,6 +1137,7 @@ extension GroupMoneyShellSpecTests {
     /// once every item in that bar is laid out. The caller hides the window.
     @available(iOS 26, *)
     fileprivate func hostedTabBar(showsGroupMoney: Bool) async throws -> (UIWindow, UITabBar) {
+        UIAccessibility.enableForHostedTests()
         let sessionContainer = try SessionContainer.makeTest(holdings: [])
         let view = HomeTabView()
             .environment(GateFlags(showsGroupMoney: showsGroupMoney) as BetaFlags)
@@ -1161,7 +1162,7 @@ extension GroupMoneyShellSpecTests {
             }
         } catch {
             let bar = Self.tabBar(in: window)
-            Issue.record("bar items: \(bar?.items?.map { $0.title ?? "-" } ?? []), frames: \(bar.map(TabBarItemLocator.itemFrames(in:)) ?? [])")
+            Issue.record("bar items: \(bar?.items?.map { $0.title ?? "-" } ?? []), frames: \(bar.map(TabBarItemLocator.itemFrames(in:)) ?? []), \(UIAccessibility.hostedTestsState)")
             window.isHidden = true
             throw error
         }
@@ -1232,7 +1233,7 @@ extension GroupMoneyShellSpecTests {
             }
         } catch {
             let bar = Self.navigationBar(in: window)
-            Issue.record("bar title: \(bar?.topItem?.title ?? "-"), labels: \(bar.map { Self.elements(in: $0).compactMap(\.accessibilityLabel) } ?? [])")
+            Issue.record("bar title: \(bar?.topItem?.title ?? "-"), labels: \(bar.map { Self.elements(in: $0).compactMap(\.accessibilityLabel) } ?? []), \(UIAccessibility.hostedTestsState)")
             window.isHidden = true
             throw error
         }
@@ -1308,7 +1309,7 @@ extension GroupMoneyShellSpecTests {
                 return found != nil
             }
         } catch {
-            Issue.record("no \(identifier); on screen: \(elements(in: window).compactMap { self.identifier(of: $0) })")
+            Issue.record("no \(identifier); on screen: \(elements(in: window).compactMap { self.identifier(of: $0) }), \(UIAccessibility.hostedTestsState)")
             throw error
         }
         return found
@@ -1436,7 +1437,7 @@ extension GroupMoneyShellSpecTests {
         let items = elements(in: stack.navigationBar).map {
             "\($0.accessibilityLabel ?? "?")[\(identifier(of: $0) ?? "-")] \($0.accessibilityFrame)"
         }
-        return "bar: \(items)"
+        return "bar: \(items), \(UIAccessibility.hostedTestsState)"
     }
 
     /// Whether two frames are the same to within a point.
@@ -1524,6 +1525,7 @@ extension GroupMoneyShellSpecTests {
 
     /// `view` in an iPhone-sized key window.
     fileprivate static func hostWindow(_ view: some View) throws -> UIWindow {
+        UIAccessibility.enableForHostedTests()
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
