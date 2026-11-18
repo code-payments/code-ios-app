@@ -126,17 +126,19 @@ struct PaymentRequestDetailsScreen: View {
                             shareRow(row)
                         }
                     }
-                    if let emptyLine = content.emptyLine {
-                        Text(emptyLine)
-                            .font(.appTextMedium)
-                            .foregroundStyle(Color.textSecondary)
-                            .frame(maxWidth: .infinity, minHeight: 170)
-                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
             .softScrollEdge(for: [.top, .bottom])
+            .overlay {
+                // Centred in the body, between the header and the Pay button, like frame 3.1.
+                if let emptyLine = content.emptyLine {
+                    Text(emptyLine)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
             if let payTitle = content.payTitle {
                 Button {
                     pay()
