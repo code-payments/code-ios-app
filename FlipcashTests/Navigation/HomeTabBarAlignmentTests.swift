@@ -298,6 +298,7 @@ private struct HostedShellBar {
 
 /// The two gates the bar reads, flipped by a test while one view stays hosted. Reading them
 /// inside a view's body tracks them, so a flip redraws the view as a stored flag change would.
+@MainActor
 @Observable
 private final class BarFlags {
     var showsGroupMoney: Bool
@@ -313,6 +314,7 @@ private final class BarFlags {
 /// a flag stored on the test host (other suites write them to `UserDefaults.standard`) does not
 /// reach this suite through this stand-in. The inherited members it does not override, such as
 /// `accessGranted`, and code that reads `BetaFlags.shared` still answer from the store.
+@MainActor
 private final class AlignmentFlags: BetaFlags {
     let state: BarFlags
 

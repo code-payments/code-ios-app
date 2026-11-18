@@ -304,6 +304,7 @@ struct GroupMoneyInviteSpecTests {
         flags: BetaFlags,
         present: () -> Void = {}
     ) async throws -> [SheetElement] {
+        UIAccessibility.enableForHostedTests()
         let view = root
             .environment(flags)
             .injectingEnvironment(from: sessionContainer)
@@ -324,18 +325,25 @@ struct GroupMoneyInviteSpecTests {
         var stableReads = 0
         // Title and QR Code are drawn by every group sheet, so a sheet that differs fails the
         // comparison rather than this wait.
-        try await waitUntil {
-            window.layoutIfNeeded()
-            guard let presented = window.rootViewController?.presentedViewController,
-                  let sheet = presented.sheetPresentationController,
-                  !sheet.detents.isEmpty,
-                  !sheet.detents.map(\.identifier).contains(.large) else { return false }
-            let elements = Self.elements(in: presented.view, link: shownLink)
-            let labels = elements.map(\.label)
-            guard labels.contains("Invite People"), labels.contains("QR Code") else { return false }
-            stableReads = elements == last ? stableReads + 1 : 0
-            last = elements
-            return stableReads >= 20
+        do {
+            try await waitUntil {
+                window.layoutIfNeeded()
+                guard let presented = window.rootViewController?.presentedViewController,
+                      let sheet = presented.sheetPresentationController,
+                      !sheet.detents.isEmpty,
+                      !sheet.detents.map(\.identifier).contains(.large) else { return false }
+                let elements = Self.elements(in: presented.view, link: shownLink)
+                let labels = elements.map(\.label)
+                guard labels.contains("Invite People"), labels.contains("QR Code") else { return false }
+                stableReads = elements == last ? stableReads + 1 : 0
+                last = elements
+                return stableReads >= 20
+            }
+        } catch {
+            let presented = window.rootViewController?.presentedViewController
+            let labels = presented.map { Self.elements(in: $0.view, link: shownLink).map(\.label) } ?? []
+            Issue.record("sheet: \(presented.map { "\(type(of: $0))" } ?? "none"), labels: \(labels), \(UIAccessibility.hostedTestsState)")
+            throw error
         }
         return last
     }

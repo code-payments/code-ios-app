@@ -431,9 +431,19 @@ private struct WalletScreenContent: View {
     @ToolbarContentBuilder private var moneyBarItems: some ToolbarContent {
         ShellTabTitle(title: MoneyHeaderContent.title, accessibilityIdentifier: "money-title")
         // The photo is the control, so no glass behind it.
-        if #available(iOS 26.0, *) {
+        if #available(iOS 27.0, *) {
             ToolbarItem(placement: .topBarTrailing) { moneyProfileButton }
                 .sharedBackgroundVisibility(.hidden)
+        } else if #available(iOS 26.0, *) {
+            // iOS 26 sets an item whose glass is hidden 4pt further in than a glass item, which
+            // leaves the avatar's centre 4pt short of Add's; this draws the photo that far towards
+            // the edge without changing the size the bar lays out.
+            ToolbarItem(placement: .topBarTrailing) {
+                moneyProfileButton
+                    .padding(.leading, 4)
+                    .padding(.trailing, -4)
+            }
+            .sharedBackgroundVisibility(.hidden)
         } else {
             ToolbarItem(placement: .topBarTrailing) { moneyProfileButton }
         }
