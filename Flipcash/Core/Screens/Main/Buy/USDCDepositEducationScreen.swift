@@ -52,7 +52,7 @@ struct USDCDepositEducationScreen: View {
 
                 Spacer()
 
-                VStack(spacing: 8) {
+                VStack(spacing: Metrics.buttonGap) {
                     Button("Next", action: onNext)
                         .buttonStyle(.filled)
 
