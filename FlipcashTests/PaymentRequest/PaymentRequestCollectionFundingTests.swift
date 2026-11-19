@@ -718,6 +718,226 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.payment.fundingPlan?.topUpMicros == 5_000_000)
     }
 
+    // MARK: - Adding money from the Request screen (S6)
+
+    /// A tap on the Request screen's top-up button for `f`, with the amount the button showed.
+    private func tapTopUp(
+        _ f: Fixture,
+        _ flow: PaymentRequestPayFlow,
+        micros: Int64,
+        verified: Bool = true,
+        refreshed: @escaping @MainActor () -> Void = {}
+    ) async -> PaymentRequestPayFlow.TopUpInPlaceResult {
+        await flow.topUpInPlace(
+            requestID,
+            topUpMicros: micros,
+            sessionContainer: f.container,
+            router: AppRouter(),
+            verified: { verified },
+            refreshed: { refreshed() },
+            payment: f.payment
+        )
+    }
+
+    @Test("1.1: with no balance the Request button reads Pay $10.00, and a tap adds $10 and pays once with no sheet")
+    func requestScreenTopsUpTheAmount() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        f.topUpper.delivered = 10
+        let flow = PaymentRequestPayFlow()
+        var refreshes = 0
+
+        let button = try #require(f.payment.fundingSheet?.requestTopUp)
+        #expect(button == .init(micros: 10_000_000, title: "Pay $10.00", footnote: nil))
+        let result = await tapTopUp(f, flow, micros: button.micros, refreshed: { refreshes += 1 })
+
+        #expect(result == .paid(.success))
+        #expect(!flow.isPaying)
+        #expect(f.container.session.dialogItem == nil)
+        #expect(f.topUpper.orders.map(\.amountUSD) == [10])
+        #expect(f.payer.payments.count == 1)
+        #expect(f.payer.payments.first?.amount.nativeAmount.value == 10)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(refreshes == 1)
+        #expect(!flow.isToppingUp)
+        #expect(!flow.showsFinishing)
+    }
+
+    @Test("2.1: under the Apple Pay minimum the button reads Add $5.00 and Pay $2.00 over the footnote, and a tap adds $5 and pays once")
+    func requestScreenTopsUpTheMinimum() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 2, dollars: nil, jeffy: nil)
+        f.topUpper.delivered = 5
+        let flow = PaymentRequestPayFlow()
+
+        let button = try #require(f.payment.fundingSheet?.requestTopUp)
+        #expect(button == .init(
+            micros: 5_000_000,
+            title: "Add $5.00 and Pay $2.00",
+            footnote: "The minimum you can add with Apple Pay is $5."
+        ))
+        #expect(await tapTopUp(f, flow, micros: button.micros) == .paid(.success))
+
+        #expect(!flow.isPaying)
+        #expect(f.topUpper.orders.map(\.amountUSD) == [5])
+        #expect(f.payer.payments.count == 1)
+        #expect(f.payer.payments.first?.amount.nativeAmount.value == 2)
+    }
+
+    @Test("A dust balance counts as none, so the button still adds the whole amount")
+    func dustBalanceStillTopsUp() async throws {
+        // $0.004: under half a cent.
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000, jeffy: nil)
+
+        #expect(f.payment.fundingSheet?.requestTopUp == .init(micros: 10_000_000, title: "Pay $10.00", footnote: nil))
+    }
+
+    @Test("No balance on a last paid currency other than Dollars adds the amount with no fee, so no footnote")
+    func nonDollarsLastPaidTopsUpTheAmount() async throws {
+        let f = try await fixture(
+            Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil,
+            lastPaid: .jeffy, storesJeffyMetadata: true
+        )
+
+        #expect(f.payment.fundingSheet?.payingCurrency == PublicKey.jeffy.base58)
+        #expect(f.payment.fundingPlan?.legs.map(\.feeMicros) == [0])
+        #expect(f.payment.fundingSheet?.requestTopUp == .init(micros: 10_000_000, title: "Pay $10.00", footnote: nil))
+    }
+
+    @Test("A balance funding any part keeps the button on Pay; a tap the plan moved under opens the sheet and orders nothing")
+    func partialBalanceOpensSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        let flow = PaymentRequestPayFlow()
+
+        #expect(f.payment.fundingSheet?.requestTopUp == nil)
+        // The button drew "Pay $10.00" before $6 landed.
+        #expect(await tapTopUp(f, flow, micros: 10_000_000) == .prepared(.ready))
+
+        #expect(flow.isPaying)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("A button drawn before the top-up changed orders nothing and opens the sheet on the short state")
+    func staleButtonOpensShortState() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        let flow = PaymentRequestPayFlow()
+
+        #expect(await tapTopUp(f, flow, micros: 5_000_000) == .paid(.short))
+
+        #expect(flow.isPaying)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("Backing out of verification opens no Apple Pay, orders nothing and pays nothing")
+    func declinedVerificationOrdersNothing() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        let flow = PaymentRequestPayFlow()
+
+        #expect(await tapTopUp(f, flow, micros: 10_000_000, verified: false) == .notVerified)
+
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.payer.payments.isEmpty)
+        #expect(!flow.isToppingUp)
+    }
+
+    @Test("Over the send limit, a tap on the Request button opens no Apple Pay and orders nothing")
+    func requestScreenOverSendLimit() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil, sendLimit: 8)
+        let flow = PaymentRequestPayFlow()
+
+        #expect(await tapTopUp(f, flow, micros: 10_000_000) == .paid(.failed))
+
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.payer.payments.isEmpty)
+        #expect(f.container.session.dialogItem?.title == "Transaction Limit Reached")
+    }
+
+    @Test("The next tap waits on the top-up an earlier tap ordered and never orders again")
+    func nextTapWaitsOnKeptTopUp() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        f.topUpper.orderResult = .mayDeliver
+        let flow = PaymentRequestPayFlow()
+
+        #expect(await tapTopUp(f, flow, micros: 10_000_000) == .paid(.failed))
+        #expect(f.container.session.dialogItem?.title == "Money Still on Its Way")
+        #expect(f.fundingStore.pendingTopUp(for: requestID)?.authorized == true)
+        // The Dollars haven't landed, so the button still adds the money.
+        #expect(flow.inPlaceTopUp(for: requestID)?.micros == 10_000_000)
+
+        f.topUpper.delivered = 10
+        #expect(await tapTopUp(f, flow, micros: 10_000_000) == .paid(.success))
+
+        #expect(f.topUpper.orders.count == 1)
+        #expect(f.payer.payments.count == 1)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+    }
+
+    @Test("Relaunched with a kept top-up, the Request button waits on it, pays once and orders nothing")
+    func relaunchedRequestButtonWaitsOnKeptTopUp() async throws {
+        let server = Server(intentResult: .success(intentID))
+        let f = try await fixture(server, amount: 10, dollars: nil, jeffy: nil)
+        f.topUpper.orderResult = .mayDeliver
+        #expect(await tapTopUp(f, PaymentRequestPayFlow(), micros: 10_000_000) == .paid(.failed))
+
+        let relaunched = try await relaunch(f, server)
+        relaunched.topUpper.delivered = 10
+        #expect(await tapTopUp(relaunched, PaymentRequestPayFlow(), micros: 10_000_000) == .paid(.success))
+
+        #expect(relaunched.topUpper.orders.isEmpty)
+        #expect(f.topUpper.orders.count == 1)
+        #expect(f.payer.payments.count == 1)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+    }
+
+    @Test("1.3: Finishing Payment shows until the refetch is done, and a second tap meanwhile does nothing")
+    func secondTapDuringRunDoesNothing() async throws {
+        let server = Server(intentResult: .success(intentID))
+        let f = try await fixture(server, amount: 10, dollars: nil, jeffy: nil)
+        f.topUpper.delivered = 10
+        f.topUpper.holdsWait = true
+        let flow = PaymentRequestPayFlow()
+        var finishingAtRefresh: Bool?
+
+        let first = Task { await tapTopUp(f, flow, micros: 10_000_000, refreshed: { finishingAtRefresh = flow.showsFinishing }) }
+        while f.topUpper.releaseWait == nil { await Task.yield() }
+        #expect(flow.isToppingUp)
+        #expect(flow.showsFinishing)
+
+        let reads = server.intentReads
+        #expect(await tapTopUp(f, flow, micros: 10_000_000) == .busy)
+        #expect(await flow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment) == .failed)
+        #expect(server.intentReads == reads)
+        #expect(!flow.isPaying)
+
+        f.topUpper.releaseWait?()
+        #expect(await first.value == .paid(.success))
+
+        #expect(finishingAtRefresh == true)
+        #expect(!flow.showsFinishing)
+        #expect(!flow.isToppingUp)
+        #expect(f.topUpper.orders.count == 1)
+        #expect(f.topUpper.waits == 1)
+        #expect(f.payer.payments.count == 1)
+    }
+
+    @Test("With Group Money off the Request button stays Pay and a tap orders nothing")
+    func requestScreenFlagOff() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil, fundsCollections: false)
+        let flow = PaymentRequestPayFlow()
+
+        let result = await tapTopUp(f, flow, micros: 10_000_000)
+
+        guard case .prepared = result else {
+            Issue.record("Expected the shipped Pay path, got \(result)")
+            return
+        }
+        #expect(flow.inPlaceTopUp(for: requestID) == nil)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.payer.payments.isEmpty)
+    }
+
     @Test("With Group Money off a collection neither plans nor converts, and the sheet stays the shipped one")
     func flagOff() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.plentyOfJeffy, fundsCollections: false)

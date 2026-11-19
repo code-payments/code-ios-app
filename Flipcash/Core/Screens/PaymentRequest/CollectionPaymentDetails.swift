@@ -40,6 +40,20 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
     /// The short state, or nil when the balances cover the payment.
     let topUp: TopUp?
 
+    /// The Request screen's button when no balance funds any of the payment, so tapping it adds
+    /// money with Apple Pay and pays with no sheet: "Pay $10.00" when the top-up is the amount
+    /// (1.1), else "Add $5.00 and Pay $2.00" over the Apple Pay minimum (2.1).
+    struct RequestTopUp: Equatable, Sendable {
+        /// What the button adds, in the request currency's micros.
+        let micros: Int64
+        let title: String
+        let footnote: String?
+    }
+
+    /// Set when the top-up covers the whole payment; nil when a balance funds any of it, and the
+    /// sheet opens as before.
+    let requestTopUp: RequestTopUp?
+
     /// The paying currency's id.
     let payingCurrency: String
 
@@ -54,7 +68,9 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
 
     init(plan: CollectionFundingPlan, display: CollectionFundingDisplay, currency: CurrencyCode) {
         feeLine = display.modalFee
-        topUp = plan.payableWithoutTopUp ? nil : Self.topUp(plan: plan, currency: currency)
+        let topUp = plan.payableWithoutTopUp ? nil : Self.topUp(plan: plan, currency: currency)
+        self.topUp = topUp
+        requestTopUp = topUp.flatMap { Self.requestTopUp(plan: plan, topUp: $0, currency: currency) }
         payingCurrency = display.payCurrency
         pay = Line(currency: display.payCurrency, name: display.pay.label, amount: display.pay.amount, sublabels: [])
         use = zip(display.useCurrencies, display.use).map { currency, row in
@@ -77,6 +93,24 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
             button: String(localized: "Add \(added) and Pay \(paid)", comment: "Pay sheet button: add money with Apple Pay, then pay the request"),
             footnote: String(localized: "The minimum you can add with Apple Pay is $5.", comment: "Pay sheet footnote under the add-and-pay button")
         )
+    }
+
+    /// The Request screen's button, when no leg takes anything from a balance. The planner has
+    /// already dropped balances under the dust floor, so a dust balance doesn't count.
+    private static func requestTopUp(plan: CollectionFundingPlan, topUp: TopUp, currency: CurrencyCode) -> RequestTopUp? {
+        let usesNoBalance = plan.legs.allSatisfy { leg in
+            leg.dollarsSplit.map { $0.fromBalanceMicros == 0 } ?? (leg.soldMicros == 0)
+        }
+        guard plan.topUpMicros > 0, usesNoBalance else { return nil }
+        guard plan.topUpMicros > plan.amountMicros else {
+            let paid = CollectionFundingDisplay.amountText(micros: plan.amountMicros, currency: currency)
+            return RequestTopUp(
+                micros: plan.topUpMicros,
+                title: String(localized: "Pay \(paid)", comment: "Request screen button: add the amount with Apple Pay and pay the request"),
+                footnote: nil
+            )
+        }
+        return RequestTopUp(micros: plan.topUpMicros, title: topUp.button, footnote: topUp.footnote)
     }
 }
 

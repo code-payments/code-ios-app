@@ -18,6 +18,7 @@ struct PaymentRequestDetailsScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(VerificationCoordinator.self) private var verificationCoordinator
 
     let requestID: PaymentRequestID
     /// Whether the screen is pushed onto an existing navigation stack, which then supplies the back
@@ -31,6 +32,7 @@ struct PaymentRequestDetailsScreen: View {
     @State private var hasPaymentIntent = false
     @State private var payFlow = PaymentRequestPayFlow()
     @State private var isUpdating = false
+    @State private var verificationViewModel: OnrampVerification?
 
     var body: some View {
         Group {
@@ -58,15 +60,28 @@ struct PaymentRequestDetailsScreen: View {
                 await refresh()
             }
         }
+        // The Request button reads the plan, so the payment exists before the first tap.
+        .task(id: requestID) {
+            payFlow.attach(requestID, sessionContainer: sessionContainer)
+        }
+        .onChange(of: payFlow.payment?.isFinishing == true) { _, isFinishing in
+            if isFinishing { payFlow.holdFinishing() }
+        }
         .dialog(item: $dialogItem)
+        .sheet(item: $verificationViewModel.cancellingOnDismiss()) { viewModel in
+            VerifyInfoScreen(viewModel: viewModel)
+        }
         .paymentRequestPaySheet(payFlow)
     }
 
     private var screen: some View {
         // The status line counts down, so redraw at least once a minute.
         TimelineView(.periodic(from: .now, by: 60)) { context in
-            // A collection's intent read can answer DENIED or NOT_FOUND while its copy is still held.
-            if isUnavailableCollection {
+            if payFlow.showsFinishing {
+                // Money the Request button added is landing; 1.3 draws this full screen.
+                PaymentRequestFinishing()
+                    .frame(maxHeight: .infinity)
+            } else if isUnavailableCollection {
                 unavailable
             } else if let content = content(at: context.date) {
                 loaded(content)
@@ -98,6 +113,10 @@ struct PaymentRequestDetailsScreen: View {
                 }
             }
         }
+        // Nothing leaves the screen while the payment finishes.
+        .toolbar(payFlow.showsFinishing ? .hidden : .automatic, for: .navigationBar)
+        .navigationBarBackButtonHidden(payFlow.showsFinishing)
+        .interactiveDismissDisabled(payFlow.showsFinishing)
     }
 
     // MARK: - Content -
@@ -143,13 +162,25 @@ struct PaymentRequestDetailsScreen: View {
                 }
             }
             if let payTitle = content.payTitle {
-                Button {
-                    pay()
-                } label: {
-                    ButtonStateLabel(payTitle, state: payFlow.isPreparing ? .loading : .normal)
+                let topUp = payFlow.inPlaceTopUp(for: requestID)
+                let isBusy = payFlow.isPreparing || payFlow.isToppingUp
+                VStack(spacing: 16) {
+                    Button {
+                        pay(topUp: topUp)
+                    } label: {
+                        ButtonStateLabel(topUp?.title ?? payTitle, state: isBusy ? .loading : .normal)
+                    }
+                    .buttonStyle(.filled)
+                    .disabled(isBusy)
+                    // A top-up opens Apple Pay straight from this button, so it is told apart from Pay.
+                    .accessibilityIdentifier(topUp == nil ? "payment-request-pay-button" : "payment-request-topup-button")
+                    if let footnote = topUp?.footnote {
+                        Text(footnote)
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
-                .buttonStyle(.filled)
-                .disabled(payFlow.isPreparing)
                 .padding(.horizontal, 20)
                 .bottomEdgePadding()
             }
@@ -273,10 +304,28 @@ struct PaymentRequestDetailsScreen: View {
         }
     }
 
-    /// Refetches for the intent ID right before the swipe sheet, as the spec requires.
-    private func pay() {
+    /// Refetches for the intent ID right before the swipe sheet, as the spec requires. When no
+    /// balance funds a collection, `topUp` is what the button showed, and the tap adds that with
+    /// Apple Pay and pays, with no sheet.
+    private func pay(topUp: CollectionPaymentSheetContent.RequestTopUp?) {
+        guard !payFlow.isToppingUp else { return }
         Task {
-            switch await payFlow.start(requestID, sessionContainer: sessionContainer, router: router) {
+            let preparation: PaymentRequestPayment.Preparation
+            if let topUp {
+                let result = await payFlow.topUpInPlace(
+                    requestID,
+                    topUpMicros: topUp.micros,
+                    sessionContainer: sessionContainer,
+                    router: router,
+                    verified: { await verificationCoordinator.verified(for: session, bind: { verificationViewModel = $0 }) },
+                    refreshed: { await refresh() }
+                )
+                guard case .prepared(let prepared) = result else { return }
+                preparation = prepared
+            } else {
+                preparation = await payFlow.start(requestID, sessionContainer: sessionContainer, router: router)
+            }
+            switch preparation {
             case .ready, .noBalance:
                 break
             case .nothingToPay, .closed, .failed:
@@ -403,6 +452,55 @@ final class PaymentRequestPayFlow {
     private(set) var isPreparing = false
     var isPaying = false
     private(set) var payment: PaymentRequestPayment?
+    /// True from a tap on the Request screen's top-up button until its run, and the refetch after
+    /// a payment, are done. A second tap meanwhile does nothing.
+    private(set) var isToppingUp = false
+    /// Keeps "Finishing Payment" up once it has shown, until the run ends, so the unpaid row
+    /// doesn't flash back between the payment landing and the refetch.
+    private(set) var holdsFinishing = false
+
+    /// What the Request screen draws in place of its body while money it added lands (1.3).
+    var showsFinishing: Bool {
+        isToppingUp && (payment?.isFinishing == true || holdsFinishing)
+    }
+
+    /// What happened to a tap on the Request screen's top-up button.
+    enum TopUpInPlaceResult: Equatable {
+        /// It stopped before Apple Pay, or the sheet opened: what preparing found.
+        case prepared(PaymentRequestPayment.Preparation)
+        /// The user backed out of verifying the contact Coinbase needs; nothing was ordered.
+        case notVerified
+        /// Money was added, or a top-up an earlier tap ordered was waited on, and the payment came to this.
+        case paid(PaymentRequestPayment.Outcome)
+        /// An earlier tap's run is still going.
+        case busy
+    }
+
+    /// Builds the payment for `requestID` ahead of a tap, so the Request screen's button can read
+    /// how the payment would be funded.
+    func attach(_ requestID: PaymentRequestID, sessionContainer: SessionContainer) {
+        _ = payment(for: requestID, sessionContainer: sessionContainer)
+    }
+
+    /// The Request screen's button when no balance funds the collection, so the button adds the
+    /// money itself (1.1, 2.1); nil when a balance funds any of it and Pay opens the sheet.
+    func inPlaceTopUp(for requestID: PaymentRequestID) -> CollectionPaymentSheetContent.RequestTopUp? {
+        guard let payment, payment.requestID == requestID, payment.fundsCollection else { return nil }
+        return payment.fundingSheet?.requestTopUp
+    }
+
+    private func payment(
+        for requestID: PaymentRequestID,
+        sessionContainer: SessionContainer,
+        requests: PaymentRequests? = nil,
+        injected: PaymentRequestPayment? = nil
+    ) -> PaymentRequestPayment {
+        let payment = injected
+            ?? self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
+            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer, requests: requests)
+        self.payment = payment
+        return payment
+    }
 
     /// Prepares to pay the viewer's share of `requestID` and shows the sheet when it is payable.
     /// A payable share the viewer has nothing to pay with gets the "No Balance Yet" dialog instead of
@@ -416,15 +514,65 @@ final class PaymentRequestPayFlow {
         requests: PaymentRequests? = nil,
         payment injected: PaymentRequestPayment? = nil
     ) async -> PaymentRequestPayment.Preparation {
-        guard !isPreparing else { return .failed }
+        guard !isPreparing, !isToppingUp else { return .failed }
         isPreparing = true
         defer { isPreparing = false }
-        let payment = injected
-            ?? self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
-            ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer, requests: requests)
-        self.payment = payment
+        let payment = payment(for: requestID, sessionContainer: sessionContainer, requests: requests, injected: injected)
         let preparation = await payment.prepare()
         guard preparation == .ready else { return preparation }
+        return present(payment, sessionContainer: sessionContainer, router: router)
+    }
+
+    /// The Request screen's button for a collection no balance funds, which showed adding
+    /// `topUpMicros`: refetches as ``start`` does, verifies the contact Coinbase needs, then adds
+    /// that amount with Apple Pay and pays, with no sheet (1.1-1.4, 2.1). It runs the sheet's
+    /// top-up, so a top-up an earlier tap ordered is waited on and never ordered again, and the
+    /// send limit is checked before Apple Pay opens. When the plan has moved since the button drew,
+    /// the sheet opens instead: on the swipe if a balance now funds part of it, on the short state
+    /// if the top-up changed. `refreshed` refetches the screen after a payment lands.
+    func topUpInPlace(
+        _ requestID: PaymentRequestID,
+        topUpMicros: Int64,
+        sessionContainer: SessionContainer,
+        router: AppRouter,
+        verified: @MainActor () async -> Bool,
+        refreshed: @MainActor () async -> Void,
+        requests: PaymentRequests? = nil,
+        payment injected: PaymentRequestPayment? = nil
+    ) async -> TopUpInPlaceResult {
+        guard !isPreparing, !isToppingUp else { return .busy }
+        isToppingUp = true
+        defer {
+            isToppingUp = false
+            holdsFinishing = false
+        }
+        let payment = payment(for: requestID, sessionContainer: sessionContainer, requests: requests, injected: injected)
+        let preparation = await payment.prepare()
+        guard preparation == .ready else { return .prepared(preparation) }
+        guard payment.fundsCollection, payment.fundingSheet?.requestTopUp != nil else {
+            return .prepared(present(payment, sessionContainer: sessionContainer, router: router))
+        }
+        guard await verified() else { return .notVerified }
+        let outcome = await payment.addAndPay(topUpMicros: topUpMicros)
+        switch outcome {
+        case .success:
+            holdsFinishing = true
+            await refreshed()
+        case .short:
+            isPaying = true
+        case .failed:
+            break
+        }
+        return .paid(outcome)
+    }
+
+    /// Called as "Finishing Payment" shows, so it stays up through the refetch after the payment.
+    func holdFinishing() {
+        if isToppingUp { holdsFinishing = true }
+    }
+
+    /// Opens the sheet for a payable share, or the "No Balance Yet" dialog when there's nothing to pay with.
+    private func present(_ payment: PaymentRequestPayment, sessionContainer: SessionContainer, router: AppRouter) -> PaymentRequestPayment.Preparation {
         let session = sessionContainer.session
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         // A collection that conversions fund can add Dollars from the sheet, so an empty balance
@@ -663,20 +811,9 @@ private struct PaymentRequestPaySheet: View {
         }
     }
 
-    /// "Finishing Payment" while the added Dollars land and the payment runs (1.3, 4.4, 7.5, 8.4).
     private var finishingContent: some View {
-        VStack(spacing: 12) {
-            LoadingView(color: .textMain, style: .large)
-                .padding(.bottom, 8)
-            Text("Finishing Payment")
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
-            Text("This usually takes about 10 seconds")
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        PaymentRequestFinishing()
+            .padding(.vertical, 40)
     }
 
     /// The Add button: verifies the contact Coinbase needs if it isn't yet, then adds the amount the
@@ -698,5 +835,58 @@ private struct PaymentRequestPaySheet: View {
     private var bottomPadding: CGFloat {
         let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
         return max(0, 20 - reserved)
+    }
+}
+
+/// "Finishing Payment" while the added Dollars land and the payment runs: in the sheet (4.4, 7.5,
+/// 8.4), or in place of the Request screen when its own button added the money (1.3).
+private struct PaymentRequestFinishing: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            LoadingView(color: .textMain, style: .large)
+                .padding(.bottom, 8)
+            Text("Finishing Payment")
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+            Text("This usually takes about 10 seconds")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private extension VerificationCoordinator {
+    /// ``runGated(for:bind:perform:)`` as a value: true once the contact Coinbase needs is
+    /// verified, false when the user backs out or another verification is already up.
+    func verified(for session: Session, bind: @MainActor @escaping (OnrampVerification?) -> Void) async -> Bool {
+        await withCheckedContinuation { continuation in
+            let gate = VerificationGateResult(continuation)
+            runGated(for: session, bind: { viewModel in
+                if viewModel != nil { gate.isShowing = true }
+                bind(viewModel)
+                if viewModel == nil { gate.resume(false) }
+            }, perform: {
+                gate.resume(true)
+            })
+            // runGated does nothing at all while another verification is up.
+            if !gate.isShowing { gate.resume(false) }
+        }
+    }
+}
+
+/// Resumes a verification wait once, whichever of runGated's callbacks comes first.
+@MainActor
+private final class VerificationGateResult {
+    var isShowing = false
+    private var continuation: CheckedContinuation<Bool, Never>?
+
+    init(_ continuation: CheckedContinuation<Bool, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume(_ verified: Bool) {
+        continuation?.resume(returning: verified)
+        continuation = nil
     }
 }
