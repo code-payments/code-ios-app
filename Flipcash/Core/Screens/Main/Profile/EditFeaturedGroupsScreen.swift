@@ -40,7 +40,7 @@ struct EditFeaturedGroupsScreen: View {
                     }
                     .buttonStyle(.filled)
                     // The disabled fill is translucent; without this the rows show through it.
-                    .background(Color.backgroundMain, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius))
+                    .background(Color.backgroundMain, in: Capsule())
                     .disabled(!model.canSave)
                     .accessibilityIdentifier("edit-featured-groups-save")
                     .padding(.horizontal, 20)

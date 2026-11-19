@@ -501,14 +501,20 @@ private struct WalletScreenContent: View {
     }
 
     private var moneyActions: some View {
-        HStack(spacing: 12) {
-            CodeButton(style: .filled, title: MoneyHeaderContent.addMoneyTitle) {
+        HStack(spacing: Metrics.buttonGap) {
+            Button {
                 MoneyAction.addMoney.perform(on: router)
+            } label: {
+                ButtonStateLabel(MoneyHeaderContent.addMoneyTitle, state: .normal)
             }
+            .buttonStyle(.filled)
             .accessibilityIdentifier("money-add-money-button")
-            CodeButton(style: .filledSecondary, title: MoneyHeaderContent.withdrawTitle) {
+            Button {
                 MoneyAction.withdraw.perform(on: router)
+            } label: {
+                ButtonStateLabel(MoneyHeaderContent.withdrawTitle, state: .normal)
             }
+            .buttonStyle(.filled20)
             .accessibilityIdentifier("money-withdraw-button")
         }
     }

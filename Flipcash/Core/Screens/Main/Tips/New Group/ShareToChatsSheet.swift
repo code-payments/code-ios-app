@@ -522,7 +522,8 @@ struct ShareToChatsSheet: View {
                 .foregroundStyle(Color.textAction)
                 .padding(.horizontal, 14)
                 .frame(height: BarMetrics.fieldMinHeight)
-                .background(Color.action, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .background(Color.action, in: Capsule())
+                .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .disabled(model.isSending || !hasLink)
