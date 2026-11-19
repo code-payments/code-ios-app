@@ -7,8 +7,8 @@
 
 import SwiftUI
 
-/// A full-width text button with no fill, for a help or escape link under the screen's actions,
-/// like "Can't Find Your Access Key?" or a sheet's Cancel.
+/// A full-width text button with no fill, 44 pt high, for a help or escape link under the screen's
+/// actions, like "Can't Find Your Access Key?" or a sheet's Cancel.
 ///
 /// ```swift
 /// Button("Cancel") {
@@ -27,7 +27,7 @@ public struct TextLinkButtonStyle: ButtonStyle {
             .font(.appTextMedium)
             .foregroundStyle(Color.textMain.opacity(isEnabled ? 0.6 : 0.3))
             .frame(maxWidth: .infinity)
-            .frame(height: Metrics.buttonHeight)
+            .frame(height: Metrics.buttonHeightThin)
             .contentShape(.rect)
             .buttonPress(isPressed: configuration.isPressed)
     }

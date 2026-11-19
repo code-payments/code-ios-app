@@ -12,6 +12,10 @@ import FlipcashCore
 struct AccessKeyScreen: View {
     
     @Bindable private var viewModel: OnboardingViewModel
+
+    /// The link's 44 pt box already holds about 12 pt under its text; 8 more puts the text 20 above
+    /// the safe area, where a capsule's bottom edge sits on the other onboarding screens.
+    private static let bottomPaddingUnderLink: CGFloat = 8
     
     // MARK: - Init -
     
@@ -61,7 +65,8 @@ struct AccessKeyScreen: View {
             }
             .ignoresSafeArea(.keyboard)
             .foregroundStyle(.textMain)
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .padding(.bottom, Self.bottomPaddingUnderLink)
             .navigationTitle("Your Access Key")
             .toolbarTitleDisplayMode(.inline)
         }
