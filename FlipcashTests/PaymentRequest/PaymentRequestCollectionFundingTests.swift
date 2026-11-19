@@ -66,6 +66,8 @@ struct PaymentRequestCollectionFundingTests {
         /// Runs inside `order`, once Apple Pay has authorized and before the order returns.
         var whileOrdering: (() -> Void)?
         var waits = 0
+        /// Cancels the waiting task inside `awaitDollars`, after any delivery, as the sheet closing does.
+        var cancelsWait = false
         weak var container: SessionContainer?
 
         func makeOrderRef() -> String { "order-\(orders.count + 1)" }
@@ -89,6 +91,7 @@ struct PaymentRequestCollectionFundingTests {
                 let added = NSDecimalNumber(decimal: delivered * 1_000_000).uint64Value
                 try? await PaymentRequestCollectionFundingTests.write([.usdf: held + added], to: container)
             }
+            if cancelsWait { withUnsafeCurrentTask { $0?.cancel() } }
             return ((try? await dollarsBalance()) ?? 0) >= targetUSD
         }
     }
@@ -159,6 +162,7 @@ struct PaymentRequestCollectionFundingTests {
         lastPaid: PublicKey? = nil,
         storesJeffyMetadata: Bool = false,
         fundsCollections: Bool = true,
+        sendLimit: Decimal = 1000,
         clock: @escaping () -> Date = Date.init
     ) async throws -> Fixture {
         var holdings: [SessionContainer.Holding] = []
@@ -168,7 +172,7 @@ struct PaymentRequestCollectionFundingTests {
         if let jeffy {
             holdings.append(SessionContainer.Holding(mint: Self.jeffyMint, quarks: jeffy))
         }
-        let limit = FiatAmount(value: 1000, currency: .usd)
+        let limit = FiatAmount(value: sendLimit, currency: .usd)
         let container = try SessionContainer.makeTest(
             holdings: holdings,
             mints: (dollars == nil ? [.usdf] : []) + (storesJeffyMetadata && jeffy == nil ? [Self.jeffyMint] : []),
@@ -435,6 +439,19 @@ struct PaymentRequestCollectionFundingTests {
 
     // MARK: - Adding money (S5)
 
+    @Test("1.1: a collection at a zero balance opens the sheet on the short state, not No Balance Yet")
+    func zeroBalanceOpensSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        let flow = PaymentRequestPayFlow()
+
+        let result = await flow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment)
+
+        #expect(result == .ready)
+        #expect(flow.isPaying)
+        #expect(f.container.session.dialogItem == nil)
+        #expect(f.payment.fundingPlan?.topUpMicros == 10_000_000)
+    }
+
     @Test("A top-up adds the drawn amount, then pays once when the Dollars land, with no second confirmation")
     func topUpThenPayOnce() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
@@ -485,6 +502,59 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.topUpper.orders.isEmpty)
         #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
         #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("A top-up for a payment over the send limit opens no Apple Pay and orders nothing")
+    func overSendLimitOrdersNothing() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil, sendLimit: 8)
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .failed)
+
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.payer.payments.isEmpty)
+        #expect(f.container.session.dialogItem?.title == "Transaction Limit Reached")
+    }
+
+    @Test("A wait the closing sheet cuts short keeps the record, shows nothing and pays nothing", arguments: [true, false])
+    func cancelledWaitDecidesNothing(authorized: Bool) async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        let record = CollectionFundingStore.PendingTopUp(
+            orderRef: "order-1", amountUSD: 5, baselineUSD: 6, placedAt: .now, authorized: authorized
+        )
+        f.fundingStore.setPendingTopUp(record, for: requestID)
+        f.topUpper.cancelsWait = true
+
+        #expect(await f.payment.prepare() == .ready)
+        let outcome = await Task { await f.payment.resumePendingTopUp() }.value
+
+        #expect(outcome == .failed)
+        #expect(f.topUpper.waits == 1)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == record)
+        #expect(f.container.session.dialogItem == nil)
+        #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("Dollars landing as the sheet closes clear the record and stay; the next attempt pays from them")
+    func cancelledAsDollarsLand() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        f.fundingStore.setPendingTopUp(
+            .init(orderRef: "order-1", amountUSD: 5, baselineUSD: 6, placedAt: .now, authorized: true),
+            for: requestID
+        )
+        f.topUpper.delivered = 5
+        f.topUpper.cancelsWait = true
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await Task { await f.payment.resumePendingTopUp() }.value == .failed)
+        #expect(f.payer.payments.isEmpty)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.container.session.balance(for: .usdf)?.quarks == 11_000_000)
+
+        #expect(await f.payment.submit() == .success)
+        #expect(f.payer.payments.count == 1)
+        #expect(f.topUpper.orders.isEmpty)
     }
 
     @Test("A cancelled Apple Pay charges nothing, clears its record and pays nothing")

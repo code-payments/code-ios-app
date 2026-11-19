@@ -49,6 +49,31 @@ protocol CollectionTopUpping: AnyObject {
     func awaitDollars(reaching targetUSD: Decimal) async -> Bool
 }
 
+extension CollectionTopUpOrder {
+
+    /// How an order that threw ended. Coinbase reporting the commit failed means nothing was
+    /// bought. Otherwise anything after Apple Pay authorized may still deliver, polling errors and
+    /// cancels included, and only a failure before it charged nothing.
+    nonisolated static func ended(
+        by error: any Error,
+        authorized: Bool,
+        terminalError: ApplePayEvent.Event?,
+        timedOut: Bool
+    ) -> CollectionTopUpOrder {
+        if terminalError != .commitError, authorized { return .mayDeliver }
+        switch error {
+        case is CancellationError:
+            return .notCharged(timedOut ? .timedOut : .cancelled)
+        case DepositError.userCancelled:
+            return .notCharged(.cancelled)
+        case let DepositError.externalRejected(title, subtitle):
+            return .notCharged(.rejected(title: title, subtitle: subtitle))
+        default:
+            return .notCharged(.failed)
+        }
+    }
+}
+
 /// The Dollars balance that counts as a top-up landed: the baseline plus the order less the
 /// onramp's tolerance, as Add Money counts it.
 nonisolated enum CollectionTopUpTarget {
@@ -95,18 +120,16 @@ final class SessionCollectionTopUpper: CollectionTopUpping {
             )
             return .charged
         } catch {
-            if operation.reachedAuthorization { return .mayDeliver }
-            switch error {
-            case is CancellationError:
-                return .notCharged(operation.didTimeOut ? .timedOut : .cancelled)
-            case DepositError.userCancelled:
-                return .notCharged(.cancelled)
-            case let DepositError.externalRejected(title, subtitle):
-                return .notCharged(.rejected(title: title, subtitle: subtitle))
-            default:
+            let outcome = CollectionTopUpOrder.ended(
+                by: error,
+                authorized: operation.reachedAuthorization,
+                terminalError: operation.terminalError,
+                timedOut: operation.didTimeOut
+            )
+            if outcome == .notCharged(.failed) {
                 ErrorReporting.captureError(error, reason: "Collection top-up failed before authorization")
-                return .notCharged(.failed)
             }
+            return outcome
         }
     }
 

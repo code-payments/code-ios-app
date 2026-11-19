@@ -404,18 +404,20 @@ final class PaymentRequestPayFlow {
     /// Prepares to pay the viewer's share of `requestID` and shows the sheet when it is payable.
     /// A payable share the viewer has nothing to pay with gets the "No Balance Yet" dialog instead of
     /// the sheet; a closed request still reads "Request Closed". `requests` replaces the session's
-    /// store, for tests.
+    /// store and `payment` the payment the flow would build, for tests.
     @discardableResult
     func start(
         _ requestID: PaymentRequestID,
         sessionContainer: SessionContainer,
         router: AppRouter,
-        requests: PaymentRequests? = nil
+        requests: PaymentRequests? = nil,
+        payment injected: PaymentRequestPayment? = nil
     ) async -> PaymentRequestPayment.Preparation {
         guard !isPreparing else { return .failed }
         isPreparing = true
         defer { isPreparing = false }
-        let payment = self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
+        let payment = injected
+            ?? self.payment.flatMap { $0.requestID == requestID ? $0 : nil }
             ?? PaymentRequestPayment(requestID: requestID, sessionContainer: sessionContainer, requests: requests)
         self.payment = payment
         let preparation = await payment.prepare()

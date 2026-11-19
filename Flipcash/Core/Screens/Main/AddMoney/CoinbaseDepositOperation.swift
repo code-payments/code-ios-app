@@ -31,6 +31,9 @@ final class CoinbaseDepositOperation {
     /// still deliver.
     private(set) var reachedAuthorization = false
 
+    /// The onramp error event that ended the current run, if one did.
+    private(set) var terminalError: ApplePayEvent.Event?
+
     @ObservationIgnored private let coinbaseService: CoinbaseService
     @ObservationIgnored private let session: any (AccountProviding & ProfileProviding)
     @ObservationIgnored private let idleTimer: ApplePayIdleTimer
@@ -61,6 +64,7 @@ final class CoinbaseDepositOperation {
     /// runs once, when Apple Pay reports the payment authorized.
     func start(amount: ExchangedFiat, orderRef: String? = nil, onAuthorized: (() -> Void)? = nil) async throws {
         reachedAuthorization = false
+        terminalError = nil
         self.onAuthorized = onAuthorized
         let task = Task { try await run(amount, orderRef: orderRef) }
         runTask = task
@@ -226,6 +230,7 @@ final class CoinbaseDepositOperation {
                 throw CancellationError()
 
             case .commitError, .pollingError, .loadError:
+                terminalError = event.event
                 let errorType = OnrampErrorResponse.ErrorType(
                     coinbaseCode: event.data?.errorCode ?? ""
                 )

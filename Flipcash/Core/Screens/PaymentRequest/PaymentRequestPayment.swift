@@ -441,6 +441,8 @@ final class PaymentRequestPayment {
             showSendError()
             return .failed
         }
+        // Checked before Apple Pay opens, so a payment the limit stops charges nothing.
+        guard !exceedsSendLimit(fiat) else { return .failed }
         let baselineUSD: Decimal
         do {
             baselineUSD = try await topUpper.dollarsBalance()
@@ -497,6 +499,8 @@ final class PaymentRequestPayment {
         isFinishing = true
         defer { isFinishing = false }
         guard await settle(pending) else { return .failed }
+        // The sheet closed as the Dollars landed: they stay, and the next attempt pays from them.
+        guard !Task.isCancelled else { return .failed }
         return await submitFundedCollection(afterTopUp: true)
     }
 
@@ -511,13 +515,15 @@ final class PaymentRequestPayment {
         if !pending.authorized {
             let age = clock().timeIntervalSince(pending.placedAt)
             if age < Self.settlementSeconds {
-                _ = await topUpper.awaitDollars(reaching: target)
+                let landed = await topUpper.awaitDollars(reaching: target)
+                // A wait cut short, say by the sheet closing, decides nothing.
+                if !landed, Task.isCancelled { return false }
             }
             fundingStore.clearPendingTopUp(for: requestID)
             return true
         }
         guard await topUpper.awaitDollars(reaching: target) else {
-            showTopUpPending()
+            if !Task.isCancelled { showTopUpPending() }
             return false
         }
         fundingStore.clearPendingTopUp(for: requestID)
@@ -551,6 +557,7 @@ final class PaymentRequestPayment {
             showSendError()
             return .failed
         }
+        guard !exceedsSendLimit(fiat) else { return .failed }
 
         switch await fundingExecutor.fund(requestID, currency: fiat.currency, plan: { self.fundingPlan }) {
         case .funded:
@@ -654,14 +661,7 @@ final class PaymentRequestPayment {
             break
         }
 
-        let sendLimit = session.sendLimitFor(currency: amount.nativeAmount.currency) ?? .zero
-        guard amount.nativeAmount.value <= sendLimit.nextTransaction.value else {
-            session.dialogItem = .error(
-                title: "Transaction Limit Reached",
-                subtitle: "Flipcash is designed for small, every day transactions. Send limits reset daily"
-            )
-            return .failed
-        }
+        guard !exceedsSendLimit(amount.nativeAmount) else { return .failed }
 
         let creatorOwner: PublicKey
         do {
@@ -745,13 +745,16 @@ final class PaymentRequestPayment {
             break
         case .timedOut:
             session.dialogItem = .info(
-                title: "Purchase Timed Out",
-                subtitle: "Purchases must be authorized within 60 seconds"
+                title: String(localized: "Purchase Timed Out", comment: "Title shown when Apple Pay wasn't authorized in time while adding money for a payment"),
+                subtitle: String(localized: "Purchases must be authorized within 60 seconds", comment: "Body shown when Apple Pay wasn't authorized in time while adding money for a payment")
             )
         case .rejected(let title, let subtitle):
             session.dialogItem = .error(title: title, subtitle: subtitle)
         case .failed:
-            session.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+            session.dialogItem = .error(
+                title: String(localized: "Something Went Wrong", comment: "Title shown when adding money for a payment failed before anything was charged"),
+                subtitle: String(localized: "Please try again later", comment: "Body shown when adding money for a payment failed before anything was charged")
+            )
         }
     }
 
@@ -765,6 +768,17 @@ final class PaymentRequestPayment {
     }
 
     /// No frame draws this state yet; the copy says what the spec asks for.
+    /// Whether `fiat` is over the next-transaction send limit, showing the limit dialog when it is.
+    private func exceedsSendLimit(_ fiat: FiatAmount) -> Bool {
+        let sendLimit = session.sendLimitFor(currency: fiat.currency) ?? .zero
+        guard fiat.value > sendLimit.nextTransaction.value else { return false }
+        session.dialogItem = .error(
+            title: "Transaction Limit Reached",
+            subtitle: "Flipcash is designed for small, every day transactions. Send limits reset daily"
+        )
+        return true
+    }
+
     private func showConversionPending() {
         session.dialogItem = .info(
             title: String(localized: "Conversion Pending", comment: "Title shown when a currency conversion for a payment hasn't settled yet"),

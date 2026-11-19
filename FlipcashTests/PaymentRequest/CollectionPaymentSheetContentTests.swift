@@ -24,6 +24,16 @@ struct CollectionPaymentSheetContentTests {
         lastPaid: String? = nil,
         balances: [(id: String, name: String, fiatMicros: Int64, feeBps: Int64)]
     ) throws -> CollectionPaymentSheetContent {
+        let (plan, display) = try inputs(amountMicros: amountMicros, selected: selected, lastPaid: lastPaid, balances: balances)
+        return CollectionPaymentSheetContent(plan: plan, display: display, currency: .usd)
+    }
+
+    private static func inputs(
+        amountMicros: Int64,
+        selected: String? = nil,
+        lastPaid: String?,
+        balances: [(id: String, name: String, fiatMicros: Int64, feeBps: Int64)]
+    ) throws -> (CollectionFundingPlan, CollectionFundingDisplay) {
         let plan = try planCollectionFunding(
             amountMicros: amountMicros,
             minorDigits: 2,
@@ -39,7 +49,7 @@ struct CollectionPaymentSheetContentTests {
             dollars: dollars,
             names: Dictionary(uniqueKeysWithValues: balances.map { ($0.id, $0.name) })
         )
-        return CollectionPaymentSheetContent(plan: plan, display: display, currency: .usd)
+        return (plan, display)
     }
 
     /// $8.00 Dollars and $6.00 Jeffy (`s5-s6-convert-shortfall`, `s6-pay-in-jeffy`).
@@ -195,5 +205,24 @@ struct CollectionPaymentSheetContentTests {
             Line(currency: "other", name: "Other", amount: "$3.99", sublabels: ["~$0.04 conversion fee"]),
         ])
         #expect(content.total == .init(label: "Total", amount: "$21.04"))
+    }
+
+    /// Sections 1, 2, 4, 7 and 8 as (amount, last paid, balances).
+    private static let topUpSections: [(amount: Int64, lastPaid: String?, balances: [(id: String, name: String, fiatMicros: Int64, feeBps: Int64)])] = [
+        (10_000_000, nil, []),
+        (2_000_000, nil, [(dollars, "Dollars", 0, 0)]),
+        (10_000_000, nil, [(dollars, "Dollars", 6_000_000, 0)]),
+        (11_000_000, nil, [(dollars, "Dollars", 6_000_000, 0), ("jeffy", "Jeffy", 2_990_000, 100)]),
+        (21_000_000, "jeffy", [("jeffy", "Jeffy", 3_000_000, 100), (dollars, "Dollars", 2_010_000, 0), ("other", "Other", 3_990_000, 100)]),
+    ]
+
+    @Test("The sheet's localized short line and button read as the core display the vectors pin", arguments: 0..<5)
+    func topUpStringsMatchCore(section: Int) throws {
+        let c = Self.topUpSections[section]
+        let (plan, display) = try Self.inputs(amountMicros: c.amount, lastPaid: c.lastPaid, balances: c.balances)
+        let topUp = try #require(CollectionPaymentSheetContent(plan: plan, display: display, currency: .usd).topUp)
+
+        #expect(topUp.shortBy == display.shortBy)
+        #expect(topUp.button == display.addButton)
     }
 }
