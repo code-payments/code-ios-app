@@ -68,6 +68,9 @@ struct PaymentRequestCollectionFundingTests {
         var waits = 0
         /// Cancels the waiting task inside `awaitDollars`, after any delivery, as the sheet closing does.
         var cancelsWait = false
+        /// Holds `awaitDollars` until `releaseWait` runs.
+        var holdsWait = false
+        var releaseWait: (() -> Void)?
         weak var container: SessionContainer?
 
         func makeOrderRef() -> String { "order-\(orders.count + 1)" }
@@ -85,6 +88,9 @@ struct PaymentRequestCollectionFundingTests {
 
         func awaitDollars(reaching targetUSD: Decimal) async -> Bool {
             waits += 1
+            if holdsWait {
+                await withCheckedContinuation { continuation in releaseWait = { continuation.resume() } }
+            }
             if let delivered, let container {
                 self.delivered = nil
                 let held = container.session.balance(for: .usdf)?.quarks ?? 0
@@ -623,12 +629,56 @@ struct PaymentRequestCollectionFundingTests {
 
         let relaunched = try await relaunch(f, server, clock: { placed.addingTimeInterval(3_600) })
         #expect(await relaunched.payment.prepare() == .ready)
-        #expect(await relaunched.payment.resumePendingTopUp() == .short)
+        #expect(await relaunched.payment.resumePendingTopUp() == nil)
 
         #expect(relaunched.topUpper.waits == 0)
         #expect(relaunched.topUpper.orders.isEmpty)
         #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
         #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("A cleared top-up that charged nothing pays nothing on open, even when other balances now cover it")
+    func clearedUnauthorizedPaysNothing() async throws {
+        let server = Server(intentResult: .success(intentID))
+        let placed = Date(timeIntervalSince1970: 1_000_000)
+        let f = try await fixture(server, amount: 10, dollars: 6_000_000, jeffy: Self.plentyOfJeffy)
+        f.fundingStore.setPendingTopUp(
+            .init(orderRef: "order-1", amountUSD: 5, baselineUSD: 6, placedAt: placed, authorized: false),
+            for: requestID
+        )
+
+        let relaunched = try await relaunch(f, server, clock: { placed.addingTimeInterval(3_600) })
+        #expect(await relaunched.payment.prepare() == .ready)
+        #expect(await relaunched.payment.resumePendingTopUp() == nil)
+
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.payer.payments.isEmpty)
+        #expect(relaunched.topUpper.orders.isEmpty)
+    }
+
+    @Test("A sheet reopened while the first one's top-up is still running joins it and pays once")
+    func overlappingRunsPayOnce() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        f.fundingStore.setPendingTopUp(
+            .init(orderRef: "order-1", amountUSD: 5, baselineUSD: 6, placedAt: .now, authorized: true),
+            for: requestID
+        )
+        f.topUpper.delivered = 5
+        f.topUpper.holdsWait = true
+
+        #expect(await f.payment.prepare() == .ready)
+        let first = Task { await f.payment.addAndPay(topUpMicros: 5_000_000) }
+        while f.topUpper.releaseWait == nil { await Task.yield() }
+        let second = Task { await f.payment.resumePendingTopUp() }
+        for _ in 0..<10 { await Task.yield() }
+        f.topUpper.releaseWait?()
+
+        #expect(await first.value == .success)
+        #expect(await second.value == .success)
+        #expect(f.topUpper.waits == 1)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.payer.payments.count == 1)
     }
 
     @Test("A payment that fails after the top-up keeps the Dollars, and the retry charges nothing")

@@ -432,9 +432,16 @@ final class PaymentRequestPayment {
     /// ordered and the sheet shows the new short state.
     func addAndPay(topUpMicros: Int64) async -> Outcome {
         guard fundsCollection else { return .failed }
+        return await joiningTopUpRun { [self] in await runAddAndPay(topUpMicros: topUpMicros) } ?? .failed
+    }
+
+    private func runAddAndPay(topUpMicros: Int64) async -> Outcome {
         if let outcome = await refetchIfNeeded() { return outcome }
 
-        if let pending = fundingStore.pendingTopUp(for: requestID) { return await finish(pending) }
+        if let pending = fundingStore.pendingTopUp(for: requestID),
+           let outcome = await finish(pending) {
+            return outcome
+        }
 
         guard let request, let payable, let fiat = payableFiat(payable, of: request),
               let rate = ratesController.rate(for: fiat.currency) else {
@@ -476,32 +483,62 @@ final class PaymentRequestPayment {
         case .charged, .mayDeliver:
             fundingStore.markTopUpAuthorized(for: requestID)
             guard let pending = fundingStore.pendingTopUp(for: requestID) else { return .failed }
+            return await finish(pending) ?? .failed
+        }
+    }
+
+    /// Whether a top-up this payment ordered hasn't been seen landing yet, or one is running.
+    var hasPendingTopUp: Bool {
+        topUpRun != nil || fundingStore.pendingTopUp(for: requestID) != nil
+    }
+
+    /// Picks up a top-up an earlier attempt ordered, as the sheet opens after a relaunch: waits for
+    /// its Dollars, then funds and pays. Returns nil when there's none to pick up, or when it
+    /// turns out to have charged nothing, leaving the sheet on the state the balances give.
+    func resumePendingTopUp() async -> Outcome? {
+        guard fundsCollection, hasPendingTopUp else { return nil }
+        return await joiningTopUpRun { [self] in
+            if let outcome = await refetchIfNeeded() { return outcome }
+            guard let pending = fundingStore.pendingTopUp(for: requestID) else { return nil }
             return await finish(pending)
         }
     }
 
-    /// Whether a top-up this payment ordered hasn't been seen landing yet.
-    var hasPendingTopUp: Bool {
-        fundingStore.pendingTopUp(for: requestID) != nil
-    }
+    /// The top-up running now. A sheet opened again while an earlier one's run is still going, or
+    /// a second tap, waits on it rather than starting another that could pay a second time.
+    private var topUpRun: Task<Outcome?, Never>?
 
-    /// Picks up a top-up an earlier attempt ordered, as the sheet opens after a relaunch: waits for
-    /// its Dollars, then funds and pays. Returns nil when there's none to pick up.
-    func resumePendingTopUp() async -> Outcome? {
-        guard fundsCollection, let pending = fundingStore.pendingTopUp(for: requestID) else { return nil }
-        if let outcome = await refetchIfNeeded() { return outcome }
-        return await finish(pending)
+    private func joiningTopUpRun(_ body: @escaping @MainActor () async -> Outcome?) async -> Outcome? {
+        if let topUpRun { return await topUpRun.value }
+        let run = Task { await body() }
+        topUpRun = run
+        defer { topUpRun = nil }
+        return await withTaskCancellationHandler { await run.value } onCancel: { run.cancel() }
     }
 
     /// "Finishing Payment": waits for `pending`'s Dollars, then funds and pays from the balances
-    /// as they are then.
-    private func finish(_ pending: CollectionFundingStore.PendingTopUp) async -> Outcome {
+    /// as they are then. Returns nil when the record cleared with no Dollars seen: that top-up
+    /// charged nothing, so nothing is paid without the viewer asking.
+    private func finish(_ pending: CollectionFundingStore.PendingTopUp) async -> Outcome? {
         isFinishing = true
         defer { isFinishing = false }
-        guard await settle(pending) else { return .failed }
-        // The sheet closed as the Dollars landed: they stay, and the next attempt pays from them.
-        guard !Task.isCancelled else { return .failed }
-        return await submitFundedCollection(afterTopUp: true)
+        switch await settle(pending) {
+        case .stopped: return .failed
+        case .cleared: return nil
+        case .landed:
+            // The sheet closed as the Dollars landed: they stay, and the next attempt pays from them.
+            guard !Task.isCancelled else { return .failed }
+            return await submitFundedCollection(afterTopUp: true)
+        }
+    }
+
+    private enum Settlement {
+        /// The Dollars were seen and the record cleared.
+        case landed
+        /// The record cleared with no Dollars seen: the order charged nothing.
+        case cleared
+        /// Still waiting, or the wait was cut short; the record stays.
+        case stopped
     }
 
     /// Waits for `pending`'s Dollars and returns whether the payment can go on. Its record clears
@@ -510,24 +547,26 @@ final class PaymentRequestPayment {
     /// One Apple Pay never reported authorized charged nothing unless the app died in the moment
     /// between the two; it is waited on for at most the settlement window from when it was placed,
     /// then counted as failed. One that was authorized stays until its Dollars are seen.
-    private func settle(_ pending: CollectionFundingStore.PendingTopUp) async -> Bool {
+    private func settle(_ pending: CollectionFundingStore.PendingTopUp) async -> Settlement {
         let target = CollectionTopUpTarget.target(baselineUSD: pending.baselineUSD, amountUSD: pending.amountUSD)
         if !pending.authorized {
-            let age = clock().timeIntervalSince(pending.placedAt)
-            if age < Self.settlementSeconds {
-                let landed = await topUpper.awaitDollars(reaching: target)
+            let landed: Bool
+            if clock().timeIntervalSince(pending.placedAt) < Self.settlementSeconds {
+                landed = await topUpper.awaitDollars(reaching: target)
                 // A wait cut short, say by the sheet closing, decides nothing.
-                if !landed, Task.isCancelled { return false }
+                if !landed, Task.isCancelled { return .stopped }
+            } else {
+                landed = ((try? await topUpper.dollarsBalance()) ?? 0) >= target
             }
             fundingStore.clearPendingTopUp(for: requestID)
-            return true
+            return landed ? .landed : .cleared
         }
         guard await topUpper.awaitDollars(reaching: target) else {
             if !Task.isCancelled { showTopUpPending() }
-            return false
+            return .stopped
         }
         fundingStore.clearPendingTopUp(for: requestID)
-        return true
+        return .landed
     }
 
     private static var settlementSeconds: TimeInterval {
