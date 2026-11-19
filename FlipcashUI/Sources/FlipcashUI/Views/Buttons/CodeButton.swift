@@ -48,8 +48,7 @@ public struct CodeButton: View {
                 
             case .subtle:
                 button()
-                    .opacity(disabled ? 0.5 : 1.0)
-                    .foregroundStyle(Color.textMain.opacity(0.6))
+                    .buttonStyle(.subtle)
             }
         }
         .disabled(isDisabled())
@@ -193,38 +192,38 @@ private extension CodeButton {
             configuration.label
                 .background(background(style: style))
                 .foregroundStyle(textColor())
-                .overlay(configuration.isPressed ? Color.black.opacity(0.3) : Color.black.opacity(0))
+                .buttonPress(isPressed: configuration.isPressed)
         }
         
         @ViewBuilder private func background(style: CodeButton.Style) -> some View {
             switch style {
             case .bordered:
                 if isDisabled {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .stroke(Color.backgroundRow, lineWidth: Metrics.buttonLineWidth)
                 } else {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .stroke(Color.textMain, lineWidth: Metrics.buttonLineWidth)
                 }
                 
             case .filled, .filledCustom, .filledApplePay, .filledDestructive, .filledMedium, .filledThin:
                 if isDisabled {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .fill(Color.action.opacity(0.1))
                 } else {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .fill(Color.action)
                 }
                         
             case .filledSecondary, .filledMediumSecondary:
                 if isDisabled {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .fill(Color.actionDisabled)
                 } else {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .fill(.white.opacity(0.2))
                         .background {
-                            RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                            Capsule()
                                 .fill(.ultraThinMaterial)
                         }
                 }

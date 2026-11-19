@@ -8,7 +8,7 @@
 import SwiftUI
 
 /// A button style that displays a leading icon alongside the button's label
-/// inside a translucent rounded container.
+/// inside a translucent capsule.
 ///
 /// ```swift
 /// Button("Website") {
@@ -40,23 +40,23 @@ public struct IconButtonStyle: ButtonStyle {
                 .multilineTextAlignment(.leading)
                 .font(.appTextMedium)
         }
-            .opacity(configuration.isPressed ? 0.6 : 1.0)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(.white.opacity(0.1))
-            .clipShape(.rect(cornerRadius: 6))
+            .clipShape(Capsule())
+            .buttonPress(isPressed: configuration.isPressed)
     }
 }
 
 extension ButtonStyle where Self == IconButtonStyle {
     /// A button style that displays a leading icon alongside the label
-    /// inside a translucent rounded container.
+    /// inside a translucent capsule.
     public static func icon(_ icon: Asset) -> IconButtonStyle {
         IconButtonStyle(icon: icon)
     }
 
     /// A button style that displays a leading Central icon alongside the label
-    /// inside a translucent rounded container.
+    /// inside a translucent capsule.
     public static func icon(_ icon: Icon) -> IconButtonStyle {
         IconButtonStyle(icon: icon)
     }

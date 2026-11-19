@@ -210,7 +210,7 @@ struct TrayButtonStyle: ButtonStyle {
             .contentShape(Capsule())
             .scaleEffect(press == .scale && isPressed ? TrayMetrics.actionPressScale : 1)
             .opacity(press == .dim && isPressed ? TrayMetrics.actionPressDim : 1)
-            .animation(.spring(duration: 0.2, bounce: 0), value: isPressed)
+            .animation(Metrics.buttonPressAnimation, value: isPressed)
     }
 
     private var foreground: Color {
@@ -225,8 +225,7 @@ struct TrayButtonStyle: ButtonStyle {
         switch role {
         case .primary: isEnabled ? .action : .action.opacity(0.1)
         case .destructive: isEnabled ? .bannerError : .bannerError.opacity(0.1)
-        // White 10% from the mockup; there is no raised-fill token yet.
-        case .secondary: .white.opacity(0.1)
+        case .secondary: .actionSecondary
         }
     }
 }

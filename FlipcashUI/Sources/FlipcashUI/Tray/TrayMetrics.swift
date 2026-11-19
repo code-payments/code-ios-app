@@ -27,8 +27,8 @@ enum TrayMetrics {
     static let closeStroke: CGFloat = 2.5
     static let closeGlyphOpacity: Double = 1.0
     static let closeFillOpacity: Double = 0.05
-    static let actionHeight: CGFloat = 54
-    static let actionGap: CGFloat = 12
+    static let actionHeight: CGFloat = Metrics.buttonHeight
+    static let actionGap: CGFloat = Metrics.buttonGap
     /// The card's top corners on the floating sheet; 39.5 draws the system sheet's 38 at the
     /// sheet's 0.96 scale. The bottom corners nest in the display's.
     static let topRadius: CGFloat = 39.5
@@ -103,8 +103,8 @@ enum TrayMetrics {
     // MARK: - Behavior
 
     static let actionPress: TrayActionPress = .scale
-    static let actionPressScale: CGFloat = 0.95
-    static let actionPressDim: Double = 0.7
+    static let actionPressScale: CGFloat = Metrics.buttonPressScale
+    static let actionPressDim: Double = Metrics.buttonPressDim
 }
 
 /// How a selected tile stands out.

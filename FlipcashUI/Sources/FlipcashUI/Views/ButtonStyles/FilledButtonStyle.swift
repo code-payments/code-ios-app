@@ -8,7 +8,7 @@
 
 import SwiftUI
 
-/// A full-width button style with a rounded filled background that adjusts
+/// A full-width capsule button style with a filled background that adjusts
 /// its text and background colors for the disabled state automatically.
 ///
 /// Several opacity presets are available through the static accessors:
@@ -53,11 +53,11 @@ public struct FilledButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .frame(height: isCompact ? Metrics.buttonHeightThin : Metrics.buttonHeight)
             .background {
-                RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                Capsule()
                     .fill(isEnabled ? overlayColor : overlayDisabledColor)
             }
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .contentShape(Capsule())
+            .buttonPress(isPressed: configuration.isPressed)
     }
 }
 
