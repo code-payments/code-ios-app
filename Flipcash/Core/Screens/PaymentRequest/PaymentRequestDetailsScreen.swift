@@ -127,6 +127,9 @@ struct PaymentRequestDetailsScreen: View {
                         }
                     }
                 }
+                // With no rows and no Pay button nothing else is full width, and the scroll view
+                // would shrink to the header's width.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
