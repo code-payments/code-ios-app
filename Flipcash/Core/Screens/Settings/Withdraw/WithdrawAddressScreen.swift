@@ -63,7 +63,7 @@ struct WithdrawAddressScreen: View {
 
                 Button("Paste From Clipboard", action: onPasteFromClipboard)
                     .disabled(!canPaste)
-                    .buttonStyle(.filled20)
+                    .buttonStyle(.subtle)
 
                 Spacer()
                     .frame(minHeight: 1)

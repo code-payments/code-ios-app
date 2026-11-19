@@ -198,7 +198,7 @@ private struct CurrencySelectRecipientScreen: View {
                     giveAsCash()
                 }
                 // iOS 18 has no edge effect, so the material blurs the rows under the translucent fill.
-                .buttonStyle(.filled20.backed(by: .ultraThinMaterial))
+                .buttonStyle(.subtle.backed(by: .ultraThinMaterial))
                 .padding(20)
             }
         }

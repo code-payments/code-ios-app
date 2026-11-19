@@ -67,33 +67,13 @@ struct TipCardDownloadSheet: View {
                         .accessibilityIdentifier("you-download-\(format.rawValue)")
                     }
 
-                    cancelButton
+                    Button("Cancel", action: onCancel)
+                        .buttonStyle(.textLink)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.top, 30)
             .padding(.bottom, bottomPadding)
-        }
-    }
-
-    /// Whether Cancel wears the shared `.subtle` capsule (`true`) or keeps the bare text it had
-    /// before buttons became capsules (`false`); an A/B left for Aiden.
-    private static let cancelIsSubtleCapsule = true
-
-    @ViewBuilder private var cancelButton: some View {
-        if Self.cancelIsSubtleCapsule {
-            Button("Cancel", action: onCancel)
-                .buttonStyle(.subtle)
-        } else {
-            Button(action: onCancel) {
-                Text("Cancel")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.white.opacity(0.5))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 60)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
         }
     }
 

@@ -20,15 +20,23 @@ import SwiftUI
 public struct SubtleButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
+    private let isCompact: Bool
     private var backing: AnyShapeStyle?
+
+    /// Internal only. Use the static accessors (`.subtle`, `.subtleCompact`) instead.
+    init(isCompact: Bool) {
+        self.isCompact = isCompact
+    }
 
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.appTextMedium)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .padding(.horizontal, Metrics.buttonPadding)
             .foregroundStyle(isEnabled ? Color.textMain : Color.textMain.opacity(0.2))
             .frame(maxWidth: .infinity)
-            .frame(height: Metrics.buttonHeight)
+            .frame(height: isCompact ? Metrics.buttonHeightThin : Metrics.buttonHeight)
             .background {
                 ZStack {
                     if let backing {
@@ -54,6 +62,11 @@ public struct SubtleButtonStyle: ButtonStyle {
 extension ButtonStyle where Self == SubtleButtonStyle {
     /// A full-width translucent capsule button for secondary actions.
     public static var subtle: SubtleButtonStyle {
-        .init()
+        .init(isCompact: false)
+    }
+
+    /// A full-width translucent capsule button for secondary actions (compact variant).
+    public static var subtleCompact: SubtleButtonStyle {
+        .init(isCompact: true)
     }
 }

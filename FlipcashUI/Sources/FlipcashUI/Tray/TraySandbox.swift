@@ -602,7 +602,7 @@ private struct AmountEntryBackdrop: View {
                 Text("Open a Tray")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.filled20Compact)
+            .buttonStyle(.subtleCompact)
             .padding(.bottom, 8)
         }
         .padding(.horizontal, 20)

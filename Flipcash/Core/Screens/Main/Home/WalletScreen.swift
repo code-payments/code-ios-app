@@ -514,7 +514,7 @@ private struct WalletScreenContent: View {
             } label: {
                 ButtonStateLabel(MoneyHeaderContent.withdrawTitle, state: .normal)
             }
-            .buttonStyle(.filled20)
+            .buttonStyle(.subtle)
             .accessibilityIdentifier("money-withdraw-button")
         }
     }

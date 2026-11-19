@@ -55,7 +55,7 @@ struct AccessKeyScreen: View {
                     .disabled(!viewModel.accessKeyButtonState.isNormal)
 
                     Button("Wrote the 12 Words Down Instead?", action: viewModel.wroteDownAction)
-                        .buttonStyle(.subtle)
+                        .buttonStyle(.textLink)
                         .disabled(viewModel.accessKeyButtonState != .normal)
                 }
             }

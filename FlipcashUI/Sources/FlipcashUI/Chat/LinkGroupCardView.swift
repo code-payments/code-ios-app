@@ -310,7 +310,7 @@ struct LinkGroupCardContent: View {
         switch state {
         case .unavailable:
             Button(Copy.unavailable) {}
-                .buttonStyle(.filled20Compact)
+                .buttonStyle(.subtleCompact)
                 .disabled(true)
         case .resolved:
             if let ctaTitle {

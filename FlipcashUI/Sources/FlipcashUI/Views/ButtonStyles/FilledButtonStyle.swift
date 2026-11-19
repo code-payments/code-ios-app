@@ -20,8 +20,7 @@ import SwiftUI
 /// .buttonStyle(.filled)
 /// ```
 ///
-/// Use the lower-opacity variant `.filled20` for secondary or
-/// de-emphasised actions.
+/// Use `.subtle` for the secondary action beside it.
 public struct FilledButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
@@ -32,7 +31,7 @@ public struct FilledButtonStyle: ButtonStyle {
     private let isCompact: Bool
     private var backing: AnyShapeStyle?
 
-    /// Internal only. Use the static accessors (e.g., `.filled`, `.filled20`) instead.
+    /// Internal only. Use the static accessors (e.g., `.filled`, `.filledCompact`) instead.
     init(
         textColor: Color,
         textDisabledColor: Color,
@@ -50,6 +49,8 @@ public struct FilledButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.appTextMedium)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .padding(.horizontal, Metrics.buttonPadding)
             .foregroundStyle(isEnabled ? textColor : textDisabledColor)
             .frame(maxWidth: .infinity)
@@ -99,17 +100,6 @@ extension ButtonStyle where Self == FilledButtonStyle {
         )
     }
     
-    /// A full-width filled button at 20% action color opacity.
-    public static var filled20: FilledButtonStyle {
-        .init(
-            textColor: .textMain,
-            textDisabledColor: .textMain.opacity(0.2),
-            overlayColor: .action.opacity(0.2),
-            overlayDisabledColor: .action.opacity(0.2),
-            isCompact: false
-        )
-    }
-
     /// A full-width filled button at 5% action color opacity — the same tint the
     /// row and card surfaces carry, for an action that reads as one of them.
     public static var filled05: FilledButtonStyle {
@@ -119,17 +109,6 @@ extension ButtonStyle where Self == FilledButtonStyle {
             overlayColor: .action.opacity(0.05),
             overlayDisabledColor: .action.opacity(0.05),
             isCompact: false
-        )
-    }
-
-    /// A full-width filled button at 20% action color opacity (compact variant).
-    public static var filled20Compact: FilledButtonStyle {
-        .init(
-            textColor: .textMain,
-            textDisabledColor: .textMain.opacity(0.2),
-            overlayColor: .action.opacity(0.2),
-            overlayDisabledColor: .action.opacity(0.2),
-            isCompact: true
         )
     }
 }

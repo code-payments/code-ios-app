@@ -16,10 +16,9 @@ import FlipcashStore
 /// opens the chat.
 ///
 /// Reached by tapping the chat's head card or its navigation title, the way a DM's title opens the
-/// counterpart's profile. The actions a member has over the group sit in the ⋯ menu. Opened from
-/// the chat, there is no pinned button, since the chat is one back away, and Leave Chat ends the
-/// scroll; otherwise a private group's Leave Chat sits under the pinned button and a public
-/// group's ends the scroll.
+/// counterpart's profile. The actions a member has over the group sit in the ⋯ menu, and Leave
+/// Chat ends the scroll. Opened from the chat, there is no pinned button, since the chat is one
+/// back away.
 struct ChatProfileScreen: View {
 
     let conversationID: ConversationID
@@ -644,9 +643,9 @@ struct ChatProfileScreen: View {
         return holding(held, mint: mint)
     }
 
-    /// Whether Leave Chat ends the scroll content rather than sitting in the pinned bar.
+    /// Whether Leave Chat ends the scroll content: whenever the viewer is a member.
     private var endsWithLeaveButton: Bool {
-        origin == .chat && isMember
+        isMember
     }
 
     /// Space under the scroll content.
@@ -658,8 +657,8 @@ struct ChatProfileScreen: View {
 
     @ViewBuilder
     private var pinnedActions: some View {
-        // Opened from the chat, the chat is one back away and Leave Chat ends the scroll instead;
-        // the empty bar fades out content that scrolls under the home indicator.
+        // Opened from the chat, the chat is one back away, so the bar is empty and fades out
+        // content that scrolls under the home indicator.
         if origin == .chat {
             Color.clear
                 .frame(height: 0)
@@ -670,13 +669,10 @@ struct ChatProfileScreen: View {
                 .padding(.top, 12)
                 .padding(.bottom, 8)
         } else if conversation != nil {
-            VStack(spacing: Metrics.buttonGap) {
-                openChatButton
-                if isMember { leaveButton }
-            }
-            .padding(.horizontal, ProfileHeaderMetrics.inset)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            openChatButton
+                .padding(.horizontal, ProfileHeaderMetrics.inset)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
         }
     }
 
@@ -721,28 +717,25 @@ struct ChatProfileScreen: View {
     @ViewBuilder
     private var requestActions: some View {
         if let requestedAt {
-            VStack(spacing: 8) {
-                Text(PrivateGroupCopy.awaitingApproval(hostName: hostName))
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.bottom, 8)
-                VStack(spacing: Metrics.buttonGap) {
+            VStack(spacing: 16) {
+                VStack(spacing: 4) {
+                    Text(PrivateGroupCopy.awaitingApproval(hostName: hostName))
                     TimelineView(.everyMinute) { context in
-                        Button(PrivateGroupCopy.pendingTitle(requestedAt: requestedAt, now: context.date)) {}
-                            .buttonStyle(.filled)
-                            .disabled(true)
+                        Text(PrivateGroupCopy.pendingTitle(requestedAt: requestedAt, now: context.date))
                             .accessibilityIdentifier("group-profile-request-pending")
                     }
-                    Button {
-                        Task { await cancelRequest() }
-                    } label: {
-                        ButtonStateLabel("Cancel Request", state: isRequesting ? .loading : .normal)
-                    }
-                    .buttonStyle(.subtle)
-                    .disabled(isRequesting)
-                    .accessibilityIdentifier("group-profile-cancel-request")
                 }
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+                Button {
+                    Task { await cancelRequest() }
+                } label: {
+                    ButtonStateLabel("Cancel Request", state: isRequesting ? .loading : .normal)
+                }
+                .buttonStyle(.subtle)
+                .disabled(isRequesting)
+                .accessibilityIdentifier("group-profile-cancel-request")
             }
         } else {
             Button {

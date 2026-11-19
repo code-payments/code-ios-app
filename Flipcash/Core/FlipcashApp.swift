@@ -219,7 +219,7 @@ private struct DialogSandbox: View {
         VStack(spacing: 12) {
             ForEach(items.indices, id: \.self) { index in
                 Button(items[index].0) { dialogItem = items[index].1() }
-                    .buttonStyle(.filled20Compact)
+                    .buttonStyle(.subtleCompact)
             }
         }
         .padding(20)

@@ -71,7 +71,7 @@ struct LoginScreen: View {
                         NavigationLink(value: OnboardingPath.accessKeyHelp) {
                             Text("Can't Find Your Access Key?")
                         }
-                        .buttonStyle(.subtle)
+                        .buttonStyle(.textLink)
                         .disabled(!buttonState.isNormal)
                     }
                 }

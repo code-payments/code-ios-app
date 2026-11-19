@@ -14,9 +14,6 @@ struct AmountPresetButton<Label: View>: View {
     let action: () -> Void
     @ViewBuilder let label: () -> Label
 
-    /// Node 10127:118260 — the preset row is 61pt tall.
-    private static var height: CGFloat { 61 }
-
     var body: some View {
         Button(action: action) {
             label()
@@ -30,7 +27,7 @@ struct AmountPresetButton<Label: View>: View {
                 .padding(.horizontal, 8)
                 .foregroundStyle(isSelected ? Color.textAction : Color.textMain)
                 .frame(maxWidth: .infinity)
-                .frame(height: Self.height)
+                .frame(height: Metrics.buttonHeight)
                 .background(
                     isSelected ? Color.action : Color.white.opacity(0.1),
                     in: Capsule()

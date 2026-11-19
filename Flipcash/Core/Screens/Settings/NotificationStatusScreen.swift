@@ -142,8 +142,8 @@ struct NotificationStatusScreen: View {
                     state: isSendingTest ? .loading : .normal
                 )
             }
-            // Both fills are translucent; without the backing the checks show through them.
-            .buttonStyle((isTestSent ? FilledButtonStyle.filled20 : .filled).backed(by: .backgroundMain))
+            // The disabled fill is translucent; without the backing the checks show through it.
+            .buttonStyle(.filled.backed(by: .backgroundMain))
             .disabled(!isTestEnabled || isSendingTest)
             .accessibilityIdentifier("notification-status-send-test")
 
