@@ -79,9 +79,6 @@ enum PublicGroupLook {
     /// The gap from the last text of the identity to the Share and Edit pills.
     static let bioToActions: CGFloat = 16
 
-    /// The corner radius of the Share and Edit pills; half their height is a capsule.
-    static let pillRadius: CGFloat = 22
-
     /// The outline every box is drawn with.
     static var cardShape: RoundedRectangle {
         .rect(cornerRadius: cardRadius, style: .continuous)

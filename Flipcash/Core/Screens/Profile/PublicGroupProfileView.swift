@@ -275,7 +275,7 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                     .accessibilityIdentifier("profile-bio")
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: Metrics.buttonGap) {
                 actions()
             }
             .padding(.top, PublicGroupLook.bioToActions)
@@ -292,8 +292,8 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
 
 // MARK: - Buttons -
 
-/// The press every public-group control shares: a small scale, or a dim under Reduce Motion, with
-/// the haptic on touch-down.
+/// The press of a public-group row or face: a small scale, or a dim under Reduce Motion, with the
+/// haptic on touch-down.
 private struct PublicGroupPress: ViewModifier {
 
     let isPressed: Bool
@@ -317,11 +317,22 @@ private struct PublicGroupPress: ViewModifier {
     private static let scale: CGFloat = 0.96
 }
 
-/// The outline pill under the bio: a rounded rectangle, a capsule at its default radius, stroked in
-/// the palette's secondary color.
-struct PublicGroupOutlineButtonStyle: ButtonStyle {
+/// The press of a public-group button: the house press, with the haptic on touch-down.
+private struct PublicGroupButtonPress: ViewModifier {
 
-    private static var shape: RoundedRectangle { .rect(cornerRadius: PublicGroupLook.pillRadius) }
+    let isPressed: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .buttonPress(isPressed: isPressed)
+            .onChange(of: isPressed) { _, isPressed in
+                if isPressed { Haptics.soft() }
+            }
+    }
+}
+
+/// The outline capsule under the bio, stroked in the palette's secondary color.
+struct PublicGroupOutlineButtonStyle: ButtonStyle {
 
     @Environment(\.bleedPalette) private var palette
 
@@ -331,9 +342,9 @@ struct PublicGroupOutlineButtonStyle: ButtonStyle {
             .foregroundStyle(palette.secondaryStyle)
             .padding(.horizontal, 24)
             .frame(minHeight: Metrics.buttonHeightThin)
-            .overlay { Self.shape.strokeBorder(palette.secondaryStyle, lineWidth: 1.5) }
-            .contentShape(Self.shape)
-            .modifier(PublicGroupPress(isPressed: configuration.isPressed))
+            .overlay { Capsule().strokeBorder(palette.secondaryStyle, lineWidth: 1.5) }
+            .contentShape(Capsule())
+            .modifier(PublicGroupButtonPress(isPressed: configuration.isPressed))
     }
 }
 
@@ -350,11 +361,11 @@ struct PublicGroupCapsuleButtonStyle: ButtonStyle {
             .frame(height: Self.height)
             .background(isEnabled ? Color.action : Color.action.opacity(0.1), in: Capsule())
             .contentShape(Capsule())
-            .modifier(PublicGroupPress(isPressed: configuration.isPressed))
+            .modifier(PublicGroupButtonPress(isPressed: configuration.isPressed))
     }
 
-    /// The capsule's height, matching the amount screen's action button.
-    static var height: CGFloat { 54 }
+    /// The capsule's height: the house button height.
+    static var height: CGFloat { Metrics.buttonHeight }
 
     /// The side inset of the pinned bar, matching the amount screen's action button.
     static var sideInset: CGFloat { 32 }
@@ -375,7 +386,7 @@ struct PublicGroupClosingButtonStyle: ButtonStyle {
             .frame(height: PublicGroupCapsuleButtonStyle.height)
             .background(palette.controlTint, in: Capsule())
             .contentShape(Capsule())
-            .modifier(PublicGroupPress(isPressed: configuration.isPressed))
+            .modifier(PublicGroupButtonPress(isPressed: configuration.isPressed))
     }
 
     private var labelStyle: AnyShapeStyle {

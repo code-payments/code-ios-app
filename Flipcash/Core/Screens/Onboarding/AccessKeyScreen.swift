@@ -47,16 +47,17 @@ struct AccessKeyScreen: View {
                 
                 Spacer()
                 
-                CodeButton(
-                    state: viewModel.accessKeyButtonState,
-                    style: .filled,
-                    title: "Save Access Key to Photos",
-                    action: viewModel.saveToPhotosAction
-                )
-                
-                Button("Wrote the 12 Words Down Instead?", action: viewModel.wroteDownAction)
-                    .buttonStyle(.subtle)
-                    .disabled(viewModel.accessKeyButtonState != .normal)
+                VStack(spacing: Metrics.buttonGap) {
+                    Button(action: viewModel.saveToPhotosAction) {
+                        ButtonStateLabel("Save Access Key to Photos", state: viewModel.accessKeyButtonState)
+                    }
+                    .buttonStyle(.filled)
+                    .disabled(!viewModel.accessKeyButtonState.isNormal)
+
+                    Button("Wrote the 12 Words Down Instead?", action: viewModel.wroteDownAction)
+                        .buttonStyle(.subtle)
+                        .disabled(viewModel.accessKeyButtonState != .normal)
+                }
             }
             .ignoresSafeArea(.keyboard)
             .foregroundStyle(.textMain)

@@ -81,14 +81,13 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
                 .padding(20)
 
                 Spacer()
-                CodeButton(
-                    state: viewModel.confirmCodeButtonState,
-                    style: .filled,
-                    title: "Confirm",
-                    disabled: !viewModel.isCodeComplete
-                ) {
+                Button {
                     viewModel.confirmPhoneNumberCodeAction()
+                } label: {
+                    ButtonStateLabel("Confirm", state: viewModel.confirmCodeButtonState)
                 }
+                .buttonStyle(.filled)
+                .disabled(!viewModel.isCodeComplete || !viewModel.confirmCodeButtonState.isNormal)
             }
             .padding(20)
             .foregroundStyle(.textMain)

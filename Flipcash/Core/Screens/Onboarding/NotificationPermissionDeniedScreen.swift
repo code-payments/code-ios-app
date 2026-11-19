@@ -46,11 +46,13 @@ struct NotificationPermissionDeniedScreen: View {
 
                 Spacer()
 
-                Button("Open Settings", action: viewModel.openNotificationSettingsAction)
-                    .buttonStyle(.filled)
+                VStack(spacing: Metrics.buttonGap) {
+                    Button("Open Settings", action: viewModel.openNotificationSettingsAction)
+                        .buttonStyle(.filled)
 
-                Button("I'm Sure", action: viewModel.confirmSkipNotificationsAction)
-                    .buttonStyle(.subtle)
+                    Button("I'm Sure", action: viewModel.confirmSkipNotificationsAction)
+                        .buttonStyle(.subtle)
+                }
             }
             .padding(20)
         }

@@ -49,15 +49,14 @@ struct EnterEmailScreen<VM: EmailVerifying>: View {
 
                 Spacer()
 
-                CodeButton(
-                    state: viewModel.sendEmailCodeState,
-                    style: .filled,
-                    title: "Next",
-                    disabled: !viewModel.canSendEmailVerification
-                ) {
+                Button {
                     isFocused = false
                     viewModel.sendEmailCodeAction()
+                } label: {
+                    ButtonStateLabel("Next", state: viewModel.sendEmailCodeState)
                 }
+                .buttonStyle(.filled)
+                .disabled(!viewModel.canSendEmailVerification || !viewModel.sendEmailCodeState.isNormal)
             }
             .padding(20)
             .foregroundStyle(.textMain)

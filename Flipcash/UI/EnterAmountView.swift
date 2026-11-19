@@ -217,7 +217,7 @@ public struct EnterAmountView: View {
                 Button(action: action) {
                     ButtonStateLabel(actionTitle ?? mode.actionName, state: actionState)
                 }
-                .buttonStyle(AmountActionButtonStyle())
+                .buttonStyle(.filled)
                 .disabled(!actionEnabled(enteredAmount) || !isActionIdle)
                 // Amount entry v2: 32 from the screen's sides and bottom (the screens already pad 20),
                 // 20 below the keypad.
@@ -332,27 +332,4 @@ extension EnterAmountView {
         actionState: .constant(.normal),
         actionEnabled: { _ in return true }
     ) {}
-}
-
-
-// MARK: - Action button -
-
-/// The amount screen's primary action: a full-width capsule in the action colour, faded when disabled.
-private struct AmountActionButtonStyle: ButtonStyle {
-
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.appTextMedium)
-            .foregroundStyle(isEnabled ? Color.textAction : Color.textMain.opacity(0.2))
-            .frame(maxWidth: .infinity)
-            .frame(height: 54)
-            .background {
-                RoundedRectangle(cornerRadius: 27, style: .continuous)
-                    .fill(isEnabled ? Color.action : Color.action.opacity(0.1))
-            }
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
 }

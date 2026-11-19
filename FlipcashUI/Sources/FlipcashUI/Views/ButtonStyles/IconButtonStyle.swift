@@ -42,7 +42,7 @@ public struct IconButtonStyle: ButtonStyle {
         }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(.white.opacity(0.1))
+            .background(Color.actionSecondary)
             .clipShape(Capsule())
             .buttonPress(isPressed: configuration.isPressed)
     }
