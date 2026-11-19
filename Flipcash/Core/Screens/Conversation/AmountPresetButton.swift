@@ -31,10 +31,18 @@ struct AmountPresetButton<Label: View>: View {
                 .frame(height: Self.height)
                 .background(
                     isSelected ? Color.action : Color.white.opacity(0.1),
-                    in: .rect(cornerRadius: Metrics.buttonRadius)
+                    in: Capsule()
                 )
-                .contentShape(.rect(cornerRadius: Metrics.buttonRadius))
+                .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PresetPressStyle())
+    }
+}
+
+/// Leaves the chip's own drawing alone and adds the house press.
+private struct PresetPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .buttonPress(isPressed: configuration.isPressed)
     }
 }
