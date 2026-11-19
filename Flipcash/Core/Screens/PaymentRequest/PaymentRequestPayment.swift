@@ -187,12 +187,18 @@ final class PaymentRequestPayment {
         )
     }
 
-    /// The plan as the sheet and Payment Details draw it.
-    var fundingDisplay: CollectionFundingDisplay? {
+    /// The plan as the sheet's fee line and Payment Details draw it.
+    var fundingSheet: CollectionPaymentSheetContent? {
         guard let plan = fundingPlan, let request, let payable,
               let currency = payableFiat(payable, of: request)?.currency else { return nil }
         let names = Dictionary(session.balances.map { ($0.mint.base58, $0.name) }, uniquingKeysWith: { first, _ in first })
-        return CollectionFundingDisplay(plan: plan, currency: currency, dollars: PublicKey.usdf.base58, names: names)
+        let display = CollectionFundingDisplay(plan: plan, currency: currency, dollars: PublicKey.usdf.base58, names: names)
+        return CollectionPaymentSheetContent(plan: plan, display: display)
+    }
+
+    /// The icon of the currency with this id, when the wallet holds it.
+    func currencyImageURL(_ id: String) -> URL? {
+        (try? PublicKey(base58: id)).flatMap { session.balance(for: $0)?.imageURL }
     }
 
     /// The paying currency's balance, for the sheet's pill; held at zero when conversions fund it.

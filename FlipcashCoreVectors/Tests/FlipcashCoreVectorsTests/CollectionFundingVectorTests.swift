@@ -178,6 +178,11 @@ import Testing
         #expect(shown.pay == .init(label: expected.details.pay.name, amount: expected.details.pay.amount))
         #expect(shown.use == expected.details.use.map { .init(label: $0.name, amount: $0.amount, sublabels: $0.sublabels) })
         #expect(shown.total == .init(label: expected.details.total.label, amount: expected.details.total.amount))
+        // The ids name the same currencies the rows do.
+        let names = Dictionary(uniqueKeysWithValues: vector.input.balances.map { ($0.id, $0.name) })
+        #expect(shown.payCurrency == vector.expected.selected)
+        let name = { (id: String) in names[id] ?? (id == Self.dollars ? CollectionFundingDisplay.dollarsName : id) }
+        #expect(shown.useCurrencies.map(name) == expected.details.use.map(\.name))
     }
 
     @Test("Fee kind and strings match every fee row", arguments: fixture.feeDisplay)

@@ -80,9 +80,15 @@ public struct CollectionFundingDisplay: Equatable, Sendable {
     /// "You’ll Pay": the paying currency and the amount.
     public let pay: Row
 
+    /// The id of the currency in ``pay``.
+    public let payCurrency: String
+
     /// "You’ll Use": a row per leg, the paying currency first, then Dollars, then the others by
     /// amount sold, largest first and ties by id.
     public let use: [Row]
+
+    /// The id of the currency each ``use`` row sells, in the same order.
+    public let useCurrencies: [String]
 
     /// The sum of the amounts sold, rounded once.
     public let total: Row
@@ -116,7 +122,9 @@ public struct CollectionFundingDisplay: Equatable, Sendable {
                 lhs.soldMicros != rhs.soldMicros ? lhs.soldMicros > rhs.soldMicros : lhs.source < rhs.source
             }
 
-        self.use = (payingLegs + dollarsLegs + otherLegs).map { leg in
+        let orderedLegs = payingLegs + dollarsLegs + otherLegs
+        self.useCurrencies = orderedLegs.map(\.source)
+        self.use = orderedLegs.map { leg in
             var sublabels: [String] = []
             if leg.source == dollars, let split = leg.dollarsSplit, split.fromTopUpMicros > 0 {
                 if split.fromBalanceMicros > 0 {
@@ -147,6 +155,7 @@ public struct CollectionFundingDisplay: Equatable, Sendable {
             currency: currency
         )
         self.pay = Row(label: name(paying), amount: money(plan.amountMicros))
+        self.payCurrency = paying
         self.total = Row(
             label: Self.totalLabel,
             amount: money(plan.legs.reduce(0) { $0 + $1.soldMicros })

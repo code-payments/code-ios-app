@@ -207,6 +207,11 @@ struct PaymentRequestCollectionFundingTests {
 
         #expect(f.payment.fundingPlan?.payingCurrency == PublicKey.jeffy.base58)
         #expect(f.payment.fundingPlan?.legs.contains { $0.source == PublicKey.usdf.base58 && $0.conversion } == true)
+        // The pill and Payment Details follow the pick: Dollars buy Jeffy at no fee.
+        #expect(f.payment.payingBalance?.stored.mint == .jeffy)
+        #expect(f.payment.fundingSheet?.payingCurrency == PublicKey.jeffy.base58)
+        #expect(f.payment.fundingSheet?.feeLine == "no conversion fees")
+        #expect(f.payment.fundingSheet?.use.map(\.currency) == [PublicKey.usdf.base58])
         #expect(f.swapper.submitted.isEmpty)
         #expect(f.swapper.refreshes == 0)
         #expect(f.container.ratesController.selectedTokenMint == .usdf)
@@ -221,6 +226,9 @@ struct PaymentRequestCollectionFundingTests {
         let plan = try #require(f.payment.fundingPlan)
         try #require(plan.payableWithoutTopUp)
         try #require(plan.legs.contains { $0.source == PublicKey.jeffy.base58 && $0.conversion })
+        let sheet = try #require(f.payment.fundingSheet)
+        #expect(sheet.feeLine?.hasPrefix("plus ~$") == true)
+        #expect(sheet.use.map(\.currency) == [PublicKey.usdf.base58, PublicKey.jeffy.base58])
         f.swapper.balancesAfterRefresh = [.usdf: 10_500_000]
 
         #expect(await f.payment.prepare() == .ready)
@@ -299,7 +307,7 @@ struct PaymentRequestCollectionFundingTests {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.plentyOfJeffy, fundsCollections: false)
 
         #expect(f.payment.fundingPlan == nil)
-        #expect(f.payment.fundingDisplay == nil)
+        #expect(f.payment.fundingSheet == nil)
         #expect(await f.payment.prepare() == .ready)
         #expect(await f.payment.submit() == .failed)
         #expect(f.swapper.submitted.isEmpty)

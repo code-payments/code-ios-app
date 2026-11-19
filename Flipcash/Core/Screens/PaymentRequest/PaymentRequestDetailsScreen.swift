@@ -518,46 +518,25 @@ private struct PaymentRequestPaySheet: View {
 
     @State private var didSucceed = false
     @State private var isShowingTokenSelection = false
+    @State private var isShowingDetails = false
 
     var body: some View {
+        // A collection that conversions fund draws its paying currency, fee line and Payment Details.
+        let funding = payment.fundsCollection ? payment.fundingSheet : nil
         PartialSheet(background: .clear) {
-            VStack(spacing: 25) {
-                VStack(spacing: 8) {
-                    PaymentRequestAvatar(userID: payeeID, member: payee, size: 56)
-                    Text(payee.map(ConversationLoadCoordinator.attributionName(for:)) ?? "")
-                        .font(.appTextLarge)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                    if let handle = payee?.username?.handle {
-                        Text(handle)
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
-                    }
-                }
-                VStack(spacing: 8) {
-                    Text(amount)
-                        .font(.appDisplayLarge)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.4)
-                    TokenSelectorButton(selectedBalance: payment.selectedBalance) {
-                        isShowingTokenSelection = true
-                    }
-                    .id(payment.selectedBalance?.stored.mint)
-                    .buttonStyle(TokenChipStyle())
-                    .padding(.top, 4)
-                }
-                SwipeControl(text: "Swipe to Pay") {
-                    switch await payment.submit() {
-                    case .success:
-                        didSucceed = true
-                    case .failed:
-                        throw PaymentRequestPayDismissed()
-                    }
+            Group {
+                if isShowingDetails, let funding {
+                    CollectionPaymentDetailsView(
+                        content: funding,
+                        imageURL: payment.currencyImageURL,
+                        onBack: { isShowingDetails = false }
+                    )
+                } else {
+                    payContent(feeLine: funding?.feeLine)
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 30)
+            .padding(.top, isShowingDetails ? 20 : 30)
             .padding(.bottom, bottomPadding)
         }
         // Hold the success checkmark briefly, then return to the details, now showing the row paid.
@@ -571,7 +550,7 @@ private struct PaymentRequestPaySheet: View {
             let options = payment.paymentOptions
             CurrencyPickerSheet(
                 options: options,
-                selectedMint: payment.selectedBalance?.stored.mint ?? .usdf,
+                selectedMint: shownBalance?.stored.mint ?? .usdf,
                 onSelect: { mint in
                     if let balance = options.first(where: { $0.stored.mint == mint }) {
                         payment.selectCurrencyAction(exchangedBalance: balance)
@@ -579,6 +558,52 @@ private struct PaymentRequestPaySheet: View {
                     isShowingTokenSelection = false
                 }
             )
+        }
+    }
+
+    /// The pill's currency: the paying currency for a funded collection, else the selection.
+    private var shownBalance: ExchangedBalance? {
+        payment.fundsCollection ? payment.payingBalance : payment.selectedBalance
+    }
+
+    private func payContent(feeLine: String?) -> some View {
+        VStack(spacing: 25) {
+            VStack(spacing: 8) {
+                PaymentRequestAvatar(userID: payeeID, member: payee, size: 56)
+                Text(payee.map(ConversationLoadCoordinator.attributionName(for:)) ?? "")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                if let handle = payee?.username?.handle {
+                    Text(handle)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            VStack(spacing: 8) {
+                Text(amount)
+                    .font(.appDisplayLarge)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
+                if let feeLine {
+                    CollectionPaymentFeeLine(text: feeLine) { isShowingDetails = true }
+                }
+                TokenSelectorButton(selectedBalance: shownBalance) {
+                    isShowingTokenSelection = true
+                }
+                .id(shownBalance?.stored.mint)
+                .buttonStyle(TokenChipStyle())
+                .padding(.top, 4)
+            }
+            SwipeControl(text: "Swipe to Pay") {
+                switch await payment.submit() {
+                case .success:
+                    didSucceed = true
+                case .failed:
+                    throw PaymentRequestPayDismissed()
+                }
+            }
         }
     }
 
