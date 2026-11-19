@@ -575,17 +575,24 @@ private struct PaymentRequestPaySheet: View {
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             let options = payment.paymentOptions
-            CurrencyPickerSheet(
-                options: options,
-                selectedMint: shownBalance?.stored.mint ?? .usdf,
-                onSelect: { mint in
-                    if let balance = options.first(where: { $0.stored.mint == mint }) {
-                        payment.selectCurrencyAction(exchangedBalance: balance)
-                    }
-                    isShowingTokenSelection = false
+            let selectedMint = shownBalance?.stored.mint ?? .usdf
+            if payment.fundsCollection {
+                CollectionCurrencyPickerSheet(options: options, selectedMint: selectedMint) { mint in
+                    select(mint, in: options)
                 }
-            )
+            } else {
+                CurrencyPickerSheet(options: options, selectedMint: selectedMint) { mint in
+                    select(mint, in: options)
+                }
+            }
         }
+    }
+
+    private func select(_ mint: PublicKey, in options: [ExchangedBalance]) {
+        if let balance = options.first(where: { $0.stored.mint == mint }) {
+            payment.selectCurrencyAction(exchangedBalance: balance)
+        }
+        isShowingTokenSelection = false
     }
 
     /// The pill's currency: the paying currency for a funded collection, else the selection.
@@ -601,7 +608,7 @@ private struct PaymentRequestPaySheet: View {
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
                     .lineLimit(1)
-                if let handle = payee?.username?.handle {
+                if !payment.fundsCollection, let handle = payee?.username?.handle {
                     Text(handle)
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
@@ -616,7 +623,7 @@ private struct PaymentRequestPaySheet: View {
                 if let feeLine {
                     CollectionPaymentFeeLine(text: feeLine) { isShowingDetails = true }
                 }
-                TokenSelectorButton(selectedBalance: shownBalance) {
+                TokenSelectorButton(selectedBalance: shownBalance, showsChevron: !payment.fundsCollection) {
                     isShowingTokenSelection = true
                 }
                 .id(shownBalance?.stored.mint)

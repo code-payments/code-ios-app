@@ -608,7 +608,7 @@ struct PaymentRequestCollectionFundingTests {
 
         #expect(await f.payment.prepare() == .ready)
         #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .failed)
-        #expect(f.container.session.dialogItem?.title == "Top-Up Pending")
+        #expect(f.container.session.dialogItem?.title == "Money Still on Its Way")
 
         f.topUpper.delivered = 5
         #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .success)
@@ -718,10 +718,12 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.payment.fundingPlan?.topUpMicros == 5_000_000)
     }
 
-    @Test("With Group Money off a collection neither plans nor converts")
+    @Test("With Group Money off a collection neither plans nor converts, and the sheet stays the shipped one")
     func flagOff() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.plentyOfJeffy, fundsCollections: false)
 
+        // The sheet's handle, pill chevron and picker each switch on this.
+        #expect(!f.payment.fundsCollection)
         #expect(f.payment.fundingPlan == nil)
         #expect(f.payment.fundingSheet == nil)
         #expect(await f.payment.prepare() == .ready)

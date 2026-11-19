@@ -801,12 +801,11 @@ final class PaymentRequestPayment {
     /// next tap waits on the same order again instead of placing another.
     private func showTopUpPending() {
         session.dialogItem = .info(
-            title: String(localized: "Top-Up Pending", comment: "Title shown when Dollars added with Apple Pay for a payment haven't arrived yet"),
-            subtitle: String(localized: "Your Dollars are still on their way. Please try again shortly.", comment: "Body shown when Dollars added with Apple Pay for a payment haven't arrived yet")
+            title: String(localized: "Money Still on Its Way", comment: "Title shown when money added with Apple Pay for a payment hasn't arrived yet"),
+            subtitle: String(localized: "The money you added hasn't arrived yet. Try again shortly and you won't be charged again.", comment: "Body shown when money added with Apple Pay for a payment hasn't arrived yet")
         )
     }
 
-    /// No frame draws this state yet; the copy says what the spec asks for.
     /// Whether `fiat` is over the next-transaction send limit, showing the limit dialog when it is.
     private func exceedsSendLimit(_ fiat: FiatAmount) -> Bool {
         let sendLimit = session.sendLimitFor(currency: fiat.currency) ?? .zero
@@ -818,10 +817,11 @@ final class PaymentRequestPayment {
         return true
     }
 
+    /// No frame draws this state; the copy says what the spec asks for.
     private func showConversionPending() {
         session.dialogItem = .info(
             title: String(localized: "Conversion Pending", comment: "Title shown when a currency conversion for a payment hasn't settled yet"),
-            subtitle: String(localized: "Your conversion is still pending. Please try again shortly.", comment: "Body shown when a currency conversion for a payment hasn't settled yet")
+            subtitle: String(localized: "Your conversion is still pending. Try again shortly.", comment: "Body shown when a currency conversion for a payment hasn't settled yet")
         )
     }
 

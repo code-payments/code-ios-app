@@ -8,10 +8,11 @@ import FlipcashCore
 
 /// The selected-currency affordance shared by the amount-entry surfaces: the
 /// currency's image and name with a disclosure chevron, opening the
-/// held-currency picker.
+/// held-currency picker. A collection's pay sheet hides the chevron.
 struct TokenSelectorButton: View {
 
     let selectedBalance: ExchangedBalance?
+    var showsChevron: Bool = true
     let action: () -> Void
 
     var body: some View {
@@ -23,9 +24,11 @@ struct TokenSelectorButton: View {
                     amount: nil
                 )
 
-                Image.icon(.chevronDownMedium)
-                    .iconSize(16)
-                    .foregroundStyle(.textMain)
+                if showsChevron {
+                    Image.icon(.chevronDownMedium)
+                        .iconSize(16)
+                        .foregroundStyle(.textMain)
+                }
             }
         }
     }

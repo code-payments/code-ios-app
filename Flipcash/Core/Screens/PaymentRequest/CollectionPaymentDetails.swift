@@ -143,25 +143,33 @@ struct CollectionPaymentDetailsView: View {
             }
             .frame(height: min(linesHeight, maxListHeight))
             .scrollBounceBehavior(.basedOnSize)
+            .scrollIndicators(.hidden)
         }
     }
+
+    private static let iconSize: CGFloat = 24
+    private static let iconSpacing: CGFloat = 8
 
     private var lines: some View {
         VStack(alignment: .leading, spacing: 20) {
             section(CollectionPaymentSheetContent.payHeading, lines: [content.pay])
             section(CollectionPaymentSheetContent.useHeading, lines: content.use)
 
-            Rectangle()
-                .fill(Color.rowSeparator)
-                .frame(height: 1)
+            // The divider and "Total" start where the names do (5.3, 9.3), past the icons.
+            VStack(alignment: .leading, spacing: 20) {
+                Rectangle()
+                    .fill(Color.rowSeparator)
+                    .frame(height: 1)
 
-            HStack {
-                Text(content.total.label)
-                Spacer()
-                Text(content.total.amount)
+                HStack {
+                    Text(content.total.label)
+                    Spacer()
+                    Text(content.total.amount)
+                }
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
             }
-            .font(.appTextSmall)
-            .foregroundStyle(Color.textMain)
+            .padding(.leading, Self.iconSize + Self.iconSpacing)
         }
     }
 
@@ -177,8 +185,8 @@ struct CollectionPaymentDetailsView: View {
     }
 
     private func row(_ line: CollectionPaymentSheetContent.Line) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            TokenIcon(url: imageURL(line.currency), monogramID: line.currency, size: 24)
+        HStack(alignment: .top, spacing: Self.iconSpacing) {
+            TokenIcon(url: imageURL(line.currency), monogramID: line.currency, size: Self.iconSize)
             VStack(alignment: .leading, spacing: 2) {
                 Text(line.name)
                     .font(.appTextSmall)
