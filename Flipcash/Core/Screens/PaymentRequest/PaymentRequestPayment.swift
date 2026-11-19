@@ -132,12 +132,15 @@ final class PaymentRequestPayment {
     }
 
     /// The balances the currency picker offers. A funded collection also offers the paying
-    /// currency at zero, since conversions can fund it.
+    /// currency and Dollars at zero, since conversions can fund either.
     var paymentOptions: [ExchangedBalance] {
         let options = ratesController.paymentOptions(session: session)
-        guard fundsCollection, let paying = payingBalance,
-              !options.contains(where: { $0.stored.mint == paying.stored.mint }) else { return options }
-        return [paying] + options
+        guard fundsCollection else { return options }
+        let missing = [payingBalance, balanceOrZero(for: .usdf)]
+            .compactMap { $0 }
+            .filter { balance in !options.contains { $0.stored.mint == balance.stored.mint } }
+        var seen = Set<PublicKey>()
+        return missing.filter { seen.insert($0.stored.mint).inserted } + options
     }
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
@@ -221,8 +224,14 @@ final class PaymentRequestPayment {
 
     /// The paying currency's balance, for the sheet's pill; held at zero when conversions fund it.
     var payingBalance: ExchangedBalance? {
-        guard let mint = fundingPlan.flatMap({ try? PublicKey(base58: $0.payingCurrency) }),
-              let stored = session.balance(for: mint) ?? Self.emptyBalance(session.storedMintMetadata(for: mint)) else { return nil }
+        fundingPlan
+            .flatMap { try? PublicKey(base58: $0.payingCurrency) }
+            .flatMap(balanceOrZero(for:))
+    }
+
+    /// The wallet's balance of `mint`, or a zero one while its metadata is stored.
+    private func balanceOrZero(for mint: PublicKey) -> ExchangedBalance? {
+        guard let stored = session.balance(for: mint) ?? Self.emptyBalance(session.storedMintMetadata(for: mint)) else { return nil }
         return ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: ratesController.rateForBalanceCurrency()))
     }
 

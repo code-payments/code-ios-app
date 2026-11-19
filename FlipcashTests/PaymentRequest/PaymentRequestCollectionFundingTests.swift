@@ -113,6 +113,7 @@ struct PaymentRequestCollectionFundingTests {
         dollars: UInt64?,
         jeffy: UInt64?,
         lastPaid: PublicKey? = nil,
+        storesJeffyMetadata: Bool = false,
         fundsCollections: Bool = true
     ) async throws -> Fixture {
         var holdings: [SessionContainer.Holding] = []
@@ -125,7 +126,7 @@ struct PaymentRequestCollectionFundingTests {
         let limit = FiatAmount(value: 1000, currency: .usd)
         let container = try SessionContainer.makeTest(
             holdings: holdings,
-            mints: dollars == nil ? [.usdf] : [],
+            mints: (dollars == nil ? [.usdf] : []) + (storesJeffyMetadata && jeffy == nil ? [Self.jeffyMint] : []),
             limits: Limits(
                 sinceDate: .now,
                 fetchDate: .now,
@@ -193,11 +194,24 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.payment.paymentOptions.first?.stored.mint == .jeffy)
     }
 
-    @Test("A last paid currency the wallet no longer holds falls back to Dollars")
+    @Test("A last paid currency the app has no record of falls back to Dollars")
     func lastPaidNotHeld() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 100_000_000, jeffy: nil, lastPaid: .jeffy)
 
         #expect(f.payment.fundingPlan?.payingCurrency == PublicKey.usdf.base58)
+    }
+
+    @Test("A last paid currency with no balance row but stored metadata opens at zero")
+    func lastPaidNoRowWithMetadata() async throws {
+        let f = try await fixture(
+            Server(intentResult: .success(intentID)), amount: 10, dollars: 100_000_000, jeffy: nil,
+            lastPaid: .jeffy, storesJeffyMetadata: true
+        )
+        try #require(f.container.session.balance(for: .jeffy) == nil)
+
+        #expect(f.payment.fundingPlan?.payingCurrency == PublicKey.jeffy.base58)
+        #expect(f.payment.payingBalance?.stored.mint == .jeffy)
+        #expect(f.payment.payingBalance?.stored.quarks == 0)
     }
 
     @Test("Changing currency reruns the plan and starts no swap")
@@ -266,6 +280,20 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.swapper.submitted.first?.swap.destination == .usdf)
         #expect(f.payer.payments.count == 1)
         #expect(f.payer.payments.first?.amount.mint == .usdf)
+    }
+
+    @Test("With no Dollars row, the picker still offers Dollars after another currency is picked")
+    func noDollarsRowPickerKeepsDollars() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: Self.plentyOfJeffy)
+        let stored = try #require(f.container.session.balance(for: .jeffy))
+        let jeffy = ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: Rate(fx: 1, currency: .usd)))
+
+        f.payment.selectCurrencyAction(exchangedBalance: jeffy)
+
+        #expect(f.payment.fundingPlan?.payingCurrency == PublicKey.jeffy.base58)
+        let mints = f.payment.paymentOptions.map(\.stored.mint)
+        #expect(mints.contains(.usdf))
+        #expect(mints.filter { $0 == .jeffy }.count == 1)
     }
 
     @Test("A paying currency that covers the amount pays with no swap")
