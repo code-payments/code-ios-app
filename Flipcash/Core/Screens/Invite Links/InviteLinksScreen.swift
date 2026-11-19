@@ -210,8 +210,10 @@ struct InviteLinksContent: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
                     .background(InviteLinksMetrics.panel, in: Capsule())
+                    // Under 44 pt tall, so the hit area keeps the capsule's corners.
+                    .contentShape(.rect)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .padding(.top, 24)
             .accessibilityIdentifier("invite-links-new")
         }

@@ -291,9 +291,7 @@ private struct GroupSendConfirmSheet: View {
                         isShowingTokenSelection = true
                     }
                     .id(viewModel.selectedBalance?.stored.mint)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                    .buttonStyle(TokenChipStyle())
                     .padding(.top, 4)
                 }
                 SwipeControl(text: "Swipe to Send") {

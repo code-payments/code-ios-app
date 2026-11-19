@@ -649,11 +649,9 @@ struct ChatProfileScreen: View {
         origin == .chat && isMember
     }
 
-    /// Space under the scroll content. Leave Chat ending it draws down into the scroll view's bottom
-    /// inset: a text-only button is a full button tall, so its frame already leaves room under the
-    /// title. The bottom fade lifts at the end of the scroll, so it never covers the button.
+    /// Space under the scroll content.
     private var contentBottomPadding: CGFloat {
-        endsWithLeaveButton ? -scrollFit.bottomInset : 24
+        endsWithLeaveButton ? 8 : 24
     }
 
     // MARK: - Pinned -
@@ -670,20 +668,15 @@ struct ChatProfileScreen: View {
             requestActions
                 .padding(.horizontal, ProfileHeaderMetrics.inset)
                 .padding(.top, 12)
-                .padding(.bottom, requestedAt == nil ? 8 : 0)
+                .padding(.bottom, 8)
         } else if conversation != nil {
             VStack(spacing: Metrics.buttonGap) {
                 openChatButton
-                if isMember {
-                    leaveButton
-                        // A text-only button is a full button tall, so its frame already leaves
-                        // room under the title; let that room overlap the home indicator's inset.
-                        .padding(.bottom, -12)
-                }
+                if isMember { leaveButton }
             }
             .padding(.horizontal, ProfileHeaderMetrics.inset)
             .padding(.top, 12)
-            .padding(.bottom, isMember ? 0 : 8)
+            .padding(.bottom, 8)
         }
     }
 
@@ -749,8 +742,6 @@ struct ChatProfileScreen: View {
                     .buttonStyle(.subtle)
                     .disabled(isRequesting)
                     .accessibilityIdentifier("group-profile-cancel-request")
-                    // Same as Leave Chat: a text-only button already leaves room under its title.
-                    .padding(.bottom, -12)
                 }
             }
         } else {

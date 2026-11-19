@@ -68,7 +68,7 @@ private struct PaidReactionSheetContent: View {
                             } label: {
                                 EmojiPill(emoji: viewModel.emoji ?? "")
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.pressable)
                             .accessibilityHint("Switches to your next reaction")
                             Text("Tap to change")
                                 .font(.default(size: 12, weight: .medium))
@@ -198,7 +198,7 @@ private struct PaidReactionSheetContent: View {
             .padding(.vertical, 6)
             .background(Color.white.opacity(0.1), in: Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
     }
 
     /// A USD-priced boost as the viewer reads it, in the display currency.

@@ -38,9 +38,8 @@ struct EditFeaturedGroupsScreen: View {
                     Button(action: save) {
                         ButtonStateLabel("Save", state: buttonState)
                     }
-                    .buttonStyle(.filled)
-                    // The disabled fill is translucent; without this the rows show through it.
-                    .background(Color.backgroundMain, in: Capsule())
+                    // The disabled fill is translucent; without the backing the rows show through it.
+                    .buttonStyle(.filled.backed(by: .backgroundMain))
                     .disabled(!model.canSave)
                     .accessibilityIdentifier("edit-featured-groups-save")
                     .padding(.horizontal, 20)

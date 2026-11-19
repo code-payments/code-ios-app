@@ -26,6 +26,8 @@ struct AmountPresetButton<Label: View>: View {
                 // rather than wrapping or clipping.
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
+                // Keeps a shrunk custom amount clear of the capsule's round ends.
+                .padding(.horizontal, 8)
                 .foregroundStyle(isSelected ? Color.textAction : Color.textMain)
                 .frame(maxWidth: .infinity)
                 .frame(height: Self.height)
@@ -35,14 +37,7 @@ struct AmountPresetButton<Label: View>: View {
                 )
                 .contentShape(Capsule())
         }
-        .buttonStyle(PresetPressStyle())
-    }
-}
-
-/// Leaves the chip's own drawing alone and adds the house press.
-private struct PresetPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .buttonPress(isPressed: configuration.isPressed)
+        .buttonStyle(.pressable)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

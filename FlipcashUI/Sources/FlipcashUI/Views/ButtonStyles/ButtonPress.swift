@@ -20,10 +20,12 @@ public struct ButtonPress: ViewModifier {
     }
 
     public func body(content: Content) -> some View {
-        content
-            .scaleEffect(!reduceMotion && isPressed ? Metrics.buttonPressScale : 1)
-            .opacity(reduceMotion && isPressed ? Metrics.buttonPressDim : 1)
-            .animation(Metrics.buttonPressAnimation, value: isPressed)
+        // Scoped to the scale and dim, so what the action changes on release doesn't ride the spring.
+        content.animation(Metrics.buttonPressAnimation) { view in
+            view
+                .scaleEffect(!reduceMotion && isPressed ? Metrics.buttonPressScale : 1)
+                .opacity(reduceMotion && isPressed ? Metrics.buttonPressDim : 1)
+        }
     }
 }
 

@@ -86,7 +86,10 @@ struct LoginScreen: View {
                             autoCompleteLast(with: word)
                         } label: {
                             TextBubble(style: .filled, text: word)
+                                // Under 44 pt tall, so the hit area keeps the bubble's corners.
+                                .contentShape(.rect)
                         }
+                        .buttonStyle(.pressable)
                     }
                     Spacer()
                 }

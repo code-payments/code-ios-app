@@ -208,9 +208,11 @@ struct TrayButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, minHeight: TrayMetrics.actionHeight)
             .background(fill, in: Capsule())
             .contentShape(Capsule())
-            .scaleEffect(press == .scale && isPressed ? TrayMetrics.actionPressScale : 1)
-            .opacity(press == .dim && isPressed ? TrayMetrics.actionPressDim : 1)
-            .animation(Metrics.buttonPressAnimation, value: isPressed)
+            .animation(Metrics.buttonPressAnimation) { view in
+                view
+                    .scaleEffect(press == .scale && isPressed ? TrayMetrics.actionPressScale : 1)
+                    .opacity(press == .dim && isPressed ? TrayMetrics.actionPressDim : 1)
+            }
     }
 
     private var foreground: Color {

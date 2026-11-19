@@ -49,6 +49,7 @@ public struct SlidingChipPicker<Option: Hashable>: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Capsule())
                         .anchorPreference(key: ChipAnchors<Option>.self, value: .bounds) { [option: $0] }
                 }
                 .buttonStyle(.plain)

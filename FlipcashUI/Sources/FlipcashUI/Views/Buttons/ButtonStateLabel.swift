@@ -34,6 +34,7 @@ public struct ButtonStateLabel: View {
         case .loading:
             ProgressView()
                 .progressViewStyle(.circular)
+                .tint(Color.textSecondary)
 
         case .success:
             checkmark

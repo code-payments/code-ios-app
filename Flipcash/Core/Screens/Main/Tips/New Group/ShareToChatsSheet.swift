@@ -523,9 +523,10 @@ struct ShareToChatsSheet: View {
                 .padding(.horizontal, 14)
                 .frame(height: BarMetrics.fieldMinHeight)
                 .background(Color.action, in: Capsule())
-                .contentShape(Capsule())
+                // Under 44 pt tall, so the hit area keeps the capsule's corners.
+                .contentShape(.rect)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .disabled(model.isSending || !hasLink)
             .accessibilityIdentifier("group-invite-submit")
         }

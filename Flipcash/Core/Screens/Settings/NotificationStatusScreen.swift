@@ -142,16 +142,15 @@ struct NotificationStatusScreen: View {
                     state: isSendingTest ? .loading : .normal
                 )
             }
-            .buttonStyle(isTestSent ? .filled20 : .filled)
-            // Both fills are translucent; without this the checks show through them.
-            .background(Color.backgroundMain, in: Capsule())
+            // Both fills are translucent; without the backing the checks show through them.
+            .buttonStyle((isTestSent ? FilledButtonStyle.filled20 : .filled).backed(by: .backgroundMain))
             .disabled(!isTestEnabled || isSendingTest)
             .accessibilityIdentifier("notification-status-send-test")
 
             ShareLink(item: model?.report ?? "") {
                 Text("Share Report")
             }
-            .buttonStyle(.subtle)
+            .buttonStyle(.subtle.backed(by: .backgroundMain))
             .disabled(model == nil)
 
             Group {
@@ -334,16 +333,22 @@ private struct CheckRow: View {
     @ViewBuilder
     private var fixButton: some View {
         if let fix = row.fix, let fixTitle = row.fixTitle {
-            Button(fixTitle) { onFix(fix) }
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textAction)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(Color.action))
-                .buttonStyle(.plain)
-                .disabled(row.status == .checking)
-                .accessibilityIdentifier("notification-status-fix-\(row.check.rawValue)")
-                .transition(.opacity)
+            Button {
+                onFix(fix)
+            } label: {
+                Text(fixTitle)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textAction)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Color.action))
+                    // Under 44 pt tall, so the hit area keeps the capsule's corners.
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.pressable)
+            .disabled(row.status == .checking)
+            .accessibilityIdentifier("notification-status-fix-\(row.check.rawValue)")
+            .transition(.opacity)
         }
     }
 }

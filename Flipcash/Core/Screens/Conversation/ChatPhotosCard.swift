@@ -192,7 +192,7 @@ struct ChatPhotosCard: View {
                         .contentShape(Capsule())
                         .contentTransition(.numericText())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 .accessibilityIdentifier("attach-photos-add")
                 .transition(.opacity)
             }

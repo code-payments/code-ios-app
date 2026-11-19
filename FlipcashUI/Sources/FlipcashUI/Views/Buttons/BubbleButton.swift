@@ -32,17 +32,9 @@ public struct BubbleButton: View {
                 paddingVertical: 5,
                 paddingHorizontal: 15
             )
+            // Under 44 pt tall, so the hit area keeps the bubble's corners.
+            .contentShape(.rect)
         }
-        .buttonStyle(BubblePressStyle())
-    }
-}
-
-// MARK: - Style -
-
-private struct BubblePressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .contentShape(Capsule())
-            .buttonPress(isPressed: configuration.isPressed)
+        .buttonStyle(.pressable)
     }
 }

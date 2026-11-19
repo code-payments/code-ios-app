@@ -33,7 +33,8 @@ private struct LinkChipStyle: ButtonStyle {
         .padding(.vertical, 10)
         .background(.white.opacity(0.1))
         .clipShape(Capsule())
-        .contentShape(Capsule())
+        // Under 44 pt tall, so the hit area keeps the chip's corners.
+        .contentShape(.rect)
         .buttonPress(isPressed: configuration.isPressed)
     }
 }

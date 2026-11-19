@@ -139,7 +139,7 @@ extension DialogAction {
         var topPadding: CGFloat {
             switch self {
             case .standard:    return 10
-            case .subtle:      return 0
+            case .subtle:      return 10
             case .destructive: return 10
             case .outline:     return 10
             }
@@ -148,7 +148,7 @@ extension DialogAction {
         var bottomPadding: CGFloat {
             switch self {
             case .standard:    return 10
-            case .subtle:      return 0
+            case .subtle:      return 10
             case .destructive: return 10
             case .outline:     return 10
             }

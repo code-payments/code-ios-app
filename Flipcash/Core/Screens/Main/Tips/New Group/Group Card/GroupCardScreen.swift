@@ -129,6 +129,7 @@ struct GroupCardScreen: View {
                 .opacity(isRevealed ? 1 : 0)
                 .accessibilityIdentifier("group-card-close")
                 .padding(.horizontal, Self.horizontalInset)
+                .padding(.bottom, 20)
         }
         .sheet(isPresented: $isShowingDownloadOptions, onDismiss: exportPendingDownload) {
             TipCardDownloadSheet(

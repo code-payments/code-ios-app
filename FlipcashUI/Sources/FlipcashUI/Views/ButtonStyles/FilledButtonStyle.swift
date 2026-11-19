@@ -30,6 +30,7 @@ public struct FilledButtonStyle: ButtonStyle {
     private let overlayColor: Color
     private let overlayDisabledColor: Color
     private let isCompact: Bool
+    private var backing: AnyShapeStyle?
 
     /// Internal only. Use the static accessors (e.g., `.filled`, `.filled20`) instead.
     init(
@@ -49,15 +50,29 @@ public struct FilledButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.appTextMedium)
+            .padding(.horizontal, Metrics.buttonPadding)
             .foregroundStyle(isEnabled ? textColor : textDisabledColor)
             .frame(maxWidth: .infinity)
             .frame(height: isCompact ? Metrics.buttonHeightThin : Metrics.buttonHeight)
             .background {
-                Capsule()
-                    .fill(isEnabled ? overlayColor : overlayDisabledColor)
+                ZStack {
+                    if let backing {
+                        Capsule().fill(backing)
+                    }
+                    Capsule()
+                        .fill(isEnabled ? overlayColor : overlayDisabledColor)
+                }
             }
             .contentShape(Capsule())
             .buttonPress(isPressed: configuration.isPressed)
+    }
+
+    /// Returns this style drawn over `backing`, which keeps content scrolling under a translucent
+    /// fill from showing through it and shrinks with the press.
+    public func backed(by backing: some ShapeStyle) -> FilledButtonStyle {
+        var style = self
+        style.backing = AnyShapeStyle(backing)
+        return style
     }
 }
 
