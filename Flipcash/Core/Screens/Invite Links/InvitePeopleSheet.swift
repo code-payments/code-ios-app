@@ -251,8 +251,12 @@ struct InviteLinkCard: View {
         VStack(spacing: 12) {
             pillView
 
-            CodeButton(state: buttonState, style: .filled, title: "Share Link", action: onShare)
-                .accessibilityIdentifier("invite-card-share")
+            Button(action: onShare) {
+                ButtonStateLabel("Share Link", state: buttonState)
+            }
+            .buttonStyle(.filled)
+            .disabled(!buttonState.isNormal)
+            .accessibilityIdentifier("invite-card-share")
 
             if let caption {
                 Text(caption)

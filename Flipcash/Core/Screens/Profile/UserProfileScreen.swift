@@ -408,7 +408,8 @@ private struct UserProfileContent: View {
                     E2eeFooter(kind: .dm)
                 }
 
-                CodeButton(style: .filled, title: title, action: tapPinned)
+                Button(title, action: tapPinned)
+                    .buttonStyle(.filled)
                     .accessibilityIdentifier("profile-pinned-action")
             }
             .padding(.horizontal, ProfileHeaderMetrics.inset)

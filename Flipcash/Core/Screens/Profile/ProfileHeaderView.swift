@@ -173,7 +173,6 @@ private struct ProfileActionButtonStyle: ButtonStyle {
             .frame(height: Self.height)
             .background(Capsule().fill(isAccented ? Color.blue : Color.action.opacity(0.1)))
             .contentShape(Capsule())
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .buttonPress(isPressed: configuration.isPressed)
     }
 }

@@ -672,7 +672,7 @@ struct ChatProfileScreen: View {
                 .padding(.top, 12)
                 .padding(.bottom, requestedAt == nil ? 8 : 0)
         } else if conversation != nil {
-            VStack(spacing: 8) {
+            VStack(spacing: Metrics.buttonGap) {
                 openChatButton
                 if isMember {
                     leaveButton
@@ -734,22 +734,24 @@ struct ChatProfileScreen: View {
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 8)
-                TimelineView(.everyMinute) { context in
-                    Button(PrivateGroupCopy.pendingTitle(requestedAt: requestedAt, now: context.date)) {}
-                        .buttonStyle(.filled)
-                        .disabled(true)
-                        .accessibilityIdentifier("group-profile-request-pending")
+                VStack(spacing: Metrics.buttonGap) {
+                    TimelineView(.everyMinute) { context in
+                        Button(PrivateGroupCopy.pendingTitle(requestedAt: requestedAt, now: context.date)) {}
+                            .buttonStyle(.filled)
+                            .disabled(true)
+                            .accessibilityIdentifier("group-profile-request-pending")
+                    }
+                    Button {
+                        Task { await cancelRequest() }
+                    } label: {
+                        ButtonStateLabel("Cancel Request", state: isRequesting ? .loading : .normal)
+                    }
+                    .buttonStyle(.subtle)
+                    .disabled(isRequesting)
+                    .accessibilityIdentifier("group-profile-cancel-request")
+                    // Same as Leave Chat: a text-only button already leaves room under its title.
+                    .padding(.bottom, -12)
                 }
-                Button {
-                    Task { await cancelRequest() }
-                } label: {
-                    ButtonStateLabel("Cancel Request", state: isRequesting ? .loading : .normal)
-                }
-                .buttonStyle(.subtle)
-                .disabled(isRequesting)
-                .accessibilityIdentifier("group-profile-cancel-request")
-                // Same as Leave Chat: a text-only button already leaves room under its title.
-                .padding(.bottom, -12)
             }
         } else {
             Button {
