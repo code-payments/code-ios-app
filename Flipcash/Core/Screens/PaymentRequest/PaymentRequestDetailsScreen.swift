@@ -422,7 +422,9 @@ final class PaymentRequestPayFlow {
         guard preparation == .ready else { return preparation }
         let session = sessionContainer.session
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
-        if let dialog = giveCashGate(session: session, rate: rate)
+        // A collection that conversions fund can add Dollars from the sheet, so an empty balance
+        // opens it on the short state instead.
+        if !payment.fundsCollection, let dialog = giveCashGate(session: session, rate: rate)
             .blockingDialog(router: router, addMoneySource: .chat, context: .payRequest) {
             session.dialogItem = dialog
             return .noBalance
@@ -510,6 +512,8 @@ private struct PaymentRequestPaySheetPresenter: ViewModifier {
 private struct PaymentRequestPaySheet: View {
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(Session.self) private var session
+    @Environment(VerificationCoordinator.self) private var verificationCoordinator
 
     let payment: PaymentRequestPayment
     let payee: ConversationMember?
@@ -519,6 +523,8 @@ private struct PaymentRequestPaySheet: View {
     @State private var didSucceed = false
     @State private var isShowingTokenSelection = false
     @State private var isShowingDetails = false
+    @State private var isAdding = false
+    @State private var verificationViewModel: OnrampVerification?
 
     var body: some View {
         // A collection that conversions fund draws its paying currency, fee line and Payment Details.
@@ -526,23 +532,34 @@ private struct PaymentRequestPaySheet: View {
         let showsDetails = isShowingDetails && funding?.feeLine != nil
         PartialSheet(background: .clear) {
             Group {
-                if showsDetails, let funding {
+                if payment.isFinishing {
+                    finishingContent
+                } else if showsDetails, let funding {
                     CollectionPaymentDetailsView(
                         content: funding,
                         imageURL: payment.currencyImageURL,
                         onBack: { isShowingDetails = false }
                     )
                 } else {
-                    payContent(feeLine: funding?.feeLine)
+                    payContent(feeLine: funding?.feeLine, topUp: funding?.topUp)
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, showsDetails ? 20 : 30)
+            .padding(.top, showsDetails && !payment.isFinishing ? 20 : 30)
             .padding(.bottom, bottomPadding)
         }
         // A plan that stops converting has no details to show; don't reopen them when it returns.
         .onChange(of: funding?.feeLine == nil) { _, hasNoFee in
             if hasNoFee { isShowingDetails = false }
+        }
+        // A top-up an earlier attempt ordered, say before the app was closed, is waited on and paid
+        // from as the sheet opens, with no second order.
+        .task {
+            guard payment.hasPendingTopUp else { return }
+            await finishTopUp { await payment.resumePendingTopUp() ?? .failed }
+        }
+        .sheet(item: $verificationViewModel.cancellingOnDismiss()) { vm in
+            VerifyInfoScreen(viewModel: vm)
         }
         // Hold the success checkmark briefly, then return to the details, now showing the row paid.
         .task(id: didSucceed) {
@@ -571,7 +588,7 @@ private struct PaymentRequestPaySheet: View {
         payment.fundsCollection ? payment.payingBalance : payment.selectedBalance
     }
 
-    private func payContent(feeLine: String?) -> some View {
+    private func payContent(feeLine: String?, topUp: CollectionPaymentSheetContent.TopUp?) -> some View {
         VStack(spacing: 25) {
             VStack(spacing: 8) {
                 PaymentRequestAvatar(userID: payeeID, member: payee, size: 56)
@@ -601,15 +618,69 @@ private struct PaymentRequestPaySheet: View {
                 .buttonStyle(TokenChipStyle())
                 .padding(.top, 4)
             }
-            SwipeControl(text: "Swipe to Pay") {
-                switch await payment.submit() {
-                case .success:
-                    didSucceed = true
-                case .failed:
-                    throw PaymentRequestPayDismissed()
+            if let topUp {
+                VStack(spacing: 16) {
+                    Text(topUp.shortBy)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                    Button { addAndPay(topUp) } label: {
+                        if isAdding {
+                            ProgressView().progressViewStyle(.circular)
+                        } else {
+                            Text(topUp.button)
+                        }
+                    }
+                    .buttonStyle(.filled)
+                    .disabled(isAdding)
+                    Text(topUp.footnote)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+            } else {
+                SwipeControl(text: "Swipe to Pay") {
+                    switch await payment.submit() {
+                    case .success:
+                        didSucceed = true
+                    case .failed, .short:
+                        // A short plan redraws the sheet on its short state.
+                        throw PaymentRequestPayDismissed()
+                    }
                 }
             }
         }
+    }
+
+    /// "Finishing Payment" while the added Dollars land and the payment runs (1.3, 4.4, 7.5, 8.4).
+    private var finishingContent: some View {
+        VStack(spacing: 12) {
+            LoadingView(color: .textMain, style: .large)
+                .padding(.bottom, 8)
+            Text("Finishing Payment")
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+            Text("This usually takes about 10 seconds")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    /// The Add button: verifies the contact Coinbase needs if it isn't yet, then adds the amount the
+    /// button shows and pays.
+    private func addAndPay(_ topUp: CollectionPaymentSheetContent.TopUp) {
+        guard !isAdding else { return }
+        verificationCoordinator.runGated(for: session, bind: { verificationViewModel = $0 }) {
+            Task { await finishTopUp { await payment.addAndPay(topUpMicros: topUp.micros) } }
+        }
+    }
+
+    private func finishTopUp(_ run: () async -> PaymentRequestPayment.Outcome) async {
+        guard !isAdding else { return }
+        isAdding = true
+        defer { isAdding = false }
+        if await run() == .success { didSucceed = true }
     }
 
     private var bottomPadding: CGFloat {

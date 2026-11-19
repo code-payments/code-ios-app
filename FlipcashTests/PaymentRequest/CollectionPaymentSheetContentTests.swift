@@ -9,7 +9,7 @@ import FlipcashCore
 @testable import Flipcash
 
 /// What the pay sheet and Payment Details draw, from the inputs of the `collection_funding.json`
-/// cases for sections 5, 6 and 9. The fixture lives in the FlipcashCoreVectors package, which
+/// cases for sections 1, 2, 4, 5, 6, 7, 8 and 9. The fixture lives in the FlipcashCoreVectors package, which
 /// this target can't load, so the inputs are copied here.
 @Suite("Collection pay sheet and Payment Details")
 struct CollectionPaymentSheetContentTests {
@@ -21,6 +21,7 @@ struct CollectionPaymentSheetContentTests {
     private static func content(
         amountMicros: Int64 = 10_000_000,
         selected: String? = nil,
+        lastPaid: String? = nil,
         balances: [(id: String, name: String, fiatMicros: Int64, feeBps: Int64)]
     ) throws -> CollectionPaymentSheetContent {
         let plan = try planCollectionFunding(
@@ -28,7 +29,7 @@ struct CollectionPaymentSheetContentTests {
             minorDigits: 2,
             minimumTopUpMicros: 5_000_000,
             selected: selected,
-            lastPaid: nil,
+            lastPaid: lastPaid,
             dollars: dollars,
             balances: balances.map { CollectionFundingBalance(id: $0.id, fiatMicros: $0.fiatMicros, sellFeeBps: $0.feeBps) }
         )
@@ -38,7 +39,7 @@ struct CollectionPaymentSheetContentTests {
             dollars: dollars,
             names: Dictionary(uniqueKeysWithValues: balances.map { ($0.id, $0.name) })
         )
-        return CollectionPaymentSheetContent(plan: plan, display: display)
+        return CollectionPaymentSheetContent(plan: plan, display: display, currency: .usd)
     }
 
     /// $8.00 Dollars and $6.00 Jeffy (`s5-s6-convert-shortfall`, `s6-pay-in-jeffy`).
@@ -110,13 +111,89 @@ struct CollectionPaymentSheetContentTests {
         #expect(content.feeLine == nil)
     }
 
-    @Test("A shortfall conversions can't cover draws no fee line; the short state shows instead")
-    func uncoverable() throws {
-        let content = try Self.content(balances: [
-            (Self.dollars, "Dollars", 3_000_000, 0),
-            ("jeffy", "Jeffy", 2_000_000, 100),
+    @Test("A payment the balances cover draws no short state")
+    func coveredHasNoTopUp() throws {
+        #expect(try Self.content(balances: Self.dollarsAndJeffy).topUp == nil)
+    }
+
+    // MARK: - Top-up (S5)
+
+    private static let footnote = "The minimum you can add with Apple Pay is $5."
+
+    @Test("1.1: no balance adds the whole amount")
+    func section1() throws {
+        let content = try Self.content(balances: [])
+
+        #expect(content.topUp == .init(
+            micros: 10_000_000, shortBy: "You’re $10.00 Short", button: "Add $10.00 and Pay $10.00", footnote: Self.footnote
+        ))
+        #expect(content.feeLine == nil)
+        #expect(content.use == [
+            Line(currency: Self.dollars, name: "Dollars", amount: "$10.00", sublabels: ["$10.00 from Apple Pay"]),
+        ])
+    }
+
+    @Test("2.1: a $2 request at a $0 balance adds the $5 minimum")
+    func section2() throws {
+        let content = try Self.content(amountMicros: 2_000_000, balances: [(Self.dollars, "Dollars", 0, 0)])
+
+        #expect(content.topUp == .init(
+            micros: 5_000_000, shortBy: "You’re $2.00 Short", button: "Add $5.00 and Pay $2.00", footnote: Self.footnote
+        ))
+        #expect(content.feeLine == nil)
+        // Only the $2 this payment uses shows; the other $3 stays in the balance.
+        #expect(content.use == [
+            Line(currency: Self.dollars, name: "Dollars", amount: "$2.00", sublabels: ["$2.00 from Apple Pay"]),
+        ])
+    }
+
+    @Test("4.2: $6 Dollars toward $10 adds the $5 minimum, no fee line")
+    func section4() throws {
+        let content = try Self.content(balances: [(Self.dollars, "Dollars", 6_000_000, 0)])
+
+        #expect(content.topUp == .init(
+            micros: 5_000_000, shortBy: "You’re $4.00 Short", button: "Add $5.00 and Pay $10.00", footnote: Self.footnote
+        ))
+        #expect(content.feeLine == nil)
+    }
+
+    @Test("7.2 and 7.3: the top-up removes the Jeffy conversion; Payment Details shows the plan after it")
+    func section7() throws {
+        let content = try Self.content(amountMicros: 11_000_000, balances: [
+            (Self.dollars, "Dollars", 6_000_000, 0),
+            ("jeffy", "Jeffy", 2_990_000, 100),
         ])
 
+        #expect(content.topUp == .init(
+            micros: 5_000_000, shortBy: "You’re $2.04 Short", button: "Add $5.00 and Pay $11.00", footnote: Self.footnote
+        ))
         #expect(content.feeLine == nil)
+        #expect(content.payingCurrency == Self.dollars)
+        #expect(content.pay == Line(currency: Self.dollars, name: "Dollars", amount: "$11.00", sublabels: []))
+        #expect(content.use == [
+            Line(currency: Self.dollars, name: "Dollars", amount: "$11.00", sublabels: ["$6.00 from balance", "$5.00 from Apple Pay"]),
+        ])
+        #expect(content.total == .init(label: "Total", amount: "$11.00"))
+    }
+
+    @Test("8.2: an exact-cents top-up above the minimum, with the fee line from the plan after it")
+    func section8() throws {
+        let content = try Self.content(amountMicros: 21_000_000, lastPaid: "jeffy", balances: [
+            ("jeffy", "Jeffy", 3_000_000, 100),
+            (Self.dollars, "Dollars", 2_010_000, 0),
+            ("other", "Other", 3_990_000, 100),
+        ])
+
+        #expect(content.topUp == .init(
+            micros: 12_040_000, shortBy: "You’re $12.04 Short", button: "Add $12.04 and Pay $21.00", footnote: Self.footnote
+        ))
+        #expect(content.feeLine == "plus ~$0.04 of conversion fees")
+        #expect(content.pay == Line(currency: "jeffy", name: "Jeffy", amount: "$21.00", sublabels: []))
+        #expect(content.use == [
+            Line(currency: "jeffy", name: "Jeffy", amount: "$3.00", sublabels: []),
+            Line(currency: Self.dollars, name: "Dollars", amount: "$14.05", sublabels: ["$2.01 from balance", "$12.04 from Apple Pay"]),
+            Line(currency: "other", name: "Other", amount: "$3.99", sublabels: ["~$0.04 conversion fee"]),
+        ])
+        #expect(content.total == .init(label: "Total", amount: "$21.04"))
     }
 }

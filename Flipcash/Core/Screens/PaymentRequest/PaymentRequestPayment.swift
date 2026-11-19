@@ -22,6 +22,9 @@ final class PaymentRequestPayment {
     enum Outcome: Equatable {
         case success
         case failed
+        /// The balances fall short, so the sheet shows the short state again and waits for the
+        /// user to confirm a top-up. Nothing more was ordered.
+        case short
     }
 
     /// What ``prepare()`` found.
@@ -62,6 +65,8 @@ final class PaymentRequestPayment {
     private(set) var pickedCurrency: PublicKey?
     /// Set when the insufficient-funds dialog's Add Money is tapped; the presenter routes to the deposit and clears it.
     var depositMint: PublicKey?
+    /// True from Apple Pay finishing until the payment ends, while the sheet shows "Finishing Payment".
+    private(set) var isFinishing = false
 
     @ObservationIgnored private let requests: PaymentRequests
     @ObservationIgnored private let session: Session
@@ -72,6 +77,7 @@ final class PaymentRequestPayment {
     @ObservationIgnored private let fundingStore: CollectionFundingStore
     @ObservationIgnored private let fundingExecutor: CollectionFundingExecutor
     @ObservationIgnored private let fundsCollections: () -> Bool
+    @ObservationIgnored private let topUpper: any CollectionTopUpping
     @ObservationIgnored private var intentID: Data?
     /// Set after a payment whose outcome isn't known, so the next try refetches first.
     @ObservationIgnored private var needsRefetch = false
@@ -83,6 +89,7 @@ final class PaymentRequestPayment {
         payer: (any RequestedPaying)? = nil,
         resolver: (any RecipientResolving)? = nil,
         swapper: (any CollectionSwapping)? = nil,
+        topUpper: (any CollectionTopUpping)? = nil,
         fundingStore: CollectionFundingStore? = nil,
         fundsCollections: (() -> Bool)? = nil,
         clock: @escaping () -> Date = Date.init
@@ -100,6 +107,11 @@ final class PaymentRequestPayment {
         self.fundingExecutor = CollectionFundingExecutor(
             swapper: swapper ?? SessionCollectionSwapper(session: session, ratesController: sessionContainer.ratesController),
             store: fundingStore
+        )
+        self.topUpper = topUpper ?? SessionCollectionTopUpper(
+            session: session,
+            coinbaseService: sessionContainer.coinbaseService,
+            sweeper: sessionContainer.usdcSweepOperation
         )
         self.fundsCollections = fundsCollections ?? {
             BetaFlags.shared.showsGroupMoneyUI(isStaff: BetaFlags.shared.staffStanding(of: session))
@@ -194,7 +206,7 @@ final class PaymentRequestPayment {
         return try? planCollectionFunding(
             amountMicros: Self.micros(fiat.value),
             minorDigits: fiat.currency.maximumFractionDigits,
-            minimumTopUpMicros: 0,
+            minimumTopUpMicros: Self.minimumTopUpMicros(rate: rate, minorDigits: fiat.currency.maximumFractionDigits),
             selected: selected,
             lastPaid: lastPaid,
             dollars: dollars,
@@ -213,7 +225,7 @@ final class PaymentRequestPayment {
             names[plan.payingCurrency] = metadata.name
         }
         let display = CollectionFundingDisplay(plan: plan, currency: currency, dollars: PublicKey.usdf.base58, names: names)
-        return CollectionPaymentSheetContent(plan: plan, display: display)
+        return CollectionPaymentSheetContent(plan: plan, display: display, currency: currency)
     }
 
     /// The icon of the currency with this id, when the app has its metadata.
@@ -260,6 +272,27 @@ final class PaymentRequestPayment {
         return NSDecimalNumber(decimal: rounded).int64Value
     }
 
+    /// Apple Pay's minimum purchase in `rate`'s currency, rounded up to its smallest unit, so a
+    /// top-up at the minimum converts back to an order the deposit's own check accepts.
+    static func minimumTopUpMicros(rate: Rate, minorDigits: Int) -> Int64 {
+        let minimum = FiatAmount.usd(CoinbaseDepositOperation.minimumPurchaseUSD).converting(to: rate).value
+        return micros(roundedUp(minimum, places: minorDigits))
+    }
+
+    /// The USD order for a top-up of `topUpMicros` in `rate`'s currency, rounded up to the cent so
+    /// what lands is never less than the plan counted on.
+    static func topUpOrderUSD(topUpMicros: Int64, rate: Rate) -> Decimal {
+        let native = FiatAmount(value: Decimal(topUpMicros) / 1_000_000, currency: rate.currency)
+        return roundedUp(native.convertingToUSD(rate: rate).value, places: 2)
+    }
+
+    private static func roundedUp(_ value: Decimal, places: Int) -> Decimal {
+        var value = value
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &value, places, .up)
+        return rounded
+    }
+
     /// Refetches the request right before the swipe sheet shows, taking the intent ID from it. A
     /// collection's intent ID comes from its own read, which also says when there is nothing to pay.
     func prepare() async -> Preparation {
@@ -293,6 +326,8 @@ final class PaymentRequestPayment {
                 return .closed
             case .alreadyPaid, .notAPayer:
                 fundingStore.clearSwapIDs(for: requestID)
+                // Any top-up still on its way stays in the Dollars balance.
+                fundingStore.clearPendingTopUp(for: requestID)
                 _ = try? await requests.refreshDetails(requestID)
                 return .nothingToPay
             case .denied, .notFound:
@@ -350,15 +385,7 @@ final class PaymentRequestPayment {
     /// Pays exactly what the viewer owes: its amount in the request's currency, priced into the
     /// picked token.
     func submit() async -> Outcome {
-        if needsRefetch {
-            switch await prepare() {
-            case .ready: break
-            case .nothingToPay where hasPaidCollection:
-                // ALREADY_PAID: the attempt whose outcome was unknown landed, so don't pay again.
-                return .success
-            case .nothingToPay, .closed, .failed, .noBalance: return .failed
-            }
-        }
+        if let outcome = await refetchIfNeeded() { return outcome }
         if fundsCollection {
             return await submitFundedCollection()
         }
@@ -383,10 +410,140 @@ final class PaymentRequestPayment {
         return await pay(fiat, as: payable, to: creator, in: chatID, intentKey: intentKey, from: selectedBalance, mayFund: true)
     }
 
+    /// After a payment whose outcome isn't known, reads the intent ID again first. Returns the
+    /// outcome to stop on, or nil to carry on paying.
+    private func refetchIfNeeded() async -> Outcome? {
+        guard needsRefetch else { return nil }
+        switch await prepare() {
+        case .ready: return nil
+        case .nothingToPay where hasPaidCollection:
+            // ALREADY_PAID: the attempt whose outcome was unknown landed, so don't pay again.
+            return .success
+        case .nothingToPay, .closed, .failed, .noBalance: return .failed
+        }
+    }
+
+    // MARK: - Top-up -
+
+    /// What the sheet's Add button does: adds `topUpMicros` of Dollars with Apple Pay, the amount
+    /// the button showed, then funds and pays as soon as the Dollars land, with no second
+    /// confirmation. A top-up this payment already ordered is waited on and never ordered again.
+    /// When the balances read now need a different top-up, or none can be planned, nothing is
+    /// ordered and the sheet shows the new short state.
+    func addAndPay(topUpMicros: Int64) async -> Outcome {
+        guard fundsCollection else { return .failed }
+        if let outcome = await refetchIfNeeded() { return outcome }
+
+        if let pending = fundingStore.pendingTopUp(for: requestID) { return await finish(pending) }
+
+        guard let request, let payable, let fiat = payableFiat(payable, of: request),
+              let rate = ratesController.rate(for: fiat.currency) else {
+            showSendError()
+            return .failed
+        }
+        let baselineUSD: Decimal
+        do {
+            baselineUSD = try await topUpper.dollarsBalance()
+        } catch {
+            showSendError()
+            return .failed
+        }
+        guard let plan = fundingPlan else {
+            showInsufficientFunds(shortfall: nil)
+            return .failed
+        }
+        // The balances cover it now, so the payment the button named runs without adding money.
+        guard plan.topUpMicros > 0 else { return await submitFundedCollection(afterTopUp: false) }
+        guard plan.topUpMicros == topUpMicros else { return .short }
+
+        let amountUSD = Self.topUpOrderUSD(topUpMicros: plan.topUpMicros, rate: rate)
+        let orderRef = topUpper.makeOrderRef()
+        // Written before Apple Pay opens, so an attempt that dies mid-order leaves it behind.
+        fundingStore.setPendingTopUp(
+            .init(orderRef: orderRef, amountUSD: amountUSD, baselineUSD: baselineUSD, placedAt: clock(), authorized: false),
+            for: requestID
+        )
+        let order = await topUpper.order(amountUSD: amountUSD, orderRef: orderRef) { [fundingStore, requestID] in
+            fundingStore.markTopUpAuthorized(for: requestID)
+        }
+        switch order {
+        case .notCharged(let reason):
+            fundingStore.clearPendingTopUp(for: requestID)
+            showTopUpNotCharged(reason)
+            return .failed
+        case .charged, .mayDeliver:
+            fundingStore.markTopUpAuthorized(for: requestID)
+            guard let pending = fundingStore.pendingTopUp(for: requestID) else { return .failed }
+            return await finish(pending)
+        }
+    }
+
+    /// Whether a top-up this payment ordered hasn't been seen landing yet.
+    var hasPendingTopUp: Bool {
+        fundingStore.pendingTopUp(for: requestID) != nil
+    }
+
+    /// Picks up a top-up an earlier attempt ordered, as the sheet opens after a relaunch: waits for
+    /// its Dollars, then funds and pays. Returns nil when there's none to pick up.
+    func resumePendingTopUp() async -> Outcome? {
+        guard fundsCollection, let pending = fundingStore.pendingTopUp(for: requestID) else { return nil }
+        if let outcome = await refetchIfNeeded() { return outcome }
+        return await finish(pending)
+    }
+
+    /// "Finishing Payment": waits for `pending`'s Dollars, then funds and pays from the balances
+    /// as they are then.
+    private func finish(_ pending: CollectionFundingStore.PendingTopUp) async -> Outcome {
+        isFinishing = true
+        defer { isFinishing = false }
+        guard await settle(pending) else { return .failed }
+        return await submitFundedCollection(afterTopUp: true)
+    }
+
+    /// Waits for `pending`'s Dollars and returns whether the payment can go on. Its record clears
+    /// the moment they're seen, before any conversion or pay spends them.
+    ///
+    /// One Apple Pay never reported authorized charged nothing unless the app died in the moment
+    /// between the two; it is waited on for at most the settlement window from when it was placed,
+    /// then counted as failed. One that was authorized stays until its Dollars are seen.
+    private func settle(_ pending: CollectionFundingStore.PendingTopUp) async -> Bool {
+        let target = CollectionTopUpTarget.target(baselineUSD: pending.baselineUSD, amountUSD: pending.amountUSD)
+        if !pending.authorized {
+            let age = clock().timeIntervalSince(pending.placedAt)
+            if age < Self.settlementSeconds {
+                _ = await topUpper.awaitDollars(reaching: target)
+            }
+            fundingStore.clearPendingTopUp(for: requestID)
+            return true
+        }
+        guard await topUpper.awaitDollars(reaching: target) else {
+            showTopUpPending()
+            return false
+        }
+        fundingStore.clearPendingTopUp(for: requestID)
+        return true
+    }
+
+    private static var settlementSeconds: TimeInterval {
+        let (seconds, attoseconds) = AddMoneyTiming.settlementTimeout.components
+        return TimeInterval(seconds) + TimeInterval(attoseconds) / 1e18
+    }
+
+    /// Clears a pending top-up whose Dollars the balance already shows, without waiting.
+    private func clearLandedTopUp() async {
+        guard let pending = fundingStore.pendingTopUp(for: requestID), pending.authorized,
+              let dollars = try? await topUpper.dollarsBalance(),
+              dollars >= CollectionTopUpTarget.target(baselineUSD: pending.baselineUSD, amountUSD: pending.amountUSD)
+        else { return }
+        fundingStore.clearPendingTopUp(for: requestID)
+    }
+
     /// Converts what the plan needs into the paying currency, each swap settled before the next,
     /// then pays once from it. Funding runs before the funds gate because a paying currency held
-    /// at zero can't be priced there.
-    private func submitFundedCollection() async -> Outcome {
+    /// at zero can't be priced there. `afterTopUp` is set once Dollars this attempt added have
+    /// landed; a plan still short then asks again rather than ordering more.
+    private func submitFundedCollection(afterTopUp: Bool = false) async -> Outcome {
+        if !afterTopUp { await clearLandedTopUp() }
         guard let request, let payable, let creator = request.creator,
               let intentID, let intentKey = try? PublicKey(intentID),
               let chatID = request.chatID,
@@ -399,8 +556,13 @@ final class PaymentRequestPayment {
         case .funded:
             break
         case .short:
-            showInsufficientFunds(shortfall: fundingShortfall(in: fiat.currency))
-            return .failed
+            // The sheet shows the short state for the plan as read now; a top-up waits for the
+            // user to confirm it. A plan that can't be built at all keeps today's dialog.
+            guard fundingPlan != nil else {
+                showInsufficientFunds(shortfall: fundingShortfall(in: fiat.currency))
+                return .failed
+            }
+            return .short
         case .failed:
             // Swaps that landed stay converted; the retry reads the intent ID again before funding.
             needsRefetch = true
@@ -574,6 +736,31 @@ final class PaymentRequestPayment {
         session.dialogItem = .error(
             title: "Request Closed",
             subtitle: "This request is no longer accepting payments."
+        )
+    }
+
+    private func showTopUpNotCharged(_ reason: CollectionTopUpOrder.NotCharged) {
+        switch reason {
+        case .cancelled:
+            break
+        case .timedOut:
+            session.dialogItem = .info(
+                title: "Purchase Timed Out",
+                subtitle: "Purchases must be authorized within 60 seconds"
+            )
+        case .rejected(let title, let subtitle):
+            session.dialogItem = .error(title: title, subtitle: subtitle)
+        case .failed:
+            session.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+        }
+    }
+
+    /// No frame draws this state; the copy says what the spec asks for. The record stays, so the
+    /// next tap waits on the same order again instead of placing another.
+    private func showTopUpPending() {
+        session.dialogItem = .info(
+            title: String(localized: "Top-Up Pending", comment: "Title shown when Dollars added with Apple Pay for a payment haven't arrived yet"),
+            subtitle: String(localized: "Your Dollars are still on their way. Please try again shortly.", comment: "Body shown when Dollars added with Apple Pay for a payment haven't arrived yet")
         )
     }
 

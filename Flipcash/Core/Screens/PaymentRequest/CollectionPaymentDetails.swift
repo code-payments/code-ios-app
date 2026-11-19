@@ -23,9 +23,22 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
     static let payHeading = "You’ll Pay"
     static let useHeading = "You’ll Use"
 
-    /// "plus ~$0.02 of conversion fees" or "no conversion fees". `nil` when nothing converts, and
-    /// when the balances can't cover the payment, which shows today's short state instead.
+    /// The short state's lines when the balances can't cover the payment without adding Dollars:
+    /// "You’re $4.00 Short", "Add $5.00 and Pay $10.00", and the Apple Pay minimum.
+    struct TopUp: Equatable, Sendable {
+        /// What the button adds, in the request currency's micros.
+        let micros: Int64
+        let shortBy: String
+        let button: String
+        let footnote: String
+    }
+
+    /// "plus ~$0.02 of conversion fees" or "no conversion fees", from the plan after any top-up
+    /// (8.2). `nil` when nothing converts.
     let feeLine: String?
+
+    /// The short state, or nil when the balances cover the payment.
+    let topUp: TopUp?
 
     /// The paying currency's id.
     let payingCurrency: String
@@ -39,14 +52,31 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
     /// "Total": the amounts sold, fees included.
     let total: CollectionFundingDisplay.Row
 
-    init(plan: CollectionFundingPlan, display: CollectionFundingDisplay) {
-        feeLine = plan.payableWithoutTopUp ? display.modalFee : nil
+    init(plan: CollectionFundingPlan, display: CollectionFundingDisplay, currency: CurrencyCode) {
+        feeLine = display.modalFee
+        topUp = plan.payableWithoutTopUp ? nil : Self.topUp(plan: plan, currency: currency)
         payingCurrency = display.payCurrency
         pay = Line(currency: display.payCurrency, name: display.pay.label, amount: display.pay.amount, sublabels: [])
         use = zip(display.useCurrencies, display.use).map { currency, row in
             Line(currency: currency, name: row.label, amount: row.amount, sublabels: row.sublabels)
         }
         total = display.total
+    }
+
+    /// The strings `CollectionFundingDisplay` gives in English, built from its amounts so each
+    /// sentence localizes whole. The shortfall rounds up to the minor unit.
+    private static func topUp(plan: CollectionFundingPlan, currency: CurrencyCode) -> TopUp {
+        let unit = Int64(pow(10.0, Double(6 - currency.maximumFractionDigits)))
+        let shortfall = (plan.shortfallMicros + unit - 1) / unit * unit
+        let short = CollectionFundingDisplay.amountText(micros: shortfall, currency: currency)
+        let added = CollectionFundingDisplay.amountText(micros: plan.topUpMicros, currency: currency)
+        let paid = CollectionFundingDisplay.amountText(micros: plan.amountMicros, currency: currency)
+        return TopUp(
+            micros: plan.topUpMicros,
+            shortBy: String(localized: "You’re \(short) Short", comment: "Pay sheet: how much the viewer's balances fall short of a payment"),
+            button: String(localized: "Add \(added) and Pay \(paid)", comment: "Pay sheet button: add money with Apple Pay, then pay the request"),
+            footnote: String(localized: "The minimum you can add with Apple Pay is $5.", comment: "Pay sheet footnote under the add-and-pay button")
+        )
     }
 }
 
