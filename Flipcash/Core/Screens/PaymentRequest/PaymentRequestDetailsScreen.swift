@@ -120,9 +120,13 @@ struct PaymentRequestDetailsScreen: View {
             }
             .softScrollEdge(for: [.top, .bottom])
             if let payTitle = content.payTitle {
-                CodeButton(isLoading: payFlow.isPreparing, style: .filled, title: payTitle) {
+                Button {
                     pay()
+                } label: {
+                    ButtonStateLabel(payTitle, state: payFlow.isPreparing ? .loading : .normal)
                 }
+                .buttonStyle(.filled)
+                .disabled(payFlow.isPreparing)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             }

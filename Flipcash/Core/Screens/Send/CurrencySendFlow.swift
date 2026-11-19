@@ -194,9 +194,10 @@ private struct CurrencySelectRecipientScreen: View {
             // Always on screen, empty list or not. A scroll edge bar, so the rows fade out under
             // the button as they do under the Invite People list's composer.
             .scrollEdgeBar(.bottom) {
-                CodeButton(style: .filledSecondary, title: "Or Give As Cash") {
+                Button("Or Give As Cash") {
                     giveAsCash()
                 }
+                .buttonStyle(.filled20)
                 .padding(20)
             }
         }

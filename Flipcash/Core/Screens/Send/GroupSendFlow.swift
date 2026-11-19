@@ -127,13 +127,11 @@ private struct GroupSendSelectPeopleScreen: View {
                     header: nil
                 )
 
-                CodeButton(
-                    style: .filled,
-                    title: viewModel.sendTitle,
-                    disabled: viewModel.selection.isEmpty
-                ) {
+                Button(viewModel.sendTitle) {
                     isConfirming = true
                 }
+                .buttonStyle(.filled)
+                .disabled(viewModel.selection.isEmpty)
                 .padding(20)
             }
         }
