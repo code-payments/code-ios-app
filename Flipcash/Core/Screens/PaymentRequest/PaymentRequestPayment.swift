@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashStore
 
 /// Pays the viewer's part of one payment request to its creator: their share of a split, or a
 /// collection's fixed amount.
@@ -172,10 +173,21 @@ final class PaymentRequestPayment {
         if !inputs.contains(where: { $0.id == dollars }) {
             inputs.append(CollectionFundingBalance(id: dollars, fiatMicros: 0, sellFeeBps: 0))
         }
-        let held = Set(inputs.map(\.id))
-        let selected = pickedCurrency.map(\.base58).flatMap { held.contains($0) ? $0 : nil }
-        // A last-paid currency the wallet no longer holds can't be named or funded; open on Dollars.
-        let lastPaid = fundingStore.lastPaidCurrency.flatMap { held.contains($0) ? $0 : nil }
+        // A picked or last-paid currency with no balance row is still payable at zero while its
+        // metadata is stored; one the app knows nothing about can't be named, so it opens on Dollars.
+        let named = { (id: String) -> String? in
+            if inputs.contains(where: { $0.id == id }) { return id }
+            guard let mint = try? PublicKey(base58: id),
+                  let metadata = self.session.storedMintMetadata(for: mint) else { return nil }
+            inputs.append(CollectionFundingBalance(
+                id: id,
+                fiatMicros: 0,
+                sellFeeBps: Int64(LaunchpadFee.poolSellFeeBps(metadata.sellFeeBps))
+            ))
+            return id
+        }
+        let selected = pickedCurrency.map(\.base58).flatMap(named)
+        let lastPaid = fundingStore.lastPaidCurrency.flatMap(named)
         return try? planCollectionFunding(
             amountMicros: Self.micros(fiat.value),
             minorDigits: fiat.currency.maximumFractionDigits,
@@ -191,21 +203,45 @@ final class PaymentRequestPayment {
     var fundingSheet: CollectionPaymentSheetContent? {
         guard let plan = fundingPlan, let request, let payable,
               let currency = payableFiat(payable, of: request)?.currency else { return nil }
-        let names = Dictionary(session.balances.map { ($0.mint.base58, $0.name) }, uniquingKeysWith: { first, _ in first })
+        var names = Dictionary(session.balances.map { ($0.mint.base58, $0.name) }, uniquingKeysWith: { first, _ in first })
+        if names[plan.payingCurrency] == nil,
+           let mint = try? PublicKey(base58: plan.payingCurrency),
+           let metadata = session.storedMintMetadata(for: mint) {
+            names[plan.payingCurrency] = metadata.name
+        }
         let display = CollectionFundingDisplay(plan: plan, currency: currency, dollars: PublicKey.usdf.base58, names: names)
         return CollectionPaymentSheetContent(plan: plan, display: display)
     }
 
-    /// The icon of the currency with this id, when the wallet holds it.
+    /// The icon of the currency with this id, when the app has its metadata.
     func currencyImageURL(_ id: String) -> URL? {
-        (try? PublicKey(base58: id)).flatMap { session.balance(for: $0)?.imageURL }
+        guard let mint = try? PublicKey(base58: id) else { return nil }
+        return session.balance(for: mint)?.imageURL ?? session.storedMintMetadata(for: mint)?.imageURL
     }
 
     /// The paying currency's balance, for the sheet's pill; held at zero when conversions fund it.
     var payingBalance: ExchangedBalance? {
         guard let mint = fundingPlan.flatMap({ try? PublicKey(base58: $0.payingCurrency) }),
-              let stored = session.balance(for: mint) else { return nil }
+              let stored = session.balance(for: mint) ?? Self.emptyBalance(session.storedMintMetadata(for: mint)) else { return nil }
         return ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: ratesController.rateForBalanceCurrency()))
+    }
+
+    /// A zero balance for a currency with no balance row yet, so the pill can name it. The planner
+    /// pays in Dollars before the server has listed a Dollars account; the first leg creates it.
+    private static func emptyBalance(_ metadata: StoredMintMetadata?) -> StoredBalance? {
+        guard let metadata else { return nil }
+        return try? StoredBalance(
+            quarks: 0,
+            symbol: metadata.symbol,
+            name: metadata.name,
+            supplyFromBonding: metadata.supplyFromBonding,
+            sellFeeBps: metadata.sellFeeBps,
+            mint: metadata.mint,
+            vmAuthority: metadata.vmAuthority,
+            updatedAt: .now,
+            imageURL: metadata.imageURL,
+            costBasis: 0
+        )
     }
 
     private static func micros(_ value: Decimal) -> Int64 {

@@ -110,18 +110,22 @@ struct PaymentRequestCollectionFundingTests {
     private func fixture(
         _ server: Server,
         amount: Double,
-        dollars: UInt64,
+        dollars: UInt64?,
         jeffy: UInt64?,
         lastPaid: PublicKey? = nil,
         fundsCollections: Bool = true
     ) async throws -> Fixture {
-        var holdings = [SessionContainer.Holding(mint: .usdf, quarks: dollars)]
+        var holdings: [SessionContainer.Holding] = []
+        if let dollars {
+            holdings.append(SessionContainer.Holding(mint: .usdf, quarks: dollars))
+        }
         if let jeffy {
             holdings.append(SessionContainer.Holding(mint: Self.jeffyMint, quarks: jeffy))
         }
         let limit = FiatAmount(value: 1000, currency: .usd)
         let container = try SessionContainer.makeTest(
             holdings: holdings,
+            mints: dollars == nil ? [.usdf] : [],
             limits: Limits(
                 sinceDate: .now,
                 fetchDate: .now,
@@ -242,6 +246,26 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.payer.payments.first?.amount.mint == .usdf)
         #expect(f.fundingStore.lastPaidCurrency == PublicKey.usdf.base58)
         #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58) == nil)
+    }
+
+    @Test("With no Dollars account listed yet, the pill still says Dollars and Jeffy funds the payment")
+    func noDollarsRow() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: Self.plentyOfJeffy)
+        try #require(f.container.session.balance(for: .usdf) == nil)
+        let plan = try #require(f.payment.fundingPlan)
+        try #require(plan.payableWithoutTopUp)
+        #expect(plan.payingCurrency == PublicKey.usdf.base58)
+        #expect(f.payment.payingBalance?.stored.mint == .usdf)
+        #expect(f.payment.payingBalance?.stored.quarks == 0)
+        f.swapper.balancesAfterRefresh = [.usdf: 10_500_000]
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.submit() == .success)
+
+        #expect(f.swapper.submitted.first?.swap.source == .jeffy)
+        #expect(f.swapper.submitted.first?.swap.destination == .usdf)
+        #expect(f.payer.payments.count == 1)
+        #expect(f.payer.payments.first?.amount.mint == .usdf)
     }
 
     @Test("A paying currency that covers the amount pays with no swap")
