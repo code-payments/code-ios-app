@@ -143,8 +143,8 @@ import Testing
     // MARK: - Planner -
 
     @Test("Plan matches every case to the micro", arguments: fixture.cases)
-    func plan(_ vector: Case) {
-        let plan = Self.plan(vector)
+    func plan(_ vector: Case) throws {
+        let plan = try Self.plan(vector)
         let expected = vector.expected
 
         #expect(plan.amountMicros == vector.input.amountMicros)
@@ -159,12 +159,12 @@ import Testing
     // MARK: - Display -
 
     @Test("Display matches every case's strings", arguments: fixture.cases)
-    func display(_ vector: Case) {
+    func display(_ vector: Case) throws {
         let currency = CurrencyCode(rawValue: vector.input.currency.lowercased())!
         #expect(currency.maximumFractionDigits == vector.input.minorDigits)
 
         let shown = CollectionFundingDisplay(
-            plan: Self.plan(vector),
+            plan: try Self.plan(vector),
             currency: currency,
             dollars: Self.dollars,
             names: Dictionary(uniqueKeysWithValues: vector.input.balances.map { ($0.id, $0.name) })
@@ -202,8 +202,8 @@ import Testing
 
     // MARK: - Helpers -
 
-    private static func plan(_ vector: Case) -> CollectionFundingPlan {
-        planCollectionFunding(
+    private static func plan(_ vector: Case) throws -> CollectionFundingPlan {
+        try planCollectionFunding(
             amountMicros: vector.input.amountMicros,
             minorDigits: vector.input.minorDigits,
             minimumTopUpMicros: vector.input.minTopUpMicros,

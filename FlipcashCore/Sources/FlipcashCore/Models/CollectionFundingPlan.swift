@@ -88,6 +88,15 @@ public struct CollectionFundingPlan: Equatable, Sendable {
     public var totalFeeMicros: Int64 { legs.reduce(0) { $0 + $1.feeMicros } }
 }
 
+/// Input `planCollectionFunding` refuses to plan.
+public enum CollectionFundingPlanError: Error, Equatable, Sendable {
+    case negativeAmount(Int64)
+    case invalidMinorDigits(Int)
+    case negativeMinimumTopUp(Int64)
+    case negativeBalance(id: String, micros: Int64)
+    case duplicateBalance(id: String)
+}
+
 /// Plans how a collection payment of `amountMicros` is funded from `balances`.
 ///
 /// The paying currency is `selected`, else `lastPaid`, else `dollars`, whatever its balance. Sources
@@ -101,6 +110,11 @@ public struct CollectionFundingPlan: Equatable, Sendable {
 /// figures Android's `launchpadSellFee` and `grossingUpLaunchpadSellFee` give. Legs do not go
 /// through `entryAffordableAfterFee`, whose floor to the cent would strand a sub-cent remainder in
 /// every drained currency.
+///
+/// Throws on input Android's `planCollectionFunding` also rejects: a negative amount, top-up minimum
+/// or balance, `minorDigits` outside 0...6, or two balances with the same id. A repeated id would
+/// otherwise count toward capacity twice while only its first entry funds a leg, so the plan would
+/// under-fund the payment.
 public func planCollectionFunding(
     amountMicros: Int64,
     minorDigits: Int,
@@ -109,7 +123,16 @@ public func planCollectionFunding(
     lastPaid: String?,
     dollars: String,
     balances: [CollectionFundingBalance]
-) -> CollectionFundingPlan {
+) throws(CollectionFundingPlanError) -> CollectionFundingPlan {
+    guard amountMicros >= 0 else { throw .negativeAmount(amountMicros) }
+    guard (0...6).contains(minorDigits) else { throw .invalidMinorDigits(minorDigits) }
+    guard minimumTopUpMicros >= 0 else { throw .negativeMinimumTopUp(minimumTopUpMicros) }
+    var seen: Set<String> = []
+    for balance in balances {
+        guard balance.fiatMicros >= 0 else { throw .negativeBalance(id: balance.id, micros: balance.fiatMicros) }
+        guard seen.insert(balance.id).inserted else { throw .duplicateBalance(id: balance.id) }
+    }
+
     let paying = selected ?? lastPaid ?? dollars
 
     let capacity = balances.reduce(Int64(0)) { total, balance in
