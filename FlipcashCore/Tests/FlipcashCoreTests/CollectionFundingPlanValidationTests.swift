@@ -105,4 +105,19 @@ struct CollectionFundingPlanValidationTests {
         #expect(plan.payableWithoutTopUp)
         #expect(plan.legs.allSatisfy { $0.soldMicros == 0 })
     }
+
+    /// The spec sets no floor under a funding balance, so a balance worth a few micros is sold in
+    /// full as the first conversion. Pinned here so adding a floor is a visible change.
+    @Test("A balance worth a few micros still becomes the first conversion leg")
+    func dustBecomesALeg() throws {
+        let plan = try Self.plan(balances: [
+            CollectionFundingBalance(id: Self.dollars, fiatMicros: 5_000_000, sellFeeBps: 0),
+            CollectionFundingBalance(id: "dust", fiatMicros: 5, sellFeeBps: 100),
+            CollectionFundingBalance(id: "jeffy", fiatMicros: 6_000_000, sellFeeBps: 100),
+        ])
+        let conversions = plan.legs.filter(\.conversion)
+        #expect(conversions.map(\.source) == ["dust", "jeffy"])
+        #expect(conversions.first?.soldMicros == 5)
+        #expect(plan.payableWithoutTopUp)
+    }
 }
