@@ -70,7 +70,7 @@ public struct EnterAmountView: View {
     }
 
     /// Variant where the caller supplies the bottom action control (e.g.
-    /// `SwipeControl`) instead of the default `CodeButton`. The control inherits
+    /// `SwipeControl`) instead of the default `.filled` button. The control inherits
     /// the same disabled gating via `actionEnabled`.
     init<ActionContent: View>(
         mode: Mode,
@@ -296,12 +296,6 @@ extension EnterAmountView {
             case .addMoney: return "Add Money"
             case .minimumTip: return "Save"
             case .balanceRequirement: return "Done"
-            }
-        }
-
-        fileprivate var buttonStyle: CodeButton.Style {
-            switch self {
-            case .currency, .withdraw, .buy, .sell, .convert, .addMoney, .minimumTip, .balanceRequirement: return .filled
             }
         }
     }
