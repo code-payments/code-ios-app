@@ -16,6 +16,7 @@ import Testing
 
     struct Constants: Decodable, Sendable {
         let minorDigits: Int
+        let dustFloorMicros: Int64
     }
 
     struct Case: Decodable, Sendable, CustomTestStringConvertible {
@@ -131,11 +132,13 @@ import Testing
     /// vacuously.
     @Test("Fixture holds every case and display row")
     func fixtureCounts() {
-        #expect(Self.fixture.cases.count == 32)
+        #expect(Self.fixture.cases.count == 36)
         #expect(Self.fixture.feeDisplay.count == 13)
         #expect(Self.fixture.amountDisplay.count == 7)
         #expect(Set(Self.fixture.cases.map(\.name)).count == Self.fixture.cases.count)
         #expect(Self.fixture.constants.minorDigits == Self.usd.maximumFractionDigits)
+        // Half a cent: the boundary `dust-skipped` and `half-cent-not-dust` sit either side of.
+        #expect(Self.fixture.constants.dustFloorMicros == 5_000)
         let balances = Self.fixture.cases.flatMap(\.input.balances)
         #expect(balances.allSatisfy { ($0.kind == "dollars") == ($0.id == Self.dollars) })
     }

@@ -102,7 +102,8 @@ public enum CollectionFundingPlanError: Error, Equatable, Sendable {
 /// The paying currency is `selected`, else `lastPaid`, else `dollars`, whatever its balance. Sources
 /// fund in order: the paying currency, then Dollars, then every other currency by balance, smallest
 /// first and ties by id, each covering only what is still needed. The paying currency and Dollars
-/// spend at full balance; any other currency sells with its fee taken out of the amount sold. When
+/// spend at full balance; any other currency sells with its fee taken out of the amount sold. A
+/// balance worth less than half a minor unit is dust and is dropped before anything else. When
 /// the balances fall short, the top-up is the shortfall rounded up to the minor unit, and never
 /// below `minimumTopUpMicros`; it is added to Dollars and the legs are planned again.
 ///
@@ -134,6 +135,11 @@ public func planCollectionFunding(
     }
 
     let paying = selected ?? lastPaid ?? dollars
+
+    // Dust would display as zero and never funds, Dollars and the paying currency included: it
+    // adds nothing to capacity, gets no leg, and stays in the wallet.
+    let unit = microsPerMinorUnit(minorDigits: minorDigits)
+    let balances = balances.filter { !isDust($0.fiatMicros, minorUnitMicros: unit) }
 
     let capacity = balances.reduce(Int64(0)) { total, balance in
         total + spendableMicros(balance, paying: paying, dollars: dollars)
@@ -301,6 +307,13 @@ func microsPerMinorUnit(minorDigits: Int) -> Int64 {
         unit *= 10
     }
     return unit
+}
+
+/// Whether `micros` is worth less than half a minor unit, so it displays as zero when rounded
+/// half-up: under 5,000 micros in a two-digit currency. Exactly half a unit displays as one and
+/// is not dust.
+func isDust(_ micros: Int64, minorUnitMicros: Int64) -> Bool {
+    2 * micros < minorUnitMicros
 }
 
 /// `micros` rounded up to a whole number of minor units, still in micros.

@@ -106,18 +106,47 @@ struct CollectionFundingPlanValidationTests {
         #expect(plan.legs.allSatisfy { $0.soldMicros == 0 })
     }
 
-    /// The spec sets no floor under a funding balance, so a balance worth a few micros is sold in
-    /// full as the first conversion. Pinned here so adding a floor is a visible change.
-    @Test("A balance worth a few micros still becomes the first conversion leg")
-    func dustBecomesALeg() throws {
+    /// A balance worth less than half a cent displays as $0.00, so the planner drops it before
+    /// anything else: no leg, and the next balance covers what it would have.
+    @Test("A balance under half a minor unit is dust and gets no leg")
+    func dustGetsNoLeg() throws {
         let plan = try Self.plan(balances: [
             CollectionFundingBalance(id: Self.dollars, fiatMicros: 5_000_000, sellFeeBps: 0),
-            CollectionFundingBalance(id: "dust", fiatMicros: 5, sellFeeBps: 100),
+            CollectionFundingBalance(id: "dust", fiatMicros: 4_999, sellFeeBps: 100),
             CollectionFundingBalance(id: "jeffy", fiatMicros: 6_000_000, sellFeeBps: 100),
         ])
-        let conversions = plan.legs.filter(\.conversion)
-        #expect(conversions.map(\.source) == ["dust", "jeffy"])
-        #expect(conversions.first?.soldMicros == 5)
+        #expect(plan.legs.map(\.source) == [Self.dollars, "jeffy"])
         #expect(plan.payableWithoutTopUp)
+    }
+
+    @Test("Exactly half a minor unit is not dust and funds")
+    func halfUnitFunds() throws {
+        let plan = try Self.plan(balances: [
+            CollectionFundingBalance(id: Self.dollars, fiatMicros: 5_000_000, sellFeeBps: 0),
+            CollectionFundingBalance(id: "crumb", fiatMicros: 5_000, sellFeeBps: 100),
+            CollectionFundingBalance(id: "jeffy", fiatMicros: 6_000_000, sellFeeBps: 100),
+        ])
+        #expect(plan.legs.filter(\.conversion).map(\.source) == ["crumb", "jeffy"])
+        #expect(plan.legs.first { $0.source == "crumb" }?.soldMicros == 5_000)
+    }
+
+    /// Dust Dollars count as zero, so the top-up's split has nothing from the balance.
+    @Test("Dust Dollars count as zero in the top-up split")
+    func dustDollarsCountAsZero() throws {
+        let plan = try Self.plan(amountMicros: 2_000_000, minimumTopUpMicros: 5_000_000, balances: [
+            CollectionFundingBalance(id: Self.dollars, fiatMicros: 4_000, sellFeeBps: 0),
+        ])
+        #expect(plan.shortfallMicros == 2_000_000)
+        #expect(plan.topUpMicros == 5_000_000)
+        #expect(plan.legs.first?.dollarsSplit == .init(fromBalanceMicros: 0, fromTopUpMicros: 2_000_000))
+    }
+
+    /// The floor follows the currency's minor unit: half of 1 in a zero-digit currency is 500,000
+    /// micros.
+    @Test("The dust floor is half the request currency's minor unit", arguments: [(0, Int64(500_000)), (2, 5_000), (6, 1)])
+    func dustFloorFollowsMinorDigits(_ digits: Int, _ floor: Int64) {
+        let unit = microsPerMinorUnit(minorDigits: digits)
+        #expect(isDust(floor - 1, minorUnitMicros: unit))
+        #expect(!isDust(floor, minorUnitMicros: unit))
     }
 }
