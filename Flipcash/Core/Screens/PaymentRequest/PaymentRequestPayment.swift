@@ -56,6 +56,9 @@ final class PaymentRequestPayment {
     private(set) var sheetSnapshot: SheetSnapshot?
 
     private(set) var selectedBalance: ExchangedBalance?
+    /// The currency picked in this sheet for a funded collection; nil until a pick, so the plan
+    /// opens on the last paid currency, or Dollars before any.
+    private(set) var pickedCurrency: PublicKey?
     /// Set when the insufficient-funds dialog's Add Money is tapped; the presenter routes to the deposit and clears it.
     var depositMint: PublicKey?
 
@@ -65,6 +68,9 @@ final class PaymentRequestPayment {
     @ObservationIgnored private let payer: any RequestedPaying
     @ObservationIgnored private let resolver: any RecipientResolving
     @ObservationIgnored private let clock: () -> Date
+    @ObservationIgnored private let fundingStore: CollectionFundingStore
+    @ObservationIgnored private let fundingExecutor: CollectionFundingExecutor
+    @ObservationIgnored private let fundsCollections: () -> Bool
     @ObservationIgnored private var intentID: Data?
     /// Set after a payment whose outcome isn't known, so the next try refetches first.
     @ObservationIgnored private var needsRefetch = false
@@ -75,9 +81,13 @@ final class PaymentRequestPayment {
         requests: PaymentRequests? = nil,
         payer: (any RequestedPaying)? = nil,
         resolver: (any RecipientResolving)? = nil,
+        swapper: (any CollectionSwapping)? = nil,
+        fundingStore: CollectionFundingStore? = nil,
+        fundsCollections: (() -> Bool)? = nil,
         clock: @escaping () -> Date = Date.init
     ) {
         let session = sessionContainer.session
+        let fundingStore = fundingStore ?? CollectionFundingStore(userID: session.userID)
         self.requestID = requestID
         self.requests = requests ?? sessionContainer.paymentRequests
         self.session = session
@@ -85,6 +95,14 @@ final class PaymentRequestPayment {
         self.payer = payer ?? session
         self.resolver = resolver ?? session
         self.clock = clock
+        self.fundingStore = fundingStore
+        self.fundingExecutor = CollectionFundingExecutor(
+            swapper: swapper ?? SessionCollectionSwapper(session: session, ratesController: sessionContainer.ratesController),
+            store: fundingStore
+        )
+        self.fundsCollections = fundsCollections ?? {
+            BetaFlags.shared.showsGroupMoneyUI(isStaff: BetaFlags.shared.staffStanding(of: session))
+        }
         self.selectedBalance = sessionContainer.ratesController.resolveInitialBalance(mint: nil, session: session)
     }
 
@@ -112,14 +130,83 @@ final class PaymentRequestPayment {
         }
     }
 
-    /// The balances the currency picker offers.
+    /// The balances the currency picker offers. A funded collection also offers the paying
+    /// currency at zero, since conversions can fund it.
     var paymentOptions: [ExchangedBalance] {
-        ratesController.paymentOptions(session: session)
+        let options = ratesController.paymentOptions(session: session)
+        guard fundsCollection, let paying = payingBalance,
+              !options.contains(where: { $0.stored.mint == paying.stored.mint }) else { return options }
+        return [paying] + options
     }
 
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
+        if fundsCollection {
+            // Picking reruns the plan; it starts no swap and leaves the app-wide selection alone.
+            pickedCurrency = exchangedBalance.stored.mint
+        } else {
+            ratesController.selectToken(exchangedBalance.stored.mint, source: .user)
+        }
+    }
+
+    // MARK: - Collection funding -
+
+    /// Whether this payment converts other balances to cover a collection: Group Money only.
+    var fundsCollection: Bool {
+        request?.collection != nil && fundsCollections()
+    }
+
+    /// How the payment would be funded from the balances held now, or nil when it can't be planned.
+    var fundingPlan: CollectionFundingPlan? {
+        guard fundsCollection, let request, let payable,
+              let fiat = payableFiat(payable, of: request),
+              let rate = ratesController.rate(for: fiat.currency) else { return nil }
+        let dollars = PublicKey.usdf.base58
+        var inputs = session.balances.map { stored in
+            CollectionFundingBalance(
+                id: stored.mint.base58,
+                fiatMicros: Self.micros(stored.computeExchangedValue(with: rate).nativeAmount.value),
+                sellFeeBps: Int64(stored.mint == .usdf ? LaunchpadFee.dollarsFeeBps : LaunchpadFee.poolSellFeeBps(stored.sellFeeBps))
+            )
+        }
+        if !inputs.contains(where: { $0.id == dollars }) {
+            inputs.append(CollectionFundingBalance(id: dollars, fiatMicros: 0, sellFeeBps: 0))
+        }
+        let held = Set(inputs.map(\.id))
+        let selected = pickedCurrency.map(\.base58).flatMap { held.contains($0) ? $0 : nil }
+        // A last-paid currency the wallet no longer holds can't be named or funded; open on Dollars.
+        let lastPaid = fundingStore.lastPaidCurrency.flatMap { held.contains($0) ? $0 : nil }
+        return try? planCollectionFunding(
+            amountMicros: Self.micros(fiat.value),
+            minorDigits: fiat.currency.maximumFractionDigits,
+            minimumTopUpMicros: 0,
+            selected: selected,
+            lastPaid: lastPaid,
+            dollars: dollars,
+            balances: inputs
+        )
+    }
+
+    /// The plan as the sheet and Payment Details draw it.
+    var fundingDisplay: CollectionFundingDisplay? {
+        guard let plan = fundingPlan, let request, let payable,
+              let currency = payableFiat(payable, of: request)?.currency else { return nil }
+        let names = Dictionary(session.balances.map { ($0.mint.base58, $0.name) }, uniquingKeysWith: { first, _ in first })
+        return CollectionFundingDisplay(plan: plan, currency: currency, dollars: PublicKey.usdf.base58, names: names)
+    }
+
+    /// The paying currency's balance, for the sheet's pill; held at zero when conversions fund it.
+    var payingBalance: ExchangedBalance? {
+        guard let mint = fundingPlan.flatMap({ try? PublicKey(base58: $0.payingCurrency) }),
+              let stored = session.balance(for: mint) else { return nil }
+        return ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: ratesController.rateForBalanceCurrency()))
+    }
+
+    private static func micros(_ value: Decimal) -> Int64 {
+        var scaled = value * 1_000_000
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &scaled, 0, .down)
+        return NSDecimalNumber(decimal: rounded).int64Value
     }
 
     /// Refetches the request right before the swipe sheet shows, taking the intent ID from it. A
@@ -154,6 +241,7 @@ final class PaymentRequestPayment {
                 showRequestClosed()
                 return .closed
             case .alreadyPaid, .notAPayer:
+                fundingStore.clearSwapIDs(for: requestID)
                 _ = try? await requests.refreshDetails(requestID)
                 return .nothingToPay
             case .denied, .notFound:
@@ -220,6 +308,9 @@ final class PaymentRequestPayment {
             case .nothingToPay, .closed, .failed, .noBalance: return .failed
             }
         }
+        if fundsCollection {
+            return await submitFundedCollection()
+        }
         guard let selectedBalance else {
             ErrorReporting.captureError(
                 GroupSendViewModel.Error.noSpendableBalance,
@@ -239,6 +330,54 @@ final class PaymentRequestPayment {
         }
 
         return await pay(fiat, as: payable, to: creator, in: chatID, intentKey: intentKey, from: selectedBalance, mayFund: true)
+    }
+
+    /// Converts what the plan needs into the paying currency, each swap settled before the next,
+    /// then pays once from it. Funding runs before the funds gate because a paying currency held
+    /// at zero can't be priced there.
+    private func submitFundedCollection() async -> Outcome {
+        guard let request, let payable, let creator = request.creator,
+              let intentID, let intentKey = try? PublicKey(intentID),
+              let chatID = request.chatID,
+              let fiat = payableFiat(payable, of: request) else {
+            showSendError()
+            return .failed
+        }
+
+        switch await fundingExecutor.fund(requestID, currency: fiat.currency, plan: { self.fundingPlan }) {
+        case .funded:
+            break
+        case .short:
+            showInsufficientFunds(shortfall: fundingShortfall(in: fiat.currency))
+            return .failed
+        case .failed:
+            // Swaps that landed stay converted; the retry reads the intent ID again before funding.
+            needsRefetch = true
+            showSendError()
+            return .failed
+        }
+
+        guard let paying = payingBalance else {
+            showInsufficientFunds(shortfall: nil)
+            return .failed
+        }
+        selectedBalance = paying
+        let outcome = await pay(fiat, as: payable, to: creator, in: chatID, intentKey: intentKey, from: paying, mayFund: false)
+        if outcome == .success {
+            fundingStore.recordPaid(currency: paying.stored.mint.base58)
+            fundingStore.clearSwapIDs(for: requestID)
+        }
+        return outcome
+    }
+
+    /// What the balances fall short by, for today's short state.
+    private func fundingShortfall(in currency: CurrencyCode) -> ExchangedFiat? {
+        guard let plan = fundingPlan, plan.shortfallMicros > 0,
+              let rate = ratesController.rate(for: currency) else { return nil }
+        return ExchangedFiat(
+            nativeAmount: FiatAmount(value: Decimal(plan.shortfallMicros) / 1_000_000, currency: currency),
+            rate: rate
+        )
     }
 
     private func pay(

@@ -74,7 +74,9 @@ struct PaymentRequestCollectionPaymentTests {
             sessionContainer: container,
             requests: requests,
             payer: payer,
-            resolver: payer
+            resolver: payer,
+            // Paying without Group Money's funding; PaymentRequestCollectionFundingTests covers it.
+            fundsCollections: { false }
         )
         return (payment, requests, payer, container)
     }
@@ -178,7 +180,7 @@ struct PaymentRequestCollectionPaymentTests {
 }
 
 @MainActor
-private final class FakeRequestPayer: RequestedPaying, RecipientResolving {
+final class FakeRequestPayer: RequestedPaying, RecipientResolving {
 
     struct Payment {
         let amount: ExchangedFiat
