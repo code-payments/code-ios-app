@@ -78,6 +78,15 @@ struct CollectionPaymentDetailsView: View {
     let imageURL: (String) -> URL?
     let onBack: () -> Void
 
+    @State private var linesHeight: CGFloat = 0
+
+    /// The tallest the list grows before it scrolls. `PartialSheet` proposes its current height,
+    /// which is the pay modal's when this replaces it, so the list sizes itself rather than
+    /// filling that proposal.
+    private var maxListHeight: CGFloat {
+        UIScreen.main.bounds.height * 0.65
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(spacing: 12) {
@@ -97,11 +106,13 @@ struct CollectionPaymentDetailsView: View {
                     .foregroundStyle(Color.textMain)
             }
 
-            // The sheet sizes to its content: short lists fit, a long one (9.3) scrolls at full height.
-            ViewThatFits(in: .vertical) {
+            // Short lists (5.3, 6.5) fit; a long one (9.3) grows the sheet to the cap and scrolls.
+            ScrollView {
                 lines
-                ScrollView { lines }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { linesHeight = $0 }
             }
+            .frame(height: min(linesHeight, maxListHeight))
+            .scrollBounceBehavior(.basedOnSize)
         }
     }
 

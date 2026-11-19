@@ -523,9 +523,10 @@ private struct PaymentRequestPaySheet: View {
     var body: some View {
         // A collection that conversions fund draws its paying currency, fee line and Payment Details.
         let funding = payment.fundsCollection ? payment.fundingSheet : nil
+        let showsDetails = isShowingDetails && funding?.feeLine != nil
         PartialSheet(background: .clear) {
             Group {
-                if isShowingDetails, let funding {
+                if showsDetails, let funding {
                     CollectionPaymentDetailsView(
                         content: funding,
                         imageURL: payment.currencyImageURL,
@@ -536,8 +537,12 @@ private struct PaymentRequestPaySheet: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, isShowingDetails ? 20 : 30)
+            .padding(.top, showsDetails ? 20 : 30)
             .padding(.bottom, bottomPadding)
+        }
+        // A plan that stops converting has no details to show; don't reopen them when it returns.
+        .onChange(of: funding?.feeLine == nil) { _, hasNoFee in
+            if hasNoFee { isShowingDetails = false }
         }
         // Hold the success checkmark briefly, then return to the details, now showing the row paid.
         .task(id: didSucceed) {
