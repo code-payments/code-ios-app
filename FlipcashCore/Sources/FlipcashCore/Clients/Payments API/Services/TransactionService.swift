@@ -230,8 +230,7 @@ final class TransactionService: Sendable {
     /// `amount` is the net purchase (the swap leg); `feeAmount`, when non-nil, is
     /// the USDF fee split off on-chain via `TransferForSwapWithFee`. The funding
     /// intent transfers `amount + feeAmount` so the VM swap PDA covers both legs.
-    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
-        let swapId = SwapId.generate()
+    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         let fundingIntentID = KeyPair.generate()!.publicKey
         let ownerKeyPair = owner.authority.keyPair
 
@@ -289,8 +288,7 @@ final class TransactionService: Sendable {
     /// A buy funded by another launchpad currency — a launchpad→launchpad swap
     /// (Phase 1 + Phase 2 via IntentFundSwap). The payment pool's sell fee is
     /// implicit in the swap; `fee_amount` stays 0 (server-enforced).
-    func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
-        let swapId = SwapId.generate()
+    func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         let fundingIntentID = KeyPair.generate()!.publicKey
         let ownerKeyPair = owner.authority.keyPair
 
@@ -618,14 +616,13 @@ final class TransactionService: Sendable {
     }
 
     /// A sell is a swap from token to USDF
-    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
+    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         logger.info("Starting sell", metadata: [
             "symbol": "\(token.symbol)",
             "amount": "\(amount.nativeAmount.formatted())"
         ])
 
-        // Generate unique identifiers for this swap
-        let swapId = SwapId.generate()
+        // The swap id comes from the caller so a retry can reuse it; the funding intent is new each time.
         let fundingIntentID = KeyPair.generate()!.publicKey
 
         guard let tokenVmAuthority = token.vmMetadata?.authority else {
