@@ -39,8 +39,7 @@ public struct DialogButton: View {
                 
             case .subtle:
                 button()
-                    .opacity(disabled ? 0.5 : 1.0)
-                    .foregroundStyle(Color.textMain.opacity(0.6))
+                    .buttonStyle(.subtle)
             }
         }
         .disabled(isDisabled())
@@ -112,6 +111,7 @@ extension DialogButton {
         case primary
         case secondary
         case destructive
+        /// A translucent capsule with the look of ``SubtleButtonStyle``.
         case subtle
         case outline
     }

@@ -23,18 +23,18 @@ public struct ChipStyle {
         self.shape = AnyShape(shape)
     }
 
-    /// Subtle row-fill background — e.g. the "Invite" affordance.
+    /// Subtle row-fill capsule — e.g. the "Invite" affordance.
     public static let standard = ChipStyle(
         textColor: .textMain,
         fillColor: .backgroundRow,
-        shape: RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+        shape: Capsule()
     )
 
-    /// Solid white fill — e.g. the "Settings" affordance.
+    /// Solid white capsule — e.g. the "Settings" affordance.
     public static let prominent = ChipStyle(
         textColor: .backgroundMain,
         fillColor: .textMain,
-        shape: RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+        shape: Capsule()
     )
 
     /// `color` on its own muted ground, in a capsule — for a chip that reports state rather than
@@ -42,9 +42,7 @@ public struct ChipStyle {
     ///
     /// The colour lands in the fill rather than only in the text: at full strength on the row fill
     /// a tinted label out-shouts the title above it, which inverts the hierarchy on a screen whose
-    /// subject is the chat, not the viewer's settings. The capsule is the other half of that —
-    /// ``Metrics/buttonRadius`` is the corner every button on the screen uses, so a rounded rect
-    /// invites a tap this chip has nothing to do with.
+    /// subject is the chat, not the viewer's settings.
     ///
     /// `fill` is named rather than derived here because the theme owns what a colour's muted ground
     /// is — see ``ShapeStyle/warningSecondary`` and the sentiment pair secondaries, which are flat
@@ -90,8 +88,8 @@ public struct SelectableChipButtonStyle: ButtonStyle {
             // A tint, not a solid fill: solid white was the brightest thing on the dark screen.
             .background(Capsule().fill(isSelected ? Color.white.opacity(0.16) : Color.clear))
             .overlay(Capsule().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
-            .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Capsule())
+            .buttonPress(isPressed: configuration.isPressed)
     }
 }
 

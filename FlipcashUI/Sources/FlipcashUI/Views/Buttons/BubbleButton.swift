@@ -8,6 +8,7 @@
 
 import SwiftUI
 
+/// A small white capsule holding one short label, with the house press.
 public struct BubbleButton: View {
     
     public let font: Font
@@ -32,5 +33,16 @@ public struct BubbleButton: View {
                 paddingHorizontal: 15
             )
         }
+        .buttonStyle(BubblePressStyle())
+    }
+}
+
+// MARK: - Style -
+
+private struct BubblePressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(Capsule())
+            .buttonPress(isPressed: configuration.isPressed)
     }
 }

@@ -28,11 +28,12 @@ public struct ChartRangePicker: View {
                         .padding(.vertical, 10)
                         .background {
                             if selectedRange == range {
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                Capsule()
                                     .fill(accentColor)
                                     .matchedGeometryEffect(id: "selection", in: animation)
                             }
                         }
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
