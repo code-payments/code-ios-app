@@ -44,8 +44,18 @@ final class CollectionFundingExecutor {
         case funded
         /// The balances can't cover it without adding money.
         case short
-        /// A swap failed, was refused, or didn't settle in time.
+        /// A swap failed or was refused, or its outcome couldn't be read.
         case failed
+        /// A swap was submitted but hasn't settled. Its id is kept, so a retry waits on it rather
+        /// than starting another conversion that could land on top of it.
+        case pending
+    }
+
+    /// How one leg ended.
+    private enum LegResult {
+        case settled
+        case failed
+        case pending
     }
 
     /// Plans rebuilt after legs land. A leg that delivers a little less than planned, because the
@@ -80,7 +90,11 @@ final class CollectionFundingExecutor {
                     destination: paying,
                     amount: FiatAmount(value: Decimal(leg.soldMicros) / 1_000_000, currency: currency)
                 )
-                guard await run(swap, source: leg.source, for: requestID) else { return .failed }
+                switch await run(swap, source: leg.source, for: requestID) {
+                case .settled: continue
+                case .failed: return .failed
+                case .pending: return .pending
+                }
             }
 
             do {
@@ -94,31 +108,33 @@ final class CollectionFundingExecutor {
     }
 
     /// Runs one leg to a terminal state. A swap id already stored for the leg is looked up first:
-    /// a swap the server has, in any state, is waited on and never submitted again; one it has no
-    /// record of is submitted under the same id.
-    private func run(_ swap: CollectionFundingSwap, source: String, for requestID: PaymentRequestID) async -> Bool {
+    /// one the server has no record of, or holds in CREATED with its funding never landed, is
+    /// submitted again under the same id, which the server dedupes on. One that failed or was
+    /// cancelled gets a fresh id. One still running is waited on and never submitted again.
+    private func run(_ swap: CollectionFundingSwap, source: String, for requestID: PaymentRequestID) async -> LegResult {
         var swapID = store.swapID(for: requestID, source: source)
         var submit = true
 
         if let stored = swapID {
             do {
                 switch try await swapper.state(of: stored) {
-                case nil:
+                case nil, .created?:
                     break
                 case .finalized?:
                     // It landed before the last attempt ended; the plan this round was read
                     // before balances caught up, so don't convert again.
                     store.removeSwapID(for: requestID, source: source)
-                    return true
+                    return .settled
                 case .failed?, .cancelled?:
                     // Its funds came back; this attempt needs a swap of its own.
                     store.removeSwapID(for: requestID, source: source)
                     swapID = nil
-                case .some:
+                case .funding?, .funded?, .submitting?, .cancelling?, .unknown?:
+                    // It may still settle, so a new id could convert twice.
                     submit = false
                 }
             } catch {
-                return false
+                return .failed
             }
         }
 
@@ -129,7 +145,7 @@ final class CollectionFundingExecutor {
                 try await swapper.submit(swap, swapID: id)
             } catch {
                 // The outcome is unknown, so keep the id: a retry asks the server about it first.
-                return false
+                return .failed
             }
         }
 
@@ -137,18 +153,18 @@ final class CollectionFundingExecutor {
         do {
             state = try await swapper.waitForTerminalState(of: id)
         } catch {
-            return false
+            return .failed
         }
         switch state {
         case .finalized:
             store.removeSwapID(for: requestID, source: source)
-            return true
+            return .settled
         case .failed, .cancelled:
             store.removeSwapID(for: requestID, source: source)
-            return false
+            return .failed
         case .unknown, .created, .funding, .funded, .submitting, .cancelling:
             // Not settled in time; keep the id for the retry.
-            return false
+            return .pending
         }
     }
 }

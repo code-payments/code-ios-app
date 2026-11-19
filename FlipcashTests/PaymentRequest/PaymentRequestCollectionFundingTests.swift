@@ -328,7 +328,7 @@ struct PaymentRequestCollectionFundingTests {
         #expect(await f.payment.submit() == .failed)
         let kept = try #require(f.swapper.submitted.first?.id)
         #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58) == kept)
-        #expect(f.container.session.dialogItem?.title == "Couldn't Send")
+        #expect(f.container.session.dialogItem?.title == "Conversion Pending")
 
         // The swap and the payment landed after all.
         server.intentResult = .failure(.alreadyPaid)

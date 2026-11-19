@@ -406,6 +406,11 @@ final class PaymentRequestPayment {
             needsRefetch = true
             showSendError()
             return .failed
+        case .pending:
+            // The swap keeps its id; the retry waits on it before converting anything more.
+            needsRefetch = true
+            showConversionPending()
+            return .failed
         }
 
         guard let paying = payingBalance else {
@@ -569,6 +574,14 @@ final class PaymentRequestPayment {
         session.dialogItem = .error(
             title: "Request Closed",
             subtitle: "This request is no longer accepting payments."
+        )
+    }
+
+    /// No frame draws this state yet; the copy says what the spec asks for.
+    private func showConversionPending() {
+        session.dialogItem = .info(
+            title: String(localized: "Conversion Pending", comment: "Title shown when a currency conversion for a payment hasn't settled yet"),
+            subtitle: String(localized: "Your conversion is still pending. Please try again shortly.", comment: "Body shown when a currency conversion for a payment hasn't settled yet")
         )
     }
 
