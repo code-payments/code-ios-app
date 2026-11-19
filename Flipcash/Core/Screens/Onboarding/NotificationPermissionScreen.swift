@@ -45,11 +45,13 @@ struct NotificationPermissionScreen: View {
 
                 Spacer()
 
-                Button("OK", action: viewModel.allowPushNotificationsAction)
-                    .buttonStyle(.filled)
+                VStack(spacing: Metrics.buttonGap) {
+                    Button("OK", action: viewModel.allowPushNotificationsAction)
+                        .buttonStyle(.filled)
 
-                Button("Not Now", action: viewModel.skipPushNotificationsAction)
-                    .buttonStyle(.subtle)
+                    Button("Not Now", action: viewModel.skipPushNotificationsAction)
+                        .buttonStyle(.subtle)
+                }
             }
             .padding(20)
         }

@@ -39,12 +39,11 @@ struct DepositScreen: View {
 
                 Spacer()
 
-                CodeButton(
-                    state: buttonState,
-                    style: .filled,
-                    title: "Copy Address",
-                    action: copyAddress
-                )
+                Button(action: copyAddress) {
+                    ButtonStateLabel("Copy Address", state: buttonState)
+                }
+                .buttonStyle(.filled)
+                .disabled(!buttonState.isNormal)
             }
             .padding(20)
         }

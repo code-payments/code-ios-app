@@ -48,12 +48,11 @@ struct AccessKeyBackupScreen: View {
                 
                 Spacer()
                 
-                CodeButton(
-                    state: buttonState,
-                    style: .filled,
-                    title: "Save to Photos",
-                    action: saveToPhotosAction
-                )
+                Button(action: saveToPhotosAction) {
+                    ButtonStateLabel("Save to Photos", state: buttonState)
+                }
+                .buttonStyle(.filled)
+                .disabled(!buttonState.isNormal)
             }
             .ignoresSafeArea(.keyboard)
             .foregroundStyle(.textMain)

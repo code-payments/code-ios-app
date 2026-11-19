@@ -68,15 +68,14 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
 
                 Spacer()
 
-                CodeButton(
-                    state: viewModel.sendCodeButtonState,
-                    style: .filled,
-                    title: "Next",
-                    disabled: !viewModel.canSendVerificationCode
-                ) {
+                Button {
                     isFocused = false
                     viewModel.sendPhoneNumberCodeAction()
+                } label: {
+                    ButtonStateLabel("Next", state: viewModel.sendCodeButtonState)
                 }
+                .buttonStyle(.filled)
+                .disabled(!viewModel.canSendVerificationCode || !viewModel.sendCodeButtonState.isNormal)
             }
             .padding(20)
             .foregroundStyle(.textMain)
