@@ -10,8 +10,8 @@ import UIKit
 import SwiftUI
 import FlipcashCore
 
-/// A recycled cell for a group payment request widget: the request card in bubble chrome. A tap on
-/// the row opens the request's details.
+/// A recycled cell for a group payment request widget: the request card on the neutral money card
+/// (shared `BubbleBackgroundView` chrome). A tap on the row opens the request's details.
 public final class ChatPaymentRequestCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatPaymentRequestCell"
@@ -89,13 +89,11 @@ public final class ChatPaymentRequestCell: ChatColumnCell {
         cardWidthConstraint.constant = width
         reactionRowWidthConstraint.constant = width
 
+        let radius = ChatStyle.cardRadius
+        // A money card keeps every corner round inside a run: it is its own object, not a bubble.
         card.apply(
-            fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
-            radii: BubbleBackgroundView.radii(
-                isFromSelf: message.sender == .me,
-                groupedAbove: message.joinsBubbleAbove,
-                groupedBelow: message.joinsBubbleBelow
-            ),
+            fill: ChatStyle.cardFill,
+            radii: RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius),
             identity: message.id
         )
         reactionRow.layoutWidth = width

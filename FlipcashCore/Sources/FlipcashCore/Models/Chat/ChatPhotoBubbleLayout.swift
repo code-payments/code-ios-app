@@ -20,9 +20,9 @@ public enum ChatPhotoBubbleLayout {
     /// The share of the row a bubble may fill.
     public static let widthFraction: CGFloat = 0.78
 
-    /// The leading gutter an attributed incoming row gives to its author's avatar: the 24 pt avatar
+    /// The leading gutter an attributed incoming row gives to its author's avatar: the 28 pt avatar
     /// and 8 pt of space.
-    public static let authorGutterWidth: CGFloat = 32
+    public static let authorGutterWidth: CGFloat = 36
 
     /// The widest a photo bubble gets in a transcript `rowWidth` points wide. `attributedIncoming` is
     /// a group chat's message from someone else, whose row gives its gutter to the avatar.

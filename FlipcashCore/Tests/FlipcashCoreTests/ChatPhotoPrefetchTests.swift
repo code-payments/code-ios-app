@@ -90,13 +90,13 @@ struct ChatPhotoBubbleLayoutTests {
 
     @Test("A group member's photo leaves the avatar gutter out")
     func attributedIncoming() {
-        #expect(ChatPhotoBubbleLayout.maxWidth(rowWidth: 400, attributedIncoming: true) == (400 - 32) * 0.78)
+        #expect(ChatPhotoBubbleLayout.maxWidth(rowWidth: 400, attributedIncoming: true) == (400 - 36) * 0.78)
     }
 
     @Test("A row wider than a phone is sized as a phone-width row")
     func wideRow() {
         #expect(ChatPhotoBubbleLayout.maxWidth(rowWidth: 1024, attributedIncoming: false) == 440 * 0.78)
-        #expect(ChatPhotoBubbleLayout.maxWidth(rowWidth: 1024, attributedIncoming: true) == (440 - 32) * 0.78)
+        #expect(ChatPhotoBubbleLayout.maxWidth(rowWidth: 1024, attributedIncoming: true) == (440 - 36) * 0.78)
     }
 
     @Test("The target is the bubble width in pixels, rounded")

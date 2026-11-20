@@ -146,7 +146,7 @@ struct ChatPhotoPushPrefetcherTests {
         #expect(ChatPhotoBubbleLayout.rendition(of: attachment(), rowWidth: 393, attributedIncoming: false, scale: 3)?.blobID == display)
         // 100 pt row × 0.78 × 1 = 78 px: the THUMBNAIL covers it.
         #expect(ChatPhotoBubbleLayout.rendition(of: attachment(), rowWidth: 100, attributedIncoming: false, scale: 1)?.blobID == thumbnail)
-        // A member's bubble gives 32 pt to the avatar: (130 − 32) × 0.78 × 2 = 153 px fits the
+        // A member's bubble gives 36 pt to the avatar: (130 − 36) × 0.78 × 2 = 147 px fits the
         // THUMBNAIL; without the gutter it would be 203 px and need the DISPLAY.
         #expect(ChatPhotoBubbleLayout.rendition(of: attachment(), rowWidth: 130, attributedIncoming: true, scale: 2)?.blobID == thumbnail)
         #expect(ChatPhotoBubbleLayout.rendition(of: attachment(), rowWidth: 130, attributedIncoming: false, scale: 2)?.blobID == display)
