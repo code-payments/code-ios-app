@@ -53,7 +53,8 @@ struct CurrencyLaunchProcessingScreen: View {
                     onReceive: { Task { await handleReceiveLaunchedCurrency() } },
                     onDismiss: { dismissParentContainer() }
                 )
-                .padding(20)
+                .padding([.horizontal, .top], 20)
+                .bottomEdgePadding()
             }
         }
         .navigationTitle(viewModel.navigationTitle)

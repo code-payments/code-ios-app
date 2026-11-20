@@ -89,7 +89,8 @@ struct BuyConfirmationScreen: View {
                     .padding(.top, 20)
                 }
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle(BuyFlowTitle.forCurrency(viewModel.targetMint, session: session, ratesController: ratesController))
         .toolbarTitleDisplayMode(.inline)
