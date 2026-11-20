@@ -759,6 +759,62 @@ class Session {
         }
     }
 
+    /// The swaps this session's owner started that wait on their funding (GetPendingSwaps).
+    func pendingSwaps() async throws -> [SwapMetadata] {
+        try await client.fetchPendingSwaps(owner: ownerKeyPair)
+    }
+
+    /// Funds a swap the server holds in CREATED, under the funding intent id the server recorded and
+    /// for the `quarks` of `fromMint` it recorded (the swap amount plus its fee). StartSwap is not
+    /// called again, so the swap can't pick up a second funding intent.
+    func fundCreatedSwap(
+        swapId: SwapId,
+        fundingIntentID: PublicKey,
+        quarks: UInt64,
+        from fromMint: PublicKey,
+        to toMint: PublicKey,
+        verifiedState: VerifiedState
+    ) async throws {
+        try assertFresh(verifiedState, operation: "fundCreatedSwap", currency: verifiedState.rate.currency, mint: fromMint)
+
+        // Dollars sides use the built-in USDF metadata, as `buy` and `sell` do.
+        let fromToken: MintMetadata = fromMint == .usdf ? .usdf : try await fetchMintMetadata(mint: fromMint).metadata
+        let toToken: MintMetadata = toMint == .usdf ? .usdf : try await fetchMintMetadata(mint: toMint).metadata
+
+        let sourceCluster: AccountCluster
+        if fromMint == .usdf {
+            sourceCluster = owner
+        } else {
+            guard let vmAuthority = fromToken.vmMetadata?.authority else {
+                throw Error.vmMetadataMissing
+            }
+            sourceCluster = owner.use(mint: fromMint, timeAuthority: vmAuthority)
+        }
+
+        // Priced from the recorded quarks, so the intent moves exactly what the swap expects.
+        let amount = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: quarks, mint: fromMint),
+            rate: verifiedState.rate,
+            supplyQuarks: verifiedState.supplyFromBonding
+        )
+
+        logger.info("funding created swap", metadata: [
+            "swapId": "\(swapId.publicKey.base58)",
+            "fromSymbol": "\(fromToken.symbol)",
+            "toSymbol": "\(toToken.symbol)"
+        ])
+
+        try await client.fundSwap(
+            swapId: swapId,
+            fundingIntentID: fundingIntentID,
+            amount: amount,
+            verifiedState: verifiedState,
+            fromMint: fromToken,
+            toMint: toToken,
+            sourceCluster: sourceCluster
+        )
+    }
+
     func fetchMintMetadata(mint: PublicKey) async throws -> StoredMintMetadata {
         if let metadata = try database.getMintMetadata(mint: mint) {
             return metadata
@@ -840,8 +896,9 @@ class Session {
         try await buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: mint, swapId: .generate())
     }
 
-    /// Buys `mint` with Dollars under a swap id the caller chose, so a retry can look the swap up by that id.
-    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat?, verifiedState: VerifiedState, of mint: PublicKey, swapId: SwapId) async throws -> SwapId {
+    /// Buys `mint` with Dollars under a swap id and funding intent id the caller chose, so a retry can
+    /// look the swap up by its id and start it again under the same funding intent.
+    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat?, verifiedState: VerifiedState, of mint: PublicKey, swapId: SwapId, fundingIntentID: PublicKey = KeyPair.generate()!.publicKey) async throws -> SwapId {
         try assertFresh(verifiedState, operation: "buy", currency: amount.nativeAmount.currency, mint: amount.mint)
 
         let token = try await fetchMintMetadata(mint: mint)
@@ -852,14 +909,14 @@ class Session {
             "symbol": "\(token.symbol)"
         ])
 
-        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint), swapId: swapId)
+        return try await client.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint), swapId: swapId, fundingIntentID: fundingIntentID)
     }
 
     /// Buys `mint` paying with another launchpad currency. `amount` is denominated
     /// in the payment token and is the gross debit — the payment pool's sell fee
     /// is implicit in the swap.
     @discardableResult
-    func buy(amount: ExchangedFiat, with paymentMint: PublicKey, verifiedState: VerifiedState, of mint: PublicKey, swapId: SwapId = .generate()) async throws -> SwapId {
+    func buy(amount: ExchangedFiat, with paymentMint: PublicKey, verifiedState: VerifiedState, of mint: PublicKey, swapId: SwapId = .generate(), fundingIntentID: PublicKey = KeyPair.generate()!.publicKey) async throws -> SwapId {
         try assertFresh(verifiedState, operation: "buyWithCurrency", currency: amount.nativeAmount.currency, mint: paymentMint)
 
         guard let supply = verifiedState.supplyFromBonding else {
@@ -893,7 +950,7 @@ class Session {
             "symbol": "\(token.symbol)"
         ])
 
-        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint), swapId: swapId)
+        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner, destinationAccountExists: hasAccount(for: mint), swapId: swapId, fundingIntentID: fundingIntentID)
     }
 
     @discardableResult
@@ -1026,7 +1083,7 @@ class Session {
     }
 
     @discardableResult
-    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in mint: PublicKey, swapId: SwapId = .generate()) async throws -> SwapId {
+    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in mint: PublicKey, swapId: SwapId = .generate(), fundingIntentID: PublicKey = KeyPair.generate()!.publicKey) async throws -> SwapId {
         try assertFresh(verifiedState, operation: "sell", currency: amount.nativeAmount.currency, mint: mint)
 
         let token = try await fetchMintMetadata(mint: mint)
@@ -1061,7 +1118,7 @@ class Session {
 
         logger.info("selling", metadata: ["amount": "\(amountForIntent.nativeAmount.formatted())", "symbol": "\(token.symbol)"])
 
-        return try await client.sell(amount: amountForIntent, verifiedState: verifiedState, in: token.metadata, owner: owner, swapId: swapId)
+        return try await client.sell(amount: amountForIntent, verifiedState: verifiedState, in: token.metadata, owner: owner, swapId: swapId, fundingIntentID: fundingIntentID)
     }
     
     // MARK: - Withdrawals -

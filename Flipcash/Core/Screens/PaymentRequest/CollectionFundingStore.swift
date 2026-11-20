@@ -6,8 +6,9 @@
 import Foundation
 import FlipcashCore
 
-/// What a collection payment remembers across launches, per user: the swap id each funding leg
-/// started, so a retry finds that swap instead of starting a second one, the top-up a payment
+/// What a collection payment remembers across launches, per user: the swap id and funding intent
+/// id each funding leg started under, so a retry finds that swap instead of starting a second one
+/// and never funds it under a second intent, the top-up a payment
 /// ordered, so a retry waits on it instead of ordering again, and the currency the user last paid
 /// a collection in, which the next collection's picker opens on.
 @MainActor
@@ -42,15 +43,62 @@ final class CollectionFundingStore {
 
     // MARK: - Swap ids -
 
-    /// The swap id the leg converting out of `source` started for `requestID`, if one is pending.
-    func swapID(for requestID: PaymentRequestID, source: String) -> SwapId? {
-        swaps[Self.key(requestID, source)].flatMap(SwapId.init(data:))
+    /// The ids a funding leg's swap runs under, kept from before the swap starts until it is terminal.
+    struct LegIDs: Equatable {
+        let swapID: SwapId
+        /// The id of the intent that funds the swap. Nil only for a leg stored before funding ids
+        /// were kept.
+        let fundingIntentID: PublicKey?
+
+        /// Stored as the swap id's 32 bytes followed by the funding intent id's 32.
+        fileprivate var stored: Data {
+            swapID.value + (fundingIntentID?.data ?? Data())
+        }
+
+        init(swapID: SwapId, fundingIntentID: PublicKey?) {
+            self.swapID = swapID
+            self.fundingIntentID = fundingIntentID
+        }
+
+        /// Fresh ids for a leg about to start a swap of its own.
+        static func generate() -> LegIDs {
+            LegIDs(swapID: .generate(), fundingIntentID: KeyPair.generate()!.publicKey)
+        }
+
+        /// The same swap id with a funding intent id, for a leg stored without one.
+        func withFundingIntentID() -> LegIDs {
+            fundingIntentID == nil ? LegIDs(swapID: swapID, fundingIntentID: KeyPair.generate()!.publicKey) : self
+        }
+
+        fileprivate init?(stored data: Data) {
+            switch data.count {
+            case 32:
+                guard let swapID = SwapId(data: data) else { return nil }
+                self.init(swapID: swapID, fundingIntentID: nil)
+            case 64:
+                guard let swapID = SwapId(data: Data(data.prefix(32))),
+                      let fundingIntentID = try? PublicKey(Data(data.suffix(32))) else { return nil }
+                self.init(swapID: swapID, fundingIntentID: fundingIntentID)
+            default:
+                return nil
+            }
+        }
     }
 
-    /// Records `swapID` before its swap is submitted, so an attempt that dies mid-swap leaves it behind.
-    func setSwapID(_ swapID: SwapId, for requestID: PaymentRequestID, source: String) {
+    /// The ids the leg converting out of `source` started under for `requestID`, if its swap is pending.
+    func legIDs(for requestID: PaymentRequestID, source: String) -> LegIDs? {
+        swaps[Self.key(requestID, source)].flatMap(LegIDs.init(stored:))
+    }
+
+    /// The swap id the leg converting out of `source` started for `requestID`, if one is pending.
+    func swapID(for requestID: PaymentRequestID, source: String) -> SwapId? {
+        legIDs(for: requestID, source: source)?.swapID
+    }
+
+    /// Records a leg's ids before its swap starts, so an attempt that dies mid-swap leaves both behind.
+    func setLegIDs(_ ids: LegIDs, for requestID: PaymentRequestID, source: String) {
         var swaps = swaps
-        swaps[Self.key(requestID, source)] = swapID.value
+        swaps[Self.key(requestID, source)] = ids.stored
         self.swaps = swaps
     }
 

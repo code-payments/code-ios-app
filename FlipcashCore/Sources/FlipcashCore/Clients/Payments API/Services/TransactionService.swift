@@ -230,8 +230,7 @@ final class TransactionService: Sendable {
     /// `amount` is the net purchase (the swap leg); `feeAmount`, when non-nil, is
     /// the USDF fee split off on-chain via `TransferForSwapWithFee`. The funding
     /// intent transfers `amount + feeAmount` so the VM swap PDA covers both legs.
-    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
-        let fundingIntentID = KeyPair.generate()!.publicKey
+    func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), fundingIntentID: PublicKey = KeyPair.generate()!.publicKey, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         let ownerKeyPair = owner.authority.keyPair
 
         let fundingAmount = feeAmount.map { amount.adding($0) } ?? amount
@@ -288,8 +287,7 @@ final class TransactionService: Sendable {
     /// A buy funded by another launchpad currency — a launchpad→launchpad swap
     /// (Phase 1 + Phase 2 via IntentFundSwap). The payment pool's sell fee is
     /// implicit in the swap; `fee_amount` stays 0 (server-enforced).
-    func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
-        let fundingIntentID = KeyPair.generate()!.publicKey
+    func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), fundingIntentID: PublicKey = KeyPair.generate()!.publicKey, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         let ownerKeyPair = owner.authority.keyPair
 
         guard let paymentVmAuthority = paymentToken.vmMetadata?.authority else {
@@ -616,14 +614,13 @@ final class TransactionService: Sendable {
     }
 
     /// A sell is a swap from token to USDF
-    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
+    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), fundingIntentID: PublicKey = KeyPair.generate()!.publicKey, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         logger.info("Starting sell", metadata: [
             "symbol": "\(token.symbol)",
             "amount": "\(amount.nativeAmount.formatted())"
         ])
 
-        // The swap id comes from the caller so a retry can reuse it; the funding intent is new each time.
-        let fundingIntentID = KeyPair.generate()!.publicKey
+        // Both ids come from the caller so a retry can start the same swap under the same funding intent.
 
         guard let tokenVmAuthority = token.vmMetadata?.authority else {
             logger.error("Failed to find VM authority for token", metadata: [
@@ -673,6 +670,40 @@ final class TransactionService: Sendable {
             case .failure(let error):
                 logger.error("Failed to start sell swap", metadata: ["error": "\(error)"])
                 completion(.failure(error))
+            }
+        }
+    }
+
+    /// Funds a swap the server already holds in CREATED, under the funding intent id the server
+    /// recorded for it. StartSwap is not called, so the swap has one funding intent however often
+    /// this runs. `amount` carries the swap's recorded `amount + feeAmount` quarks of `fromMint`, and
+    /// `sourceCluster` is the owner's cluster for `fromMint`.
+    func fundSwap(swapId: SwapId, fundingIntentID: PublicKey, amount: ExchangedFiat, verifiedState: VerifiedState, fromMint: MintMetadata, toMint: MintMetadata, sourceCluster: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
+        logger.info("Funding a created swap", metadata: [
+            "swapId": "\(swapId.publicKey.base58)",
+            "intentId": "\(fundingIntentID.base58)",
+            "fromMint": "\(fromMint.address.base58)",
+            "quarks": "\(amount.onChainAmount.quarks)"
+        ])
+
+        let fundingIntent = IntentFundSwap(
+            intentID: fundingIntentID,
+            swapId: swapId,
+            sourceCluster: sourceCluster,
+            amount: amount,
+            verifiedState: verifiedState,
+            fromMint: fromMint,
+            toMint: toMint
+        )
+
+        submit(intent: fundingIntent, owner: sourceCluster.authority.keyPair) { result in
+            switch result {
+            case .success:
+                logger.info("Created swap funded", metadata: ["intentId": "\(fundingIntentID.base58)"])
+                completion(.success(swapId))
+            case .failure(let error):
+                logger.error("Failed to fund created swap", metadata: ["error": "\(error)"])
+                completion(.failure(.fundingIntent(error)))
             }
         }
     }

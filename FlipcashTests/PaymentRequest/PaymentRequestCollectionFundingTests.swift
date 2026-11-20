@@ -40,9 +40,13 @@ struct PaymentRequestCollectionFundingTests {
         var refreshes = 0
         weak var container: SessionContainer?
 
-        func submit(_ swap: CollectionFundingSwap, swapID: SwapId) async throws {
+        func start(_ swap: CollectionFundingSwap, swapID: SwapId, fundingIntentID: PublicKey) async throws {
             submitted.append((swap, swapID))
         }
+
+        func pendingSwaps() async throws -> [PendingCollectionSwap] { [] }
+
+        func fund(_ pending: PendingCollectionSwap, fundingIntentID: PublicKey, currency: CurrencyCode) async throws {}
 
         func state(of swapID: SwapId) async throws -> SwapState? { nil }
 

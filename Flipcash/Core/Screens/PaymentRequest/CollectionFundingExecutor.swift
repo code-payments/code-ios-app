@@ -14,13 +14,32 @@ struct CollectionFundingSwap: Equatable, Sendable {
     let amount: FiatAmount
 }
 
+/// A swap the server holds unfunded, as GetPendingSwaps lists it.
+struct PendingCollectionSwap: Equatable, Sendable {
+    let swapID: SwapId
+    /// The intent id the server recorded for the swap's funding. Nil when the swap is funded some
+    /// other way than an intent this app submits.
+    let fundingIntentID: PublicKey?
+    let fromMint: PublicKey
+    let toMint: PublicKey
+    /// What the funding intent moves: the swap's recorded amount plus its fee, in `fromMint` quarks.
+    let fundingQuarks: UInt64
+}
+
 /// The swap operations a collection payment's funding legs run, so the executor can be tested
 /// without a network.
 @MainActor
 protocol CollectionSwapping: AnyObject {
 
-    /// Submits `swap` under `swapID`.
-    func submit(_ swap: CollectionFundingSwap, swapID: SwapId) async throws
+    /// Starts `swap` under `swapID` (StartSwap) and funds it under `fundingIntentID` (SubmitIntent).
+    func start(_ swap: CollectionFundingSwap, swapID: SwapId, fundingIntentID: PublicKey) async throws
+
+    /// The owner's swaps that wait on their funding (GetPendingSwaps); empty when there are none.
+    func pendingSwaps() async throws -> [PendingCollectionSwap]
+
+    /// Funds `pending` under `fundingIntentID` (SubmitIntent) without starting it again, priced in
+    /// `currency`.
+    func fund(_ pending: PendingCollectionSwap, fundingIntentID: PublicKey, currency: CurrencyCode) async throws
 
     /// The swap's current state, or nil when the server has no swap under `swapID`.
     func state(of swapID: SwapId) async throws -> SwapState?
@@ -46,7 +65,7 @@ final class CollectionFundingExecutor {
         case short
         /// A swap failed or was refused, or its outcome couldn't be read.
         case failed
-        /// A swap was submitted but hasn't settled. Its id is kept, so a retry waits on it rather
+        /// A swap was started but hasn't settled. Its ids are kept, so a retry waits on it rather
         /// than starting another conversion that could land on top of it.
         case pending
     }
@@ -107,51 +126,65 @@ final class CollectionFundingExecutor {
         return .short
     }
 
-    /// Runs one leg to a terminal state. A swap id already stored for the leg is looked up first:
-    /// one the server has no record of, or holds in CREATED with its funding never landed, is
-    /// submitted again under the same id, which the server dedupes on. One that failed or was
-    /// cancelled gets a fresh id. One still running is waited on and never submitted again.
-    private func run(_ swap: CollectionFundingSwap, source: String, for requestID: PaymentRequestID) async -> LegResult {
-        var swapID = store.swapID(for: requestID, source: source)
-        var submit = true
+    /// What a leg does with the swap its kept ids name, once the server has been asked about it.
+    private enum Resume {
+        /// Start a swap under these ids: the kept ones when the server never saw the swap, fresh
+        /// ones when it failed or was cancelled.
+        case start(CollectionFundingStore.LegIDs)
+        /// The swap is funded or running; wait on it without starting or funding it again.
+        case wait
+        case settled
+        case pending
+    }
 
-        if let stored = swapID {
+    /// Runs one leg to a terminal state. Both ids are kept before its swap starts, so a retry finds
+    /// that swap and never funds it under a second intent:
+    /// - The server never saw it: start it again under both kept ids.
+    /// - CREATED: don't start it again. Fund it under the funding id the server recorded, read from
+    ///   GetPendingSwaps. One missing from that list is read again and handled by its new state.
+    /// - FAILED or CANCELLED: its funds came back, so start a swap under fresh ids.
+    /// - Any other state: it may still settle, so wait on it.
+    private func run(_ swap: CollectionFundingSwap, source: String, for requestID: PaymentRequestID) async -> LegResult {
+        let ids: CollectionFundingStore.LegIDs
+        var start = true
+
+        if let stored = store.legIDs(for: requestID, source: source) {
+            let resume: Resume
             do {
-                switch try await swapper.state(of: stored) {
-                case nil, .created?:
-                    break
-                case .finalized?:
-                    // It landed before the last attempt ended; the plan this round was read
-                    // before balances caught up, so don't convert again.
-                    store.removeSwapID(for: requestID, source: source)
-                    return .settled
-                case .failed?, .cancelled?:
-                    // Its funds came back; this attempt needs a swap of its own.
-                    store.removeSwapID(for: requestID, source: source)
-                    swapID = nil
-                case .funding?, .funded?, .submitting?, .cancelling?, .unknown?:
-                    // It may still settle, so a new id could convert twice.
-                    submit = false
-                }
+                resume = try await self.resume(stored, currency: swap.amount.currency, source: source, for: requestID)
             } catch {
+                // The outcome is unknown, so keep both ids: a retry asks the server about it first.
                 return .failed
             }
+            switch resume {
+            case .start(let next):
+                ids = next
+            case .wait:
+                ids = stored
+                start = false
+            case .settled:
+                return .settled
+            case .pending:
+                return .pending
+            }
+        } else {
+            ids = .generate()
         }
 
-        let id = swapID ?? SwapId.generate()
-        if submit {
-            store.setSwapID(id, for: requestID, source: source)
+        if start {
+            guard let fundingIntentID = ids.fundingIntentID else { return .failed }
+            store.setLegIDs(ids, for: requestID, source: source)
             do {
-                try await swapper.submit(swap, swapID: id)
+                try await swapper.start(swap, swapID: ids.swapID, fundingIntentID: fundingIntentID)
             } catch {
-                // The outcome is unknown, so keep the id: a retry asks the server about it first.
+                // The outcome is unknown, so keep both ids: a retry asks the server about it first.
                 return .failed
             }
         }
 
         let state: SwapState
         do {
-            state = try await swapper.waitForTerminalState(of: id)
+            state = try await swapper.waitForTerminalState(of: ids.swapID)
         } catch {
             return .failed
         }
@@ -163,8 +196,53 @@ final class CollectionFundingExecutor {
             store.removeSwapID(for: requestID, source: source)
             return .failed
         case .unknown, .created, .funding, .funded, .submitting, .cancelling:
-            // Not settled in time; keep the id for the retry.
+            // Not settled in time; keep both ids for the retry.
             return .pending
+        }
+    }
+
+    /// Asks the server about the swap `stored` names and decides what the leg does with it.
+    private func resume(
+        _ stored: CollectionFundingStore.LegIDs,
+        currency: CurrencyCode,
+        source: String,
+        for requestID: PaymentRequestID
+    ) async throws -> Resume {
+        var state = try await swapper.state(of: stored.swapID)
+
+        if state == .created {
+            if let pending = try await swapper.pendingSwaps().first(where: { $0.swapID == stored.swapID }) {
+                // Fund it under the id the server recorded, which a leg stored before funding ids
+                // were kept doesn't have locally.
+                guard let fundingIntentID = pending.fundingIntentID else { return .pending }
+                try await swapper.fund(pending, fundingIntentID: fundingIntentID, currency: currency)
+                return .wait
+            }
+            // Not waiting on funding any more, so its funding may have landed since: read it again.
+            state = try await swapper.state(of: stored.swapID)
+        }
+
+        switch state {
+        case nil:
+            // The server never saw it: start it again under the same ids.
+            let ids = stored.withFundingIntentID()
+            store.setLegIDs(ids, for: requestID, source: source)
+            return .start(ids)
+        case .created?:
+            // Still unfunded but not listed as pending; leave it for the next retry.
+            return .pending
+        case .finalized?:
+            // It landed before the last attempt ended; the plan this round was read before
+            // balances caught up, so don't convert again.
+            store.removeSwapID(for: requestID, source: source)
+            return .settled
+        case .failed?, .cancelled?:
+            // Its funds came back; this attempt needs a swap of its own.
+            store.removeSwapID(for: requestID, source: source)
+            return .start(.generate())
+        case .funding?, .funded?, .submitting?, .cancelling?, .unknown?:
+            // It may still settle, so new ids could convert twice.
+            return .wait
         }
     }
 }
@@ -191,18 +269,51 @@ final class SessionCollectionSwapper: CollectionSwapping {
         self.ratesController = ratesController
     }
 
-    func submit(_ swap: CollectionFundingSwap, swapID: SwapId) async throws {
+    func start(_ swap: CollectionFundingSwap, swapID: SwapId, fundingIntentID: PublicKey) async throws {
         guard let pin = await ratesController.currentPinnedState(for: swap.amount.currency, mint: swap.source),
               let amount = session.price(swap.amount, mint: swap.source, at: pin) else {
             throw Error.rateUnavailable
         }
         if swap.destination == .usdf {
-            _ = try await session.sell(amount: amount, verifiedState: pin, in: swap.source, swapId: swapID)
+            _ = try await session.sell(amount: amount, verifiedState: pin, in: swap.source, swapId: swapID, fundingIntentID: fundingIntentID)
         } else if swap.source == .usdf {
-            _ = try await session.buy(amount: amount, feeAmount: nil, verifiedState: pin, of: swap.destination, swapId: swapID)
+            _ = try await session.buy(amount: amount, feeAmount: nil, verifiedState: pin, of: swap.destination, swapId: swapID, fundingIntentID: fundingIntentID)
         } else {
-            _ = try await session.buy(amount: amount, with: swap.source, verifiedState: pin, of: swap.destination, swapId: swapID)
+            _ = try await session.buy(amount: amount, with: swap.source, verifiedState: pin, of: swap.destination, swapId: swapID, fundingIntentID: fundingIntentID)
         }
+    }
+
+    func pendingSwaps() async throws -> [PendingCollectionSwap] {
+        try await session.pendingSwaps().map { metadata in
+            let parameters = metadata.verifiedMetadata.clientParameters
+            let fundingIntentID: PublicKey?
+            if case .submitIntent(let id) = parameters.fundingSource {
+                fundingIntentID = id
+            } else {
+                fundingIntentID = nil
+            }
+            return PendingCollectionSwap(
+                swapID: metadata.swapId,
+                fundingIntentID: fundingIntentID,
+                fromMint: metadata.fromMint,
+                toMint: metadata.toMint,
+                fundingQuarks: parameters.amount.quarks + parameters.feeAmount.quarks
+            )
+        }
+    }
+
+    func fund(_ pending: PendingCollectionSwap, fundingIntentID: PublicKey, currency: CurrencyCode) async throws {
+        guard let pin = await ratesController.currentPinnedState(for: currency, mint: pending.fromMint) else {
+            throw Error.rateUnavailable
+        }
+        try await session.fundCreatedSwap(
+            swapId: pending.swapID,
+            fundingIntentID: fundingIntentID,
+            quarks: pending.fundingQuarks,
+            from: pending.fromMint,
+            to: pending.toMint,
+            verifiedState: pin
+        )
     }
 
     func state(of swapID: SwapId) async throws -> SwapState? {
