@@ -306,6 +306,8 @@ struct SearchCurrencyCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, minHeight: 170, alignment: .leading)
         .background(gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        // A miniature bill, like the wallet's token cards: white text and a dark fallback in either appearance.
+        .environment(\.colorScheme, .dark)
     }
 
     private var gradient: LinearGradient {

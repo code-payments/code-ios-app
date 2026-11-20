@@ -333,6 +333,8 @@ struct PaymentRequestStack: View {
                 Button("Pay \(share)") { pay(front.id) }
             }
         }
+        // The deck's cards and the dim between them are objects with a dark palette in either appearance.
+        .environment(\.colorScheme, .dark)
     }
 
     /// Records a part of the front card for the expand morph.
@@ -512,6 +514,8 @@ struct PaymentRequestStackFace: View {
         }
         // The paid badge arriving fades in.
         .requestMotion(value: item.viewerStatus.showsPaidBadge)
+        // A request card keeps its dark palette in either appearance.
+        .environment(\.colorScheme, .dark)
     }
 }
 
@@ -570,6 +574,8 @@ private struct PaymentRequestDeckCard: View {
                 .deckPart(.container, measure)
         }
         .accessibilityElement(children: .combine)
+        // A request card keeps its dark palette in either appearance.
+        .environment(\.colorScheme, .dark)
     }
 }
 
@@ -760,6 +766,8 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // The card in flight matches the pill and the list it moves between.
+            .environment(\.colorScheme, .dark)
         }
     }
 

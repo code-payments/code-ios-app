@@ -159,7 +159,9 @@ public final class ChatMediaCell: ChatColumnCell {
         imageBubble.accessibilityLabel = "Photo"
         unavailableLabel.text = ChatMediaStrings.undecryptable
         unavailableLabel.font = .default(size: 14, weight: .medium)
-        unavailableLabel.textColor = .white
+        unavailableLabel.textColor = UIColor(Color.textMain)
+        // Laid over the photo's BlurHash, so it keeps the dark ink whatever the appearance.
+        unavailableLabel.overrideUserInterfaceStyle = .dark
         unavailableLabel.textAlignment = .center
         unavailableLabel.numberOfLines = 0
         unavailableLabel.isHidden = true
@@ -229,6 +231,8 @@ public final class ChatMediaCell: ChatColumnCell {
         imageBubble.insertSubview(stackOutline, aboveSubview: imageView)
 
         quotePanel.ground = UIColor(Color.backgroundMain).withAlphaComponent(Self.quoteGroundAlpha)
+        // Laid over the photo, so it keeps the dark ground and ink whatever the appearance.
+        quotePanel.overrideUserInterfaceStyle = .dark
         quotePanel.isHidden = true
         quotePanel.translatesAutoresizingMaskIntoConstraints = false
         stack.addSubview(quotePanel)

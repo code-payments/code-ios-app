@@ -74,6 +74,8 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
 
     /// The status and navigation bars' height, which the cover runs under.
     @State private var topInset: CGFloat = 0
+    /// Whether the cover's bottom edge is still below the bars'.
+    @State private var isUnderCover = true
 
     var body: some View {
         ScrollView {
@@ -134,11 +136,27 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
                 .background { pinnedFade }
         }
         .containerBackground(palette.background, for: .navigation)
-        .toolbarColorScheme(palette.colorScheme, for: .navigationBar)
-        .modifier(LegacyCoverBar(color: palette.background, coverScroll: max(coverBottom - topInset, 0)))
+        .onScrollGeometryChange(for: Bool.self) { [coverScroll] geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top < coverScroll
+        } action: { _, isUnder in
+            isUnderCover = isUnder
+        }
+        .toolbarColorScheme(barScheme, for: .navigationBar)
+        .modifier(LegacyCoverBar(color: palette.background, isPastCover: !isUnderCover))
         // After the scheme and the bar background, which give this screen its own bar appearance
         // without the app's arrow.
-        .background { AppBackIndicator().frame(width: 0, height: 0) }
+        .background { AppBackIndicator(barScheme: barScheme).frame(width: 0, height: 0) }
+    }
+
+    /// How far the content scrolls before the cover's bottom edge reaches the bars'.
+    private var coverScroll: CGFloat {
+        max(coverBottom - topInset, 0)
+    }
+
+    /// Light-on-dark while a cover photo, which has no scrim, is all the bars sit on; the page's
+    /// own scheme once it has scrolled away, and on a page colored from the avatar.
+    private var barScheme: ColorScheme {
+        content.cover != nil && isUnderCover ? .dark : palette.colorScheme
     }
 
     private var hasBoxes: Bool {
@@ -168,7 +186,16 @@ struct PublicGroupProfileView<Accessory: View, Actions: View, Footer: View, Pinn
     /// The melt's length: at most the run from the bars to the cover's bottom, so the cover shows
     /// in full behind the bars.
     private var meltHeight: CGFloat {
-        min(PublicGroupLook.fadeHeight, max(coverBottom - topInset, 0))
+        min(fadeHeight, max(coverBottom - topInset, 0))
+    }
+
+    /// The tuned melt length for the page's appearance.
+    private var fadeHeight: CGFloat {
+        switch palette.colorScheme {
+        case .light: PublicGroupLook.fadeHeightLight
+        case .dark: PublicGroupLook.fadeHeight
+        @unknown default: PublicGroupLook.fadeHeight
+        }
     }
 
     private var cover: some View {
@@ -348,7 +375,7 @@ struct PublicGroupOutlineButtonStyle: ButtonStyle {
     }
 }
 
-/// The pinned Open Chat button: a full-width white capsule.
+/// The pinned Open Chat button: a full-width capsule in the action color.
 struct PublicGroupCapsuleButtonStyle: ButtonStyle {
 
     @Environment(\.isEnabled) private var isEnabled
@@ -494,7 +521,6 @@ private struct PublicGroupProfilePreview: View {
             )
             .bleedPalette(key: "preview-\(hasCover)", image: image, settings: PublicGroupLook.settings)
         }
-        .preferredColorScheme(.dark)
     }
 }
 
@@ -516,21 +542,14 @@ private struct PublicGroupProfilePreview: View {
 private struct LegacyCoverBar: ViewModifier {
 
     let color: Color
-    /// How far the content scrolls before the cover's bottom edge reaches the bar's.
-    let coverScroll: CGFloat
-
-    @State private var isPastCover = false
+    /// Whether the cover's bottom edge has scrolled up to the bar's.
+    let isPastCover: Bool
 
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content
         } else {
             content
-                .onScrollGeometryChange(for: Bool.self) { geometry in
-                    geometry.contentOffset.y + geometry.contentInsets.top >= coverScroll
-                } action: { _, isPast in
-                    isPastCover = isPast
-                }
                 .overlay(alignment: .top) {
                     if isPastCover {
                         // Sits on the safe area's top edge and grows up under the bars.
@@ -552,12 +571,17 @@ private struct LegacyCoverBar: ViewModifier {
 /// screen a navigation item appearance of its own, which drops the arrow `AppDelegate` sets on the
 /// bar's shared one, so the system chevron would show; the back button and its swipe stay the
 /// system's.
-private struct AppBackIndicator: UIViewControllerRepresentable {
+struct AppBackIndicator: UIViewControllerRepresentable {
+
+    /// The scheme the screen gives its bar, so a change puts the arrow on the appearance it brings.
+    let barScheme: ColorScheme?
 
     func makeUIViewController(context: Context) -> Proxy { Proxy() }
 
     func updateUIViewController(_ proxy: Proxy, context: Context) {
         proxy.apply()
+        // A changed scheme can reach the bar after this update, in an appearance without the arrow.
+        DispatchQueue.main.async { proxy.apply() }
     }
 
     final class Proxy: UIViewController {

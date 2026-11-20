@@ -485,7 +485,7 @@ struct ShareToChatsSheet: View {
     private var sectionHeader: some View {
         Text("Recent Chats")
             .font(.default(size: 14, weight: .bold))
-            .foregroundStyle(Color.textMain.opacity(0.5))
+            .foregroundStyle(Color.shareSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 16)
             .overlay(alignment: .bottom) {
@@ -503,7 +503,7 @@ struct ShareToChatsSheet: View {
             TextField("Add a message", text: $model.message, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
-                .tint(.white)
+                .tint(Color.textMain)
                 .lineLimit(1...4)
                 .focused($isMessageFocused)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -625,7 +625,7 @@ private struct ShareTile<Icon: View>: View {
                     .frame(width: 28, height: 28)
                 Text(title)
                     .font(.default(size: 14, weight: .bold))
-                    .opacity(0.5)
+                    .foregroundStyle(Color.shareSecondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -697,7 +697,7 @@ private struct InviteChatRow: View {
                     } else {
                         // The design's unselected ring: 2pt at 20% white, where RadioButton draws 1pt white.
                         Circle()
-                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 2)
+                            .strokeBorder(Color.shareUnselectedRing, lineWidth: 2)
                             .frame(width: 24, height: 24)
                             .accessibilityHidden(true)
                     }
@@ -734,4 +734,12 @@ private extension View {
             safeAreaInset(edge: edge, spacing: 0, content: bar)
         }
     }
+}
+
+private extension Color {
+    /// A footnote, section header or tile title: white at half strength in dark, a grey that holds
+    /// 4.5:1 on the page and on a row tile in light.
+    static let shareSecondary = Color(light: Color(r: 99, g: 99, b: 102), dark: .white.opacity(0.5))
+    /// An unpicked chat's ring: white at 20% in dark, Apple's separator in light.
+    static let shareUnselectedRing = Color(light: Color(r: 60, g: 60, b: 67, o: 0.29), dark: .white.opacity(0.2))
 }

@@ -383,7 +383,7 @@ private extension AppDelegate {
             bar.scrollEdgeAppearance = barAppearance
         } else {
             // iOS < 26: Use custom background
-            let background = UIImage.solid(color: UIColor(.backgroundMain))
+            let background = Self.barBackground()
             let barAppearance = UINavigationBarAppearance()
             barAppearance.configureWithOpaqueBackground()
             barAppearance.backgroundImage = background
@@ -401,6 +401,17 @@ private extension AppDelegate {
             bar.shadowImage = background
         }
 
+    }
+
+    /// The opaque bar's `backgroundMain` fill, one bitmap per appearance so the bar follows a switch.
+    static func barBackground() -> UIImage {
+        let asset = UIImageAsset()
+        let styles: [UIUserInterfaceStyle] = [.light, .dark]
+        for style in styles {
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            asset.register(.solid(color: UIColor(.backgroundMain).resolvedColor(with: traits)), with: traits)
+        }
+        return asset.image(with: UITraitCollection(userInterfaceStyle: .dark))
     }
 
     /// The navigation back glyph: Central's left arrow at the 22 pt the app's own back buttons use.

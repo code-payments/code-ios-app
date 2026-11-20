@@ -49,6 +49,7 @@ struct Snapshot: View {
         .background {
             Color.backgroundMain
         }
+        .environment(\.colorScheme, .dark)
     }
 }
 

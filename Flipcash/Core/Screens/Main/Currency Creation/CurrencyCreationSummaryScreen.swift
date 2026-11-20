@@ -129,8 +129,8 @@ private struct StepRow: View {
         HStack(alignment: .top, spacing: 30) {
             VStack(spacing: 0) {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(.white.opacity(0.16))
-                    .stroke(.white.opacity(0.1), lineWidth: 1)
+                    .fill(Color.creationStepTile)
+                    .stroke(Color.rowSeparator, lineWidth: 1)
                     .frame(width: 48, height: 48)
                     .overlay {
                         Image(icon)
@@ -143,8 +143,8 @@ private struct StepRow: View {
                         .fill(
                             LinearGradient(
                                 stops: [
-                                    Gradient.Stop(color: .white, location: 0.00),
-                                    Gradient.Stop(color: Color(red: 0.3, green: 0.3, blue: 0.3), location: 1.00),
+                                    Gradient.Stop(color: .textMain, location: 0.00),
+                                    Gradient.Stop(color: .creationStepConnectorEnd, location: 1.00),
                                 ],
                                 startPoint: UnitPoint(x: 0.5, y: 0),
                                 endPoint: UnitPoint(x: 0.5, y: 1)
@@ -166,4 +166,11 @@ private struct StepRow: View {
             }
         }
     }
+}
+
+private extension Color {
+    /// A step's icon tile: white 16% in dark, Apple's system fill in light.
+    static let creationStepTile = Color(light: Color(r: 120, g: 120, b: 128, o: 0.2), dark: .white.opacity(0.16))
+    /// Where the connector between two steps fades to, from the text colour.
+    static let creationStepConnectorEnd = Color(light: Color(red: 0.7, green: 0.7, blue: 0.7), dark: Color(red: 0.3, green: 0.3, blue: 0.3))
 }

@@ -104,6 +104,7 @@ final class AttachKeyboardOverlay {
     private func refuse(_ details: Logger.Metadata) -> AttachOverlayMode {
         model.attachDidOpen(in: .bar, details: details.merging(["refused": "true"]) { $1 })
         model.attachCard.closesOnKeyboardShow = true
+        container?.stopFollowingAppearance()
         container = nil
         host = nil
         return .dismissKeyboard
@@ -118,6 +119,7 @@ final class AttachKeyboardOverlay {
         observers = []
         screen?.setTranscriptShield(isActive: { false }, onTap: nil)
         container?.isEnding = true
+        container?.stopFollowingAppearance()
         container?.removeFromSuperview()
         container = nil
         host = nil
@@ -158,8 +160,7 @@ final class AttachKeyboardOverlay {
     ) -> AttachOverlayContainer {
         let container = AttachOverlayContainer()
         container.appWindow = appWindow
-        // The keyboard's window does not carry the app's appearance.
-        container.overrideUserInterfaceStyle = appWindow.traitCollection.userInterfaceStyle
+        container.followAppearance(of: appWindow)
         container.onWindowLost = { [weak self] in self?.reattach() }
         container.dismissesOnOutsideTouch = { [weak self] in
             guard let model = self?.model else { return false }
@@ -270,6 +271,24 @@ final class AttachOverlayContainer: UIView {
     var cardIsUp: () -> Bool = { false }
     /// The touch the last miss was logged for; hit-testing runs more than once per touch.
     private var loggedMissTimestamp: TimeInterval?
+    /// The app window's appearance changes this view follows, while it follows them.
+    private var appearanceRegistration: (any UITraitChangeRegistration)?
+
+    /// Takes `appWindow`'s appearance now and whenever it changes, since the keyboard's window does
+    /// not carry the app's.
+    func followAppearance(of appWindow: UIWindow) {
+        overrideUserInterfaceStyle = appWindow.traitCollection.userInterfaceStyle
+        appearanceRegistration = appWindow.registerForTraitChanges([UITraitUserInterfaceStyle.self]) { [weak self] (window: UIWindow, _: UITraitCollection) in
+            self?.overrideUserInterfaceStyle = window.traitCollection.userInterfaceStyle
+        }
+    }
+
+    /// Stops following the app window's appearance.
+    func stopFollowingAppearance() {
+        guard let appearanceRegistration else { return }
+        appWindow?.unregisterForTraitChanges(appearanceRegistration)
+        self.appearanceRegistration = nil
+    }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard hitRects.values.contains(where: { $0.contains(point) }) else {

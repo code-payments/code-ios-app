@@ -46,6 +46,8 @@ final class ChatPhotoProgressOverlay: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        // Chrome over a photo, which is judged as it is whatever the appearance.
+        overrideUserInterfaceStyle = .dark
         isUserInteractionEnabled = false
         isAccessibilityElement = false
         alpha = 0

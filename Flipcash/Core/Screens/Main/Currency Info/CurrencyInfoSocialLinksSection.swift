@@ -20,10 +20,13 @@ private struct LinkChipStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 10) {
+            // Template, so the white-baked brand glyphs take the text colour like the rest.
             icon
+                .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 17, height: 17)
+                .foregroundStyle(Color.textMain)
             configuration.label
                 .lineLimit(1)
                 .font(.appTextSmall)
@@ -31,7 +34,7 @@ private struct LinkChipStyle: ButtonStyle {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(.white.opacity(0.1))
+        .background(Color.fillControl)
         .clipShape(Capsule())
         // Under 44 pt tall, so the hit area keeps the chip's corners.
         .contentShape(.rect)

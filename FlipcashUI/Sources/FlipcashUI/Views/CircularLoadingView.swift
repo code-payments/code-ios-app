@@ -18,8 +18,8 @@ public struct CircularLoadingView: View {
 
     public init(
         lineWidth: CGFloat = 5,
-        ringColor: Color = .white.opacity(0.3),
-        highlightColor: Color = .white,
+        ringColor: Color = .textMain.opacity(0.3),
+        highlightColor: Color = .textMain,
         duration: TimeInterval
     ) {
         self.lineWidth = lineWidth

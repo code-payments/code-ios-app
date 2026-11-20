@@ -88,7 +88,9 @@ struct ShareComposeBar: View {
             .foregroundStyle(Color.textAction)
             .frame(minWidth: 64, minHeight: 36)
             .padding(.horizontal, 6)
-            .background(Color.textMain.opacity(model.canSend || model.isSending ? 1 : 0.4), in: Capsule())
+            .background(Color.action.opacity(model.canSend || model.isSending ? 1 : 0.4), in: Capsule())
+            // The 36pt capsule takes a 44pt hit area without growing.
+            .contentShape(Rectangle().inset(by: -4))
         }
         .disabled(!model.canSend)
     }
@@ -102,12 +104,12 @@ struct ShareComposeBar: View {
         if model.input.droppedImageCount > 0 {
             Text("Only the first \(ShareInput.maxImages) images are sent.")
                 .font(.appTextCaption)
-                .foregroundStyle(.secondary)
+                .shareSecondaryInk()
         }
         if case .sending(let chat, let total) = model.sendState, total > 1 {
             Text("Sending \(chat) of \(total)")
                 .font(.appTextCaption)
-                .foregroundStyle(.secondary)
+                .shareSecondaryInk()
         }
         if let progress = model.progress, case .failed = model.sendState {
             VStack(alignment: .leading, spacing: 2) {
@@ -115,10 +117,43 @@ struct ShareComposeBar: View {
                     if let chat = model.chat(id), case .failed(let message, _) = progress.statuses[id] {
                         Text("\(model.displayName(for: chat)): \(message)")
                             .font(.appTextCaption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.shareFailure)
                     }
                 }
             }
+        }
+    }
+}
+
+private extension Color {
+
+    /// A failed recipient's line: system red in dark, `textError`'s deeper red in light, where
+    /// system red reads at 3.2:1 on the bar.
+    @MainActor static let shareFailure = Color(light: .textError, dark: .red)
+}
+
+extension View {
+
+    /// Draws the extension's secondary text: the system's hierarchical secondary in dark, and
+    /// `textSecondary` in light, where the system's reads at 3.3:1 on the share sheet.
+    func shareSecondaryInk() -> some View {
+        modifier(ShareSecondaryInk())
+    }
+}
+
+private struct ShareSecondaryInk: ViewModifier {
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        switch colorScheme {
+        case .dark:
+            content.foregroundStyle(.secondary)
+        case .light:
+            content.foregroundStyle(Color.textSecondary)
+        @unknown default:
+            content.foregroundStyle(Color.textSecondary)
         }
     }
 }

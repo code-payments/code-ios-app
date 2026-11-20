@@ -185,7 +185,7 @@ struct GroupCardScreen: View {
         .padding(.top, width * Self.contentTopFraction)
         .padding(.bottom, width * Self.bottomInsetFraction)
         .frame(width: width)
-        .background(Color.black.opacity(0.36).background(BackdropBlur(radius: 20)))
+        .darkCardGround(tintOpacity: 0.36)
         .clipShape(RoundedRectangle(cornerRadius: width * 0.08, style: .continuous))
         .overlay(alignment: .top) {
             avatar
@@ -228,8 +228,9 @@ struct GroupCardScreen: View {
         }
     }
 
-    /// The group's picture, or its initial, centred on the card's top edge and ringed in the screen
-    /// background so it reads as cut out of the card.
+    /// The group's picture, or its initial, centred on the card's top edge and ringed in the dark
+    /// page the card was drawn on, so it reads as cut out of the card. Pinned dark with the card,
+    /// which stays dark in either appearance.
     private var avatar: some View {
         let ring = cardWidth * Self.avatarRingFraction
         return ContactAvatarView(
@@ -241,6 +242,7 @@ struct GroupCardScreen: View {
         )
         .padding(ring)
         .background(Color.backgroundMain, in: Circle())
+        .environment(\.colorScheme, .dark)
     }
 
     // MARK: - Download -

@@ -146,11 +146,11 @@ struct ReactorsSheet: View {
                 .font(.system(size: 17))
             Text("\(pill.count)")
                 .font(.default(size: 13, weight: .medium))
-                .foregroundStyle(Color.textMain.opacity(0.5))
+                .foregroundStyle(Color.reactorsSecondary)
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
-        .background(Capsule().fill(Color.black.opacity(0.3)))
+        .background(Capsule().fill(Color.reactorsRecess))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(pill.emoji), \(pill.count) reactions")
     }
@@ -224,7 +224,7 @@ struct ReactorsSheet: View {
                         if let handle {
                             Text(handle)
                                 .font(.default(size: 13, weight: .medium))
-                                .foregroundStyle(Color.textMain.opacity(0.5))
+                                .foregroundStyle(Color.reactorsSecondary)
                         }
                     }
                     .lineLimit(1)
@@ -251,7 +251,7 @@ private struct ReactorPlaceholderRow: View {
     var body: some View {
         HStack(spacing: 15) {
             Circle()
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.fillSubtle)
                 .frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 0) {
                 Text("Reactor Name")
@@ -297,7 +297,7 @@ private struct BoostAmountPill: View {
             if let count {
                 Text("\(count)")
                     .font(.default(size: 13, weight: .medium))
-                    .opacity(0.5)
+                    .foregroundStyle(Color.reactorsBoostCount)
             }
         }
         .foregroundStyle(Color.reactionBoost)
@@ -390,3 +390,13 @@ private let edgeFadeStops: [Gradient.Stop] = [
     .init(color: .black.opacity(0.85), location: 0.75),
     .init(color: .black, location: 1),
 ]
+
+private extension Color {
+    /// A handle or count beside a name: white at half strength in dark, a grey that holds 4.5:1 in light.
+    static let reactorsSecondary = Color(light: Color(r: 99, g: 99, b: 102), dark: .white.opacity(0.5))
+    /// The capsule behind a filter pill: a recess darker than the sheet in dark, Apple's quaternary fill in light.
+    static let reactorsRecess = Color(light: Color(r: 116, g: 116, b: 128, o: 0.08), dark: .black.opacity(0.3))
+    /// The count after a paid amount: the boost colour at half strength in dark, full strength in light,
+    /// where half the darker amber drops under 4.5:1.
+    static let reactorsBoostCount = Color(light: Color(r: 143, g: 98, b: 0), dark: Color(r: 255, g: 200, b: 40).opacity(0.5))
+}

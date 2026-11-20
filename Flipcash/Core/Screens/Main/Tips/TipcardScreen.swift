@@ -142,6 +142,9 @@ struct TipcardScreen: View {
 
 private struct TipcardAction: View {
 
+    /// The glyph's disc: a raised grey in dark, Apple's secondary fill in light.
+    private static let discFill = Color(light: Color(r: 120, g: 120, b: 128, o: 0.16), dark: Color(white: 0.16))
+
     let icon: ImageResource
     let title: String
 
@@ -153,7 +156,7 @@ private struct TipcardAction: View {
                 .frame(width: 28, height: 28)
                 .foregroundStyle(Color.textMain)
                 .frame(width: 64, height: 64)
-                .background(Color(white: 0.16))
+                .background(Self.discFill)
                 .clipShape(Circle())
 
             Text(title)

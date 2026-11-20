@@ -147,7 +147,7 @@ public final class LinkableBubbleView: UIView {
         // `LinkPreview.links` in `configure(with:)` instead.
         textView.dataDetectorTypes = []
         textView.font = .default(size: 16, weight: .medium)
-        textView.textColor = .white
+        textView.textColor = ChatStyle.receivedText
         textView.linkTextAttributes = Self.linkAttributes(isFromSelf: false)
         textView.delegate = self
         textView.translatesAutoresizingMaskIntoConstraints = false
@@ -572,7 +572,8 @@ extension LinkableBubbleView: UITextViewDelegate {
 
 /// The rounded background drawn behind an `@handle`.
 enum MentionPill {
-    static let fill = UIColor.white.withAlphaComponent(0.14)
+    /// White at 14% in dark, black at 8% in light.
+    static let fill = UIColor(Color(light: .black.opacity(0.08), dark: .white.opacity(0.14)))
     /// Horizontal room between the handle's glyphs and the pill's edge.
     static let padding: CGFloat = 5.75
     /// Space between the pill's edge and the neighbouring words.
@@ -602,8 +603,11 @@ final class LinkTextView: UITextView {
 
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
-        pills.fillColor = MentionPill.fill.cgColor
+        pills.fillColor = MentionPill.fill.resolvedColor(with: traitCollection).cgColor
         layer.insertSublayer(pills, at: 0)
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.pills.fillColor = MentionPill.fill.resolvedColor(with: self.traitCollection).cgColor
+        }
     }
 
     @available(*, unavailable)

@@ -77,7 +77,7 @@ public final class ChatTypingIndicatorCell: UICollectionViewCell {
         bubble.addSubview(dotsRow)
         dots = (0..<3).map { _ in
             let dot = UIView()
-            dot.backgroundColor = .white
+            dot.backgroundColor = ChatStyle.text(isFromSelf: false)
             dot.layer.cornerRadius = Self.dotSize / 2
             dot.layer.opacity = Float(Self.baseOpacity)
             dot.translatesAutoresizingMaskIntoConstraints = false

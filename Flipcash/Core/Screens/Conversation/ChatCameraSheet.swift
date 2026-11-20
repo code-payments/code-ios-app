@@ -99,6 +99,8 @@ struct ChatCameraSheet: View {
         .overlay(alignment: .bottom) {
             controls(isLive: isLive)
         }
+        // A viewfinder and the white controls over it stay dark in either appearance.
+        .environment(\.colorScheme, .dark)
     }
 
     private var viewfinder: some View {
@@ -270,6 +272,7 @@ struct ChatCameraPreview: UIViewRepresentable {
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
+        view.overrideUserInterfaceStyle = .dark
         view.backgroundColor = UIColor(Color.backgroundMain)
         view.host(camera.previewLayer)
         return view

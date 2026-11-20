@@ -56,7 +56,7 @@ public struct Badge: View {
         switch decoration {
         case .bubble:
             RoundedRectangle(cornerRadius: 99)
-                .fill(Color.white.opacity(0.1))
+                .fill(Color.fillControl)
         case .none, .circle, .checkmark:
             EmptyView()
         }

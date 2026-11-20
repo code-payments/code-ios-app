@@ -52,14 +52,14 @@ struct E2eeLearnMoreSheet: View {
             Text(heading)
                 .font(.default(size: 11, weight: .bold))
                 .tracking(0.44)
-                .foregroundStyle(Color.white.opacity(0.45))
+                .foregroundStyle(Color.e2eeHeading)
 
             ForEach(items, id: \.self) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     bullet(isEncrypted: isEncrypted)
                     Text(item)
                         .font(.default(size: 15))
-                        .foregroundStyle(Color.white.opacity(0.9))
+                        .foregroundStyle(Color.e2eeItem)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -67,13 +67,13 @@ struct E2eeLearnMoreSheet: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 16, style: .continuous))
+        .background(Color.backgroundRow, in: .rect(cornerRadius: 16, style: .continuous))
     }
 
     private func bullet(isEncrypted: Bool) -> some View {
         Image.icon(isEncrypted ? .circleCheck : .circleMinus)
             .iconSize(18)
-            .foregroundStyle(isEncrypted ? Color.success : Color.white.opacity(0.5))
+            .foregroundStyle(isEncrypted ? Color.e2eeEncrypted : Color.e2eeMuted)
             // Sits the glyph on the text's first baseline.
             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
     }
@@ -158,10 +158,10 @@ struct E2eeFooter: View {
             VStack(spacing: 4) {
                 HStack(spacing: 5) {
                     E2eeLockGlyph(kind: kind, size: 14)
-                        .foregroundStyle(Color.white.opacity(0.5))
+                        .foregroundStyle(Color.e2eeMuted)
                     Text(kind == .group ? "Public groups are not end-to-end encrypted" : "Messages are end-to-end encrypted")
                         .font(.default(size: 13, weight: .medium))
-                        .foregroundStyle(Color(r: 143, g: 143, b: 148))
+                        .foregroundStyle(Color.e2eeFooterText)
                 }
                 Text("Learn More")
                     .font(.default(size: 13, weight: .bold))
@@ -177,4 +177,17 @@ struct E2eeFooter: View {
             E2eeLearnMoreSheet(kind: kind, isPresented: $isShowingSheet)
         }
     }
+}
+
+private extension Color {
+    /// The sheet's section headings.
+    static let e2eeHeading = Color(light: .black.opacity(0.6), dark: .white.opacity(0.45))
+    /// What each section lists.
+    static let e2eeItem = Color(light: .black.opacity(0.9), dark: .white.opacity(0.9))
+    /// The encrypted bullet: the success fill in dark, a green that holds 3:1 on a light card in light.
+    static let e2eeEncrypted = Color(light: Color(r: 14, g: 120, b: 66), dark: .success)
+    /// The not-encrypted bullet and the footer's lock.
+    static let e2eeMuted = Color(light: .black.opacity(0.5), dark: .white.opacity(0.5))
+    /// The footer's line under a chat's profile.
+    static let e2eeFooterText = Color(light: Color(r: 109, g: 109, b: 114), dark: Color(r: 143, g: 143, b: 148))
 }

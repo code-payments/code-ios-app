@@ -157,15 +157,19 @@ private struct LaunchStatusIcon: View {
             switch displayState {
             case .processing:
                 // Covers swap polling (120 × 1 s) + awaitBalance (60 × 2 s) worst case.
-                CircularLoadingView(duration: 240)
+                CircularLoadingView(ringColor: .processingRingTrack, highlightColor: .textMain, duration: 240)
 
             case .success:
                 Image("IconCircleCheck")
+                    .renderingMode(.template)
                     .resizable()
+                    .foregroundStyle(Color.textMain)
 
             case .failed:
                 Image("IconExclamationCircle")
+                    .renderingMode(.template)
                     .resizable()
+                    .foregroundStyle(Color.textMain)
             }
         }
         .frame(width: iconSize, height: iconSize)

@@ -35,14 +35,17 @@ extension View {
     }
 
     /// Dark-tinted glass for a control floating over a photo or viewfinder, where clear glass takes
-    /// on the image behind it and washes the glyph out.
+    /// on the image behind it and washes the glyph out; the control stays in the dark appearance in
+    /// light mode too.
     @ViewBuilder
     public func overlayGlassBackground(in shape: some Shape) -> some View {
         if #available(iOS 26, *) {
             glassEffect(.regular.tint(.black.opacity(0.45)).interactive(), in: shape)
+                .environment(\.colorScheme, .dark)
         } else {
             background(Color.black.opacity(0.45), in: shape)
                 .background(.ultraThinMaterial, in: shape)
+                .environment(\.colorScheme, .dark)
         }
     }
 
@@ -86,22 +89,22 @@ extension View {
         }
     }
 
-    /// The chat composer's glass in `shape`, as a layer of its own: Liquid Glass with a light white
-    /// tint, joined by `id` to the other composer glass in an enclosing container, and responding to
+    /// The chat composer's glass in `shape`, as a layer of its own: Liquid Glass with a faint tint,
+    /// joined by `id` to the other composer glass in an enclosing container, and responding to
     /// touches only while `isInteractive`. A tinted material before iOS 26.
     @ViewBuilder
     public func composerGlass(in shape: some Shape, id: String, namespace: Namespace.ID, isInteractive: Bool = true) -> some View {
         if #available(iOS 26, *) {
-            glassEffect(.regular.tint(Color.white.opacity(0.03)).interactive(isInteractive), in: shape)
+            glassEffect(.regular.tint(Color.composerTint).interactive(isInteractive), in: shape)
                 .glassEffectID(id, in: namespace)
                 .glassEffectTransition(.matchedGeometry)
         } else {
-            background(Color.white.opacity(0.03), in: shape)
+            background(Color.composerTint, in: shape)
                 .background(.ultraThinMaterial, in: shape)
         }
     }
 
-    /// The chat composer's light rim around `shape`, brightest along the top, before iOS 26. Liquid
+    /// The chat composer's rim around `shape`, strongest along the top, before iOS 26. Liquid
     /// Glass lights its own edge, and that edge follows composer glass joined into one shape where a
     /// stroke per control would cross itself.
     @ViewBuilder
@@ -118,7 +121,7 @@ extension View {
             shape
                 .strokeBorder(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.18), Color.white.opacity(0.04)],
+                        colors: [Color.composerRimTop, Color.composerRimBottom],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
@@ -127,4 +130,13 @@ extension View {
                 .allowsHitTesting(false)
         }
     }
+}
+
+private extension Color {
+    /// The composer glass tint: white 3% in dark, black 3% in light.
+    static let composerTint = Color(light: .black.opacity(0.03), dark: .white.opacity(0.03))
+    /// The composer rim's top edge: white 18% in dark, black 18% in light.
+    static let composerRimTop = Color(light: .black.opacity(0.18), dark: .white.opacity(0.18))
+    /// The composer rim's bottom edge: white 4% in dark, black 4% in light.
+    static let composerRimBottom = Color(light: .black.opacity(0.04), dark: .white.opacity(0.04))
 }

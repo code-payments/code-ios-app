@@ -38,7 +38,7 @@ public struct CardButtonStyle: ButtonStyle {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 110)
-        .background(.white.opacity(0.1))
+        .background(Color.fillControl)
         .clipShape(RoundedRectangle(cornerRadius: Metrics.boxRadius))
         .opacity(configuration.isPressed ? 0.6 : 1.0)
         .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)

@@ -247,7 +247,7 @@ private struct AmountLabel: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 5)
                             .inset(by: 0.5)
-                            .stroke(.white.opacity(0.2), lineWidth: 1)
+                            .stroke(Color.currencyPillOutline, lineWidth: 1)
                     )
             }
         }
@@ -274,4 +274,9 @@ private struct AccessoryView: View {
                 .tint(Color.textSecondary)
         }
     }
+}
+
+private extension Color {
+    /// The amount pill's outline: white 20% in dark, black 20% in light.
+    static let currencyPillOutline = Color(light: .black.opacity(0.2), dark: .white.opacity(0.2))
 }

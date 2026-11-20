@@ -90,7 +90,7 @@ public struct Dialog: View {
         .padding([.leading, .trailing, .top], 20)
         .padding(.bottom, actions.last?.kind.bottomPadding ?? 0)
         .frame(maxWidth: .infinity)
-        .foregroundStyle(.white)
+        .foregroundStyle(Color.textMain)
         .background(style.backgroundColor)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(title ?? "Dialog")

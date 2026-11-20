@@ -51,7 +51,7 @@ final class LinkUserCardView: UIView {
     private var shimmerHeight: NSLayoutConstraint!
     private let shimmer = LinkCardShimmerView(
         ground: UIColor(Color.backgroundRow),
-        highlight: UIColor.white.withAlphaComponent(0.06)
+        highlight: LinkCardMetrics.shimmerHighlight
     )
 
     override init(frame: CGRect) {
@@ -198,7 +198,8 @@ final class LinkUserCardView: UIView {
 }
 
 /// The person card's body: the person's avatar beside their name, handle and join date, on a
-/// rounded frosted ground as wide as the text needs, and itself the tap target.
+/// rounded frosted ground as wide as the text needs, and itself the tap target. Dark in either
+/// appearance: the frosted ground is the person's own picture under a black tint.
 ///
 /// At accessibility text sizes the avatar moves above the text and every line wraps, where a row
 /// would cut each one short. The border comes from the group card and the corners from the bubble run; the rest is in
@@ -254,6 +255,7 @@ struct LinkUserCardContent: View {
     /// Not a `Button`: the host's UIKit tap opens the card, so a double tap can react instead.
     var body: some View {
         card
+            .environment(\.colorScheme, .dark)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(isTappable ? .isButton : [])
             .accessibilityAction { if isTappable { onTap() } }
@@ -288,7 +290,7 @@ struct LinkUserCardContent: View {
         .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .leading)
         .background { backdrop }
         .clipShape(outline)
-        .overlay { outline.strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity)) }
+        .overlay { outline.strokeBorder(LinkCardMetrics.border) }
         .contentShape(outline)
     }
 
@@ -309,7 +311,7 @@ struct LinkUserCardContent: View {
                 ContactAvatarView(id: "", displayName: "", size: Layout.avatar)
             }
         }
-        .overlay { Circle().strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity)) }
+        .overlay { Circle().strokeBorder(LinkCardMetrics.border) }
     }
 
     private var identity: some View {

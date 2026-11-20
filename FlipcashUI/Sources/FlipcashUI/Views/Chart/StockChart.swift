@@ -6,6 +6,8 @@ public struct StockChart: View {
     @Bindable private var viewModel: ChartViewModel
     private let currencyCode: CurrencyCode
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private let positiveColor: Color
     private let negativeColor: Color
     private let valueFormatter: NumberFormatter
@@ -94,8 +96,8 @@ public struct StockChart: View {
                 .background {
                     if !viewModel.isScrubbing {
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(displayColor)
-                            .opacity(0.2)
+                            .fill(changeWash)
+                            .opacity(colorScheme == .dark ? 0.2 : 1)
                     }
                 }
                 .mask {
@@ -162,6 +164,12 @@ public struct StockChart: View {
 
     private var secondaryColor: Color {
         viewModel.isPositive ? .Sentiment.positiveSecondary : .Sentiment.negativeSecondary
+    }
+
+    /// The change label's ground: its own colour at 20% in dark; in light, where that wash reads
+    /// under 4.5:1, the sentiment's opaque secondary.
+    private var changeWash: Color {
+        colorScheme == .dark ? displayColor : secondaryColor
     }
 }
 

@@ -40,7 +40,6 @@ public struct SwipeShowcaseScreen: View {
             }
             .padding(20)
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Controls -

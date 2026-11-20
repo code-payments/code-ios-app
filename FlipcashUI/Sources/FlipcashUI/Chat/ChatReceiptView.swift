@@ -20,7 +20,7 @@ import FlipcashCore
 final class ChatReceiptView: UIView {
 
     /// Resting color of the receipt line (Delivered/Read).
-    static let defaultColor = UIColor.white.withAlphaComponent(0.5)
+    static let defaultColor = ChatStyle.quietText
     /// Color of the failed status line: the theme's error-text token, which tracks appearance changes.
     static let failedColor = UIColor(Color.textError)
     /// Keeps the line off the column's trailing edge. Owned by the view rather than the face because

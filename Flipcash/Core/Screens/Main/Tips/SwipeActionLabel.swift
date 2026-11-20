@@ -39,6 +39,8 @@ struct SwipeActionLabel: View {
         self.glyphColor = glyphColor
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Label {
             Text(title)
@@ -54,11 +56,11 @@ struct SwipeActionLabel: View {
                         .environment(\.symbolVariants, .none)
                 }
             case .icon(let icon):
+                // Resolved for the appearance: a baked colour keeps the one it was drawn in.
                 if let glyphColor {
-                    Image(uiImage: UIImage.icon(icon)
-                        .withTintColor(UIColor(glyphColor), renderingMode: .alwaysOriginal))
+                    Image.swipeAction(icon, baking: glyphColor, in: colorScheme)
                 } else {
-                    Image.icon(icon)
+                    Image.rowSwipeAction(icon, in: colorScheme)
                 }
             }
         }

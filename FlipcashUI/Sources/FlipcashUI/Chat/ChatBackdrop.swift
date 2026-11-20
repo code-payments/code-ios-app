@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 
 /// The frosting the chat screen puts over its own transcript — behind a lifted message's menu,
 /// behind the edit that can follow it, and over a transcript the viewer is not allowed to read.
@@ -42,6 +43,14 @@ enum ChatBackdrop {
     /// edit keeps it once the menu has gone.
     static let dimAlpha: CGFloat = 0.33
 
+    /// The dim's colour, which ``dimAlpha`` then scales: black in dark, landing at 33%, and black at
+    /// a strength that lands at 12% in light, where the frost is a white veil over a white page and
+    /// needs only enough to keep the lifted message the one sharp thing.
+    static let dimColor = UIColor(Color(light: .black.opacity(lightDim / dimAlpha), dark: .black))
+
+    /// The dim's strength in light, once ``dimAlpha`` has scaled ``dimColor``.
+    private static let lightDim: CGFloat = 0.12
+
     /// Applies the material to `view` at `fraction` of its strength, ``blurFraction`` unless the
     /// caller says otherwise, and hands back the animator holding it there.
     ///
@@ -50,10 +59,19 @@ enum ChatBackdrop {
     /// animator still active when it goes traps. Teardown belongs to the caller, which is the only
     /// side that knows when its blur is finished with.
     static func frost(_ view: UIVisualEffectView, fraction: CGFloat = blurFraction) -> UIViewPropertyAnimator {
-        let material = UIBlurEffect(style: .systemUltraThinMaterialDark)
+        let material = UIBlurEffect(style: .systemUltraThinMaterial)
         let strength = UIViewPropertyAnimator(duration: 1, curve: .linear) { view.effect = material }
         strength.fractionComplete = fraction
         return strength
+    }
+
+    /// Stops `strength` and frosts `view` again at `fraction`, for an appearance change: the paused
+    /// animator holds the material it was started with, so a frost that should follow the new
+    /// appearance is started over from no effect.
+    static func refrost(_ view: UIVisualEffectView, replacing strength: UIViewPropertyAnimator?, fraction: CGFloat = blurFraction) -> UIViewPropertyAnimator {
+        strength?.stopAnimation(true)
+        view.effect = nil
+        return frost(view, fraction: fraction)
     }
 }
 #endif

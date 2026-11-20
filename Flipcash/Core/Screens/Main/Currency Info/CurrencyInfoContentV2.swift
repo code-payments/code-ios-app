@@ -195,7 +195,7 @@ struct CurrencyInfoContentV2: View {
                 if !isUSDF, let createdAt = metadata.createdAt {
                     Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))")
                         .font(.appTextSmall)
-                        .foregroundStyle(Color.white.opacity(0.55))
+                        .foregroundStyle(Color.walletTextMuted)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 8)
                         .padding(.horizontal, 20)
@@ -341,7 +341,7 @@ struct CurrencyInfoContentV2: View {
             .foregroundStyle(Color.textMain)
             .frame(maxWidth: .infinity)
             .frame(height: 88)
-            .background(Color.white.opacity(0.1))
+            .background(Color.fillControl)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -358,4 +358,10 @@ struct CurrencyInfoContentV2: View {
         }
         return metadata.bio ?? "No information"
     }
+}
+
+extension Color {
+    /// Muted secondary text and glyphs on the wallet's currency and send screens: white 55% in dark,
+    /// the light secondary grey (5.15:1 on the page, 4.69:1 on a row) in light.
+    static let walletTextMuted = Color(light: Color(r: 109, g: 109, b: 114), dark: .white.opacity(0.55))
 }

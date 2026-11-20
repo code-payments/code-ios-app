@@ -196,7 +196,7 @@ private struct PaidReactionSheetContent: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color.white.opacity(0.1), in: Capsule())
+            .background(Color.fillControl, in: Capsule())
         }
         .buttonStyle(.pressable)
     }
@@ -224,6 +224,9 @@ private struct PaidReactionSheetContent: View {
 /// The reaction being boosted, drawn as a selected reaction pill at sheet scale.
 private struct EmojiPill: View {
 
+    /// The selected ring: white at 38% in dark, black at 45% in light, which holds 3:1 against the fill.
+    private static let ring = Color(light: .black.opacity(0.45), dark: .white.opacity(0.38))
+
     let emoji: String
 
     var body: some View {
@@ -231,7 +234,7 @@ private struct EmojiPill: View {
             .font(.default(size: 24, weight: .medium))
             .padding(.horizontal, 17)
             .padding(.vertical, 8.5)
-            .background(Color.white.opacity(0.1), in: Capsule())
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.38), lineWidth: 2.8))
+            .background(Color.fillControl, in: Capsule())
+            .overlay(Capsule().strokeBorder(Self.ring, lineWidth: 2.8))
     }
 }

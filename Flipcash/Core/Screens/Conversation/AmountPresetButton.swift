@@ -7,7 +7,7 @@ import SwiftUI
 import FlipcashUI
 
 /// One chip in a row of preset amounts, or the custom-entry ellipsis beside them (node
-/// 10127:118261). The selected one inverts to a white fill.
+/// 10127:118261). The selected one inverts to the action fill.
 struct AmountPresetButton<Label: View>: View {
 
     let isSelected: Bool
@@ -29,7 +29,7 @@ struct AmountPresetButton<Label: View>: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: Metrics.buttonHeight)
                 .background(
-                    isSelected ? Color.action : Color.white.opacity(0.1),
+                    isSelected ? Color.action : Color.fillControl,
                     in: Capsule()
                 )
                 .contentShape(Capsule())

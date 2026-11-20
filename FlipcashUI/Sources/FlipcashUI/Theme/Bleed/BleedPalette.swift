@@ -5,14 +5,15 @@
 
 import SwiftUI
 
-/// Colors for content that sits on an image's bleed color: the deep background plus text and
-/// control colors chosen for contrast on it. Read it with `@Environment(\.bleedPalette)` inside a
-/// `.bleedPalette(key:image:settings:)` subtree.
+/// Colors for content that sits on an image's bleed color: the page (deep in dark, a pale tint in
+/// light) plus text and control colors chosen for contrast on it. Read it with
+/// `@Environment(\.bleedPalette)` inside a `.bleedPalette(key:image:settings:)` subtree.
 public struct BleedPalette: Hashable {
 
-    /// The bleed fill: the image's bottom-edge color, pulled deep enough to carry white text.
+    /// The bleed fill: the image's bottom-edge color, pulled deep enough to carry white text in
+    /// dark and pale enough to carry ink in light.
     public var background: Color
-    /// Primary text on `background`, white.
+    /// Primary text on `background`: white in dark, ink in light.
     public var primaryText: Color
     /// Secondary text as a flat color, for runs that can't take a blend mode; prefer `secondaryStyle`.
     public var secondaryText: Color
@@ -24,11 +25,12 @@ public struct BleedPalette: Hashable {
     /// Hairlines and dividers on `background`.
     public var hairline: Color
     var controlSecondaryTextStyle: BleedTextStyle
-    /// A lifted tint of `background` for surfaces and controls over it.
+    /// A tint of `background` a step off the page (lifted in dark, darkened in light) for surfaces
+    /// and controls over it.
     public var controlTint: Color
     /// The label color for controls filled with `controlTint`.
     public var controlLabel: Color
-    /// The scheme content on the bleed renders in; always dark.
+    /// The scheme the palette was built for, which content on the bleed renders in.
     public var colorScheme: ColorScheme
     /// The resolved background as sRGB; `nil` for the placeholder.
     var backgroundRGB: BleedRGB?
@@ -37,8 +39,14 @@ public struct BleedPalette: Hashable {
     public var isResolved: Bool { backgroundRGB != nil }
 
     /// The palette while an image's color is still being computed, or when there is no image: the
-    /// app's own dark page and text colors.
+    /// app's own page and text colors, reporting the dark scheme.
     public static var placeholder: BleedPalette {
+        placeholder(for: .dark)
+    }
+
+    /// The placeholder palette for `colorScheme`: the app's own page and text colors, reporting
+    /// that scheme.
+    public static func placeholder(for colorScheme: ColorScheme) -> BleedPalette {
         BleedPalette(
             background: .backgroundMain,
             primaryText: .textMain,
@@ -51,7 +59,7 @@ public struct BleedPalette: Hashable {
             hairline: .rowSeparator,
             controlTint: .backgroundRow,
             controlLabel: .textMain,
-            colorScheme: .dark,
+            colorScheme: colorScheme,
             backgroundRGB: nil
         )
     }
@@ -86,8 +94,20 @@ public struct BleedPalette: Hashable {
         self.backgroundRGB = backgroundRGB
     }
 
-    /// Builds the palette from an extracted bleed color.
-    init(base: BleedRGB, settings: BleedSettings = .default) {
+    /// Builds the palette from an extracted bleed color for `colorScheme`.
+    init(base: BleedRGB, settings: BleedSettings = .default, colorScheme: ColorScheme) {
+        switch colorScheme {
+        case .light:
+            self.init(lightBase: base, settings: settings)
+        case .dark:
+            self.init(darkBase: base, settings: settings)
+        @unknown default:
+            self.init(darkBase: base, settings: settings)
+        }
+    }
+
+    /// The deep page under white text.
+    private init(darkBase base: BleedRGB, settings: BleedSettings) {
         let background = Self.adjustedBackground(base, settings: settings)
         let text = BleedRGB.white
         let onBackground = Self.textStyles(text, on: background, settings: settings)
@@ -111,6 +131,31 @@ public struct BleedPalette: Hashable {
             controlTint: tint.color,
             controlLabel: text.color,
             colorScheme: .dark,
+            backgroundRGB: background
+        )
+    }
+
+    /// The pale page under ink: flat text only, since a plus-lighter blend could only wash it out.
+    private init(lightBase base: BleedRGB, settings: BleedSettings) {
+        let background = Self.adjustedLightBackground(base, settings: settings)
+        let text = BleedRGB.black
+        let onBackground = Self.lightTextStyles(text, on: background)
+        let tint = Self.lightControlTint(for: OKLab(background))
+        let onTint = Self.lightTextStyles(text, on: tint)
+
+        self.init(
+            background: background.color,
+            primaryText: text.color,
+            secondaryText: onBackground.flatSecondary.color,
+            bodyText: onBackground.flatBody.color,
+            secondaryTextStyle: onBackground.secondary,
+            tertiaryTextStyle: onBackground.tertiary,
+            bodyTextStyle: onBackground.body,
+            controlSecondaryTextStyle: onTint.secondary,
+            hairline: text.color.opacity(Self.lightHairlineOpacity),
+            controlTint: tint.color,
+            controlLabel: text.color,
+            colorScheme: .light,
             backgroundRGB: background
         )
     }
@@ -163,6 +208,23 @@ public struct BleedPalette: Hashable {
         )
     }
 
+    /// Flat `text` styles on a light `surface`, each at the lowest opacity from its floor that keeps
+    /// its contrast (4.5:1 for secondary and body, 3:1 for tertiary).
+    private static func lightTextStyles(_ text: BleedRGB, on surface: BleedRGB) -> TextStyles {
+        let secondaryOpacity = flatOpacity(text, on: surface, from: lightSecondaryOpacityFloor, minimumContrast: 4.5)
+        let tertiaryOpacity = flatOpacity(text, on: surface, from: tertiaryOpacityFloor, minimumContrast: 3)
+        let bodyOpacity = flatOpacity(text, on: surface, from: bodyOpacityFloor, step: 0.05, minimumContrast: 4.5)
+        let secondary = BleedTextStyle(color: text.color.opacity(secondaryOpacity))
+        let body = BleedTextStyle(color: text.color.opacity(bodyOpacity))
+        return TextStyles(
+            secondary: secondary,
+            tertiary: BleedTextStyle(color: text.color.opacity(tertiaryOpacity)),
+            body: body,
+            flatSecondary: secondary,
+            flatBody: body
+        )
+    }
+
     // MARK: - Text
 
     /// The lowest opacity from `floor` up (in `step`s) at which `text` keeps `minimumContrast`
@@ -210,6 +272,11 @@ public struct BleedPalette: Hashable {
         return OKLab(lightness: lab.l, chroma: lab.chroma * 1.15, hue: lab.hue).gamutMappedRGB
     }
 
+    /// The light page's card and pill surface: the page a step darker, its hue and chroma kept.
+    private static func lightControlTint(for lab: OKLab) -> BleedRGB {
+        OKLab(lightness: max(lab.l - lightControlDarkening, 0), chroma: lab.chroma, hue: lab.hue).gamutMappedRGB
+    }
+
     /// The warm hue near-neutral images drift to, so a white plate or gray stone reads as a soft
     /// taupe instead of flat, muddy gray.
     private static let warmNeutralHue = 75.0
@@ -224,17 +291,20 @@ public struct BleedPalette: Hashable {
     /// Vibrant body text starts this much above the vibrant secondary opacity.
     private static let vibrantBodyLift = 0.1
     private static let neutralChromaThreshold = 0.04
+    /// The lowest opacity for flat secondary ink on the light page.
+    private static let lightSecondaryOpacityFloor = 0.65
+    /// The opacity of ink hairlines on the light page.
+    private static let lightHairlineOpacity = 0.1
+    /// How much darker than the light page, in OKLab lightness, its cards and pills are.
+    private static let lightControlDarkening = 0.04
 
-    /// The deep background for an extracted color: near-neutrals warmed, lightness pulled toward
-    /// the dark target, chroma boosted under a lightness-aware ceiling.
-    static func adjustedBackground(_ base: BleedRGB, settings: BleedSettings) -> BleedRGB {
-        let lab = OKLab(base)
-        var lightness = lab.l
+    /// The chroma and hue of an extracted color with a near-neutral drifted to a gentle warm
+    /// neutral, blended in a/b space so a cool gray drifts straight to warm instead of swinging
+    /// through pink. The same in both appearances.
+    private static func warmedChromaAndHue(_ lab: OKLab, settings: BleedSettings) -> (chroma: Double, hue: Double) {
+        let lightness = lab.l
         var chroma = lab.chroma
         var hue = lab.hue
-
-        // 1. Near-neutral → gentle warm neutral, blended in a/b space so a cool gray drifts
-        //    straight to warm instead of swinging through pink.
         if settings.neutralWarmth > 0, chroma < neutralChromaThreshold {
             let neutrality = 1 - chroma / neutralChromaThreshold // 1 = pure gray
             let amount = min(1, neutrality * settings.neutralWarmth)
@@ -245,6 +315,19 @@ public struct BleedPalette: Hashable {
             chroma = blended.chroma
             hue = blended.hue
         }
+        return (chroma, hue)
+    }
+
+    /// The deep background for an extracted color: near-neutrals warmed, lightness pulled toward
+    /// the dark target, chroma boosted under a lightness-aware ceiling.
+    static func adjustedBackground(_ base: BleedRGB, settings: BleedSettings) -> BleedRGB {
+        let lab = OKLab(base)
+        var lightness = lab.l
+
+        // 1. Near-neutral → gentle warm neutral.
+        let warmed = warmedChromaAndHue(lab, settings: settings)
+        var chroma = warmed.chroma
+        let hue = warmed.hue
 
         // 2. Lightness moves only part of the way to the target (`lightnessPull`): the bleed must
         //    continue the image tonally or the seam shows as a fog band.
@@ -257,6 +340,19 @@ public struct BleedPalette: Hashable {
         chroma = min(chroma, 0.06 + 0.4 * lightness)
 
         return OKLab(lightness: lightness, chroma: chroma, hue: hue).gamutMappedRGB
+    }
+
+    /// The light page for an extracted color: near-neutrals warmed as on the dark page, lightness
+    /// pulled toward the light target and held in its range, chroma scaled under a flat ceiling so
+    /// the page reads as a tint of the image rather than a color.
+    static func adjustedLightBackground(_ base: BleedRGB, settings: BleedSettings) -> BleedRGB {
+        let lab = OKLab(base)
+        let warmed = warmedChromaAndHue(lab, settings: settings)
+        let range = settings.lightnessRangeLight
+        let pulled = lab.l + (settings.lightnessLight - lab.l) * min(max(settings.lightnessPullLight, 0), 1)
+        let lightness = min(max(pulled, range.lowerBound), range.upperBound)
+        let chroma = min(warmed.chroma * settings.saturationLight, settings.chromaCeilingLight)
+        return OKLab(lightness: lightness, chroma: chroma, hue: warmed.hue).gamutMappedRGB
     }
 }
 

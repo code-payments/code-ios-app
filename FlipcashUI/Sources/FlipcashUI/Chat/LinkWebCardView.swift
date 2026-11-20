@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 import FlipcashCore
 
 /// The web card: an outside page's image, host, title and description, drawn under the text inside
@@ -74,8 +75,12 @@ final class LinkWebCardView: UIView {
 
     private func setUp() {
         backgroundColor = .clear
+        outline.strokeColor = Self.outlineColor.resolvedColor(with: traitCollection).cgColor
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.outline.strokeColor = Self.outlineColor.resolvedColor(with: self.traitCollection).cgColor
+        }
 
-        panel.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+        panel.backgroundColor = UIColor(Color.fillSubtle)
         panel.layer.cornerRadius = 10
         panel.layer.cornerCurve = .continuous
         panel.clipsToBounds = true
@@ -90,13 +95,13 @@ final class LinkWebCardView: UIView {
         panel.addSubview(imageView)
 
         hostLabel.font = .default(size: 12, weight: .medium)
-        hostLabel.textColor = UIColor.white.withAlphaComponent(0.6)
+        hostLabel.textColor = Self.hostColor
         hostLabel.numberOfLines = 1
         titleLabel.font = .default(size: 15, weight: .bold)
-        titleLabel.textColor = .white
+        titleLabel.textColor = UIColor(Color.textMain)
         titleLabel.numberOfLines = 2
         descriptionLabel.font = .default(size: 13, weight: .regular)
-        descriptionLabel.textColor = UIColor.white.withAlphaComponent(0.75)
+        descriptionLabel.textColor = Self.descriptionColor
         descriptionLabel.numberOfLines = 2
 
         stack.axis = .vertical
@@ -162,10 +167,13 @@ final class LinkWebCardView: UIView {
     let outline: CAShapeLayer = {
         let layer = CAShapeLayer()
         layer.fillColor = nil
-        layer.strokeColor = UIColor.white.withAlphaComponent(0.1).cgColor
         layer.lineWidth = 1
         return layer
     }()
+
+    private static let outlineColor = UIColor(Color.rowSeparator)
+    private static let hostColor = ChatStyle.uiInk(dark: 0.6, light: 0.6)
+    private static let descriptionColor = ChatStyle.uiInk(dark: 0.75, light: 0.75)
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -287,7 +295,8 @@ final class LinkWebCardView: UIView {
         }
     }
 
-    private static let loadingTint = UIColor.white.withAlphaComponent(0.15)
+    /// White at 15% in dark, Apple's secondary fill in light.
+    private static let loadingTint = UIColor(Color(light: Color(r: 120, g: 120, b: 128, o: 0.16), dark: .white.opacity(0.15)))
 
     private static func image(of content: Content) -> MediaAttachment? {
         switch content {

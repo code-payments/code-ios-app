@@ -48,7 +48,6 @@ struct SwipeShowcaseHost: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 }
 

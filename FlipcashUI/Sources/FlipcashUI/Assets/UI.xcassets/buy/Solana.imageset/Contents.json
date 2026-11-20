@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "Solana-light.svg",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "Solana.svg",
       "idiom" : "universal"
     }

@@ -261,6 +261,8 @@ public struct BillView: View {
         }
         .frame(width: billSize.width, height: billSize.height)
         .drawingGroup(opaque: false, colorMode: .linear)
+        // The bill is an object with its own palette: white value, marks and code in either appearance.
+        .environment(\.colorScheme, .dark)
     }
 }
 

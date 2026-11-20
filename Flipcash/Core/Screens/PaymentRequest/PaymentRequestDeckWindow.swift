@@ -41,7 +41,6 @@ final class PaymentRequestDeckWindow {
         let window = UIWindow(windowScene: scene)
         // Above the app, below the dialogs `DialogWindow` raises at `.alert`.
         window.windowLevel = .normal + 1
-        window.overrideUserInterfaceStyle = .dark
         window.rootViewController = host
         window.isHidden = false
         self.window = window

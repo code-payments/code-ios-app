@@ -93,7 +93,7 @@ struct TipCardDownloadSheet: View {
                     .font(.appTextMedium)
                 Text(format.subtitle)
                     .font(.appTextCaption)
-                    .opacity(0.5)
+                    .foregroundStyle(Color.downloadSheetSecondaryText)
             }
             .foregroundStyle(Color.textMain)
 
@@ -105,7 +105,12 @@ struct TipCardDownloadSheet: View {
                 .frame(width: 32, height: 32)
         }
         .padding(16)
-        .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .background(Color.fillControl, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         .contentShape(Rectangle())
     }
+}
+
+private extension Color {
+    /// The sheet's quieter text: white 50% in dark, black 60% in light, where 50% falls short of AA.
+    static let downloadSheetSecondaryText = Color(light: .black.opacity(0.6), dark: .white.opacity(0.5))
 }

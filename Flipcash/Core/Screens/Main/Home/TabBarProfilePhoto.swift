@@ -32,7 +32,7 @@ enum ProfileTabSlot: Equatable {
 /// standing in the slot the outline glyph otherwise occupies (Figma node
 /// 9713:664).
 ///
-/// The ring is the selection: the active tab wears a 2pt solid white one, an
+/// The ring is the selection: the active tab wears a 2pt solid text-colour one, an
 /// inactive tab a 1pt half-opacity one. That is a state the glyph tabs don't
 /// have — they only ever dim — so it has to be drawn here rather than left to
 /// whichever bar is hosting the icon.
@@ -62,7 +62,7 @@ struct ProfileTabIcon: View {
     private var ringColor: Color {
         // Half opacity on top of the half the whole icon is already drawn at,
         // so the inactive ring lands at the quarter alpha Figma specifies.
-        isSelected ? .white : Color.white.opacity(0.5)
+        isSelected ? Color.textMain : Color.textMain.opacity(0.5)
     }
 
     var body: some View {
@@ -72,7 +72,7 @@ struct ProfileTabIcon: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Color.white.opacity(0.2)
+                Color.profileTabPlaceholder
             }
         }
         .frame(width: Self.circleSize, height: Self.circleSize)
@@ -89,7 +89,8 @@ struct ProfileTabIcon: View {
 ///
 /// Both bars need the same photo in different forms: the legacy pill draws
 /// SwiftUI, while the iOS 26 bar takes `UITabBarItem` images. Rendering happens
-/// once here, when the photo lands, rather than on every pass of either bar.
+/// once here, for both appearances, when the photo lands, rather than on every
+/// pass of either bar.
 @Observable
 final class TabBarProfilePhoto {
 
@@ -103,11 +104,19 @@ final class TabBarProfilePhoto {
     /// and for a profile with no picture — the tab keeps its glyph either way.
     private(set) var photo: UIImage?
 
-    private(set) var itemImages: ItemImages?
+    /// The bar renditions of `photo`, one pair per appearance, since a drawn
+    /// image keeps the ring colour it was drawn in.
+    private var renditions: [ColorScheme: ItemImages] = [:]
 
     /// The blob the icons were rendered from, so re-running the load for a
     /// picture already on screen leaves it there.
     private var loadedBlobID: BlobID?
+
+    /// The bar renditions of the loaded photo drawn for `colorScheme`, or nil
+    /// while there is none.
+    func itemImages(for colorScheme: ColorScheme) -> ItemImages? {
+        renditions[colorScheme]
+    }
 
     /// Downloads `picture`'s thumbnail and renders the bar's icons from it.
     ///
@@ -117,7 +126,7 @@ final class TabBarProfilePhoto {
         guard let blobID = picture?.thumbnailBlobID else {
             // No picture to show, so the tab goes back to its glyph.
             photo = nil
-            itemImages = nil
+            renditions = [:]
             loadedBlobID = nil
             return
         }
@@ -134,46 +143,59 @@ final class TabBarProfilePhoto {
         else { return }
 
         photo = image
-        itemImages = Self.render(image)
+        var rendered: [ColorScheme: ItemImages] = [:]
+        for colorScheme in ColorScheme.allCases {
+            rendered[colorScheme] = Self.render(image, colorScheme: colorScheme)
+        }
+        renditions = rendered
         loadedBlobID = blobID
     }
 
-    /// The bar renditions of a slot that is still loading, so the iOS 26 bar
-    /// shows the BlurHash where the pill shows it too.
+    /// The bar renditions of a slot that is still loading, drawn for
+    /// `colorScheme`, so the iOS 26 bar shows the BlurHash where the pill shows
+    /// it too.
     ///
-    /// Memoized on the preview because this is read from a view body: the decode
-    /// behind it is already cached, but the two `ImageRenderer` passes are not.
-    /// One entry is enough — a launch only ever waits on one picture.
-    static func pendingItemImages(preview: UIImage?) -> ItemImages? {
-        if memoizedPreview === preview, let memoizedPending { return memoizedPending }
+    /// Memoized on the preview and appearance because this is read from a view
+    /// body: the decode behind it is already cached, but the two `ImageRenderer`
+    /// passes are not. One entry is enough — a launch only ever waits on one
+    /// picture.
+    static func pendingItemImages(preview: UIImage?, colorScheme: ColorScheme = .dark) -> ItemImages? {
+        if memoizedPreview === preview, memoizedScheme == colorScheme, let memoizedPending { return memoizedPending }
 
-        let rendered = render(preview)
+        let rendered = render(preview, colorScheme: colorScheme)
         memoizedPreview = preview
+        memoizedScheme = colorScheme
         memoizedPending = rendered
         return rendered
     }
 
     private static var memoizedPreview: UIImage?
+    private static var memoizedScheme: ColorScheme?
     private static var memoizedPending: ItemImages?
 
-    /// Draws the icon into the pair of images a `UITabBarItem` holds.
+    /// Draws the icon for `colorScheme` into the pair of images a `UITabBarItem` holds.
     ///
     /// The bar tints template glyphs per state, but a photo has to render as its
     /// own colours — so the unselected state is baked in here instead: the
     /// thinner half-opacity ring, and the half opacity the pill draws the photo
     /// at.
-    static func render(_ photo: UIImage?) -> ItemImages? {
-        guard let selected = image(of: ProfileTabIcon(photo: photo, isSelected: true)),
-              let normal = image(of: ProfileTabIcon(photo: photo, isSelected: false).opacity(0.5))
+    static func render(_ photo: UIImage?, colorScheme: ColorScheme = .dark) -> ItemImages? {
+        guard let selected = image(of: ProfileTabIcon(photo: photo, isSelected: true), colorScheme: colorScheme),
+              let normal = image(of: ProfileTabIcon(photo: photo, isSelected: false).opacity(0.5), colorScheme: colorScheme)
         else { return nil }
 
         return ItemImages(normal: normal, selected: selected)
     }
 
-    private static func image(of icon: some View) -> UIImage? {
-        let renderer = ImageRenderer(content: icon)
+    private static func image(of icon: some View, colorScheme: ColorScheme) -> UIImage? {
+        let renderer = ImageRenderer(content: icon.environment(\.colorScheme, colorScheme))
         renderer.scale = UIScreen.main.scale
         // Original rather than template: a tinted photo is a silhouette.
         return renderer.uiImage?.withRenderingMode(.alwaysOriginal)
     }
+}
+
+private extension Color {
+    /// The empty disc a picture that hasn't loaded yet sits in.
+    static let profileTabPlaceholder = Color(light: Color(r: 120, g: 120, b: 128, o: 0.2), dark: .white.opacity(0.2))
 }

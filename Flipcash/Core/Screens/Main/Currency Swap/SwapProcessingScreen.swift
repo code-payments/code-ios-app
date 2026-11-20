@@ -116,17 +116,26 @@ struct SwapStatusIcon: View {
         Group {
             switch displayState {
             case .processing:
-                CircularLoadingView(duration: 60)
+                CircularLoadingView(ringColor: .processingRingTrack, highlightColor: .textMain, duration: 60)
 
             case .success:
                 Image("IconCircleCheck")
+                    .renderingMode(.template)
                     .resizable()
+                    .foregroundStyle(Color.textMain)
 
             case .failed:
                 Image("IconExclamationCircle")
+                    .renderingMode(.template)
                     .resizable()
+                    .foregroundStyle(Color.textMain)
             }
         }
         .frame(width: iconSize, height: iconSize)
     }
+}
+
+extension Color {
+    /// The processing ring's track behind its moving highlight: white 30% in dark, black 30% in light.
+    static let processingRingTrack = Color(light: .black.opacity(0.3), dark: .white.opacity(0.3))
 }

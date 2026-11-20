@@ -177,11 +177,14 @@ struct LinkMessageCardContent: View {
         static let excerptLines = 4
         static let excerptLineSpacing: CGFloat = 3
         static let redactedBlur: CGFloat = 6
-        static let panelOpacity: Double = 0.08
-        static let excerptOpacity: Double = 0.88
-        static let secondaryOpacity: Double = 0.6
-        static let chevronOpacity: Double = 0.42
-        static let skeletonOpacity: Double = 0.12
+        /// The card's ground: white at 8% in dark (`fillSubtle`).
+        static let panel = Color.fillSubtle
+        static let excerpt = ChatStyle.ink(dark: 0.88, light: 0.88)
+        static let secondary = ChatStyle.ink(dark: 0.6, light: 0.6)
+        /// Black at 50% in light, for 3:1 on the panel.
+        static let chevron = ChatStyle.ink(dark: 0.42, light: 0.5)
+        /// White at 12% in dark, Apple's secondary fill in light.
+        static let skeleton = Color(light: Color(r: 120, g: 120, b: 128, o: 0.16), dark: .white.opacity(0.12))
         static let skeletonBar: CGFloat = 10
         /// The second skeleton bar's share of the first's width.
         static let skeletonShortFraction: CGFloat = 0.55
@@ -225,11 +228,11 @@ struct LinkMessageCardContent: View {
         }
         .padding(Layout.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(Layout.panelOpacity))
+        .background(Layout.panel)
         .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous))
         .overlay {
             UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous)
-                .strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity))
+                .strokeBorder(LinkCardMetrics.border)
         }
     }
 
@@ -302,7 +305,7 @@ struct LinkMessageCardContent: View {
                 if let meta {
                     Text(meta)
                         .font(.default(size: 13, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(Layout.secondaryOpacity))
+                        .foregroundStyle(Layout.secondary)
                         .lineLimit(1)
                 }
             }
@@ -310,7 +313,7 @@ struct LinkMessageCardContent: View {
             if opens {
                 Image.icon(.chevronRightMedium)
                     .iconSize(16)
-                    .foregroundStyle(Color.white.opacity(Layout.chevronOpacity))
+                    .foregroundStyle(Layout.chevron)
                     .accessibilityHidden(true)
             }
         }
@@ -335,7 +338,7 @@ struct LinkMessageCardContent: View {
     @ViewBuilder private func excerptText(_ text: String, blurred: Bool) -> some View {
         let body = Text(Self.flattened(text))
             .font(.default(size: 15, weight: .medium))
-            .foregroundStyle(Color.white.opacity(Layout.excerptOpacity))
+            .foregroundStyle(Layout.excerpt)
             .lineSpacing(Layout.excerptLineSpacing)
             .lineLimit(Layout.excerptLines)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -358,7 +361,7 @@ struct LinkMessageCardContent: View {
     private func dimBody(_ text: String) -> some View {
         Text(text)
             .font(.default(size: 15, weight: .medium))
-            .foregroundStyle(Color.white.opacity(Layout.secondaryOpacity))
+            .foregroundStyle(Layout.secondary)
             .lineSpacing(Layout.excerptLineSpacing)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -367,7 +370,7 @@ struct LinkMessageCardContent: View {
         if let text, !text.isEmpty {
             Text(text)
                 .font(.default(size: 13, weight: .medium))
-                .foregroundStyle(Color.white.opacity(Layout.secondaryOpacity))
+                .foregroundStyle(Layout.secondary)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -384,7 +387,7 @@ struct LinkMessageCardContent: View {
     private var skeletonIdentity: some View {
         HStack(spacing: Layout.avatarGap) {
             Circle()
-                .fill(Color.white.opacity(Layout.skeletonOpacity))
+                .fill(Layout.skeleton)
                 .frame(width: Layout.avatar, height: Layout.avatar)
             VStack(alignment: .leading, spacing: Layout.identitySpacing * 3) {
                 skeletonBar(fraction: Layout.skeletonNameFraction)
@@ -404,7 +407,7 @@ struct LinkMessageCardContent: View {
 
     private func skeletonBar(fraction: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: Layout.skeletonBar / 2)
-            .fill(Color.white.opacity(Layout.skeletonOpacity))
+            .fill(Layout.skeleton)
             .frame(height: Layout.skeletonBar)
             .containerRelativeFrame(.horizontal) { width, _ in width * fraction }
     }
@@ -421,7 +424,7 @@ private struct MessageCardPhoto: View {
     var body: some View {
         let shown = image ?? BlurHashCache.shared.image(for: photo.blurHash)
         ZStack {
-            Color.white.opacity(LinkMessageCardContent.Layout.skeletonOpacity)
+            LinkMessageCardContent.Layout.skeleton
             if let shown {
                 Image(uiImage: shown).resizable().scaledToFill()
             }

@@ -63,11 +63,13 @@ public struct ModalCashReceived: View {
         .padding(20)
         .foregroundStyle(.textMain)
         .font(.appTextMedium)
+        // Drawn over the camera and the cash bill, which stay dark.
+        .environment(\.colorScheme, .dark)
     }
 }
 
 #Preview {
-    Background(color: .white) {
+    Background(color: .black) {
         ModalCashReceived(
             title: "Received",
             fiat: FiatAmount(value: 5, currency: .usd),

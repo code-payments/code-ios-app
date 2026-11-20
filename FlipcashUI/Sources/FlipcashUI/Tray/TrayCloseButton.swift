@@ -49,8 +49,7 @@ struct TrayCloseButton: View {
                 .opacity(TrayMetrics.closeGlyphOpacity)
                 .frame(width: crossBox, height: crossBox)
                 .frame(width: size, height: size)
-                // A white wash; there is no token for it yet.
-                .background(Color.white.opacity(TrayMetrics.closeFillOpacity), in: Circle())
+                .background(TrayMetrics.closeFill, in: Circle())
                 .frame(width: TrayMetrics.closeHitSize, height: TrayMetrics.closeHitSize)
                 .contentShape(Rectangle())
         }

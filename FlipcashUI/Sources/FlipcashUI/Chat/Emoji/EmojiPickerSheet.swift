@@ -227,7 +227,7 @@ private struct EmojiGrid: View {
                             if section.id != EmojiPickerModel.searchResultsID {
                                 Text(section.title.uppercased())
                                     .font(.default(size: 12, weight: .medium))
-                                    .foregroundStyle(Color.textMain.opacity(0.5))
+                                    .foregroundStyle(ChatStyle.quiet)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.top, section.id == sections.first?.id ? 0 : Self.sectionGap)
                                     .id(section.id)

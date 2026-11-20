@@ -71,7 +71,7 @@ public final class MessageBackdrop {
 
         // The dim is up from the first frame, under the menu too.
         let earlyDim = UIView(frame: blur.bounds)
-        earlyDim.backgroundColor = .black
+        earlyDim.backgroundColor = ChatBackdrop.dimColor
         earlyDim.alpha = ChatBackdrop.dimAlpha
         earlyDim.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         earlyDim.isUserInteractionEnabled = false
@@ -103,7 +103,7 @@ public final class MessageBackdrop {
         // The dim has been at full strength since `present`; it moves with the blur and stays as the
         // menu's own dimming fades out with the dismissal.
         let dim = self.dim ?? UIView(frame: blur.bounds)
-        dim.backgroundColor = .black
+        dim.backgroundColor = ChatBackdrop.dimColor
         dim.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         dim.isUserInteractionEnabled = false
         blur.contentView.addSubview(dim)

@@ -60,7 +60,7 @@ public struct JumpToBottomButtonView: View {
         Button(action: action) {
             Image.icon(.chevronDownMedium)
                 .iconSize(22)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.textMain)
                 .frame(width: Self.diameter, height: Self.diameter)
                 .composerGlass(in: Circle(), id: "jump", namespace: glassNamespace)
                 .composerRim(in: Circle())

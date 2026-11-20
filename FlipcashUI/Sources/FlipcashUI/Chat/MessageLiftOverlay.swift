@@ -41,9 +41,11 @@ final class MessageLiftOverlay: NSObject, UIGestureRecognizerDelegate {
     /// Lifts `copy` from `home` (window coordinates), with a strip of `entries` above it and a menu
     /// of `actions` below it; either may be absent. `press` is where a finger still down from a long
     /// press landed (window coordinates), which may go on to drag onto a menu row. `menuHeader` is the
-    /// muted line heading the menu — the message's full send time.
-    func present(copy: UIView, from home: CGRect, in scene: UIWindowScene, entries: [ReactionStrip.Entry]?, actions: [UIAction]?, menuHeader: String? = nil, press: CGPoint? = nil) {
+    /// muted line heading the menu — the message's full send time. `appearance` is the presenting
+    /// screen's, which the lift's own window takes so the copy, strip and menu match it.
+    func present(copy: UIView, from home: CGRect, in scene: UIWindowScene, appearance: UIUserInterfaceStyle, entries: [ReactionStrip.Entry]?, actions: [UIAction]?, menuHeader: String? = nil, press: CGPoint? = nil) {
         let window = UIWindow(windowScene: scene)
+        window.overrideUserInterfaceStyle = appearance
         // Above the keyboard's window, so the lift covers it as it goes down.
         window.windowLevel = .alert + 1
         window.backgroundColor = .clear

@@ -54,7 +54,7 @@ public final class ChatUnreadDividerCell: UICollectionViewCell {
     /// Android's `divider` token, white at 10%, 1pt tall as `HorizontalDivider` draws it.
     private static func hairline() -> UIView {
         let line = UIView()
-        line.backgroundColor = UIColor.white.withAlphaComponent(0.1)
+        line.backgroundColor = UIColor(Color.rowSeparator)
         line.heightAnchor.constraint(equalToConstant: 1 / UITraitCollection.current.displayScale).isActive = true
         return line
     }
