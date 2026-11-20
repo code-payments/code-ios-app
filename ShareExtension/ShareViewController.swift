@@ -17,7 +17,6 @@ final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         ExtensionReporting.startIfNeeded()
-        FontBook.registerExtensionFonts()
 
         let context = extensionContext
         let providers = (context?.inputItems as? [NSExtensionItem])?
