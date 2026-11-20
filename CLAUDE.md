@@ -16,6 +16,8 @@ and is linked from the map below. **Read the relevant doc before working in that
 | Writing or running tests | [Testing](.claude/docs/testing.md) |
 | Naming, file placement, imports, or committing | [Code Style & Git Workflow](.claude/docs/code-style.md) |
 | About to touch cash bills, navigation, dialogs, amounts, or DI | [Common Pitfalls](.claude/docs/common-pitfalls.md) |
+| About to touch UI, motion, a component, or copy | [Design Standard](.claude/docs/design/design-standard.md) — the house rules; lenses in [`.claude/docs/design/lenses/`](.claude/docs/design/lenses/); the component catalog in [components.md](.claude/docs/design/components.md) |
+| Building or editing a device screen in Figma | [Figma screens](.claude/docs/design/figma-screens.md): the Screen Kit; start every frame from a Screen component, never draw system chrome |
 | Looking for a key file, constant, or the Xcode MCP setup | [Quick Reference](.claude/docs/quick-reference.md) |
 
 ---
@@ -111,3 +113,4 @@ it before touching the relevant area.
 - **Form validation** — Validate free-form input through the `Validator` family and submit the validator's `Output`, never inline regex/trim; keypad amounts parse only via `AmountValidator`.
 - **Money & numbers** — Follow the Nine Rules: money lives in `TokenAmount`/`FiatAmount`/`ExchangedFiat`; one parse in, one format out; compare only within a domain; display-rounded is what we accept; affordability goes through `Session.hasSufficientFunds(for:)`.
 - **Package.resolved** — Always commit the workspace `Package.resolved`; individual package ones stay gitignored.
+- **Design** — UI, motion and copy follow the [House Standard](.claude/docs/design/design-standard.md): reuse a catalogued component before building one, tokens before literals, one `.filled` primary per screen, springs as duration + bounce. Taste calls are Aiden's; "the standard is silent here" is a valid finding.
