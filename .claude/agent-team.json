@@ -49,6 +49,16 @@
       "charter": "Red-team the worker's diff: find what will fail undiscovered, prove each check can go red, then write a self-contained handoff. Never edits.",
       "isolation": "read-only",
       "deliverable": "review"
+    },
+    "design-reviewer": {
+      "agent": "claude",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "advisor": "fable",
+      "reports_to": "orchestrator",
+      "charter": "Review a UI, motion or copy change against the House Standard in .claude/docs/design/design-standard.md and its lenses, following .claude/agents/design-critic.md. Rank findings with path:line, separate defects from taste calls for Aiden, list what was checked and found sound. Never edits.",
+      "isolation": "read-only",
+      "deliverable": "review"
     }
   },
   "deny_paths": [
