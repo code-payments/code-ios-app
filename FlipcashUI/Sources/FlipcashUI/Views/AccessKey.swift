@@ -9,6 +9,8 @@
 import SwiftUI
 import FlipcashCore
 
+/// The recovery Access Key card: logo, login QR and the twelve words on fixed dark art, the same in
+/// every appearance.
 public struct AccessKey: View {
     
     public let mnemonic: MnemonicPhrase
@@ -90,12 +92,14 @@ public struct AccessKey: View {
                         }
                     }
                     .font(.appTextAccessKey)
+                    .foregroundStyle(Color.white)
                 }
                     .padding([.top, .bottom], 60)
             )
             .drawingGroup()
             .clipShape(.rect(cornerRadius: 10))
             .frame(maxWidth: 255)
+            .environment(\.colorScheme, .dark)
     }
 }
 

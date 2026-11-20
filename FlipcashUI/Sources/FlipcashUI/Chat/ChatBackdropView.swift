@@ -20,13 +20,18 @@ public struct ChatBackdropView: UIViewRepresentable {
         effectView.isUserInteractionEnabled = false
 
         let dim = UIView()
-        dim.backgroundColor = .black
+        dim.backgroundColor = ChatBackdrop.dimColor
         dim.alpha = ChatBackdrop.dimAlpha
         dim.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         dim.frame = effectView.contentView.bounds
         effectView.contentView.addSubview(dim)
 
-        context.coordinator.strength = ChatBackdrop.frost(effectView)
+        let coordinator = context.coordinator
+        coordinator.strength = ChatBackdrop.frost(effectView)
+        effectView.registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (view: UIVisualEffectView, _) in
+            guard coordinator.strength != nil else { return }
+            coordinator.strength = ChatBackdrop.refrost(view, replacing: coordinator.strength)
+        }
         return effectView
     }
 

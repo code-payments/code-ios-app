@@ -15,7 +15,7 @@ struct CircleImage: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(Color(white: 0.2))
+            Circle().fill(Color.circleImagePlaceholder)
 
             if let image {
                 Image(uiImage: image)
@@ -33,4 +33,9 @@ struct CircleImage: View {
         .compositingGroup()
         .clipShape(Circle())
     }
+}
+
+private extension Color {
+    /// The empty disc behind the plus: `Color(white: 0.2)` in dark, Apple's gray 5 in light.
+    static let circleImagePlaceholder = Color(light: Color(r: 229, g: 229, b: 234), dark: Color(white: 0.2))
 }

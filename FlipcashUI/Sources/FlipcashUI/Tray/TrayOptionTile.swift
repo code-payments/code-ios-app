@@ -52,10 +52,10 @@ public struct TrayOptionTile: View {
     }
 
     private var fill: Color {
-        guard isSelected else { return .white.opacity(TrayMetrics.rowFillOpacity) }
+        guard isSelected else { return TrayMetrics.rowFill }
         switch TrayMetrics.tileSelection {
-        case .raised: return .white.opacity(TrayMetrics.rowSelectedFillOpacity)
-        case .outline: return .white.opacity(TrayMetrics.rowFillOpacity)
+        case .raised: return TrayMetrics.rowSelectedFill
+        case .outline: return TrayMetrics.rowFill
         case .inverted: return .action
         }
     }

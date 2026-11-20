@@ -8,8 +8,9 @@ import FlipcashUI
 
 /// The shareable tipcard: a scannable code over the owner's name and photo.
 ///
-/// Takes only resolved values — no environment, no URLs, no async loading — so
-/// the same view renders on screen and through `ImageRenderer` for export.
+/// Takes only resolved values — no environment objects, no URLs, no async
+/// loading — so the same view renders on screen and through `ImageRenderer`
+/// for export. Dark in either appearance, like the bill.
 struct TipcardView: View {
 
     /// The card's height-to-width proportion, shared by every surface that
@@ -98,7 +99,7 @@ struct TipcardView: View {
             }
         }
         .frame(width: size.width, height: size.height)
-        .background(Color.black.opacity(tintOpacity).background(BackdropBlur(radius: 20)))
+        .darkCardGround(tintOpacity: tintOpacity)
         .clipShape(RoundedRectangle(cornerRadius: size.width * 0.08, style: .continuous))
     }
 
@@ -122,5 +123,40 @@ struct TipcardView: View {
 
     private var avatarDimension: CGFloat {
         size.width * 0.09
+    }
+}
+
+extension View {
+    /// Draws the view as a dark profile or group card in either appearance: content pinned dark, over
+    /// black at `tintOpacity` on a frosted blur of what lies behind, or on a light surface over the dark
+    /// page the card was drawn on, so it reads as the same dark object there too.
+    func darkCardGround(tintOpacity: Double) -> some View {
+        modifier(DarkCardGround(tintOpacity: tintOpacity))
+    }
+}
+
+private struct DarkCardGround: ViewModifier {
+
+    let tintOpacity: Double
+
+    /// The appearance of the surface the card sits on, read before the card pins its own.
+    @Environment(\.colorScheme) private var surface
+
+    func body(content: Content) -> some View {
+        content
+            .background { ground }
+            .environment(\.colorScheme, .dark)
+    }
+
+    @ViewBuilder
+    private var ground: some View {
+        switch surface {
+        case .dark:
+            Color.black.opacity(tintOpacity).background(BackdropBlur(radius: 20))
+        case .light:
+            Color.black.opacity(tintOpacity).background(Color.backgroundMain)
+        @unknown default:
+            Color.black.opacity(tintOpacity).background(Color.backgroundMain)
+        }
     }
 }

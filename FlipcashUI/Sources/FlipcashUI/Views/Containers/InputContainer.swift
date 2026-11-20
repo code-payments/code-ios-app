@@ -41,7 +41,7 @@ public struct InputContainer<T>: View where T: View {
         if highlighted {
             Color.backgroundRow
                 .overlay(
-                    Color.white.opacity(0.05)
+                    Color.backgroundRow
                 )
                 .clipShape(.rect(cornerRadius: Metrics.buttonRadius))
         } else {

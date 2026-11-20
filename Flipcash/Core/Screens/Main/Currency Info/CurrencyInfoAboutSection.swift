@@ -21,7 +21,7 @@ struct CurrencyInfoAboutSection: View {
                 .foregroundStyle(Color.textMain)
 
             ExpandableText(description)
-                .foregroundStyle(Color.white.opacity(0.55))
+                .foregroundStyle(Color.walletTextMuted)
                 .font(.appTextSmall)
 
             if !socialLinks.isEmpty {

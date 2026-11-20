@@ -25,6 +25,8 @@ struct HomeTabView: View {
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(Container.self) private var container
     @Environment(BetaFlags.self) private var betaFlags
+    /// The app's appearance, which the bar follows everywhere but over the scanner; see ``barColorScheme``.
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var selection: HomeTab
 
@@ -160,6 +162,12 @@ struct HomeTabView: View {
         selection == .chat && !isSearchSelected && chatSelection.isActive
     }
 
+    /// The appearance either bar and its drawn images wear: the scanner's dark over the camera, the app's
+    /// own everywhere else. A change redraws the item images.
+    private var barColorScheme: ColorScheme {
+        selection == .scan && !isSearchSelected ? .dark : colorScheme
+    }
+
     /// Unread chats among the ones the Chat tab lists, surfaced as a badge on the tab.
     /// Reactive: reads the `@Observable` conversation store, so the badge updates as chats are read.
     private var chatBadgeCount: Int {
@@ -167,11 +175,16 @@ struct HomeTabView: View {
     }
 
     /// The bar's item colours: selected tabs in full, the rest dimmed to
-    /// ``TabBarItemStyle/unselectedOpacity``, over a transparent background that keeps
+    /// ``TabBarItemStyle/unselectedOpacity(for:)``, over a transparent background that keeps
     /// the system's Liquid Glass.
     static func tabBarAppearance() -> UITabBarAppearance {
-        let selectedColor = UIColor(Color.textMain)
-        let normalColor = selectedColor.withAlphaComponent(TabBarItemStyle.unselectedOpacity)
+        // Dynamic, so the appearance proxy re-resolves both on an appearance change.
+        let ink = UIColor(Color.textMain)
+        let selectedColor = UIColor { ink.resolvedColor(with: $0) }
+        let normalColor = UIColor { traits in
+            let dim = TabBarItemStyle.unselectedOpacity(for: traits.userInterfaceStyle == .light ? .light : .dark)
+            return ink.resolvedColor(with: traits).withAlphaComponent(dim)
+        }
         let items = UITabBarItemAppearance()
         items.normal.iconColor = normalColor
         items.selected.iconColor = selectedColor
@@ -303,7 +316,7 @@ struct HomeTabView: View {
     /// The Chat tab's glyphs with the unread count drawn in, or nil when
     /// nothing is unread; see ``TabBarBadgedIcon``.
     private var chatItemImages: TabBarProfilePhoto.ItemImages? {
-        TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount, layout: layout)
+        TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount, layout: layout, colorScheme: barColorScheme)
     }
 
     private var profileItemImages: TabBarProfilePhoto.ItemImages? {
@@ -311,9 +324,9 @@ struct HomeTabView: View {
 
         switch profileSlot {
         case .photo:
-            return profilePhoto.itemImages
+            return profilePhoto.itemImages(for: barColorScheme)
         case .pending(let preview):
-            return TabBarProfilePhoto.pendingItemImages(preview: preview)
+            return TabBarProfilePhoto.pendingItemImages(preview: preview, colorScheme: barColorScheme)
         }
     }
 
@@ -420,7 +433,7 @@ struct HomeTabView: View {
         // pill's white indicator on a translucent capsule.
         .tabViewSearchActivation(.searchTabSelection)
         .tint(Color.textMain)
-        .toolbarBackground(Color.backgroundMain.opacity(TabBarItemStyle.backgroundOpacity), for: .tabBar)
+        .toolbarBackground(TabBarItemStyle.background(for: barColorScheme), for: .tabBar)
         // Gives each item both of its glyphs. The tab bar knows which item the
         // Liquid Glass pill is over mid-drag and renders that one selected, so
         // handing it the pair is what makes the icons fill under the finger
@@ -430,6 +443,7 @@ struct HomeTabView: View {
             layout: layout,
             profileImages: profileItemImages,
             chatBadgeCount: chatBadgeCount,
+            colorScheme: barColorScheme,
             onLongPress: handleLongPress(on:)
         ))
         // Faded rather than hidden for select mode: a hidden bar takes its inset with it, and the
@@ -522,7 +536,8 @@ struct HomeTabView: View {
             for: tab,
             layout: layout,
             profile: tab == .tipCard ? profileItemImages : nil,
-            badged: tab == .chat ? chatItemImages : nil
+            badged: tab == .chat ? chatItemImages : nil,
+            colorScheme: barColorScheme
         )
         return Image(uiImage: images.normal).renderingMode(.original)
     }
@@ -564,6 +579,9 @@ struct HomeTabView: View {
             profileSlot: profileSlot,
             onLongPress: handleLongPress(on:)
         )
+        // Over the scanner's camera feed the pill keeps the dark chrome the
+        // scanner wears, whatever the appearance.
+        .environment(\.colorScheme, barColorScheme)
     }
 
     /// iOS 18–25 fallback: the home-grown floating pill hovering over the tab
@@ -843,17 +861,23 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
     /// which the glass lens draws beneath the glyph mid-drag.
     let chatBadgeCount: Int
 
+    /// The appearance the bar and its item images are drawn in. Passed by value,
+    /// the same `barColorScheme` the tab labels read, so the two never disagree
+    /// and a change redraws the items.
+    let colorScheme: ColorScheme
+
     /// Called with the tab whose item was held.
     let onLongPress: (HomeTab) -> Void
 
     func makeUIViewController(context: Context) -> Probe {
-        Probe(layout: layout, profileImages: profileImages, chatBadgeCount: chatBadgeCount, onLongPress: onLongPress)
+        Probe(layout: layout, profileImages: profileImages, chatBadgeCount: chatBadgeCount, colorScheme: colorScheme, onLongPress: onLongPress)
     }
 
     func updateUIViewController(_ probe: Probe, context: Context) {
         probe.layout = layout
         probe.profileImages = profileImages
         probe.chatBadgeCount = chatBadgeCount
+        probe.colorScheme = colorScheme
         probe.onLongPress = onLongPress
         probe.apply()
     }
@@ -862,17 +886,20 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
         var layout: HomeTabLayout
         var profileImages: TabBarProfilePhoto.ItemImages?
         var chatBadgeCount: Int
+        var colorScheme: ColorScheme
         var onLongPress: (HomeTab) -> Void
 
         init(
             layout: HomeTabLayout,
             profileImages: TabBarProfilePhoto.ItemImages?,
             chatBadgeCount: Int,
+            colorScheme: ColorScheme,
             onLongPress: @escaping (HomeTab) -> Void
         ) {
             self.layout = layout
             self.profileImages = profileImages
             self.chatBadgeCount = chatBadgeCount
+            self.colorScheme = colorScheme
             self.onLongPress = onLongPress
             super.init(nibName: nil, bundle: nil)
         }
@@ -906,6 +933,9 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
                 return
             }
             installLongPress(on: bar)
+            // The glass, its tint and the search glyph resolve in the bar's own traits, so a bar drawn
+            // dark over the scanner in a light app is pinned here; otherwise it follows the window.
+            bar.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .unspecified
 
             for (item, tab) in zip(items, tabs) {
                 // The drawn-in count is invisible to VoiceOver, so the item
@@ -917,7 +947,8 @@ private struct TabBarSelectedIcons: UIViewControllerRepresentable {
                     for: tab,
                     layout: layout,
                     profile: tab == .tipCard ? profileImages : nil,
-                    badged: tab == .chat ? TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount, layout: layout) : nil
+                    badged: tab == .chat ? TabBarBadgedIcon.itemImages(for: .chat, count: chatBadgeCount, layout: layout, colorScheme: colorScheme) : nil,
+                    colorScheme: colorScheme
                 )
                 item.image = images.normal
                 item.selectedImage = images.selected

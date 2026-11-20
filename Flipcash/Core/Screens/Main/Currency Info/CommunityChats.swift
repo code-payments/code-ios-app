@@ -90,7 +90,7 @@ struct CommunityRowCard<Avatar: View>: View {
                 if let subtitle {
                     Text(subtitle)
                         .font(.appTextSmall)
-                        .foregroundStyle(Color.white.opacity(0.55))
+                        .foregroundStyle(Color.walletTextMuted)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 }
@@ -99,7 +99,7 @@ struct CommunityRowCard<Avatar: View>: View {
             if showsChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.55))
+                    .foregroundStyle(Color.walletTextMuted)
                     .frame(width: 16, height: 16)
             }
         }
@@ -132,7 +132,7 @@ struct CommunityChatsSection: View {
                     Button(action: onInfo) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 14))
-                            .foregroundStyle(Color.white.opacity(0.55))
+                            .foregroundStyle(Color.walletTextMuted)
                     }
                     .accessibilityLabel("How chats are ranked")
                     Spacer(minLength: 0)

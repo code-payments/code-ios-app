@@ -40,6 +40,8 @@ struct ConfirmEmailScreen<VM: EmailVerifying>: View {
 
                 VStack(spacing: 30) {
                     Image.asset(.emailSent)
+                        .renderingMode(.template)
+                        .foregroundStyle(Color.textMain)
 
                     Text("Check your inbox")
                         .font(.appDisplaySmall)

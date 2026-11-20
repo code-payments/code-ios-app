@@ -51,7 +51,7 @@ public struct TrayOptionRow: View {
             // Selection snaps, fill and check alike; only the press moves.
             .background {
                 RoundedRectangle(cornerRadius: TrayMetrics.rowRadius, style: .continuous)
-                    .fill(Color.white.opacity(isSelected ? TrayMetrics.rowSelectedFillOpacity : TrayMetrics.rowFillOpacity))
+                    .fill(isSelected ? TrayMetrics.rowSelectedFill : TrayMetrics.rowFill)
             }
             .contentShape(.rect(cornerRadius: TrayMetrics.rowRadius, style: .continuous))
             // The release's transaction reaches the label as the selection lands; without this the

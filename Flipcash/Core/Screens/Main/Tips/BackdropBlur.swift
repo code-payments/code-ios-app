@@ -33,6 +33,9 @@ struct BackdropBlur: UIViewRepresentable {
 
         override init(frame: CGRect) {
             super.init(frame: frame)
+            // One appearance, so the filters the radius override lives in are the ones the dark cards
+            // were tuned on and a switch never rebuilds them.
+            effectView.overrideUserInterfaceStyle = .dark
             effectView.frame = bounds
             effectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             addSubview(effectView)

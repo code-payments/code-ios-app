@@ -64,7 +64,7 @@ struct ShareRootView: View {
                 if sections.isSearching && sections.recent.isEmpty {
                     Text("No chats match \u{201C}\(model.query)\u{201D}")
                         .font(.appTextMessage)
-                        .foregroundStyle(.secondary)
+                        .shareSecondaryInk()
                         .frame(maxWidth: .infinity)
                         .padding(.top, 24)
                 } else if !sections.recent.isEmpty {
@@ -170,7 +170,7 @@ struct ShareMessageView: View {
             Text(title).font(.appTextMedium)
             Text(detail)
                 .font(.appTextMessage)
-                .foregroundStyle(.secondary)
+                .shareSecondaryInk()
                 .multilineTextAlignment(.center)
         }
         .padding(32)

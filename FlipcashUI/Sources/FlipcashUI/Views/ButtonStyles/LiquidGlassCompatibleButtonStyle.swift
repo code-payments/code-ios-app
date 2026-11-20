@@ -47,7 +47,7 @@ extension View {
 
     /// Applies Apple's prominent button style — `.glassProminent` on iOS 26+,
     /// `.borderedProminent` on earlier versions.
-    /// The app tints everything white, which a prominent style takes as its fill,
+    /// The app tints everything `textMain`, which a prominent style takes as its fill,
     /// so the style names its blue rather than relying on the `AccentColor` asset.
     /// The label colour cannot be set here — a prominent style applies its own
     /// foreground inside the style, so it overrides anything set on the button.
@@ -70,7 +70,7 @@ struct LiquidGlassCompatibleButtonStyle: ButtonStyle {
         switch shape {
         case .capsule:
             configuration.label
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.textMain)
                 .background(.ultraThinMaterial, in: Capsule())
         case .circle:
             configuration.label

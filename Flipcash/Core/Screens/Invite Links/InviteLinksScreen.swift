@@ -267,8 +267,10 @@ struct InviteLinksContent: View {
 private enum InviteLinksMetrics {
     /// Frame 2a's card inset from the screen edge.
     static let inset: CGFloat = 22
-    /// The chip and capsule fill (card/panel, white 8%).
-    static let panel = Color.white.opacity(0.08)
+    /// The chip and capsule fill (card/panel).
+    static let panel = Color.fillSubtle
+    /// The text of a row that no longer takes taps: dimmed, and still 4.5:1 on the card in light.
+    static let inactiveText = Color(light: .black.opacity(0.6), dark: .white.opacity(0.5))
 }
 
 private struct InviteLinkRow: View {
@@ -283,10 +285,10 @@ private struct InviteLinkRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(InviteLinkCopy.created(entry.invite) ?? "")
                     .font(.appTextMedium)
-                    .foregroundStyle(isActive ? Color.textMain : Color.textMain.opacity(0.5))
+                    .foregroundStyle(isActive ? Color.textMain : InviteLinksMetrics.inactiveText)
                 Text(InviteLinkCopy.rowDetail(entry))
                     .font(.appTextCaption)
-                    .foregroundStyle(isActive ? Color.textSecondary : Color.textMain.opacity(0.5))
+                    .foregroundStyle(isActive ? Color.textSecondary : InviteLinksMetrics.inactiveText)
             }
             .lineLimit(1)
             Spacer(minLength: 0)

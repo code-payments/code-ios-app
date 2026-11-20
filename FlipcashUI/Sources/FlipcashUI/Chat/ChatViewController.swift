@@ -2023,7 +2023,7 @@ extension ChatViewController {
         // A bubble that hasn't rendered a frame yet has nothing to copy without the pending update.
         guard !bubble.bounds.isEmpty,
               let copy = bubble.snapshotView(afterScreenUpdates: false) ?? bubble.snapshotView(afterScreenUpdates: true) else { return nil }
-        BubbleBackgroundView.raise(copy, shape: cell.liftPreviewMaskingPath)
+        BubbleBackgroundView.raise(copy, shape: cell.liftPreviewMaskingPath, style: bubble.traitCollection.userInterfaceStyle)
         return copy
     }
 
@@ -2060,7 +2060,7 @@ extension ChatViewController {
         // The snapshot renders the bubble's bounds, so the lift's shadow — drawn outside them — isn't
         // in it. Re-applied here, at the same values the menu used, so the message doesn't drop back
         // onto the transcript's plane the moment the menu that raised it goes.
-        BubbleBackgroundView.raise(copy, shape: cell.liftPreviewMaskingPath)
+        BubbleBackgroundView.raise(copy, shape: cell.liftPreviewMaskingPath, style: bubble.traitCollection.userInterfaceStyle)
         return copy
     }
 

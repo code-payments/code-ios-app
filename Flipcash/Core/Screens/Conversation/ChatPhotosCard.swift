@@ -113,7 +113,9 @@ struct ChatPhotosCard: View {
         .photosPickerDisabledCapabilities(.selectionActions)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottom) {
+            // Over the photos, so dark like the camera's controls in either appearance.
             controls
+                .environment(\.colorScheme, .dark)
         }
         .accessibilityElement(children: .contain)
         .accessibilityAction(.escape, onBack)

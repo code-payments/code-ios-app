@@ -199,7 +199,7 @@ struct PaymentRequestDetailsScreen: View {
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 64)
-        .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
+        .background(Color.paymentRequestRowFill, in: .rect(cornerRadius: 12))
         .contentShape(.rect)
         .requestMotion(value: row.isPaid)
     }

@@ -86,17 +86,22 @@ public struct SelectableChipButtonStyle: ButtonStyle {
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             // A tint, not a solid fill: solid white was the brightest thing on the dark screen.
-            .background(Capsule().fill(isSelected ? Color.white.opacity(0.16) : Color.clear))
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
+            .background(Capsule().fill(isSelected ? Color.chipSelectedFill : Color.clear))
+            .overlay(Capsule().strokeBorder(Color.rowSeparator, lineWidth: 1))
             .contentShape(Capsule())
             .buttonPress(isPressed: configuration.isPressed)
     }
 }
 
 public extension ButtonStyle where Self == SelectableChipButtonStyle {
-    /// A hairline-outlined filter chip with a faint white tint and the main text colour when
-    /// selected, and no fill with the secondary text colour otherwise.
+    /// A hairline-outlined filter chip with a faint tint and the main text colour when selected,
+    /// and no fill with the secondary text colour otherwise.
     static func selectableChip(isSelected: Bool) -> SelectableChipButtonStyle {
         SelectableChipButtonStyle(isSelected: isSelected)
     }
+}
+
+private extension Color {
+    /// The selected filter chip's fill: white 16% in dark, Apple's `systemFill` grey in light.
+    static let chipSelectedFill = Color(light: Color(r: 120, g: 120, b: 128, o: 0.2), dark: .white.opacity(0.16))
 }

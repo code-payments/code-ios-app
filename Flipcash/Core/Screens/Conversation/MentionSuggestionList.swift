@@ -24,12 +24,18 @@ enum MentionListMetrics {
     static let dividerHeight: CGFloat = 1
     /// The rule's leading inset, lining it up with the name rather than the avatar.
     static let dividerInset: CGFloat = rowPadding + avatarDiameter + rowSpacing
-    static let dividerColor = Color.white.opacity(0.1)
+    static let dividerColor = Color.rowSeparator
     /// The handle's colour, iOS's dark secondary label, which reads over the glass where
-    /// `textSecondary` goes muddy.
-    static let usernameColor = Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255).opacity(0.6)
-    /// The fill under a row while it's pressed, iOS's dark tertiary fill.
-    static let pressedFill = Color(red: 118 / 255, green: 118 / 255, blue: 128 / 255).opacity(0.24)
+    /// `textSecondary` goes muddy; in light, a grey that holds 4.5:1 on the frosted white glass.
+    static let usernameColor = Color(
+        light: Color(r: 99, g: 99, b: 102),
+        dark: Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255).opacity(0.6)
+    )
+    /// The fill under a row while it's pressed, iOS's tertiary fill.
+    static let pressedFill = Color(
+        light: Color(r: 118, g: 118, b: 128, o: 0.12),
+        dark: Color(red: 118 / 255, green: 118 / 255, blue: 128 / 255).opacity(0.24)
+    )
 
     /// The list's height showing `rows` rows.
     static func listHeight(rows: Int) -> CGFloat {
@@ -113,7 +119,7 @@ private struct MentionRow: View {
             )
             Text(member.displayName)
                 .font(.appTextHeading)
-                .foregroundStyle(ComplementaryPalette.nameColor(for: member.userID))
+                .foregroundStyle(ComplementaryPalette.adaptiveNameColor(for: member.userID))
                 .lineLimit(1)
             if let username = member.username {
                 Text("@\(username.value)")

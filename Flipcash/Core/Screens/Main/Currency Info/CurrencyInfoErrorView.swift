@@ -18,7 +18,7 @@ struct CurrencyInfoErrorView: View {
 
             Image.icon(.exclamationCircle)
                 .iconSize(100)
-                .foregroundStyle(Color.white)
+                .foregroundStyle(Color.textMain)
                 .padding(24)
 
             // Status Text

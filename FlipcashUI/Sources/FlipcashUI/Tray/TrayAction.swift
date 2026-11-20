@@ -16,7 +16,7 @@ public struct TrayAction {
 
     /// How an action is weighted against the other action in its tray.
     public enum Role: Hashable, Sendable {
-        /// The white capsule on the right: the action the tray exists for.
+        /// The filled capsule on the right: the action the tray exists for.
         case primary
         /// The quiet capsule on the left: the alternative, such as declining.
         case secondary
@@ -187,8 +187,8 @@ private struct TrayActionLayout: Layout {
     }
 }
 
-/// The tray's capsule: white with a dark label for the primary, solid red with a white label for
-/// the destructive, and a 10% white wash for the secondary.
+/// The tray's capsule: the action fill and label for the primary, solid red with a white label for
+/// the destructive, and the control fill for the secondary.
 struct TrayButtonStyle: ButtonStyle {
 
     let role: TrayAction.Role
@@ -219,7 +219,8 @@ struct TrayButtonStyle: ButtonStyle {
         guard isEnabled else { return .textMain.opacity(0.2) }
         switch role {
         case .primary: return .textAction
-        case .destructive, .secondary: return .textMain
+        case .destructive: return TrayMetrics.destructiveLabel
+        case .secondary: return .textMain
         }
     }
 

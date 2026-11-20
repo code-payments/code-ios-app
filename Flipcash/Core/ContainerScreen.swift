@@ -28,7 +28,7 @@ struct ContainerScreen: View {
 
                 case .migrating:
                     VStack {
-                        LoadingView(color: .white)
+                        LoadingView(color: .textMain)
                     }
                     .transition(.opacity)
 

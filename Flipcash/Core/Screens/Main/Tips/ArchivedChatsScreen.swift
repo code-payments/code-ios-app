@@ -13,6 +13,7 @@ struct ArchivedChatsScreen: View {
 
     @Environment(ConversationController.self) private var conversationController
     @Environment(AppRouter.self) private var router
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var muteTarget: ArchivedMuteTarget?
 

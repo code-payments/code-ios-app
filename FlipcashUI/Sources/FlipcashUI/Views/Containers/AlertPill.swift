@@ -8,7 +8,7 @@ import UIKit
 import FlipcashCore
 import Observation
 
-/// The in-app reaction and boost alert: a black capsule drawn over the Dynamic Island that grows into
+/// The in-app reaction and boost alert: a glass capsule drawn over the Dynamic Island that grows into
 /// a card, or a banner dropped from the top on a phone with no island. Sizes are the `Alert/Reaction
 /// pill` component's: rest 126x37, compact 236x36, expanded up to 378 wide.
 ///
@@ -202,7 +202,7 @@ struct AlertPill: View {
             HStack(spacing: -10) {
                 ForEach(Array(avatars.prefix(3).enumerated()), id: \.offset) { index, avatar in
                     AlertAvatarView(avatar: avatar, diameter: 32)
-                        .overlay(Circle().stroke(Color.black.opacity(0.6), lineWidth: 2))
+                        .overlay(Circle().stroke(Color.alertAvatarRing, lineWidth: 2))
                         .zIndex(Double(-index))
                 }
             }
@@ -403,7 +403,12 @@ private enum AlertPillWindow {
     /// Keeps the window hidden while no pill is up, so it never decides the status bar otherwise.
     private static func showWhilePresenting(_ window: PassthroughWindow, _ controller: AlertPillController) {
         withObservationTracking {
-            window.isHidden = controller.current == nil
+            let isPresenting = controller.current != nil
+            if isPresenting {
+                // A window of its own takes the scene's appearance, not an override on the app's window.
+                window.overrideUserInterfaceStyle = window.windowScene?.keyWindow?.traitCollection.userInterfaceStyle ?? .unspecified
+            }
+            window.isHidden = !isPresenting
         } onChange: { [weak window, weak controller] in
             Task { @MainActor in
                 guard let window, let controller, self.window === window else { return }
@@ -465,14 +470,21 @@ private struct AlertPillRoot: View {
 
 private extension View {
 
-    /// The panel glass with a dark tint, so the alert reads as a solid surface over busy content.
+    /// The panel glass with a heavy tint, so the alert reads as a solid surface over busy content.
     @ViewBuilder
     func alertGlassBackground(cornerRadius: CGFloat) -> some View {
         if #available(iOS 26, *) {
-            glassEffect(.regular.tint(Color.black.opacity(0.55)), in: .rect(cornerRadius: cornerRadius))
+            glassEffect(.regular.tint(Color.alertGlassTint), in: .rect(cornerRadius: cornerRadius))
         } else {
             background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
-                .background(Color.black.opacity(0.55), in: .rect(cornerRadius: cornerRadius))
+                .background(Color.alertGlassTint, in: .rect(cornerRadius: cornerRadius))
         }
     }
+}
+
+private extension Color {
+    /// The alert's glass tint: black 55% in dark, frosted white 80% in light.
+    static let alertGlassTint = Color(light: .white.opacity(0.8), dark: .black.opacity(0.55))
+    /// The ring that parts overlapping avatars, close to the glass: black 60% in dark, white 80% in light.
+    static let alertAvatarRing = Color(light: .white.opacity(0.8), dark: .black.opacity(0.6))
 }

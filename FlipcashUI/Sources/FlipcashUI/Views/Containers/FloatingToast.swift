@@ -86,7 +86,7 @@ public struct FloatingToast: View {
                         .foregroundStyle(Color.textMain)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.12), in: Capsule())
+                        .background(Color.toastActionFill, in: Capsule())
                         // Reaches into the toast's 8 pt vertical padding, so the short pill takes taps
                         // without growing the toast.
                         .contentShape(Rectangle().inset(by: -8))
@@ -118,6 +118,11 @@ public struct FloatingToast: View {
                 }
             }
     }
+}
+
+private extension Color {
+    /// The toast action's capsule: white 12% in dark, Apple's `secondarySystemFill` grey in light.
+    static let toastActionFill = Color(light: Color(r: 120, g: 120, b: 128, o: 0.16), dark: .white.opacity(0.12))
 }
 
 // MARK: - Tab bar -

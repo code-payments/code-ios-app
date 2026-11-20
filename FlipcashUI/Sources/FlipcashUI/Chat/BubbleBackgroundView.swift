@@ -24,9 +24,9 @@ import SwiftUI
 /// no hosted SwiftUI views) and drawn into a `CAShapeLayer`.
 final class BubbleBackgroundView: UIView {
 
-    private static let hairlineStroke = UIColor.white.withAlphaComponent(0.03)
-    private static let dashedStroke = UIColor.white.withAlphaComponent(0.2)
-    private static let washedDashedStroke = UIColor.white.withAlphaComponent(0.15)
+    private static let hairlineStroke = UIColor(Color(light: .black.opacity(0.03), dark: .white.opacity(0.03)))
+    private static let dashedStroke = UIColor(Color(light: .black.opacity(0.2), dark: .white.opacity(0.2)))
+    private static let washedDashedStroke = UIColor(Color(light: .black.opacity(0.15), dark: .white.opacity(0.15)))
 
     /// The bubble's outline.
     enum Border: Equatable {
@@ -54,6 +54,10 @@ final class BubbleBackgroundView: UIView {
     /// Set by `apply` when the radii changed in place; consumed by the next `layoutSubviews`, which
     /// is where the path is actually built.
     private var pendingCornerMorph = false
+    /// The wash and outline `apply` last set, kept so the layers can be repainted when the
+    /// appearance changes: a layer holds a resolved `CGColor`, not the dynamic colour.
+    private var fill: UIColor?
+    private var stroke = BubbleBackgroundView.hairlineStroke
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -65,15 +69,24 @@ final class BubbleBackgroundView: UIView {
         layer.addSublayer(washLayer)
         // Above the wash and below the border, so the flash brightens the bubble's ground without
         // washing over its text or softening its hairline edge.
-        attentionLayer.backgroundColor = Self.attentionWash.cgColor
         attentionLayer.opacity = 0
         attentionLayer.actions = ["position": NSNull(), "bounds": NSNull()]
         layer.addSublayer(attentionLayer)
         borderLayer.fillColor = UIColor.clear.cgColor
-        borderLayer.strokeColor = Self.hairlineStroke.cgColor
         borderLayer.lineWidth = 1
         borderLayer.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
         layer.addSublayer(borderLayer)
+        applyLayerColors()
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.applyLayerColors()
+        }
+    }
+
+    /// Paints the layers in this view's appearance.
+    private func applyLayerColors() {
+        attentionLayer.backgroundColor = Self.attentionWash.resolvedColor(with: traitCollection).cgColor
+        borderLayer.strokeColor = stroke.resolvedColor(with: traitCollection).cgColor
+        washLayer.backgroundColor = fill?.resolvedColor(with: traitCollection).cgColor
     }
 
     @available(*, unavailable)
@@ -110,18 +123,19 @@ final class BubbleBackgroundView: UIView {
         case .hairline:
             washLayer.isHidden = bare
             borderLayer.isHidden = bare || !ChatStyle.drawsHairline
-            borderLayer.strokeColor = Self.hairlineStroke.cgColor
+            stroke = Self.hairlineStroke
             borderLayer.lineDashPattern = nil
         case .dashed:
             washLayer.isHidden = true
-            borderLayer.strokeColor = Self.dashedStroke.cgColor
+            stroke = Self.dashedStroke
             borderLayer.lineDashPattern = [5, 4]
         case .dashedOverWash:
             washLayer.isHidden = bare
-            borderLayer.strokeColor = Self.washedDashedStroke.cgColor
+            stroke = Self.washedDashedStroke
             borderLayer.lineDashPattern = [5, 4]
         }
-        washLayer.backgroundColor = fill.cgColor
+        self.fill = fill
+        applyLayerColors()
         // A recycled view taking a new row drops any flash still running, so the attention never
         // finishes on a message it wasn't meant for.
         if identity != self.identity {
@@ -229,8 +243,9 @@ final class BubbleBackgroundView: UIView {
 
     /// The lift the flash adds on top of the sender's resting wash. Sized to read on both fills —
     /// a received bubble sits at 0.05 white, so the same absolute lift is the larger relative jump
-    /// there, which is right: the message being pointed at is usually the other person's.
-    private static let attentionWash = UIColor.white.withAlphaComponent(0.10)
+    /// there, which is right: the message being pointed at is usually the other person's. Black at
+    /// the same strength in light, where a white lift over a pale bubble would not show.
+    private static let attentionWash = UIColor(Color(light: .black.opacity(0.1), dark: .white.opacity(0.1)))
 
     /// The elevation a bubble sits at once it has been lifted out of the transcript.
     ///
@@ -240,6 +255,9 @@ final class BubbleBackgroundView: UIView {
     /// values here also means the menu's lift and the edit that follows it share one shadow rather
     /// than one of them guessing at a system default the other inherited.
     private static let liftShadowOpacity: Float = 0.135
+    /// The lift shadow's opacity in light, about 40% of the dark one: a shadow reads far stronger
+    /// on a white page than on the near-black transcript it was tuned on.
+    private static let lightLiftShadowOpacity: Float = 0.055
     private static let liftShadowRadius: CGFloat = 20
     private static let liftShadowOffset = CGSize(width: 0, height: 10)
 
@@ -251,10 +269,14 @@ final class BubbleBackgroundView: UIView {
     ///
     /// Applied to the view *hosting* the chrome, never to this view: its layer is masked to the
     /// bubble shape, and a mask clips a shadow as readily as it clips a sublayer.
-    static func raise(_ view: UIView, shape: UIBezierPath?) {
+    ///
+    /// `style` is the appearance of the row the view stands in for, since a detached snapshot has
+    /// none of its own yet; only `.light` takes the lighter shadow.
+    static func raise(_ view: UIView, shape: UIBezierPath?, style: UIUserInterfaceStyle) {
         view.layer.removeAnimation(forKey: "liftFade")
         view.layer.shadowColor = UIColor.black.cgColor
-        view.layer.shadowOpacity = shape == nil ? 0 : liftShadowOpacity
+        let opacity = style == .light ? lightLiftShadowOpacity : liftShadowOpacity
+        view.layer.shadowOpacity = shape == nil ? 0 : opacity
         view.layer.shadowRadius = liftShadowRadius
         view.layer.shadowOffset = liftShadowOffset
         view.layer.shadowPath = shape?.cgPath

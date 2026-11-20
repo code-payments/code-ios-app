@@ -78,11 +78,44 @@ public enum ComplementaryPalette {
     }
     #endif
 
+    /// The person's colour as text in either appearance: ``nameColor(for:)`` in dark, and in light the
+    /// same `.middle` stop darkened until it reads on the light surfaces a name sits on.
+    ///
+    /// The light rule mirrors the dark one: scales the stop by 0.85 per step, in gamma sRGB, until
+    /// it reaches 4.5:1 against a fixed ``lightNameSurface`` or ten steps have run. Scaling keeps the
+    /// hue, so the person stays recognisably the same colour across appearances. Android has no
+    /// light appearance yet; it takes this rule when it gets one.
+    public static func adaptiveNameColor(for id: UserID?) -> Color {
+        guard let rgb = lightNameRGB(for: id) else { return .textSecondary }
+        return Color(
+            light: Color(.sRGB, red: rgb.r, green: rgb.g, blue: rgb.b, opacity: 1),
+            dark: nameColor(for: id)
+        )
+    }
+
+    #if canImport(UIKit)
+    /// See ``adaptiveNameColor(for:)``. The transcript draws its quote panel in UIKit; the colour is
+    /// dynamic, so a label holding it follows an appearance change on its own.
+    public static func uiAdaptiveNameColor(for id: UserID?) -> UIColor {
+        guard let rgb = lightNameRGB(for: id) else { return UIColor(Color.textSecondary) }
+        let dark = uiNameColor(for: id)
+        let light = UIColor(red: rgb.r, green: rgb.g, blue: rgb.b, alpha: 1)
+        return UIColor { $0.userInterfaceStyle == .light ? light : dark }
+    }
+    #endif
+
     /// The surface names are corrected against, sRGB `#262626`.
     static let nameSurface = 0x26 / 255.0
     static let nameMinimumContrast = 4.5
     private static let nameMaxSteps = 10
     private static let nameLift = 0.15
+
+    /// The light surface names are corrected against, sRGB `#CFCFCF`: a grey just under the darkest
+    /// light ground a name is drawn on, a quote inside a sent bubble under its author's 14% tint
+    /// (`#BFD0F6` for a blue author). The reply strip and the mention list sit on paler glass.
+    static let lightNameSurface = 0xCF / 255.0
+    /// What each light step keeps of the colour.
+    private static let lightNameDarken = 0.85
 
     static func nameRGB(for id: UserID?) -> (r: Double, g: Double, b: Double)? {
         guard let hsb = components(.middle, for: id) else { return nil }
@@ -91,6 +124,23 @@ public enum ComplementaryPalette {
         var steps = 0
         while contrast(relativeLuminance(rgb.r, rgb.g, rgb.b), surface) < nameMinimumContrast, steps < nameMaxSteps {
             rgb = (rgb.r + (1 - rgb.r) * nameLift, rgb.g + (1 - rgb.g) * nameLift, rgb.b + (1 - rgb.b) * nameLift)
+            steps += 1
+        }
+        return rgb
+    }
+
+    static func lightNameRGB(for id: UserID?) -> (r: Double, g: Double, b: Double)? {
+        guard let hsb = components(.middle, for: id) else { return nil }
+        return lightNameRGB(hue: hsb.hue, saturation: hsb.saturation, brightness: hsb.brightness)
+    }
+
+    /// The light name for a stop given as its hue (normalized to 0...1), saturation and brightness.
+    static func lightNameRGB(hue: Double, saturation: Double, brightness: Double) -> (r: Double, g: Double, b: Double) {
+        var rgb = rgb(hue: hue * 360, saturation: saturation, value: brightness)
+        let surface = relativeLuminance(lightNameSurface, lightNameSurface, lightNameSurface)
+        var steps = 0
+        while contrast(relativeLuminance(rgb.r, rgb.g, rgb.b), surface) < nameMinimumContrast, steps < nameMaxSteps {
+            rgb = (rgb.r * lightNameDarken, rgb.g * lightNameDarken, rgb.b * lightNameDarken)
             steps += 1
         }
         return rgb

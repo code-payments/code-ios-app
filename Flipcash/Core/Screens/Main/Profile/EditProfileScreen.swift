@@ -106,8 +106,10 @@ struct EditProfileScreen: View {
 
     private var cameraBadge: some View {
         Image.asset(.camera)
+            .renderingMode(.template)
             .resizable()
             .scaledToFit()
+            .foregroundStyle(Color.textMain)
             .frame(width: 16, height: 16)
             .frame(width: 28, height: 28)
             // Opaque so the avatar doesn't show through; the same grey as the header's buttons.

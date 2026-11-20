@@ -72,7 +72,7 @@ final class GatePreviewPlaceholder {
             container.bottomAnchor.constraint(equalTo: host.bottomAnchor),
         ])
 
-        let fill = UIColor(Color.white.opacity(0.08))
+        let fill = UIColor(Color.fillSubtle)
         var previous: UIView?
         for row in Self.rows {
             let bubble = UIView()

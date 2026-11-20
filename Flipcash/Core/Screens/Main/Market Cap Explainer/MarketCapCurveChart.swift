@@ -101,7 +101,7 @@ struct MarketCapCurveChart: View, Animatable {
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
 
             RuleMark(x: .value("Selected supply", f.selectedX))
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(Color.textMain.opacity(0.5))
                 .lineStyle(StrokeStyle(lineWidth: 1))
                 .annotation(
                     position: .top,

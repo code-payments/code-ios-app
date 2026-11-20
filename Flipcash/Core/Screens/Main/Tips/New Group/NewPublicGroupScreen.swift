@@ -20,6 +20,7 @@ struct NewPublicGroupScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(AppRouter.self) private var router
     @Environment(BetaFlags.self) private var betaFlags
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var model: NewPublicGroupModel
     @State private var isPickingPhoto = false
@@ -92,7 +93,7 @@ struct NewPublicGroupScreen: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: create) {
                         createLabel
-                            .foregroundStyle(Color.textMain)
+                            .foregroundStyle(createInk)
                     }
                     .prominentButtonStyle()
                     .disabled(!isCreateEnabled)
@@ -174,10 +175,20 @@ struct NewPublicGroupScreen: View {
         case .loading:
             ProgressView()
                 .progressViewStyle(.circular)
-                .tint(.white)
+                .tint(createInk)
         case .success, .successText:
             Image.system(.checkmark)
         }
+    }
+
+    private var isCreateDisabled: Bool {
+        !canCreate || !buttonState.isNormal
+    }
+
+    /// White on the blue pill; in light, where the disabled pill turns pale, `textSecondary`, so the
+    /// label, the spinner and the checkmark stay visible on it.
+    private var createInk: Color {
+        colorScheme == .dark || !isCreateDisabled ? .white : .textSecondary
     }
 
     // MARK: - Form -
@@ -238,7 +249,7 @@ struct NewPublicGroupScreen: View {
             if let caption = model.requirementCaption {
                 Text(caption)
                     .font(.default(size: 13, weight: .medium))
-                    .foregroundStyle(Color.textMain.opacity(0.5))
+                    .foregroundStyle(Color.newGroupSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 12)
                     .accessibilityIdentifier("new-group-requirement-caption")
@@ -260,7 +271,7 @@ struct NewPublicGroupScreen: View {
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
             .font(.default(size: 17, weight: .bold))
-            .foregroundStyle(Color.textMain.opacity(0.5))
+            .foregroundStyle(Color.newGroupSecondary)
             .padding(.horizontal, 12)
     }
 
@@ -466,7 +477,15 @@ private struct GroupPictureTile: View {
             }
             .compositingGroup()
             .clipShape(Circle())
-            .overlay { Circle().strokeBorder(Color.white.opacity(0.17)) }
+            .overlay { Circle().strokeBorder(Color.newGroupPictureEdge) }
             .contentShape(Circle())
     }
+}
+
+private extension Color {
+    /// A section's header and the caption under it: white at half strength in dark, a grey that holds
+    /// 4.5:1 in light.
+    static let newGroupSecondary = Color(light: Color(r: 99, g: 99, b: 102), dark: .white.opacity(0.5))
+    /// The picture tile's edge: a white hairline in dark, Apple's separator in light.
+    static let newGroupPictureEdge = Color(light: Color(r: 60, g: 60, b: 67, o: 0.29), dark: .white.opacity(0.17))
 }

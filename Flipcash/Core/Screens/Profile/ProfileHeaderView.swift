@@ -102,6 +102,56 @@ struct ProfileHeaderView<Avatar: View, BannerControls: View, CoverAccessory: Vie
     }
 }
 
+extension View {
+
+    /// Draws the bars light-on-dark while the header's cover photo is under them, in light as in
+    /// dark, and hands them back to the page once it has scrolled away. Apply to the scroll view
+    /// the header heads, after it runs under the status bar.
+    func profileCoverBar(hasPhoto: Bool) -> some View {
+        modifier(ProfileCoverBar(hasPhoto: hasPhoto))
+    }
+}
+
+/// The bars' scheme over a profile's cover. Before iOS 26 the bar is the app's opaque slab, which
+/// hides the cover's top, so there is nothing to change.
+private struct ProfileCoverBar: ViewModifier {
+
+    let hasPhoto: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// The status and navigation bars' height, which the cover runs under.
+    @State private var topInset: CGFloat = 0
+    /// Whether the cover's bottom edge is still below the bars'.
+    @State private var isUnderCover = true
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            let coverScroll = ProfileCoverBanner<EmptyView>.height - topInset
+            content
+                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top < coverScroll
+                } action: { _, isUnder in
+                    isUnderCover = isUnder
+                }
+                .toolbarColorScheme(barScheme, for: .navigationBar)
+                // After the scheme, which gives the screen its own bar appearance without the
+                // app's arrow.
+                .background { AppBackIndicator(barScheme: barScheme).frame(width: 0, height: 0) }
+        } else {
+            content
+        }
+    }
+
+    /// Dark already draws the bars light-on-dark and keeps the app's shared bar; the gray
+    /// placeholder of a profile without a photo keeps the page's scheme.
+    private var barScheme: ColorScheme? {
+        guard colorScheme == .light, hasPhoto else { return nil }
+        return isUnderCover ? .dark : .light
+    }
+}
+
 /// A person's avatar for the header's avatar slot: their picture, or their monogram, at the
 /// header's size.
 struct ProfileHeaderAvatar: View {

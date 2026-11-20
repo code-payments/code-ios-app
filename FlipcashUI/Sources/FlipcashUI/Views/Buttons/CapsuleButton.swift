@@ -31,7 +31,7 @@ public struct CapsuleButton: View {
     public init(state: ButtonState, asset: Asset, title: String?, action: @escaping VoidAction) {
         self.init(
             state: state,
-            image: Image.asset(asset),
+            image: Image.asset(asset).renderingMode(.template),
             title: title,
             action: action
         )

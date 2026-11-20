@@ -59,7 +59,7 @@ struct InviteLinkPanel: View {
         .lineLimit(1)
         .padding(.horizontal, 16)
         .frame(height: 48)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.fillSubtle, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityIdentifier("invite-link-pill")
     }
 

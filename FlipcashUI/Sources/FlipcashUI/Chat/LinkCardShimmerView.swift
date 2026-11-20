@@ -35,6 +35,8 @@ final class LinkCardShimmerView: UIView {
     private static let animationKey = "shimmer"
 
     private let sweep = CAGradientLayer()
+    /// The band's colour, kept so the gradient can be repainted when the appearance changes.
+    private let highlight: UIColor
 
     /// Whether the card wants this shimmering. The sweep also needs a window and motion allowed —
     /// see ``updateSweep()``.
@@ -47,6 +49,7 @@ final class LinkCardShimmerView: UIView {
     ///   - highlight: the colour the band passes in. Chosen against what it sweeps over, which is
     ///     the card's paper for a slot and the mint's stand-in ground for a surface.
     init(ground: UIColor?, highlight: UIColor) {
+        self.highlight = highlight
         super.init(frame: .zero)
         isUserInteractionEnabled = false
         isAccessibilityElement = false
@@ -55,13 +58,12 @@ final class LinkCardShimmerView: UIView {
 
         sweep.startPoint = CGPoint(x: 0, y: 0.5)
         sweep.endPoint = CGPoint(x: 1, y: 0.5)
-        sweep.colors = [
-            highlight.withAlphaComponent(0).cgColor,
-            highlight.cgColor,
-            highlight.withAlphaComponent(0).cgColor,
-        ]
+        applySweepColors()
         sweep.locations = [0, 0.5, 1]
         layer.addSublayer(sweep)
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.applySweepColors()
+        }
 
         // Core Animation drops a repeating animation when the app leaves the screen; a card still
         // waiting on its lookup when the reader comes back would otherwise sit frozen mid-pass.
@@ -88,6 +90,16 @@ final class LinkCardShimmerView: UIView {
             outline.mask.path = BubbleBackgroundView.path(radii: outline.radii, in: bounds)
         }
         CATransaction.commit()
+    }
+
+    /// Paints the band in this view's appearance.
+    private func applySweepColors() {
+        let band = highlight.resolvedColor(with: traitCollection)
+        sweep.colors = [
+            band.withAlphaComponent(0).cgColor,
+            band.cgColor,
+            band.withAlphaComponent(0).cgColor,
+        ]
     }
 
     override func didMoveToWindow() {

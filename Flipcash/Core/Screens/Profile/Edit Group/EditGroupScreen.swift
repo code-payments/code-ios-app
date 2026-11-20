@@ -137,8 +137,10 @@ struct EditGroupScreen: View {
 
     private var cameraBadge: some View {
         Image.asset(.camera)
+            .renderingMode(.template)
             .resizable()
             .scaledToFit()
+            .foregroundStyle(Color.textMain)
             .frame(width: 16, height: 16)
             .frame(width: 28, height: 28)
             .background(Circle().fill(Color.action.opacity(0.1)))

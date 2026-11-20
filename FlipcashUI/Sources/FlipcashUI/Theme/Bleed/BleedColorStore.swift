@@ -17,12 +17,13 @@ final class BleedColorStore {
     private struct PaletteKey: Hashable {
         let base: BleedRGB
         let settings: BleedSettings
+        let colorScheme: ColorScheme
     }
 
     private var colors: [String: ObservableBox<BleedRGB>] = [:]
     private var inFlight: [String: Task<BleedRGB?, Never>] = [:]
-    /// Palettes are pure functions of (color, settings); building one runs OKLab conversions, a
-    /// gamut search and contrast loops, so each is built once.
+    /// Palettes are pure functions of (color, settings, scheme); building one runs OKLab
+    /// conversions, a gamut search and contrast loops, so each is built once.
     private var palettes: [PaletteKey: BleedPalette] = [:]
 
     /// The cached color for `id`, or `nil` before it resolves.
@@ -30,11 +31,11 @@ final class BleedColorStore {
         box(for: id).value
     }
 
-    /// The palette for an extracted color, memoized.
-    func palette(for base: BleedRGB, settings: BleedSettings) -> BleedPalette {
-        let key = PaletteKey(base: base, settings: settings)
+    /// The palette for an extracted color in `colorScheme`, memoized.
+    func palette(for base: BleedRGB, settings: BleedSettings, colorScheme: ColorScheme) -> BleedPalette {
+        let key = PaletteKey(base: base, settings: settings, colorScheme: colorScheme)
         if let palette = palettes[key] { return palette }
-        let palette = BleedPalette(base: base, settings: settings)
+        let palette = BleedPalette(base: base, settings: settings, colorScheme: colorScheme)
         palettes[key] = palette
         return palette
     }

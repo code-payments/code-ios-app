@@ -15,6 +15,7 @@ public struct TrayPage<Content: View>: View {
     private let content: Content?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Creates a page with `content` under the title and message.
     public init(title: String, message: String? = nil, @ViewBuilder content: () -> Content) {
@@ -49,9 +50,8 @@ public struct TrayPage<Content: View>: View {
                 Text(message)
                     .font(.system(size: TrayMetrics.scaled(TrayMetrics.bodySize, .subheadline, dynamicTypeSize)))
                     .lineSpacing(TrayMetrics.bodyLineSpacing(dynamicTypeSize))
-                    // Dark-mode vibrancy: light ink added onto what's beneath it.
-                    .foregroundStyle(Color.white.opacity(TrayMetrics.bodyOpacity))
-                    .blendMode(.plusLighter)
+                    .foregroundStyle(Color.textMain.opacity(TrayMetrics.bodyOpacity))
+                    .blendMode(TrayMetrics.bodyBlend(colorScheme))
                     .padding(.top, title == nil ? 0 : TrayMetrics.titleToBody)
             }
 

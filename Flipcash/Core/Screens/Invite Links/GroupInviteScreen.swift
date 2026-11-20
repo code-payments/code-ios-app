@@ -131,6 +131,7 @@ struct GroupInviteScreen: View {
             }
             .scrollIndicators(.hidden)
             .ignoresSafeArea(edges: .top)
+            .profileCoverBar(hasPhoto: conversation.coverPicture != nil)
         }
         .scrollEdgeBar(.bottom) {
             Group {
@@ -183,7 +184,7 @@ struct GroupInviteScreen: View {
             } label: {
                 Label("Report", systemImage: "exclamationmark.bubble")
             }
-            // Menu icons follow the app's white tint while the title follows the role.
+            // Menu icons follow the app's textMain tint while the title follows the role.
             .tint(.red)
         } label: {
             Image.system(.ellipsis)

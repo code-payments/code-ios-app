@@ -47,13 +47,16 @@ public struct MessageLinkBackChip: View {
 /// Glass on iOS 26, like the composer and the other floating chat surfaces; below that, a flat
 /// white fill with the link card's hairline border.
 private struct ChipBackground: ViewModifier {
+    /// White at 12% in dark, Apple's secondary fill in light.
+    private static let fill = Color(light: Color(r: 120, g: 120, b: 128, o: 0.16), dark: .white.opacity(0.12))
+
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content.glassEffect(.regular.interactive(), in: .capsule)
         } else {
             content
-                .background(Color.white.opacity(0.12), in: Capsule())
-                .overlay(Capsule().strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity), lineWidth: 1))
+                .background(Self.fill, in: Capsule())
+                .overlay(Capsule().strokeBorder(LinkCardMetrics.border, lineWidth: 1))
         }
     }
 }

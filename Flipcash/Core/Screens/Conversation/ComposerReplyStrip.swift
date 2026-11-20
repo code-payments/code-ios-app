@@ -44,7 +44,7 @@ struct ComposerReplyStrip: View {
 
     var body: some View {
         // One colour for the rule and the name, so the rule keeps the name's contrast on the surface.
-        let name = ComplementaryPalette.nameColor(for: target.authorID)
+        let name = ComplementaryPalette.adaptiveNameColor(for: target.authorID)
 
         HStack(alignment: .center, spacing: Self.gutter) {
             ChatQuoteContent(
@@ -177,7 +177,7 @@ struct ChatQuoteContent: View {
         switch kind {
         case .media(let thumbnailBlobID?, _):
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.fillSubtle)
                 .overlay {
                     if let resolvedThumbnail {
                         KFImage(source: ChatMediaImageSource.source(blobID: thumbnailBlobID, location: resolvedThumbnail))

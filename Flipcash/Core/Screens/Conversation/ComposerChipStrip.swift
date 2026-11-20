@@ -130,7 +130,8 @@ private struct ComposerChipView: View {
                         .scaledToFill()
                 }
             }
-            .overlay { badge }
+            // Drawn on a scrim over the photo, so the badges keep their dark ink whatever the appearance.
+            .overlay { badge.environment(\.colorScheme, .dark) }
             .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .frame(width: size, height: size)
         .overlay(alignment: .topTrailing) {
@@ -182,6 +183,8 @@ struct ComposerLinkChip: View {
     let onRemove: () -> Void
 
     private static let cardCornerRadius: CGFloat = 14
+    /// The card's fill: a recess darker than the composer glass in dark, Apple's quaternary fill in light.
+    private static let cardFill = Color(light: Color(r: 116, g: 116, b: 128, o: 0.08), dark: .black.opacity(0.25))
     private static let imageCornerRadius: CGFloat = 8
     private static let imageSize: CGFloat = 44
     private static let maxCardWidth: CGFloat = 280
@@ -202,7 +205,7 @@ struct ComposerLinkChip: View {
         }
         .padding(12)
         .frame(maxWidth: Self.maxCardWidth, alignment: .leading)
-        .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: Self.cardCornerRadius))
+        .background(Self.cardFill, in: RoundedRectangle(cornerRadius: Self.cardCornerRadius))
         .overlay(alignment: .topTrailing) {
             ComposerChipRemoveButton(
                 label: "Remove link preview",
@@ -240,7 +243,7 @@ struct ComposerLinkChip: View {
             } else {
                 Image.icon(.chainLink4)
                     .iconSize(24)
-                    .foregroundStyle(Color.white.opacity(0.6))
+                    .foregroundStyle(Color.textMain.opacity(0.6))
             }
         }
     }
@@ -295,7 +298,7 @@ private struct ComposerChipRemoveButton: View {
         Button(action: action) {
             Image.icon(.circleXFilled)
                 .iconSize(22)
-                .foregroundStyle(Color.white)
+                .foregroundStyle(Color.textMain)
                 // The glyph's ✕ is a hole in its disc, which vanishes over a light photo. A disc of
                 // the chat's ground under the glyph's middle half draws the ✕ instead.
                 .background { Circle().fill(Color.backgroundMain).scaleEffect(0.5) }

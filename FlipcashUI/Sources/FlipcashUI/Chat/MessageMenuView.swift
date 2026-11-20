@@ -27,6 +27,8 @@ final class MessageMenuView: UIView {
     private static let dividerHeight: CGFloat = 13
     /// The muted, non-interactive row above the actions that carries the message's full send time.
     private static let headerHeight: CGFloat = 32
+    /// The header's muted ink.
+    private static let headerColor = ChatStyle.uiInk(dark: 0.6, light: 0.6)
 
     private let actions: [UIAction]
     private let surface: UIView
@@ -92,7 +94,7 @@ final class MessageMenuView: UIView {
             ))
             label.text = header
             label.font = .default(size: 13, weight: .regular)
-            label.textColor = UIColor.white.withAlphaComponent(0.6)
+            label.textColor = Self.headerColor
             label.autoresizingMask = [.flexibleWidth]
             label.isAccessibilityElement = true
             label.accessibilityTraits = .staticText

@@ -25,6 +25,7 @@ struct IntroScreen: View {
 private struct IntroScreenContent: View {
 
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
@@ -49,7 +50,7 @@ private struct IntroScreenContent: View {
     var body: some View {
         if isAwaitingResume {
             Background(color: .backgroundMain) {
-                LoadingView(color: .white)
+                LoadingView(color: .textMain)
             }
             .task(id: sessionAuthenticator.pendingOnboarding?.keyAccount.ownerPublicKey.base58, resumeIfPending)
         } else {
@@ -76,6 +77,8 @@ private struct IntroScreenContent: View {
                         
                         VStack(spacing: 20) {
                             Image.asset(.flipcashBrand)
+                                .renderingMode(.template)
+                                .foregroundStyle(Color.textMain)
                         }
                         
                         Spacer()
@@ -129,7 +132,7 @@ private struct IntroScreenContent: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .foregroundStyle(.textSecondary)
                     .font(.appTextHeading)
-                    .opacity(0.5)
+                    .opacity(colorScheme.legalFooterOpacity)
                     .padding(30)
                 }
             }
@@ -188,6 +191,19 @@ private struct IntroScreenContent: View {
             }
         }
         .task(id: sessionAuthenticator.pendingOnboarding?.keyAccount.ownerPublicKey.base58, resumeIfPending)
+    }
+}
+
+private extension ColorScheme {
+
+    /// The legal footer's strength over `textSecondary`: half in dark, as designed, and whole in
+    /// light, where half of `textSecondary` on white falls to 2:1.
+    var legalFooterOpacity: Double {
+        switch self {
+        case .dark: 0.5
+        case .light: 1
+        @unknown default: 1
+        }
     }
 }
 

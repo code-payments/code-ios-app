@@ -68,10 +68,11 @@ enum PhotoLibrary {
     
     private static func createSnapshotImage(mnemonic: MnemonicPhrase) -> UIImage {
         let controller = UIHostingController(rootView: Snapshot(mnemonic: mnemonic))
+        controller.overrideUserInterfaceStyle = .dark
         
         let rect = CGRect.iPhone13
         let view = controller.view!
-        view.backgroundColor = .background
+        view.backgroundColor = UIColor.background.resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark))
         view.bounds = rect
         
         let renderer = UIGraphicsImageRenderer(bounds: rect)

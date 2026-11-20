@@ -59,7 +59,7 @@ struct ConversationGatePanel: View {
     private func readOnlyPill(_ sentence: String) -> some View {
         Text(sentence)
             .font(.appTextMedium)
-            .foregroundStyle(Color.textMain.opacity(Layout.pillTextOpacity))
+            .foregroundStyle(Layout.pillText)
             .lineLimit(1)
             .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity)
@@ -122,7 +122,7 @@ struct ConversationGatePanel: View {
             if let sentence {
                 Text(sentence)
                     .font(.appTextSmall)
-                    .foregroundStyle(Color.textMain.opacity(0.5))
+                    .foregroundStyle(Layout.cardText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
             }
@@ -262,8 +262,12 @@ struct ConversationGatePanel: View {
         static let cardTopPadding: CGFloat = 12
         static let cardPadding: CGFloat = 6
         static let gap: CGFloat = 12
-        /// The pill's line, muted as the design draws it (node 10588:1969).
-        static let pillTextOpacity: Double = 0.4
+        /// The pill's line, muted as the design draws it (node 10588:1969); in light, a grey that
+        /// holds 4.5:1 on the white glass.
+        static let pillText = Color(light: Color(r: 109, g: 109, b: 114), dark: .white.opacity(0.4))
+        /// The card's sentence: white at half strength in dark, a grey that holds 4.5:1 on the frosted
+        /// card in light.
+        static let cardText = Color(light: Color(r: 99, g: 99, b: 102), dark: .white.opacity(0.5))
         static let pillFillOpacity: Double = 0.46
     }
 }

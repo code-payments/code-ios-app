@@ -20,7 +20,7 @@ struct CurrencyDiscoverySkeletonRow: View {
                 .unredacted()
 
             Circle()
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.fillSubtle)
                 .frame(width: 40, height: 40)
 
             VStack(alignment: .leading, spacing: 2) {
