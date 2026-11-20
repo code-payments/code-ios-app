@@ -28,6 +28,12 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
     @State private var unlinkAlertTitle: String?
     @State private var unlinkAlertMessage: String?
     @State private var isShowingUnlinkAlert: Bool = false
+    #if DEBUG
+    /// The tray the showcase has up over this screen.
+    @State private var showcaseTray: TrayKind?
+    /// Whether the swipe showcase is up over this screen.
+    @State private var isShowingSwipeShowcase = false
+    #endif
 
     private let publicOptions = BetaFlags.Option.allCases.filter { $0.availability == .publicBeta }
 
@@ -51,6 +57,17 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
                 }
             } else {
                 LazyTable(spacing: 0) {
+                    #if DEBUG
+                    SettingsSectionHeader("Tray Showcase")
+                    ForEach(TrayKind.allCases) { kind in
+                        unlinkRow(title: kind.name, isDisabled: false) { showcaseTray = kind }
+                            .accessibilityIdentifier("tray-showcase-\(kind.rawValue)")
+                    }
+                    SettingsSectionHeader("Swipe Showcase")
+                    unlinkRow(title: "Swipe to Send", isDisabled: false) { isShowingSwipeShowcase = true }
+                        .accessibilityIdentifier("swipe-showcase")
+                    #endif
+
                     ForEach(publicOptions) { option in
                         BetaFlagToggleRow(option: option, isOn: betaFlags.bindingFor(option: option))
                     }
@@ -84,6 +101,17 @@ struct SettingsAdvancedBetaFeaturesScreen: View {
         }
         .navigationTitle("Beta Features")
         .toolbarTitleDisplayMode(.inline)
+        #if DEBUG
+        // Each showcase tray comes up over this screen, as it would over any other.
+        .tray(item: $showcaseTray, isDismissable: showcaseTray?.isDismissable ?? true) { kind in
+            kind.tray
+        }
+        // The swipe showcase comes up in a sheet, as the send screen does.
+        .sheet(isPresented: $isShowingSwipeShowcase) {
+            SwipeShowcaseHost()
+                .presentationDragIndicator(.visible)
+        }
+        #endif
         .alert(
             "Unlink Email?",
             isPresented: $isConfirmingUnlinkEmail
