@@ -682,7 +682,7 @@ private struct PaymentRequestPaySheet: View {
     var body: some View {
         // A collection that conversions fund draws its paying currency, fee line and Payment Details.
         let funding = payment.fundsCollection ? payment.fundingSheet : nil
-        let showsDetails = isShowingDetails && funding?.feeLine != nil
+        let showsDetails = isShowingDetails && funding?.detailsEntries.isEmpty == false
         PartialSheet(background: .clear) {
             Group {
                 if payment.isFinishing {
@@ -701,9 +701,10 @@ private struct PaymentRequestPaySheet: View {
             .padding(.top, showsDetails && !payment.isFinishing ? 20 : 30)
             .padding(.bottom, bottomPadding)
         }
-        // A plan that stops converting has no details to show; don't reopen them when it returns.
-        .onChange(of: funding?.feeLine == nil) { _, hasNoFee in
-            if hasNoFee { isShowingDetails = false }
+        // A plan that stops converting and isn't short has no line to open details from; don't
+        // reopen them when one returns.
+        .onChange(of: funding?.detailsEntries.isEmpty ?? true) { _, hasNoEntry in
+            if hasNoEntry { isShowingDetails = false }
         }
         // A top-up an earlier attempt ordered, say before the app was closed, is waited on and paid
         // from as the sheet opens, with no second order.
@@ -769,7 +770,7 @@ private struct PaymentRequestPaySheet: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.4)
                 if let feeLine {
-                    CollectionPaymentFeeLine(text: feeLine) { isShowingDetails = true }
+                    CollectionPaymentInfoLine(text: feeLine) { isShowingDetails = true }
                 }
                 TokenSelectorButton(selectedBalance: shownBalance, showsChevron: !payment.fundsCollection) {
                     isShowingTokenSelection = true
@@ -780,9 +781,8 @@ private struct PaymentRequestPaySheet: View {
             }
             if let topUp {
                 VStack(spacing: 16) {
-                    Text(topUp.shortBy)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textSecondary)
+                    // Opens Payment Details as the fee line does (7.3).
+                    CollectionPaymentInfoLine(text: topUp.shortBy, font: .appTextMedium) { isShowingDetails = true }
                     Button { addAndPay(topUp) } label: {
                         if isAdding {
                             ProgressView().progressViewStyle(.circular)

@@ -8,7 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// What the pay sheet draws for a collection that conversions fund: the fee line under the amount,
-/// and the Payment Details sheet its ⓘ opens.
+/// the short line over the Add button, and the Payment Details sheet their ⓘ opens.
 nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
 
     struct Line: Equatable, Sendable {
@@ -66,6 +66,23 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
     /// "Total": the amounts sold, fees included.
     let total: CollectionFundingDisplay.Row
 
+    /// A pay sheet line that ends in ⓘ and opens Payment Details.
+    enum DetailsEntry: Equatable, Sendable {
+        /// "plus ~$0.02 of conversion fees" (5.2).
+        case feeLine
+        /// "You’re $2.04 Short", the only way to 7.3, since 7.2 draws no fee line.
+        case shortLine
+    }
+
+    /// The lines that open Payment Details, top to bottom; both open the same sheet. Empty when the
+    /// payment converts nothing and isn't short.
+    var detailsEntries: [DetailsEntry] {
+        var entries: [DetailsEntry] = []
+        if feeLine != nil { entries.append(.feeLine) }
+        if topUp != nil { entries.append(.shortLine) }
+        return entries
+    }
+
     init(plan: CollectionFundingPlan, display: CollectionFundingDisplay, currency: CurrencyCode) {
         feeLine = display.modalFee
         let topUp = plan.payableWithoutTopUp ? nil : Self.topUp(plan: plan, currency: currency)
@@ -114,20 +131,24 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
     }
 }
 
-/// The modal's fee line with its info affordance, which opens Payment Details.
-struct CollectionPaymentFeeLine: View {
+/// A pay sheet line that ends in the info affordance and opens Payment Details when tapped
+/// anywhere: the fee line, and the short line in `font`. The ⓘ draws the same on both.
+struct CollectionPaymentInfoLine: View {
 
     let text: String
+    var font: Font = .appTextCaption
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Text(text)
+                    .font(font)
                 Image.system(.info)
+                    .font(.appTextCaption)
             }
-            .font(.appTextCaption)
             .foregroundStyle(Color.textSecondary)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(text), Payment Details")

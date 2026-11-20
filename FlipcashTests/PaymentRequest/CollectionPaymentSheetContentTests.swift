@@ -63,6 +63,7 @@ struct CollectionPaymentSheetContentTests {
         let content = try Self.content(balances: Self.dollarsAndJeffy)
 
         #expect(content.feeLine == "plus ~$0.02 of conversion fees")
+        #expect(content.detailsEntries == [.feeLine])
         #expect(content.payingCurrency == Self.dollars)
         #expect(content.pay == Line(currency: Self.dollars, name: "Dollars", amount: "$10.00", sublabels: []))
         #expect(content.use == [
@@ -119,6 +120,7 @@ struct CollectionPaymentSheetContentTests {
         let content = try Self.content(balances: [(Self.dollars, "Dollars", 12_000_000, 0)])
 
         #expect(content.feeLine == nil)
+        #expect(content.detailsEntries.isEmpty)
     }
 
     @Test("A payment the balances cover draws no short state")
@@ -186,6 +188,24 @@ struct CollectionPaymentSheetContentTests {
         #expect(content.total == .init(label: "Total", amount: "$11.00"))
     }
 
+    @Test("7.2 to 7.3: with no fee line, the short line is what opens Payment Details, and it opens on 7.3")
+    func shortLineOpensDetails() throws {
+        let content = try Self.content(amountMicros: 11_000_000, balances: [
+            (Self.dollars, "Dollars", 6_000_000, 0),
+            ("jeffy", "Jeffy", 2_990_000, 100),
+        ])
+
+        #expect(content.detailsEntries == [.shortLine])
+        #expect(content.topUp?.shortBy == "You’re $2.04 Short")
+        // 7.3: one Dollars row split between the balance and Apple Pay, then the total.
+        #expect(CollectionPaymentSheetContent.title == "Payment Details")
+        #expect(content.pay == Line(currency: Self.dollars, name: "Dollars", amount: "$11.00", sublabels: []))
+        #expect(content.use == [
+            Line(currency: Self.dollars, name: "Dollars", amount: "$11.00", sublabels: ["$6.00 from balance", "$5.00 from Apple Pay"]),
+        ])
+        #expect(content.total == .init(label: "Total", amount: "$11.00"))
+    }
+
     @Test("8.2: an exact-cents top-up above the minimum, with the fee line from the plan after it")
     func section8() throws {
         let content = try Self.content(amountMicros: 21_000_000, lastPaid: "jeffy", balances: [
@@ -198,6 +218,8 @@ struct CollectionPaymentSheetContentTests {
             micros: 12_040_000, shortBy: "You’re $12.04 Short", button: "Add $12.04 and Pay $21.00", footnote: Self.footnote
         ))
         #expect(content.feeLine == "plus ~$0.04 of conversion fees")
+        // Both lines end in ⓘ and open the same Payment Details.
+        #expect(content.detailsEntries == [.feeLine, .shortLine])
         #expect(content.pay == Line(currency: "jeffy", name: "Jeffy", amount: "$21.00", sublabels: []))
         #expect(content.use == [
             Line(currency: "jeffy", name: "Jeffy", amount: "$3.00", sublabels: []),
