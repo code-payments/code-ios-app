@@ -350,7 +350,7 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.payer.payments.first?.amount.nativeAmount == FiatAmount(value: 10, currency: .usd))
         #expect(f.payer.payments.first?.amount.mint == .usdf)
         #expect(f.fundingStore.lastPaidCurrency == PublicKey.usdf.base58)
-        #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58) == nil)
+        #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58, destination: PublicKey.usdf.base58) == nil)
     }
 
     @Test("With no Dollars account listed yet, the pill still says Dollars and Jeffy funds the payment")
@@ -418,7 +418,7 @@ struct PaymentRequestCollectionFundingTests {
         #expect(await f.payment.prepare() == .ready)
         #expect(await f.payment.submit() == .failed)
         let kept = try #require(f.swapper.submitted.first?.id)
-        #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58) == kept)
+        #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58, destination: PublicKey.usdf.base58) == kept)
         #expect(f.container.session.dialogItem?.title == "Conversion Pending")
         #expect(f.container.session.dialogItem?.subtitle == "Your conversion is still pending. Try again shortly.")
 
@@ -430,7 +430,7 @@ struct PaymentRequestCollectionFundingTests {
         #expect(server.intentReads == 2)
         #expect(f.swapper.submitted.count == 1)
         #expect(f.payer.payments.isEmpty)
-        #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58) == nil)
+        #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58, destination: PublicKey.usdf.base58) == nil)
     }
 
     @Test("A shortfall conversions can't cover returns the short state and converts or orders nothing")

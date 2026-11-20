@@ -7,8 +7,9 @@ import Foundation
 import FlipcashCore
 
 /// What a collection payment remembers across launches, per user: the swap id and funding intent
-/// id each funding leg started under, so a retry finds that swap instead of starting a second one
-/// and never funds it under a second intent, the top-up a payment
+/// id each funding leg started under, with the currency it converts from and into, so a retry for
+/// the same pair finds that swap instead of starting a second one and never funds it under a second
+/// intent, the top-up a payment
 /// ordered, so a retry waits on it instead of ordering again, and the currency the user last paid
 /// a collection in, which the next collection's picker opens on.
 @MainActor
@@ -85,27 +86,55 @@ final class CollectionFundingStore {
         }
     }
 
-    /// The ids the leg converting out of `source` started under for `requestID`, if its swap is pending.
-    func legIDs(for requestID: PaymentRequestID, source: String) -> LegIDs? {
-        swaps[Self.key(requestID, source)].flatMap(LegIDs.init(stored:))
+    /// A leg kept for a request, out of one source.
+    struct KeptLeg: Equatable {
+        /// The mint (base58) the leg converts into. Nil for a leg stored before destinations were
+        /// kept, which matches no plan's leg.
+        let destination: String?
+        let ids: LegIDs
     }
 
-    /// The swap id the leg converting out of `source` started for `requestID`, if one is pending.
-    func swapID(for requestID: PaymentRequestID, source: String) -> SwapId? {
-        legIDs(for: requestID, source: source)?.swapID
+    /// The ids the leg converting `source` into `destination` started under for `requestID`, if its
+    /// swap is pending.
+    func legIDs(for requestID: PaymentRequestID, source: String, destination: String) -> LegIDs? {
+        swaps[Self.key(requestID, source, destination)].flatMap(LegIDs.init(stored:))
+    }
+
+    /// The swap id the leg converting `source` into `destination` started for `requestID`, if one
+    /// is pending.
+    func swapID(for requestID: PaymentRequestID, source: String, destination: String) -> SwapId? {
+        legIDs(for: requestID, source: source, destination: destination)?.swapID
+    }
+
+    /// Every leg out of `source` kept for `requestID`, whatever it converts into.
+    func keptLegs(for requestID: PaymentRequestID, source: String) -> [KeptLeg] {
+        let legacy = Self.key(requestID, source)
+        let prefix = legacy + "|"
+        return swaps.compactMap { key, data in
+            let destination: String?
+            if key == legacy {
+                destination = nil
+            } else if key.hasPrefix(prefix) {
+                destination = String(key.dropFirst(prefix.count))
+            } else {
+                return nil
+            }
+            return LegIDs(stored: data).map { KeptLeg(destination: destination, ids: $0) }
+        }
     }
 
     /// Records a leg's ids before its swap starts, so an attempt that dies mid-swap leaves both behind.
-    func setLegIDs(_ ids: LegIDs, for requestID: PaymentRequestID, source: String) {
+    func setLegIDs(_ ids: LegIDs, for requestID: PaymentRequestID, source: String, destination: String) {
         var swaps = swaps
-        swaps[Self.key(requestID, source)] = ids.stored
+        swaps[Self.key(requestID, source, destination)] = ids.stored
         self.swaps = swaps
     }
 
-    /// Forgets a leg's swap once it is terminal, so a later leg from the same source gets its own id.
-    func removeSwapID(for requestID: PaymentRequestID, source: String) {
+    /// Forgets a leg's swap once it is terminal, so a later leg for the same pair gets its own id.
+    /// A nil `destination` names a leg stored before destinations were kept.
+    func removeSwapID(for requestID: PaymentRequestID, source: String, destination: String?) {
         var swaps = swaps
-        swaps[Self.key(requestID, source)] = nil
+        swaps[destination.map { Self.key(requestID, source, $0) } ?? Self.key(requestID, source)] = nil
         self.swaps = swaps
     }
 
@@ -172,7 +201,12 @@ final class CollectionFundingStore {
         "\(requestID.data.hexEncodedString())|"
     }
 
+    /// The key a leg stored before destinations were kept is under.
     private static func key(_ requestID: PaymentRequestID, _ source: String) -> String {
         prefix(requestID) + source
+    }
+
+    private static func key(_ requestID: PaymentRequestID, _ source: String, _ destination: String) -> String {
+        "\(key(requestID, source))|\(destination)"
     }
 }
