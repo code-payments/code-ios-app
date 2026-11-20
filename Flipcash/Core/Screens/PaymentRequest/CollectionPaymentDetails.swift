@@ -269,7 +269,7 @@ struct CollectionPaymentDetailsView: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color.textMain)
                         .frame(width: 44, height: 44)
-                        .background(Circle().fill(Color.white.opacity(0.1)))
+                        .background(Circle().fill(Color.fillControl))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
