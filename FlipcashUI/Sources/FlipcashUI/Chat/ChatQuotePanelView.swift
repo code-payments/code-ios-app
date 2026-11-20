@@ -230,7 +230,7 @@ final class ChatQuotePanelView: UIView {
         let nameColor = ComplementaryPalette.uiAdaptiveNameColor(for: quote.authorID)
         // In light the rule takes the name's darkened colour, since the raw stop all but vanishes
         // into its own tint on a pale bubble; dark keeps the stop.
-        rule.backgroundColor = UIColor { ($0.userInterfaceStyle == .light ? nameColor : ruleColor).resolvedColor(with: $0) }
+        rule.backgroundColor = UIColor { @Sendable in ($0.userInterfaceStyle == .light ? nameColor : ruleColor).resolvedColor(with: $0) }
         authorLabel.textColor = nameColor
         tintView.backgroundColor = ruleColor.withAlphaComponent(Self.cellTint)
         // An unavailable original has no author to name, so the author line collapses rather than

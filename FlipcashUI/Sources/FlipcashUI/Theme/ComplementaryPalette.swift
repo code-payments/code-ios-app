@@ -100,7 +100,7 @@ public enum ComplementaryPalette {
         guard let rgb = lightNameRGB(for: id) else { return UIColor(Color.textSecondary) }
         let dark = uiNameColor(for: id)
         let light = UIColor(red: rgb.r, green: rgb.g, blue: rgb.b, alpha: 1)
-        return UIColor { $0.userInterfaceStyle == .light ? light : dark }
+        return UIColor { @Sendable in $0.userInterfaceStyle == .light ? light : dark }
     }
     #endif
 

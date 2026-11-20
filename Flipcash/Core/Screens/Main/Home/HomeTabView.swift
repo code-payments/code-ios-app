@@ -180,8 +180,8 @@ struct HomeTabView: View {
     static func tabBarAppearance() -> UITabBarAppearance {
         // Dynamic, so the appearance proxy re-resolves both on an appearance change.
         let ink = UIColor(Color.textMain)
-        let selectedColor = UIColor { ink.resolvedColor(with: $0) }
-        let normalColor = UIColor { traits in
+        let selectedColor = UIColor { @Sendable in ink.resolvedColor(with: $0) }
+        let normalColor = UIColor { @Sendable traits in
             let dim = TabBarItemStyle.unselectedOpacity(for: traits.userInterfaceStyle == .light ? .light : .dark)
             return ink.resolvedColor(with: traits).withAlphaComponent(dim)
         }

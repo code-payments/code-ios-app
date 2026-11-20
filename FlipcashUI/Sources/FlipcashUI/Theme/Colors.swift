@@ -130,7 +130,9 @@ extension Color {
     public init(light: Color, dark: Color) {
         let light = UIColor(light)
         let dark = UIColor(dark)
-        self.init(uiColor: UIColor { traits in
+        // UIKit resolves dynamic colours on whatever thread renders, so the provider must not
+        // inherit the module's main-actor isolation.
+        self.init(uiColor: UIColor { @Sendable traits in
             (traits.userInterfaceStyle == .dark ? dark : light).resolvedColor(with: traits)
         })
     }
