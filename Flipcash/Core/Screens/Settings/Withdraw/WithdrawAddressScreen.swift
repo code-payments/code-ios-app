@@ -72,7 +72,8 @@ struct WithdrawAddressScreen: View {
                     .disabled(!canCompleteWithdrawal)
                     .buttonStyle(.filled)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle("Enter Address")
         .toolbarTitleDisplayMode(.inline)

@@ -50,10 +50,11 @@ struct NotificationPermissionScreen: View {
                         .buttonStyle(.filled)
 
                     Button("Not Now", action: viewModel.skipPushNotificationsAction)
-                        .buttonStyle(.subtle)
+                        .buttonStyle(.textLink)
                 }
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePaddingUnderTextLink()
         }
         .navigationBarBackButtonHidden(true)
         .dialog(item: $viewModel.dialogItem)

@@ -185,9 +185,9 @@ struct InviteLinksContent: View {
                 Button("New Link", action: onNewLink)
                     .buttonStyle(.filled)
                     .padding(.horizontal, InviteLinksMetrics.inset)
-                    .padding(.bottom, 16)
                     .accessibilityIdentifier("invite-links-new")
             }
+            .bottomEdgePadding()
         }
     }
 

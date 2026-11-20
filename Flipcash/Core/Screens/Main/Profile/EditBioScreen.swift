@@ -69,7 +69,7 @@ struct EditBioScreen: View {
                 .buttonStyle(.filled)
                 .disabled(!model.canSave)
                 .accessibilityIdentifier("edit-bio-save")
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

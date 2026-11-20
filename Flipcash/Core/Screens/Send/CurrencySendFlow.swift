@@ -199,7 +199,8 @@ private struct CurrencySelectRecipientScreen: View {
                 }
                 // iOS 18 has no edge effect, so the material blurs the rows under the translucent fill.
                 .buttonStyle(.subtle.backed(by: .ultraThinMaterial))
-                .padding(20)
+                .padding([.horizontal, .top], 20)
+                .bottomEdgePadding()
             }
         }
         .navigationTitle("Select Recipient")

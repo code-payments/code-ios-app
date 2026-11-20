@@ -794,7 +794,7 @@ private struct NameStep: View {
             }
             .buttonStyle(.filled)
             .disabled(!state.isCurrencyNameValid || isValidating)
-            .padding(.bottom, 20)
+            .bottomEdgePadding()
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -864,7 +864,7 @@ private struct IconStep: View {
             }
             .buttonStyle(.filled)
             .disabled(state.selectedImage == nil || isValidating)
-            .padding(.bottom, 20)
+            .bottomEdgePadding()
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -927,7 +927,7 @@ private struct DescriptionStep: View {
             }
             .buttonStyle(.filled)
             .disabled(!state.isCurrencyDescriptionValid || isValidating)
-            .padding(.bottom, 20)
+            .bottomEdgePadding()
         }
         .padding(.horizontal, 20)
     }
@@ -1007,7 +1007,7 @@ private struct ConfirmationStep: View {
             .disabled(isValidating)
             .accessibilityIdentifier("launch-pay-button")
             .padding(.top, 20)
-            .padding(.bottom, 20)
+            .bottomEdgePadding()
         }
         .padding(.horizontal, 20)
     }

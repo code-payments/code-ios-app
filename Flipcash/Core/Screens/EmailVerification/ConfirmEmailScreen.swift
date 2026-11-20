@@ -97,7 +97,8 @@ struct ConfirmEmailScreen<VM: EmailVerifying>: View {
                 .buttonStyle(.filled)
                 .disabled(!viewModel.confirmEmailButtonState.isNormal)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
             .foregroundStyle(.textMain)
         }
         .dialog(item: $viewModel.dialogItem)

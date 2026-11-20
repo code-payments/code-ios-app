@@ -44,7 +44,7 @@ struct EditFeaturedGroupsScreen: View {
                     .accessibilityIdentifier("edit-featured-groups-save")
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
-                    .padding(.bottom, 20)
+                    .bottomEdgePadding()
                 }
         }
         .navigationTitle("Favorite Groups")

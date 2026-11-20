@@ -407,7 +407,8 @@ private struct PaymentRequestSummaryScreen: View {
                 }
                 .buttonStyle(.filled)
                 .disabled(!viewModel.canSend || viewModel.isSending)
-                .padding(20)
+                .padding([.horizontal, .top], 20)
+                .bottomEdgePadding()
             }
         }
         .navigationTitle("New Request")
@@ -530,10 +531,10 @@ private struct PaymentRequestNameScreen: View {
                 Button("Done", action: done)
                     .buttonStyle(.filled)
                     .disabled(validated == nil)
-                    .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .bottomEdgePadding()
         }
         .navigationBarTitleDisplayMode(.inline)
         .focusAfterPush($isFocused)

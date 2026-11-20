@@ -69,10 +69,10 @@ struct EditGroupCoverScreen: View {
                 // shut against a second submission.
                 .disabled(!model.canSavePicture || !buttonState.isNormal || isSubmitting)
                 .accessibilityIdentifier("edit-group-cover-save-button")
-                .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .bottomEdgePadding()
         }
         .navigationTitle("Cover")
         .toolbarTitleDisplayMode(.inline)

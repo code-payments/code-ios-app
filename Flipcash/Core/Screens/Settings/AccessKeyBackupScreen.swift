@@ -56,7 +56,8 @@ struct AccessKeyBackupScreen: View {
             }
             .ignoresSafeArea(.keyboard)
             .foregroundStyle(.textMain)
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
             .navigationTitle("Access Key")
             .toolbarTitleDisplayMode(.inline)
         }

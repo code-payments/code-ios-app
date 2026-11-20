@@ -96,7 +96,8 @@ struct ConvertConfirmationScreen: View {
                     .padding(.top, 20)
                 }
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .interactiveDismissDisabled(!viewModel.canDismissSheet)
         .navigationBarBackButtonHidden(!viewModel.actionButtonState.isNormal)

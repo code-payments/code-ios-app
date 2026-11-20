@@ -40,7 +40,8 @@ struct CurrencyInfoErrorView: View {
                 onAction()
             }
             .buttonStyle(.filled)
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
     }
 

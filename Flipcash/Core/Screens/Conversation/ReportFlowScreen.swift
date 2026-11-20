@@ -204,9 +204,9 @@ private struct ReasonStep: View {
             .disabled(state.selectedReason == nil || !state.buttonState.isNormal)
             .accessibilityIdentifier("report-reason-continue")
             .padding(.top, 12)
-            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
+        .bottomEdgePadding()
     }
 }
 
@@ -318,9 +318,9 @@ private struct DetailsStep: View {
             .buttonStyle(.filled)
             .disabled(!ReportFlowState.canSubmitDetails(state.details) || !state.buttonState.isNormal)
             .accessibilityIdentifier("report-submit")
-            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
+        .bottomEdgePadding()
         .onAppear { isFocused = true }
     }
 }
