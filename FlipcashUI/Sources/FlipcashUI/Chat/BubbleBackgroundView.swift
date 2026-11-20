@@ -20,7 +20,7 @@ import SwiftUI
 ///
 /// A bubble run flattens the inner corners
 /// from `baseRadius` to `groupedRadius`, which UIKit's `cornerCurve`/`maskedCorners` can't express,
-/// so the path is taken straight from SwiftUI's `UnevenRoundedRectangle(.continuous)` (pure geometry,
+/// so the path is taken straight from SwiftUI's `UnevenRoundedRectangle` (pure geometry,
 /// no hosted SwiftUI views) and drawn into a `CAShapeLayer`.
 final class BubbleBackgroundView: UIView {
 
@@ -40,8 +40,8 @@ final class BubbleBackgroundView: UIView {
     }
 
     /// Base corner radius; the inner corner of a grouped run uses `groupedRadius`.
-    static let baseRadius: CGFloat = 12
-    static let groupedRadius: CGFloat = 4
+    static var baseRadius: CGFloat { ChatStyle.bubbleRadius }
+    static var groupedRadius: CGFloat { ChatStyle.joinedRadius }
 
     private let shapeMask = CAShapeLayer()
     private let washLayer = CALayer()
@@ -109,6 +109,7 @@ final class BubbleBackgroundView: UIView {
         switch border {
         case .hairline:
             washLayer.isHidden = bare
+            borderLayer.isHidden = bare || !ChatStyle.drawsHairline
             borderLayer.strokeColor = Self.hairlineStroke.cgColor
             borderLayer.lineDashPattern = nil
         case .dashed:
@@ -135,7 +136,7 @@ final class BubbleBackgroundView: UIView {
     /// Whether this chrome draws a bubble: the opaque base, the wash and the hairline border. False
     /// for a bare row, which keeps only the shape mask and the attention layer — the mask because
     /// an unclipped flash would be a rectangle floating where no bubble is.
-    var isDrawingBubble: Bool { !borderLayer.isHidden }
+    var isDrawingBubble: Bool { !washLayer.isHidden || !borderLayer.isHidden }
 
     /// The bubble's continuous, per-corner rounded shape in its own coordinate space — the same
     /// geometry used for the layer mask. Clips the context-menu lift preview to the bubble.
@@ -175,10 +176,7 @@ final class BubbleBackgroundView: UIView {
     func grow(from rect: CGRect, on spring: ChatSpring) {
         layoutIfNeeded()
         guard let end = shapeMask.path else { return }
-        let start = UnevenRoundedRectangle(
-            cornerRadii: Self.radii(isFromSelf: false, groupedAbove: false, groupedBelow: false),
-            style: .continuous
-        ).path(in: rect).cgPath
+        let start = Self.path(radii: Self.radii(isFromSelf: false, groupedAbove: false, groupedBelow: false), in: rect)
         for layer in [shapeMask, borderLayer] {
             layer.add(spring.layerAnimation(keyPath: "path", from: start, to: end), forKey: Self.growKey)
         }
@@ -280,20 +278,30 @@ final class BubbleBackgroundView: UIView {
         view.layer.shadowPath = nil
     }
 
-    /// White-opacity wash for a sender, composited over the conversation background by `apply`.
+    /// A sender's bubble colour, composited over the conversation background by `apply`.
     static func fill(isFromSelf: Bool) -> UIColor {
-        isFromSelf
-            ? UIColor.white.withAlphaComponent(0.10)
-            : UIColor.white.withAlphaComponent(0.05)
+        ChatStyle.fill(isFromSelf: isFromSelf)
     }
 
     /// Every corner at `baseRadius`: a bubble, or a link card, that stands alone.
-    static let standaloneRadii = RectangleCornerRadii(topLeading: baseRadius, bottomLeading: baseRadius, bottomTrailing: baseRadius, topTrailing: baseRadius)
+    static var standaloneRadii: RectangleCornerRadii { RectangleCornerRadii(topLeading: baseRadius, bottomLeading: baseRadius, bottomTrailing: baseRadius, topTrailing: baseRadius) }
 
-    /// The continuous, per-corner rounded outline of `rect`. The one shape every bubble and link
-    /// card in a run is cut to, so a card groups with the text around it exactly as a bubble does.
+    /// The per-corner rounded outline of `rect`. The one shape every bubble and link card in a run
+    /// is cut to, so a card groups with the text around it exactly as a bubble does.
+    ///
+    /// No corner grows past the capsule radius, half the shorter side, so a one-line bubble's round
+    /// end is a true semicircle and a round corner beside a joined one is a quarter of it. Left
+    /// unclamped, a corner bigger than half the height spends the edge its joined neighbour leaves
+    /// free and swells into a long, flat curve.
     static func path(radii: RectangleCornerRadii, in rect: CGRect) -> CGPath {
-        UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: rect).cgPath
+        let capsule = min(rect.width, rect.height) / 2
+        let clamped = RectangleCornerRadii(
+            topLeading: min(radii.topLeading, capsule),
+            bottomLeading: min(radii.bottomLeading, capsule),
+            bottomTrailing: min(radii.bottomTrailing, capsule),
+            topTrailing: min(radii.topTrailing, capsule)
+        )
+        return UnevenRoundedRectangle(cornerRadii: clamped, style: ChatStyle.cornerStyle).path(in: rect).cgPath
     }
 
     /// Per-corner radii: a bubble run flattens the inner corners (nearest the avatar column)

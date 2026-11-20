@@ -152,7 +152,7 @@ public final class ChatViewController: UICollectionViewController {
     public var pendingMediaProgress: ((String) -> ChatPhotoSendProgress?)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
-    static let maxBubbleWidthFraction = ChatPhotoBubbleLayout.widthFraction
+    static let maxBubbleWidthFraction = ChatStyle.maxWidthFraction
 
     /// The widest transcript a card is sized against, in points: a large phone's width. A row that
     /// fills a share of the width (a photo, a cash or link card) keeps its phone size on a wide screen.
@@ -168,14 +168,10 @@ public final class ChatViewController: UICollectionViewController {
         min(width, maxCardLayoutWidth)
     }
 
-    /// A cash card's width as a fraction of the row between the column insets — narrower than a
-    /// bubble, and taken of the inset row rather than the full width. Matches Android's
-    /// `CASH_CARD_WIDTH_FRACTION` so the card reads the same size on both.
-    static let cashCardWidthFraction: CGFloat = 0.64
-
-    /// The width of a cash card in a row `available` points wide.
-    private func cashCardWidth(available: CGFloat) -> CGFloat {
-        (available - ChatColumnCell.rowInset * 2) * Self.cashCardWidthFraction
+    /// The width of a cash card in a row `available` points wide: the card's own width, narrowed
+    /// only when the row between the column insets can't hold it.
+    static func cashCardWidth(available: CGFloat) -> CGFloat {
+        min(ChatStyle.cardWidth, available - ChatColumnCell.rowInset * 2)
     }
 
     /// The width a link message's card is held to, or nil when it takes the bubble's width. A message
@@ -186,7 +182,7 @@ public final class ChatViewController: UICollectionViewController {
 
     private func linkCardWidth(for card: LinkCard?, available: CGFloat) -> CGFloat? {
         guard case .message = card else { return nil }
-        return cashCardWidth(available: available)
+        return Self.cashCardWidth(available: available)
     }
 
     /// Avatar bytes for the transcript's authors and typists, keyed by user id. Empty in a DM, where
@@ -222,14 +218,14 @@ public final class ChatViewController: UICollectionViewController {
     private enum RowGap {
         /// Two messages from one sender inside the grouping window. Their facing corners are
         /// already flattened, so the run needs only enough air to keep the bubbles apart.
-        static let tight: CGFloat = 5
+        static var tight: CGFloat { ChatStyle.runGap }
         /// Two messages from one sender that the grouping window has broken apart, and either side
         /// of a date separator. The corners are round again, and the gap says what they no longer
         /// do — that these are separate moments.
-        static let normal: CGFloat = 10
+        static var normal: CGFloat { ChatStyle.momentGap }
         /// A change of speaker, which reads as a break in the column rather than another row in
         /// the same run.
-        static let wide: CGFloat = 15
+        static var wide: CGFloat { ChatStyle.speakerGap }
     }
 
     private let chatLayout = CollectionViewChatLayout()
@@ -858,7 +854,7 @@ public final class ChatViewController: UICollectionViewController {
         case let cell as ChatCashCardCell:
             // Every cash card is one width, so an incoming card in a group doesn't give up the avatar
             // gutter the way a bubble does.
-            cell.configure(with: message, maxWidth: cashCardWidth(available: cardWidth), authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: Self.cashCardWidth(available: cardWidth), authorImageData: authorImageData)
             cell.onSendBack = { [weak self] in self?.onSendBack?(message.messageID) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
@@ -874,7 +870,7 @@ public final class ChatViewController: UICollectionViewController {
             cell.onReactionAdd = { [weak self] in self?.onReactionAdd?(message.messageID) }
             cell.onReactionBoost = { [weak self] in self?.onReactionBoost?(message.messageID) }
         case let cell as ChatPaymentRequestCell:
-            cell.configure(with: message, maxWidth: cashCardWidth(available: cardWidth), authorImageData: authorImageData)
+            cell.configure(with: message, maxWidth: Self.cashCardWidth(available: cardWidth), authorImageData: authorImageData)
             cell.onRetry = { [weak self] id in self?.onRetry?(id) }
             cell.onReactionTap = { [weak self] emoji in self?.onReactionTap?(message.messageID, emoji) }
             cell.onReactionLongPress = { [weak self] emoji in self?.onReactionLongPress?(message.messageID, emoji) }
@@ -1915,7 +1911,7 @@ extension ChatViewController {
         func menuAction(_ action: MessageCapability) -> UIAction {
             UIAction(
                 title: action.menuTitle(naming: senderName),
-                image: UIImage(systemName: action.menuSymbol.rawValue),
+                image: action.menuImage,
                 attributes: action.isDestructive ? .destructive : []
             ) { _ in
                 switch action {
@@ -2138,25 +2134,30 @@ protocol BubbleCarrying {
 
 extension MessageCapability {
 
-    /// The menu row's glyph. Lives here rather than on the action itself because `SystemSymbol` is
-    /// this module's symbol registry, and `MessageCapability` is a core model.
-    var menuSymbol: SystemSymbol {
+    #if canImport(UIKit)
+    /// The menu row's glyph: a Central icon, or a system symbol where the catalog has none. Lives
+    /// here rather than on the action itself because the icon registries are this module's, and
+    /// `MessageCapability` is a core model.
+    var menuImage: UIImage? {
         switch self {
-        case .copy:   .docFill
-        case .reply:  .replyArrow
-        case .edit:   .pencil
-        case .delete: .trash
-        case .report: .exclamationBubble
-        case .forward: .forwardArrow
-        case .savePhoto: .saveToPhotos
-        case .saveAllPhotos: .saveAllToPhotos
-        case .pin:    .pinFill
-        case .unpin:  .pinSlash
-        case .silence: .micSlash
-        case .remove: .personBadgeMinus
+        case .copy:          UIImage.icon(.squareBehindSquare1)
+        case .reply:         UIImage.icon(.arrowShareLeft)
+        case .edit:          UIImage.icon(.pencil2)
+        case .delete:        UIImage.icon(.trashCan)
+        case .report:        UIImage.icon(.bubbleAlert)
+        case .forward:       UIImage.icon(.arrowShareRight)
+        case .savePhoto:     UIImage.icon(.arrowWallDown)
+        case .saveAllPhotos: UIImage.icon(.images3)
+        // The Central catalog has no pin glyph yet.
+        case .pin:           UIImage(systemName: SystemSymbol.pinFill.rawValue)
+        case .unpin:         UIImage(systemName: SystemSymbol.pinSlash.rawValue)
+        case .silence:       UIImage.icon(.bubbleCrossed)
+        case .remove:        UIImage.icon(.circleMinus)
         }
     }
+    #endif
 
+    /// Whether the row moderates the sender (Restrict, Remove) rather than acting on the message.
     var isModeration: Bool {
         switch self {
         case .silence, .remove: true
