@@ -51,7 +51,51 @@ public struct SwipeControl: View {
         self.completion = completion
     }
 
+    // Built in stages: Xcode 26 times out type-checking the whole chain as one expression.
     public var body: some View {
+        styledTrack
+            .sensoryFeedback(.impact(weight: .heavy), trigger: state, condition: Self.entersLoading)
+            .sensoryFeedback(.error, trigger: state, condition: Self.entersFailure)
+            .onChange(of: state, shakeOnFailure)
+            .accessibilityRepresentation {
+                Button(action: commitFromAccessibility) {
+                    Text(verbatim: text)
+                }
+            }
+    }
+
+    private var styledTrack: some View {
+        track
+            .padding(SwipeMetrics.thumbInset)
+            .frame(height: SwipeMetrics.height)
+            .background { trackBackground }
+            .modifier(SwipeShake(phase: shakePhase, distance: SwipeMetrics.shakeDistance, count: SwipeMetrics.shakeCount))
+            .opacity(trackOpacity)
+    }
+
+    private var trackBackground: some View {
+        Capsule()
+            .fill(trackFill)
+            .animation(.easeOut(duration: SwipeMetrics.failureTintFade), value: isFailed)
+    }
+
+    private var isFailed: Bool {
+        state == .failure
+    }
+
+    private var trackOpacity: Double {
+        isEnabled ? 1 : SwipeMetrics.disabledOpacity
+    }
+
+    private static func entersLoading(_ oldState: KnobState, _ newState: KnobState) -> Bool {
+        newState == .loading
+    }
+
+    private static func entersFailure(_ oldState: KnobState, _ newState: KnobState) -> Bool {
+        newState == .failure
+    }
+
+    private var track: some View {
         GeometryReader { geometry in
             let diameter = geometry.size.height
             // Never narrower than tall, so the resting thumb always covers the track's leading end.
@@ -71,33 +115,22 @@ public struct SwipeControl: View {
                 Task { await commit(maxX: maxX) }
             }
         }
-        .padding(SwipeMetrics.thumbInset)
-        .frame(height: SwipeMetrics.height)
-        .background {
-            Capsule()
-                .fill(trackFill)
-                .animation(.easeOut(duration: SwipeMetrics.failureTintFade), value: state == .failure)
-        }
-        .modifier(SwipeShake(phase: shakePhase, distance: SwipeMetrics.shakeDistance, count: SwipeMetrics.shakeCount))
-        .opacity(isEnabled ? 1 : SwipeMetrics.disabledOpacity)
-        .sensoryFeedback(.impact(weight: .heavy), trigger: state) { _, newState in newState == .loading }
-        .sensoryFeedback(.error, trigger: state) { _, newState in newState == .failure }
-        .onChange(of: state) { _, newState in
-            if newState == .failure && !reduceMotion {
-                withAnimation(.linear(duration: SwipeMetrics.shakeDuration)) {
-                    shakePhase += 1
-                }
+    }
+
+    private func shakeOnFailure(_ oldState: KnobState, _ newState: KnobState) {
+        if newState == .failure && !reduceMotion {
+            withAnimation(.linear(duration: SwipeMetrics.shakeDuration)) {
+                shakePhase += 1
             }
         }
-        .accessibilityRepresentation {
-            Button(text) {
-                Task {
-                    do {
-                        try await action()
-                        try await completion?()
-                    } catch {}
-                }
-            }
+    }
+
+    private func commitFromAccessibility() {
+        Task {
+            do {
+                try await action()
+                try await completion?()
+            } catch {}
         }
     }
 
