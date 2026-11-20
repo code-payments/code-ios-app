@@ -255,7 +255,7 @@ private struct UserProfileContent: View {
         }
         .dialog(item: $dialogItem)
         .silenceUserSheet($silenceTarget)
-        .sheet(isPresented: $isPickingMuteDuration) {
+        .tray(isPresented: $isPickingMuteDuration) {
             if let dmID {
                 MuteChatSheet(conversationID: dmID, isPresented: $isPickingMuteDuration)
             }
@@ -362,7 +362,7 @@ private struct UserProfileContent: View {
     }
 
     private var shareButton: some View {
-        ProfileActionCircle(image: Image.asset(.shareOS)) {
+        ProfileActionCircle(image: Image.icon(.shareOs)) {
             isShowingShare = true
         }
         .accessibilityLabel("Share profile")
@@ -408,7 +408,8 @@ private struct UserProfileContent: View {
                     E2eeFooter(kind: .dm)
                 }
 
-                CodeButton(style: .filled, title: title, action: tapPinned)
+                Button(title, action: tapPinned)
+                    .buttonStyle(.filled)
                     .accessibilityIdentifier("profile-pinned-action")
             }
             .padding(.horizontal, ProfileHeaderMetrics.inset)
