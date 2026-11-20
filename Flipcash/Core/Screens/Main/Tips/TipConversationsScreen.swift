@@ -661,7 +661,7 @@ struct TipConversationRow: View {
         }
         guard conversation.lastMessage == nil else { return nil }
         var placeholder = AttributedString(GroupReadyCard.emptyPreview(for: conversation))
-        // Not an emphasis intent: the bundled Avenir has no italic, so asking for one renders upright.
+        // Not an emphasis intent: the oblique stands in for an italic so the slant matches Android's.
         placeholder.font = .defaultOblique(size: 14, weight: .bold, dynamicTypeSize: dynamicTypeSize)
         return placeholder
     }

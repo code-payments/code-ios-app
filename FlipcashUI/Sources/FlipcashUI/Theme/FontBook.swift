@@ -13,18 +13,7 @@ public enum FontBook {
     private static let bundle = Bundle.flipcashUI
     
     public static func registerApplicationFonts() {
-        registerFont(named: "AvenirNextLTPro-Demi", extension: "otf")
-        registerFont(named: "AvenirNextLTPro-Medium", extension: "otf")
-        registerFont(named: "AvenirNextLTPro-Regular", extension: "otf")
-
         registerFont(named: "RobotoMono-Regular", extension: "ttf")
-    }
-
-    /// Registers only the faces the app extensions render (Avenir Medium + Demi). The full set adds
-    /// unused fonts an extension's tight memory budget can't spare.
-    public static func registerExtensionFonts() {
-        registerFont(named: "AvenirNextLTPro-Medium", extension: "otf")
-        registerFont(named: "AvenirNextLTPro-Demi", extension: "otf")
     }
 
     @discardableResult
@@ -81,7 +70,7 @@ extension UIFont {
         return UIFont(descriptor: descriptor, size: size)
     }
 
-    /// The app's three steps on SF: the bold weights land on Semibold, where Avenir's Demi sat.
+    /// The app's three steps on SF: the bold weights land on Semibold.
     private static func appWeight(_ weight: Weight) -> Weight {
         switch weight {
         case .ultraLight, .thin, .light, .regular: .regular
@@ -110,7 +99,7 @@ extension Font {
         #endif
     }
 
-    /// The app's three steps on SF: the bold weights land on Semibold, where Avenir's Demi sat.
+    /// The app's three steps on SF: the bold weights land on Semibold.
     private static func appWeight(_ weight: Weight) -> Weight {
         switch weight {
         case .ultraLight, .thin, .light, .regular: .regular
