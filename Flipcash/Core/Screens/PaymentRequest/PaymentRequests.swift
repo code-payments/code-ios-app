@@ -59,8 +59,12 @@ final class PaymentRequests {
     }
 
     private var requests: [PaymentRequestID: GroupPaymentRequest] = [:]
-    /// Requests the server answered `DENIED` or `NOT_FOUND` for; their cards render as unsupported.
+    /// Requests the server answered `DENIED` or `NOT_FOUND` for; their cards render as unsupported
+    /// until a later read of one succeeds.
     private(set) var unavailable: Set<PaymentRequestID> = []
+    /// The chat each `unavailable` request was read for, when the read named one; that chat's refetch
+    /// reads the request again.
+    @ObservationIgnored private var unavailableChats: [PaymentRequestID: ConversationID] = [:]
     /// Bumped on every chat refetch, so a deck can return to its default order.
     private(set) var chatRefreshes: [ConversationID: Int] = [:]
 
@@ -85,8 +89,9 @@ final class PaymentRequests {
     @ObservationIgnored private let database: Database?
     @ObservationIgnored private var inFlight: Set<PaymentRequestID> = []
     @ObservationIgnored private var sealReads: Set<ConversationID> = []
-    /// Requests whose last read failed short of a server answer, retried on the next chat refetch.
-    @ObservationIgnored private var failedReads: Set<PaymentRequestID> = []
+    /// Requests whose last read failed short of a server answer, with the chat each was read for,
+    /// retried on the next chat refetch.
+    @ObservationIgnored private var failedReads: [PaymentRequestID: ConversationID] = [:]
     /// Chats whose last section read failed.
     @ObservationIgnored private var failedChats: Set<ConversationID> = []
 
@@ -221,19 +226,25 @@ final class PaymentRequests {
         return GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID && $0.split != nil }, viewer: viewer, at: now)
     }
 
-    /// Drops the held requests and chat seals of conversations the user has left, so a card for a
-    /// departed chat can't redraw. The database rows go with the conversation's own delete.
+    /// Drops the held requests, chat seals and refused-read marks of conversations the user has left,
+    /// so a card for a departed chat can't redraw. The database rows go with the conversation's own delete.
     func forget(conversations departed: Set<ConversationID>) {
         guard !departed.isEmpty else { return }
         payers.forget(requests.values.filter { $0.chatID.map(departed.contains) ?? false }.map(\.id))
         requests = requests.filter { entry in entry.value.chatID.map { !departed.contains($0) } ?? true }
         for id in departed { seals[id] = nil }
+        let refused = unavailableChats.filter { departed.contains($0.value) }.keys
+        if !refused.isEmpty {
+            unavailable.subtract(refused)
+            for id in refused { unavailableChats[id] = nil }
+        }
     }
 
     /// Merges fetched copies into the store and writes them through to the database.
     func ingest(_ incoming: [GroupPaymentRequest]) {
         merge(incoming)
         unavailable.subtract(incoming.map(\.id))
+        for request in incoming { unavailableChats[request.id] = nil }
         persist(incoming)
     }
 
@@ -327,8 +338,8 @@ final class PaymentRequests {
         }
     }
 
-    /// Reads `conversationID`'s OPEN and RESOLVED first pages, and its seal if not held yet. A failed
-    /// read keeps what was held.
+    /// Reads `conversationID`'s OPEN and RESOLVED first pages, its seal if not held yet, and each
+    /// request refused when read for it. A failed read keeps what was held.
     func refreshChat(_ conversationID: ConversationID) async {
         await hydrate(conversationID)
         async let sealed: Void = loadSeal(for: conversationID)
@@ -346,8 +357,24 @@ final class PaymentRequests {
             ])
         }
         await sealed
-        await failedReads.concurrentForEach { @MainActor [self] id in
-            await self.fetchIfMissing(id)
+        // Taken before the failed reads retry, so one refused there isn't read twice in a refetch.
+        let refused = unavailableChats.compactMap { $0.value == conversationID ? $0.key : nil }
+        await failedReads.concurrentForEach { @MainActor [self] read in
+            await self.fetchIfMissing(read.key, in: read.value)
+        }
+        await refused.concurrentForEach { @MainActor [self] id in
+            await self.readRefused(id)
+        }
+    }
+
+    /// Reads a refused request again; its mark lifts only when the read succeeds.
+    private func readRefused(_ id: PaymentRequestID) async {
+        guard inFlight.insert(id).inserted else { return }
+        defer { inFlight.remove(id) }
+        do {
+            try await refresh(id)
+        } catch {
+            logger.info("A refused payment request is still unreadable", metadata: ["error": "\(error)"])
         }
     }
 
@@ -382,8 +409,11 @@ final class PaymentRequests {
 
     /// Reads one request, and its chat's seal if not held yet, and merges it. Returns the intent id the
     /// viewer pays under, `nil` when the viewer has no unpaid share. Throws what the read threw.
+    ///
+    /// A `DENIED` or `NOT_FOUND` answer marks `id` unavailable; naming the `conversationID` a card for
+    /// it shows in has that chat's refetch read it again.
     @discardableResult
-    func refresh(_ id: PaymentRequestID) async throws -> Data? {
+    func refresh(_ id: PaymentRequestID, in conversationID: ConversationID? = nil) async throws -> Data? {
         if requests[id] == nil { await hydrate(id) }
         do {
             let fetched = try await getRequest(id)
@@ -394,7 +424,9 @@ final class PaymentRequests {
         } catch let error as ErrorGetPaymentRequest {
             switch error {
             case .denied, .notFound:
-                unavailable.insert(id)
+                // An insert of a held id still notifies, which would re-map the transcript on every refused retry.
+                if !unavailable.contains(id) { unavailable.insert(id) }
+                if let conversationID { unavailableChats[id] = conversationID }
             case .ok, .unknown, .transportFailure, .cancelled, .rejected:
                 break
             }
@@ -438,18 +470,19 @@ final class PaymentRequests {
         }
     }
 
-    /// Reads `id` when it isn't stored yet and no read of it is already running.
-    func fetchIfMissing(_ id: PaymentRequestID) async {
+    /// Reads `id`, which a card in `conversationID` shows, when it isn't stored or marked unavailable
+    /// yet and no read of it is already running. A refusal leaves the retry to that chat's refetch.
+    func fetchIfMissing(_ id: PaymentRequestID, in conversationID: ConversationID) async {
         guard requests[id] == nil, !unavailable.contains(id), inFlight.insert(id).inserted else { return }
         defer { inFlight.remove(id) }
         do {
-            try await refresh(id)
-            failedReads.remove(id)
+            try await refresh(id, in: conversationID)
+            failedReads[id] = nil
         } catch {
             if unavailable.contains(id) {
-                failedReads.remove(id)
+                failedReads[id] = nil
             } else {
-                failedReads.insert(id)
+                failedReads[id] = conversationID
             }
             logger.warning("Failed to read a payment request", metadata: ["error": "\(error)"])
         }

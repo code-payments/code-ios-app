@@ -648,7 +648,7 @@ struct TipConversationRow: View {
         // A request's preview names its title, which only the request itself carries, sealed to the chat.
         .task(id: lastRequestID) {
             guard let lastRequestID else { return }
-            async let request: Void = sessionContainer.paymentRequests.fetchIfMissing(lastRequestID)
+            async let request: Void = sessionContainer.paymentRequests.fetchIfMissing(lastRequestID, in: conversation.id)
             async let seal: Void = sessionContainer.paymentRequests.loadSeal(for: conversation.id)
             _ = await (request, seal)
         }

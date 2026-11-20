@@ -335,17 +335,17 @@ final class ConversationLoadCoordinator {
             for message in window {
                 if let id = message.paymentRequestID {
                     if message.date > openedAt, refetchedPayments.insert(message.id.value).inserted {
-                        Task { _ = try? await paymentRequests.refresh(id) }
+                        Task { _ = try? await paymentRequests.refresh(id, in: conversationID) }
                     } else if paymentRequests.request(id) == nil {
                         // An older share payment's row needs its request for the title and ring.
-                        Task { await paymentRequests.fetchIfMissing(id) }
+                        Task { await paymentRequests.fetchIfMissing(id, in: conversationID) }
                     }
                 }
                 guard case .widget(.paymentRequest(let id)) = message.content else { continue }
                 let state = paymentRequests.cardState(for: id, in: conversationID, sentBy: message.senderID, copy: copy, now: capabilityClock)
                 paymentRequestCards[message.id.value] = state
                 if state == .loading, paymentRequests.request(id) == nil {
-                    Task { await paymentRequests.fetchIfMissing(id) }
+                    Task { await paymentRequests.fetchIfMissing(id, in: conversationID) }
                 }
             }
         }

@@ -120,7 +120,7 @@ struct PaymentRequestsSealTests {
             openingSeal: { _ in try? Self.seal() }
         )
 
-        await store.fetchIfMissing(request.id)
+        await store.fetchIfMissing(request.id, in: chat)
         #expect(store.isSettling(chat))
 
         fails = false
