@@ -8,7 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// What the pay sheet draws for a collection that conversions fund: the fee line under the amount,
-/// the short line over the Add button, and the Payment Details sheet their ⓘ opens.
+/// the short line over the Add button, and the Payment Details page their ⓘ opens.
 nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
 
     struct Line: Equatable, Sendable {
@@ -128,6 +128,88 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
     }
 }
 
+/// What a funded collection's pay sheet shows.
+nonisolated enum CollectionPaySheetPage: Equatable, Sendable {
+    /// The payee, the amount, the paying currency, and the swipe or Add button (5.2, 7.2).
+    case pay
+    /// Payment Details, pushed over the pay content inside the same sheet (5.3, 7.3).
+    case details
+    /// "Finishing Payment" while the payment runs.
+    case finishing
+
+    /// `wantsDetails` is set by the fee or short line's ⓘ and cleared by Payment Details' back
+    /// chevron. Details show only while a line can open them, and a running payment wins over both.
+    init(wantsDetails: Bool, isFinishing: Bool, content: CollectionPaymentSheetContent?) {
+        if isFinishing {
+            self = .finishing
+        } else if wantsDetails, content?.detailsEntries.isEmpty == false {
+            self = .details
+        } else {
+            self = .pay
+        }
+    }
+
+    /// Where `CollectionPaySheetPager` stands for this page: 0 on the pay content, 1 on Payment Details.
+    var pagerProgress: CGFloat {
+        switch self {
+        case .pay, .finishing: 0
+        case .details: 1
+        }
+    }
+}
+
+/// Lays its subviews out as pages, one container width apart, and takes the height of the page
+/// `progress` stands on. Animating `progress` slides the pages across and moves the height between
+/// theirs in step, so `PartialSheet`, which sizes its detent from its content, resizes with the
+/// slide. Every page stays mounted, so one keeps its state while another covers it, and each page's
+/// height is known before it slides in.
+struct CollectionPaySheetPager: Layout {
+
+    /// The page showing: 0 for the first, 1 for the second, fractions between them mid-slide.
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    /// The height at `progress`, between the heights of the pages either side of it.
+    nonisolated static func height(of pageHeights: [CGFloat], at progress: CGFloat) -> CGFloat {
+        guard let last = pageHeights.indices.last else { return 0 }
+        let position = min(max(progress, 0), CGFloat(last))
+        let lower = Int(position.rounded(.down))
+        let upper = min(lower + 1, last)
+        let fraction = position - CGFloat(lower)
+        return pageHeights[lower] + (pageHeights[upper] - pageHeights[lower]) * fraction
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        let heights = subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+        return CGSize(width: width, height: Self.height(of: heights, at: progress))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let fitted = ProposedViewSize(width: bounds.width, height: nil)
+        for (index, page) in subviews.enumerated() {
+            page.place(
+                at: CGPoint(x: bounds.minX + (CGFloat(index) - progress) * bounds.width, y: bounds.minY),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(width: bounds.width, height: page.sizeThatFits(fitted).height)
+            )
+        }
+    }
+}
+
+/// Clips `CollectionPaySheetPager`'s sides, so the page off to one side doesn't show. Its top and
+/// bottom stay open: Payment Details' list draws into the sheet's bottom inset, as a scroll view
+/// that reaches the safe area does, and clipping there cuts off its last line.
+nonisolated struct CollectionPaySheetSides: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path(rect.insetBy(dx: 0, dy: -rect.height))
+    }
+}
+
 /// A pay sheet line that ends in the info affordance and opens Payment Details when tapped
 /// anywhere: the fee line, and the short line in `font`. The ⓘ draws the same on both.
 struct CollectionPaymentInfoLine: View {
@@ -162,9 +244,8 @@ struct CollectionPaymentDetailsView: View {
 
     @State private var linesHeight: CGFloat = 0
 
-    /// The tallest the list grows before it scrolls. `PartialSheet` proposes its current height,
-    /// which is the pay modal's when this replaces it, so the list sizes itself rather than
-    /// filling that proposal.
+    /// The tallest the list grows before it scrolls. The list sizes itself from its lines rather
+    /// than from the height it's proposed, so the pager reads this page's height before it slides in.
     private var maxListHeight: CGFloat {
         UIScreen.main.bounds.height * 0.65
     }

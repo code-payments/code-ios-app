@@ -327,6 +327,49 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.fundingStore.lastPaidCurrency == nil)
     }
 
+    // MARK: - Payment Details
+
+    /// The page the pay sheet shows once its ⓘ sets `wantsDetails`, read from this payment.
+    private func page(_ f: Fixture, wantsDetails: Bool) -> CollectionPaySheetPage {
+        CollectionPaySheetPage(wantsDetails: wantsDetails, isFinishing: f.payment.isFinishing, content: f.payment.fundingSheet)
+    }
+
+    @Test("5.2 to 5.3: the fee line's ⓘ pushes Payment Details over the pay content, for the plan the pay content shows")
+    func feeLineOpensDetails() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.plentyOfJeffy)
+        let sheet = try #require(f.payment.fundingSheet)
+        try #require(sheet.detailsEntries == [.feeLine])
+
+        #expect(page(f, wantsDetails: false) == .pay)
+        #expect(page(f, wantsDetails: true) == .details)
+        #expect(page(f, wantsDetails: true).pagerProgress == 1)
+        #expect(sheet.use.map(\.currency) == [PublicKey.usdf.base58, PublicKey.jeffy.base58])
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("Back from Payment Details returns to the pay content with the picked currency and its plan as they were")
+    func backKeepsPick() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 100_000_000, jeffy: 0)
+        let stored = try #require(f.container.session.balance(for: .jeffy))
+        f.payment.selectCurrencyAction(exchangedBalance: ExchangedBalance(
+            stored: stored,
+            exchangedFiat: stored.computeExchangedValue(with: Rate(fx: 1, currency: .usd))
+        ))
+        let picked = try #require(f.payment.fundingSheet)
+        try #require(picked.payingCurrency == PublicKey.jeffy.base58)
+        try #require(picked.detailsEntries == [.feeLine])
+
+        #expect(page(f, wantsDetails: true) == .details)
+        #expect(page(f, wantsDetails: false) == .pay)
+        #expect(page(f, wantsDetails: false).pagerProgress == 0)
+
+        #expect(f.payment.payingBalance?.stored.mint == .jeffy)
+        #expect(f.payment.fundingSheet == picked)
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.payer.payments.isEmpty)
+    }
+
     // MARK: - Submit
 
     @Test("A payment conversions cover converts first, then pays once in the paying currency")
@@ -1052,10 +1095,11 @@ struct PaymentRequestCollectionFundingTests {
     func flagOff() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.plentyOfJeffy, fundsCollections: false)
 
-        // The sheet's handle, pill chevron and picker each switch on this.
+        // The sheet's handle, pill chevron, picker and Payment Details page each switch on this.
         #expect(!f.payment.fundsCollection)
         #expect(f.payment.fundingPlan == nil)
         #expect(f.payment.fundingSheet == nil)
+        #expect(CollectionPaySheetPage(wantsDetails: true, isFinishing: false, content: f.payment.fundingSheet) == .pay)
         #expect(await f.payment.prepare() == .ready)
         #expect(await f.payment.submit() == .failed)
         #expect(f.swapper.submitted.isEmpty)

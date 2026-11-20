@@ -724,31 +724,24 @@ private struct PaymentRequestPaySheet: View {
     @State private var verificationViewModel: OnrampVerification?
 
     var body: some View {
-        // A collection that conversions fund draws its paying currency, fee line and Payment Details.
-        let funding = payment.fundsCollection ? payment.fundingSheet : nil
-        let showsDetails = isShowingDetails && funding?.detailsEntries.isEmpty == false
-        PartialSheet(background: .clear) {
-            Group {
-                if payment.isFinishing {
-                    finishingContent
-                } else if showsDetails, let funding {
-                    CollectionPaymentDetailsView(
-                        content: funding,
-                        imageURL: payment.currencyImageURL,
-                        onBack: { isShowingDetails = false }
-                    )
-                } else {
-                    payContent(feeLine: funding?.feeLine, topUp: funding?.topUp)
+        Group {
+            // A collection that conversions fund draws its paying currency, fee line and Payment Details.
+            if payment.fundsCollection {
+                collectionSheet
+            } else {
+                PartialSheet(background: .clear) {
+                    Group {
+                        if payment.isFinishing {
+                            finishingContent
+                        } else {
+                            payContent(feeLine: nil, topUp: nil)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 30)
+                    .padding(.bottom, bottomPadding)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, showsDetails && !payment.isFinishing ? 20 : 30)
-            .padding(.bottom, bottomPadding)
-        }
-        // A plan that stops converting and isn't short has no line to open details from; don't
-        // reopen them when one returns.
-        .onChange(of: funding?.detailsEntries.isEmpty ?? true) { _, hasNoEntry in
-            if hasNoEntry { isShowingDetails = false }
         }
         // A top-up an earlier attempt ordered, say before the app was closed, is waited on and paid
         // from as the sheet opens, with no second order.
@@ -779,6 +772,59 @@ private struct PaymentRequestPaySheet: View {
                 }
             }
         }
+    }
+
+    /// The pay content, with Payment Details pushed over it inside the same sheet from the fee or
+    /// short line's ⓘ. Its back chevron slides the pay content back as it was left.
+    private var collectionSheet: some View {
+        let funding = payment.fundingSheet
+        let page = CollectionPaySheetPage(
+            wantsDetails: isShowingDetails,
+            isFinishing: payment.isFinishing,
+            content: funding
+        )
+        return PartialSheet(background: .clear) {
+            Group {
+                switch page {
+                case .finishing:
+                    finishingContent
+                        .padding(.horizontal, 20)
+                        .padding(.top, 30)
+                case .pay, .details:
+                    CollectionPaySheetPager(progress: page.pagerProgress) {
+                        payContent(feeLine: funding?.feeLine, topUp: funding?.topUp)
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 30)
+                            .allowsHitTesting(page == .pay)
+                            .accessibilityHidden(page != .pay)
+                        if let funding, !funding.detailsEntries.isEmpty {
+                            CollectionPaymentDetailsView(
+                                content: funding,
+                                imageURL: payment.currencyImageURL,
+                                onBack: { showDetails(false) }
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
+                            .allowsHitTesting(page == .details)
+                            .accessibilityHidden(page != .details)
+                        }
+                    }
+                    .clipShape(CollectionPaySheetSides())
+                }
+            }
+            .padding(.bottom, bottomPadding)
+        }
+        // A plan that stops converting and isn't short has no line to open details from; don't
+        // reopen them when one returns.
+        .onChange(of: funding?.detailsEntries.isEmpty ?? true) { _, hasNoEntry in
+            if hasNoEntry { isShowingDetails = false }
+        }
+    }
+
+    private func showDetails(_ shows: Bool) {
+        withAnimation(.smooth(duration: 0.3)) { isShowingDetails = shows }
     }
 
     private func select(_ mint: PublicKey, in options: [ExchangedBalance]) {
@@ -814,7 +860,7 @@ private struct PaymentRequestPaySheet: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.4)
                 if let feeLine {
-                    CollectionPaymentInfoLine(text: feeLine) { isShowingDetails = true }
+                    CollectionPaymentInfoLine(text: feeLine) { showDetails(true) }
                 }
                 TokenSelectorButton(selectedBalance: shownBalance, showsChevron: !payment.fundsCollection) {
                     isShowingTokenSelection = true
@@ -826,7 +872,7 @@ private struct PaymentRequestPaySheet: View {
             if let topUp {
                 VStack(spacing: 16) {
                     // Opens Payment Details as the fee line does (7.3).
-                    CollectionPaymentInfoLine(text: topUp.shortBy, font: .appTextMedium) { isShowingDetails = true }
+                    CollectionPaymentInfoLine(text: topUp.shortBy, font: .appTextMedium) { showDetails(true) }
                     Button { addAndPay(topUp) } label: {
                         if isAdding {
                             ProgressView().progressViewStyle(.circular)

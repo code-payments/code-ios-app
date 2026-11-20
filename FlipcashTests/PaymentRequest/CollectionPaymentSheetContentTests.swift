@@ -4,7 +4,9 @@
 //
 
 import Foundation
+import SwiftUI
 import Testing
+import UIKit
 import FlipcashCore
 @testable import Flipcash
 
@@ -246,5 +248,66 @@ struct CollectionPaymentSheetContentTests {
 
         #expect(topUp.shortBy == display.shortBy)
         #expect(topUp.button == display.addButton)
+    }
+
+    // MARK: - Payment Details inside the pay sheet
+
+    @Test("5.3 and 7.3: the fee or short line's ⓘ pushes Payment Details, and back returns to the pay content")
+    func detailsPushAndBack() throws {
+        let feeLine = try Self.content(balances: Self.dollarsAndJeffy)
+        let shortLine = try Self.content(amountMicros: 11_000_000, balances: [
+            (Self.dollars, "Dollars", 6_000_000, 0),
+            ("jeffy", "Jeffy", 2_990_000, 100),
+        ])
+        try #require(feeLine.detailsEntries == [.feeLine])
+        try #require(shortLine.detailsEntries == [.shortLine])
+
+        for content in [feeLine, shortLine] {
+            let open = CollectionPaySheetPage(wantsDetails: true, isFinishing: false, content: content)
+            let back = CollectionPaySheetPage(wantsDetails: false, isFinishing: false, content: content)
+            #expect(open == .details)
+            #expect(open.pagerProgress == 1)
+            #expect(back == .pay)
+            #expect(back.pagerProgress == 0)
+        }
+    }
+
+    @Test("Payment Details stay shut with no line to open them from")
+    func noLineNoDetails() throws {
+        let noConversion = try Self.content(balances: [(Self.dollars, "Dollars", 12_000_000, 0)])
+        try #require(noConversion.detailsEntries.isEmpty)
+
+        #expect(CollectionPaySheetPage(wantsDetails: true, isFinishing: false, content: noConversion) == .pay)
+        #expect(CollectionPaySheetPage(wantsDetails: true, isFinishing: false, content: nil) == .pay)
+    }
+
+    @Test("A running payment shows Finishing Payment over either page", arguments: [true, false])
+    func finishingWins(wantsDetails: Bool) throws {
+        let content = try Self.content(balances: Self.dollarsAndJeffy)
+
+        #expect(CollectionPaySheetPage(wantsDetails: wantsDetails, isFinishing: true, content: content) == .finishing)
+    }
+
+    @Test("Mid-slide the sheet's height moves between the two pages' heights", arguments: [
+        (CGFloat(0), CGFloat(200)), (0.25, 275), (0.5, 350), (1, 500), (-0.5, 200), (1.5, 500),
+    ])
+    func pagerHeight(progress: CGFloat, height: CGFloat) {
+        #expect(CollectionPaySheetPager.height(of: [200, 500], at: progress) == height)
+    }
+
+    @Test("The pager measures the page it stands on, not the taller of the two", arguments: [
+        (CGFloat(0), CGFloat(200)), (0.5, 350), (1, 500),
+    ])
+    @MainActor
+    func pagerMeasuresShownPage(progress: CGFloat, height: CGFloat) {
+        let pager = CollectionPaySheetPager(progress: progress) {
+            Color.clear.frame(height: 200)
+            Color.clear.frame(height: 500)
+        }
+        let size = UIHostingController(rootView: pager)
+            .sizeThatFits(in: CGSize(width: 390, height: CGFloat.greatestFiniteMagnitude))
+
+        #expect(size.width == 390)
+        #expect(size.height == height)
     }
 }
