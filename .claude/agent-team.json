@@ -56,7 +56,7 @@
       "effort": "high",
       "advisor": "fable",
       "reports_to": "orchestrator",
-      "charter": "Review a UI, motion or copy change against the House Standard in .claude/docs/design/design-standard.md and its lenses, following .claude/agents/design-critic.md. Rank findings with path:line, separate defects from taste calls for Aiden, list what was checked and found sound. Never edits.",
+      "charter": "Review a UI, motion or copy change against the House Standard and its lenses in the flipcash-design plugin, following its flipcash-design:design-critic agent, with this repo's .claude/docs/design/components.md and implementation.md. Rank findings with path:line, separate defects from taste calls for Aiden, list what was checked and found sound. Never edits.",
       "isolation": "read-only",
       "deliverable": "review"
     }
