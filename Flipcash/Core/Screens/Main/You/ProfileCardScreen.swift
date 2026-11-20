@@ -85,6 +85,7 @@ struct ProfileCardScreen: View {
                 .opacity(isRevealed ? 1 : 0)
                 .accessibilityIdentifier("profile-card-close")
                 .padding(.horizontal, Self.horizontalInset)
+                .bottomEdgePadding()
         }
         .sheet(isPresented: $isShowingDownloadOptions, onDismiss: exportPendingDownload) {
             TipCardDownloadSheet(

@@ -39,7 +39,8 @@ struct ForceLogoutScreen: View {
                 .buttonStyle(.filled)
             }
             .multilineTextAlignment(.center)
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
     }
 }

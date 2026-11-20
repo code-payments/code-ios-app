@@ -261,7 +261,8 @@ private struct PaymentRequestHistoryScreen: View {
         Background(color: .backgroundMain) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
-                    CodeButton(style: .filled, title: "New Request", action: newRequest)
+                    Button("New Request", action: newRequest)
+                        .buttonStyle(.filled)
                         .padding(.bottom, 12)
 
                     if !history.open.isEmpty {
@@ -398,16 +399,16 @@ private struct PaymentRequestSummaryScreen: View {
                     .padding(20)
                 }
 
-                CodeButton(
-                    isLoading: viewModel.isSending,
-                    style: .filled,
-                    title: viewModel.sendButtonTitle,
-                    disabled: !viewModel.canSend
-                ) {
+                Button {
                     viewModel.prepareConfirm()
                     dialogItem = confirm()
+                } label: {
+                    ButtonStateLabel(viewModel.sendButtonTitle, state: viewModel.isSending ? .loading : .normal)
                 }
-                .padding(20)
+                .buttonStyle(.filled)
+                .disabled(!viewModel.canSend || viewModel.isSending)
+                .padding([.horizontal, .top], 20)
+                .bottomEdgePadding()
             }
         }
         .navigationTitle("New Request")
@@ -530,10 +531,10 @@ private struct PaymentRequestNameScreen: View {
                 Button("Done", action: done)
                     .buttonStyle(.filled)
                     .disabled(validated == nil)
-                    .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .bottomEdgePadding()
         }
         .navigationBarTitleDisplayMode(.inline)
         .focusAfterPush($isFocused)
@@ -813,7 +814,9 @@ private struct PaymentRequestSelectPeopleScreen: View {
                     toggle: viewModel.toggle,
                     rowIdentifier: "payment-request-member-row"
                 )
-                CodeButton(style: .filled, title: "Done", disabled: !viewModel.hasValidPeople, action: done)
+                Button("Done", action: done)
+                    .buttonStyle(.filled)
+                    .disabled(!viewModel.hasValidPeople)
                     .padding(20)
             }
         }

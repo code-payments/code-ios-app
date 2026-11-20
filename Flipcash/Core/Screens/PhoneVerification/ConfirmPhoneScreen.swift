@@ -55,7 +55,8 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
                         Spacer()
                         confirmButton
                     }
-                    .padding(20)
+                    .padding([.horizontal, .top], 20)
+                    .bottomEdgePadding()
                 }
             }
             .foregroundStyle(.textMain)
@@ -107,14 +108,13 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
     }
 
     private var confirmButton: some View {
-        CodeButton(
-            state: viewModel.confirmCodeButtonState,
-            style: .filled,
-            title: copy.codeButtonTitle,
-            disabled: !viewModel.isCodeComplete
-        ) {
+        Button {
             viewModel.confirmPhoneNumberCodeAction()
+        } label: {
+            ButtonStateLabel(copy.codeButtonTitle, state: viewModel.confirmCodeButtonState)
         }
+        .buttonStyle(.filled)
+        .disabled(!viewModel.isCodeComplete || !viewModel.confirmCodeButtonState.isNormal)
     }
 
     // MARK: - Footers -

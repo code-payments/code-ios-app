@@ -82,7 +82,7 @@ struct ProfileNameScreen: View {
                 .buttonStyle(.filled)
                 .disabled(!canSubmit || isSubmitting)
                 .accessibilityIdentifier("profile-name-next-button")
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

@@ -53,7 +53,8 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
                         Spacer()
                         nextButton
                     }
-                    .padding(20)
+                    .padding([.horizontal, .top], 20)
+                    .bottomEdgePadding()
                 }
             }
             .foregroundStyle(.textMain)
@@ -118,14 +119,13 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
     }
 
     private var nextButton: some View {
-        CodeButton(
-            state: viewModel.sendCodeButtonState,
-            style: .filled,
-            title: "Next",
-            disabled: !viewModel.canSendVerificationCode
-        ) {
+        Button {
             viewModel.sendPhoneNumberCodeAction()
+        } label: {
+            ButtonStateLabel("Next", state: viewModel.sendCodeButtonState)
         }
+        .buttonStyle(.filled)
+        .disabled(!viewModel.canSendVerificationCode || !viewModel.sendCodeButtonState.isNormal)
     }
 
     // MARK: - Actions -

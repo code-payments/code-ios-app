@@ -194,10 +194,13 @@ private struct CurrencySelectRecipientScreen: View {
             // Always on screen, empty list or not. A scroll edge bar, so the rows fade out under
             // the button as they do under the Invite People list's composer.
             .scrollEdgeBar(.bottom) {
-                CodeButton(style: .filledSecondary, title: "Or Give As Cash") {
+                Button("Or Give As Cash") {
                     giveAsCash()
                 }
-                .padding(20)
+                // iOS 18 has no edge effect, so the material blurs the rows under the translucent fill.
+                .buttonStyle(.subtle.backed(by: .ultraThinMaterial))
+                .padding([.horizontal, .top], 20)
+                .bottomEdgePadding()
             }
         }
         .navigationTitle("Select Recipient")

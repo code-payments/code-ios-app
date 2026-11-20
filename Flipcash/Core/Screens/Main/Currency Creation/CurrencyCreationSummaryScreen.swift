@@ -68,7 +68,7 @@ struct CurrencyCreationSummaryScreen: View {
                     }
                 }
                 .buttonStyle(.filled)
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
             .padding(.horizontal, 20)
         }
