@@ -94,7 +94,7 @@ struct ProfilePhotoScreen: View {
                 // needs the state to stay shut against a second submission.
                 .disabled(!state.canSubmitPhoto || !buttonState.isNormal)
                 .accessibilityIdentifier("profile-photo-next-button")
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
