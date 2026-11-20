@@ -51,10 +51,11 @@ struct NotificationPermissionDeniedScreen: View {
                         .buttonStyle(.filled)
 
                     Button("I'm Sure", action: viewModel.confirmSkipNotificationsAction)
-                        .buttonStyle(.subtle)
+                        .buttonStyle(.textLink)
                 }
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePaddingUnderTextLink()
         }
         .navigationBarBackButtonHidden(true)
         .task {

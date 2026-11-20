@@ -64,7 +64,7 @@ struct AccountSelectionScreen: View {
                         .buttonStyle(.subtle)
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
-                    .padding(.bottom, 20)
+                    .bottomEdgePadding()
                 }
             }
         }
