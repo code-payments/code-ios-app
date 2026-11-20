@@ -1954,10 +1954,13 @@ extension GroupMoneyShellSpecTests {
         let bar = try #require(visibleTabBar(in: window), "no tab bar")
         if let tabBar = bar as? UITabBar {
             let controller = try #require(tabBar.delegate as? UITabBarController, "the system bar has no tab bar controller")
-            let tab = try #require(
-                controller.tabs.first { $0.title == label },
-                "no \(label) on the system bar; on it: \(controller.tabs.map(\.title))"
+            // Icon-only bars leave each tab's title empty and name it on its bar item instead.
+            let index = try #require(
+                controller.tabs.firstIndex { $0.title == label }
+                    ?? tabBar.items?.firstIndex { $0.accessibilityLabel == label },
+                "no \(label) on the system bar; on it: \(tabBar.items?.compactMap(\.accessibilityLabel) ?? [])"
             )
+            let tab = controller.tabs[index]
             let previous = try #require(controller.selectedTab, "the system bar has no tab selected")
             let delegate = controller.delegate
             guard delegate?.tabBarController?(controller, shouldSelectTab: tab) ?? true else {
