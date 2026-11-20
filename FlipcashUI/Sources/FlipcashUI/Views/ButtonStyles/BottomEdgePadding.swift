@@ -28,15 +28,15 @@ extension View {
             .ignoresSafeArea(.container, edges: .bottom)
     }
 
-    /// Pads a screen whose bottom action is a `.textLink`, so the link's text, not its 44 pt tap
-    /// box, sits `Metrics.buttonPadding` from the device's bottom edge.
+    /// Pads a screen whose bottom action is a `.textLink`, so the link's 44 pt tap box sits
+    /// `Metrics.buttonPaddingUnderTextLink` from the device's bottom edge.
     public func bottomEdgePaddingUnderTextLink() -> some View {
         bottomEdgePadding(Metrics.buttonPaddingUnderTextLink)
     }
 }
 
 extension Metrics {
-    /// The bottom padding under a screen-ending `.textLink`: its 44 pt box already holds about
-    /// 12 pt under the text, so the text lands `buttonPadding` from the device's bottom edge.
-    public static let buttonPaddingUnderTextLink: CGFloat = 8.0
+    /// The bottom padding under a screen-ending `.textLink`'s 44 pt box, which puts its text about
+    /// 32 pt from the device's bottom edge, clear of the home indicator.
+    public static let buttonPaddingUnderTextLink: CGFloat = 20.0
 }
