@@ -24,6 +24,9 @@ struct PaymentRequestDetailsScreen: View {
     /// Whether the screen is pushed onto an existing navigation stack, which then supplies the back
     /// button in place of the close button.
     var isPushed = false
+    /// Whether the screen runs its Pay button once as it opens, for a Pay tapped in the chat on a
+    /// collection no balance funds (1.1, 2.1).
+    var paysOnOpen = false
 
     @State private var dialogItem: DialogItem?
     /// A confirm queued behind an options sheet, shown once that sheet is gone.
@@ -33,6 +36,7 @@ struct PaymentRequestDetailsScreen: View {
     @State private var payFlow = PaymentRequestPayFlow()
     @State private var isUpdating = false
     @State private var verificationViewModel: OnrampVerification?
+    @State private var didPayOnOpen = false
 
     var body: some View {
         Group {
@@ -63,6 +67,10 @@ struct PaymentRequestDetailsScreen: View {
         // The Request button reads the plan, so the payment exists before the first tap.
         .task(id: requestID) {
             payFlow.attach(requestID, sessionContainer: sessionContainer)
+            if paysOnOpen, !didPayOnOpen {
+                didPayOnOpen = true
+                pay(topUp: payFlow.inPlaceTopUp(for: requestID))
+            }
         }
         .onChange(of: payFlow.payment?.isFinishing == true) { _, isFinishing in
             if isFinishing { payFlow.holdFinishing() }
@@ -310,23 +318,17 @@ struct PaymentRequestDetailsScreen: View {
     private func pay(topUp: CollectionPaymentSheetContent.RequestTopUp?) {
         guard !payFlow.isToppingUp else { return }
         Task {
-            let preparation: PaymentRequestPayment.Preparation
-            if let topUp {
-                let result = await payFlow.topUpInPlace(
-                    requestID,
-                    topUpMicros: topUp.micros,
-                    sessionContainer: sessionContainer,
-                    router: router,
-                    verified: { await verificationCoordinator.verified(for: session, bind: { verificationViewModel = $0 }) },
-                    refreshed: { await refresh() }
-                )
-                guard case .prepared(let prepared) = result else { return }
-                preparation = prepared
-            } else {
-                preparation = await payFlow.start(requestID, sessionContainer: sessionContainer, router: router)
-            }
+            let result = await payFlow.payFromRequestScreen(
+                requestID,
+                topUp: topUp,
+                sessionContainer: sessionContainer,
+                router: router,
+                verified: { await verificationCoordinator.verified(for: session, bind: { verificationViewModel = $0 }) },
+                refreshed: { await refresh() }
+            )
+            guard case .prepared(let preparation) = result else { return }
             switch preparation {
-            case .ready, .noBalance:
+            case .ready, .noBalance, .fundedByTopUp:
                 break
             case .nothingToPay, .closed, .failed:
                 hasPaymentIntent = false
@@ -504,8 +506,10 @@ final class PaymentRequestPayFlow {
 
     /// Prepares to pay the viewer's share of `requestID` and shows the sheet when it is payable.
     /// A payable share the viewer has nothing to pay with gets the "No Balance Yet" dialog instead of
-    /// the sheet; a closed request still reads "Request Closed". `requests` replaces the session's
-    /// store and `payment` the payment the flow would build, for tests.
+    /// the sheet; a collection no balance funds opens nothing and returns
+    /// ``PaymentRequestPayment/Preparation/fundedByTopUp``, for the Request screen's button to add
+    /// the money and pay; a closed request still reads "Request Closed". `requests` replaces the
+    /// session's store and `payment` the payment the flow would build, for tests.
     @discardableResult
     func start(
         _ requestID: PaymentRequestID,
@@ -566,13 +570,53 @@ final class PaymentRequestPayFlow {
         return .paid(outcome)
     }
 
+    /// A tap on the Request screen's button, which showed `topUp`, or Pay when nil: adds the money
+    /// and pays with no sheet when no balance funds the collection, as ``topUpInPlace`` does, and
+    /// otherwise opens the sheet as ``start`` does. A button that showed Pay over a plan no balance
+    /// funds any more adds the money all the same, at the amount the refetched plan needs.
+    func payFromRequestScreen(
+        _ requestID: PaymentRequestID,
+        topUp: CollectionPaymentSheetContent.RequestTopUp?,
+        sessionContainer: SessionContainer,
+        router: AppRouter,
+        verified: @MainActor () async -> Bool,
+        refreshed: @MainActor () async -> Void,
+        requests: PaymentRequests? = nil,
+        payment injected: PaymentRequestPayment? = nil
+    ) async -> TopUpInPlaceResult {
+        let topUpMicros: Int64
+        if let topUp {
+            topUpMicros = topUp.micros
+        } else {
+            let preparation = await start(requestID, sessionContainer: sessionContainer, router: router, requests: requests, payment: injected)
+            guard preparation == .fundedByTopUp, let fresh = inPlaceTopUp(for: requestID) else {
+                return .prepared(preparation)
+            }
+            topUpMicros = fresh.micros
+        }
+        return await topUpInPlace(
+            requestID,
+            topUpMicros: topUpMicros,
+            sessionContainer: sessionContainer,
+            router: router,
+            verified: verified,
+            refreshed: refreshed,
+            requests: requests,
+            payment: injected
+        )
+    }
+
     /// Called as "Finishing Payment" shows, so it stays up through the refetch after the payment.
     func holdFinishing() {
         if isToppingUp { holdsFinishing = true }
     }
 
-    /// Opens the sheet for a payable share, or the "No Balance Yet" dialog when there's nothing to pay with.
+    /// Opens the sheet for a payable share, or the "No Balance Yet" dialog when there's nothing to
+    /// pay with. A collection no balance funds opens neither, since its Request button pays (1.1, 2.1).
     private func present(_ payment: PaymentRequestPayment, sessionContainer: SessionContainer, router: AppRouter) -> PaymentRequestPayment.Preparation {
+        if payment.fundsCollection, payment.fundingSheet?.requestTopUp != nil {
+            return .fundedByTopUp
+        }
         let session = sessionContainer.session
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         // A collection that conversions fund can add Dollars from the sheet, so an empty balance

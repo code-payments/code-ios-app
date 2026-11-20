@@ -38,6 +38,9 @@ final class PaymentRequestPayment {
         case failed
         /// The viewer holds nothing to pay with; the "No Balance Yet" dialog was shown.
         case noBalance
+        /// No balance funds the collection, so no sheet opened: the Request screen's button adds
+        /// the money with Apple Pay and pays instead (1.1, 2.1).
+        case fundedByTopUp
     }
 
     /// What the viewer pays: an unpaid share of a split, or a collection's fixed amount in the
@@ -419,7 +422,7 @@ final class PaymentRequestPayment {
         case .nothingToPay where hasPaidCollection:
             // ALREADY_PAID: the attempt whose outcome was unknown landed, so don't pay again.
             return .success
-        case .nothingToPay, .closed, .failed, .noBalance: return .failed
+        case .nothingToPay, .closed, .failed, .noBalance, .fundedByTopUp: return .failed
         }
     }
 

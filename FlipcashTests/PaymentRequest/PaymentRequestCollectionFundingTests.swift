@@ -450,17 +450,19 @@ struct PaymentRequestCollectionFundingTests {
 
     // MARK: - Adding money (S5)
 
-    @Test("1.1: a collection at a zero balance opens the sheet on the short state, not No Balance Yet")
-    func zeroBalanceOpensSheet() async throws {
+    @Test("1.1: a collection at a zero balance opens neither the sheet nor No Balance Yet, and orders nothing")
+    func zeroBalanceOpensNoSheet() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
         let flow = PaymentRequestPayFlow()
 
         let result = await flow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment)
 
-        #expect(result == .ready)
-        #expect(flow.isPaying)
+        #expect(result == .fundedByTopUp)
+        #expect(!flow.isPaying)
         #expect(f.container.session.dialogItem == nil)
         #expect(f.payment.fundingPlan?.topUpMicros == 10_000_000)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.payer.payments.isEmpty)
     }
 
     @Test("A top-up adds the drawn amount, then pays once when the Dollars land, with no second confirmation")
@@ -965,6 +967,83 @@ struct PaymentRequestCollectionFundingTests {
             return
         }
         #expect(flow.inPlaceTopUp(for: requestID) == nil)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.payer.payments.isEmpty)
+    }
+
+    // MARK: - Pay from the chat
+
+    /// The Request screen's button as `flow` runs it, showing `topUp`, or Pay when nil.
+    private func tapRequestButton(
+        _ f: Fixture,
+        _ flow: PaymentRequestPayFlow,
+        topUp: CollectionPaymentSheetContent.RequestTopUp?
+    ) async -> PaymentRequestPayFlow.TopUpInPlaceResult {
+        await flow.payFromRequestScreen(
+            requestID,
+            topUp: topUp,
+            sessionContainer: f.container,
+            router: AppRouter(),
+            verified: { true },
+            refreshed: {},
+            payment: f.payment
+        )
+    }
+
+    @Test("1.1: a chat Pay with no balance hands off to the Request screen, which orders once and pays with no sheet")
+    func chatPayTopsUpOnRequestScreen() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        f.topUpper.delivered = 10
+        let chatFlow = PaymentRequestPayFlow()
+        let screenFlow = PaymentRequestPayFlow()
+
+        #expect(await chatFlow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment) == .fundedByTopUp)
+        #expect(f.topUpper.orders.isEmpty)
+        // The screen opens with its own flow and runs its button, which reads its own plan.
+        let result = await tapRequestButton(f, screenFlow, topUp: screenFlow.inPlaceTopUp(for: requestID))
+
+        #expect(result == .paid(.success))
+        #expect(!chatFlow.isPaying)
+        #expect(!screenFlow.isPaying)
+        #expect(f.container.session.dialogItem == nil)
+        #expect(f.topUpper.orders.map(\.amountUSD) == [10])
+        #expect(f.payer.payments.count == 1)
+    }
+
+    @Test("A chat Pay with a balance funding part of the collection opens the sheet and orders nothing")
+    func chatPayPartialBalanceOpensSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        let flow = PaymentRequestPayFlow()
+
+        #expect(await flow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment) == .ready)
+
+        #expect(flow.isPaying)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("A Request button drawn as Pay before the balance went adds the money and pays once, with no sheet")
+    func requestPayButtonOverNoBalanceTopsUp() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        f.topUpper.delivered = 10
+        let flow = PaymentRequestPayFlow()
+
+        #expect(await tapRequestButton(f, flow, topUp: nil) == .paid(.success))
+
+        #expect(!flow.isPaying)
+        #expect(f.topUpper.orders.map(\.amountUSD) == [10])
+        #expect(f.payer.payments.count == 1)
+    }
+
+    @Test("With Group Money off a chat Pay at a zero balance keeps the shipped No Balance Yet and orders nothing")
+    func chatPayFlagOff() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil, fundsCollections: false)
+        let flow = PaymentRequestPayFlow()
+
+        #expect(await flow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment) == .noBalance)
+
+        #expect(!flow.isPaying)
+        #expect(f.container.session.dialogItem != nil)
         #expect(f.topUpper.orders.isEmpty)
         #expect(f.payer.payments.isEmpty)
     }

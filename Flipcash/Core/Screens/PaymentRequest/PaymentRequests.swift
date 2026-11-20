@@ -475,6 +475,9 @@ enum PaymentRequestCardState: Hashable, Sendable {
 /// A payment request picked to show, as a sheet item.
 struct PaymentRequestSelection: Identifiable, Hashable {
     let id: PaymentRequestID
+    /// Whether the details run their Pay button as they open, for a Pay tapped elsewhere that adds
+    /// the money first.
+    var paysOnOpen = false
 }
 
 /// What keys the chat's request poll: it restarts when the chat changes or the app returns to the foreground.
