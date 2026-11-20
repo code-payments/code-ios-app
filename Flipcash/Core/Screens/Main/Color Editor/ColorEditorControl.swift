@@ -98,6 +98,8 @@ internal enum PanelMetrics {
     static let cornerRadius: CGFloat = 10
     static let tileSize: CGFloat = 50
     static let spacing: CGFloat = 10
+    /// The fill of the editor's control tiles (Custom, Back): `Color(white: 0.2)` in dark, Apple's gray 5 in light.
+    static let tileFill = Color(light: Color(r: 229, g: 229, b: 234), dark: Color(white: 0.2))
 }
 
 // MARK: - ColorPickerComponent Implementation
@@ -254,7 +256,7 @@ private struct ColorSwatch: View {
     
     var body: some View {
         let borderStyle: AnyShapeStyle = isSelected ? 
-            AnyShapeStyle(.white) : 
+            AnyShapeStyle(Color.textMain) : 
             AnyShapeStyle(.tertiary)
         
         RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
@@ -292,11 +294,11 @@ private struct PresetsPanelView: View {
                 // Custom button
                 Button(action: onShowCustom) {
                     RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                        .fill(Color(white: 0.2))
+                        .fill(PanelMetrics.tileFill)
                         .overlay(
                             Image(systemName: "slider.horizontal.3")
                                 .font(.system(size: 24, weight: .semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.textMain)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)

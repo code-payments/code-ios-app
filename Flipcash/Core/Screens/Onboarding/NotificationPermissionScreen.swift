@@ -100,21 +100,28 @@ private struct NotificationBannerPreview: View {
                 HStack {
                     Text("Sally Smith")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.textMain)
                     Spacer()
                     Text("now")
                         .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(Color.mockBannerTimestamp)
                 }
                 Text("Thanks for the cash!")
                     .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(Color.textMain.opacity(0.6))
                     .lineLimit(1)
             }
         }
         .padding(12)
         .glassBackground(cornerRadius: 20)
     }
+}
+
+private extension Color {
+
+    /// The mock banner's "now": white 50% in dark; black 55% in light, the least that reads at
+    /// 4.5:1 on light glass.
+    static let mockBannerTimestamp = Color(light: .black.opacity(0.55), dark: .white.opacity(0.5))
 }
 
 

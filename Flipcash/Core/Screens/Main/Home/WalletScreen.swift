@@ -637,7 +637,7 @@ private struct WalletScreenContent: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: 96)
             .padding(16)
-            .background(Color.white.opacity(0.1))
+            .background(Color.fillControl)
             .clipShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius, style: .continuous))
         }
         .buttonStyle(.plain)

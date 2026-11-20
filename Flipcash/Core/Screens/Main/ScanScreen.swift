@@ -68,6 +68,9 @@ private struct ScanScreenContent: View {
             content
                 .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         }
+        // The scanner stays dark in every appearance, pinned on the stack rather than the content
+        // so the gallery glyph and, from iOS 26, the status bar turn white over the camera too.
+        .environment(\.colorScheme, .dark)
     }
 
     private var content: some View {
@@ -213,7 +216,7 @@ private struct ScanningOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.6).ignoresSafeArea()
+            Color.scrim.ignoresSafeArea()
 
             VStack(spacing: 20) {
                 ProgressView()

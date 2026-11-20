@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 import FlipcashCore
 
 /// The row of emoji offered above a long-pressed or double-tapped bubble, on a Liquid Glass capsule.
@@ -32,8 +33,14 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
     private static let itemSpacing: CGFloat = 4
     private static let inset: CGFloat = 8
     private static let addSize: CGFloat = 40
-    /// The add glyph's tint, the 50% white the old asset carried in its own strokes.
-    private static let addTint = UIColor.white.withAlphaComponent(0.5)
+    /// The add glyph's tint, the 50% white the old asset carried in its own strokes; black at 50%
+    /// in light.
+    private static let addTint = ChatStyle.uiInk(dark: 0.5, light: 0.5)
+    /// The pre-iOS 26 strip's opaque island: `#303030` in dark, white in light.
+    private static let flatSurface = UIColor(Color(light: .white, dark: Color(r: 48, g: 48, b: 48)))
+    /// The disc behind the "+" and a highlighted emoji: white at 18% in dark, Apple's system fill
+    /// in light.
+    private static let highlightFill = UIColor(Color(light: Color(r: 120, g: 120, b: 128, o: 0.2), dark: .white.opacity(0.18)))
     /// How far the leading fade reaches in from the edge, and how much scroll either fade takes to
     /// grow in, so neither snaps on.
     private static let edgeFade: CGFloat = 20
@@ -60,7 +67,7 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
             surface = glass
         } else {
             surface = UIView()
-            surface.backgroundColor = UIColor(red: 0x30 / 255, green: 0x30 / 255, blue: 0x30 / 255, alpha: 1)
+            surface.backgroundColor = Self.flatSurface
             surface.layer.cornerRadius = Self.height / 2
             surface.layer.cornerCurve = .continuous
             surface.clipsToBounds = true
@@ -105,7 +112,7 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
         } else {
             addButton.setImage(.icon(.emojiAddReaction), for: .normal)
             addButton.tintColor = Self.addTint
-            addButton.backgroundColor = UIColor.white.withAlphaComponent(0.18)
+            addButton.backgroundColor = Self.highlightFill
             addButton.layer.cornerRadius = Self.addSize / 2
             addButton.clipsToBounds = true
         }
@@ -223,7 +230,7 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
             configuration.image = Self.glyphImage(entry.emoji)
             configuration.contentInsets = .zero
             let button = UIButton(configuration: configuration)
-            button.backgroundColor = entry.highlighted ? UIColor.white.withAlphaComponent(0.18) : .clear
+            button.backgroundColor = entry.highlighted ? Self.highlightFill : .clear
             button.layer.cornerRadius = Self.itemSize / 2
             button.clipsToBounds = true
             button.widthAnchor.constraint(equalToConstant: Self.itemSize).isActive = true

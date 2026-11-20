@@ -18,13 +18,13 @@ public struct ContactAvatarView: View {
     public let imageData: Data?
     public let blurhash: String?
     public let size: CGFloat
-    /// The monogram's color. Full-strength by default; a surface whose design mutes the initials
-    /// passes a dimmer one.
+    /// The monogram's color. White by default, since the placeholder stays dark in both
+    /// appearances; a surface whose design mutes the initials passes a dimmer one.
     public let initialsColor: Color
     /// Rounds the avatar into a square with this corner radius; `nil` keeps it a circle.
     public let cornerRadius: CGFloat?
 
-    public init(id: String, displayName: String, imageData: Data? = nil, blurhash: String? = nil, size: CGFloat = 44, initialsColor: Color = .textMain, cornerRadius: CGFloat? = nil) {
+    public init(id: String, displayName: String, imageData: Data? = nil, blurhash: String? = nil, size: CGFloat = 44, initialsColor: Color = .white, cornerRadius: CGFloat? = nil) {
         self.cornerRadius = cornerRadius
         self.id = id
         self.displayName = displayName
@@ -73,7 +73,7 @@ public struct ContactAvatarView: View {
         }
         .frame(width: size, height: size)
         .clipShape(clipShape)
-        .overlay(Circle().strokeBorder(Color.white.opacity(ChatStyle.avatarStrokeOpacity), lineWidth: ChatStyle.avatarStrokeWidth))
+        .overlay(Circle().strokeBorder(Color.avatarStroke, lineWidth: ChatStyle.avatarStrokeWidth))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(displayName.isEmpty ? "Contact" : displayName))
         .accessibilityAddTraits(.isImage)
@@ -181,9 +181,18 @@ public struct PeopleSilhouette: View {
             .resizable()
             .scaledToFill()
             .padding(.top, size * 0.25)
-            .foregroundStyle(Color.textMain)
+            .foregroundStyle(Color.white)
             .blendMode(.overlay)
     }
+}
+
+private extension Color {
+    /// The avatar's inner edge, so a photo the color of the page still reads as a circle: white
+    /// over a dark page, ink over a light one.
+    static let avatarStroke = Color(
+        light: .black.opacity(ChatStyle.avatarStrokeOpacity),
+        dark: .white.opacity(ChatStyle.avatarStrokeOpacity)
+    )
 }
 
 public extension Color {

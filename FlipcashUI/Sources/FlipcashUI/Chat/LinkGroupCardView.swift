@@ -56,7 +56,7 @@ final class LinkGroupCardView: UIView {
     private var fittedHeight: NSLayoutConstraint!
     private let shimmer = LinkCardShimmerView(
         ground: UIColor(Color.backgroundRow),
-        highlight: UIColor.white.withAlphaComponent(0.06)
+        highlight: LinkCardMetrics.shimmerHighlight
     )
 
     override init(frame: CGRect) {
@@ -162,7 +162,10 @@ final class LinkGroupCardView: UIView {
 /// The metrics both link cards share, from the group card's design (node 10125:19157).
 enum LinkCardMetrics {
     static let radius: CGFloat = 12
-    static let borderOpacity: Double = 0.1
+    /// The card's edge: white at 10% in dark (`rowSeparator`), which the light separator follows.
+    static let border = Color.rowSeparator
+    /// The band a loading card's shimmer passes in: white at 6% in dark, black at 6% in light.
+    static let shimmerHighlight = UIColor(Color(light: .black.opacity(0.06), dark: .white.opacity(0.06)))
     static let horizontalPadding: CGFloat = 12
     static let titleGap: CGFloat = 13
     static let requirementGap: CGFloat = 11
@@ -244,7 +247,7 @@ struct LinkGroupCardContent: View {
         .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous))
         .overlay {
             UnevenRoundedRectangle(cornerRadii: cornerRadii, style: .continuous)
-                .strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity))
+                .strokeBorder(LinkCardMetrics.border)
         }
     }
 
@@ -264,7 +267,7 @@ struct LinkGroupCardContent: View {
             if let requirement = group.requirement {
                 Text(requirement)
                     .font(.default(size: 15, weight: .medium))
-                    .foregroundStyle(Color.textMain.opacity(0.5))
+                    .foregroundStyle(ChatStyle.quiet)
                     .multilineTextAlignment(.center)
                     .padding(.top, LinkCardMetrics.requirementGap)
             }
@@ -287,7 +290,7 @@ struct LinkGroupCardContent: View {
                     blurhash: group.blurHash,
                     size: Layout.avatar
                 )
-                .overlay { Circle().strokeBorder(Color.white.opacity(LinkCardMetrics.borderOpacity)) }
+                .overlay { Circle().strokeBorder(LinkCardMetrics.border) }
                 // Centred on the band's bottom edge.
                 .padding(.top, Layout.bandHeight - Layout.avatar / 2)
             }

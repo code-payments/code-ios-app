@@ -100,6 +100,8 @@ struct TokenCardView: View {
                     .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
             )
             .overlay(alignment: .top) { header.padding(16) }
+            // A miniature bill: its own palette and white text in either appearance.
+            .environment(\.colorScheme, .dark)
     }
 
     /// The Dollars bill's oversized "$", vertically centred and tucked toward the

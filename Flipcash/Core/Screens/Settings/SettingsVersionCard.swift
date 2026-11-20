@@ -138,15 +138,15 @@ struct SettingsVersionCard: View {
         .accessibilityIdentifier("you-version-footer")
     }
 
-    /// Dark glass: the row tone at 62% over a 24pt-blur material, with a 10% white edge and a soft
-    /// shadow. The same recipe on every OS, so iOS 18 and 26 match.
+    /// Frosted glass: a tint over a 24pt-blur material, with a hairline edge and a soft shadow. The
+    /// same recipe on every OS, so iOS 18 and 26 match.
     private var pinnedBackground: some View {
         let shape = RoundedRectangle(cornerRadius: Metrics.boxRadius, style: .continuous)
         return shape
             .fill(.ultraThinMaterial)
-            .overlay(shape.fill(Color(red: 28 / 255, green: 28 / 255, blue: 29 / 255).opacity(0.62)))
-            .overlay(shape.strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
-            .shadow(color: .black.opacity(0.25), radius: 16, y: 4)
+            .overlay(shape.fill(Color.versionCardGlassTint))
+            .overlay(shape.strokeBorder(Color.rowSeparator, lineWidth: 1))
+            .shadow(color: .versionCardShadow, radius: 16, y: 4)
     }
 
     private var title: String {
@@ -195,4 +195,11 @@ struct SettingsVersionCard: View {
             EmptyView()
         }
     }
+}
+
+private extension Color {
+    /// The pinned card's tint over its material: the row tone at 62% in dark, frosted white in light.
+    static let versionCardGlassTint = Color(light: .white.opacity(0.8), dark: Color(r: 28, g: 28, b: 29, o: 0.62))
+    /// The pinned card's shadow: black 25% in dark, 10% in light.
+    static let versionCardShadow = Color(light: .black.opacity(0.1), dark: .black.opacity(0.25))
 }

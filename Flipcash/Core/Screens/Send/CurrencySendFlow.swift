@@ -236,13 +236,13 @@ private struct CurrencySelectRecipientScreen: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 18))
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(Color.sendSearchPrompt)
             TextField(
                 "",
                 text: $query,
                 prompt: Text("Search")
                     .font(.appTextBody)
-                    .foregroundStyle(Color.white.opacity(0.5))
+                    .foregroundStyle(Color.sendSearchPrompt)
             )
             .font(.appTextBody)
             .foregroundStyle(Color.textMain)
@@ -252,7 +252,7 @@ private struct CurrencySelectRecipientScreen: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 46)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08)))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.fillSubtle))
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
         .accessibilityIdentifier("currency-send-search")
@@ -371,7 +371,7 @@ private struct CurrencySendConfirmSheet: View {
                     if let username {
                         Text("@\(username.value)")
                             .font(.appTextSmall)
-                            .foregroundStyle(Color.white.opacity(0.55))
+                            .foregroundStyle(Color.walletTextMuted)
                             .padding(.top, 3)
                     }
                 }
@@ -395,7 +395,7 @@ private struct CurrencySendConfirmSheet: View {
                     }
                     .padding(.horizontal, 12)
                     .frame(height: 36)
-                    .background(Capsule().fill(Color.white.opacity(0.05)))
+                    .background(Capsule().fill(Color.backgroundRow))
                     .padding(.top, 4)
                 }
                 SwipeControl(text: target.swipeLabel) {
@@ -425,4 +425,9 @@ private struct CurrencySendConfirmSheet: View {
         let reserved = UIApplication.shared.currentKeyWindow?.safeAreaInsets.bottom ?? 0
         return max(0, 20 - reserved)
     }
+}
+
+private extension Color {
+    /// The send search field's glyph and prompt: white 50% in dark, a grey that holds 4.87:1 on the field in light.
+    static let sendSearchPrompt = Color(light: Color(r: 103, g: 103, b: 107), dark: .white.opacity(0.5))
 }

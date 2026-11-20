@@ -156,9 +156,9 @@ extension DialogAction {
         
         var backgroundColor: Color {
             switch self {
-            case .standard:    return .white
+            case .standard:    return .action
             case .subtle:      return .clear
-            case .destructive: return .white
+            case .destructive: return .action
             case .outline:     return .clear
             }
         }

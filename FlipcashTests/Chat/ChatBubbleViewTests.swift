@@ -365,15 +365,27 @@ struct ChatBubbleViewBareTests {
     func raiseWithShapeCastsTheLiftShadow() {
         let view = UIView()
         let path = UIBezierPath(rect: CGRect(x: 0, y: 0, width: 40, height: 40))
-        BubbleBackgroundView.raise(view, shape: path)
+        // 0.135 is the dark value.
+        BubbleBackgroundView.raise(view, shape: path, style: .dark)
         #expect(view.layer.shadowOpacity == 0.135)
         #expect(view.layer.shadowPath != nil)
+    }
+
+    @Test("Only the light appearance lightens the lift; an unresolved one keeps the dark shadow")
+    func raiseLightensTheLiftOnlyInLight() {
+        let path = UIBezierPath(rect: CGRect(x: 0, y: 0, width: 40, height: 40))
+        let light = UIView()
+        let unresolved = UIView()
+        BubbleBackgroundView.raise(light, shape: path, style: .light)
+        BubbleBackgroundView.raise(unresolved, shape: path, style: .unspecified)
+        #expect(light.layer.shadowOpacity == 0.055)
+        #expect(unresolved.layer.shadowOpacity == 0.135)
     }
 
     @Test("Raising a bare row's clear-backgrounded preview with no shape casts no shadow at all")
     func raiseWithNoShapeCastsNoShadow() {
         let view = UIView()
-        BubbleBackgroundView.raise(view, shape: nil)
+        BubbleBackgroundView.raise(view, shape: nil, style: .dark)
         #expect(view.layer.shadowOpacity == 0)
         #expect(view.layer.shadowPath == nil)
     }

@@ -32,6 +32,10 @@ public final class ChatEncryptionMarkerCell: UICollectionViewCell {
             button.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             button.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 16),
         ])
+        // The glyphs are images baked in one appearance's colour, so the title is drawn again.
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.traitCollection.performAsCurrent { self.button.setAttributedTitle(Self.title(), for: .normal) }
+        }
     }
 
     @available(*, unavailable)
@@ -47,9 +51,10 @@ public final class ChatEncryptionMarkerCell: UICollectionViewCell {
         onTap?()
     }
 
+    /// The line in the current trait collection's appearance.
     private static func title() -> NSAttributedString {
         let font = UIFont.default(size: 12, weight: .bold)
-        let color = UIColor(Color.textSecondary)
+        let color = UIColor(Color.textSecondary).resolvedColor(with: .current)
         let glyphSize: CGFloat = 12
         func glyph(_ icon: Icon) -> NSAttributedString {
             let attachment = NSTextAttachment()

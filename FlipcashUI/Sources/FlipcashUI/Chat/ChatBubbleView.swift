@@ -37,6 +37,17 @@ public final class ChatBubbleView: UIView {
     private let detailLabel = UILabel()
     private var action: ChatBubbleAction?
     private(set) var quotePanel = ChatQuotePanelView()
+    /// Whether the label carries the unavailable line, whose glyph is an image baked in one
+    /// appearance's colour and so is drawn again when the appearance changes.
+    private var showsUnavailableLine = false
+
+    /// The unavailable bubble's hint under it.
+    private static let hintColor = ChatStyle.uiInk(dark: 0.7, light: 0.7)
+    /// The unavailable line and the update bubble's body: white at 55% in dark, black at 60% in
+    /// light, for 4.5:1 on the page and the received bubble.
+    private static let unavailableColor = ChatStyle.uiInk(dark: 0.55, light: 0.6)
+    /// The update bubble's title.
+    private static let updateTitleColor = ChatStyle.uiInk(dark: 0.9, light: 0.9)
 
     /// Forwarded from the panel: the stable id of the message to jump to.
     var onQuoteTap: ((String) -> Void)? {
@@ -112,15 +123,15 @@ public final class ChatBubbleView: UIView {
         addSubview(editedLabel)
 
         hintLabel.font = .default(size: 12, weight: .semibold)
-        hintLabel.textColor = UIColor.white.withAlphaComponent(0.7)
+        hintLabel.textColor = Self.hintColor
         hintLabel.numberOfLines = 0
         hintLabel.isHidden = true
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(hintLabel)
 
         var buttonConfig = UIButton.Configuration.filled()
-        buttonConfig.baseBackgroundColor = .white
-        buttonConfig.baseForegroundColor = .black
+        buttonConfig.baseBackgroundColor = UIColor(Color.action)
+        buttonConfig.baseForegroundColor = UIColor(Color.textAction)
         buttonConfig.cornerStyle = .capsule
         buttonConfig.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14)
         buttonConfig.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
@@ -129,7 +140,7 @@ public final class ChatBubbleView: UIView {
             return attributes
         }
         detailLabel.font = .appTextCaption
-        detailLabel.textColor = UIColor.white.withAlphaComponent(0.55)
+        detailLabel.textColor = Self.unavailableColor
         detailLabel.numberOfLines = 0
         detailLabel.isHidden = true
         detailLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -138,6 +149,11 @@ public final class ChatBubbleView: UIView {
         actionButton.configuration = buttonConfig
         actionButton.isHidden = true
         actionButton.translatesAutoresizingMaskIntoConstraints = false
+
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            guard self.showsUnavailableLine else { return }
+            self.traitCollection.performAsCurrent { self.label.attributedText = Self.unavailableText() }
+        }
         actionButton.addAction(UIAction { [weak self] _ in self?.action?.handler() }, for: .primaryActionTriggered)
         addSubview(actionButton)
 
@@ -218,6 +234,7 @@ public final class ChatBubbleView: UIView {
         updateAction: ChatBubbleAction? = nil
     ) {
         label.attributedText = Self.displayText(for: message)
+        showsUnavailableLine = Self.drawsUnavailableLine(message)
         // Read after the body, so VoiceOver gets the send time without the reveal drag.
         label.accessibilityValue = message.sentAt?.formattedChatMessageTime()
         editedLabel.textColor = ChatStyle.mutedText(isFromSelf: message.sender == .me)
@@ -320,13 +337,22 @@ public final class ChatBubbleView: UIView {
         }
     }
 
-    /// The unavailable bubble's line: an alert glyph, then the copy, both muted.
+    /// Whether `message` draws ``unavailableText()``.
+    private static func drawsUnavailableLine(_ message: ChatMessage) -> Bool {
+        switch message.content {
+        case .unavailable(.askToResend), .unavailable(.resend): true
+        case .unavailable(.updateApp), .text, .cash, .deleted, .shareProfile, .media, .paymentRequest: false
+        }
+    }
+
+    /// The unavailable bubble's line: an alert glyph, then the copy, both muted. The glyph is baked
+    /// in the current trait collection's appearance.
     private static func unavailableText() -> NSAttributedString {
-        let color = UIColor.white.withAlphaComponent(0.55)
+        let color = unavailableColor
         let font = UIFont.default(size: 15, weight: .medium)
         let attachment = NSTextAttachment()
         attachment.image = UIImage.icon(.exclamationCircle)
-            .withTintColor(color, renderingMode: .alwaysOriginal)
+            .withTintColor(color.resolvedColor(with: .current), renderingMode: .alwaysOriginal)
         attachment.bounds = CGRect(x: 0, y: -2, width: 16, height: 16)
 
         let result = NSMutableAttributedString(attachment: attachment)
@@ -348,7 +374,7 @@ public final class ChatBubbleView: UIView {
             string: ChatMessage.updateAppTitle,
             attributes: [
                 .font: UIFont.appTextMedium,
-                .foregroundColor: UIColor.white.withAlphaComponent(0.9),
+                .foregroundColor: updateTitleColor,
             ]
         )
     }

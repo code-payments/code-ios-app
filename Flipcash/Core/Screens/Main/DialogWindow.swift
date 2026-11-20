@@ -26,7 +26,6 @@ final class DialogWindow {
 
         window.windowLevel = .alert
         window.rootViewController = host
-        window.overrideUserInterfaceStyle = .dark
         window.isHidden = false
     }
 }

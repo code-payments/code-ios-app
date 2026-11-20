@@ -257,10 +257,10 @@ struct HueScroller: View {
 struct BackButton: View {
     var body: some View {
         RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-            .fill(Color(white: 0.2))
+            .fill(PanelMetrics.tileFill)
             .overlay(
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.textMain)
                     .font(.system(size: 20, weight: .semibold))
             )
             .overlay(

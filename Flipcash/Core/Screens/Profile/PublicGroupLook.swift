@@ -19,8 +19,27 @@ enum PublicGroupLook {
     /// How far toward ``lightnessDark`` the cover's color moves.
     static let lightnessPull: Double = 0.6
 
+    /// How much of the cover's own color the light page keeps before its chroma ceiling.
+    static let saturationLight: Double = 0.8
+
+    /// The OKLab lightness the light page is pulled toward.
+    static let lightnessLight: Double = 0.97
+
+    /// How far toward ``lightnessLight`` the cover's color moves.
+    static let lightnessPullLight: Double = 0.7
+
+    /// The OKLab lightness the light page is held inside.
+    static let lightnessRangeLight: ClosedRange<Double> = 0.91...0.97
+
+    /// The most chroma the light page keeps, so it reads as a tint of the cover.
+    static let chromaCeilingLight: Double = 0.03
+
     /// The length of the melt from the cover into the page.
     static let fadeHeight: CGFloat = 214
+
+    /// The length of the melt into the light page, where a dark cover runs further to reach it;
+    /// the dark length until it is tuned on a device.
+    static let fadeHeightLight: CGFloat = 214
 
     /// The cover's height from the top of the screen, under the status and navigation bars.
     static let coverHeight: CGFloat = 320
@@ -86,7 +105,16 @@ enum PublicGroupLook {
 
     /// The palette settings those numbers make.
     static var settings: BleedSettings {
-        BleedSettings(saturation: saturation, lightnessDark: lightnessDark, lightnessPull: lightnessPull)
+        BleedSettings(
+            saturation: saturation,
+            lightnessDark: lightnessDark,
+            lightnessPull: lightnessPull,
+            saturationLight: saturationLight,
+            lightnessLight: lightnessLight,
+            lightnessPullLight: lightnessPullLight,
+            lightnessRangeLight: lightnessRangeLight,
+            chromaCeilingLight: chromaCeilingLight
+        )
     }
 
     /// Where the glow behind the avatar centers when the page is colored from the avatar, as a

@@ -223,6 +223,7 @@ private struct UserProfileContent: View {
             .ignoresSafeArea(edges: .top)
             // The blur only belongs once the banner has scrolled up under the bar.
             .hidesTopScrollEdge(untilOffset: ProfileCoverBanner<EmptyView>.height / 2)
+            .profileCoverBar(hasPhoto: model.coverPicture != nil)
         }
         // On iOS 26 the pinned button joins the bottom scroll edge effect, so content fades under it.
         .scrollEdgeBar(.bottom) {
@@ -311,7 +312,7 @@ private struct UserProfileContent: View {
     private var statusBadges: some View {
         HStack(spacing: 8) {
             if isBlocked {
-                ProfileStatusChip(systemImage: "nosign", text: "Blocked", tint: .warning, fill: .warningSecondary)
+                ProfileStatusChip(systemImage: "nosign", text: "Blocked", tint: ProfileStatusChip.warningTint, fill: .warningSecondary)
                     // The mute chip gives up width first, falling back to plain "Muted".
                     .fixedSize()
                     .accessibilityIdentifier("profile-blocked-badge")
@@ -336,7 +337,7 @@ private struct UserProfileContent: View {
                 } label: {
                     Label(item.title, systemImage: item.systemImage)
                 }
-                // Menu icons follow the app's white tint while the title follows the role, so a
+                // Menu icons follow the app's textMain tint while the title follows the role, so a
                 // destructive entry's icon is tinted red to match its title.
                 .tint(item.isDestructive ? Color.textError : nil)
             }

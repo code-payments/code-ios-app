@@ -52,7 +52,7 @@ struct ActionCardRow: View {
     let title: String
     let subtitle: String
     let identifier: String
-    var fill: Color = Color.white.opacity(0.1)
+    var fill: Color = Color.fillControl
     let action: () -> Void
 
     var body: some View {
@@ -324,7 +324,7 @@ private struct PaymentRequestHistoryScreen: View {
                     .foregroundStyle(Color.textSecondary)
             }
             .padding(16)
-            .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
+            .background(Color.paymentRequestRowFill, in: .rect(cornerRadius: 12))
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -446,7 +446,7 @@ private struct PaymentRequestSummaryScreen: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
+            .background(Color.paymentRequestRowFill, in: .rect(cornerRadius: 12))
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -640,7 +640,7 @@ private struct PaymentRequestDeadlineSheet: View {
         .background(Color.backgroundSecondary, in: .rect(cornerRadius: 12))
         .overlay {
             if isEditing {
-                RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 12).strokeBorder(Color.textMain, lineWidth: 1.5)
             }
         }
         .accessibilityElement(children: .combine)
@@ -685,7 +685,7 @@ private struct PaymentRequestDeadlineGrid: View {
                 // One circle for the closing day, drawn under the cells so it slides between days instead of fading.
                 if let anchor = anchors[picker.selectedDay] {
                     let rect = proxy[anchor]
-                    Circle().fill(Color.white).frame(width: Self.circle, height: Self.circle)
+                    Circle().fill(Color.action).frame(width: Self.circle, height: Self.circle)
                         .position(x: rect.midX, y: rect.midY)
                 }
             }
@@ -714,7 +714,7 @@ private struct PaymentRequestDeadlineGrid: View {
         } label: {
             ZStack {
                 if isStart {
-                    Circle().fill(Self.startGrey).frame(width: Self.circle, height: Self.circle)
+                    Circle().fill(Color.deadlineStart).frame(width: Self.circle, height: Self.circle)
                 }
                 // The 1st stacks its month label above the number, centred as one group in the circle.
                 VStack(spacing: 0) {
@@ -725,7 +725,7 @@ private struct PaymentRequestDeadlineGrid: View {
                     }
                     Text("\(number)")
                         .font(.appTextMedium)
-                        .foregroundStyle(isSelected ? Color.black : Color.textMain)
+                        .foregroundStyle(isSelected ? Color.textAction : Color.textMain)
                         .opacity(isEnabled ? 1 : 0.3)
                 }
             }
@@ -742,18 +742,13 @@ private struct PaymentRequestDeadlineGrid: View {
     }
 
     private func monthLabelColor(isEnabled: Bool, isSelected: Bool, isStart: Bool, inBand: Bool) -> Color {
-        if isSelected { return Self.grey(0x59) }
-        if isStart { return Self.grey(0xD9) }
-        if isEnabled && inBand { return Self.grey(0x9E) }
-        return Self.grey(0x7B)
-    }
-
-    private static func grey(_ value: Double) -> Color {
-        Color(red: value / 255, green: value / 255, blue: value / 255)
+        if isSelected { return .deadlineMonthOnSelected }
+        if isStart { return .deadlineMonthOnStart }
+        if isEnabled && inBand { return .deadlineMonthInBand }
+        return .textSecondary
     }
 
     private static let circle: CGFloat = 34
-    private static let startGrey = Color(red: 0x6B / 255, green: 0x6B / 255, blue: 0x6E / 255)
 
     private var weeks: [[Date]] {
         stride(from: 0, to: picker.gridDays.count, by: 7).map { Array(picker.gridDays[$0..<min($0 + 7, picker.gridDays.count)]) }
@@ -776,7 +771,7 @@ private struct PaymentRequestDeadlineGrid: View {
             // Square ends clipped to a capsule spanning the row: only the row's edges ever round, so an end
             // sliding with the circle never animates a corner radius.
             Rectangle()
-                .fill(Color.white.opacity(0.12))
+                .fill(Color.deadlineBand)
                 .frame(width: max(trailing - leading, 0), height: Self.circle)
                 .position(x: (leading + trailing) / 2, y: rowEnd.midY)
                 .mask {
@@ -836,4 +831,18 @@ private struct PaymentRequestSelectPeopleScreen: View {
             DialogAction.okay(kind: .standard)
         }
     }
+}
+
+extension Color {
+    /// The fill of a payment-request row card on the page: white 6% in dark, Apple's quaternary fill in light.
+    static let paymentRequestRowFill = Color(light: Color(r: 116, g: 116, b: 128, o: 0.08), dark: .white.opacity(0.06))
+}
+
+/// The Time To Pay grid's colours, each holding its dark value from before the app followed the appearance.
+private extension Color {
+    static let deadlineBand            = Color(light: Color(r: 120, g: 120, b: 128, o: 0.16), dark: .white.opacity(0.12))
+    static let deadlineStart           = Color(light: Color(r: 174, g: 174, b: 178), dark: Color(r: 107, g: 107, b: 110))
+    static let deadlineMonthOnSelected = Color(light: Color(r: 166, g: 166, b: 166), dark: Color(r: 89,  g: 89,  b: 89))
+    static let deadlineMonthOnStart    = Color(light: Color(r: 38,  g: 38,  b: 38),  dark: Color(r: 217, g: 217, b: 217))
+    static let deadlineMonthInBand     = Color(light: Color(r: 97,  g: 97,  b: 97),  dark: Color(r: 158, g: 158, b: 158))
 }

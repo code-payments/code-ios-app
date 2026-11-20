@@ -133,17 +133,17 @@ struct TrayFill: View {
 
     /// The flat colour over the glass, or nil for glass alone.
     private var flat: Color? {
-        TrayMetrics.usesGlass ? nil : Color.backgroundSecondary.opacity(TrayMetrics.flatOpacity)
+        TrayMetrics.usesGlass ? nil : TrayMetrics.surface
     }
 
-    /// A darker card with red fading down into it from the top edge, for the error style.
+    /// Red fading down from the card's top edge, over a darker card in dark, for the error style.
     @ViewBuilder
     private var errorFade: some View {
         if style.fadesRed {
             ZStack {
-                Color.black.opacity(TrayMetrics.errorFadeDarkness)
+                TrayMetrics.errorDarken
                 LinearGradient(
-                    colors: [Color.bannerError.opacity(TrayMetrics.errorFadeStrength), Color.bannerError.opacity(0)],
+                    colors: [TrayMetrics.errorFadeTop, Color.bannerError.opacity(0)],
                     startPoint: .top,
                     endPoint: UnitPoint(x: 0.5, y: TrayMetrics.errorFadeLength)
                 )

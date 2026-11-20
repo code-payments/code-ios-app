@@ -143,6 +143,12 @@ struct ChatMediaViewerTests {
             message: message(media()), localImage: Self.localImage, remote: { nil }, placeholder: nil
         ) { nil })
         let viewer = makeViewer(request)
+        // Hosted in a light window: the pin has to hold when the app around it is light.
+        let window = UIWindow(frame: viewer.view.frame)
+        window.overrideUserInterfaceStyle = .light
+        window.rootViewController = viewer
+        window.isHidden = false
+        defer { window.isHidden = true }
         #expect(viewer.overrideUserInterfaceStyle == .dark)
         #expect(viewer.view.traitCollection.userInterfaceStyle == .dark)
     }

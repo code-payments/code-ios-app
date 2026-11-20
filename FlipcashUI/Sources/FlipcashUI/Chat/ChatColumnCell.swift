@@ -133,7 +133,7 @@ public class ChatColumnCell: UICollectionViewCell {
 
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
         timeLabel.font = .default(size: 12, weight: .medium)
-        timeLabel.textColor = UIColor.white.withAlphaComponent(Self.revealedTimeOpacity)
+        timeLabel.textColor = Self.revealedTimeColor
         timeLabel.textAlignment = .right
         timeLabel.isAccessibilityElement = false
         timeLabel.alpha = 0
@@ -199,9 +199,9 @@ public class ChatColumnCell: UICollectionViewCell {
 
     /// The author name's tint. Figma names every speaker in the same 50% white (node 9764:15123)
     /// rather than the per-person colour the quote panel uses, so a run of different senders reads
-    /// as one transcript instead of a palette.
-    private static let authorNameOpacity: Double = 0.5
-    private static let revealedTimeOpacity: CGFloat = 0.6
+    /// as one transcript instead of a palette. Black at 60% in light, for 4.5:1.
+    private static let authorNameColor = ChatStyle.quietText
+    private static let revealedTimeColor = ChatStyle.uiInk(dark: 0.6, light: 0.6)
 
     /// A group author's name, indented by the bubble's text inset so it lines up with the text
     /// below it rather than with the bubble's edge.
@@ -211,7 +211,7 @@ public class ChatColumnCell: UICollectionViewCell {
         style.headIndent = ChatStyle.bubblePaddingX
         return NSAttributedString(string: name, attributes: [
             .font: UIFont.default(size: ChatStyle.authorNameSize, weight: ChatStyle.authorNameWeight),
-            .foregroundColor: UIColor(Color.textMain.opacity(Self.authorNameOpacity)),
+            .foregroundColor: Self.authorNameColor,
             .paragraphStyle: style,
         ])
     }
@@ -267,7 +267,7 @@ public class ChatColumnCell: UICollectionViewCell {
         authorAvatar.transform = replyOffset == 0 ? .identity : CGAffineTransform(translationX: replyOffset, y: 0)
         let hidden = ChatTimestampReveal.travel - revealOffset
         timeLabel.transform = hidden == 0 ? .identity : CGAffineTransform(translationX: hidden, y: 0)
-        // Fades in with the drag; the label's own color caps it at `revealedTimeOpacity`.
+        // Fades in with the drag; the label's own color caps it at `revealedTimeColor`.
         timeLabel.alpha = revealOffset / ChatTimestampReveal.travel
     }
 

@@ -655,6 +655,8 @@ private final class ReactionOverflowButton: UIControl {
 private final class ReactionAddButton: UIControl {
 
     private static var iconSize: CGFloat { ChatStyle.addReactionIconSize }
+    /// The pre-iOS 26 disc: white at 18% in dark, Apple's system fill in light.
+    private static let flatFill = UIColor(Color(light: Color(r: 120, g: 120, b: 128, o: 0.2), dark: .white.opacity(0.18)))
 
     private let surface: UIView
     private let icon: UIImageView?
@@ -680,7 +682,7 @@ private final class ReactionAddButton: UIControl {
             surface = glass
         } else {
             surface = UIView()
-            surface.backgroundColor = UIColor.white.withAlphaComponent(0.18)
+            surface.backgroundColor = Self.flatFill
             surface.clipsToBounds = true
         }
         self.icon = icon

@@ -27,6 +27,8 @@ enum TrayMetrics {
     static let closeStroke: CGFloat = 2.5
     static let closeGlyphOpacity: Double = 1.0
     static let closeFillOpacity: Double = 0.05
+    /// The close control's circle: white at `closeFillOpacity` in dark, a grey wash in light.
+    static let closeFill = Color(light: Color(r: 116, g: 116, b: 128, o: 0.08), dark: .white.opacity(closeFillOpacity))
     static let actionHeight: CGFloat = Metrics.buttonHeight
     static let actionGap: CGFloat = Metrics.buttonGap
     /// The card's top corners on the floating sheet; 39.5 draws the system sheet's 38 at the
@@ -51,6 +53,17 @@ enum TrayMetrics {
     static let bodySize: CGFloat = 15
     static let bodyLineHeight: CGFloat = 20
     static let bodyOpacity: Double = 0.6
+    /// How the body ink blends in light, where `.plusDarker` is the alternative to `.normal`.
+    static let lightBodyBlend: BlendMode = .normal
+
+    /// The body ink's blend: added onto what's beneath it in dark, `lightBodyBlend` in light.
+    static func bodyBlend(_ colorScheme: ColorScheme) -> BlendMode {
+        switch colorScheme {
+        case .dark: .plusLighter
+        case .light: lightBodyBlend
+        @unknown default: lightBodyBlend
+        }
+    }
     static let actionSize: CGFloat = 16
 
     /// `size` at `dynamicTypeSize`, scaled as `style` scales; `size` itself at the default
@@ -73,6 +86,9 @@ enum TrayMetrics {
     /// Whether the card is Liquid Glass (iOS 26+) or a material (iOS 18) instead of the flat fill.
     static let usesGlass = false
     static let flatOpacity: Double = 0.5
+    /// The flat fill over the card's glass: the raised ground at `flatOpacity` in dark, frosted
+    /// white in light.
+    static let surface = Color(light: .white.opacity(0.8), dark: Color.backgroundSecondary.opacity(flatOpacity))
     /// Whether the system dims the screen behind the tray.
     static let dimsBackground = true
 
@@ -83,6 +99,10 @@ enum TrayMetrics {
     static let rowGap: CGFloat = 8
     static let rowFillOpacity: Double = 0.06
     static let rowSelectedFillOpacity: Double = 0.14
+    /// A row or tile at rest: white at `rowFillOpacity` in dark, a grey wash in light.
+    static let rowFill = Color(light: Color(r: 116, g: 116, b: 128, o: 0.08), dark: .white.opacity(rowFillOpacity))
+    /// A selected row or tile: white at `rowSelectedFillOpacity` in dark, a deeper grey wash in light.
+    static let rowSelectedFill = Color(light: Color(r: 120, g: 120, b: 128, o: 0.16), dark: .white.opacity(rowSelectedFillOpacity))
     static let rowIconSize: CGFloat = 22
     static let rowTextSize: CGFloat = 17
     static let rowTextWeight: Font.Weight = .semibold
@@ -93,12 +113,21 @@ enum TrayMetrics {
 
     // MARK: - Error fade
 
-    /// The red at the error card's top edge.
+    /// The red at the error card's top edge in dark.
     static let errorFadeStrength: Double = 0.39
     /// How far down the error card the red reaches before it's gone, as a share of the card's height.
     static let errorFadeLength: Double = 0.865
-    /// How much darker the error card is than a standard tray, under the red.
+    /// How much darker the error card is than a standard tray, under the red, in dark.
     static let errorFadeDarkness: Double = 0.53
+    /// The red at the error card's top edge: `errorFadeStrength` in dark, lighter in light.
+    static let errorFadeTop = Color(light: Color.bannerError.opacity(0.18), dark: Color.bannerError.opacity(errorFadeStrength))
+    /// The darkening under the error card's red: black at `errorFadeDarkness` in dark, none in light.
+    static let errorDarken = Color(light: .clear, dark: .black.opacity(errorFadeDarkness))
+
+    // MARK: - Actions
+
+    /// The destructive capsule's label, white on its red in both appearances.
+    static let destructiveLabel = Color.white
 
     // MARK: - Behavior
 
@@ -111,9 +140,9 @@ enum TrayMetrics {
 enum TrayTileSelection {
     /// The row's raised fill.
     case raised
-    /// A white ring on the resting fill.
+    /// A ring in the text colour on the resting fill.
     case outline
-    /// White, with a dark label, as the primary CTA.
+    /// The primary CTA's fill and label.
     case inverted
 }
 

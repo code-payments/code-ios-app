@@ -175,7 +175,7 @@ private struct LinkCardShimmerSample: UIViewRepresentable {
     func makeUIView(context: Context) -> LinkCardShimmerView {
         let view = LinkCardShimmerView(
             ground: UIColor(Color.backgroundRow),
-            highlight: UIColor.white.withAlphaComponent(0.06)
+            highlight: LinkCardMetrics.shimmerHighlight
         )
         view.layer.cornerRadius = LinkCardMetrics.radius
         view.layer.cornerCurve = .continuous

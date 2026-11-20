@@ -54,6 +54,9 @@ final class LinkTokenCardView: UIView {
     private let watermark = UILabel()
     private let coinIcon = UIImageView()
     private let nameLabel = UILabel()
+    /// Whether the card shows the neutral stand-in, whose row-colour ground is repainted when the
+    /// appearance changes. The resolved bill is the mint's own colours, the same in both.
+    private var isUnresolved = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -69,7 +72,6 @@ final class LinkTokenCardView: UIView {
         layer.mask = outline
         border.fillColor = nil
         border.lineWidth = 2
-        border.strokeColor = UIColor(Color.rowSeparator).cgColor
 
         gradient.startPoint = CGPoint(x: 0, y: 0.5)
         gradient.endPoint = CGPoint(x: 1, y: 0.5)
@@ -95,6 +97,18 @@ final class LinkTokenCardView: UIView {
         nameLabel.numberOfLines = 1
         addSubview(nameLabel)
         layer.addSublayer(border)
+        applyLayerColors()
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.applyLayerColors()
+        }
+    }
+
+    /// Paints the border, and the stand-in's ground while unresolved, in this view's appearance.
+    private func applyLayerColors() {
+        border.strokeColor = UIColor(Color.rowSeparator).resolvedColor(with: traitCollection).cgColor
+        guard isUnresolved else { return }
+        let ground = UIColor(Color.backgroundRow).resolvedColor(with: traitCollection).cgColor
+        gradient.colors = [ground, ground]
     }
 
     override func layoutSubviews() {
@@ -159,7 +173,8 @@ final class LinkTokenCardView: UIView {
 
         switch state {
         case .unresolved:
-            gradient.colors = [UIColor(Color.backgroundRow).cgColor, UIColor(Color.backgroundRow).cgColor]
+            isUnresolved = true
+            applyLayerColors()
             watermark.isHidden = true
             coinIcon.isHidden = true
             coinIcon.kf.cancelDownloadTask()
@@ -168,6 +183,7 @@ final class LinkTokenCardView: UIView {
             nameLabel.text = token.abbreviatedMint
 
         case .resolved(let value):
+            isUnresolved = false
             let palette = value.isReserve ? Self.reserveColors : value.colors
             gradient.colors = Self.stops(from: palette)
             watermark.isHidden = !value.isReserve
@@ -180,9 +196,10 @@ final class LinkTokenCardView: UIView {
     }
 
     /// White at a tenth, because it sweeps over a ground that is dark when the card has resolved
-    /// and light when it has not — an opacity low enough to read as a pass either way.
+    /// and light when it has not — an opacity low enough to read as a pass either way. Black at a
+    /// tenth in light, where the unresolved ground is a pale grey.
     private static func makeShimmer() -> LinkCardShimmerView {
-        LinkCardShimmerView(ground: nil, highlight: UIColor.white.withAlphaComponent(0.10))
+        LinkCardShimmerView(ground: nil, highlight: UIColor(Color(light: .black.opacity(0.1), dark: .white.opacity(0.1))))
     }
 
     /// A gradient needs two ends. One colour is doubled rather than blended toward anything, and no

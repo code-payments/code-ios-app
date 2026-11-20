@@ -21,4 +21,8 @@ struct ProfileStatusChip: View {
         }
         .chip(.tinted(tint, on: fill))
     }
+
+    /// The amber label of a chip on ``ShapeStyle/warningSecondary``: `warning` in dark, a deeper
+    /// amber in light, where `warning` is too pale to read as text on the chip.
+    static let warningTint = Color(light: Color(r: 152, g: 87, b: 0), dark: Color(r: 255, g: 169, b: 57))
 }

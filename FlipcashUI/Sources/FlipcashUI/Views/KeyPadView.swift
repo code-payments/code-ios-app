@@ -447,8 +447,8 @@ private struct KeyPadBorderlessStyle: ButtonStyle {
             .label
             .scaleEffect(configuration.isPressed ? 1.35 : 1.0, anchor: .center)
             .frame(width: size.width, height: size.height) // FIXME: Invalid size here sometimes
-            .background(configuration.isPressed ? Color.white.opacity(0.1) : restFill)
-            .foregroundStyle(configuration.isPressed ? Color.white : Color.white.opacity(0.8))
+            .background(configuration.isPressed ? Color.fillControl : restFill)
+            .foregroundStyle(configuration.isPressed ? Color.textMain : Color.textMain.opacity(0.8))
             .clipShape(.rect(cornerRadius: 5))
     }
 }

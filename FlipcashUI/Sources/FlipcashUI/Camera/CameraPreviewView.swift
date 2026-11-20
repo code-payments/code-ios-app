@@ -74,6 +74,7 @@ public struct CameraViewport: View {
         }
         .background(Color.backgroundMain)
         .ignoresSafeArea()
+        .environment(\.colorScheme, .dark)
     }
 
     private func didFocus(point: CGPoint) {
@@ -168,7 +169,8 @@ public class _CameraPreviewView: UIView {
         // preview layer's default black. During the capture session's warm-up on
         // a tab switch (before the first sample buffer arrives) this makes the
         // gap blend into the dark UI rather than flashing black.
-        let background = UIColor(Color.backgroundMain)
+        overrideUserInterfaceStyle = .dark
+        let background = UIColor(Color.backgroundMain).resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark))
         backgroundColor = background
 
         previewLayer.backgroundColor = background.cgColor

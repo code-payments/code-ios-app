@@ -14,7 +14,8 @@ import FlipcashCore
 ///
 /// A launch argument for the same reason as the motion sandbox: one `simctl launch` line puts the
 /// device on the trays with no sign-in, so a tuning round starts in the same place every time.
-/// `--tray-sandbox-open <kind>` opens one kind at launch. DEBUG-only, so it can't ship.
+/// `--tray-sandbox-open <kind>` opens one kind at launch. It follows the system appearance, like
+/// the app. DEBUG-only, so it can't ship.
 public struct TraySandbox: View {
 
     /// Whether the app was launched with `--tray-sandbox`.
@@ -61,7 +62,6 @@ public struct TraySandbox: View {
             .tray(isPresented: $isShowingInfo, onDismiss: { lastDismissed = lastOpened }) {
                 TrayKind.info.tray
             }
-            .preferredColorScheme(.dark)
             .task {
                 if Self.autoplays {
                     try? await Task.sleep(for: .seconds(1))

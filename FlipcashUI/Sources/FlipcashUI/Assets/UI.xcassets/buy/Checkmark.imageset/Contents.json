@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "Checkmark-light.svg",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "Checkmark.svg",
       "idiom" : "universal"
     }

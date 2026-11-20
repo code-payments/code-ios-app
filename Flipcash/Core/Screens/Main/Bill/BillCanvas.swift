@@ -88,6 +88,9 @@ private class _BillCanvasController: UIViewController {
         self.bill                = bill
         
         super.init(nibName: nil, bundle: nil)
+
+        // The bill and the tipcard are objects with their own dark palette in either appearance.
+        overrideUserInterfaceStyle = .dark
     }
     
     // MARK: - Content -

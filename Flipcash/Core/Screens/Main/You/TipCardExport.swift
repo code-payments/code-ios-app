@@ -21,7 +21,8 @@ enum TipCardExport {
 
     /// Codes are drawn light-on-dark, so an export with no ground behind it is
     /// invisible the moment it lands on a light surface. Both formats paint the
-    /// app's own background (`backgroundMain`) behind the marks.
+    /// app's own dark background (`backgroundMain` in dark) behind the marks,
+    /// whatever appearance the device is in.
     private static var backgroundHex: String { Color.backgroundMain.hexString }
 
     /// Renders `codeData` as `format` into a file named for `name`, or returns
@@ -82,6 +83,7 @@ enum TipCardExport {
                 .foregroundStyle(Color.white)
                 .frame(width: dimension, height: dimension)
                 .background(Color.backgroundMain)
+                .environment(\.colorScheme, .dark)
         )
         // The frame above is already in export pixels, so rendering at the
         // screen's scale would multiply the size a second time.

@@ -215,7 +215,7 @@ private struct AddMoneyMethodRow: View {
             }
             .padding(20)
             .frame(maxWidth: .infinity)
-            .background(Color.white.opacity(0.1))
+            .background(Color.fillControl)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(Rectangle())
         }

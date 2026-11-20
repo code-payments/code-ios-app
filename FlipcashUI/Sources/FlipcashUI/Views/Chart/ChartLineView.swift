@@ -229,7 +229,7 @@ private struct ScrubIndicator: View {
                 .opacity(isBackgroundHidden ? 0 : 0.2)
 
             Circle()
-                .fill(backgroundColor.mix(with: .black, by: 0.35))
+                .fill(backgroundColor.mix(with: .chartScrubCoreMix, by: 0.35))
                 .stroke(borderColor, lineWidth: 2)
                 .frame(width: 10, height: 10)
         }
@@ -331,4 +331,9 @@ private extension UIView {
         }
         return nil
     }
+}
+
+private extension Color {
+    /// What the scrub dot's core is mixed toward so it reads as a ring: the page's end of the scale.
+    static let chartScrubCoreMix = Color(light: .white, dark: .black)
 }

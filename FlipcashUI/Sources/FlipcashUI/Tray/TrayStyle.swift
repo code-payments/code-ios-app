@@ -9,8 +9,8 @@ import SwiftUI
 
 /// The tone of a tray: a standard one, or one reporting a success or an error.
 ///
-/// Success draws as standard. Error darkens the card under red fading down from its top edge and
-/// draws the icon red.
+/// Success draws as standard. Error fades red down from the card's top edge, over a darker card
+/// in dark, and draws the icon red.
 public enum TrayStyle: Hashable, Sendable {
     /// Information, a decision or a confirmation.
     case standard
@@ -22,7 +22,7 @@ public enum TrayStyle: Hashable, Sendable {
 
 extension TrayStyle {
 
-    /// Whether the card darkens under red fading down from its top edge.
+    /// Whether red fades down from the card's top edge.
     var fadesRed: Bool {
         switch self {
         case .standard, .success: false

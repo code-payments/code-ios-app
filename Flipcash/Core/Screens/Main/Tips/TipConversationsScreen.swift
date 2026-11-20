@@ -26,6 +26,7 @@ struct TipConversationsScreen: View {
     @Environment(ToastController.self) private var toasts
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.floatingTabBar) private var floatingTabBar
+    @Environment(\.colorScheme) private var colorScheme
     /// Set by a pull down that starts at the top of the list; cleared when the screen goes away.
     @State private var chipsRevealed = false
     @State private var isTabBarOnSide = false
@@ -459,6 +460,30 @@ struct TipConversationsScreen: View {
 private struct MuteTarget: Identifiable {
     let ids: [ConversationID]
     var id: [ConversationID] { ids }
+}
+
+// MARK: - Swipe action glyphs -
+
+extension Image {
+    /// `icon` for a swipe action, baked in `color` as `colorScheme` resolves it, since a swipe action
+    /// draws a template label white whatever its style says.
+    static func swipeAction(_ icon: Icon, baking color: Color, in colorScheme: ColorScheme) -> Image {
+        let tint = UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: UIUserInterfaceStyle(colorScheme)))
+        return Image(uiImage: UIImage.icon(icon).withTintColor(tint, renderingMode: .alwaysOriginal))
+    }
+
+    /// `icon` for a swipe action on the faint ``Color/backgroundRow`` fill: the system's white in dark,
+    /// baked in ``Color/textMain`` in light, where white vanishes into the fill.
+    static func rowSwipeAction(_ icon: Icon, in colorScheme: ColorScheme) -> Image {
+        switch colorScheme {
+        case .dark:
+            .icon(icon)
+        case .light:
+            swipeAction(icon, baking: .textMain, in: colorScheme)
+        @unknown default:
+            swipeAction(icon, baking: .textMain, in: colorScheme)
+        }
+    }
 }
 
 // MARK: - NewChatButton -

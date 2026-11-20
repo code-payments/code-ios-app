@@ -59,6 +59,12 @@ final class LinkCashCardView: UIView {
 
     private static let paper = UIColor(red: 242 / 255, green: 240 / 255, blue: 234 / 255, alpha: 1)
     private static let ink = UIColor(red: 20 / 255, green: 18 / 255, blue: 31 / 255, alpha: 1)
+    /// The torn stub's outline on the transcript: paper at 25% on the dark page, ink at 35% on the
+    /// light one, which holds about the same 2:1 against it.
+    private static let silhouetteStroke = UIColor(Color(
+        light: Color(uiColor: ink.withAlphaComponent(0.35)),
+        dark: Color(uiColor: paper.withAlphaComponent(0.25))
+    ))
 
     /// The card's outline, set by the row from the card's place in its bubble run. The ticket takes
     /// the top two corners and the stub the bottom two; the notches between them never change.
@@ -104,6 +110,9 @@ final class LinkCashCardView: UIView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     private func setUp() {
+        // The ticket is an object with its own paper and ink, the same in either appearance.
+        topPiece.overrideUserInterfaceStyle = .dark
+        stubPiece.overrideUserInterfaceStyle = .dark
         topPiece.backgroundColor = Self.paper
         topPiece.layer.mask = topMask
         addSubview(topPiece)
@@ -163,7 +172,7 @@ final class LinkCashCardView: UIView {
         // The torn state's furniture hangs off `self`, because what it stands in for is the piece
         // that is gone. The silhouette traces the stub's outline, notch bites included: a line
         // struck straight across the band would close the bite that is the whole tell.
-        silhouette.strokeColor = Self.paper.withAlphaComponent(0.25).cgColor
+        silhouette.strokeColor = Self.silhouetteStroke.resolvedColor(with: traitCollection).cgColor
         silhouette.lineWidth = 1
         silhouette.lineDashPattern = Self.dash
         silhouette.fillColor = nil
@@ -176,6 +185,10 @@ final class LinkCashCardView: UIView {
         tornLabel.textAlignment = .center
         tornLabel.numberOfLines = 1
         addSubview(tornLabel)
+
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.silhouette.strokeColor = Self.silhouetteStroke.resolvedColor(with: self.traitCollection).cgColor
+        }
     }
 
     override func layoutSubviews() {

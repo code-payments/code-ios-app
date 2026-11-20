@@ -179,7 +179,7 @@ private struct AttachMenuRowLabelStyle: LabelStyle {
         HStack(spacing: 14) {
             configuration.icon
                 .frame(width: Self.iconDiameter, height: Self.iconDiameter)
-                .background(Color.white.opacity(0.08), in: Circle())
+                .background(Color.fillSubtle, in: Circle())
             configuration.title
                 .font(.default(size: 18, weight: .regular))
         }

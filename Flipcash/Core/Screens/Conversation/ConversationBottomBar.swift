@@ -1241,7 +1241,7 @@ struct ConversationComposer: View {
         let textField = TextField(fieldPrompt, text: $composer.draft, selection: $composer.fieldSelection, axis: .vertical)
             .font(Self.draftFont)
             .foregroundStyle(Color.textMain)
-            .tint(.white)
+            .tint(Color.textMain)
             .lineLimit(1...7)
             .focused($isFocused)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1385,7 +1385,7 @@ struct ConversationComposer: View {
                         .iconSize(20)
                         .foregroundStyle(Color.textAction)
                         .frame(width: BarMetrics.accessorySize, height: BarMetrics.accessorySize)
-                        .background(Color.white, in: Circle())
+                        .background(Color.action, in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(composer.isEditing ? "Save" : "Send")

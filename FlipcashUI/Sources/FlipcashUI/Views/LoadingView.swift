@@ -15,7 +15,7 @@ public struct LoadingView: View {
     private var color: Color
     private var style: UIActivityIndicatorView.Style
 
-    public init(color: Color = .black, style: UIActivityIndicatorView.Style = .medium) {
+    public init(color: Color = .textMain, style: UIActivityIndicatorView.Style = .medium) {
         self.color = color
         self.style = style
     }

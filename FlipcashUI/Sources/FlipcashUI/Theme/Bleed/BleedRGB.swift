@@ -51,6 +51,7 @@ nonisolated struct BleedRGB: Hashable, Sendable {
     }
 
     static let white = BleedRGB(red: 1, green: 1, blue: 1)
+    static let black = BleedRGB(red: 0, green: 0, blue: 0)
 
     // MARK: Transfer functions
 

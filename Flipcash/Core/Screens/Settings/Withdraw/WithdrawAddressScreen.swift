@@ -46,7 +46,9 @@ struct WithdrawAddressScreen: View {
                             .padding(.trailing, 15)
                             .overlay(alignment: .leading) {
                                 Image(.Icons.solana)
+                                    .renderingMode(.template)
                                     .resizable()
+                                    .foregroundStyle(Color.textMain)
                                     .frame(width: 18, height: 14)
                                     .padding(.leading, 15)
                                     .allowsHitTesting(false)

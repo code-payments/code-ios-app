@@ -49,7 +49,6 @@ struct FlipcashApp: App {
             // bar to draw from.
             .softScrollEdge(for: [.top, .bottom])
             .injectingEnvironment(from: appDelegate.container)
-            .preferredColorScheme(.dark)
             .tint(Color.textMain)
             .onOpenURL { url in
                 appDelegate.handleOpenURL(url: url)
@@ -226,7 +225,6 @@ private struct DialogSandbox: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.backgroundMain)
         .dialog(item: $dialogItem)
-        .preferredColorScheme(.dark)
         .task {
             let arguments = ProcessInfo.processInfo.arguments
             guard let i = arguments.firstIndex(of: "--dialog-sandbox-open"), i + 1 < arguments.count,

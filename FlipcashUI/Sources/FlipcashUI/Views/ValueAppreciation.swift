@@ -86,7 +86,7 @@ public struct ValueAppreciation: View {
                 .padding(.vertical, 3)
                 .overlay {
                     RoundedRectangle(cornerRadius: 5)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        .stroke(Color.appreciationOutline, lineWidth: 1)
                 }
 
             Text(isPositive ? "from appreciation" : "from depreciation")
@@ -94,4 +94,9 @@ public struct ValueAppreciation: View {
             .font(.appTextSmall)
             .foregroundStyle(Color.textSecondary)
     }
+}
+
+private extension Color {
+    /// The delta pill's hairline: white 20% in dark, Apple's `separator` grey in light.
+    static let appreciationOutline = Color(light: Color(r: 60, g: 60, b: 67, o: 0.29), dark: .white.opacity(0.2))
 }

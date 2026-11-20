@@ -19,7 +19,7 @@ public final class ChatDateSeparatorCell: UICollectionViewCell {
     public override init(frame: CGRect) {
         super.init(frame: frame)
         label.font = .default(size: 12, weight: .bold)
-        label.textColor = UIColor.white.withAlphaComponent(0.5)
+        label.textColor = ChatStyle.quietText
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(label)
@@ -42,7 +42,7 @@ public final class ChatDateSeparatorCell: UICollectionViewCell {
     private static func styled(_ text: String) -> NSAttributedString {
         let dayFont = UIFont.default(size: 12, weight: .medium)
         let timeFont = UIFont.default(size: 12, weight: .regular)
-        let color = UIColor.white.withAlphaComponent(0.5)
+        let color = ChatStyle.quietText
         guard let match = text.range(of: #"\d{1,2}[:.]\d{2}.*$"#, options: .regularExpression), match.lowerBound > text.startIndex else {
             return NSAttributedString(string: text, attributes: [.font: timeFont, .foregroundColor: color])
         }

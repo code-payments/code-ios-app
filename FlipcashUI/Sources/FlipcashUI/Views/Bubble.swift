@@ -24,7 +24,7 @@ public struct Bubble: View {
 
     public var body: some View {
         Text(UnreadCountLabel.text(for: count))
-            .foregroundStyle(.textMain)
+            .foregroundStyle(Color.bubbleLabel)
             .font(size.font)
             .lineLimit(1)
             .padding(.vertical, 2)
@@ -33,6 +33,11 @@ public struct Bubble: View {
             .background(color)
             .clipShape(.capsule)
     }
+}
+
+private extension Color {
+    /// White in both appearances: the count sits on a saturated accent fill, not on the page.
+    static let bubbleLabel = Color.white
 }
 
 extension Bubble {

@@ -62,6 +62,8 @@ struct AttachPanelHost {
         } else {
             window = UIWindow(frame: CGRect(origin: .zero, size: windowSize))
         }
+        // The colour probes read the dark look, where the panel stands apart from the transcript.
+        window.overrideUserInterfaceStyle = .dark
         window.windowLevel = .alert + 1
         window.rootViewController = screen
         window.makeKeyAndVisible()

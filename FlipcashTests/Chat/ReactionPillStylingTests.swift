@@ -36,8 +36,17 @@ struct ReactionPillStylingTests {
         labels(in: view).first { $0.text == "2" }
     }
 
+    /// Compares the two colours as the dark appearance resolves them, by component, since a
+    /// dynamic token and a literal can land in different colour spaces.
     private static func same(_ a: UIColor?, _ b: UIColor) -> Bool {
-        a?.cgColor == b.cgColor
+        guard let a else { return false }
+        let dark = UITraitCollection(userInterfaceStyle: .dark)
+        var lhs: (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        var rhs: (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        guard a.resolvedColor(with: dark).getRed(&lhs.0, green: &lhs.1, blue: &lhs.2, alpha: &lhs.3),
+              b.resolvedColor(with: dark).getRed(&rhs.0, green: &rhs.1, blue: &rhs.2, alpha: &rhs.3) else { return false }
+        return abs(lhs.0 - rhs.0) < 0.002 && abs(lhs.1 - rhs.1) < 0.002
+            && abs(lhs.2 - rhs.2) < 0.002 && abs(lhs.3 - rhs.3) < 0.002
     }
 
     @Test("A boosted pill the viewer reacted to is gold")

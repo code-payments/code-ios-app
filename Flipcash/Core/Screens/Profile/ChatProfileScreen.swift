@@ -346,6 +346,7 @@ struct ChatProfileScreen: View {
             .hidesTopScrollEdge(untilOffset: ProfileCoverBanner<EmptyView>.height / 2)
             // Leave Chat ends the scroll under the empty bar, so the edge blur lifts at the end.
             .hidesBottomScrollEdge(origin == .chat && !scrollFit.fadesBottom)
+            .profileCoverBar(hasPhoto: conversation?.coverPicture != nil)
         }
         .scrollEdgeBar(.bottom) {
             pinnedActions
@@ -865,7 +866,7 @@ struct ChatProfileScreen: View {
             } label: {
                 Label("Report", systemImage: "exclamationmark.bubble")
             }
-            // Menu icons follow the app's white tint while the title follows the role.
+            // Menu icons follow the app's textMain tint while the title follows the role.
             .tint(.red)
         } label: {
             Image.system(.ellipsis)

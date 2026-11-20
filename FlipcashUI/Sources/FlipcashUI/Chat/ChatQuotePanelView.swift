@@ -91,6 +91,18 @@ final class ChatQuotePanelView: UIView {
     /// the colour is at full strength in the rule and the name, and this is the ground they sit on.
     private static let cellTint: CGFloat = 0.14
 
+    /// The quoted text's strength over the bubble's ink, per appearance. Dark keeps its fades; light
+    /// lifts them, since a pale bubble under a tint loses 4.5:1 below about 65%.
+    private static let snippetOpacity = (dark: 0.55, light: 0.7)
+    /// A quoted payment's amount, a step brighter than a quoted sentence.
+    private static let amountOpacity = (dark: 0.75, light: 0.85)
+    /// The mint's name after a quoted amount.
+    private static let tokenOpacity = (dark: 0.35, light: 0.65)
+
+    private static func tokenColor(onSent: Bool) -> UIColor {
+        ChatStyle.text(isFromSelf: onSent, dark: tokenOpacity.dark, light: tokenOpacity.light)
+    }
+
     private func setUp() {
         layer.cornerRadius = Self.cornerRadius
         layer.cornerCurve = .continuous
@@ -114,7 +126,7 @@ final class ChatQuotePanelView: UIView {
         snippetLabel.lineBreakMode = .byTruncatingTail
 
         tokenLabel.font = .default(size: 12, weight: .medium)
-        tokenLabel.textColor = UIColor.white.withAlphaComponent(0.35)
+        tokenLabel.textColor = Self.tokenColor(onSent: false)
         tokenLabel.numberOfLines = 1
 
         detailSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
@@ -134,7 +146,7 @@ final class ChatQuotePanelView: UIView {
         thumbnailView.layer.cornerRadius = 6
         thumbnailView.layer.cornerCurve = .continuous
         // The ground a photo loads onto, so the slot reads as a photo before any bytes arrive.
-        thumbnailView.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+        thumbnailView.backgroundColor = UIColor(Color.fillSubtle)
         thumbnailView.isHidden = true
         thumbnailView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(thumbnailView)
@@ -209,15 +221,17 @@ final class ChatQuotePanelView: UIView {
     /// - Parameter onSent: whether the panel sits in a sent bubble, whose text colour it takes.
     func configure(with quote: ChatQuote, thumbnail: ChatMediaLocation? = nil, onSent: Bool = false) {
         targetStableID = quote.stableID
-        let ink = ChatStyle.text(isFromSelf: onSent)
-        let snippetColor = ink.withAlphaComponent(0.55)
-        tokenLabel.textColor = ink.withAlphaComponent(0.35)
+        let snippetColor = ChatStyle.text(isFromSelf: onSent, dark: Self.snippetOpacity.dark, light: Self.snippetOpacity.light)
+        tokenLabel.textColor = Self.tokenColor(onSent: onSent)
         // The author's own colour, derived from their user id — the same colour the composer's strip
         // draws them in, and the same one Android does. An original with no known author falls back
         // to the neutral secondary, which is what `ComplementaryPalette` returns for a nil id.
         let ruleColor = ComplementaryPalette.uiColor(.start, for: quote.authorID)
-        rule.backgroundColor = ruleColor
-        authorLabel.textColor = ComplementaryPalette.uiNameColor(for: quote.authorID)
+        let nameColor = ComplementaryPalette.uiAdaptiveNameColor(for: quote.authorID)
+        // In light the rule takes the name's darkened colour, since the raw stop all but vanishes
+        // into its own tint on a pale bubble; dark keeps the stop.
+        rule.backgroundColor = UIColor { @Sendable in ($0.userInterfaceStyle == .light ? nameColor : ruleColor).resolvedColor(with: $0) }
+        authorLabel.textColor = nameColor
         tintView.backgroundColor = ruleColor.withAlphaComponent(Self.cellTint)
         // An unavailable original has no author to name, so the author line collapses rather than
         // rendering an empty run.
@@ -230,7 +244,7 @@ final class ChatQuotePanelView: UIView {
             tokenLabel.isHidden = false
             // A payment's amount is the whole of what was said, so it is read rather than glanced
             // at — a step brighter than the preview grey a quoted sentence gets.
-            snippetLabel.textColor = ink.withAlphaComponent(0.75)
+            snippetLabel.textColor = ChatStyle.text(isFromSelf: onSent, dark: Self.amountOpacity.dark, light: Self.amountOpacity.light)
             showThumbnail(blobID: nil, location: nil)
         case .media(let thumbnailBlobID, _):
             tokenLabel.isHidden = true

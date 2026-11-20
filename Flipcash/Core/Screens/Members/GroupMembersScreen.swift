@@ -180,7 +180,7 @@ struct GroupMembersScreen: View {
                             .foregroundStyle(Color.textMain)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                            .background(Color.fillControl, in: RoundedRectangle(cornerRadius: 6))
                     } else if let silence {
                         Text(GroupModerationCopy.restrictedStatus(silence, now: now))
                             .font(.appTextSmall)

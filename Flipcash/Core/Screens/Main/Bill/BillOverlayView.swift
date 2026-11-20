@@ -71,6 +71,9 @@ private struct BillOverlayContent: View {
                     dismissAction: putInWallet
                 )
             }
+            // The whole presentation stays dark over the bill: the sheet's material and glass
+            // resolve from the presentation's appearance, which an environment pin can't reach.
+            .preferredColorScheme(.dark)
             .interactiveDismissDisabled()
         }
     }
@@ -134,6 +137,8 @@ private struct BillOverlayContent: View {
             }
         }
         .ignoresSafeArea()
+        // The bill, its scrim and the actions on it stay dark in either appearance, over a page or the camera.
+        .environment(\.colorScheme, .dark)
         .animation(.easeInOut(duration: 0.15), value: session.billState.bill == nil)
         // Governs the scrim's fade-out on dismiss, and its ramp-in everywhere
         // except an outgoing give, which snaps in via `.identity` (see

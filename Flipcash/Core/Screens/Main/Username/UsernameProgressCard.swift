@@ -80,7 +80,7 @@ struct UsernameProgressCard: View {
 
             Spacer(minLength: 0)
 
-            ProgressTrack(fraction: fraction, fill: state == .complete ? .success : Color.white)
+            ProgressTrack(fraction: fraction, fill: state == .complete ? .success : Color.textMain)
         }
         .padding(.top, 12)
         .padding(.bottom, 15)
@@ -90,7 +90,7 @@ struct UsernameProgressCard: View {
     }
 }
 
-/// The card's progress bar: a 10%-white track with a fill sized to `fraction`.
+/// The card's progress bar: a control-fill track with a fill sized to `fraction`.
 private struct ProgressTrack: View {
 
     let fraction: Double
@@ -100,7 +100,7 @@ private struct ProgressTrack: View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(Color.white.opacity(0.1))
+                    .fill(Color.fillControl)
 
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
                     .fill(fill)

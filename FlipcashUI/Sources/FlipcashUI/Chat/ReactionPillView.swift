@@ -38,12 +38,12 @@ final class ReactionPillView: UIView {
     private static var restingFill: UIColor { ChatStyle.pillFill }
     private static var selfReactedBorder: UIColor { ChatStyle.accentRing }
     private static var selfReactedBorderWidth: CGFloat { ChatStyle.pillRingWidth }
-    /// The border and amount of a boosted pill the viewer reacted to; its fill is this at 10% and its count at 50%.
+    /// The border and amount of a boosted pill the viewer reacted to; its fill is this at 10% and its count ``ChatStyle/boostCount``.
     private static let boosted = UIColor(Color.reactionBoost)
     private static let boostedFill = boosted.withAlphaComponent(0.1)
-    private static let boostedCount = boosted.withAlphaComponent(0.5)
+    private static let boostedCount = ChatStyle.boostCount
     /// The amount on someone else's boosted pill.
-    private static let othersBoostAmount = UIColor.white.withAlphaComponent(0.5)
+    private static let othersBoostAmount = ChatStyle.quietText
 
     private lazy var heightConstraint = heightAnchor.constraint(equalToConstant: ChatStyle.pillHeight)
     private lazy var stackLeading = stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ChatStyle.pillLeadingPadding)
@@ -76,10 +76,22 @@ final class ReactionPillView: UIView {
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
         addGestureRecognizer(tap)
+
+        // The ring is a layer colour, resolved when it is set, so it is set again for the new appearance.
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            guard let pill = self.pill else { return }
+            let isGold = pill.boost != nil && pill.selfReacted
+            self.layer.borderColor = Self.borderColor(isGold: isGold).resolvedColor(with: self.traitCollection).cgColor
+        }
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    /// The ring's colour: gold for a boosted pill the viewer reacted to, the accent ring otherwise.
+    private static func borderColor(isGold: Bool) -> UIColor {
+        isGold ? boosted : selfReactedBorder
+    }
 
     /// - Parameters:
     ///   - canReact: false withholds nothing here — the pill always draws, and the row's long press
@@ -110,7 +122,7 @@ final class ReactionPillView: UIView {
         countLabel.textColor = isGold ? Self.boostedCount : (pill.selfReacted ? ChatStyle.accentColor : ChatStyle.secondaryText)
         let fill = isGold ? Self.boostedFill : pill.selfReacted ? Self.selfReactedFill : Self.restingFill
         let borderWidth = pill.selfReacted ? Self.selfReactedBorderWidth : 0
-        let borderColor = (isGold ? Self.boosted : Self.selfReactedBorder).cgColor
+        let borderColor = Self.borderColor(isGold: isGold).cgColor
         if animated, let previous,
            previous.selfReacted != pill.selfReacted || (previous.boost != nil && previous.selfReacted) != isGold {
             let presentation = layer.presentation()

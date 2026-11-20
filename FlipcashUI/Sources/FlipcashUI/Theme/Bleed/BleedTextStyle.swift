@@ -13,7 +13,7 @@ import SwiftUI
 /// inside a `.compositingGroup()`, `.drawingGroup()` or a glass effect it composites against that
 /// layer instead, and a run inside a concatenated `Text` loses the blend, so use the flat color there.
 nonisolated struct BleedTextStyle: Hashable, Sendable {
-    /// White at the style's opacity.
+    /// The text color (white in dark, ink in light) at the style's opacity.
     var color: Color
     var blendMode: BlendMode = .normal
 

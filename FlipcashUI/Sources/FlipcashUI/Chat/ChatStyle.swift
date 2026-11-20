@@ -54,25 +54,89 @@ enum ChatStyle {
 
     // MARK: - Colour
 
-    /// The transcript's accent: the app's focus blue.
-    static let accent = Color.badgeFocus
+    /// How the sent bubble is drawn in the light appearance. Dark is the same in both: the focus
+    /// blue at 32% with near-white blue text.
+    enum LightSentBubble {
+        /// The focus blue at 16% over the page with deep navy text: the dark bubble's one-hue
+        /// recipe turned over.
+        case accentTint
+        /// Figma's ink proposal: near-black at 14% with near-black text.
+        case ink
+    }
+
+    /// The light sent bubble in use: `.accentTint`, or `.ink` to try Figma's proposal.
+    static let lightSentBubble: LightSentBubble = .accentTint
+
+    /// The sent bubble's fill and ink in the light appearance, per ``lightSentBubble``.
+    private static var lightSent: (fill: Color, ink: Color) {
+        switch lightSentBubble {
+        case .accentTint: (Color(r: 0, g: 122, b: 255).opacity(0.16), Color(r: 0, g: 26, b: 64))
+        case .ink:        (Color(r: 17, g: 17, b: 19).opacity(0.14), Color(r: 17, g: 17, b: 19))
+        }
+    }
+
+    /// The sent bubble's ink in each appearance, at full strength.
+    private static let sentInk = (
+        light: lightSent.ink,
+        dark: Color(uiColor: UIColor(displayP3Red: 0.88, green: 0.94, blue: 1, alpha: 1))
+    )
+    /// The received bubble's ink in each appearance, at full strength.
+    private static let receivedInk = (light: Color.black, dark: Color.white)
+
     /// The sent bubble's fill: the accent, faint over the conversation background.
-    static let sentFill = UIColor(accent.opacity(0.32))
-    /// Text on a sent bubble: the accent at full saturation lifted most of the way to white, in
-    /// Display P3 so it glows against the faint fill.
-    static let sentText = UIColor(displayP3Red: 0.88, green: 0.94, blue: 1, alpha: 1)
-    /// The received bubble's fill.
-    static let receivedFill = UIColor(Color(r: 35, g: 35, b: 37))
+    static let sentFill = UIColor(Color(light: lightSent.fill, dark: Color(r: 10, g: 132, b: 255).opacity(0.32)))
+    /// Text on a sent bubble: in dark, the accent at full saturation lifted most of the way to
+    /// white, in Display P3 so it glows against the faint fill; in light, the same hue taken most of
+    /// the way to black.
+    static let sentText = UIColor(Color(light: sentInk.light, dark: sentInk.dark))
+    /// The received bubble's fill: `#232325` in dark, Messages' `#E9E9EB` in light.
+    static let receivedFill = UIColor(Color(light: Color(r: 233, g: 233, b: 235), dark: Color(r: 35, g: 35, b: 37)))
     /// Text on a received bubble.
-    static let receivedText = UIColor.white
-    /// Secondary text in the transcript: captions, the money card's labels, a resting reaction count.
-    static let secondaryText = UIColor(Color(r: 235, g: 235, b: 245).opacity(0.6))
+    static let receivedText = UIColor(Color.textMain)
+    /// Secondary text in the transcript: captions, the money card's labels, a resting reaction
+    /// count. Apple's secondary label in dark; in light the same grey a step deeper, so it keeps
+    /// 4.5:1 on a pill or the money card.
+    static let secondaryText = UIColor(Color(
+        light: Color(r: 60, g: 60, b: 67, o: 0.8),
+        dark: Color(r: 235, g: 235, b: 245).opacity(0.6)
+    ))
     /// The tint under a reaction the viewer added.
-    static let accentTint = UIColor(accent.opacity(0.16))
+    static let accentTint = UIColor(Color(
+        light: Color(r: 0, g: 122, b: 255).opacity(0.1),
+        dark: Color(r: 10, g: 132, b: 255).opacity(0.16)
+    ))
     /// The ring around a reaction the viewer added.
-    static let accentRing = UIColor(accent.opacity(0.5))
-    /// The accent itself, for text and glyphs.
-    static let accentColor = UIColor(accent)
+    static let accentRing = UIColor(Color(
+        light: Color(r: 0, g: 122, b: 255).opacity(0.5),
+        dark: Color(r: 10, g: 132, b: 255).opacity(0.5)
+    ))
+    /// The accent for text and glyphs: the focus blue, a step deeper in light so a count on
+    /// ``accentTint`` keeps 4.5:1.
+    static let accentColor = UIColor(Color(light: Color(r: 0, g: 98, b: 204), dark: Color(r: 10, g: 132, b: 255)))
+
+    /// Quiet transcript text — the date line, receipts, a group author's name: white at 50% in
+    /// dark, black at 60% in light, where 50% falls under 4.5:1.
+    static let quiet = ink(dark: 0.5, light: 0.6)
+    /// ``quiet`` for UIKit.
+    static let quietText = UIColor(quiet)
+
+    /// The count on a boosted pill the viewer reacted to: the boost gold at 50% in dark, and the
+    /// full gold in light, where any fade falls under 4.5:1 on the pill.
+    static let boostCount = UIColor(Color(
+        light: Color(r: 143, g: 98, b: 0),
+        dark: Color(r: 255, g: 200, b: 40).opacity(0.5)
+    ))
+
+    /// Transcript ink at a strength per appearance: white at `dark` in the dark appearance, black at
+    /// `light` in light.
+    static func ink(dark: Double, light: Double) -> Color {
+        Color(light: .black.opacity(light), dark: .white.opacity(dark))
+    }
+
+    /// ``ink(dark:light:)`` for UIKit.
+    static func uiInk(dark: Double, light: Double) -> UIColor {
+        UIColor(ink(dark: dark, light: light))
+    }
 
     /// A bubble's fill for its sender.
     static func fill(isFromSelf: Bool) -> UIColor {
@@ -84,9 +148,19 @@ enum ChatStyle {
         isFromSelf ? sentText : receivedText
     }
 
+    /// Body text on a sender's bubble faded to `dark` in the dark appearance and to `light` in
+    /// light, where a pale bubble needs a lighter fade to keep 4.5:1.
+    static func text(isFromSelf: Bool, dark: Double, light: Double) -> UIColor {
+        let ink = isFromSelf ? sentInk : receivedInk
+        return UIColor(Color(light: ink.light.opacity(light), dark: ink.dark.opacity(dark)))
+    }
+
+    private static let mutedSent = text(isFromSelf: true, dark: 0.6, light: 0.7)
+    private static let mutedReceived = text(isFromSelf: false, dark: 0.6, light: 0.7)
+
     /// Muted text on a sender's bubble: a placeholder, a quote's snippet, the "Edited" marker.
     static func mutedText(isFromSelf: Bool) -> UIColor {
-        text(isFromSelf: isFromSelf).withAlphaComponent(0.6)
+        isFromSelf ? mutedSent : mutedReceived
     }
 
     // MARK: - Group names
@@ -102,6 +176,9 @@ enum ChatStyle {
     static let avatarStrokeWidth: CGFloat = 1
     /// How much white the avatar ring takes.
     static let avatarStrokeOpacity: CGFloat = 0.05
+    /// The avatar ring: white at ``avatarStrokeOpacity`` in dark, black at 5% in light, so a light
+    /// photo still reads as a circle.
+    static let avatarStroke = UIColor(Color(light: .black.opacity(0.05), dark: .white.opacity(avatarStrokeOpacity)))
     /// The avatar beside a group author's first bubble.
     static let authorAvatarSize: CGFloat = 28
 
@@ -109,8 +186,8 @@ enum ChatStyle {
 
     /// The reply arrow that follows a swiped row.
     static let replyIconSize: CGFloat = 24
-    /// The reply arrow's colour.
-    static let replyIconColor = Color.white.opacity(0.4)
+    /// The reply arrow's colour: white at 40% in dark, black at 50% in light, for 3:1 on the page.
+    static let replyIconColor = ink(dark: 0.4, light: 0.5)
 
     // MARK: - Mentions
 
@@ -121,7 +198,7 @@ enum ChatStyle {
     /// How far an `@handle` rises past centring its capitals on the body's.
     static let mentionBaselineNudge: CGFloat = 0.5
     /// An `@handle`'s text colour, the same on either sender's bubble.
-    static let mentionText = UIColor(Color.white.opacity(0.77))
+    static let mentionText = uiInk(dark: 0.77, light: 0.77)
 
     // MARK: - Spacing
 
@@ -136,8 +213,9 @@ enum ChatStyle {
 
     // MARK: - Money card
 
-    /// The money card's fill: neutral, so money reads the same under any accent.
-    static let cardFill = UIColor(Color(r: 28, g: 28, b: 30))
+    /// The money card's fill: neutral, so money reads the same under any accent. `#1C1C1E` in dark,
+    /// the raised `#F2F2F7` in light, where its text flips with it.
+    static let cardFill = UIColor(Color(light: Color(r: 242, g: 242, b: 247), dark: Color(r: 28, g: 28, b: 30)))
     /// The money card's corner radius.
     static let cardRadius: CGFloat = 22
     /// The money card's width.
@@ -177,8 +255,8 @@ enum ChatStyle {
     static let pillCountSize: CGFloat = 13
     /// The width of the ring around a reaction the viewer added.
     static let pillRingWidth: CGFloat = 1.75
-    /// A reaction nobody here added.
-    static let pillFill = UIColor(Color.white.opacity(0.09))
+    /// A reaction nobody here added: white at 9% in dark, Apple's tertiary fill in light.
+    static let pillFill = UIColor(Color(light: Color(r: 118, g: 118, b: 128, o: 0.12), dark: .white.opacity(0.09)))
     /// Whether the add-reaction button sits on a glass circle, as in v1.
     static let addReactionGlass = false
     /// The add-reaction glyph.

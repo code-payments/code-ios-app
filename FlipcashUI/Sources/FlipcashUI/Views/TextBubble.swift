@@ -59,7 +59,7 @@ extension TextBubble {
             switch self {
             case .filled:
                 Capsule()
-                    .fill(Color.textMain)
+                    .fill(Color.action)
                 
             case .outline:
                 Capsule()

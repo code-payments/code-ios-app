@@ -35,6 +35,9 @@ public final class ChatShareProfileCell: ChatColumnCell {
     /// The designed card width; a narrower transcript caps it.
     static let designedWidth: CGFloat = 290
 
+    /// The card's faint lift: white at 2% in dark, Apple's quaternary fill in light.
+    static let cardFill = UIColor(Color(light: Color(r: 116, g: 116, b: 128, o: 0.08), dark: .white.opacity(0.02)))
+
     /// Where the card looks the person up. Set before ``configure(with:maxWidth:authorImageData:)``,
     /// which is where the card subscribes.
     weak var linkCardSource: (any LinkCardSource)?
@@ -123,7 +126,7 @@ public final class ChatShareProfileCell: ChatColumnCell {
         reactionRowWidthConstraint.constant = width
 
         card.apply(
-            fill: UIColor.white.withAlphaComponent(0.02),
+            fill: Self.cardFill,
             radii: BubbleBackgroundView.radii(
                 isFromSelf: message.sender == .me,
                 groupedAbove: message.joinsBubbleAbove,
@@ -230,7 +233,8 @@ struct ShareProfileWidgetView: View {
         static let avatar: CGFloat = 64
         /// Between the name and the handle.
         static let lineGap: CGFloat = 2
-        static let handleOpacity: Double = 0.5
+        /// The handle's ink: white at 50% in dark, black at 60% in light, for 4.5:1.
+        static let handleColor = ChatStyle.quiet
         /// The avatar monogram's strength, muted per the design.
         static let initialsOpacity: Double = 0.4
         static let iconGap: CGFloat = 4
@@ -265,8 +269,7 @@ struct ShareProfileWidgetView: View {
                     } else if let handle {
                         Text(handle)
                             .font(.appTextCaption)
-                            .foregroundStyle(Color.textMain)
-                            .opacity(Layout.handleOpacity)
+                            .foregroundStyle(Layout.handleColor)
                             .lineLimit(1)
                     }
                 }
@@ -306,7 +309,8 @@ struct ShareProfileWidgetView: View {
             blurhash: resolved?.blurHash,
             size: Layout.avatar,
             // The design mutes the monogram to 40% (node 10588:1979), unlike the app's other avatars.
-            initialsColor: Color.textMain.opacity(Layout.initialsOpacity)
+            // White in both appearances, because the placeholder gradient under it stays dark.
+            initialsColor: Color.white.opacity(Layout.initialsOpacity)
         )
         .accessibilityHidden(true)
     }
@@ -332,7 +336,7 @@ private func sampleUser(name: String, handle: String?) -> LinkCard.User.State {
         ShareProfileWidgetView(username: "@brad_burnham_2", state: .notFound, onShare: {})
     }
     .frame(width: 290)
-    .background(Color.white.opacity(0.02))
+    .background(Color(uiColor: ChatShareProfileCell.cardFill))
     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     .padding()
     .frame(maxWidth: .infinity, maxHeight: .infinity)

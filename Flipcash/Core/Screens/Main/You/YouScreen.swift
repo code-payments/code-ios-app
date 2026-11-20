@@ -227,6 +227,8 @@ struct YouScreen: View {
             // whose edge has dissolved is just a smudge — so clip the softened
             // content back to the card's own outline and draw that outline.
             .clipShape(Self.placeholderShape)
+            // The black page the stand-in was drawn on, so it reads the same on a light page.
+            .background(Self.placeholderShape.fill(Color.backgroundMain))
             .overlay {
                 Self.placeholderShape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
             }
@@ -260,6 +262,8 @@ struct YouScreen: View {
             // card rather than spilling past its edges.
             .frame(maxWidth: Self.placeholderCardSize.width - 16)
         }
+        // The tip card is an object that stays dark, and the copy sits on it.
+        .environment(\.colorScheme, .dark)
     }
 
     /// Fills the blurred placeholder card's name line. Long enough to occupy the

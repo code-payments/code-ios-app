@@ -75,7 +75,7 @@ final class TranscriptBlur {
         effectView.isUserInteractionEnabled = true
 
         dim.translatesAutoresizingMaskIntoConstraints = false
-        dim.backgroundColor = .black
+        dim.backgroundColor = ChatBackdrop.dimColor
         dim.alpha = ChatBackdrop.dimAlpha
         dim.isUserInteractionEnabled = false
         effectView.contentView.addSubview(dim)
@@ -94,6 +94,10 @@ final class TranscriptBlur {
         ])
 
         strength = ChatBackdrop.frost(effectView, fraction: ChatBackdrop.gateBlurFraction)
+        effectView.registerForTraitChanges([UITraitUserInterfaceStyle.self]) { [weak self] (view: UIVisualEffectView, _) in
+            guard let self else { return }
+            strength = ChatBackdrop.refrost(view, replacing: strength, fraction: ChatBackdrop.gateBlurFraction)
+        }
     }
 
     isolated deinit {

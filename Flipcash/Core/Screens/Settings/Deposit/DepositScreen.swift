@@ -34,8 +34,10 @@ struct DepositScreen: View {
                 Button {
                     copyAddress()
                 } label: {
-                    ImmutableField(address, leadingIcon: Image(.Icons.solana))
+                    ImmutableField(address, leadingIcon: Image(.Icons.solana).renderingMode(.template))
                 }
+                // The template mark takes the label's tint.
+                .tint(Color.textMain)
 
                 Spacer()
 

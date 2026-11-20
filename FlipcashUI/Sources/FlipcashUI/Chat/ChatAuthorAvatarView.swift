@@ -34,7 +34,10 @@ final class ChatAuthorAvatarView: UIView {
         layer.cornerRadius = Self.size / 2
         layer.masksToBounds = true
         layer.borderWidth = ChatStyle.avatarStrokeWidth
-        layer.borderColor = UIColor.white.withAlphaComponent(ChatStyle.avatarStrokeOpacity).cgColor
+        layer.borderColor = ChatStyle.avatarStroke.resolvedColor(with: traitCollection).cgColor
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.layer.borderColor = ChatStyle.avatarStroke.resolvedColor(with: self.traitCollection).cgColor
+        }
 
         // The same two stops as `LinearGradient.avatarPlaceholder`, so a monogram in the transcript
         // matches one in a contact list.
@@ -47,8 +50,9 @@ final class ChatAuthorAvatarView: UIView {
         layer.addSublayer(gradient)
 
         // Scales the 44pt avatar's 16pt monogram down to this size, the way `ContactAvatarView` does.
+        // White in both appearances, because the gradient under it stays dark.
         monogram.font = .default(size: Self.size * 16 / 44, weight: .bold)
-        monogram.textColor = UIColor(Color.textMain)
+        monogram.textColor = .white
         monogram.textAlignment = .center
         monogram.translatesAutoresizingMaskIntoConstraints = false
         addSubview(monogram)

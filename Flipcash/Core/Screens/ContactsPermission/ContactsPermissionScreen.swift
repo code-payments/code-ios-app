@@ -65,8 +65,10 @@ private struct ContactsPrimingContent: View {
             Spacer(minLength: 0)
 
             Image.asset(.paperPlaneTopRight)
+                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
+                .foregroundStyle(Color.textMain)
                 .frame(width: 100, height: 100)
                 .accessibilityHidden(true)
 
@@ -107,15 +109,19 @@ private struct ContactsPrimingContent: View {
 /// Denied / restricted state: a warning and a centered button to open Settings.
 private struct ContactsDeniedContent: View {
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
 
             Image.asset(.exclamationTriangle)
+                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
+                .foregroundStyle(Color.textMain)
                 .frame(width: 100, height: 100)
-                .opacity(0.4)
+                .opacity(colorScheme.deniedHeroOpacity)
                 .accessibilityHidden(true)
 
             VStack(spacing: 8) {
@@ -163,6 +169,19 @@ private struct PermissionBulletRow: View {
     }
 }
 
+private extension ColorScheme {
+
+    /// The denied hero's strength: 40% in dark, as designed, and 45% in light, the least at which
+    /// the glyph holds 3:1 on white.
+    var deniedHeroOpacity: Double {
+        switch self {
+        case .dark: 0.4
+        case .light: 0.45
+        @unknown default: 0.45
+        }
+    }
+}
+
 // MARK: - Previews -
 
 #Preview("Priming") {
@@ -171,7 +190,6 @@ private struct PermissionBulletRow: View {
             .navigationTitle("Send")
             .toolbarTitleDisplayMode(.inline)
     }
-    .preferredColorScheme(.dark)
 }
 
 #Preview("No Access") {
@@ -182,5 +200,4 @@ private struct PermissionBulletRow: View {
             .navigationTitle("Send")
             .toolbarTitleDisplayMode(.inline)
     }
-    .preferredColorScheme(.dark)
 }

@@ -6,7 +6,8 @@ public struct ChartRangePicker: View {
     let accentColor: Color
     
     @Namespace private var animation
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     public init(selectedRange: Binding<ChartRange>, accentColor: Color) {
         self._selectedRange = selectedRange
         self.accentColor = accentColor
@@ -23,7 +24,7 @@ public struct ChartRangePicker: View {
                     Text(range.title)
                         .font(.appTextMedium)
                         .fontWeight(.semibold)
-                        .foregroundStyle(selectedRange == range ? .white : .secondary)
+                        .foregroundStyle(selectedRange == range ? Color.textMain : unselectedInk)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background {
@@ -39,6 +40,11 @@ public struct ChartRangePicker: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// The system secondary in dark; in light, where it reads at 3.44:1 on the page, `textSecondary`.
+    private var unselectedInk: Color {
+        colorScheme == .dark ? Color.secondary : Color.textSecondary
     }
 }
 

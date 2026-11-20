@@ -7,9 +7,9 @@
 
 import SwiftUI
 
-/// A row of equal-width chips on grey capsules, with one white capsule that slides to the selected
-/// chip instead of fading between them. A nil selection leaves every chip grey. A label that
-/// doesn't fit wraps to a second line.
+/// A row of equal-width chips on grey capsules, with one action-coloured capsule that slides to the
+/// selected chip instead of fading between them. A nil selection leaves every chip grey. A label
+/// that doesn't fit wraps to a second line.
 public struct SlidingChipPicker<Option: Hashable>: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -45,7 +45,7 @@ public struct SlidingChipPicker<Option: Hashable>: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.8)
-                        .foregroundStyle(isSelected ? Color.black : Color.textMain)
+                        .foregroundStyle(isSelected ? Color.textAction : Color.textMain)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -72,7 +72,7 @@ public struct SlidingChipPicker<Option: Hashable>: View {
                 // One capsule for the selection, so it slides between chips instead of fading.
                 if let selection, let anchor = anchors[selection] {
                     let rect = proxy[anchor]
-                    Capsule().fill(Color.white)
+                    Capsule().fill(Color.action)
                         .frame(width: rect.width, height: rect.height)
                         .position(x: rect.midX, y: rect.midY)
                 }
