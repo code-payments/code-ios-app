@@ -791,11 +791,12 @@ private struct PaymentRequestPaySheet: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 30)
                 case .pay, .details:
+                    // Insets from frames 5.2 (node 13952:58) and 5.3 (node 13952:149).
                     CollectionPaySheetPager(progress: page.pagerProgress) {
                         payContent(feeLine: funding?.feeLine, topUp: funding?.topUp)
                             .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 30)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 28)
                             .allowsHitTesting(page == .pay)
                             .accessibilityHidden(page != .pay)
                         if let funding, !funding.detailsEntries.isEmpty {
@@ -805,8 +806,8 @@ private struct PaymentRequestPaySheet: View {
                                 onBack: { showDetails(false) }
                             )
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 20)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 24)
                             .allowsHitTesting(page == .details)
                             .accessibilityHidden(page != .details)
                         }
@@ -839,10 +840,13 @@ private struct PaymentRequestPaySheet: View {
         payment.fundsCollection ? payment.payingBalance : payment.selectedBalance
     }
 
+    /// A funded collection takes its sizes from frames 5.2 and 4.2 (nodes 13952:58, 13964:78); any
+    /// other payment keeps the shipped sheet's.
     private func payContent(feeLine: String?, topUp: CollectionPaymentSheetContent.TopUp?) -> some View {
-        VStack(spacing: 25) {
+        let isCollection = payment.fundsCollection
+        return VStack(spacing: isCollection ? 24 : 25) {
             VStack(spacing: 8) {
-                PaymentRequestAvatar(userID: payeeID, member: payee, size: 56)
+                PaymentRequestAvatar(userID: payeeID, member: payee, size: isCollection ? 54 : 56)
                 Text(payee.map(ConversationLoadCoordinator.attributionName(for:)) ?? "")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
@@ -853,7 +857,7 @@ private struct PaymentRequestPaySheet: View {
                         .foregroundStyle(Color.textSecondary)
                 }
             }
-            VStack(spacing: 8) {
+            VStack(spacing: isCollection ? 12 : 8) {
                 Text(amount)
                     .font(.appDisplayLarge)
                     .foregroundStyle(Color.textMain)
@@ -862,17 +866,17 @@ private struct PaymentRequestPaySheet: View {
                 if let feeLine {
                     CollectionPaymentInfoLine(text: feeLine) { showDetails(true) }
                 }
-                TokenSelectorButton(selectedBalance: shownBalance, showsChevron: !payment.fundsCollection) {
+                TokenSelectorButton(selectedBalance: shownBalance, showsChevron: !isCollection) {
                     isShowingTokenSelection = true
                 }
                 .id(shownBalance?.stored.mint)
-                .buttonStyle(TokenChipStyle())
-                .padding(.top, 4)
+                .buttonStyle(TokenChipStyle(height: isCollection ? 42 : nil, horizontalPadding: isCollection ? 15 : 16))
+                .padding(.top, isCollection ? 0 : 4)
             }
             if let topUp {
                 VStack(spacing: 16) {
                     // Opens Payment Details as the fee line does (7.3).
-                    CollectionPaymentInfoLine(text: topUp.shortBy, font: .appTextMedium) { showDetails(true) }
+                    CollectionPaymentInfoLine(text: topUp.shortBy, font: .appTextXL) { showDetails(true) }
                     Button { addAndPay(topUp) } label: {
                         if isAdding {
                             ProgressView().progressViewStyle(.circular)
@@ -883,7 +887,7 @@ private struct PaymentRequestPaySheet: View {
                     .buttonStyle(.filled)
                     .disabled(isAdding)
                     Text(topUp.footnote)
-                        .font(.appTextSmall)
+                        .font(.appTextCaption)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
                 }

@@ -251,13 +251,13 @@ struct CollectionPaymentDetailsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: Self.sectionSpacing) {
             HStack(spacing: 12) {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color.textMain)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                         .background(Circle().fill(Color.white.opacity(0.1)))
                         .contentShape(Circle())
                 }
@@ -265,7 +265,7 @@ struct CollectionPaymentDetailsView: View {
                 .accessibilityLabel("Back")
 
                 Text(CollectionPaymentSheetContent.title)
-                    .font(.appTextMedium)
+                    .font(.appTextXL)
                     .foregroundStyle(Color.textMain)
             }
 
@@ -280,36 +280,45 @@ struct CollectionPaymentDetailsView: View {
         }
     }
 
-    private static let iconSize: CGFloat = 24
-    private static let iconSpacing: CGFloat = 8
+    // Sizes from frames 5.3 (node 13952:149) and 7.3 (node 14009:364).
+    private static let iconSize: CGFloat = 34
+    private static let iconSpacing: CGFloat = 12
+    /// Between the title and the list, and between the list's sections.
+    private static let sectionSpacing: CGFloat = 28
+    /// Between a section's heading and its first row, and between rows.
+    private static let rowSpacing: CGFloat = 16
+    /// The divider and "Total" sit 8 points past the names.
+    private static let totalInset: CGFloat = 54
 
     private var lines: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: Self.sectionSpacing) {
             section(CollectionPaymentSheetContent.payHeading, lines: [content.pay])
-            section(CollectionPaymentSheetContent.useHeading, lines: content.use)
+            VStack(alignment: .leading, spacing: Self.rowSpacing) {
+                section(CollectionPaymentSheetContent.useHeading, lines: content.use)
 
-            // The divider and "Total" start where the names do (5.3, 9.3), past the icons.
-            VStack(alignment: .leading, spacing: 20) {
-                Rectangle()
-                    .fill(Color.rowSeparator)
-                    .frame(height: 1)
+                VStack(alignment: .leading, spacing: 14) {
+                    Rectangle()
+                        .fill(Color.rowSeparator)
+                        .frame(height: 1)
 
-                HStack {
-                    Text(content.total.label)
-                    Spacer()
-                    Text(content.total.amount)
+                    HStack {
+                        Text(content.total.label)
+                        Spacer()
+                        Text(content.total.amount)
+                    }
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .frame(minHeight: 24)
                 }
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textMain)
+                .padding(.leading, Self.totalInset)
             }
-            .padding(.leading, Self.iconSize + Self.iconSpacing)
         }
     }
 
     private func section(_ heading: String, lines: [CollectionPaymentSheetContent.Line]) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Self.rowSpacing) {
             Text(heading)
-                .font(.appTextSmall)
+                .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
             ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                 row(line)
@@ -317,25 +326,36 @@ struct CollectionPaymentDetailsView: View {
         }
     }
 
+    /// A row with one sublabel or none centres on its height (5.3); one with two lines under the
+    /// name hangs from the top (7.3).
     private func row(_ line: CollectionPaymentSheetContent.Line) -> some View {
-        HStack(alignment: .top, spacing: Self.iconSpacing) {
+        let isTall = line.sublabels.count > 1
+        let minHeight: CGFloat = switch line.sublabels.count {
+        case 0: 40
+        case 1: 52
+        default: 68
+        }
+        return HStack(alignment: isTall ? .top : .center, spacing: Self.iconSpacing) {
             TokenIcon(url: imageURL(line.currency), monogramID: line.currency, size: Self.iconSize)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(line.name)
-                    .font(.appTextSmall)
+                    .font(.appTextBody)
                     .foregroundStyle(Color.textMain)
-                    .frame(minHeight: 24)
-                ForEach(line.sublabels, id: \.self) { sublabel in
-                    Text(sublabel)
-                        .font(.appTextCaption)
-                        .foregroundStyle(Color.textSecondary)
+                if !line.sublabels.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(line.sublabels, id: \.self) { sublabel in
+                            Text(sublabel)
+                                .font(.appTextCaption)
+                                .foregroundStyle(Color.textSecondary)
+                        }
+                    }
                 }
             }
             Spacer()
             Text(line.amount)
-                .font(.appTextSmall)
+                .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
-                .frame(minHeight: 24)
         }
+        .frame(minHeight: minHeight, alignment: isTall ? .top : .center)
     }
 }

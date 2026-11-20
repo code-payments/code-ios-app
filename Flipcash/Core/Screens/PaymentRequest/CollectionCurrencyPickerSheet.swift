@@ -18,12 +18,14 @@ struct CollectionCurrencyPickerSheet: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
+                // Sizes from frame 6.3 (node 13996:243). The title sits 26 points above the first
+                // row's 54-point body, half the 22-point row gap being the row's own padding.
                 Text("Select Payment Currency")
-                    .font(.appTextLarge)
+                    .font(.appDisplaySmall)
                     .foregroundStyle(Color.textMain)
                     .padding(.horizontal, 20)
-                    .padding(.top, 28)
-                    .padding(.bottom, 12)
+                    .padding(.top, 40)
+                    .padding(.bottom, 26 - Self.rowGap / 2)
 
                 // A List so a drag scrolls and never fires a row on release.
                 List {
@@ -54,23 +56,29 @@ struct CollectionCurrencyPickerSheet: View {
         .presentationDragIndicator(.visible)
     }
 
+    /// The space between two rows' 54-point bodies, split as padding inside each row so the whole
+    /// pitch takes the tap.
+    private static let rowGap: CGFloat = 22
+
     private func row(for balance: ExchangedBalance) -> some View {
         HStack(spacing: 12) {
-            TokenIconWithName(
-                url: balance.stored.imageURL,
-                monogramID: balance.stored.mint.base58,
-                name: balance.stored.name,
-                iconSize: 32
-            )
+            TokenIcon(url: balance.stored.imageURL, monogramID: balance.stored.mint.base58, size: 34)
+            Text(balance.stored.name)
+                .font(.appBarButton)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+                .truncationMode(.tail)
             Spacer()
             PaymentCurrencyRadio(isSelected: balance.stored.mint == selectedMint)
+                .padding(.trailing, 12)
         }
-        .padding(.vertical, 14)
+        .frame(minHeight: 54)
+        .padding(.vertical, Self.rowGap / 2)
         .contentShape(Rectangle())
     }
 }
 
-/// A ring, filled with a dot when selected.
+/// A ring, filled with a 12-point dot when selected.
 private struct PaymentCurrencyRadio: View {
     let isSelected: Bool
 
@@ -81,10 +89,10 @@ private struct PaymentCurrencyRadio: View {
             if isSelected {
                 Circle()
                     .fill(Color.textMain)
-                    .padding(5)
+                    .padding(6)
             }
         }
-        .frame(width: 22, height: 22)
+        .frame(width: 24, height: 24)
         .accessibilityHidden(true)
     }
 }
