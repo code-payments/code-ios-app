@@ -10,8 +10,7 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// How long to silence a chat's notifications for. Drawn as the chats flow's action rows, the way
-/// ``ShareToChatsSheet`` draws its two.
+/// How long to silence a chat's notifications for, as a tray of option rows.
 ///
 /// The durations are the client's choice; the contract admits only two mute shapes — until a
 /// timestamp, or forever — so every timed option is the same shape with a different offset.
@@ -83,33 +82,54 @@ struct MuteChatSheet: View {
         offersUnmute ? [("Never", .never)] + Self.durations : Self.durations
     }
 
+    /// The row picked for the CTA to apply, in the select-then-confirm pattern.
+    @State private var selection: Option?
+
     var body: some View {
-        // What muting does and doesn't do, the way WhatsApp captions the same sheet. Worth saying
-        // here because the answer isn't obvious and is easy to get wrong: a muted chat still
-        // delivers, still stores, and still counts unread.
-        ChatDurationSheet(
+        Tray(
             title: "Mute Notifications",
-            caption: "You'll still receive messages and see unread counts. Only notifications are silenced",
-            isPresented: $isPresented
+            // What muting does and doesn't do, the way WhatsApp captions the same sheet. Worth
+            // saying here because the answer isn't obvious and is easy to get wrong: a muted chat
+            // still delivers, still stores, and still counts unread.
+            message: "You'll still receive messages and see unread counts. Only notifications are silenced",
+            icon: .central(.bell2Off),
+            actions: actions
         ) {
-            ForEach(options, id: \.title) { row in
-                ChatActionRow(
-                    icon: .system(icon(for: row.option)),
-                    title: row.title,
-                    accessibilityIdentifier: "mute-chat-\(identifier(for: row.option))"
-                ) {
-                    guard !isWorking else { return }
-                    Task { await apply(row.option) }
+            VStack(spacing: TrayOptionRow.gap) {
+                ForEach(options, id: \.title) { row in
+                    TrayOptionRow(
+                        row.title,
+                        icon: icon(for: row.option),
+                        isSelected: selection == row.option
+                    ) {
+                        guard !isWorking else { return }
+                        selection = row.option
+                    }
+                    .accessibilityIdentifier("mute-chat-\(identifier(for: row.option))")
                 }
             }
         }
     }
 
-    private func icon(for option: Option) -> SystemSymbol {
+    /// The CTA that applies the selected row, worded for an unmute when that is the pick.
+    private var actions: [TrayAction] {
+        [
+            TrayAction(
+                selection == .never ? "Unmute" : "Mute",
+                state: isWorking ? .loading : .normal,
+                isEnabled: selection != nil
+            ) {
+                guard let selection else { return }
+                Task { await apply(selection) }
+            },
+        ]
+    }
+
+    private func icon(for option: Option) -> Icon {
         switch option {
         case .until: .clock
-        case .forever: .bellSlash
-        case .never: .bell
+        case .forever: .bell2Off
+        case .never: .bell2
         }
     }
 
@@ -165,8 +185,8 @@ struct MuteChatSheet: View {
 }
 
 /// The layout the chat duration sheets share: a title bar with a close button, one caption saying
-/// what the choice does, and a stack of ``ChatActionRow``s. ``MuteChatSheet`` and
-/// ``SilenceUserSheet`` differ only in copy and in what a row does.
+/// what the choice does, and a stack of ``ChatActionRow``s. ``SilenceUserSheet`` draws with it;
+/// ``MuteChatSheet`` is a tray instead.
 struct ChatDurationSheet<Rows: View>: View {
 
     let title: String

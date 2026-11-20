@@ -36,7 +36,7 @@ struct ArchivedChatsScreen: View {
                             Button {
                                 conversationController.unarchive(conversation.id)
                             } label: {
-                                SwipeActionLabel(title: "Unarchive", systemImage: "tray.and.arrow.up")
+                                SwipeActionLabel(title: "Unarchive", icon: .arrowInbox)
                             }
                             .tint(.backgroundRow)
                             .accessibilityLabel("Unarchive chat")
@@ -57,7 +57,7 @@ struct ArchivedChatsScreen: View {
         }
         .navigationTitle("Archived")
         .toolbarTitleDisplayMode(.inline)
-        .sheet(item: $muteTarget) { target in
+        .tray(item: $muteTarget) { target in
             MuteChatSheet(
                 conversationID: target.id,
                 isPresented: Binding(get: { muteTarget != nil }, set: { if !$0 { muteTarget = nil } })

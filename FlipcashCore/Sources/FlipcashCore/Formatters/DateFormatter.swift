@@ -88,6 +88,21 @@ extension Date {
         return "\(day) at \(time)"
     }
 
+    /// A chat's last activity for the chat list: the time today, the relative day for yesterday, a
+    /// short weekday within the past week, and a short month and day before that.
+    public func formattedChatListTime() -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(self) {
+            return formatted(date: .omitted, time: .shortened)
+        }
+        if calendar.isDateInYesterday(self) {
+            return DateFormatter.relativeDay.string(from: self)
+        }
+        return self > Date.weekAgo()
+            ? formatted(.dateTime.weekday(.abbreviated))
+            : formatted(.dateTime.month(.abbreviated).day())
+    }
+
     public func formattedRelatively(useTimeForToday: Bool = false) -> String {
         let calendar = Calendar.current
         let weekAgo = Date.weekAgo()
