@@ -26,6 +26,8 @@ struct ShellTabTitle: ToolbarContent {
     private var label: some View {
         Text(title)
             .font(.appTitleLarge)
+            // The app's bold lands on Semibold; tab titles take true Bold.
+            .fontWeight(.bold)
             .foregroundStyle(Color.textMain)
             .fixedSize()
             .accessibilityAddTraits(.isHeader)
