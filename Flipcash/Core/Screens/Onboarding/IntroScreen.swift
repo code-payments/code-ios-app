@@ -83,7 +83,7 @@ private struct IntroScreenContent: View {
                             .disabled(!sessionAuthenticator.loginButtonState.isNormal)
                             
                             Button("Log In", action: viewModel.loginAction)
-                                .buttonStyle(.subtle)
+                                .buttonStyle(.textLink)
                         }
                     }
                     .padding(20.0)

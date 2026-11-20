@@ -37,6 +37,6 @@ extension View {
 
 extension Metrics {
     /// The bottom padding under a screen-ending `.textLink`'s 44 pt box, which puts its text about
-    /// 32 pt from the device's bottom edge, clear of the home indicator.
-    public static let buttonPaddingUnderTextLink: CGFloat = 20.0
+    /// 44 pt from the device's bottom edge, well clear of the home indicator.
+    public static let buttonPaddingUnderTextLink: CGFloat = 32.0
 }
