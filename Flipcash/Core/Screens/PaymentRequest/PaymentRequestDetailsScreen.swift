@@ -128,7 +128,7 @@ struct PaymentRequestDetailsScreen: View {
                 .buttonStyle(.filled)
                 .disabled(payFlow.isPreparing)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
         }
     }

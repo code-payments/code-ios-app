@@ -37,6 +37,7 @@ struct NotificationStatusScreen: View {
 
                     if scrollsFooter {
                         footer(page: page)
+                            .padding(.bottom, 20)
                     }
                 }
                 .padding(.bottom, 20)
@@ -48,6 +49,7 @@ struct NotificationStatusScreen: View {
         .scrollEdgeBar(.bottom) {
             if !scrollsFooter {
                 footer(page: page)
+                    .bottomEdgePadding()
                     .toastClearance(toasts)
             }
         }
@@ -150,7 +152,7 @@ struct NotificationStatusScreen: View {
             ShareLink(item: model?.report ?? "") {
                 Text("Share Report")
             }
-            .buttonStyle(.subtle.backed(by: .backgroundMain))
+            .buttonStyle(.textLink)
             .disabled(model == nil)
 
             Group {
@@ -168,7 +170,6 @@ struct NotificationStatusScreen: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
-        .padding(.bottom, 20)
     }
 
     private static func toast(for result: NotificationStatus.TestResult) -> ToastController.Toast {

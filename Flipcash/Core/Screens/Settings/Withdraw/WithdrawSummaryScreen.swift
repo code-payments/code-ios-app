@@ -66,7 +66,8 @@ struct WithdrawSummaryScreen: View {
                 .buttonStyle(.filled)
                 .disabled(!viewModel.withdrawButtonState.isNormal)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle("Withdraw")
         .toolbarTitleDisplayMode(.inline)

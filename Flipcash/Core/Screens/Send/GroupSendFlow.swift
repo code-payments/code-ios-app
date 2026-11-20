@@ -132,7 +132,8 @@ private struct GroupSendSelectPeopleScreen: View {
                 }
                 .buttonStyle(.filled)
                 .disabled(viewModel.selection.isEmpty)
-                .padding(20)
+                .padding([.horizontal, .top], 20)
+                .bottomEdgePadding()
             }
         }
         .navigationTitle("Send To")
