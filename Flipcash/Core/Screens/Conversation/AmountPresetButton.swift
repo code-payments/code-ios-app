@@ -14,9 +14,6 @@ struct AmountPresetButton<Label: View>: View {
     let action: () -> Void
     @ViewBuilder let label: () -> Label
 
-    /// Node 10127:118260 — the preset row is 61pt tall.
-    private static var height: CGFloat { 61 }
-
     var body: some View {
         Button(action: action) {
             label()
@@ -26,15 +23,18 @@ struct AmountPresetButton<Label: View>: View {
                 // rather than wrapping or clipping.
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
+                // Keeps a shrunk custom amount clear of the capsule's round ends.
+                .padding(.horizontal, 8)
                 .foregroundStyle(isSelected ? Color.textAction : Color.textMain)
                 .frame(maxWidth: .infinity)
-                .frame(height: Self.height)
+                .frame(height: Metrics.buttonHeight)
                 .background(
                     isSelected ? Color.action : Color.white.opacity(0.1),
-                    in: .rect(cornerRadius: Metrics.buttonRadius)
+                    in: Capsule()
                 )
-                .contentShape(.rect(cornerRadius: Metrics.buttonRadius))
+                .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

@@ -200,7 +200,7 @@ struct InviteLinkCard: View {
     /// Frame 1m's link pill fill, inside the link card, white 6%.
     private static let pillFill = Color.white.opacity(0.06)
     /// The caption and Approve New Members subtitle. Figma has Inter Regular 13 at white 60%;
-    /// Avenir's regular reads much lighter than Inter's, so Medium at 68% matches its weight.
+    /// Medium at 68% matches its weight in the app face.
     private static let secondaryFont = Font.default(size: 13, weight: .medium)
     private static let secondaryText = Color.white.opacity(0.68)
 
@@ -251,8 +251,12 @@ struct InviteLinkCard: View {
         VStack(spacing: 12) {
             pillView
 
-            CodeButton(state: buttonState, style: .filled, title: "Share Link", action: onShare)
-                .accessibilityIdentifier("invite-card-share")
+            Button(action: onShare) {
+                ButtonStateLabel("Share Link", state: buttonState)
+            }
+            .buttonStyle(.filled)
+            .disabled(!buttonState.isNormal)
+            .accessibilityIdentifier("invite-card-share")
 
             if let caption {
                 Text(caption)

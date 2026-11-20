@@ -67,15 +67,8 @@ struct TipCardDownloadSheet: View {
                         .accessibilityIdentifier("you-download-\(format.rawValue)")
                     }
 
-                    Button(action: onCancel) {
-                        Text("Cancel")
-                            .font(.appTextMedium)
-                            .foregroundStyle(Color.white.opacity(0.5))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+                    Button("Cancel", action: onCancel)
+                        .buttonStyle(.textLink)
                 }
             }
             .padding(.horizontal, 16)

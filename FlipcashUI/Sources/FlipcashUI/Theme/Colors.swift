@@ -29,6 +29,8 @@ extension ShapeStyle where Self == Color {
 
     public static var action: Color                      { Color.white }
     public static var actionDisabled: Color              { Color(r: 30,  g: 30,  b: 30) }
+    /// White at 10% — the secondary button's fill, under `.subtle` and a tray's secondary action.
+    public static var actionSecondary: Color             { Color.white.opacity(0.1) }
     public static var textActionSecondaryDisabled: Color { Color(r: 24,  g: 24,  b: 24) }
 
     public static var bannerError: Color                 { Color(r: 188, g: 52,  b: 52) }

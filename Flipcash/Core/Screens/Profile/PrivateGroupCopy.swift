@@ -31,8 +31,8 @@ enum PrivateGroupCopy {
         count == 1 ? "1 member" : "\(count) members"
     }
 
-    /// The disabled button's title while a request waits: "Request Sent" for its first minute,
-    /// then its age, "Requested 10m ago", "Requested 2h ago" or "Requested 3d ago".
+    /// A waiting request's status: "Request Sent" for its first minute, then its age,
+    /// "Requested 10m ago", "Requested 2h ago" or "Requested 3d ago".
     static func pendingTitle(requestedAt: Date, now: Date) -> String {
         let minutes = Int(now.timeIntervalSince(requestedAt) / 60)
         switch minutes {
@@ -43,7 +43,7 @@ enum PrivateGroupCopy {
         }
     }
 
-    /// The line over the pending button, naming the host once their name is known.
+    /// The line over a waiting request's status, naming the host once their name is known.
     static func awaitingApproval(hostName: String?) -> String {
         if let hostName, !hostName.isEmpty {
             "You'll be able to open the chat once \(hostName) approves"

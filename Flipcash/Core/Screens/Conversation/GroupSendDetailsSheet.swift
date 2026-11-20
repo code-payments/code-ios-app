@@ -73,9 +73,12 @@ struct GroupSendDetailsSheet: View {
                     ScrollView { rows }
                         .frame(maxHeight: 480)
                 }
-                CodeButton(style: .filled, title: "Close") {
+                Button {
                     dismiss()
+                } label: {
+                    ButtonStateLabel("Close", state: .normal)
                 }
+                .buttonStyle(.filled)
             }
             .padding(.horizontal, 20)
             .padding(.top, 30)
