@@ -86,6 +86,14 @@ public struct CollectionFundingPlan: Equatable, Sendable {
 
     /// The sum of the legs' fees, in micros.
     public var totalFeeMicros: Int64 { legs.reduce(0) { $0 + $1.feeMicros } }
+
+    /// No balance at or above the dust floor funds the payment: there is a top-up and every leg
+    /// takes its Dollars from it (sections 1 and 2), so the Request screen's Pay adds the money
+    /// with no sheet. A balance the plan leaves untouched, such as one the minimum top-up made
+    /// unnecessary, doesn't count. Matches Android's `CollectionFundingPlan.fundedByTopUpAlone`.
+    public var fundedByTopUpAlone: Bool {
+        topUpMicros > 0 && legs.allSatisfy { $0.dollarsSplit?.fromBalanceMicros == 0 }
+    }
 }
 
 /// Input `planCollectionFunding` refuses to plan.

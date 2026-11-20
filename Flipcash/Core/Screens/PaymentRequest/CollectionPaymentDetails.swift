@@ -112,13 +112,10 @@ nonisolated struct CollectionPaymentSheetContent: Equatable, Sendable {
         )
     }
 
-    /// The Request screen's button, when no leg takes anything from a balance. The planner has
+    /// The Request screen's button, when the top-up alone funds the payment. The planner has
     /// already dropped balances under the dust floor, so a dust balance doesn't count.
     private static func requestTopUp(plan: CollectionFundingPlan, topUp: TopUp, currency: CurrencyCode) -> RequestTopUp? {
-        let usesNoBalance = plan.legs.allSatisfy { leg in
-            leg.dollarsSplit.map { $0.fromBalanceMicros == 0 } ?? (leg.soldMicros == 0)
-        }
-        guard plan.topUpMicros > 0, usesNoBalance else { return nil }
+        guard plan.fundedByTopUpAlone else { return nil }
         guard plan.topUpMicros > plan.amountMicros else {
             let paid = CollectionFundingDisplay.amountText(micros: plan.amountMicros, currency: currency)
             return RequestTopUp(

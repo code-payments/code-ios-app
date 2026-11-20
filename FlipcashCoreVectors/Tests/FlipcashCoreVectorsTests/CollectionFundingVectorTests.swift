@@ -157,6 +157,23 @@ import Testing
         #expect(plan.topUpMicros == expected.topUpMicros)
         #expect(plan.totalFeeMicros == expected.totalFeeMicros)
         #expect(plan.legs == expected.legs.map(Self.leg))
+        // The fixture has no field for it: a top-up, and every leg's Dollars from the top-up.
+        let toppedUpAlone = expected.topUpMicros > 0 && expected.legs.allSatisfy { $0.fromBalanceMicros == 0 }
+        #expect(plan.fundedByTopUpAlone == toppedUpAlone)
+    }
+
+    @Test("Funded by the top-up alone holds for exactly the cases Android finds")
+    func fundedByTopUpAlone() throws {
+        let names = try Self.fixture.cases.filter { try Self.plan($0).fundedByTopUpAlone }.map(\.name)
+
+        #expect(Set(names) == [
+            "s1-no-balance",
+            "s2-min-top-up",
+            "zero-balance-amount-at-min",
+            "selected-zero-no-funds",
+            "top-up-exact-cents",
+            "dust-paying-and-dollars",
+        ])
     }
 
     // MARK: - Display -

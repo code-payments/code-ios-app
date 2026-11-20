@@ -562,7 +562,7 @@ final class PaymentRequestPayment {
             return landed ? .landed : .cleared
         }
         guard await topUpper.awaitDollars(reaching: target) else {
-            if !Task.isCancelled { showTopUpPending() }
+            if !Task.isCancelled { showMoneyStillOnItsWay() }
             return .stopped
         }
         fundingStore.clearPendingTopUp(for: requestID)
@@ -799,10 +799,10 @@ final class PaymentRequestPayment {
 
     /// No frame draws this state; the copy says what the spec asks for. The record stays, so the
     /// next tap waits on the same order again instead of placing another.
-    private func showTopUpPending() {
+    private func showMoneyStillOnItsWay() {
         session.dialogItem = .info(
             title: String(localized: "Money Still on Its Way", comment: "Title shown when money added with Apple Pay for a payment hasn't arrived yet"),
-            subtitle: String(localized: "The money you added hasn't arrived yet. Try again shortly and you won't be charged again.", comment: "Body shown when money added with Apple Pay for a payment hasn't arrived yet")
+            subtitle: String(localized: "The money you added hasn’t arrived yet. Try again shortly and you won’t be charged again.", comment: "Body shown when money added with Apple Pay for a payment hasn't arrived yet")
         )
     }
 

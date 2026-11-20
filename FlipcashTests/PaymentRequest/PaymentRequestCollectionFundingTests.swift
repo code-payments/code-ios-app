@@ -420,6 +420,7 @@ struct PaymentRequestCollectionFundingTests {
         let kept = try #require(f.swapper.submitted.first?.id)
         #expect(f.fundingStore.swapID(for: requestID, source: PublicKey.jeffy.base58) == kept)
         #expect(f.container.session.dialogItem?.title == "Conversion Pending")
+        #expect(f.container.session.dialogItem?.subtitle == "Your conversion is still pending. Try again shortly.")
 
         // The swap and the payment landed after all.
         server.intentResult = .failure(.alreadyPaid)
@@ -613,6 +614,7 @@ struct PaymentRequestCollectionFundingTests {
         #expect(await f.payment.prepare() == .ready)
         #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .failed)
         #expect(f.container.session.dialogItem?.title == "Money Still on Its Way")
+        #expect(f.container.session.dialogItem?.subtitle == "The money you added hasn’t arrived yet. Try again shortly and you won’t be charged again.")
 
         f.topUpper.delivered = 5
         #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .success)
@@ -866,6 +868,7 @@ struct PaymentRequestCollectionFundingTests {
 
         #expect(await tapTopUp(f, flow, micros: 10_000_000) == .paid(.failed))
         #expect(f.container.session.dialogItem?.title == "Money Still on Its Way")
+        #expect(f.container.session.dialogItem?.subtitle == "The money you added hasn’t arrived yet. Try again shortly and you won’t be charged again.")
         #expect(f.fundingStore.pendingTopUp(for: requestID)?.authorized == true)
         // The Dollars haven't landed, so the button still adds the money.
         #expect(flow.inPlaceTopUp(for: requestID)?.micros == 10_000_000)
@@ -893,6 +896,30 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.topUpper.orders.count == 1)
         #expect(f.payer.payments.count == 1)
         #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+    }
+
+    @Test("A kept top-up resumes in the collection's own currency, not the wallet's selected one")
+    func keptTopUpResumesInCollectionCurrency() async throws {
+        let server = Server(intentResult: .success(intentID))
+        let f = try await fixture(server, amount: 10, dollars: nil, jeffy: nil, storesJeffyMetadata: true)
+        f.topUpper.orderResult = .mayDeliver
+        #expect(await tapTopUp(f, PaymentRequestPayFlow(), micros: 10_000_000) == .paid(.failed))
+
+        // Between attempts the wallet moved to Canadian dollars and Jeffy; the collection didn't.
+        f.container.ratesController.configureTestRates(
+            balanceCurrency: .cad,
+            rates: [Rate(fx: 1.0, currency: .usd), Rate(fx: 1.4, currency: .cad)]
+        )
+        f.container.ratesController.selectToken(.jeffy, source: .user)
+
+        let relaunched = try await relaunch(f, server)
+        relaunched.topUpper.delivered = 10
+        #expect(await tapTopUp(relaunched, PaymentRequestPayFlow(), micros: 10_000_000) == .paid(.success))
+
+        #expect(relaunched.topUpper.orders.isEmpty)
+        #expect(f.payer.payments.count == 1)
+        #expect(f.payer.payments.first?.amount.mint == .usdf)
+        #expect(f.payer.payments.first?.amount.nativeAmount == FiatAmount(value: 10, currency: .usd))
     }
 
     @Test("1.3: Finishing Payment shows until the refetch is done, and a second tap meanwhile does nothing")
