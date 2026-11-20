@@ -173,7 +173,7 @@ struct ChatCameraSheet: View {
                 showsMoreControls.toggle()
             }
         } label: {
-            ChatCameraControlLabel(systemImage: showsMoreControls ? "xmark" : "ellipsis")
+            ChatCameraControlLabel(icon: showsMoreControls ? .crossMedium : .dotGrid1x3Horizontal)
                 .overlay(alignment: .topTrailing) {
                     if !showsMoreControls {
                         Circle()
@@ -212,7 +212,7 @@ struct ChatCameraSheet: View {
         return Button {
             camera.toggleFlash()
         } label: {
-            ChatCameraControlLabel(systemImage: isOn ? "bolt.fill" : "bolt.slash.fill")
+            ChatCameraControlLabel(icon: isOn ? .lightningBolt : .lightningBoltOff)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Flash")
@@ -224,7 +224,7 @@ struct ChatCameraSheet: View {
         Button {
             camera.flip()
         } label: {
-            ChatCameraControlLabel(systemImage: "arrow.triangle.2.circlepath")
+            ChatCameraControlLabel(icon: .arrowsRepeat)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(camera.position == .front ? "Use back camera" : "Use front camera")
@@ -233,7 +233,7 @@ struct ChatCameraSheet: View {
 
     private var backButton: some View {
         Button(action: onCancel) {
-            ChatCameraControlLabel(systemImage: "chevron.left")
+            ChatCameraControlLabel(icon: .arrowLeft)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Back to attach menu")
@@ -244,11 +244,11 @@ struct ChatCameraSheet: View {
 /// A round control over the viewfinder: a white glyph on dark-tinted glass.
 private struct ChatCameraControlLabel: View {
 
-    let systemImage: String
+    let icon: Icon
 
     var body: some View {
-        Image(systemName: systemImage)
-            .font(.default(size: 17, weight: .semibold))
+        Image.icon(icon)
+            .iconSize(22)
             .foregroundStyle(Color.white)
             .frame(width: 44, height: 44)
             .overlayGlassBackground(in: Circle())

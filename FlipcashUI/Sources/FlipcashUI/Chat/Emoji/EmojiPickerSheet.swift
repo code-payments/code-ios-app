@@ -107,7 +107,8 @@ public struct EmojiPickerSheet: View {
     private var searchField: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
+                Image.icon(.magnifyingGlass)
+                    .iconSize(22)
                     .foregroundStyle(Color.textSecondary)
                 TextField("Search", text: $query)
                     .foregroundStyle(Color.textMain)
@@ -116,7 +117,8 @@ public struct EmojiPickerSheet: View {
                     Button {
                         query = ""
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
+                        Image.icon(.circleXFilled)
+                            .iconSize(22)
                             .foregroundStyle(Color.textSecondary)
                     }
                     .accessibilityLabel("Clear search")

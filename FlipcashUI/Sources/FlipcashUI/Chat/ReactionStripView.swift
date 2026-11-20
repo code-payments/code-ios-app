@@ -32,6 +32,8 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
     private static let itemSpacing: CGFloat = 4
     private static let inset: CGFloat = 8
     private static let addSize: CGFloat = 40
+    /// The add glyph's tint, the 50% white the old asset carried in its own strokes.
+    private static let addTint = UIColor.white.withAlphaComponent(0.5)
     /// How far the leading fade reaches in from the edge, and how much scroll either fade takes to
     /// grow in, so neither snaps on.
     private static let edgeFade: CGFloat = 20
@@ -95,12 +97,14 @@ final class ReactionStripView: UIView, UIScrollViewDelegate {
 
         if #available(iOS 26, *) {
             var configuration = UIButton.Configuration.glass()
-            configuration.image = .asset(.addReaction)
+            configuration.image = .icon(.emojiAddReaction)
+            configuration.baseForegroundColor = Self.addTint
             configuration.cornerStyle = .capsule
             configuration.contentInsets = .zero
             addButton.configuration = configuration
         } else {
-            addButton.setImage(.asset(.addReaction), for: .normal)
+            addButton.setImage(.icon(.emojiAddReaction), for: .normal)
+            addButton.tintColor = Self.addTint
             addButton.backgroundColor = UIColor.white.withAlphaComponent(0.18)
             addButton.layer.cornerRadius = Self.addSize / 2
             addButton.clipsToBounds = true
