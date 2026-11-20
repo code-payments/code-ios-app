@@ -57,4 +57,42 @@ struct EmailVerificationViewModelTests {
 
         #expect(viewModel.isAlreadyVerified)
     }
+    // MARK: - Verified means server-verified -
+
+    @Test("isAlreadyVerified, verification required: an email linked without a code does not count")
+    func isAlreadyVerified_required_unverifiedLinkedEmail_isFalse() {
+        let prior = CoinbaseOrderEmail.unverifiedEmail
+        defer { CoinbaseOrderEmail.unverifiedEmail = prior }
+        CoinbaseOrderEmail.unverifiedEmail = nil
+
+        let session = Session.unverifiedMock
+        session.userFlags = .fixture(requireCoinbaseEmailVerification: true)
+        session.profile = Profile(displayName: "Test", phone: .mock, email: "linked@example.com", isEmailAddressVerified: false)
+        let viewModel = EmailVerificationViewModel(session: session, flipClient: .mock)
+
+        #expect(!viewModel.isAlreadyVerified)
+    }
+
+    @Test("isAlreadyVerified, verification required: a server-verified email counts")
+    func isAlreadyVerified_required_verifiedEmail_isTrue() {
+        let session = Session.verifiedMock
+        session.userFlags = .fixture(requireCoinbaseEmailVerification: true)
+        let viewModel = EmailVerificationViewModel(session: session, flipClient: .mock)
+
+        #expect(viewModel.isAlreadyVerified)
+    }
+
+    @Test("isAlreadyVerified, verification not required: an email linked without a code counts")
+    func isAlreadyVerified_notRequired_unverifiedLinkedEmail_isTrue() {
+        let prior = CoinbaseOrderEmail.unverifiedEmail
+        defer { CoinbaseOrderEmail.unverifiedEmail = prior }
+        CoinbaseOrderEmail.unverifiedEmail = nil
+
+        let session = Session.unverifiedMock
+        session.userFlags = .fixture(requireCoinbaseEmailVerification: false)
+        session.profile = Profile(displayName: "Test", phone: .mock, email: "linked@example.com", isEmailAddressVerified: false)
+        let viewModel = EmailVerificationViewModel(session: session, flipClient: .mock)
+
+        #expect(viewModel.isAlreadyVerified)
+    }
 }

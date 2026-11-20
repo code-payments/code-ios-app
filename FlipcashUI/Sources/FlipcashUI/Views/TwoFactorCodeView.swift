@@ -13,15 +13,20 @@ public struct TwoFactorCodeView: View {
     @Binding public var content: String
     
     private let digitCount: Int
-    
+
+    private let fillsWidth: Bool
+
     private var activeIndex: Int {
         content.count
     }
-    
+
     // MARK: - Init -
-    
-    public init(digitCount: Int = 6, content: Binding<String>) {
+
+    /// - Parameter fillsWidth: stretches the boxes across the offered width, so the row starts
+    ///   and ends at the edges of the text above and below it. Off, the boxes keep a fixed width.
+    public init(digitCount: Int = 6, fillsWidth: Bool = false, content: Binding<String>) {
         self.digitCount = digitCount
+        self.fillsWidth = fillsWidth
         self._content = content
     }
     
@@ -40,7 +45,8 @@ public struct TwoFactorCodeView: View {
                             )
                     }
                 }
-                .frame(width: 35)
+                .frame(width: fillsWidth ? nil : 35)
+                .frame(maxWidth: fillsWidth ? .infinity : nil)
             }
         }
     }

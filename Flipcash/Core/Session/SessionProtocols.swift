@@ -20,6 +20,9 @@ protocol AccountProviding: AnyObject {
 /// Read-only access to the signed-in user's profile.
 protocol ProfileProviding: AnyObject {
     var profile: Profile? { get }
+
+    /// Whether a Coinbase order needs an email the server marks verified.
+    var requiresCoinbaseEmailVerification: Bool { get }
 }
 
 /// Mutating profile operations — refresh from the server, unlink on logout

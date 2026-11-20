@@ -103,6 +103,12 @@ class BetaFlags {
         isEnabled && hasStaffAccess(isStaff: isStaff, accessGranted: accessGranted)
     }
 
+    /// Whether a new account on this device takes the Group Money onboarding steps. Staff
+    /// standing is unknown before sign-in, so only the option and the developer unlock count.
+    var opensGroupMoneyOnboarding: Bool {
+        showsGroupMoneyUI(isStaff: false)
+    }
+
     /// ``showsGroupMoneyUI(isEnabled:isStaff:accessGranted:)`` for this device.
     func showsGroupMoneyUI(isStaff: Bool) -> Bool {
         Self.showsGroupMoneyUI(
@@ -166,7 +172,9 @@ class BetaFlags {
 
     /// Resets every flag, then enables each option named by a `--beta-flags=`
     /// argument in `arguments`, and forgets which default-on options have been
-    /// offered so that a launch without the argument gets them back.
+    /// offered so that a launch without the argument gets them back. In debug
+    /// builds, `--beta-access-granted` also grants the developer unlock for this
+    /// launch.
     ///
     /// The whole set is replaced rather than merged, so a run can name the exact
     /// flags it wants and test a default-on feature in its off state.
@@ -188,7 +196,20 @@ class BetaFlags {
         appliedDefaults = nil
 
         writeToCache()
+
+        #if DEBUG
+        // The developer unlock is tapped in Settings, out of reach of a UI test that starts on the
+        // intro screen. Granted for this launch only: the keychain value is not written.
+        if arguments.contains(Self.accessGrantedArgument) {
+            accessGranted = true
+        }
+        #endif
     }
+
+    #if DEBUG
+    /// Launch argument that grants the developer unlock for one launch.
+    static let accessGrantedArgument = "--beta-access-granted"
+    #endif
 
     /// Toggles whether the beta features section is visible in Settings.
     /// Controlled by the 9-tap easter egg on the app version label.

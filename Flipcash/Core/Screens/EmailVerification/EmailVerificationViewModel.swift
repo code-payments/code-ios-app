@@ -108,7 +108,10 @@ final class EmailVerificationViewModel: EmailVerifying {
     /// server-verified email, or a locally stored unverified one from
     /// skip-verification mode.
     var isAlreadyVerified: Bool {
-        CoinbaseOrderEmail.resolve(profile: session.profile) != nil
+        CoinbaseOrderEmail.resolve(
+            profile: session.profile,
+            requiresVerification: session.requiresCoinbaseEmailVerification
+        ) != nil
     }
 
     // MARK: - Verification actions -
@@ -118,7 +121,7 @@ final class EmailVerificationViewModel: EmailVerifying {
             return
         }
 
-        let requiresVerification = session.userFlags?.requireCoinbaseEmailVerification ?? true
+        let requiresVerification = session.requiresCoinbaseEmailVerification
         guard requiresVerification else {
             saveUnverifiedEmailAndFinish(validatedEmail)
             return

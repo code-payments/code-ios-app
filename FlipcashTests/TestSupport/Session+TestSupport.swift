@@ -24,7 +24,8 @@ extension Session {
         session.profile = Profile(
             displayName: "Test User",
             phone: .mock,
-            email: "test@example.com"
+            email: "test@example.com",
+            isEmailAddressVerified: true
         )
         return session
     }
