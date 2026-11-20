@@ -60,7 +60,7 @@ struct ChangeCoverPictureScreen: View {
                 .buttonStyle(.filled)
                 .disabled(!state.canSubmitPhoto || !buttonState.isNormal)
                 .accessibilityIdentifier("cover-save")
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

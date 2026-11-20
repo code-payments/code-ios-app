@@ -127,14 +127,13 @@ private struct GroupSendSelectPeopleScreen: View {
                     header: nil
                 )
 
-                CodeButton(
-                    style: .filled,
-                    title: viewModel.sendTitle,
-                    disabled: viewModel.selection.isEmpty
-                ) {
+                Button(viewModel.sendTitle) {
                     isConfirming = true
                 }
-                .padding(20)
+                .buttonStyle(.filled)
+                .disabled(viewModel.selection.isEmpty)
+                .padding([.horizontal, .top], 20)
+                .bottomEdgePadding()
             }
         }
         .navigationTitle("Send To")
@@ -293,9 +292,7 @@ private struct GroupSendConfirmSheet: View {
                         isShowingTokenSelection = true
                     }
                     .id(viewModel.selectedBalance?.stored.mint)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                    .buttonStyle(TokenChipStyle())
                     .padding(.top, 4)
                 }
                 SwipeControl(text: "Swipe to Send") {

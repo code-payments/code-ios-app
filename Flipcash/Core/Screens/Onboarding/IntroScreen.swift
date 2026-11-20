@@ -80,16 +80,15 @@ private struct IntroScreenContent: View {
                         
                         Spacer()
                         
-                        VStack(spacing: 5) {
-                            CodeButton(
-                                state: sessionAuthenticator.loginButtonState,
-                                style: .filled,
-                                title: "Create a New Account",
-                                action: viewModel.createAccountAction
-                            )
+                        VStack(spacing: Metrics.buttonGap) {
+                            Button(action: viewModel.createAccountAction) {
+                                ButtonStateLabel("Create a New Account", state: sessionAuthenticator.loginButtonState)
+                            }
+                            .buttonStyle(.filled)
+                            .disabled(!sessionAuthenticator.loginButtonState.isNormal)
                             
                             Button("Log In", action: viewModel.loginAction)
-                                .buttonStyle(.subtle)
+                                .buttonStyle(.textLink)
                         }
                     }
                     .padding(20.0)

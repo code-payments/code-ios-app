@@ -60,14 +60,14 @@ struct WithdrawSummaryScreen: View {
 
                 Spacer()
 
-                CodeButton(
-                    state: viewModel.withdrawButtonState,
-                    style: .filled,
-                    title: "Withdraw",
-                    action: viewModel.completeWithdrawalAction
-                )
+                Button(action: viewModel.completeWithdrawalAction) {
+                    ButtonStateLabel("Withdraw", state: viewModel.withdrawButtonState)
+                }
+                .buttonStyle(.filled)
+                .disabled(!viewModel.withdrawButtonState.isNormal)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle("Withdraw")
         .toolbarTitleDisplayMode(.inline)

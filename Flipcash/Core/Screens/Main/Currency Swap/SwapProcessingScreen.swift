@@ -58,7 +58,8 @@ struct SwapProcessingScreen: View {
                         dismissParentContainer()
                     }
                     .buttonStyle(.filled)
-                    .padding(20)
+                    .padding([.horizontal, .top], 20)
+                    .bottomEdgePadding()
                 } else {
                     Button {
                         Task {
@@ -82,7 +83,8 @@ struct SwapProcessingScreen: View {
                     }
                     .buttonStyle(.filled)
                     .disabled(pushController.authorizationStatus == .authorized)
-                    .padding(20)
+                    .padding([.horizontal, .top], 20)
+                    .bottomEdgePadding()
                 }
             }
         }

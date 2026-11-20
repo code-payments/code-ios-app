@@ -88,7 +88,7 @@ struct UsernameLookupScreen: View {
                 // behind the spinner and the checkmark, and stops a second tap.
                 .disabled(input.isEmpty || !buttonState.isNormal)
                 .accessibilityIdentifier("username-lookup-next-button")
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

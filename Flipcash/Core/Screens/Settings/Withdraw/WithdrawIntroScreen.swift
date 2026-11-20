@@ -38,7 +38,8 @@ struct WithdrawIntroScreen: View {
                 Button("Next", action: onNext)
                     .buttonStyle(.filled)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)

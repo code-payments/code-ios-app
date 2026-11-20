@@ -88,17 +88,16 @@ struct ConvertConfirmationScreen: View {
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
-                    CodeButton(
-                        state: viewModel.actionButtonState,
-                        style: .filled,
-                        title: "Confirm",
-                        disabled: !viewModel.canPerformAction,
-                        action: performConvert
-                    )
+                    Button(action: performConvert) {
+                        ButtonStateLabel("Confirm", state: viewModel.actionButtonState)
+                    }
+                    .buttonStyle(.filled)
+                    .disabled(!viewModel.canPerformAction || !viewModel.actionButtonState.isNormal)
                     .padding(.top, 20)
                 }
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .interactiveDismissDisabled(!viewModel.canDismissSheet)
         .navigationBarBackButtonHidden(!viewModel.actionButtonState.isNormal)

@@ -23,13 +23,16 @@ struct ContactsPermissionScreen: View {
                 switch authorizer.status {
                 case .denied, .restricted:
                     ContactsDeniedContent()
+                        .padding(.bottom, Metrics.buttonPadding)
                 case .notDetermined, .authorized, .limited:
                     ContactsPrimingContent(onContinue: requestAuthorization)
+                        .bottomEdgePadding()
                 @unknown default:
                     ContactsPrimingContent(onContinue: requestAuthorization)
+                        .bottomEdgePadding()
                 }
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
         }
         .navigationBarBackButtonHidden(true)
         .task {

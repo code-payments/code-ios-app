@@ -120,11 +120,15 @@ struct PaymentRequestDetailsScreen: View {
             }
             .softScrollEdge(for: [.top, .bottom])
             if let payTitle = content.payTitle {
-                CodeButton(isLoading: payFlow.isPreparing, style: .filled, title: payTitle) {
+                Button {
                     pay()
+                } label: {
+                    ButtonStateLabel(payTitle, state: payFlow.isPreparing ? .loading : .normal)
                 }
+                .buttonStyle(.filled)
+                .disabled(payFlow.isPreparing)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
         }
     }
@@ -500,9 +504,7 @@ private struct PaymentRequestPaySheet: View {
                         isShowingTokenSelection = true
                     }
                     .id(payment.selectedBalance?.stored.mint)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                    .buttonStyle(TokenChipStyle())
                     .padding(.top, 4)
                 }
                 SwipeControl(text: "Swipe to Pay") {

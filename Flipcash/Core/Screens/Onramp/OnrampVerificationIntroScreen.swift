@@ -40,7 +40,7 @@ struct OnrampVerificationIntroScreen: View {
                     .buttonStyle(.filled)
             }
             .padding(.horizontal, 40)
-            .padding(.bottom, 20)
+            .bottomEdgePadding()
         }
         .task {
             Analytics.onrampStep(.showInfo)

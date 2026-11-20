@@ -48,16 +48,16 @@ struct AccessKeyBackupScreen: View {
                 
                 Spacer()
                 
-                CodeButton(
-                    state: buttonState,
-                    style: .filled,
-                    title: "Save to Photos",
-                    action: saveToPhotosAction
-                )
+                Button(action: saveToPhotosAction) {
+                    ButtonStateLabel("Save to Photos", state: buttonState)
+                }
+                .buttonStyle(.filled)
+                .disabled(!buttonState.isNormal)
             }
             .ignoresSafeArea(.keyboard)
             .foregroundStyle(.textMain)
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
             .navigationTitle("Access Key")
             .toolbarTitleDisplayMode(.inline)
         }
