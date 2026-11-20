@@ -29,8 +29,8 @@ struct RecentActivitySection: View {
                     Text(title)
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 15, weight: .semibold))
+                    Image.icon(.chevronRightMedium)
+                        .iconSize(20)
                         .foregroundStyle(Color.textSecondary)
                     Spacer()
                 }

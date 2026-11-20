@@ -36,8 +36,8 @@ public struct AmountText: View {
                 )
                 
                 if showChevron {
-                    Image.system(.chevronDown)
-                        .font(.default(size: 12, weight: .bold))
+                    Image.icon(.chevronDownMedium)
+                        .iconSize(16)
                 }
             }
             Text(content)

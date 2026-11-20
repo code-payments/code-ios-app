@@ -277,7 +277,10 @@ struct ShareProfileWidgetView: View {
 
             Button(action: onShare) {
                 HStack(spacing: Layout.iconGap) {
-                    if override == nil { Image(systemName: "square.and.arrow.up") }
+                    if override == nil {
+                        Image.icon(.shareOs)
+                            .iconSize(20)
+                    }
                     Text(override?.buttonTitle ?? Copy.share)
                 }
             }
