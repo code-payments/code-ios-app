@@ -29,8 +29,8 @@ struct TabBarBadgedIconTests {
         let image = try #require(TabBarBadgedIcon.itemImages(for: .chat, count: 3)).normal
 
         #expect(image.alignmentRectInsets == UIEdgeInsets(top: 2, left: 0, bottom: 0, right: 2))
-        #expect(image.size.width - 2 == 32)
-        #expect(image.size.height - 2 == 32)
+        #expect(image.size.width - 2 == TabBarItemStyle.glyphSize)
+        #expect(image.size.height - 2 == TabBarItemStyle.glyphSize)
     }
 
     @Test("a new count renders new images")

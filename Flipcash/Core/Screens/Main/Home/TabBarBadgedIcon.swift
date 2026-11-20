@@ -15,7 +15,7 @@ import FlipcashUI
 enum TabBarBadgedIcon {
 
     /// The slot every tab glyph is drawn into.
-    private static let glyphSize: CGFloat = 32
+    private static let glyphSize: CGFloat = TabBarItemStyle.glyphSize
 
     /// How far the bubble reaches past the glyph's top-right corner, matching
     /// the legacy pill's badge (node 8966:1846).
@@ -37,8 +37,8 @@ enum TabBarBadgedIcon {
             return memoized.images
         }
 
-        guard let normal = image(of: icon(named: layout.iconName(for: tab, isSelected: false), count: count)),
-              let selected = image(of: icon(named: layout.iconName(for: tab, isSelected: true), count: count))
+        guard let normal = image(of: icon(layout.icon(for: tab, isSelected: false), count: count, isSelected: false)),
+              let selected = image(of: icon(layout.icon(for: tab, isSelected: true), count: count, isSelected: true))
         else { return nil }
 
         let images = TabBarProfilePhoto.ItemImages(normal: normal, selected: selected)
@@ -49,14 +49,16 @@ enum TabBarBadgedIcon {
     private static var memoized: (tab: HomeTab, count: Int, layout: HomeTabLayout, images: TabBarProfilePhoto.ItemImages)?
 
     /// The glyph colored as the bar would tint it for the state, since an
-    /// original-rendered image is not tinted, with the bubble at full strength.
-    private static func icon(named name: String, count: Int) -> some View {
-        Image(name)
+    /// original-rendered image is not tinted (dimmed when unselected), with the
+    /// bubble at full strength.
+    private static func icon(_ glyph: Icon, count: Int, isSelected: Bool) -> some View {
+        Image.icon(glyph)
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .foregroundStyle(Color.textMain)
             .frame(width: glyphSize, height: glyphSize)
+            .opacity(isSelected ? 1 : TabBarItemStyle.unselectedOpacity)
             .overlay(alignment: .topTrailing) {
                 Bubble(size: .regular, count: count, color: .unreadIndicator)
                     .fixedSize()

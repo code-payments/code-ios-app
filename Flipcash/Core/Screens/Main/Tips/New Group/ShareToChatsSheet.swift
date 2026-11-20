@@ -451,7 +451,7 @@ struct ShareToChatsSheet: View {
         if card != nil {
             ShareTile(title: "Show Profile Card") {
                 // The Scan tab's outline glyph: the card is what the scanner reads.
-                Image(HomeTab.scan.iconName(isSelected: false))
+                Image.icon(HomeTab.scan.icon(isSelected: false))
                     .renderingMode(.template)
                     .resizable()
                     .scaledToFit()
@@ -468,7 +468,7 @@ struct ShareToChatsSheet: View {
     private var groupCardTile: some View {
         if Self.showsGroupCardTile(for: subject) {
             ShareTile(title: "QR Code") {
-                Image(HomeTab.scan.iconName(isSelected: false))
+                Image.icon(HomeTab.scan.icon(isSelected: false))
                     .renderingMode(.template)
                     .resizable()
                     .scaledToFit()
@@ -522,9 +522,11 @@ struct ShareToChatsSheet: View {
                 .foregroundStyle(Color.textAction)
                 .padding(.horizontal, 14)
                 .frame(height: BarMetrics.fieldMinHeight)
-                .background(Color.action, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .background(Color.action, in: Capsule())
+                // Under 44 pt tall, so the hit area keeps the capsule's corners.
+                .contentShape(.rect)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .disabled(model.isSending || !hasLink)
             .accessibilityIdentifier("group-invite-submit")
         }
