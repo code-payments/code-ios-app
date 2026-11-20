@@ -7,35 +7,37 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 import FlipcashCore
 import Kingfisher
 
-/// A recycled cell for a cash payment row: a card (shared `BubbleBackgroundView` chrome) with its
-/// lines centred top to bottom — caption, amount, the total on a group send to two or more, the
-/// token's icon and name, and who was on the other side — hosted in a `ChatColumnCell`. The card's
-/// width is supplied by the owner, as `ChatMessageCell`/`ChatLinkMessageCell` take theirs, so it
-/// tracks the transcript width; its height follows its lines. `configure(with:maxWidth:)` is the
-/// only input; the strings and icon URL all arrive on the `ChatMessage`.
+/// A recycled cell for a cash payment row: a neutral money card (shared `BubbleBackgroundView`
+/// chrome, every corner round) with its lines centred top to bottom — caption, amount, the total on
+/// a group send to two or more, the token's icon and name, and who was on the other side — hosted in
+/// a `ChatColumnCell`. The card's width is supplied by the owner, as
+/// `ChatMessageCell`/`ChatLinkMessageCell` take theirs; its height follows its lines.
+/// `configure(with:maxWidth:)` is the only input; the strings and icon URL all arrive on the
+/// `ChatMessage`.
 public final class ChatCashCardCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
 
-    private static let amountFont = UIFont.default(size: 38, weight: .bold)
+    private static let amountFont = UIFont.default(size: ChatStyle.cardAmountSize, weight: .semibold)
     // Medium weight at half the amount's size, in the caption's colour, on the amount's line.
     private static let eachFont = UIFont.default(size: amountFont.pointSize / 2, weight: .medium)
     // The "~" before the smallest of uneven parts: the amount's weight at 70% of its size.
-    private static let approximateFont = UIFont.default(size: (amountFont.pointSize * 0.7).rounded(), weight: .bold)
+    private static let approximateFont = UIFont.default(size: (amountFont.pointSize * 0.7).rounded(), weight: .semibold)
     /// The card's secondary lines; the Send Back footer uses it too.
-    static let secondaryColor = UIColor.white.withAlphaComponent(0.5)
+    static let secondaryColor = ChatStyle.secondaryText
 
-    // Vertical spacing, per "Spacing values" in docs/specs/cash-bubbles.md. Frame gaps, so both
-    // apps give the same content the same card height.
-    /// Above the caption and below the counterpart.
-    private static let verticalInset: CGFloat = 16
-    /// Between the caption, the money block, and the counterpart.
-    private static let blockSpacing: CGFloat = 12
+    /// Above the caption.
+    private static let topInset = ChatStyle.cardPaddingTop
+    /// Between the caption and the money block, and between the money block and the counterpart.
+    private static let blockSpacing = ChatStyle.cardBlockGap
     /// From the amount, or the total when there is one, down to the token row.
     private static let tokenSpacing: CGFloat = 6
+    /// Below the counterpart, to the card's foot or to the Send Back row.
+    private static let bottomInset = ChatStyle.cardPaddingBottom
 
     private let card = BubbleBackgroundView()
     private let reactionRow = ReactionPillRowView()
@@ -83,28 +85,28 @@ public final class ChatCashCardCell: ChatColumnCell {
 
         card.translatesAutoresizingMaskIntoConstraints = false
 
-        captionLabel.font = .default(size: 12, weight: .bold)
+        captionLabel.font = .default(size: ChatStyle.cardLabelSize, weight: .regular)
         captionLabel.textColor = Self.secondaryColor
 
         amountLabel.font = Self.amountFont
-        amountLabel.textColor = .white
+        amountLabel.textColor = ChatStyle.receivedText
         amountLabel.numberOfLines = 1
         amountLabel.adjustsFontSizeToFitWidth = true
         amountLabel.minimumScaleFactor = 0.5
         amountLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        totalLabel.font = .default(size: 12, weight: .bold)
+        totalLabel.font = .default(size: ChatStyle.cardLabelSize, weight: .regular)
         totalLabel.textColor = Self.secondaryColor
 
-        configureCircle(coinIcon, diameter: 20)
-        tokenLabel.font = .default(size: 12, weight: .bold)
-        tokenLabel.textColor = .white
+        configureCircle(coinIcon, diameter: ChatStyle.cardBadgeSize)
+        tokenLabel.font = .default(size: ChatStyle.cardLabelSize, weight: .semibold)
+        tokenLabel.textColor = ChatStyle.secondaryText
         tokenRow.addArrangedSubview(coinIcon)
         tokenRow.addArrangedSubview(tokenLabel)
         tokenRow.spacing = 6
         tokenRow.alignment = .center
 
-        counterpartLabel.font = .default(size: 12, weight: .bold)
+        counterpartLabel.font = .default(size: ChatStyle.cardLabelSize, weight: .regular)
         counterpartLabel.textColor = Self.secondaryColor
         counterpartLabel.lineBreakMode = .byTruncatingMiddle
         counterpartLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -129,29 +131,29 @@ public final class ChatCashCardCell: ChatColumnCell {
         reactionRow.onAdd = { [weak self] in self?.onReactionAdd?() }
         reactionRow.onBoost = { [weak self] in self?.onReactionBoost?() }
 
-        cardWidthConstraint = card.widthAnchor.constraint(equalToConstant: 232)
-        reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: 232)
+        cardWidthConstraint = card.widthAnchor.constraint(equalToConstant: ChatStyle.cardWidth)
+        reactionRowWidthConstraint = reactionRow.widthAnchor.constraint(equalToConstant: ChatStyle.cardWidth)
 
         NSLayoutConstraint.activate([
             cardWidthConstraint,
             reactionRowWidthConstraint,
 
-            centerStack.topAnchor.constraint(equalTo: card.topAnchor, constant: Self.verticalInset),
+            centerStack.topAnchor.constraint(equalTo: card.topAnchor, constant: Self.topInset),
             centerStack.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            centerStack.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
-            centerStack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
+            centerStack.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: ChatStyle.cardPaddingX),
+            centerStack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -ChatStyle.cardPaddingX),
 
             counterpartLabel.topAnchor.constraint(equalTo: centerStack.bottomAnchor, constant: Self.blockSpacing),
             counterpartLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            counterpartLabel.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 16),
-            counterpartLabel.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -16),
+            counterpartLabel.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: ChatStyle.cardPaddingX),
+            counterpartLabel.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -ChatStyle.cardPaddingX),
 
             sendBackRow.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             sendBackRow.trailingAnchor.constraint(equalTo: card.trailingAnchor),
             sendBackRow.bottomAnchor.constraint(equalTo: card.bottomAnchor),
         ])
-        counterpartToCardBottom = counterpartLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -Self.verticalInset)
-        counterpartToSendBackRow = counterpartLabel.bottomAnchor.constraint(equalTo: sendBackRow.topAnchor, constant: -Self.verticalInset)
+        counterpartToCardBottom = counterpartLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -Self.bottomInset)
+        counterpartToSendBackRow = counterpartLabel.bottomAnchor.constraint(equalTo: sendBackRow.topAnchor, constant: -Self.bottomInset)
         counterpartToCardBottom.isActive = true
     }
 
@@ -201,7 +203,7 @@ public final class ChatCashCardCell: ChatColumnCell {
     }
 
     /// - Parameter maxWidth: the card's width, in points. The owner derives it from the collection
-    ///   view's width: 0.64 of the row between the column insets, matching Android's cash card.
+    ///   view's width: the card's own width, narrowed only when the row can't hold it.
     public func configure(with message: ChatMessage, maxWidth: CGFloat, authorImageData: Data? = nil) {
         guard case .cash(let cash) = message.content else { return }
         cardWidthConstraint.constant = maxWidth
@@ -222,6 +224,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         drawn = Drawn(id: message.id, sendBack: cash.sendBack, counterpart: cash.lines?.counterpart, iconURL: cash.iconURL)
 
         tokenLabel.text = cash.token
+        // A token whose branding never resolved shows no icon rather than a misleading one.
         coinIcon.isHidden = cash.iconURL == nil
         coinIcon.kf.setImage(with: cash.iconURL)
         if let previous, previous.iconURL == nil, cash.iconURL != nil { Self.fadeIn(coinIcon) }
@@ -232,13 +235,11 @@ public final class ChatCashCardCell: ChatColumnCell {
         }
         applySendBack(cash.sendBack, previous: previous)
 
+        let radius = ChatStyle.cardRadius
+        // A money card keeps every corner round inside a run: it is its own object, not a bubble.
         card.apply(
-            fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
-            radii: BubbleBackgroundView.radii(
-                isFromSelf: message.sender == .me,
-                groupedAbove: message.joinsBubbleAbove,
-                groupedBelow: message.joinsBubbleBelow
-            ),
+            fill: ChatStyle.cardFill,
+            radii: RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius),
             identity: message.id
         )
         reactionRow.layoutWidth = maxWidth
@@ -304,9 +305,9 @@ public final class ChatCashCardCell: ChatColumnCell {
     private static func amountLine(_ amount: String, part: ChatCashContent.Lines.Part?) -> NSAttributedString {
         let line = NSMutableAttributedString()
         if part == .approximateEach {
-            line.append(NSAttributedString(string: "~", attributes: [.font: approximateFont, .foregroundColor: UIColor.white]))
+            line.append(NSAttributedString(string: "~", attributes: [.font: approximateFont, .foregroundColor: ChatStyle.receivedText]))
         }
-        line.append(NSAttributedString(string: amount, attributes: [.font: amountFont, .foregroundColor: UIColor.white]))
+        line.append(NSAttributedString(string: amount, attributes: [.font: amountFont, .foregroundColor: ChatStyle.receivedText]))
         if part != nil {
             line.append(NSAttributedString(string: " each", attributes: [.font: eachFont, .foregroundColor: secondaryColor]))
         }
@@ -373,7 +374,7 @@ private final class ChatCashCardCellPreviewController: UICollectionViewControlle
 
     override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ChatCashCardCell.reuseIdentifier, for: indexPath) as! ChatCashCardCell
-        cell.configure(with: messages[indexPath.item], maxWidth: (collectionView.bounds.width - 24) * 0.64)
+        cell.configure(with: messages[indexPath.item], maxWidth: ChatStyle.cardWidth)
         return cell
     }
 }

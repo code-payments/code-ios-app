@@ -39,14 +39,14 @@ struct DepositScreen: View {
 
                 Spacer()
 
-                CodeButton(
-                    state: buttonState,
-                    style: .filled,
-                    title: "Copy Address",
-                    action: copyAddress
-                )
+                Button(action: copyAddress) {
+                    ButtonStateLabel("Copy Address", state: buttonState)
+                }
+                .buttonStyle(.filled)
+                .disabled(!buttonState.isNormal)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle(name.map { "Deposit \($0)" } ?? "Deposit")
         .toolbarTitleDisplayMode(.inline)

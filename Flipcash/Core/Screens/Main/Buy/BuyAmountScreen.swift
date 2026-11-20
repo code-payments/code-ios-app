@@ -155,8 +155,8 @@ private struct BuyAmountScreenContent: View {
                         monogramID: viewModel.paymentMint.base58,
                         name: viewModel.paymentName
                     )
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
+                    Image.icon(.chevronDownMedium)
+                        .iconSize(16)
                         .foregroundStyle(Color.textSecondary)
                 }
             }

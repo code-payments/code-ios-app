@@ -89,16 +89,16 @@ struct ConfirmEmailScreen<VM: EmailVerifying>: View {
 
                 Spacer()
 
-                CodeButton(
-                    state: viewModel.confirmEmailButtonState,
-                    style: .filled,
-                    title: "Open Mail",
-                    disabled: false
-                ) {
+                Button {
                     URL.openMail()
+                } label: {
+                    ButtonStateLabel("Open Mail", state: viewModel.confirmEmailButtonState)
                 }
+                .buttonStyle(.filled)
+                .disabled(!viewModel.confirmEmailButtonState.isNormal)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
             .foregroundStyle(.textMain)
         }
         .dialog(item: $viewModel.dialogItem)

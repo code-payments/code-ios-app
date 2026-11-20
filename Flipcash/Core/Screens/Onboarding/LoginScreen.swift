@@ -61,22 +61,17 @@ struct LoginScreen: View {
                             }
                     }
                     
-                    VStack(spacing: 5) {
-                        CodeButton(
-                            state: buttonState,
-                            style: .filled,
-                            title: "Log In",
-                            disabled: enteredMnemonic() == nil,
-                            action: attemptLogin
-                        )
+                    VStack(spacing: Metrics.buttonGap) {
+                        Button(action: attemptLogin) {
+                            ButtonStateLabel("Log In", state: buttonState)
+                        }
+                        .buttonStyle(.filled)
+                        .disabled(enteredMnemonic() == nil || !buttonState.isNormal)
 
                         NavigationLink(value: OnboardingPath.accessKeyHelp) {
                             Text("Can't Find Your Access Key?")
-                                .font(.appTextMedium)
-                                .foregroundStyle(Color.textMain.opacity(0.6))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: Metrics.buttonHeight)
                         }
+                        .buttonStyle(.textLink)
                         .disabled(!buttonState.isNormal)
                     }
                 }
@@ -91,7 +86,10 @@ struct LoginScreen: View {
                             autoCompleteLast(with: word)
                         } label: {
                             TextBubble(style: .filled, text: word)
+                                // Under 44 pt tall, so the hit area keeps the bubble's corners.
+                                .contentShape(.rect)
                         }
+                        .buttonStyle(.pressable)
                     }
                     Spacer()
                 }

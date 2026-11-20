@@ -20,7 +20,7 @@ struct SettingsAppSettingsScreen: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     Row(insets: insets) {
-                        Image.asset(.camera).frame(minWidth: 45)
+                        Image.icon(.camera1).iconSize(24).frame(minWidth: 45)
                         Toggle("Auto Start Camera", isOn: cameraAutoStartDisabledBinding())
                             .multilineTextAlignment(.leading)
                             .truncationMode(.tail)

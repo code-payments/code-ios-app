@@ -8,6 +8,7 @@
 
 import SwiftUI
 
+/// A small white capsule holding one short label, with the house press.
 public struct BubbleButton: View {
     
     public let font: Font
@@ -31,6 +32,9 @@ public struct BubbleButton: View {
                 paddingVertical: 5,
                 paddingHorizontal: 15
             )
+            // Under 44 pt tall, so the hit area keeps the bubble's corners.
+            .contentShape(.rect)
         }
+        .buttonStyle(.pressable)
     }
 }

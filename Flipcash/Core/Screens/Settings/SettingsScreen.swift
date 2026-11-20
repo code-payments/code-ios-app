@@ -85,7 +85,7 @@ struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsSectionHeader("Security")
 
-            SettingsRow(systemImage: "key.horizontal", title: "Access Key", insets: insets) {
+            SettingsRow(icon: .key1, title: "Access Key", insets: insets) {
                 dialogItem = .alert(
                     title: "View Your Access Key?",
                     subtitle: "Your Access Key will grant access to your Flipcash account. Keep it private and safe"
@@ -96,6 +96,7 @@ struct SettingsScreen: View {
                     DialogAction.cancel()
                 }
             }
+            .lastInSection()
         }
     }
 
@@ -103,13 +104,14 @@ struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsSectionHeader("Privacy")
 
-            SettingsRow(systemImage: "nosign", title: "Blocked", insets: insets) {
+            SettingsRow(icon: .circleBanSign, title: "Blocked", insets: insets) {
                 router.push(.blockedUsers)
             }
 
-            SettingsRow(systemImage: "globe", title: "Trusted Websites", insets: insets) {
+            SettingsRow(icon: .globe, title: "Trusted Websites", insets: insets) {
                 router.push(.trustedWebsites)
             }
+            .lastInSection()
             .accessibilityIdentifier("settings-trusted-websites-row")
         }
     }
@@ -120,8 +122,11 @@ struct SettingsScreen: View {
             SettingsSectionHeader("Currencies")
 
             ForEach(SettingsCurrencyRow.allCases, id: \.self) { row in
-                SettingsRow(image: row.image, title: row.title, insets: insets) {
+                let settingsRow = SettingsRow(icon: row.icon, title: LocalizedStringKey(row.title), insets: insets) {
                     row.open(using: router)
+                }
+                Group {
+                    if row == SettingsCurrencyRow.allCases.last { settingsRow.lastInSection() } else { settingsRow }
                 }
                 .accessibilityIdentifier(row.accessibilityIdentifier)
             }
@@ -132,23 +137,27 @@ struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsSectionHeader("Advanced")
 
-            SettingsRow(systemImage: "flask", title: "Beta Features", insets: insets) {
+            SettingsRow(icon: .bug, title: "Beta Features", insets: insets) {
                 router.push(.settingsAdvancedBetaFeatures)
             }
 
-            SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
+            SettingsRow(icon: .fileText, title: "Application Logs", insets: insets) {
                 router.push(.settingsApplicationLogs)
             }
 
-            SettingsRow(systemImage: "bell", title: "Notifications", insets: insets) {
+            let notifications = SettingsRow(icon: .bell2, title: "Notifications", insets: insets) {
                 router.push(.settingsNotificationStatus)
+            }
+            Group {
+                if betaFlags.canSwitchAccounts { notifications } else { notifications.lastInSection() }
             }
             .accessibilityIdentifier("settings-notifications-row")
 
             if betaFlags.canSwitchAccounts {
-                SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: .beta, insets: insets) {
+                SettingsRow(icon: .group1, title: "Switch Accounts", badge: .beta, insets: insets) {
                     router.push(.settingsAccountSelection)
                 }
+                .lastInSection()
                 .accessibilityIdentifier("account-switch-accounts-row")
             }
         }
@@ -159,13 +168,13 @@ struct SettingsScreen: View {
             SettingsSectionHeader("Account")
 
             if betaFlags.canViewAccountInfo {
-                SettingsRow(systemImage: "person.crop.circle", title: "Account Info", badge: .beta, insets: insets) {
+                SettingsRow(icon: .circlePerson, title: "Account Info", badge: .beta, insets: insets) {
                     router.push(.accountInfo)
                 }
                 .accessibilityIdentifier("settings-account-info-row")
             }
 
-            SettingsRow(asset: .logout, title: "Log Out", insets: insets) {
+            SettingsRow(icon: .arrowBoxLeft, title: "Log Out", insets: insets) {
                 dialogItem = .alert(
                     title: "Are You Sure You Want To Log Out?",
                     subtitle: "You can get into this account using your Access Key"
@@ -176,8 +185,8 @@ struct SettingsScreen: View {
                     DialogAction.cancel()
                 }
             }
-
-            SettingsRow(asset: .delete, title: "Delete Account", insets: insets) {
+            .actsInPlace()
+            SettingsRow(icon: .trashCan, title: "Delete Account", insets: insets) {
                 dialogItem = .alert(
                     title: "Permanently Delete Account?",
                     subtitle: "This will permanently delete your Flipcash account"
@@ -188,6 +197,9 @@ struct SettingsScreen: View {
                     DialogAction.cancel()
                 }
             }
+            .actsInPlace()
+            .destructive()
+            .lastInSection()
         }
     }
 

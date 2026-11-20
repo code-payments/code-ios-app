@@ -89,7 +89,7 @@ private struct TipsIntroScreen: View {
                 }
                 .buttonStyle(.filled)
                 .accessibilityIdentifier("start-receiving-tips-button")
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity)

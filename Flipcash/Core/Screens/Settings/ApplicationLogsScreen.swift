@@ -40,10 +40,12 @@ struct ApplicationLogsScreen: View {
                         Text("Share Logs")
                     }
                     .buttonStyle(.filled)
-                    .padding(20)
+                    .padding([.horizontal, .top], 20)
+                    .bottomEdgePadding()
                 } else {
                     ProgressView()
-                        .padding(20)
+                        .padding([.horizontal, .top], 20)
+                        .bottomEdgePadding()
                 }
             }
         }

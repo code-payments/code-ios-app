@@ -52,17 +52,18 @@ struct USDCDepositEducationScreen: View {
 
                 Spacer()
 
-                VStack(spacing: 8) {
+                VStack(spacing: Metrics.buttonGap) {
                     Button("Next", action: onNext)
                         .buttonStyle(.filled)
 
                     if let onDepositOtherCurrencies {
                         Button("Deposit Other Flipcash Currencies", action: onDepositOtherCurrencies)
-                            .buttonStyle(.subtle)
+                            .buttonStyle(.textLink)
                     }
                 }
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding(onDepositOtherCurrencies == nil ? Metrics.buttonPadding : Metrics.buttonPaddingUnderTextLink)
         }
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)

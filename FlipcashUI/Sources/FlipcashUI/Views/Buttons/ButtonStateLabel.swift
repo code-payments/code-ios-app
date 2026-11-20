@@ -11,7 +11,6 @@ import SwiftUI
 ///
 /// `ButtonStyle` can't see the action's state, so a `Button` wearing one of the
 /// modern styles (`.filled` and friends) renders this in place of a plain title.
-/// `CodeButton` draws the same states itself and needs none of this.
 public struct ButtonStateLabel: View {
 
     private let title: String
@@ -34,6 +33,7 @@ public struct ButtonStateLabel: View {
         case .loading:
             ProgressView()
                 .progressViewStyle(.circular)
+                .tint(Color.textSecondary)
 
         case .success:
             checkmark

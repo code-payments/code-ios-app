@@ -38,6 +38,8 @@ struct ShellTabTitle: ToolbarContent {
     private static func text(_ title: String) -> some View {
         Text(title)
             .font(.appTitleLarge)
+            // The app's bold lands on Semibold; tab titles take true Bold.
+            .fontWeight(.bold)
             .foregroundStyle(Color.textMain)
             .fixedSize()
     }

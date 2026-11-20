@@ -80,18 +80,17 @@ struct BuyConfirmationScreen: View {
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
-                    CodeButton(
-                        state: viewModel.actionButtonState,
-                        style: .filled,
-                        title: "Confirm",
-                        disabled: !viewModel.canPerformAction,
-                        action: performBuy
-                    )
+                    Button(action: performBuy) {
+                        ButtonStateLabel("Confirm", state: viewModel.actionButtonState)
+                    }
+                    .buttonStyle(.filled)
+                    .disabled(!viewModel.canPerformAction || !viewModel.actionButtonState.isNormal)
                     .accessibilityIdentifier("buy-confirmation-buy")
                     .padding(.top, 20)
                 }
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle(BuyFlowTitle.forCurrency(viewModel.targetMint, session: session, ratesController: ratesController))
         .toolbarTitleDisplayMode(.inline)

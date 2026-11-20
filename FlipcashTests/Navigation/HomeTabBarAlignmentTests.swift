@@ -375,8 +375,9 @@ private struct HostedBar {
     }
 
     /// The selected item's title, read off the bar's controller, so it answers while the bar is hidden.
+    /// The redesign draws titles into the item images, so the name rides on the accessibility label.
     var selectedTitle: String? {
-        tabBarController?.tabBar.selectedItem?.title
+        tabBarController?.tabBar.selectedItem.flatMap { $0.title ?? $0.accessibilityLabel }
     }
 
     func waitForSelectedTitle(_ title: String) async throws {

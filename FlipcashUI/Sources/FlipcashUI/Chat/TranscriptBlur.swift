@@ -18,9 +18,9 @@ import UIKit
 /// transcript, which is what the design shows.
 ///
 /// The frosting itself is ``ChatBackdrop``'s, the same one a long press puts behind a lifted
-/// message, including its dim: this blur stands alone with no context menu above it, so nothing
-/// else is darkening the screen, and the material on its own lifts a near-black transcript's blacks
-/// instead of hiding them.
+/// message, at the gate's own strength (``ChatBackdrop/gateBlurFraction``) and including its dim:
+/// this blur stands alone with no context menu above it, so nothing else is darkening the screen,
+/// and the material on its own lifts a near-black transcript's blacks instead of hiding them.
 @MainActor
 final class TranscriptBlur {
 
@@ -37,8 +37,8 @@ final class TranscriptBlur {
     /// Layered in the effect view's content view, so it fades with the blur and needs no separate
     /// animation of its own.
     private let dim = UIView()
-    /// Holds the material at ``ChatBackdrop/blurFraction``. Kept for the life of the screen, and
-    /// stopped below before it deallocates — see ``ChatBackdrop/frost(_:)``.
+    /// Holds the material at ``ChatBackdrop/gateBlurFraction``. Kept for the life of the screen, and
+    /// stopped below before it deallocates — see ``ChatBackdrop/frost(_:fraction:)``.
     private var strength: UIViewPropertyAnimator?
 
     /// The blur itself, so anything meant to be seen *through* it can be layered directly beneath.
@@ -93,7 +93,7 @@ final class TranscriptBlur {
             dim.bottomAnchor.constraint(equalTo: effectView.contentView.bottomAnchor),
         ])
 
-        strength = ChatBackdrop.frost(effectView)
+        strength = ChatBackdrop.frost(effectView, fraction: ChatBackdrop.gateBlurFraction)
     }
 
     isolated deinit {

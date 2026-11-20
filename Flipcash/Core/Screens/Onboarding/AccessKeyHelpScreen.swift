@@ -39,7 +39,7 @@ struct AccessKeyHelpScreen: View {
                 }
                 .buttonStyle(.filled)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                .bottomEdgePadding()
             }
         }
         .navigationTitle("Can't Find Your Access Key?")

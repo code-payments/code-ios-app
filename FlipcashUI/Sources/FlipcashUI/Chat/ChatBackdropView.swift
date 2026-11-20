@@ -40,7 +40,7 @@ public struct ChatBackdropView: UIViewRepresentable {
     public func makeCoordinator() -> Coordinator { Coordinator() }
 
     /// Holds the blur at ``ChatBackdrop/blurFraction`` until the view is dismantled — see
-    /// ``ChatBackdrop/frost(_:)``.
+    /// ``ChatBackdrop/frost(_:fraction:)``.
     @MainActor
     public final class Coordinator {
         var strength: UIViewPropertyAnimator?

@@ -59,7 +59,7 @@ struct EnterAmountHeader: View {
 
     private var hintFont: Font {
         switch hint {
-        case nil, .available?, .caption?: .appTextMedium
+        case nil, .available?, .caption?: .default(size: 16) // Amount entry v2: the hint reads regular, like the Figma header
         case .description?:               .appTextSmall
         }
     }

@@ -45,7 +45,8 @@ struct OnboardingStepLayout<Form: View, Action: View>: View {
             action
         }
         .padding(.horizontal, OnboardingStepMetrics.edge)
-        .padding(.vertical, 20)
+        .padding(.top, 20)
+        .bottomEdgePadding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

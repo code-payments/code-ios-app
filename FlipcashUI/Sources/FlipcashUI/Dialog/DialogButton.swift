@@ -39,8 +39,7 @@ public struct DialogButton: View {
                 
             case .subtle:
                 button()
-                    .opacity(disabled ? 0.5 : 1.0)
-                    .foregroundStyle(Color.textMain.opacity(0.6))
+                    .buttonStyle(.subtle)
             }
         }
         .disabled(isDisabled())
@@ -112,6 +111,7 @@ extension DialogButton {
         case primary
         case secondary
         case destructive
+        /// A translucent capsule with the look of ``SubtleButtonStyle``.
         case subtle
         case outline
     }
@@ -129,40 +129,27 @@ private extension DialogButton {
             configuration.label
                 .background(background(style: style))
                 .foregroundStyle(textColor())
-                .overlay(overlay(isPressed: configuration.isPressed))
-                .contentShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius))
-        }
-        
-        @ViewBuilder private func overlay(isPressed: Bool) -> some View {
-            switch style {
-            case .primary, .secondary, .destructive:
-                RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                    .fill(isPressed ? Color.black.opacity(0.3) : Color.black.opacity(0))
-            case .outline:
-                RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                    .fill(isPressed ? Color.white.opacity(0.15) : Color.black.opacity(0))
-            case .subtle:
-                fatalError()
-            }
+                .contentShape(Capsule())
+                .buttonPress(isPressed: configuration.isPressed)
         }
         
         @ViewBuilder private func background(style: DialogButton.Style) -> some View {
             switch style {
             case .primary, .secondary, .destructive:
                 if isDisabled {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .fill(Color.actionDisabled)
                 } else {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .fill(Color.action)
                 }
                 
             case .outline:
                 if isDisabled {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .stroke(Color.backgroundRow.opacity(0.6), lineWidth: Metrics.buttonLineWidth)
                 } else {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    Capsule()
                         .stroke(Color.textMain.opacity(0.6), lineWidth: Metrics.buttonLineWidth)
                 }
                 

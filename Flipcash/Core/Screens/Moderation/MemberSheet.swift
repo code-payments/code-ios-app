@@ -163,9 +163,10 @@ struct MemberSheet: View {
                             .accessibilityIdentifier("member-sheet-restriction")
                     }
 
-                    CodeButton(style: .filled, title: "View Profile") {
+                    Button("View Profile") {
                         close(with: .viewProfile)
                     }
+                    .buttonStyle(.filled)
                     .accessibilityIdentifier("member-sheet-view-profile")
 
                     if options.hasGroupActions {

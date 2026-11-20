@@ -58,7 +58,8 @@ struct PhantomEducationScreen: View {
                 .buttonStyle(.filled)
                 .disabled(isConnecting)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle("Add Money")
         .toolbarTitleDisplayMode(.inline)

@@ -69,7 +69,7 @@ public struct Dialog: View {
                 checkboxRow(checkbox)
             }
             
-            VStack(spacing: 0) {
+            VStack(spacing: Metrics.buttonGap) {
                 ForEach(actions, id: \.title) { action in
                     DialogButton(
                         style: action.kind.buttonStyle,
@@ -83,9 +83,9 @@ public struct Dialog: View {
                             action.perform(isChecked: isChecked)
                         }
                     }
-                    .padding(.top, action.kind.topPadding)
                 }
             }
+            .padding(.top, actions.first?.kind.topPadding ?? 0)
         }
         .padding([.leading, .trailing, .top], 20)
         .padding(.bottom, actions.last?.kind.bottomPadding ?? 0)

@@ -79,7 +79,8 @@ struct ReportFlowScreen: View {
             case .details:
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: goBackToReasons) {
-                        Image(systemName: "chevron.backward")
+                        Image.icon(.arrowLeft)
+                            .iconSize(22)
                             .foregroundStyle(Color.textMain)
                     }
                     .accessibilityIdentifier("report-nav-back")
@@ -193,18 +194,19 @@ private struct ReasonStep: View {
             }
             .scrollIndicators(.hidden)
 
-            CodeButton(
-                state: state.buttonState,
-                style: .filled,
-                title: ReportFlowState.buttonTitle(for: state.selectedReason),
-                disabled: state.selectedReason == nil || state.buttonState != .normal,
-                action: onContinue
-            )
+            Button(action: onContinue) {
+                ButtonStateLabel(
+                    ReportFlowState.buttonTitle(for: state.selectedReason),
+                    state: state.buttonState
+                )
+            }
+            .buttonStyle(.filled)
+            .disabled(state.selectedReason == nil || !state.buttonState.isNormal)
             .accessibilityIdentifier("report-reason-continue")
             .padding(.top, 12)
-            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
+        .bottomEdgePadding()
     }
 }
 
@@ -310,17 +312,15 @@ private struct DetailsStep: View {
 
             // Picking "Something Else" and then saying nothing leaves the report with less to go
             // on than any other row would have carried, so the button waits.
-            CodeButton(
-                state: state.buttonState,
-                style: .filled,
-                title: "Submit Report",
-                disabled: !ReportFlowState.canSubmitDetails(state.details) || state.buttonState != .normal,
-                action: onSubmit
-            )
+            Button(action: onSubmit) {
+                ButtonStateLabel("Submit Report", state: state.buttonState)
+            }
+            .buttonStyle(.filled)
+            .disabled(!ReportFlowState.canSubmitDetails(state.details) || !state.buttonState.isNormal)
             .accessibilityIdentifier("report-submit")
-            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
+        .bottomEdgePadding()
         .onAppear { isFocused = true }
     }
 }

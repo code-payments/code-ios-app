@@ -126,8 +126,8 @@ private struct ConvertAmountScreenContent: View {
                         monogramID: viewModel.destinationMint.base58,
                         name: viewModel.destinationName
                     )
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
+                    Image.icon(.chevronDownMedium)
+                        .iconSize(16)
                         .foregroundStyle(Color.textSecondary)
                 }
             }

@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import FlipcashUI
 
 /// Which tab bar the home shell draws: today's four tabs, or the Group Money
 /// redesign's two (Groups, node 13729:413; Money, node 13729:744), behind
@@ -83,6 +84,7 @@ enum HomeTabLayout: Equatable {
         barTabs.contains(tab)
     }
 
+    /// The tab's label on the bar in this layout, which is also its VoiceOver label.
     func title(for tab: HomeTab) -> String {
         switch (self, tab) {
         case (.groupMoney, .chat):
@@ -94,14 +96,16 @@ enum HomeTabLayout: Equatable {
         }
     }
 
-    /// The asset-catalog name of the tab's template glyph. Groups wears the
-    /// two-people glyph from the redesign; Money keeps the wallet.
-    func iconName(for tab: HomeTab, isSelected: Bool) -> String {
+    /// The tab's Central glyph. Groups wears the two-people glyph from the
+    /// redesign; Money keeps the wallet.
+    func icon(for tab: HomeTab, isSelected: Bool) -> Icon {
         switch (self, tab) {
         case (.groupMoney, .chat):
-            isSelected ? "NavGroupsSelected" : "NavGroups"
+            // Central has no filled two-people glyph, so Groups wears the outline in
+            // both states; the unselected dim and the selection platter carry the state.
+            .group1
         default:
-            tab.iconName(isSelected: isSelected)
+            tab.icon(isSelected: isSelected)
         }
     }
 }

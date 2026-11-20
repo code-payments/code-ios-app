@@ -157,7 +157,7 @@ public struct ChatMessageCellView: UIViewRepresentable {
                 ? width - ChatColumnCell.authorGutterWidth
                 : width
             let maxWidth = available * ChatViewController.maxBubbleWidthFraction
-            let cardWidth = (width - ChatColumnCell.rowInset * 2) * ChatViewController.cashCardWidthFraction
+            let cardWidth = ChatViewController.cashCardWidth(available: width)
             switch cell {
             case let cell as ChatLinkMessageCell:
                 cell.linkCardSource = content.linkCardSource

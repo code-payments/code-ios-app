@@ -311,15 +311,15 @@ struct ChatCashCardCellTests {
         return stride(from: 0, to: edges.count, by: 2).map { (edges[$0 + 1] - edges[$0]).rounded() }
     }
 
-    @Test("A group card spaces its lines 16 / 12 / 0 / 6 / 12 / 16, so its height is its lines plus those gaps")
+    @Test("A group card spaces its lines by ChatStyle's top / gap / 0 / 6 / gap / bottom, so its height is its lines plus those gaps")
     func groupCard_spacing() throws {
         let layout = try lineFrames(group, texts: ["You and 2 others received", "$1.00 each", "$3.00 total", "Jeffy", "from Fred Wilson"])
-        #expect(gaps(layout) == [16, 12, 0, 6, 12, 16])
+        #expect(gaps(layout) == [ChatStyle.cardPaddingTop, ChatStyle.cardBlockGap, 0, 6, ChatStyle.cardBlockGap, ChatStyle.cardPaddingBottom])
     }
 
-    @Test("A card with no total spaces its lines 16 / 12 / 6 / 12 / 16")
+    @Test("A card with no total spaces its lines by ChatStyle's top / gap / 6 / gap / bottom")
     func dmCard_spacing() throws {
         let layout = try lineFrames(dm, texts: ["You sent", "$5.00", "Cash", "to Noah Parker"])
-        #expect(gaps(layout) == [16, 12, 6, 12, 16])
+        #expect(gaps(layout) == [ChatStyle.cardPaddingTop, ChatStyle.cardBlockGap, 6, ChatStyle.cardBlockGap, ChatStyle.cardPaddingBottom])
     }
 }

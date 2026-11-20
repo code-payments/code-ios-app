@@ -40,10 +40,10 @@ enum SettingsCurrencyRow: CaseIterable {
     }
 
     /// The glyph the wallet's tile for the same screen draws.
-    var image: Image {
+    var icon: Icon {
         switch self {
-        case .createCurrency: Image.asset(.coinsAdd)
-        case .leaderboard:    Image(systemName: "globe")
+        case .createCurrency: .coinsAdd
+        case .leaderboard:    .globe
         }
     }
 

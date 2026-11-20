@@ -85,10 +85,10 @@ struct EditGroupNameScreen: View {
                 .buttonStyle(.filled)
                 .disabled(!model.canSaveTitle(currentTitle: conversation?.title) || isSubmitting)
                 .accessibilityIdentifier("edit-group-name-save-button")
-                .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .bottomEdgePadding()
         }
         // The heading above the field is the screen's title, the way ``ProfileNameScreen`` asks for
         // a display name; a bar title on top of it would ask twice.

@@ -308,8 +308,8 @@ struct LinkMessageCardContent: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if opens {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
+                Image.icon(.chevronRightMedium)
+                    .iconSize(16)
                     .foregroundStyle(Color.white.opacity(Layout.chevronOpacity))
                     .accessibilityHidden(true)
             }

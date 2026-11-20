@@ -25,10 +25,10 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     private let transcript = UIHostingController(rootView: NotificationTranscriptView(items: []))
     private var statusLabel: UILabel?
 
-    /// The dark "background" color (display-P3 25,25,26), hardcoded because the matching asset
+    /// The dark "background" color (display-P3 18,18,18), hardcoded because the matching asset
     /// lives in the app bundle and can't resolve from this extension.
     private static let chatBackground = UIColor(
-        displayP3Red: 25 / 255, green: 25 / 255, blue: 26 / 255, alpha: 1
+        displayP3Red: 18 / 255, green: 18 / 255, blue: 18 / 255, alpha: 1
     )
 
     /// The panel's fixed height. It never resizes to fit the transcript (which scrolls within
@@ -58,7 +58,6 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         // takes its height from preferredContentSize — leave it unset and the panel collapses
         // and dismisses, so pin it here and never resize it to the transcript.
         preferredContentSize = CGSize(width: view.bounds.width, height: Self.fixedPanelHeight)
-        FontBook.registerExtensionFonts()
 
         addChild(transcript)
         // The panel sits above the reply keyboard, so don't let the keyboard's safe area inset the

@@ -8,7 +8,7 @@
 
 import SwiftUI
 
-/// A full-width button style with a rounded filled background that adjusts
+/// A full-width capsule button style with a filled background that adjusts
 /// its text and background colors for the disabled state automatically.
 ///
 /// Several opacity presets are available through the static accessors:
@@ -20,8 +20,7 @@ import SwiftUI
 /// .buttonStyle(.filled)
 /// ```
 ///
-/// Use the lower-opacity variant `.filled20` for secondary or
-/// de-emphasised actions.
+/// Use `.subtle` for the secondary action beside it.
 public struct FilledButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
@@ -30,8 +29,9 @@ public struct FilledButtonStyle: ButtonStyle {
     private let overlayColor: Color
     private let overlayDisabledColor: Color
     private let isCompact: Bool
+    private var backing: AnyShapeStyle?
 
-    /// Internal only. Use the static accessors (e.g., `.filled`, `.filled20`) instead.
+    /// Internal only. Use the static accessors (e.g., `.filled`, `.filledCompact`) instead.
     init(
         textColor: Color,
         textDisabledColor: Color,
@@ -49,15 +49,31 @@ public struct FilledButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.appTextMedium)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .padding(.horizontal, Metrics.buttonPadding)
             .foregroundStyle(isEnabled ? textColor : textDisabledColor)
             .frame(maxWidth: .infinity)
             .frame(height: isCompact ? Metrics.buttonHeightThin : Metrics.buttonHeight)
             .background {
-                RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                    .fill(isEnabled ? overlayColor : overlayDisabledColor)
+                ZStack {
+                    if let backing {
+                        Capsule().fill(backing)
+                    }
+                    Capsule()
+                        .fill(isEnabled ? overlayColor : overlayDisabledColor)
+                }
             }
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .contentShape(Capsule())
+            .buttonPress(isPressed: configuration.isPressed)
+    }
+
+    /// Returns this style drawn over `backing`, which keeps content scrolling under a translucent
+    /// fill from showing through it and shrinks with the press.
+    public func backed(by backing: some ShapeStyle) -> FilledButtonStyle {
+        var style = self
+        style.backing = AnyShapeStyle(backing)
+        return style
     }
 }
 
@@ -84,17 +100,6 @@ extension ButtonStyle where Self == FilledButtonStyle {
         )
     }
     
-    /// A full-width filled button at 20% action color opacity.
-    public static var filled20: FilledButtonStyle {
-        .init(
-            textColor: .textMain,
-            textDisabledColor: .textMain.opacity(0.2),
-            overlayColor: .action.opacity(0.2),
-            overlayDisabledColor: .action.opacity(0.2),
-            isCompact: false
-        )
-    }
-
     /// A full-width filled button at 5% action color opacity — the same tint the
     /// row and card surfaces carry, for an action that reads as one of them.
     public static var filled05: FilledButtonStyle {
@@ -104,17 +109,6 @@ extension ButtonStyle where Self == FilledButtonStyle {
             overlayColor: .action.opacity(0.05),
             overlayDisabledColor: .action.opacity(0.05),
             isCompact: false
-        )
-    }
-
-    /// A full-width filled button at 20% action color opacity (compact variant).
-    public static var filled20Compact: FilledButtonStyle {
-        .init(
-            textColor: .textMain,
-            textDisabledColor: .textMain.opacity(0.2),
-            overlayColor: .action.opacity(0.2),
-            overlayDisabledColor: .action.opacity(0.2),
-            isCompact: true
         )
     }
 }

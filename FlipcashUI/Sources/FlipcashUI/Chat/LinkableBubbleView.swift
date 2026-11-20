@@ -75,8 +75,8 @@ public final class LinkableBubbleView: UIView {
     private var quoteThumbnail: ChatMediaLocation?
 
     /// The body's inset from the bubble's edges, and the bubble's own vertical padding.
-    private static let bodyInset: CGFloat = 12
-    private static let bodyPadding: CGFloat = 9
+    private static var bodyInset: CGFloat { ChatStyle.bubblePaddingX }
+    private static var bodyPadding: CGFloat { ChatStyle.bubblePaddingY }
 
     /// Forwarded from the panel: the stable id of the message to jump to.
     var onQuoteTap: ((String) -> Void)? {
@@ -148,7 +148,7 @@ public final class LinkableBubbleView: UIView {
         textView.dataDetectorTypes = []
         textView.font = .default(size: 16, weight: .medium)
         textView.textColor = .white
-        textView.linkTextAttributes = Self.linkAttributes
+        textView.linkTextAttributes = Self.linkAttributes(isFromSelf: false)
         textView.delegate = self
         textView.translatesAutoresizingMaskIntoConstraints = false
         spanTap.delegate = self
@@ -298,6 +298,7 @@ public final class LinkableBubbleView: UIView {
 
     /// Fills the bubble; `quoteThumbnail` is where a quoted photo's thumbnail loads from.
     public func configure(with message: ChatMessage, quoteThumbnail: ChatMediaLocation? = nil) {
+        textView.linkTextAttributes = Self.linkAttributes(isFromSelf: message.sender == .me)
         // Shares the plain bubble's text builder so a link message gets the same body styling, the
         // same tombstone copy, and the same "Edited" reservation, with the link spans laid over it
         // from the preview the mapper already detected.
@@ -350,6 +351,7 @@ public final class LinkableBubbleView: UIView {
         // A card row's "Edited" marker sits on the column's metadata line instead — see
         // `ChatLinkMessageCell`.
         editedLabel.isHidden = bare || !ChatBubbleView.showsEditedMarker(for: message)
+        editedLabel.textColor = ChatStyle.mutedText(isFromSelf: message.sender == .me)
 
         cardView.webIsBare = bare
         if bare, let card = message.linkPreview?.card {
@@ -385,7 +387,7 @@ public final class LinkableBubbleView: UIView {
         // and UIKit resolves that by breaking one at random.
         if let quote = message.quote {
             quotePanel.isHidden = false
-            quotePanel.configure(with: quote, thumbnail: quoteThumbnail)
+            quotePanel.configure(with: quote, thumbnail: quoteThumbnail, onSent: message.sender == .me)
             NSLayoutConstraint.deactivate(quoteCollapse + [textTopToBubble, cardTopToBubble])
             quoteTrailing.isActive = true
             textTopToQuote.isActive = !bare
@@ -459,11 +461,13 @@ public final class LinkableBubbleView: UIView {
 
 extension LinkableBubbleView {
 
-    /// How a link reads in a bubble.
-    static let linkAttributes: [NSAttributedString.Key: Any] = [
-        .foregroundColor: UIColor.white,
-        .underlineStyle: NSUnderlineStyle.single.rawValue,
-    ]
+    /// How a link reads in a sender's bubble: the body's colour, underlined.
+    static func linkAttributes(isFromSelf: Bool) -> [NSAttributedString.Key: Any] {
+        [
+            .foregroundColor: ChatStyle.text(isFromSelf: isFromSelf),
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+        ]
+    }
 
     /// The bubble's body with every detected link underlined and every mention tagged for its pill.
     ///
@@ -487,6 +491,13 @@ extension LinkableBubbleView {
         for mention in mentions where mention.length > 0 {
             guard mention.location >= 0, mention.location + mention.length <= result.length else { continue }
             result.addAttribute(.textItemTag, value: mention.username.value, range: mention.range)
+            let mentionFont = UIFont.default(size: ChatStyle.mentionSize, weight: ChatStyle.mentionWeight)
+            result.addAttribute(.font, value: mentionFont, range: mention.range)
+            // Lifts a smaller handle so its capitals centre on the body's, instead of sitting on its baseline.
+            let centring = (ChatStyle.bodyFont.capHeight - mentionFont.capHeight) / 2 + ChatStyle.mentionBaselineNudge
+            let bodyOffset = (ChatStyle.bodyLineAttributes(for: ChatStyle.bodyFont)[.baselineOffset] as? CGFloat) ?? 0
+            result.addAttribute(.baselineOffset, value: bodyOffset + centring, range: mention.range)
+            result.addAttribute(.foregroundColor, value: ChatStyle.mentionText, range: mention.range)
             // Widens the space on both sides, so the pill grows into room the text gave up rather
             // than over the neighbouring words.
             if mention.location > 0 {
@@ -563,12 +574,11 @@ extension LinkableBubbleView: UITextViewDelegate {
 enum MentionPill {
     static let fill = UIColor.white.withAlphaComponent(0.14)
     /// Horizontal room between the handle's glyphs and the pill's edge.
-    static let padding: CGFloat = 6
+    static let padding: CGFloat = 5.75
     /// Space between the pill's edge and the neighbouring words.
-    static let gap: CGFloat = 3
+    static let gap: CGFloat = 0
     /// Kern either side of the handle, making room for the padding and the gap.
     static let spacing: CGFloat = padding + gap
-    static let cornerRadius: CGFloat = 6
 
     /// The pill for one line of a mention, from that line's selection rect.
     static func rect(around line: CGRect) -> CGRect {
@@ -612,10 +622,19 @@ final class LinkTextView: UITextView {
     private func drawPills() {
         let path = UIBezierPath()
         for rect in mentionPillRects {
-            path.append(UIBezierPath(roundedRect: rect, cornerRadius: MentionPill.cornerRadius))
+            path.append(UIBezierPath(roundedRect: rect, cornerRadius: rect.height / 2))
         }
         pills.path = path.cgPath
         pills.frame = bounds
+    }
+
+    /// The pill sized to the handle's own type, as tall as its glyphs rather than the body's line,
+    /// so a smaller handle gets a smaller pill.
+    private func fittedPill(_ line: CGRect, range: NSRange) -> CGRect {
+        let wide = MentionPill.rect(around: line)
+        guard let start = position(from: beginningOfDocument, offset: range.location + min(1, range.length)) else { return wide }
+        let glyphs = caretRect(for: start)
+        return CGRect(x: wide.minX, y: glyphs.minY, width: wide.width, height: glyphs.height)
     }
 
     /// The pill behind each line of each mention, in the text view's coordinates.
@@ -630,11 +649,11 @@ final class LinkTextView: UITextView {
             // from its own letters, ending where its last letter does. One too long for a line keeps
             // its selection rects.
             guard lines.count == 1, let end = glyphEnd(ofLastCharacterIn: range, of: text) else {
-                result += lines.map(MentionPill.rect(around:))
+                result += lines.map { self.fittedPill($0, range: range) }
                 return
             }
             let width = Self.unkerned(text.attributedSubstring(from: range)).size().width
-            result.append(MentionPill.rect(around: CGRect(x: end - width, y: line.minY, width: width, height: line.height)))
+            result.append(fittedPill(CGRect(x: end - width, y: line.minY, width: width, height: line.height), range: range))
         }
         return result
     }

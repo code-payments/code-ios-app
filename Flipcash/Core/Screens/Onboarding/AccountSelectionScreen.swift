@@ -63,7 +63,8 @@ struct AccountSelectionScreen: View {
                     Button("Enter a Different Access Key", action: onEnterDifferentKey)
                         .buttonStyle(.subtle)
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+                    .padding(.top, 12)
+                    .bottomEdgePadding()
                 }
             }
         }
