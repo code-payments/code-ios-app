@@ -37,6 +37,7 @@ struct NotificationStatusScreen: View {
 
                     if scrollsFooter {
                         footer(page: page)
+                            .padding(.bottom, 20)
                     }
                 }
                 .padding(.bottom, 20)
@@ -48,6 +49,7 @@ struct NotificationStatusScreen: View {
         .scrollEdgeBar(.bottom) {
             if !scrollsFooter {
                 footer(page: page)
+                    .bottomEdgePadding()
                     .toastClearance(toasts)
             }
         }
@@ -142,16 +144,15 @@ struct NotificationStatusScreen: View {
                     state: isSendingTest ? .loading : .normal
                 )
             }
-            .buttonStyle(isTestSent ? .filled20 : .filled)
-            // Both fills are translucent; without this the checks show through them.
-            .background(Color.backgroundMain, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius))
+            // The disabled fill is translucent; without the backing the checks show through it.
+            .buttonStyle(.filled.backed(by: .backgroundMain))
             .disabled(!isTestEnabled || isSendingTest)
             .accessibilityIdentifier("notification-status-send-test")
 
             ShareLink(item: model?.report ?? "") {
                 Text("Share Report")
             }
-            .buttonStyle(.subtle)
+            .buttonStyle(.textLink)
             .disabled(model == nil)
 
             Group {
@@ -169,7 +170,6 @@ struct NotificationStatusScreen: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
-        .padding(.bottom, 20)
     }
 
     private static func toast(for result: NotificationStatus.TestResult) -> ToastController.Toast {
@@ -334,16 +334,22 @@ private struct CheckRow: View {
     @ViewBuilder
     private var fixButton: some View {
         if let fix = row.fix, let fixTitle = row.fixTitle {
-            Button(fixTitle) { onFix(fix) }
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textAction)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(Color.action))
-                .buttonStyle(.plain)
-                .disabled(row.status == .checking)
-                .accessibilityIdentifier("notification-status-fix-\(row.check.rawValue)")
-                .transition(.opacity)
+            Button {
+                onFix(fix)
+            } label: {
+                Text(fixTitle)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textAction)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Color.action))
+                    // Under 44 pt tall, so the hit area keeps the capsule's corners.
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.pressable)
+            .disabled(row.status == .checking)
+            .accessibilityIdentifier("notification-status-fix-\(row.check.rawValue)")
+            .transition(.opacity)
         }
     }
 }

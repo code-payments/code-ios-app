@@ -239,7 +239,7 @@ struct JoinRequestCapsuleStyle: ButtonStyle {
             .padding(.horizontal, 14)
             .frame(height: 30)
             .background(background.opacity(isEnabled ? 1 : 0.5), in: .capsule)
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .buttonPress(isPressed: configuration.isPressed)
     }
 
     private var foreground: Color {

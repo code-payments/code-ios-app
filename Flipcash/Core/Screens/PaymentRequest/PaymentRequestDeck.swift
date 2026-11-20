@@ -490,9 +490,15 @@ struct PaymentRequestStackFace: View {
             .truncationMode(.tail)
             Spacer(minLength: 0)
             if item.owedShare != nil {
-                Button { pay?(item.id) } label: { PaymentRequestStackPayLabel() }
-                    .buttonStyle(.plain)
-                    .deckPart(.pay, measure)
+                Button {
+                    pay?(item.id)
+                } label: {
+                    PaymentRequestStackPayLabel()
+                        // Under 44 pt tall, so the hit area keeps the capsule's corners.
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.pressable)
+                .deckPart(.pay, measure)
             }
         }
         .padding(.horizontal, 12)

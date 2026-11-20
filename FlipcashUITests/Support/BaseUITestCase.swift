@@ -251,7 +251,7 @@ class BaseUITestCase: XCTestCase {
         // "Next" tap is needed.
         phoneField.typeText("+15005550000")
 
-        // ConfirmPhoneScreen signature: the Confirm CodeButton. The hidden
+        // ConfirmPhoneScreen signature: the Confirm button. The hidden
         // code field auto-focuses ~100ms after appear; six typed digits
         // trigger `confirmPhoneNumberCodeAction()` via the onChange hook.
         let confirmButton = app.buttons["Confirm"]

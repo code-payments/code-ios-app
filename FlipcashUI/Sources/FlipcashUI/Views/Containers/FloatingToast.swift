@@ -87,9 +87,11 @@ public struct FloatingToast: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .background(Color.white.opacity(0.12), in: Capsule())
-                        .contentShape(Capsule())
+                        // Reaches into the toast's 8 pt vertical padding, so the short pill takes taps
+                        // without growing the toast.
+                        .contentShape(Rectangle().inset(by: -8))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 .accessibilityIdentifier(action.accessibilityIdentifier ?? "")
             }
         }

@@ -58,11 +58,11 @@ extension TextBubble {
         @ViewBuilder func background() -> some View {
             switch self {
             case .filled:
-                RoundedRectangle(cornerRadius: 999)
+                Capsule()
                     .fill(Color.textMain)
                 
             case .outline:
-                RoundedRectangle(cornerRadius: 999)
+                Capsule()
                     .stroke(Color.textMain, lineWidth: Metrics.buttonLineWidth)
             }
         }

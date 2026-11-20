@@ -139,8 +139,8 @@ struct ChatPhotosCard: View {
     private var controls: some View {
         HStack {
             Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.default(size: 17, weight: .semibold))
+                Image.icon(.arrowLeft)
+                    .iconSize(22)
                     .foregroundStyle(Color.textMain)
                     .frame(width: 44, height: 44)
                     .contentShape(Circle())
@@ -192,7 +192,7 @@ struct ChatPhotosCard: View {
                         .contentShape(Capsule())
                         .contentTransition(.numericText())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 .accessibilityIdentifier("attach-photos-add")
                 .transition(.opacity)
             }

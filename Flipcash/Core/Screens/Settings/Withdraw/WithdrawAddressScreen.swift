@@ -63,7 +63,7 @@ struct WithdrawAddressScreen: View {
 
                 Button("Paste From Clipboard", action: onPasteFromClipboard)
                     .disabled(!canPaste)
-                    .buttonStyle(.filled20)
+                    .buttonStyle(.subtle)
 
                 Spacer()
                     .frame(minHeight: 1)
@@ -72,7 +72,8 @@ struct WithdrawAddressScreen: View {
                     .disabled(!canCompleteWithdrawal)
                     .buttonStyle(.filled)
             }
-            .padding(20)
+            .padding([.horizontal, .top], 20)
+            .bottomEdgePadding()
         }
         .navigationTitle("Enter Address")
         .toolbarTitleDisplayMode(.inline)
