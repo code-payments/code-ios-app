@@ -82,10 +82,10 @@ struct EditGroupPictureScreen: View {
                 // stay shut against a second submission.
                 .disabled(!model.canSavePicture || !buttonState.isNormal || isSubmitting)
                 .accessibilityIdentifier("edit-group-picture-save-button")
-                .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .bottomEdgePadding()
         }
         .navigationTitle("Picture")
         .toolbarTitleDisplayMode(.inline)

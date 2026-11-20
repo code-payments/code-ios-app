@@ -70,10 +70,10 @@ struct EditGroupDescriptionScreen: View {
                 .buttonStyle(.filled)
                 .disabled(!model.canSave || saveTask != nil)
                 .accessibilityIdentifier("edit-group-description-save")
-                .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .bottomEdgePadding()
         }
         .navigationTitle("Description")
         .navigationBarTitleDisplayMode(.inline)
