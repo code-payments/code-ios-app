@@ -60,7 +60,7 @@ nonisolated extension Database {
                         request.chatID?.data.datatypeValue,
                         request.version.datatypeValue,
                         request.status.wireValue,
-                        request.split?.endsAt?.timeIntervalSinceReferenceDate,
+                        request.endsAt?.timeIntervalSinceReferenceDate,
                         request.createdAt?.timeIntervalSinceReferenceDate,
                         metadata.datatypeValue,
                         expired,

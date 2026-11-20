@@ -46,11 +46,11 @@ public struct PaymentRequestPreview: Hashable, Sendable {
 
         let firstName = senderName.flatMap { $0.split(separator: " ").first.map(String.init) }
         var line = firstName.map { "\($0) sent request" } ?? "Request"
-        if let title = text?.title { line += " for \(title)" }
+        if let title = text?.title, !title.isEmpty { line += " for \(title)" }
         if !amount.isEmpty { line += " · \(amount)" }
 
         self.body = line
-        self.card = text.map { Card(request: request, title: $0.title, copy: copy, now: now) }
+        self.card = text.map { Card(request: request, title: $0.displayTitle, copy: copy, now: now) }
     }
 
     private typealias Card = ChatPaymentRequestContent.Card

@@ -121,6 +121,8 @@ struct TransportClassificationTests {
     @Test func errorGetChatPaymentRequests() { assertClassifies(ErrorGetChatPaymentRequests.self) }
     @Test func errorClosePaymentRequest() { assertClassifies(ErrorClosePaymentRequest.self) }
     @Test func errorMarkPaid() { assertClassifies(ErrorMarkPaid.self) }
+    @Test func errorGetPaymentIntentID() { assertClassifies(ErrorGetPaymentIntentID.self) }
+    @Test func errorGetPayers() { assertClassifies(ErrorGetPayers.self) }
     @Test func errorGetRoster() { assertClassifies(ErrorGetRoster.self) }
     @Test func errorGetMentionSuggestions() { assertClassifies(ErrorGetMentionSuggestions.self) }
     @Test func errorEditChat() { assertClassifies(ErrorEditChat.self) }

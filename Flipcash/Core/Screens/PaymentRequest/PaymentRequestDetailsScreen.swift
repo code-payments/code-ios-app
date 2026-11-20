@@ -210,7 +210,7 @@ struct PaymentRequestDetailsScreen: View {
         guard let request = requests.request(requestID), let text = requests.text(of: request) else { return nil }
         return PaymentRequestDetailsContent(
             request: request,
-            title: text.title,
+            title: text.displayTitle,
             viewer: session.userID,
             hasPaymentIntent: hasPaymentIntent,
             copy: PaymentRequestCopy(session.displayCurrency),
