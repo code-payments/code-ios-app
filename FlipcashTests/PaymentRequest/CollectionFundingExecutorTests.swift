@@ -354,7 +354,7 @@ struct CollectionFundingExecutorTests {
         #expect(swapper.started.first?.ids.swapID != legacy.swapID)
         #expect(swapper.started.first?.ids.fundingIntentID != legacy.fundingIntentID)
         // Its funds never left Jeffy, so its ids stay until the payment clears them.
-        #expect(store.keptLegs(for: requestID, source: jeffy.base58) == [.init(destination: nil, ids: legacy)])
+        #expect(store.keptLegs(for: requestID, source: jeffy.base58) == [.init(source: jeffy.base58, destination: nil, ids: legacy)])
     }
 
     @Test("A CREATED swap funded on retry that still hasn't settled stops on pending and keeps both ids")
@@ -437,13 +437,31 @@ struct CollectionFundingExecutorTests {
         #expect(r.swapper.events == ["state", "wait", "refresh"])
     }
 
-    @Test("A cancelling swap that ends cancelled fails this attempt and frees the leg for fresh ids")
+    @Test("A cancelling swap that ends cancelled is forgotten, and a fresh plan starts its leg under fresh ids")
     func cancellingThenCancelled() async {
-        let r = await retry(serverState: .cancelling, waitResult: .cancelled)
+        let store = makeStore()
+        let stored = freshIDs()
+        store.setLegIDs(stored, for: requestID, source: jeffy.base58, destination: dollars)
+        let swapper = FakeSwapper()
+        swapper.serverStates[stored.swapID] = .cancelling
+        swapper.waitResult = .cancelled
+        var balances = [balance(.usdf, 4_000_000), balance(jeffy, 20_000_000)]
+        swapper.onRefresh = { [unowned swapper] in
+            // The cancelled swap's funds came back to Jeffy, so only the new swap adds Dollars.
+            if swapper.started.isEmpty {
+                swapper.waitResult = .finalized
+            } else {
+                balances = [self.balance(.usdf, 10_000_000), self.balance(self.jeffy, 14_000_000)]
+            }
+        }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: store)
 
-        #expect(r.outcome == .failed)
-        #expect(r.swapper.started.isEmpty)
-        #expect(r.store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == nil)
+        let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: .usdf, balances) }
+
+        #expect(outcome == .funded)
+        #expect(swapper.events == ["state", "wait", "refresh", "start \(jeffy.base58.prefix(4))", "wait", "refresh"])
+        #expect(swapper.started.first?.ids.swapID != stored.swapID)
+        #expect(swapper.started.first?.ids.fundingIntentID != stored.fundingIntentID)
     }
 
     @Test("Attempts that never settle start one swap; later ones fund or wait on it and mint nothing")
@@ -605,6 +623,58 @@ struct CollectionFundingExecutorTests {
         #expect(store.legIDs(for: requestID, source: jeffy.base58, destination: bogey.base58) == forBogey)
     }
 
+    // MARK: - Kept swaps from other sources
+
+    /// A $10 Dollars plan funded from Jeffy, retried with a swap kept from Bogey into Dollars, as an
+    /// attempt that drew on Bogey left it. `state` is what the server reports for that swap. Each
+    /// plan read is logged as "plan".
+    private func retryWithOtherSource(
+        serverState state: SwapState,
+        waitResult: SwapState = .finalized
+    ) async -> (outcome: CollectionFundingExecutor.Outcome, swapper: FakeSwapper, store: CollectionFundingStore, kept: CollectionFundingStore.LegIDs) {
+        let store = makeStore()
+        let kept = freshIDs()
+        store.setLegIDs(kept, for: requestID, source: bogey.base58, destination: dollars)
+        let swapper = FakeSwapper()
+        swapper.serverStates[kept.swapID] = state
+        swapper.waitResult = waitResult
+        var balances = [balance(.usdf, 4_000_000), balance(jeffy, 20_000_000)]
+        swapper.onRefresh = { [unowned swapper] in
+            // The Bogey swap lands $3 of Dollars; the Jeffy swap lands the rest.
+            balances = swapper.started.isEmpty
+                ? [self.balance(.usdf, 7_000_000), self.balance(self.jeffy, 20_000_000)]
+                : [self.balance(.usdf, 10_000_000), self.balance(self.jeffy, 17_000_000)]
+        }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: store)
+        let outcome = await executor.fund(requestID, currency: .usd) {
+            swapper.events.append("plan")
+            return plan(paying: .usdf, balances)
+        }
+        return (outcome, swapper, store, kept)
+    }
+
+    @Test("A running swap kept from another source is waited on before the first plan is read")
+    func otherSourceWaitedOnBeforePlanning() async {
+        let r = await retryWithOtherSource(serverState: .submitting)
+
+        #expect(r.outcome == .funded)
+        #expect(r.swapper.events == ["state", "wait", "refresh", "plan", "start \(jeffy.base58.prefix(4))", "wait", "refresh", "plan"])
+        // Planned once the Bogey swap landed, so Jeffy converts only what is still missing.
+        #expect(r.swapper.started.map(\.swap.amount) == [FiatAmount(value: 3, currency: .usd)])
+        #expect(r.swapper.started.first?.ids.swapID != r.kept.swapID)
+        #expect(r.store.legIDs(for: requestID, source: bogey.base58, destination: dollars) == nil)
+    }
+
+    @Test("A swap kept from another source still running after the wait stops on pending before any plan")
+    func otherSourceStillRunning() async {
+        let r = await retryWithOtherSource(serverState: .submitting, waitResult: .submitting)
+
+        #expect(r.outcome == .pending)
+        #expect(r.swapper.events == ["state", "wait"])
+        #expect(r.swapper.started.isEmpty)
+        #expect(r.store.legIDs(for: requestID, source: bogey.base58, destination: dollars) == r.kept)
+    }
+
     // MARK: - Store
 
     @Test("Kept ids survive a relaunch, and the next attempt starts under both")
@@ -635,7 +705,7 @@ struct CollectionFundingExecutorTests {
         let swapID = SwapId.generate()
         let store = legacyStore(swapID.value)
 
-        let legacy = CollectionFundingStore.KeptLeg(destination: nil, ids: .init(swapID: swapID, fundingIntentID: nil))
+        let legacy = CollectionFundingStore.KeptLeg(source: jeffy.base58, destination: nil, ids: .init(swapID: swapID, fundingIntentID: nil))
         #expect(store.keptLegs(for: requestID, source: jeffy.base58) == [legacy])
         #expect(store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == nil)
 
@@ -652,6 +722,24 @@ struct CollectionFundingExecutorTests {
         #expect(started.fundingIntentID != nil)
         #expect(store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == started)
         #expect(store.keptLegs(for: requestID, source: jeffy.base58).contains(legacy))
+    }
+
+    @Test("Every leg kept for a request reads back with its pair, legacy ones included, in a fixed order")
+    func keptLegsAcrossSources() {
+        let legacy = freshIDs()
+        let store = legacyStore(legacy.swapID.value + legacy.fundingIntentID!.data)
+        let fromBogey = freshIDs()
+        let fromJeffy = freshIDs()
+        store.setLegIDs(fromJeffy, for: requestID, source: jeffy.base58, destination: dollars)
+        store.setLegIDs(fromBogey, for: requestID, source: bogey.base58, destination: dollars)
+        store.setLegIDs(freshIDs(), for: PaymentRequestID(data: Data([5])), source: jeffy.base58, destination: dollars)
+
+        let expected: [CollectionFundingStore.KeptLeg] = [
+            .init(source: bogey.base58, destination: dollars, ids: fromBogey),
+            .init(source: jeffy.base58, destination: nil, ids: legacy),
+            .init(source: jeffy.base58, destination: dollars, ids: fromJeffy),
+        ].sorted { ($0.source, $0.destination ?? "") < ($1.source, $1.destination ?? "") }
+        #expect(store.keptLegs(for: requestID) == expected)
     }
 
     @Test("Leg ids are kept per request and per user")

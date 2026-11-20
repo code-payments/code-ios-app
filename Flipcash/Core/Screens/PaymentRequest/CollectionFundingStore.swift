@@ -86,8 +86,10 @@ final class CollectionFundingStore {
         }
     }
 
-    /// A leg kept for a request, out of one source.
+    /// A leg kept for a request.
     struct KeptLeg: Equatable {
+        /// The mint (base58) the leg converts out of.
+        let source: String
         /// The mint (base58) the leg converts into. Nil for a leg stored before destinations were
         /// kept, which matches no plan's leg.
         let destination: String?
@@ -106,21 +108,26 @@ final class CollectionFundingStore {
         legIDs(for: requestID, source: source, destination: destination)?.swapID
     }
 
+    /// Every leg kept for `requestID`, whatever it converts, ordered by source then destination.
+    func keptLegs(for requestID: PaymentRequestID) -> [KeptLeg] {
+        let prefix = Self.prefix(requestID)
+        return swaps
+            .compactMap { key, data -> KeptLeg? in
+                guard key.hasPrefix(prefix), let ids = LegIDs(stored: data) else { return nil }
+                // "source" for a leg stored before destinations were kept, else "source|destination".
+                let pair = key.dropFirst(prefix.count).split(separator: "|", omittingEmptySubsequences: false)
+                switch pair.count {
+                case 1: return KeptLeg(source: String(pair[0]), destination: nil, ids: ids)
+                case 2: return KeptLeg(source: String(pair[0]), destination: String(pair[1]), ids: ids)
+                default: return nil
+                }
+            }
+            .sorted { ($0.source, $0.destination ?? "") < ($1.source, $1.destination ?? "") }
+    }
+
     /// Every leg out of `source` kept for `requestID`, whatever it converts into.
     func keptLegs(for requestID: PaymentRequestID, source: String) -> [KeptLeg] {
-        let legacy = Self.key(requestID, source)
-        let prefix = legacy + "|"
-        return swaps.compactMap { key, data in
-            let destination: String?
-            if key == legacy {
-                destination = nil
-            } else if key.hasPrefix(prefix) {
-                destination = String(key.dropFirst(prefix.count))
-            } else {
-                return nil
-            }
-            return LegIDs(stored: data).map { KeptLeg(destination: destination, ids: $0) }
-        }
+        keptLegs(for: requestID).filter { $0.source == source }
     }
 
     /// Records a leg's ids before its swap starts, so an attempt that dies mid-swap leaves both behind.

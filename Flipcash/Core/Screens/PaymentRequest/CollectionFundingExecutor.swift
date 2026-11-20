@@ -90,12 +90,26 @@ final class CollectionFundingExecutor {
     }
 
     /// Funds `requestID`'s payment. `plan` builds a plan from the current balances; it is called
-    /// before the first round and after each one.
+    /// before the first round and after each one. Every swap an earlier attempt kept is settled
+    /// before the first plan is read, so that plan sees what those swaps delivered.
     func fund(
         _ requestID: PaymentRequestID,
         currency: CurrencyCode,
         plan: () -> CollectionFundingPlan?
     ) async -> Outcome {
+        let left: [SwapId: SwapState?]
+        do {
+            switch try await settleKept(for: requestID) {
+            case .pending:
+                return .pending
+            case .settled(let rest, let moved):
+                left = rest
+                if moved { try await swapper.refreshBalances() }
+            }
+        } catch {
+            return .failed
+        }
+
         for _ in 0..<Self.maxRounds {
             guard let plan = plan(), plan.payableWithoutTopUp,
                   let paying = try? PublicKey(base58: plan.payingCurrency) else { return .short }
@@ -109,7 +123,7 @@ final class CollectionFundingExecutor {
                     destination: paying,
                     amount: FiatAmount(value: Decimal(leg.soldMicros) / 1_000_000, currency: currency)
                 )
-                switch await run(swap, source: leg.source, destination: paying.base58, for: requestID) {
+                switch await run(swap, source: leg.source, destination: paying.base58, for: requestID, left: left) {
                 case .settled: continue
                 case .failed: return .failed
                 case .pending: return .pending
@@ -145,33 +159,30 @@ final class CollectionFundingExecutor {
     ///   GetPendingSwaps. One missing from that list is read again and handled by its new state.
     /// - FAILED or CANCELLED: its funds came back, so start a swap under fresh ids.
     /// - Any other state: it may still settle, so wait on it.
-    /// A swap kept from the same source into another currency, or stored before destinations were
-    /// kept, is settled first by `settleOther` and never funded or started again.
+    /// `left` is what `settleKept` read of each kept swap it left in place; a leg whose kept swap
+    /// is in it doesn't ask the server again. A swap kept for another pair, or stored before
+    /// destinations were kept, was settled by `settleKept` and is never funded or started here.
     private func run(
         _ swap: CollectionFundingSwap,
         source: String,
         destination: String,
-        for requestID: PaymentRequestID
+        for requestID: PaymentRequestID,
+        left: [SwapId: SwapState?]
     ) async -> LegResult {
-        for kept in store.keptLegs(for: requestID, source: source) where kept.destination != destination {
-            do {
-                switch try await settleOther(kept, source: source, for: requestID) {
-                case .cleared: continue
-                case .settled: return .settled
-                case .pending: return .pending
-                }
-            } catch {
-                return .failed
-            }
-        }
-
         let ids: CollectionFundingStore.LegIDs
         var start = true
 
         if let stored = store.legIDs(for: requestID, source: source, destination: destination) {
             let resume: Resume
             do {
-                resume = try await self.resume(stored, currency: swap.amount.currency, source: source, destination: destination, for: requestID)
+                resume = try await self.resume(
+                    stored,
+                    known: left[stored.swapID],
+                    currency: swap.amount.currency,
+                    source: source,
+                    destination: destination,
+                    for: requestID
+                )
             } catch {
                 // The outcome is unknown, so keep both ids: a retry asks the server about it first.
                 return .failed
@@ -221,61 +232,73 @@ final class CollectionFundingExecutor {
         }
     }
 
-    /// What became of a swap kept out of a leg's source into another currency.
-    private enum Other {
-        /// It hasn't moved the source's funds, or they came back: the leg can run.
-        case cleared
-        /// It moved funds since this round's plan was read, so the leg waits for the next plan.
-        case settled
-        /// It may still move funds.
+    /// What the swaps earlier attempts kept came to.
+    private enum Kept {
+        /// None of them can still move funds. `left` holds what the server said of each swap whose
+        /// ids stay: nil when it never saw the swap, CREATED when it holds it unfunded. `moved` is
+        /// set when one landed or ended while waited on, so the balances are read again.
+        case settled(left: [SwapId: SwapState?], moved: Bool)
+        /// One may still move funds.
         case pending
     }
 
-    /// Settles a swap kept out of `source` into a currency other than the one this leg pays in,
-    /// as when the payer changed paying currency between attempts. It is never funded or started
-    /// again: this plan doesn't convert into its currency.
+    /// Settles every swap kept for `requestID`, whatever pair it converts, before the first plan
+    /// is read. A swap still converting would land on top of that plan's legs, or leave it reading
+    /// balances from before the swap landed.
     /// - The server never saw it, or holds it unfunded (CREATED): its funds haven't left the
-    ///   source. Its ids stay, so an attempt that pays in its currency again funds it rather than
-    ///   starting a second swap.
+    ///   source. Its ids stay, so a leg for its pair starts it again under them or funds it, rather
+    ///   than starting a second swap.
     /// - FAILED or CANCELLED: its funds came back. Its ids go.
-    /// - FINALIZED, or reaching a terminal state while waited on: the balances this round read are
-    ///   stale. Its ids go, and the leg waits for the next round's plan.
+    /// - FINALIZED, or reaching a terminal state while waited on: its ids go, and the balances are
+    ///   read again before planning.
     /// - Not terminal by the end of the wait: it may still settle, so the payment stops on pending.
-    private func settleOther(
-        _ kept: CollectionFundingStore.KeptLeg,
-        source: String,
-        for requestID: PaymentRequestID
-    ) async throws -> Other {
-        let state: SwapState
-        switch try await swapper.state(of: kept.ids.swapID) {
-        case nil, .created?:
-            return .cleared
-        case .failed?, .cancelled?:
-            store.removeSwapID(for: requestID, source: source, destination: kept.destination)
-            return .cleared
-        case .finalized?:
-            state = .finalized
-        case .funding?, .funded?, .submitting?, .cancelling?, .unknown?:
-            state = try await swapper.waitForTerminalState(of: kept.ids.swapID)
+    private func settleKept(for requestID: PaymentRequestID) async throws -> Kept {
+        var left: [SwapId: SwapState?] = [:]
+        var moved = false
+        for kept in store.keptLegs(for: requestID) {
+            let state: SwapState
+            switch try await swapper.state(of: kept.ids.swapID) {
+            case nil:
+                left.updateValue(nil, forKey: kept.ids.swapID)
+                continue
+            case .created?:
+                left[kept.ids.swapID] = .created
+                continue
+            case .failed?, .cancelled?:
+                store.removeSwapID(for: requestID, source: kept.source, destination: kept.destination)
+                continue
+            case .finalized?:
+                state = .finalized
+            case .funding?, .funded?, .submitting?, .cancelling?, .unknown?:
+                state = try await swapper.waitForTerminalState(of: kept.ids.swapID)
+            }
+            switch state {
+            case .finalized, .failed, .cancelled:
+                store.removeSwapID(for: requestID, source: kept.source, destination: kept.destination)
+                moved = true
+            case .unknown, .created, .funding, .funded, .submitting, .cancelling:
+                return .pending
+            }
         }
-        switch state {
-        case .finalized, .failed, .cancelled:
-            store.removeSwapID(for: requestID, source: source, destination: kept.destination)
-            return .settled
-        case .unknown, .created, .funding, .funded, .submitting, .cancelling:
-            return .pending
-        }
+        return .settled(left: left, moved: moved)
     }
 
-    /// Asks the server about the swap `stored` names and decides what the leg does with it.
+    /// Decides what the leg does with the swap `stored` names. `known` is what `settleKept` read of
+    /// it; when that is missing, the server is asked.
     private func resume(
         _ stored: CollectionFundingStore.LegIDs,
+        known: SwapState??,
         currency: CurrencyCode,
         source: String,
         destination: String,
         for requestID: PaymentRequestID
     ) async throws -> Resume {
-        var state = try await swapper.state(of: stored.swapID)
+        var state: SwapState?
+        if let known {
+            state = known
+        } else {
+            state = try await swapper.state(of: stored.swapID)
+        }
 
         if state == .created {
             if let pending = try await swapper.pendingSwaps().first(where: { $0.swapID == stored.swapID }) {
