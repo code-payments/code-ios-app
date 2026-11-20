@@ -244,11 +244,22 @@ struct CollectionPaymentDetailsView: View {
 
     @State private var linesHeight: CGFloat = 0
 
-    /// The tallest the list grows before it scrolls. The list sizes itself from its lines rather
-    /// than from the height it's proposed, so the pager reads this page's height before it slides in.
+    /// The tallest the list grows before it scrolls: a long list (9.3) takes the sheet up to just
+    /// below the status bar. The list sizes itself from its lines rather than from the height it's
+    /// proposed, so the pager reads this page's height before it slides in.
     private var maxListHeight: CGFloat {
-        UIScreen.main.bounds.height * 0.65
+        let window = UIApplication.shared.currentKeyWindow
+        let height = window?.bounds.height ?? UIScreen.main.bounds.height
+        let insets = window?.safeAreaInsets ?? .zero
+        return height - insets.top - Self.topClearance - insets.bottom - Self.headerHeight
     }
+
+    /// Keeps the sheet short of the large detent, which reaches the status bar. PartialSheet asks
+    /// for a height detent, and a page taller than the sheet it's given runs off the bottom.
+    private static let topClearance: CGFloat = 16
+    /// What the page draws above its list: the sheet's 24-point top inset, the back button's row
+    /// and the gap under it.
+    private static let headerHeight: CGFloat = 24 + 44 + sectionSpacing
 
     var body: some View {
         VStack(alignment: .leading, spacing: Self.sectionSpacing) {
