@@ -14,6 +14,7 @@ import Testing
 import UIKit
 import FlipcashCore
 import FlipcashStore
+import FlipcashUI
 @testable import Flipcash
 
 @MainActor
@@ -126,16 +127,16 @@ struct GroupMoneyShellSpecTests {
         #expect(layout.barTabs.map { layout.title(for: $0) } == ["Scan", "Chat", "Wallet", "You"])
         #expect(layout.hasSearchTab)
         for tab in HomeTab.allCases {
-            #expect(layout.iconName(for: tab, isSelected: false) == tab.iconName(isSelected: false))
-            #expect(layout.iconName(for: tab, isSelected: true) == tab.iconName(isSelected: true))
+            #expect(layout.icon(for: tab, isSelected: false) == tab.icon(isSelected: false))
+            #expect(layout.icon(for: tab, isSelected: true) == tab.icon(isSelected: true))
         }
     }
 
     @Test("3.5 flag on: Groups wears a groups glyph rather than the chat bubble")
     func groupMoney_groupsGlyph() {
         let layout = HomeTabLayout.groupMoney
-        #expect(layout.iconName(for: .chat, isSelected: false) != HomeTab.chat.iconName(isSelected: false))
-        #expect(layout.iconName(for: .chat, isSelected: true) != HomeTab.chat.iconName(isSelected: true))
+        #expect(layout.icon(for: .chat, isSelected: false) != HomeTab.chat.icon(isSelected: false))
+        #expect(layout.icon(for: .chat, isSelected: true) != HomeTab.chat.icon(isSelected: true))
     }
 
     @Test("3.6 flag on: Scan and You are off the bar")
@@ -158,7 +159,8 @@ struct GroupMoneyShellSpecTests {
         guard #available(iOS 26, *) else { return }
         let (window, bar) = try await hostedTabBar(showsGroupMoney: true)
         defer { window.isHidden = true }
-        #expect(bar.items?.map(\.title) == ["Groups", "Money"])
+        // The redesign draws each title into the item's image, so the name rides on the label.
+        #expect(bar.items?.map(\.accessibilityLabel) == ["Groups", "Money"])
         let frames = TabBarItemLocator.itemFrames(in: bar)
         let items = frames.dropFirst().reduce(frames[0]) { $0.union($1) }
         #expect(abs(items.midX - bar.bounds.midX) <= 1, "items \(items) in bar \(bar.bounds)")
@@ -449,7 +451,13 @@ struct GroupMoneyShellSpecTests {
         defer { window.isHidden = true }
         #expect(bar.topItem?.title == "Chat")
         let labels = Self.titleLabels(in: bar)
-        #expect(labels.map(\.text) == ["Chat"])
+        // On iOS 26 the redesign sets "Chat" as a large title in the content; the bar's centred
+        // title stays hidden until the list scrolls under it.
+        if #available(iOS 26, *) {
+            #expect(labels.isEmpty, "centred titles: \(labels)")
+        } else {
+            #expect(labels.map(\.text) == ["Chat"])
+        }
         if let label = labels.first {
             let frame = label.convert(label.bounds, to: bar)
             #expect(abs(frame.midX - bar.bounds.midX) <= 1, "title \(frame) in bar \(bar.bounds)")
@@ -1946,10 +1954,13 @@ extension GroupMoneyShellSpecTests {
         let bar = try #require(visibleTabBar(in: window), "no tab bar")
         if let tabBar = bar as? UITabBar {
             let controller = try #require(tabBar.delegate as? UITabBarController, "the system bar has no tab bar controller")
-            let tab = try #require(
-                controller.tabs.first { $0.title == label },
-                "no \(label) on the system bar; on it: \(controller.tabs.map(\.title))"
+            // Icon-only bars leave each tab's title empty and name it on its bar item instead.
+            let index = try #require(
+                controller.tabs.firstIndex { $0.title == label }
+                    ?? tabBar.items?.firstIndex { $0.accessibilityLabel == label },
+                "no \(label) on the system bar; on it: \(tabBar.items?.compactMap(\.accessibilityLabel) ?? [])"
             )
+            let tab = controller.tabs[index]
             let previous = try #require(controller.selectedTab, "the system bar has no tab selected")
             let delegate = controller.delegate
             guard delegate?.tabBarController?(controller, shouldSelectTab: tab) ?? true else {

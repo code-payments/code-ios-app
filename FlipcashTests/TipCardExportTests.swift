@@ -23,8 +23,8 @@ struct TipCardExportTests {
         let svg = try String(contentsOf: url, encoding: .utf8)
         #expect(svg.hasPrefix("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1024\""))
         // Codes are light-on-dark; without the rect the export is invisible on
-        // anything pale.
-        #expect(svg.contains("fill=\"#19191A\""))
+        // anything pale. The ground is `backgroundMain`, the same one the PNG paints.
+        #expect(svg.contains("fill=\"#121212\""))
         #expect(svg.contains("<circle"))
         #expect(svg.hasSuffix("</svg>\n"))
     }
