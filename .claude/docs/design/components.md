@@ -1,5 +1,5 @@
 # Components: the Flipcash catalog
-What exists in `FlipcashUI`, plus the app-target views that act as library pieces: when to use each, and what to use instead. Generated from the code on 2026-10-05; every name traces to a file, and every count is a call site outside tests and previews. An unlisted variant is a bug here or in the code; read this with `design-standard.md` and the Figma library "Components – Flipcash", which holds only its Cover page today, so its build spec (`.claude/plans/2026-09-29-figma-component-library.md`) follows this file on names and values.
+What exists in `FlipcashUI`, plus the app-target views that act as library pieces: when to use each, and what to use instead. Generated from the code on 2026-10-05; every name traces to a file, and every count is a call site outside tests and previews. An unlisted variant is a bug here or in the code; read this with the `flipcash-design` plugin's `docs/design-standard.md` and the Figma library "Components – Flipcash", which holds only its Cover page today, so its build spec (`.claude/plans/2026-09-29-figma-component-library.md`) follows this file on names and values.
 
 ## How to choose
 ```

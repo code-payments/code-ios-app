@@ -1,1 +1,10 @@
-{}
+{
+  "extraKnownMarketplaces": {
+    "flipcash-design": {
+      "source": { "source": "github", "repo": "code-payments/flipcash-design" }
+    }
+  },
+  "enabledPlugins": {
+    "flipcash-design@flipcash-design": true
+  }
+}
