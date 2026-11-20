@@ -59,7 +59,7 @@ final class VerificationCoordinator {
         bind: @MainActor @escaping (OnrampVerification?) -> Void,
         perform: @MainActor @escaping () -> Void
     ) {
-        if CoinbaseOrderEmail.resolveContact(profile: session.profile) != nil {
+        if CoinbaseOrderEmail.resolveContact(profile: session.profile, requiresVerification: session.requiresCoinbaseEmailVerification) != nil {
             perform()
             return
         }

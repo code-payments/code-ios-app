@@ -11,6 +11,7 @@ enum DefaultsKey: String {
     case wasLoggedIn = "com.flipcash.state.wasLoggedIn"
     case launchCount = "com.flipcash.state.launchCount"
     case onboardingCompleted = "com.flipcash.state.onboardingCompleted"
+    case onboardingGroupMoney = "com.flipcash.state.onboardingGroupMoney"
 
     case cameraAutoStartDisabled = "com.flipcash.camera.autoStartDisabled"
 

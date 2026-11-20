@@ -111,7 +111,7 @@ final class CoinbaseDepositOperation {
     }
 
     private func checkRequirements() throws {
-        guard CoinbaseOrderEmail.resolveContact(profile: session.profile) != nil else {
+        guard CoinbaseOrderEmail.resolveContact(profile: session.profile, requiresVerification: session.requiresCoinbaseEmailVerification) != nil else {
             throw DepositError.requirementUnsatisfied(.verifiedContact)
         }
     }
@@ -136,7 +136,7 @@ final class CoinbaseDepositOperation {
     }
 
     private func createOrder(for amount: ExchangedFiat) async throws -> OnrampOrderResponse {
-        guard let (email, phone) = CoinbaseOrderEmail.resolveContact(profile: session.profile) else {
+        guard let (email, phone) = CoinbaseOrderEmail.resolveContact(profile: session.profile, requiresVerification: session.requiresCoinbaseEmailVerification) else {
             throw DepositError.requirementUnsatisfied(.verifiedContact)
         }
 

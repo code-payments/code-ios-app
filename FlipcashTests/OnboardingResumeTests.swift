@@ -182,6 +182,38 @@ struct OnboardingResumeTests {
         #expect(!viewModel.hidesBackButton(for: .pushNotificationsDenied))
     }
 
+    @Test("A Group Money account hides back on phone entry, email and name; the code step keeps it")
+    func groupMoneyFlow_backButtons() async throws {
+        let container = Container()
+        container.sessionAuthenticator.remote = AccountRemote(
+            register: { _ in Self.userID },
+            login: { _ in Self.userID },
+            createPrimaryAccounts: { _ in }
+        )
+        let viewModel = OnboardingViewModel(
+            container: container,
+            pushStatus: { .notDetermined },
+            hasDisplayName: { _ in false },
+            finishLogin: { _ in },
+            isGroupMoneyGateOpen: { true }
+        )
+        defer {
+            if let owner = viewModel.phoneViewModel?.owner.publicKey {
+                OnboardingProgress.setCompleted(true, owner: owner)
+            }
+            container.accountManager.nukeForUITesting()
+        }
+
+        viewModel.createAccountAction()
+        await viewModel.accountCreation?.value
+        try #require(viewModel.path == [.enterPhoneNumber])
+
+        #expect(viewModel.hidesBackButton(for: .enterPhoneNumber))
+        #expect(!viewModel.hidesBackButton(for: .confirmPhoneNumberCode))
+        #expect(viewModel.hidesBackButton(for: .email))
+        #expect(viewModel.hidesBackButton(for: .displayName))
+    }
+
     @Test("A resume that starts from a login screen replaces it, so back can't return to the login")
     func resume_replacesLoginPath() async {
         let viewModel = makeViewModel(push: .notDetermined, named: true, finished: Finished())

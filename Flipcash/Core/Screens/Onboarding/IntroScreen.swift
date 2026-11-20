@@ -62,6 +62,11 @@ private struct IntroScreenContent: View {
         await viewModel.resumeOnboarding(with: account)
     }
 
+    /// An empty bar collapses, which lifts a step without a back button above one that has it.
+    private func barVisibility(for step: OnboardingPath) -> Visibility {
+        viewModel.keepsNavigationBarRow(for: step) ? .visible : .automatic
+    }
+
     private var introStack: some View {
         NavigationStack(path: $viewModel.path) {
             Background(color: .backgroundMain) {
@@ -132,6 +137,7 @@ private struct IntroScreenContent: View {
             .ignoresSafeArea(.keyboard)
             .navigationTitle("")
             .toolbarVisibility(.hidden, for: .navigationBar)
+            .dialog(item: $viewModel.introDialogItem)
             .navigationDestination(for: OnboardingPath.self) { path in
                 switch path {
                 case .accountSelection:
@@ -155,10 +161,29 @@ private struct IntroScreenContent: View {
                 case .pushNotificationsDenied:
                     NotificationPermissionDeniedScreen(viewModel: viewModel)
                         .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .pushNotificationsDenied))
+                case .enterPhoneNumber:
+                    if let phoneVM = viewModel.phoneViewModel {
+                        EnterPhoneScreen(viewModel: phoneVM, copy: .onboarding)
+                            .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .enterPhoneNumber))
+                            .toolbarVisibility(barVisibility(for: .enterPhoneNumber), for: .navigationBar)
+                    }
+                case .confirmPhoneNumberCode:
+                    if let phoneVM = viewModel.phoneViewModel {
+                        ConfirmPhoneScreen(viewModel: phoneVM, copy: .onboarding)
+                            .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .confirmPhoneNumberCode))
+                            .toolbarVisibility(barVisibility(for: .confirmPhoneNumberCode), for: .navigationBar)
+                    }
+                case .email:
+                    if let emailVM = viewModel.emailViewModel {
+                        OnboardingEmailScreen(viewModel: emailVM)
+                            .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .email))
+                            .toolbarVisibility(barVisibility(for: .email), for: .navigationBar)
+                    }
                 case .displayName:
                     if let nameVM = viewModel.nameViewModel {
-                        OnboardingNameScreen(viewModel: nameVM)
+                        OnboardingNameScreen(viewModel: nameVM, copy: viewModel.nameCopy)
                             .navigationBarBackButtonHidden(viewModel.hidesBackButton(for: .displayName))
+                            .toolbarVisibility(barVisibility(for: .displayName), for: .navigationBar)
                     }
                 }
             }

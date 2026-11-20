@@ -14,6 +14,7 @@ extension Profile {
     static let verifiedFixture = Profile(
         displayName: "Test",
         phone: .mock,
-        email: "test@test.com"
+        email: "test@test.com",
+        isEmailAddressVerified: true
     )
 }

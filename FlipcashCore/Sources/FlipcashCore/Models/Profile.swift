@@ -132,6 +132,9 @@ public struct Profile: Codable, Equatable, Sendable {
 
     /// `isUsernameAutoAssigned`, `bio`, `coverPicture` and `isEmailAddressVerified` are decoded with a default so rows
     /// persisted before they existed still decode, without a `schemaVersion` bump.
+    ///
+    /// A row without `isEmailAddressVerified` predates unverified email links, when the server
+    /// held an email only after its code was confirmed, so its email counts as verified.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.displayName = try c.decodeIfPresent(String.self, forKey: .displayName)
@@ -146,7 +149,7 @@ public struct Profile: Codable, Equatable, Sendable {
         self.isUsernameAutoAssigned = try c.decodeIfPresent(Bool.self, forKey: .isUsernameAutoAssigned) ?? false
         self.bio = try c.decodeIfPresent(String.self, forKey: .bio)
         self.coverPicture = try c.decodeIfPresent(ProfilePicture.self, forKey: .coverPicture)
-        self.isEmailAddressVerified = try c.decodeIfPresent(Bool.self, forKey: .isEmailAddressVerified) ?? false
+        self.isEmailAddressVerified = try c.decodeIfPresent(Bool.self, forKey: .isEmailAddressVerified) ?? (email != nil)
     }
 }
 
