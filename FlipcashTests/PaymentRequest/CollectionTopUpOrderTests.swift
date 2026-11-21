@@ -70,3 +70,72 @@ struct CollectionTopUpOrderTests {
         #expect(PaymentRequestPayment.topUpOrderUSD(topUpMicros: c.micros, rate: c.rate) == c.usd)
     }
 }
+
+@Suite("Collection top-up order lookup")
+@MainActor
+struct CollectionTopUpOrderLookupTests {
+
+    @Test("A status Coinbase ends an undelivered order with reads as failed", arguments: [
+        "ONRAMP_ORDER_STATUS_FAILED", "failed", "CANCELLED", "ONRAMP_ORDER_STATUS_EXPIRED", "DECLINED",
+    ])
+    func failedStatus(_ status: String) {
+        #expect(OnrampOrderStatusResponse.isFailed(status: status))
+    }
+
+    @Test("A status for an order still running or delivered doesn't read as failed", arguments: [
+        "ONRAMP_ORDER_STATUS_PENDING_AUTH", "ONRAMP_ORDER_STATUS_PENDING_PAYMENT",
+        "ONRAMP_ORDER_STATUS_PROCESSING", "ONRAMP_ORDER_STATUS_COMPLETED", "",
+    ])
+    func notFailedStatus(_ status: String) {
+        #expect(!OnrampOrderStatusResponse.isFailed(status: status))
+    }
+
+    @Test("An order read back decodes its status alone, with no payment link")
+    func decodesWithoutPaymentLink() throws {
+        let json = #"{"order":{"orderId":"cb-1","status":"ONRAMP_ORDER_STATUS_FAILED","txHash":null}}"#
+        let response = try JSONDecoder().decode(OnrampOrderStatusResponse.self, from: Data(json.utf8))
+        #expect(response.isFailed)
+        #expect(response.order.txHash == nil)
+    }
+
+    @Test("The lookup is failed only when Coinbase reads the order back as failed")
+    func lookupReadsFailed() async {
+        let ordering = MockOnrampOrdering()
+        ordering.orderStatusHandler = { _ in try Self.status("ONRAMP_ORDER_STATUS_FAILED") }
+        #expect(await SessionCollectionTopUpper.orderFailed(orderID: "cb-1", ordering: ordering, timeout: .seconds(5)))
+        #expect(ordering.orderStatusCalls == ["cb-1"])
+
+        ordering.orderStatusHandler = { _ in try Self.status("ONRAMP_ORDER_STATUS_PROCESSING") }
+        #expect(!(await SessionCollectionTopUpper.orderFailed(orderID: "cb-1", ordering: ordering, timeout: .seconds(5))))
+    }
+
+    @Test("A lookup that errors reads as not failed")
+    func lookupErrorIsNotFailed() async {
+        let ordering = MockOnrampOrdering()
+        ordering.orderStatusHandler = { _ in throw Coinbase.Error.badStatus(code: 404, body: Data()) }
+        #expect(!(await SessionCollectionTopUpper.orderFailed(orderID: "cb-1", ordering: ordering, timeout: .seconds(5))))
+    }
+
+    @Test("A lookup that never answers reads as not failed at its timeout", .timeLimit(.minutes(1)))
+    func lookupNeverAnswersIsNotFailed() async {
+        let ordering = MockOnrampOrdering()
+        ordering.orderStatusHandler = { _ in
+            try await Task.sleep(for: .seconds(3600))
+            return try Self.status("ONRAMP_ORDER_STATUS_FAILED")
+        }
+        let started = ContinuousClock.now
+        #expect(!(await SessionCollectionTopUpper.orderFailed(orderID: "cb-1", ordering: ordering, timeout: .milliseconds(100))))
+        #expect(ContinuousClock.now - started < .seconds(10))
+    }
+
+    @Test("Reading an order back has a 15 s limit, and an authorized payment waits 60 s for Coinbase to commit it")
+    func timeouts() {
+        #expect(SessionCollectionTopUpper.orderLookupTimeout == .seconds(15))
+        #expect(SessionCollectionTopUpper.authorizationTimeout == .seconds(60))
+    }
+
+    nonisolated private static func status(_ status: String) throws -> OnrampOrderStatusResponse {
+        let json = #"{"order":{"status":"\#(status)"}}"#
+        return try JSONDecoder().decode(OnrampOrderStatusResponse.self, from: Data(json.utf8))
+    }
+}

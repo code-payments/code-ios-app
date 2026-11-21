@@ -6,6 +6,8 @@
 import Foundation
 import FlipcashCore
 
+nonisolated private let logger = Logger(label: "flipcash.collection-top-up")
+
 /// How a collection payment's Apple Pay top-up ended.
 enum CollectionTopUpOrder: Equatable {
 
@@ -42,8 +44,12 @@ protocol CollectionTopUpping: AnyObject {
     func dollarsBalance() async throws -> Decimal
 
     /// Orders `amountUSD` of Dollars, the amount that lands, under `orderRef`. `onAuthorized` runs
-    /// once, when Apple Pay reports the payment authorized.
-    func order(amountUSD: Decimal, orderRef: String, onAuthorized: @escaping () -> Void) async -> CollectionTopUpOrder
+    /// once, when Apple Pay reports the payment authorized, with Coinbase's id for the order.
+    func order(amountUSD: Decimal, orderRef: String, onAuthorized: @escaping (_ orderID: String?) -> Void) async -> CollectionTopUpOrder
+
+    /// Whether Coinbase reports the order `orderID` ended without delivering. False when it can't
+    /// tell, so only an order read back as failed counts.
+    func orderFailed(orderID: String) async -> Bool
 
     /// Waits for the Dollars balance to reach `targetUSD`, and returns whether it did.
     func awaitDollars(reaching targetUSD: Decimal) async -> Bool
@@ -92,6 +98,11 @@ final class SessionCollectionTopUpper: CollectionTopUpping {
     /// How long a committed order waits for Coinbase to report it complete while the pay sheet is
     /// locked; past it the order may still deliver and the Dollars wait takes over.
     static let confirmationTimeout: Duration = .seconds(30)
+    /// How long an authorized payment waits for Coinbase to commit the order while the pay sheet is
+    /// locked; past it the order may still deliver and the Dollars wait takes over.
+    static let authorizationTimeout: Duration = .seconds(60)
+    /// How long reading an order back from Coinbase may take while the pay sheet is locked.
+    static let orderLookupTimeout: Duration = .seconds(15)
 
     private let session: Session
     private let coinbaseService: CoinbaseService
@@ -112,13 +123,14 @@ final class SessionCollectionTopUpper: CollectionTopUpping {
         return session.balance(for: .usdf)?.usdf.value ?? 0
     }
 
-    func order(amountUSD: Decimal, orderRef: String, onAuthorized: @escaping () -> Void) async -> CollectionTopUpOrder {
+    func order(amountUSD: Decimal, orderRef: String, onAuthorized: @escaping (_ orderID: String?) -> Void) async -> CollectionTopUpOrder {
         let timer = session.addMoneyTimer
         timer.start()
         let operation = CoinbaseDepositOperation(
             coinbaseService: coinbaseService,
             session: session,
             timer: timer,
+            authorizationTimeout: Self.authorizationTimeout,
             confirmationTimeout: Self.confirmationTimeout
         )
         do {
@@ -139,6 +151,31 @@ final class SessionCollectionTopUpper: CollectionTopUpping {
                 ErrorReporting.captureError(error, reason: "Collection top-up failed before authorization")
             }
             return outcome
+        }
+    }
+
+    func orderFailed(orderID: String) async -> Bool {
+        await Self.orderFailed(orderID: orderID, ordering: coinbaseService.coinbase, timeout: Self.orderLookupTimeout)
+    }
+
+    /// Whether `ordering` reads the order `orderID` back as failed within `timeout`. Any error,
+    /// timeout or status that isn't a failure reads as false.
+    static func orderFailed(orderID: String, ordering: any OnrampOrdering, timeout: Duration) async -> Bool {
+        do {
+            let response = try await withDeadline(.now + timeout) {
+                try await ordering.orderStatus(orderID: orderID)
+            }
+            logger.info("Collection top-up order read back", metadata: [
+                "orderId": "\(orderID)",
+                "status": "\(response.order.status)",
+            ])
+            return response.isFailed
+        } catch {
+            logger.warning("Collection top-up order lookup failed", metadata: [
+                "orderId": "\(orderID)",
+                "error": "\(error)",
+            ])
+            return false
         }
     }
 

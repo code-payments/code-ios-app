@@ -12,6 +12,9 @@ protocol OnrampOrdering: Sendable {
 
     /// Submits the order to Coinbase.
     func createOrder(request: OnrampOrderRequest) async throws -> OnrampOrderResponse
+
+    /// Reads the order `orderID` back from Coinbase.
+    func orderStatus(orderID: String) async throws -> OnrampOrderStatusResponse
 }
 
 extension Coinbase: OnrampOrdering {}

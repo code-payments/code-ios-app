@@ -112,17 +112,27 @@ struct PaymentRequestCollectionFundingTests {
         /// Holds `awaitDollars` until `releaseWait` runs.
         var holdsWait = false
         var releaseWait: (() -> Void)?
+        /// Coinbase's id for the order, passed on as Apple Pay authorizes it.
+        var coinbaseOrderID: String?
+        /// What each read of an order back from Coinbase answers, in turn; false once spent.
+        var orderFailedResults: [Bool] = []
+        var lookups: [String] = []
         weak var container: SessionContainer?
 
         func makeOrderRef() -> String { "order-\(orders.count + 1)" }
+
+        func orderFailed(orderID: String) async -> Bool {
+            lookups.append(orderID)
+            return orderFailedResults.isEmpty ? false : orderFailedResults.removeFirst()
+        }
 
         func dollarsBalance() async throws -> Decimal {
             container?.session.balance(for: .usdf)?.usdf.value ?? 0
         }
 
-        func order(amountUSD: Decimal, orderRef: String, onAuthorized: @escaping () -> Void) async -> CollectionTopUpOrder {
+        func order(amountUSD: Decimal, orderRef: String, onAuthorized: @escaping (String?) -> Void) async -> CollectionTopUpOrder {
             orders.append((amountUSD, orderRef))
-            if case .notCharged = orderResult {} else { onAuthorized() }
+            if case .notCharged = orderResult {} else { onAuthorized(coinbaseOrderID) }
             whileOrdering?()
             return orderResult
         }
@@ -820,6 +830,7 @@ struct PaymentRequestCollectionFundingTests {
         )
         let record = try #require(f.fundingStore.pendingTopUp(for: requestID))
         #expect(record.payingCurrency == nil)
+        #expect(record.orderID == nil)
         f.topUpper.delivered = 5
 
         #expect(await f.payment.prepare() == .ready)
@@ -1213,6 +1224,100 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.topUpper.orders.isEmpty)
         #expect(f.payer.payments.isEmpty)
         #expect(keptSwapID(f) == kept)
+    }
+
+    // MARK: - An authorized order Coinbase reports failed
+
+    @Test("An authorized order Coinbase reads back as failed clears its record, says so, and the next tap orders again")
+    func authorizedOrderReadBackFailed() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        f.topUpper.orderResult = .mayDeliver
+        f.topUpper.coinbaseOrderID = "cb-1"
+        // Still in progress as the order returns; failed once the Dollars wait runs out.
+        f.topUpper.orderFailedResults = [false, true]
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .failed)
+
+        #expect(f.topUpper.lookups == ["cb-1", "cb-1"])
+        #expect(f.container.session.dialogItem?.title == "Something Went Wrong")
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(!f.payment.blocksDismiss)
+        #expect(f.payer.payments.isEmpty)
+
+        f.container.session.dialogItem = nil
+        f.topUpper.orderResult = .charged
+        f.topUpper.delivered = 5
+        #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .success)
+        #expect(f.topUpper.orders.count == 2)
+        #expect(f.payer.payments.count == 1)
+    }
+
+    @Test("A kept authorized record whose order Coinbase reads back as failed clears without waiting for Dollars")
+    func keptOrderReadBackFailedSkipsWait() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        f.fundingStore.setPendingTopUp(
+            .init(orderRef: "order-1", amountUSD: 5, baselineUSD: 6, placedAt: .now, authorized: true, orderID: "cb-1"),
+            for: requestID
+        )
+        f.topUpper.orderFailedResults = [true]
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.resumePendingTopUp() == .failed)
+
+        #expect(f.topUpper.lookups == ["cb-1"])
+        #expect(f.topUpper.waits == 0)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.container.session.dialogItem?.title == "Something Went Wrong")
+        #expect(!f.payment.blocksDismiss)
+    }
+
+    @Test("An order Coinbase can't report failed keeps its record and its id, and shows Money Still on Its Way")
+    func orderNotReadBackFailedKeepsRecord() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        f.topUpper.orderResult = .mayDeliver
+        f.topUpper.coinbaseOrderID = "cb-1"
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .failed)
+
+        #expect(f.topUpper.lookups == ["cb-1", "cb-1"])
+        #expect(f.container.session.dialogItem?.title == "Money Still on Its Way")
+        #expect(f.fundingStore.pendingTopUp(for: requestID)?.orderID == "cb-1")
+        #expect(f.fundingStore.pendingTopUp(for: requestID)?.authorized == true)
+    }
+
+    @Test("Finishing Payment lets go before a new Apple Pay order, when the top-up it waited on charged nothing")
+    func requestScreenHoldLetsGoBeforeNewOrder() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        // An earlier tap's Apple Pay never reported authorized, and its Dollars never come.
+        f.fundingStore.setPendingTopUp(
+            .init(orderRef: "order-0", amountUSD: 10, baselineUSD: 0, placedAt: .now, authorized: false),
+            for: requestID
+        )
+        f.topUpper.holdsWait = true
+        let flow = PaymentRequestPayFlow()
+        var finishingWhileOrdering: Bool?
+        var finishingAtRefresh: Bool?
+        f.topUpper.whileOrdering = {
+            finishingWhileOrdering = flow.showsFinishing
+            f.topUpper.delivered = 10
+        }
+
+        let tap = Task { await tapTopUp(f, flow, micros: 10_000_000, refreshed: { finishingAtRefresh = flow.showsFinishing }) }
+        while f.topUpper.releaseWait == nil { await Task.yield() }
+        try #require(f.payment.isFinishing)
+        // As the Request screen does when Finishing Payment shows.
+        flow.holdFinishing()
+        #expect(flow.showsFinishing)
+        f.topUpper.holdsWait = false
+        f.topUpper.releaseWait?()
+
+        #expect(await tap.value == .paid(.success))
+        #expect(f.topUpper.orders.count == 1)
+        #expect(finishingWhileOrdering == false)
+        #expect(finishingAtRefresh == true)
     }
 
     // MARK: - Holding the sheet while a payment runs

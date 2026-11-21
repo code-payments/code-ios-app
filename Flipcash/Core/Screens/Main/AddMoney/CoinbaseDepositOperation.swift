@@ -41,21 +41,25 @@ final class CoinbaseDepositOperation {
     @ObservationIgnored private let timer: AddMoneyTimer
 
     @ObservationIgnored private var runTask: Task<Void, Error>?
-    @ObservationIgnored private var onAuthorized: (() -> Void)?
+    @ObservationIgnored private let authorizationTimer: ApplePayIdleTimer?
+    @ObservationIgnored private var onAuthorized: ((String?) -> Void)?
 
-    /// `confirmationTimeout` bounds the wait for Coinbase to report a committed order complete;
-    /// past it the run ends as a cancel with ``reachedAuthorization`` set. Nil waits for the report.
+    /// `authorizationTimeout` bounds the wait for Coinbase to commit an order Apple Pay authorized,
+    /// and `confirmationTimeout` the wait for it to report a committed order complete; past either
+    /// the run ends as a cancel with ``reachedAuthorization`` set. Nil waits for the report.
     init(
         coinbaseService: CoinbaseService,
         session: any (AccountProviding & ProfileProviding),
         timer: AddMoneyTimer = AddMoneyTimer(),
         applePayIdleTimeout: Duration = .seconds(60),
+        authorizationTimeout: Duration? = nil,
         confirmationTimeout: Duration? = nil
     ) {
         self.coinbaseService = coinbaseService
         self.session = session
         self.timer = timer
         self.idleTimer = ApplePayIdleTimer(timeout: applePayIdleTimeout)
+        self.authorizationTimer = authorizationTimeout.map { ApplePayIdleTimer(timeout: $0) }
         self.confirmationTimer = confirmationTimeout.map { ApplePayIdleTimer(timeout: $0) }
     }
 
@@ -66,8 +70,8 @@ final class CoinbaseDepositOperation {
     // MARK: - Entry
 
     /// `orderRef` is the order's `partnerOrderRef`, a fresh one per run when nil. `onAuthorized`
-    /// runs once, when Apple Pay reports the payment authorized.
-    func start(amount: ExchangedFiat, orderRef: String? = nil, onAuthorized: (() -> Void)? = nil) async throws {
+    /// runs once, when Apple Pay reports the payment authorized, with Coinbase's id for the order.
+    func start(amount: ExchangedFiat, orderRef: String? = nil, onAuthorized: ((_ orderID: String?) -> Void)? = nil) async throws {
         reachedAuthorization = false
         terminalError = nil
         self.onAuthorized = onAuthorized
@@ -217,6 +221,7 @@ final class CoinbaseDepositOperation {
     private func awaitApplePayCompletion(orderId: String, rate: Rate) async throws {
         defer {
             idleTimer.disarm()
+            authorizationTimer?.disarm()
             confirmationTimer?.disarm()
         }
 
@@ -267,6 +272,13 @@ final class CoinbaseDepositOperation {
                     "event": "\(event.name)",
                 ])
                 idleTimer.disarm()
+                // Apple Pay can't undo the authorization; past this the order may still deliver.
+                authorizationTimer?.arm { [weak self] in
+                    logger.info("Coinbase order commit not seen in time, cancelling", metadata: [
+                        "orderId": "\(orderId)",
+                    ])
+                    self?.runTask?.cancel()
+                }
 
             case .commitSuccess, .pollingStart:
                 markAuthorized()
@@ -275,6 +287,7 @@ final class CoinbaseDepositOperation {
                     "event": "\(event.name)",
                 ])
                 idleTimer.disarm()
+                authorizationTimer?.disarm()
                 // Coinbase has the order by now, so stopping the wait can't undo the charge.
                 confirmationTimer?.arm { [weak self] in
                     logger.info("Coinbase order completion not seen in time, cancelling", metadata: [
@@ -306,7 +319,7 @@ final class CoinbaseDepositOperation {
     private func markAuthorized() {
         guard !reachedAuthorization else { return }
         reachedAuthorization = true
-        onAuthorized?()
+        onAuthorized?(orderId)
         onAuthorized = nil
     }
 }

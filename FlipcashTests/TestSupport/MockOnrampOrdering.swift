@@ -25,4 +25,13 @@ final class MockOnrampOrdering: OnrampOrdering {
         }
         return try await handler(request)
     }
+
+    private(set) var orderStatusCalls: [String] = []
+    var orderStatusHandler: ((String) async throws -> OnrampOrderStatusResponse)?
+
+    func orderStatus(orderID: String) async throws -> OnrampOrderStatusResponse {
+        orderStatusCalls.append(orderID)
+        guard let handler = orderStatusHandler else { throw Coinbase.Error.invalidResponse }
+        return try await handler(orderID)
+    }
 }

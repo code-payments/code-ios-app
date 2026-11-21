@@ -557,7 +557,11 @@ final class PaymentRequestPayFlow {
             return .prepared(present(payment, sessionContainer: sessionContainer, router: router))
         }
         guard await verified() else { return .notVerified }
-        let outcome = await payment.addAndPay(topUpMicros: topUpMicros)
+        // A top-up an earlier tap ordered that charged nothing lets go of "Finishing Payment"
+        // before Apple Pay opens for a new one.
+        let outcome = await payment.addAndPay(topUpMicros: topUpMicros) { [weak self] in
+            self?.holdsFinishing = false
+        }
         switch outcome {
         case .success:
             holdsFinishing = true

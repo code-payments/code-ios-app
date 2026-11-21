@@ -187,6 +187,62 @@ struct CoinbaseDepositOperationDeadlineTests {
         #expect(env.op.terminalError == nil)
     }
 
+    @Test("An authorized payment Coinbase never commits ends at the authorization timeout, authorized", .timeLimit(.minutes(1)))
+    func authorizedOrderNeverCommits_endsAuthorized() async throws {
+        let env = Env(authorizationTimeout: .milliseconds(50))
+        let task = Task { try await env.op.start(amount: .tenUSDF) }
+        try await waitUntil(env.op) { $0.state == .awaitingExternal(.applePay) }
+        for event in [ApplePayEvent.Event.pendingPaymentAuth, .paymentAuthorized] {
+            env.coinbaseService.receiveApplePayEvent(.fixture(event))
+        }
+
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(env.op.reachedAuthorization)
+        #expect(!env.op.didTimeOut)
+        #expect(env.op.terminalError == nil)
+    }
+
+    @Test("Once Coinbase commits the order, the authorization timeout no longer runs")
+    func commitDisarmsAuthorizationTimeout() async throws {
+        let env = Env(authorizationTimeout: .milliseconds(50))
+        let task = Task { try await env.op.start(amount: .tenUSDF) }
+        try await waitUntil(env.op) { $0.state == .awaitingExternal(.applePay) }
+        env.coinbaseService.receiveApplePayEvent(.fixture(.paymentAuthorized))
+        env.coinbaseService.receiveApplePayEvent(.fixture(.commitSuccess))
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(env.op.state == .awaitingExternal(.applePay))
+
+        env.coinbaseService.receiveApplePayEvent(.fixture(.pollingSuccess))
+        try await task.value
+    }
+
+    @Test("Without an authorization timeout, an authorized payment waits for Coinbase, as Add Money does")
+    func noAuthorizationTimeout_waitsForCommit() async throws {
+        let env = Env()
+        let task = Task { try await env.op.start(amount: .tenUSDF) }
+        try await waitUntil(env.op) { $0.state == .awaitingExternal(.applePay) }
+        env.coinbaseService.receiveApplePayEvent(.fixture(.paymentAuthorized))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(env.op.state == .awaitingExternal(.applePay))
+
+        env.coinbaseService.receiveApplePayEvent(.fixture(.pollingSuccess))
+        try await task.value
+    }
+
+    @Test("Authorization hands on Coinbase's id for the order")
+    func authorizationPassesOrderID() async throws {
+        let env = Env()
+        env.ordering.createOrderHandler = { _ in .fixture(orderId: "cb-42") }
+        var authorizedID: String??
+        let task = Task { try await env.op.start(amount: .tenUSDF) { authorizedID = $0 } }
+        try await waitUntil(env.op) { $0.state == .awaitingExternal(.applePay) }
+        env.coinbaseService.receiveApplePayEvent(.fixture(.paymentAuthorized))
+        env.coinbaseService.receiveApplePayEvent(.fixture(.pollingSuccess))
+        try await task.value
+
+        #expect(authorizedID == .some("cb-42"))
+    }
+
     @Test("Without a confirmation timeout, a committed order waits for Coinbase to report it complete")
     func noConfirmationTimeout_waitsForCompletion() async throws {
         let env = Env()
@@ -214,6 +270,7 @@ private struct Env {
     init(
         profile: Profile? = .verifiedFixture,
         applePayIdleTimeout: Duration = .seconds(60),
+        authorizationTimeout: Duration? = nil,
         confirmationTimeout: Duration? = nil
     ) {
         let session = MockSession(profile: profile)
@@ -226,6 +283,7 @@ private struct Env {
             coinbaseService: coinbaseService,
             session: session,
             applePayIdleTimeout: applePayIdleTimeout,
+            authorizationTimeout: authorizationTimeout,
             confirmationTimeout: confirmationTimeout
         )
     }

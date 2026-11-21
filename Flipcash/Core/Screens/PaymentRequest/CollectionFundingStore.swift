@@ -31,6 +31,9 @@ final class CollectionFundingStore {
         /// The mint, in base58, the payment was planned to pay in when the order was placed. Nil
         /// in a record an earlier build wrote.
         var payingCurrency: String?
+        /// Coinbase's id for the order, kept once Apple Pay authorized it so its outcome can be
+        /// read back. Nil before then, and in a record an earlier build wrote.
+        var orderID: String?
     }
 
     private let defaults: UserDefaults
@@ -169,10 +172,11 @@ final class CollectionFundingStore {
         self.topUps = topUps
     }
 
-    /// Marks the pending top-up authorized, once Apple Pay says so.
-    func markTopUpAuthorized(for requestID: PaymentRequestID) {
+    /// Marks the pending top-up authorized, once Apple Pay says so, keeping Coinbase's `orderID`.
+    func markTopUpAuthorized(for requestID: PaymentRequestID, orderID: String? = nil) {
         guard var topUp = pendingTopUp(for: requestID) else { return }
         topUp.authorized = true
+        topUp.orderID = orderID ?? topUp.orderID
         setPendingTopUp(topUp, for: requestID)
     }
 

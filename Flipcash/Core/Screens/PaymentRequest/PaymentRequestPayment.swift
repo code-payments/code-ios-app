@@ -452,13 +452,14 @@ final class PaymentRequestPayment {
     /// confirmation. A top-up this payment already ordered is waited on and never ordered again.
     /// Swaps an earlier attempt kept settle first, and nothing is ordered while one hasn't. When
     /// the balances read then need a different top-up, or none can be planned, nothing is ordered
-    /// and the sheet shows the new short state.
-    func addAndPay(topUpMicros: Int64) async -> Outcome {
+    /// and the sheet shows the new short state. `ordering` runs just before a new Apple Pay order
+    /// is placed.
+    func addAndPay(topUpMicros: Int64, ordering: @escaping @MainActor () -> Void = {}) async -> Outcome {
         guard fundsCollection else { return .failed }
-        return await joiningTopUpRun { [self] in await runAddAndPay(topUpMicros: topUpMicros) } ?? .failed
+        return await joiningTopUpRun { [self] in await runAddAndPay(topUpMicros: topUpMicros, ordering: ordering) } ?? .failed
     }
 
-    private func runAddAndPay(topUpMicros: Int64) async -> Outcome {
+    private func runAddAndPay(topUpMicros: Int64, ordering: @MainActor () -> Void) async -> Outcome {
         if let outcome = await refetchIfNeeded() { return outcome }
 
         if let pending = fundingStore.pendingTopUp(for: requestID),
@@ -509,6 +510,7 @@ final class PaymentRequestPayment {
 
         let amountUSD = Self.topUpOrderUSD(topUpMicros: plan.topUpMicros, rate: rate)
         let orderRef = topUpper.makeOrderRef()
+        ordering()
         // Written before Apple Pay opens, so an attempt that dies mid-order leaves it behind.
         fundingStore.setPendingTopUp(
             .init(
@@ -521,8 +523,8 @@ final class PaymentRequestPayment {
             ),
             for: requestID
         )
-        let order = await topUpper.order(amountUSD: amountUSD, orderRef: orderRef) { [fundingStore, requestID] in
-            fundingStore.markTopUpAuthorized(for: requestID)
+        let order = await topUpper.order(amountUSD: amountUSD, orderRef: orderRef) { [fundingStore, requestID] orderID in
+            fundingStore.markTopUpAuthorized(for: requestID, orderID: orderID)
         }
         switch order {
         case .notCharged(let reason):
@@ -587,6 +589,9 @@ final class PaymentRequestPayment {
         switch await settle(pending) {
         case .stopped: return .failed
         case .cleared: return nil
+        case .orderFailed:
+            showTopUpNotCharged(.failed)
+            return .failed
         case .landed:
             // The sheet closed as the Dollars landed: they stay, and the next attempt pays from them.
             guard !Task.isCancelled else { return .failed }
@@ -606,6 +611,9 @@ final class PaymentRequestPayment {
         case cleared
         /// Still waiting, or the wait was cut short; the record stays.
         case stopped
+        /// Coinbase read the authorized order back as failed, so no Dollars are coming for it; the
+        /// record cleared and the next attempt orders again.
+        case orderFailed
     }
 
     /// Waits for `pending`'s Dollars and returns whether the payment can go on. Its record clears
@@ -613,7 +621,8 @@ final class PaymentRequestPayment {
     ///
     /// One Apple Pay never reported authorized charged nothing unless the app died in the moment
     /// between the two; it is waited on for at most the settlement window from when it was placed,
-    /// then counted as failed. One that was authorized stays until its Dollars are seen.
+    /// then counted as failed. One that was authorized stays until its Dollars are seen, or until
+    /// Coinbase reads its order back as failed, asked before the wait and again when it runs out.
     private func settle(_ pending: CollectionFundingStore.PendingTopUp) async -> Settlement {
         let target = CollectionTopUpTarget.target(baselineUSD: pending.baselineUSD, amountUSD: pending.amountUSD)
         if !pending.authorized {
@@ -628,12 +637,23 @@ final class PaymentRequestPayment {
             fundingStore.clearPendingTopUp(for: requestID)
             return landed ? .landed : .cleared
         }
+        if await orderFailed(pending) { return .orderFailed }
         guard await topUpper.awaitDollars(reaching: target) else {
-            if !Task.isCancelled { showMoneyStillOnItsWay() }
+            guard !Task.isCancelled else { return .stopped }
+            if await orderFailed(pending) { return .orderFailed }
+            showMoneyStillOnItsWay()
             return .stopped
         }
         fundingStore.clearPendingTopUp(for: requestID)
         return .landed
+    }
+
+    /// Whether Coinbase reads `pending`'s order back as failed, clearing the record when it does.
+    /// A record with no order id, or a lookup that can't tell, keeps it.
+    private func orderFailed(_ pending: CollectionFundingStore.PendingTopUp) async -> Bool {
+        guard let orderID = pending.orderID, await topUpper.orderFailed(orderID: orderID) else { return false }
+        fundingStore.clearPendingTopUp(for: requestID)
+        return true
     }
 
     private static var settlementSeconds: TimeInterval {
