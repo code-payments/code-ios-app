@@ -64,7 +64,11 @@ struct PaymentRequestCollectionFundingTests {
 
         func pendingSwaps() async throws -> [PendingCollectionSwap] { pending }
 
+        /// Thrown by `fund` before anything is funded, as the server refusing the funding intent does.
+        var fundError: (any Error)?
+
         func fund(_ pending: PendingCollectionSwap, fundingIntentID: PublicKey, currency: CurrencyCode) async throws {
+            if let fundError { throw fundError }
             funded.append(pending.swapID)
             states[pending.swapID] = .funding
             if let balancesAfterFund { balancesAfterRefresh = balancesAfterFund }
@@ -1073,6 +1077,37 @@ struct PaymentRequestCollectionFundingTests {
         let record = try #require(recordWhileOrdering)
         #expect(record.baselineUSD == 6)
         #expect(f.swapper.funded == [kept])
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.payer.payments.count == 1)
+        #expect(keptSwapID(f) == nil)
+    }
+
+    @Test("A retry whose CREATED kept swap's Jeffy was spent elsewhere orders nothing while the server refuses its funding, then tops up from what's left once the server cancels it")
+    func createdKeptSwapSourceSpentElsewhere() async throws {
+        // The Jeffy the swap was started from is gone, so the plan reads $4 of Dollars alone.
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: nil)
+        let kept = keepSwapUnfunded(f)
+        #expect(await f.payment.prepare() == .ready)
+        #expect(f.payment.fundingPlan?.topUpMicros == 6_000_000)
+
+        struct Refused: Error {}
+        f.swapper.fundError = Refused()
+        #expect(await f.payment.addAndPay(topUpMicros: 6_000_000) == .failed)
+
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.payer.payments.isEmpty)
+        #expect(keptSwapID(f) == kept)
+        #expect(f.container.session.dialogItem?.title == "Couldn't Send")
+
+        // The server cancels a swap left unfunded past its funding timeout.
+        f.swapper.fundError = nil
+        f.swapper.states[kept] = .cancelled
+        f.topUpper.delivered = 6
+        #expect(await f.payment.addAndPay(topUpMicros: 6_000_000) == .success)
+
+        #expect(f.topUpper.orders.map(\.amountUSD) == [6])
+        #expect(f.swapper.funded.isEmpty)
         #expect(f.swapper.submitted.isEmpty)
         #expect(f.payer.payments.count == 1)
         #expect(keptSwapID(f) == nil)

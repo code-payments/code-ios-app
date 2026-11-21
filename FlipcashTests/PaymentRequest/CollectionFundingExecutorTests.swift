@@ -731,6 +731,17 @@ struct CollectionFundingExecutorTests {
         #expect(r.store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == nil)
     }
 
+    @Test("Settling a CREATED kept swap that the server fails or cancels once funded forgets it and reads the balances its funds came back to", arguments: [SwapState.failed, .cancelled])
+    func settleForgetsFundedCreatedThatEnds(_ ended: SwapState) async {
+        let kept = freshIDs()
+        let r = await settleKept(serverState: .created, waitResult: ended, kept: kept, pending: [pendingSwap(kept.swapID, fundingIntentID: kept.fundingIntentID)])
+
+        #expect(r.result == .settled)
+        #expect(r.swapper.events == ["state", "pending", "fund", "wait", "refresh"])
+        #expect(r.swapper.started.isEmpty)
+        #expect(r.store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == nil)
+    }
+
     @Test("Settling a CREATED kept swap that is funded but hasn't settled by the end of the wait stops on pending, keeps its ids and reads no balances")
     func settleStopsOnFundedCreatedKept() async {
         let kept = freshIDs()
