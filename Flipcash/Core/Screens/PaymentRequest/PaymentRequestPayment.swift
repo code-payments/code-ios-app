@@ -70,6 +70,17 @@ final class PaymentRequestPayment {
     var depositMint: PublicKey?
     /// True from Apple Pay finishing until the payment ends, while the sheet shows "Finishing Payment".
     private(set) var isFinishing = false
+    /// True from the sheet opening over a top-up an earlier attempt ordered until its pickup
+    /// returns, so the sheet opens on "Finishing Payment" rather than drawing the pay content first.
+    private var isPickingUp = false
+    /// True while a swipe's payment runs.
+    private var isSubmitting = false
+
+    /// Whether the sheet shows "Finishing Payment": added Dollars landing and paying, or a pickup due as it opens.
+    var showsFinishing: Bool { isFinishing || isPickingUp }
+
+    /// Whether a payment from the sheet is running or due to be picked up; the sheet can't be swiped away then.
+    var blocksDismiss: Bool { isSubmitting || topUpRun != nil || isPickingUp }
 
     @ObservationIgnored private let requests: PaymentRequests
     @ObservationIgnored private let session: Session
@@ -388,6 +399,8 @@ final class PaymentRequestPayment {
     /// Pays exactly what the viewer owes: its amount in the request's currency, priced into the
     /// picked token.
     func submit() async -> Outcome {
+        isSubmitting = true
+        defer { isSubmitting = false }
         if let outcome = await refetchIfNeeded() { return outcome }
         if fundsCollection {
             return await submitFundedCollection()
@@ -521,10 +534,17 @@ final class PaymentRequestPayment {
         topUpRun != nil || fundingStore.pendingTopUp(for: requestID) != nil
     }
 
+    /// Called as the sheet opens, before its first frame: a top-up still to pick up opens it on
+    /// "Finishing Payment". ``resumePendingTopUp()`` ends that, whatever it finds.
+    func sheetWillOpen() {
+        isPickingUp = fundsCollection && hasPendingTopUp
+    }
+
     /// Picks up a top-up an earlier attempt ordered, as the sheet opens after a relaunch: waits for
     /// its Dollars, then funds and pays. Returns nil when there's none to pick up, or when it
     /// turns out to have charged nothing, leaving the sheet on the state the balances give.
     func resumePendingTopUp() async -> Outcome? {
+        defer { isPickingUp = false }
         guard fundsCollection, hasPendingTopUp else { return nil }
         return await joiningTopUpRun { [self] in
             if let outcome = await refetchIfNeeded() { return outcome }

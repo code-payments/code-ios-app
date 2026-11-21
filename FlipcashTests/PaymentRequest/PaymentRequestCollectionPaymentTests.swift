@@ -191,6 +191,8 @@ final class FakeRequestPayer: RequestedPaying, RecipientResolving {
 
     private(set) var payments: [Payment] = []
     var failure: (any Error)?
+    /// Runs inside the payment, before it returns or throws.
+    var whilePaying: (() -> Void)?
 
     func payRequestShare(
         amount: ExchangedFiat,
@@ -201,6 +203,7 @@ final class FakeRequestPayer: RequestedPaying, RecipientResolving {
         intentID: PublicKey
     ) async throws {
         payments.append(Payment(amount: amount, chatID: chatID, paymentRequestID: paymentRequestID, intentID: intentID))
+        whilePaying?()
         if let failure { throw failure }
     }
 

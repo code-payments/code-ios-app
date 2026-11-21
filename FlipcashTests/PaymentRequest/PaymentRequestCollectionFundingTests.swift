@@ -1093,6 +1093,129 @@ struct PaymentRequestCollectionFundingTests {
         #expect(keptSwapID(f) == kept)
     }
 
+    // MARK: - Holding the sheet while a payment runs
+
+    /// A record for $5 an earlier attempt ordered over $6 of Dollars, Apple Pay authorized.
+    private func pendingFive(in f: Fixture) {
+        f.fundingStore.setPendingTopUp(
+            .init(orderRef: "order-1", amountUSD: 5, baselineUSD: 6, placedAt: .now, authorized: true),
+            for: requestID
+        )
+    }
+
+    @Test("A sheet opened over a top-up still to pick up shows Finishing Payment from its first frame and can't be swiped away until it pays")
+    func opensOnFinishingOverPendingTopUp() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        pendingFive(in: f)
+        f.topUpper.delivered = 5
+        f.topUpper.holdsWait = true
+        #expect(await f.payment.prepare() == .ready)
+
+        f.payment.sheetWillOpen()
+        // Before the sheet's task has started the pickup.
+        #expect(f.payment.showsFinishing)
+        #expect(f.payment.blocksDismiss)
+
+        let pickup = Task { await f.payment.resumePendingTopUp() }
+        while f.topUpper.releaseWait == nil { await Task.yield() }
+        #expect(f.payment.showsFinishing)
+        #expect(f.payment.blocksDismiss)
+        f.topUpper.releaseWait?()
+
+        #expect(await pickup.value == .success)
+        #expect(f.payer.payments.count == 1)
+        #expect(!f.payment.showsFinishing)
+        #expect(!f.payment.blocksDismiss)
+    }
+
+    @Test("The Request screen opens the sheet over a top-up still to pick up on Finishing Payment")
+    func flowOpensSheetOnFinishingOverPendingTopUp() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 10_000_000, jeffy: nil)
+        pendingFive(in: f)
+        let flow = PaymentRequestPayFlow()
+
+        #expect(await flow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment) == .ready)
+
+        #expect(flow.isPaying)
+        #expect(f.payment.showsFinishing)
+        #expect(f.payment.blocksDismiss)
+        #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("A pickup that stops on money still on its way keeps the record and lets the sheet go")
+    func stoppedPickupReleasesSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        pendingFive(in: f)
+        #expect(await f.payment.prepare() == .ready)
+
+        f.payment.sheetWillOpen()
+        try #require(f.payment.blocksDismiss)
+        #expect(await f.payment.resumePendingTopUp() == .failed)
+
+        #expect(f.fundingStore.pendingTopUp(for: requestID) != nil)
+        #expect(!f.payment.showsFinishing)
+        #expect(!f.payment.blocksDismiss)
+        #expect(f.payer.payments.isEmpty)
+    }
+
+    @Test("A record gone by the time the pickup runs leaves the sheet on the pay content, free to close")
+    func recordGoneBeforePickupReleasesSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        pendingFive(in: f)
+        #expect(await f.payment.prepare() == .ready)
+
+        f.payment.sheetWillOpen()
+        try #require(f.payment.showsFinishing)
+        f.fundingStore.clearPendingTopUp(for: requestID)
+        #expect(await f.payment.resumePendingTopUp() == nil)
+
+        #expect(!f.payment.showsFinishing)
+        #expect(!f.payment.blocksDismiss)
+    }
+
+    @Test("Add holds the sheet from Apple Pay to the payment, without showing Finishing Payment before Apple Pay ends")
+    func addHoldsSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        #expect(await f.payment.prepare() == .ready)
+        f.payment.sheetWillOpen()
+        #expect(!f.payment.showsFinishing)
+        #expect(!f.payment.blocksDismiss)
+        let plan = try #require(f.payment.fundingPlan)
+        f.topUpper.delivered = Decimal(plan.topUpMicros) / 1_000_000
+        var heldWhileOrdering = false
+        var finishingWhileOrdering = true
+        f.topUpper.whileOrdering = {
+            heldWhileOrdering = f.payment.blocksDismiss
+            finishingWhileOrdering = f.payment.showsFinishing
+        }
+
+        #expect(await f.payment.addAndPay(topUpMicros: plan.topUpMicros) == .success)
+
+        #expect(heldWhileOrdering)
+        #expect(!finishingWhileOrdering)
+        #expect(!f.payment.blocksDismiss)
+    }
+
+    @Test("A swipe holds the sheet while it pays, and lets it go whether the payment lands or fails")
+    func swipeHoldsSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 20_000_000, jeffy: nil)
+        #expect(await f.payment.prepare() == .ready)
+        var heldWhilePaying: [Bool] = []
+        f.payer.whilePaying = { heldWhilePaying.append(f.payment.blocksDismiss) }
+
+        f.payer.failure = TestPayFailure()
+        #expect(await f.payment.submit() == .failed)
+        #expect(!f.payment.blocksDismiss)
+
+        f.payer.failure = nil
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.submit() == .success)
+        #expect(!f.payment.blocksDismiss)
+        #expect(heldWhilePaying == [true, true])
+    }
+
+    private struct TestPayFailure: Error {}
+
     // MARK: - Adding money from the Request screen (S6)
 
     /// A tap on the Request screen's top-up button for `f`, with the amount the button showed.

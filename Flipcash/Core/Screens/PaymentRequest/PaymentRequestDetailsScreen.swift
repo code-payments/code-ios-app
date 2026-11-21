@@ -563,7 +563,7 @@ final class PaymentRequestPayFlow {
             holdsFinishing = true
             await refreshed()
         case .short:
-            isPaying = true
+            openSheet(payment)
         case .failed:
             break
         }
@@ -626,8 +626,13 @@ final class PaymentRequestPayFlow {
             session.dialogItem = dialog
             return .noBalance
         }
-        isPaying = true
+        openSheet(payment)
         return .ready
+    }
+
+    private func openSheet(_ payment: PaymentRequestPayment) {
+        payment.sheetWillOpen()
+        isPaying = true
     }
 }
 
@@ -731,7 +736,7 @@ private struct PaymentRequestPaySheet: View {
             } else {
                 PartialSheet(background: .clear) {
                     Group {
-                        if payment.isFinishing {
+                        if payment.showsFinishing {
                             finishingContent
                         } else {
                             payContent(feeLine: nil, topUp: nil)
@@ -744,9 +749,9 @@ private struct PaymentRequestPaySheet: View {
             }
         }
         // A top-up an earlier attempt ordered, say before the app was closed, is waited on and paid
-        // from as the sheet opens, with no second order.
+        // from as the sheet opens, with no second order. It runs on every open, since it also ends
+        // the "Finishing Payment" the sheet opened on when there's nothing left to pick up.
         .task {
-            guard payment.hasPendingTopUp else { return }
             await finishTopUp { await payment.resumePendingTopUp() ?? .failed }
         }
         .sheet(item: $verificationViewModel.cancellingOnDismiss()) { vm in
@@ -772,6 +777,8 @@ private struct PaymentRequestPaySheet: View {
                 }
             }
         }
+        // Outermost, so the sheets above don't swallow it.
+        .interactiveDismissDisabled(payment.blocksDismiss)
     }
 
     /// The pay content, with Payment Details pushed over it inside the same sheet from the fee or
@@ -780,7 +787,7 @@ private struct PaymentRequestPaySheet: View {
         let funding = payment.fundingSheet
         let page = CollectionPaySheetPage(
             wantsDetails: isShowingDetails,
-            isFinishing: payment.isFinishing,
+            isFinishing: payment.showsFinishing,
             content: funding
         )
         return PartialSheet(background: .clear) {
