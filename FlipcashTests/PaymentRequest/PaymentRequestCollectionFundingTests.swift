@@ -918,6 +918,24 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.topUpper.orders.isEmpty)
     }
 
+    @Test("A kept swap landing short as the sheet closes opens no Apple Pay and writes no top-up record")
+    func sheetClosesAsKeptSwapLandsShort() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 5_500_000, jeffy: Self.plentyOfJeffy)
+        _ = try await keepSwapInFlight(f)
+        #expect(f.payment.fundingPlan?.topUpMicros == 5_000_000)
+
+        // The swap leaves $0.50 short, which still takes the $5 the user saw.
+        f.swapper.waitResult = .finalized
+        f.swapper.balancesAfterRefresh = [.usdf: 9_500_000]
+        f.swapper.cancelsWait = true
+        #expect(await Task { await f.payment.addAndPay(topUpMicros: 5_000_000) }.value == .failed)
+
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.payer.payments.isEmpty)
+        #expect(f.container.session.dialogItem == nil)
+    }
+
     @Test("The sheet closing while a kept swap is waited on shows no dialog, orders nothing and keeps its ids")
     func sheetClosesWhileKeptSwapSettles() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.plentyOfJeffy)
