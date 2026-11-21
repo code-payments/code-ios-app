@@ -174,6 +174,7 @@ struct PaymentRequestCollectionFundingTests {
         let fundingStore: CollectionFundingStore
         let container: SessionContainer
         let amount: Double
+        let defaults: UserDefaults
     }
 
     /// A $`amount` collection payment over a wallet holding `dollars` USDF quarks and `jeffy`
@@ -215,10 +216,8 @@ struct PaymentRequestCollectionFundingTests {
         let payer = FakeRequestPayer()
         let swapper = FakeSwapper()
         swapper.container = container
-        let fundingStore = CollectionFundingStore(
-            userID: container.session.userID,
-            defaults: UserDefaults(suiteName: "PaymentRequestCollectionFundingTests.\(UUID().uuidString)")!
-        )
+        let defaults = UserDefaults(suiteName: "PaymentRequestCollectionFundingTests.\(UUID().uuidString)")!
+        let fundingStore = CollectionFundingStore(userID: container.session.userID, defaults: defaults)
         if let lastPaid {
             fundingStore.recordPaid(currency: lastPaid.base58)
         }
@@ -238,7 +237,7 @@ struct PaymentRequestCollectionFundingTests {
         )
         return Fixture(
             payment: payment, payer: payer, swapper: swapper, topUpper: topUpper,
-            fundingStore: fundingStore, container: container, amount: amount
+            fundingStore: fundingStore, container: container, amount: amount, defaults: defaults
         )
     }
 
@@ -263,7 +262,7 @@ struct PaymentRequestCollectionFundingTests {
         )
         return Fixture(
             payment: payment, payer: f.payer, swapper: f.swapper, topUpper: topUpper,
-            fundingStore: f.fundingStore, container: f.container, amount: f.amount
+            fundingStore: f.fundingStore, container: f.container, amount: f.amount, defaults: f.defaults
         )
     }
 
@@ -662,6 +661,149 @@ struct PaymentRequestCollectionFundingTests {
         #expect(relaunched.topUpper.orders.isEmpty)
         #expect(f.topUpper.orders.count == 1)
         #expect(f.payer.payments.count == 1)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+    }
+
+    // MARK: - Keeping the paying currency through a top-up
+
+    /// About $1.50 of Jeffy on the test curve, as the device case held in its picked currency.
+    private static let jeffyNearADollarFifty: UInt64 = 1_500_000_000_000
+
+    /// Prices Jeffy, so a payment in it can run.
+    private func priceJeffy(_ f: Fixture) async {
+        await f.container.ratesController.verifiedProtoService.saveReserveStates([
+            .freshReserve(mint: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000)
+        ])
+    }
+
+    /// Picks `mint` from the sheet's currency list.
+    private func pick(_ mint: PublicKey, in f: Fixture) throws {
+        let stored = try #require(f.container.session.balance(for: mint))
+        f.payment.selectCurrencyAction(exchangedBalance: ExchangedBalance(
+            stored: stored,
+            exchangedFiat: stored.computeExchangedValue(with: Rate(fx: 1, currency: .usd))
+        ))
+    }
+
+    @Test("Same visit: a top-up for a payment in a picked currency converts the landed Dollars into it and pays in it")
+    func topUpKeepsPickInSameVisit() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 2_500_000, jeffy: Self.jeffyNearADollarFifty)
+        await priceJeffy(f)
+        f.swapper.balancesAfterStart = [.usdf: 0, .jeffy: Self.plentyOfJeffy]
+        f.topUpper.whileOrdering = { f.topUpper.delivered = f.fundingStore.pendingTopUp(for: requestID)?.amountUSD }
+
+        #expect(await f.payment.prepare() == .ready)
+        try pick(.jeffy, in: f)
+        let plan = try #require(f.payment.fundingPlan)
+        try #require(plan.payingCurrency == PublicKey.jeffy.base58)
+        try #require(plan.topUpMicros > 0)
+        #expect(await f.payment.addAndPay(topUpMicros: plan.topUpMicros) == .success)
+
+        #expect(f.topUpper.orders.count == 1)
+        #expect(f.swapper.submitted.map(\.swap.source) == [.usdf])
+        #expect(f.swapper.submitted.map(\.swap.destination) == [.jeffy])
+        #expect(f.payer.payments.map(\.amount.mint) == [.jeffy])
+        #expect(f.fundingStore.lastPaidCurrency == PublicKey.jeffy.base58)
+    }
+
+    @Test("Relaunched between Apple Pay and the Dollars landing: the payment converts them into the picked currency and pays in it")
+    func relaunchKeepsPickedCurrency() async throws {
+        let server = Server(intentResult: .success(intentID))
+        let f = try await fixture(server, amount: 6, dollars: 2_500_000, jeffy: Self.jeffyNearADollarFifty)
+        await priceJeffy(f)
+        f.swapper.balancesAfterStart = [.usdf: 0, .jeffy: Self.plentyOfJeffy]
+        f.topUpper.orderResult = .mayDeliver
+        var recordWhileOrdering: CollectionFundingStore.PendingTopUp?
+        f.topUpper.whileOrdering = { recordWhileOrdering = f.fundingStore.pendingTopUp(for: requestID) }
+
+        #expect(await f.payment.prepare() == .ready)
+        try pick(.jeffy, in: f)
+        let plan = try #require(f.payment.fundingPlan)
+        try #require(plan.payingCurrency == PublicKey.jeffy.base58)
+        #expect(await f.payment.addAndPay(topUpMicros: plan.topUpMicros) == .failed)
+        let record = try #require(recordWhileOrdering)
+        #expect(record.amountUSD == 5)
+        // Written before Apple Pay opened, with the currency the plan paid in.
+        #expect(record.payingCurrency == PublicKey.jeffy.base58)
+
+        // The Dollars alone would cover the payment now, so the default currency would pay without a conversion.
+        let relaunched = try await relaunch(f, server)
+        relaunched.topUpper.delivered = record.amountUSD
+        #expect(await relaunched.payment.prepare() == .ready)
+        #expect(await relaunched.payment.resumePendingTopUp() == .success)
+
+        #expect(relaunched.topUpper.orders.isEmpty)
+        #expect(f.topUpper.orders.count == 1)
+        #expect(f.swapper.submitted.map(\.swap.source) == [.usdf])
+        #expect(f.swapper.submitted.map(\.swap.destination) == [.jeffy])
+        #expect(f.payer.payments.map(\.amount.mint) == [.jeffy])
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+    }
+
+    @Test("A recorded currency that can't be paid in any more stops on the short state: nothing pays in another currency")
+    func recordedCurrencyNoLongerPayable() async throws {
+        // Jeffy is neither held nor stored, so the plan can't name it.
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 2_500_000, jeffy: nil)
+        f.fundingStore.setPendingTopUp(
+            .init(orderRef: "order-1", amountUSD: 5, baselineUSD: 2.5, placedAt: .now, authorized: true, payingCurrency: PublicKey.jeffy.base58),
+            for: requestID
+        )
+        f.topUpper.delivered = 5
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.resumePendingTopUp() == .short)
+
+        #expect(f.payer.payments.isEmpty)
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.topUpper.orders.isEmpty)
+        // The Dollars landed, so the record is done; the sheet now shows the plan they give.
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.payment.fundingPlan?.payingCurrency == PublicKey.usdf.base58)
+        #expect(f.fundingStore.lastPaidCurrency == nil)
+    }
+
+    @Test("A currency picked again while the top-up is pending is the one that pays")
+    func repickWhilePendingWins() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 2_500_000, jeffy: Self.jeffyNearADollarFifty)
+        await priceJeffy(f)
+        f.topUpper.orderResult = .mayDeliver
+
+        #expect(await f.payment.prepare() == .ready)
+        try pick(.jeffy, in: f)
+        let plan = try #require(f.payment.fundingPlan)
+        #expect(await f.payment.addAndPay(topUpMicros: plan.topUpMicros) == .failed)
+        let record = try #require(f.fundingStore.pendingTopUp(for: requestID))
+
+        try pick(.usdf, in: f)
+        f.topUpper.delivered = record.amountUSD
+        #expect(await f.payment.resumePendingTopUp() == .success)
+
+        #expect(f.topUpper.orders.count == 1)
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.payer.payments.map(\.amount.mint) == [.usdf])
+    }
+
+    @Test("A record an earlier build wrote, with no currency, still resumes: it pays in the default currency and orders nothing")
+    func olderRecordWithoutCurrencyResumes() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 2_500_000, jeffy: Self.jeffyNearADollarFifty)
+        let json = """
+        {"orderRef":"order-1","amountUSD":5,"baselineUSD":2.5,"placedAt":\(Date.now.timeIntervalSinceReferenceDate),"authorized":true}
+        """
+        f.defaults.set(
+            [requestID.data.hexEncodedString(): Data(json.utf8)],
+            forKey: "collectionFunding.pendingTopUps.\(f.container.session.userID.uuidString)"
+        )
+        let record = try #require(f.fundingStore.pendingTopUp(for: requestID))
+        #expect(record.payingCurrency == nil)
+        f.topUpper.delivered = 5
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(f.payment.hasPendingTopUp)
+        #expect(await f.payment.resumePendingTopUp() == .success)
+
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.payer.payments.map(\.amount.mint) == [.usdf])
         #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
     }
 

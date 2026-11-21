@@ -28,6 +28,9 @@ final class CollectionFundingStore {
         /// Whether Apple Pay reported the payment authorized. One that never was charged nothing,
         /// unless the app died between the user authorizing it and the report arriving.
         var authorized: Bool
+        /// The mint, in base58, the payment was planned to pay in when the order was placed. Nil
+        /// in a record an earlier build wrote.
+        var payingCurrency: String?
     }
 
     private let defaults: UserDefaults

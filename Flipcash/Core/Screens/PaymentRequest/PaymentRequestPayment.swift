@@ -491,7 +491,14 @@ final class PaymentRequestPayment {
         let orderRef = topUpper.makeOrderRef()
         // Written before Apple Pay opens, so an attempt that dies mid-order leaves it behind.
         fundingStore.setPendingTopUp(
-            .init(orderRef: orderRef, amountUSD: amountUSD, baselineUSD: baselineUSD, placedAt: clock(), authorized: false),
+            .init(
+                orderRef: orderRef,
+                amountUSD: amountUSD,
+                baselineUSD: baselineUSD,
+                placedAt: clock(),
+                authorized: false,
+                payingCurrency: plan.payingCurrency
+            ),
             for: requestID
         )
         let order = await topUpper.order(amountUSD: amountUSD, orderRef: orderRef) { [fundingStore, requestID] in
@@ -539,9 +546,15 @@ final class PaymentRequestPayment {
     }
 
     /// "Finishing Payment": waits for `pending`'s Dollars, then funds and pays from the balances
-    /// as they are then. Returns nil when the record cleared with no Dollars seen: that top-up
-    /// charged nothing, so nothing is paid without the viewer asking.
+    /// as they are then, in the currency picked this visit, else the one the top-up was planned
+    /// for. Returns nil when the record cleared with no Dollars seen: that top-up charged nothing,
+    /// so nothing is paid without the viewer asking. Returns `.short`, paying nothing, when that
+    /// currency can't be paid in any more.
     private func finish(_ pending: CollectionFundingStore.PendingTopUp) async -> Outcome? {
+        // A relaunch loses the visit's pick; the record keeps the currency planned before Apple Pay.
+        if pickedCurrency == nil, let recorded = pending.payingCurrency {
+            pickedCurrency = try? PublicKey(base58: recorded)
+        }
         isFinishing = true
         defer { isFinishing = false }
         switch await settle(pending) {
@@ -550,6 +563,11 @@ final class PaymentRequestPayment {
         case .landed:
             // The sheet closed as the Dollars landed: they stay, and the next attempt pays from them.
             guard !Task.isCancelled else { return .failed }
+            // The plan falls back to another currency only when the asked one can't be named; the
+            // sheet then shows that plan rather than paying in a currency nobody picked.
+            if let asked = pickedCurrency?.base58, let plan = fundingPlan, plan.payingCurrency != asked {
+                return .short
+            }
             return await submitFundedCollection(afterTopUp: true)
         }
     }
