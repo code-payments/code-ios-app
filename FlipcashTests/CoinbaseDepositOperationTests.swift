@@ -187,6 +187,24 @@ struct CoinbaseDepositOperationDeadlineTests {
         #expect(env.op.terminalError == nil)
     }
 
+    @Test("An order request that never answers ends at the order timeout, before Apple Pay opens", .timeLimit(.minutes(1)))
+    func orderRequestNeverAnswers_endsBeforeApplePay() async throws {
+        let env = Env(orderTimeout: .milliseconds(50))
+        env.ordering.createOrderHandler = { _ in
+            try await Task.sleep(for: .seconds(3600))
+            return .fixture(orderId: "cb-1")
+        }
+
+        do {
+            try await env.op.start(amount: .tenUSDF)
+            Issue.record("The run should end at the order timeout")
+        } catch DepositError.externalRejected(let title, _) {
+            #expect(title == "Something Went Wrong")
+        }
+        #expect(!env.op.reachedAuthorization)
+        #expect(env.coinbaseService.coinbaseOrder == nil)
+    }
+
     @Test("An authorized payment Coinbase never commits ends at the authorization timeout, authorized", .timeLimit(.minutes(1)))
     func authorizedOrderNeverCommits_endsAuthorized() async throws {
         let env = Env(authorizationTimeout: .milliseconds(50))
@@ -270,6 +288,7 @@ private struct Env {
     init(
         profile: Profile? = .verifiedFixture,
         applePayIdleTimeout: Duration = .seconds(60),
+        orderTimeout: Duration? = nil,
         authorizationTimeout: Duration? = nil,
         confirmationTimeout: Duration? = nil
     ) {
@@ -283,6 +302,7 @@ private struct Env {
             coinbaseService: coinbaseService,
             session: session,
             applePayIdleTimeout: applePayIdleTimeout,
+            orderTimeout: orderTimeout,
             authorizationTimeout: authorizationTimeout,
             confirmationTimeout: confirmationTimeout
         )

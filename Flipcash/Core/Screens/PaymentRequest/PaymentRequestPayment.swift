@@ -534,7 +534,7 @@ final class PaymentRequestPayment {
         case .charged, .mayDeliver:
             fundingStore.markTopUpAuthorized(for: requestID)
             guard let pending = fundingStore.pendingTopUp(for: requestID) else { return .failed }
-            return await finish(pending) ?? .failed
+            return await finish(pending, orderedThisRun: true) ?? .failed
         }
     }
 
@@ -578,15 +578,16 @@ final class PaymentRequestPayment {
     /// as they are then, in the currency picked this visit, else the one the top-up was planned
     /// for. Returns nil when the record cleared with no Dollars seen: that top-up charged nothing,
     /// so nothing is paid without the viewer asking. Returns `.short`, paying nothing, when that
-    /// currency can't be paid in any more.
-    private func finish(_ pending: CollectionFundingStore.PendingTopUp) async -> Outcome? {
+    /// currency can't be paid in any more. `orderedThisRun` is true for the order this run just
+    /// placed, which is waited on before Coinbase is asked about it.
+    private func finish(_ pending: CollectionFundingStore.PendingTopUp, orderedThisRun: Bool = false) async -> Outcome? {
         // A relaunch loses the visit's pick; the record keeps the currency planned before Apple Pay.
         if pickedCurrency == nil, let recorded = pending.payingCurrency {
             pickedCurrency = try? PublicKey(base58: recorded)
         }
         isFinishing = true
         defer { isFinishing = false }
-        switch await settle(pending) {
+        switch await settle(pending, orderedThisRun: orderedThisRun) {
         case .stopped: return .failed
         case .cleared: return nil
         case .orderFailed:
@@ -622,8 +623,9 @@ final class PaymentRequestPayment {
     /// One Apple Pay never reported authorized charged nothing unless the app died in the moment
     /// between the two; it is waited on for at most the settlement window from when it was placed,
     /// then counted as failed. One that was authorized stays until its Dollars are seen, or until
-    /// Coinbase reads its order back as failed, asked before the wait and again when it runs out.
-    private func settle(_ pending: CollectionFundingStore.PendingTopUp) async -> Settlement {
+    /// Coinbase reads its order back as failed, asked when the wait runs out and, for a record an
+    /// earlier run left, before it too.
+    private func settle(_ pending: CollectionFundingStore.PendingTopUp, orderedThisRun: Bool) async -> Settlement {
         let target = CollectionTopUpTarget.target(baselineUSD: pending.baselineUSD, amountUSD: pending.amountUSD)
         if !pending.authorized {
             let landed: Bool
@@ -637,7 +639,7 @@ final class PaymentRequestPayment {
             fundingStore.clearPendingTopUp(for: requestID)
             return landed ? .landed : .cleared
         }
-        if await orderFailed(pending) { return .orderFailed }
+        if !orderedThisRun, await orderFailed(pending) { return .orderFailed }
         guard await topUpper.awaitDollars(reaching: target) else {
             guard !Task.isCancelled else { return .stopped }
             if await orderFailed(pending) { return .orderFailed }

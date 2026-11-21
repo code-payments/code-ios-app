@@ -95,6 +95,9 @@ nonisolated enum CollectionTopUpTarget {
 @MainActor
 final class SessionCollectionTopUpper: CollectionTopUpping {
 
+    /// How long placing an order with Coinbase may take while the pay sheet is locked; past it
+    /// Apple Pay never opens and nothing is charged.
+    static let orderTimeout: Duration = .seconds(60)
     /// How long a committed order waits for Coinbase to report it complete while the pay sheet is
     /// locked; past it the order may still deliver and the Dollars wait takes over.
     static let confirmationTimeout: Duration = .seconds(30)
@@ -130,6 +133,7 @@ final class SessionCollectionTopUpper: CollectionTopUpping {
             coinbaseService: coinbaseService,
             session: session,
             timer: timer,
+            orderTimeout: Self.orderTimeout,
             authorizationTimeout: Self.authorizationTimeout,
             confirmationTimeout: Self.confirmationTimeout
         )

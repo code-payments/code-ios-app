@@ -1233,13 +1233,13 @@ struct PaymentRequestCollectionFundingTests {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
         f.topUpper.orderResult = .mayDeliver
         f.topUpper.coinbaseOrderID = "cb-1"
-        // Still in progress as the order returns; failed once the Dollars wait runs out.
-        f.topUpper.orderFailedResults = [false, true]
+        // Asked once, when the Dollars wait runs out.
+        f.topUpper.orderFailedResults = [true]
 
         #expect(await f.payment.prepare() == .ready)
         #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .failed)
 
-        #expect(f.topUpper.lookups == ["cb-1", "cb-1"])
+        #expect(f.topUpper.lookups == ["cb-1"])
         #expect(f.container.session.dialogItem?.title == "Something Went Wrong")
         #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
         #expect(!f.payment.blocksDismiss)
@@ -1282,10 +1282,26 @@ struct PaymentRequestCollectionFundingTests {
         #expect(await f.payment.prepare() == .ready)
         #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .failed)
 
-        #expect(f.topUpper.lookups == ["cb-1", "cb-1"])
+        #expect(f.topUpper.lookups == ["cb-1"])
         #expect(f.container.session.dialogItem?.title == "Money Still on Its Way")
         #expect(f.fundingStore.pendingTopUp(for: requestID)?.orderID == "cb-1")
         #expect(f.fundingStore.pendingTopUp(for: requestID)?.authorized == true)
+    }
+
+    @Test("This attempt's own order waits for its Dollars and pays without asking Coinbase about it", arguments: [true, false])
+    func ownOrderPaysWithoutLookup(committed: Bool) async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        f.topUpper.orderResult = committed ? .charged : .mayDeliver
+        f.topUpper.coinbaseOrderID = "cb-1"
+        f.topUpper.delivered = 5
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .success)
+
+        #expect(f.topUpper.lookups.isEmpty)
+        #expect(f.topUpper.waits == 1)
+        #expect(f.payer.payments.count == 1)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
     }
 
     @Test("Finishing Payment lets go before a new Apple Pay order, when the top-up it waited on charged nothing")

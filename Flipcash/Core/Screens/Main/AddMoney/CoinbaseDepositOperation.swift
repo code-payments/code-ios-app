@@ -42,22 +42,27 @@ final class CoinbaseDepositOperation {
 
     @ObservationIgnored private var runTask: Task<Void, Error>?
     @ObservationIgnored private let authorizationTimer: ApplePayIdleTimer?
+    @ObservationIgnored private let orderTimeout: Duration?
     @ObservationIgnored private var onAuthorized: ((String?) -> Void)?
 
-    /// `authorizationTimeout` bounds the wait for Coinbase to commit an order Apple Pay authorized,
-    /// and `confirmationTimeout` the wait for it to report a committed order complete; past either
-    /// the run ends as a cancel with ``reachedAuthorization`` set. Nil waits for the report.
+    /// `orderTimeout` bounds the order request; past it the run ends rejected, before Apple Pay
+    /// opens. `authorizationTimeout` bounds the wait for Coinbase to commit an order Apple Pay
+    /// authorized, and `confirmationTimeout` the wait for it to report a committed order complete;
+    /// past either the run ends as a cancel with ``reachedAuthorization`` set. Nil waits for the
+    /// answer.
     init(
         coinbaseService: CoinbaseService,
         session: any (AccountProviding & ProfileProviding),
         timer: AddMoneyTimer = AddMoneyTimer(),
         applePayIdleTimeout: Duration = .seconds(60),
+        orderTimeout: Duration? = nil,
         authorizationTimeout: Duration? = nil,
         confirmationTimeout: Duration? = nil
     ) {
         self.coinbaseService = coinbaseService
         self.session = session
         self.timer = timer
+        self.orderTimeout = orderTimeout
         self.idleTimer = ApplePayIdleTimer(timeout: applePayIdleTimeout)
         self.authorizationTimer = authorizationTimeout.map { ApplePayIdleTimer(timeout: $0) }
         self.confirmationTimer = confirmationTimeout.map { ApplePayIdleTimer(timeout: $0) }
@@ -170,24 +175,32 @@ final class CoinbaseDepositOperation {
         let userRef = session.ownerKeyPair.publicKey.base58
         let orderRef = orderRef ?? "\(userRef):\(UUID().uuidString)"
 
+        let request = OnrampOrderRequest(
+            purchaseAmount: "\(amount.usdfValue.value)",
+            paymentCurrency: "USD",
+            // USDC, not USDF — the sweep converts after deposit.
+            purchaseCurrency: "USDC",
+            isQuote: false,
+            // The user's USDC ATA — the owner authority address.
+            destinationAddress: session.owner.authorityPublicKey,
+            email: email,
+            phoneNumber: phone,
+            partnerOrderRef: orderRef,
+            partnerUserRef: userRef,
+            phoneNumberVerifiedAt: .now,
+            agreementAcceptedAt: .now
+        )
+        let coinbase = coinbaseService.coinbase
+
         do {
-            let response = try await coinbaseService.coinbase.createOrder(
-                request: OnrampOrderRequest(
-                    purchaseAmount: "\(amount.usdfValue.value)",
-                    paymentCurrency: "USD",
-                    // USDC, not USDF — the sweep converts after deposit.
-                    purchaseCurrency: "USDC",
-                    isQuote: false,
-                    // The user's USDC ATA — the owner authority address.
-                    destinationAddress: session.owner.authorityPublicKey,
-                    email: email,
-                    phoneNumber: phone,
-                    partnerOrderRef: orderRef,
-                    partnerUserRef: userRef,
-                    phoneNumberVerifiedAt: .now,
-                    agreementAcceptedAt: .now
-                )
-            )
+            // Apple Pay hasn't opened yet, so an order that never answers charged nothing.
+            let response = if let orderTimeout {
+                try await withDeadline(.now + orderTimeout) {
+                    try await coinbase.createOrder(request: request)
+                }
+            } else {
+                try await coinbase.createOrder(request: request)
+            }
             // A stuck deposit must be traceable with Coinbase from the log alone.
             logger.info("Coinbase order created", metadata: [
                 "orderId": "\(response.order.orderId)",

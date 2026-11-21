@@ -364,8 +364,12 @@ public nonisolated struct OnrampOrderStatusResponse: Decodable, Sendable {
 
     public let order: Order
 
-    /// Whether Coinbase ended the order without delivering it.
-    public var isFailed: Bool { Self.isFailed(status: order.status) }
+    /// Whether Coinbase ended the order without delivering it. A transaction hash means it delivered,
+    /// whatever the status says.
+    public var isFailed: Bool {
+        if let txHash = order.txHash, !txHash.isEmpty { return false }
+        return Self.isFailed(status: order.status)
+    }
 
     /// Whether `status` is one Coinbase ends an undelivered order with.
     static func isFailed(status: String) -> Bool {

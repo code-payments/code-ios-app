@@ -98,6 +98,13 @@ struct CollectionTopUpOrderLookupTests {
         #expect(response.order.txHash == nil)
     }
 
+    @Test("An order with a transaction hash was delivered, whatever its status says")
+    func txHashIsNotFailed() throws {
+        let json = #"{"order":{"orderId":"cb-1","status":"ONRAMP_ORDER_STATUS_FAILED","txHash":"sig"}}"#
+        let response = try JSONDecoder().decode(OnrampOrderStatusResponse.self, from: Data(json.utf8))
+        #expect(!response.isFailed)
+    }
+
     @Test("The lookup is failed only when Coinbase reads the order back as failed")
     func lookupReadsFailed() async {
         let ordering = MockOnrampOrdering()
@@ -128,8 +135,9 @@ struct CollectionTopUpOrderLookupTests {
         #expect(ContinuousClock.now - started < .seconds(10))
     }
 
-    @Test("Reading an order back has a 15 s limit, and an authorized payment waits 60 s for Coinbase to commit it")
+    @Test("Placing an order has a 60 s limit, reading one back 15 s, and an authorized payment waits 60 s for Coinbase to commit it")
     func timeouts() {
+        #expect(SessionCollectionTopUpper.orderTimeout == .seconds(60))
         #expect(SessionCollectionTopUpper.orderLookupTimeout == .seconds(15))
         #expect(SessionCollectionTopUpper.authorizationTimeout == .seconds(60))
     }
