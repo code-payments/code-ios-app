@@ -54,15 +54,29 @@ struct PaymentRequestCollectionFundingTests {
             if let balancesAfterStart { balancesAfterRefresh = balancesAfterStart }
         }
 
-        func pendingSwaps() async throws -> [PendingCollectionSwap] { [] }
+        /// What GetPendingSwaps lists.
+        var pending: [PendingCollectionSwap] = []
+        /// Each swap funded under the id GetPendingSwaps recorded for it, in order.
+        var funded: [SwapId] = []
+        /// Replaces `balancesAfterRefresh` when a swap is funded, so the refresh after it reads what
+        /// that swap delivered.
+        var balancesAfterFund: [PublicKey: UInt64]?
 
-        func fund(_ pending: PendingCollectionSwap, fundingIntentID: PublicKey, currency: CurrencyCode) async throws {}
+        func pendingSwaps() async throws -> [PendingCollectionSwap] { pending }
+
+        func fund(_ pending: PendingCollectionSwap, fundingIntentID: PublicKey, currency: CurrencyCode) async throws {
+            funded.append(pending.swapID)
+            states[pending.swapID] = .funding
+            if let balancesAfterFund { balancesAfterRefresh = balancesAfterFund }
+        }
 
         func state(of swapID: SwapId) async throws -> SwapState? { states[swapID] }
 
         func waitForTerminalState(of swapID: SwapId) async throws -> SwapState {
             if cancelsWait { withUnsafeCurrentTask { $0?.cancel() } }
             if let waitError { throw waitError }
+            // A swap whose funding never landed doesn't move.
+            if states[swapID] == .created { return .created }
             return waitResult
         }
 
@@ -1018,6 +1032,71 @@ struct PaymentRequestCollectionFundingTests {
         #expect(record.baselineUSD == Decimal(string: "9.5")!)
         #expect(f.payer.payments.count == 1)
         #expect(f.swapper.submitted.count == 1)
+    }
+
+    /// 200 Jeffy: enough to convert, too little to pay $10 alongside $4 of Dollars.
+    private static let someJeffy: UInt64 = 2_000_000_000_000
+
+    /// Keeps a swap from Jeffy into Dollars that an earlier attempt started and whose funding never
+    /// landed: the server holds it CREATED, its Jeffy is still in the wallet, and GetPendingSwaps
+    /// lists it under the funding id it was started with. Returns its id.
+    private func keepSwapUnfunded(_ f: Fixture) -> SwapId {
+        let ids = CollectionFundingStore.LegIDs(swapID: .generate(), fundingIntentID: PublicKey.generate()!)
+        f.fundingStore.setLegIDs(ids, for: requestID, source: PublicKey.jeffy.base58, destination: PublicKey.usdf.base58)
+        f.swapper.states[ids.swapID] = .created
+        f.swapper.pending = [
+            PendingCollectionSwap(swapID: ids.swapID, fundingIntentID: ids.fundingIntentID, fromMint: .jeffy, toMint: .usdf, fundingQuarks: Self.someJeffy),
+        ]
+        return ids.swapID
+    }
+
+    @Test("A retry funds a CREATED kept swap before Apple Pay opens; once it lands, the top-up is the one the sheet showed and its baseline counts the swap's Dollars")
+    func createdKeptSwapFundedBeforeTopUp() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.someJeffy)
+        let kept = keepSwapUnfunded(f)
+        #expect(await f.payment.prepare() == .ready)
+        #expect(f.payment.fundingPlan?.topUpMicros == 5_000_000)
+
+        // Its Jeffy turns into $2 of Dollars; the $4 shortfall left still takes the $5 minimum.
+        f.swapper.balancesAfterFund = [.usdf: 6_000_000, .jeffy: 0]
+        f.topUpper.delivered = 5
+        var fundedWhileOrdering: [SwapId]?
+        var recordWhileOrdering: CollectionFundingStore.PendingTopUp?
+        f.topUpper.whileOrdering = {
+            fundedWhileOrdering = f.swapper.funded
+            recordWhileOrdering = f.fundingStore.pendingTopUp(for: requestID)
+        }
+        #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .success)
+
+        #expect(fundedWhileOrdering == [kept])
+        #expect(f.topUpper.orders.map(\.amountUSD) == [5])
+        let record = try #require(recordWhileOrdering)
+        #expect(record.baselineUSD == 6)
+        #expect(f.swapper.funded == [kept])
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.payer.payments.count == 1)
+        #expect(keptSwapID(f) == nil)
+    }
+
+    @Test("A retry sizes the top-up after its CREATED kept swap lands: one that lands short orders nothing and returns the short state with the new amount")
+    func createdKeptSwapLandsShort() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.someJeffy)
+        let kept = keepSwapUnfunded(f)
+        #expect(await f.payment.prepare() == .ready)
+        #expect(f.payment.fundingPlan?.topUpMicros == 5_000_000)
+
+        // The price fell before it landed: it delivers $0.50, leaving a $5.50 shortfall.
+        f.swapper.balancesAfterFund = [.usdf: 4_500_000, .jeffy: 0]
+        #expect(await f.payment.addAndPay(topUpMicros: 5_000_000) == .short)
+
+        #expect(f.swapper.funded == [kept])
+        #expect(f.swapper.submitted.isEmpty)
+        #expect(f.topUpper.orders.isEmpty)
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
+        #expect(f.payer.payments.isEmpty)
+        #expect(f.payment.fundingPlan?.topUpMicros == 5_500_000)
+        #expect(f.container.session.dialogItem == nil)
+        #expect(keptSwapID(f) == nil)
     }
 
     @Test("A retry whose kept swap was cancelled reads the returned funds before sizing, and pays without opening Apple Pay")

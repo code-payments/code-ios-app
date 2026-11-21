@@ -467,11 +467,12 @@ final class PaymentRequestPayment {
         }
         // Checked before Apple Pay opens, so a payment the limit stops charges nothing.
         guard !exceedsSendLimit(fiat) else { return .failed }
-        // A swap an earlier attempt kept may still land its Dollars, so it settles before the
-        // top-up is sized or its baseline read; otherwise the user pays for money on its way.
+        // A swap an earlier attempt kept may still land its Dollars, and one the server holds
+        // unfunded is funded now, so each settles before the top-up is sized or its baseline read;
+        // otherwise the user pays for money on its way.
         // The sheet closing during that wait stops the run: nothing is paid or ordered, and no
         // dialog shows over what's on screen now.
-        switch await fundingExecutor.settleKeptSwaps(for: requestID) {
+        switch await fundingExecutor.settleKeptSwaps(for: requestID, currency: fiat.currency) {
         case .nothingKept:
             break
         case .settled:

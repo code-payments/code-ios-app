@@ -677,40 +677,92 @@ struct CollectionFundingExecutorTests {
 
     // MARK: - Settling kept swaps before a top-up
 
-    /// Settles what a store holding one swap kept from Jeffy into Dollars came to, with the server
-    /// reporting `state` for it.
+    /// Settles what a store holding `kept`, a swap from Jeffy into Dollars, came to, with the server
+    /// reporting `state` for it and GetPendingSwaps listing `pending`.
     private func settleKept(
         serverState state: SwapState?,
-        waitResult: SwapState = .finalized
+        waitResult: SwapState = .finalized,
+        kept: CollectionFundingStore.LegIDs? = nil,
+        pending: [PendingCollectionSwap] = [],
+        fundError: Error? = nil
     ) async -> (result: CollectionFundingExecutor.KeptSettlement, swapper: FakeSwapper, store: CollectionFundingStore, kept: CollectionFundingStore.LegIDs) {
         let store = makeStore()
-        let kept = freshIDs()
+        let kept = kept ?? freshIDs()
         store.setLegIDs(kept, for: requestID, source: jeffy.base58, destination: dollars)
         let swapper = FakeSwapper()
         swapper.serverStates[kept.swapID] = state
         swapper.waitResult = waitResult
-        let result = await CollectionFundingExecutor(swapper: swapper, store: store).settleKeptSwaps(for: requestID)
+        swapper.pending = pending
+        swapper.fundError = fundError
+        let result = await CollectionFundingExecutor(swapper: swapper, store: store).settleKeptSwaps(for: requestID, currency: .usd)
         return (result, swapper, store, kept)
     }
 
     @Test("Settling with no swap kept reads nothing")
     func settleNothingKept() async {
         let swapper = FakeSwapper()
-        let result = await CollectionFundingExecutor(swapper: swapper, store: makeStore()).settleKeptSwaps(for: requestID)
+        let result = await CollectionFundingExecutor(swapper: swapper, store: makeStore()).settleKeptSwaps(for: requestID, currency: .usd)
 
         #expect(result == .nothingKept)
         #expect(swapper.events.isEmpty)
     }
 
-    @Test("Settling leaves a kept swap the server never saw or holds unfunded kept and unfunded, and reads the balances", arguments: [SwapState?.none, .created])
-    func settleLeavesUnfundedKept(_ state: SwapState?) async {
-        let r = await settleKept(serverState: state)
+    @Test("Settling leaves a kept swap the server never saw kept and unstarted, and reads the balances")
+    func settleLeavesUnseenKept() async {
+        let r = await settleKept(serverState: nil)
 
         #expect(r.result == .settled)
         #expect(r.swapper.events == ["state", "refresh"])
         #expect(r.swapper.funded.isEmpty)
         #expect(r.swapper.started.isEmpty)
         #expect(r.store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == r.kept)
+    }
+
+    @Test("Settling funds a CREATED kept swap under the funding id the server recorded, waits for it to land, then forgets it and reads the balances")
+    func settleFundsCreatedKept() async {
+        let kept = freshIDs()
+        let recorded = PublicKey.generate()!
+        let r = await settleKept(serverState: .created, kept: kept, pending: [pendingSwap(kept.swapID, fundingIntentID: recorded)])
+
+        #expect(r.result == .settled)
+        #expect(r.swapper.events == ["state", "pending", "fund", "wait", "refresh"])
+        #expect(r.swapper.funded.map(\.fundingIntentID) == [recorded])
+        #expect(r.swapper.started.isEmpty)
+        #expect(r.store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == nil)
+    }
+
+    @Test("Settling a CREATED kept swap that is funded but hasn't settled by the end of the wait stops on pending, keeps its ids and reads no balances")
+    func settleStopsOnFundedCreatedKept() async {
+        let kept = freshIDs()
+        let r = await settleKept(serverState: .created, waitResult: .funding, kept: kept, pending: [pendingSwap(kept.swapID, fundingIntentID: kept.fundingIntentID)])
+
+        #expect(r.result == .pending)
+        #expect(r.swapper.events == ["state", "pending", "fund", "wait"])
+        #expect(r.store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == kept)
+    }
+
+    @Test("Settling a CREATED kept swap whose funding is refused fails, keeps its ids, and starts nothing")
+    func settleFailsOnRefusedCreatedFunding() async {
+        let kept = freshIDs()
+        let r = await settleKept(serverState: .created, kept: kept, pending: [pendingSwap(kept.swapID, fundingIntentID: kept.fundingIntentID)], fundError: TestError())
+
+        #expect(r.result == .failed)
+        #expect(r.swapper.events == ["state", "pending", "fund"])
+        #expect(r.swapper.started.isEmpty)
+        #expect(r.store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == kept)
+    }
+
+    @Test("Settling a CREATED kept swap that GetPendingSwaps doesn't list with a funding id submits nothing and waits on it", arguments: [false, true])
+    func settleWaitsOnUnlistedCreatedKept(listedWithoutFundingID: Bool) async {
+        let kept = freshIDs()
+        let pending = listedWithoutFundingID ? [pendingSwap(kept.swapID, fundingIntentID: nil)] : []
+        let r = await settleKept(serverState: .created, kept: kept, pending: pending)
+
+        #expect(r.result == .settled)
+        #expect(r.swapper.events == ["state", "pending", "wait", "refresh"])
+        #expect(r.swapper.funded.isEmpty)
+        #expect(r.swapper.started.isEmpty)
+        #expect(r.store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == nil)
     }
 
     @Test("Settling forgets a kept swap that already failed or was cancelled, and reads the balances its funds came back to", arguments: [SwapState.failed, .cancelled])
