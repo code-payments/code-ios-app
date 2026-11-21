@@ -1,0 +1,3674 @@
+{
+  "algorithm": "collection-funding",
+  "source": "docs/specs/group-collections.md (Funding a payment); Developer Notes node 14024:474; frames in sections 13961:399, 13982:78, 13956:56, 13956:101, 13952:57, 13996:199, 13973:78, 14004:320, 14012:375; 2026-11-19",
+  "note": "Amounts are integer fiat micros (1e-6 of the request currency's major unit). fee = round(x * bps / 10000), gross_up = round(n / (1 - bps / 10000)), both half-up on micros. A balance under dust_floor_micros (half the minor unit) never funds. Funding order: selected, Dollars, others by balance ascending then id. legs, and the modal fee, describe the plan after any top-up. Display strings are the en-US English baseline in USD; Android says Google Pay where these say Apple Pay.",
+  "constants": {
+    "dollars_fee_bps": 0,
+    "house_sell_fee_bps": 100,
+    "min_top_up_micros": 5000000,
+    "minor_digits": 2,
+    "dust_floor_micros": 5000
+  },
+  "cases": [
+    {
+      "name": "s1-no-balance",
+      "frames": "1.1-1.4",
+      "note": "No balance at all. The top-up is the whole amount, above the minimum.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": []
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 10000000,
+        "top_up_micros": 10000000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 10000000,
+            "fee_micros": 0,
+            "delivered_micros": 10000000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 10000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $10.00 Short",
+        "add_button": "Add $10.00 and Pay $10.00",
+        "top_up": "$10.00",
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$10.00",
+              "sublabels": [
+                "$10.00 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.00"
+          }
+        }
+      },
+      "divergences": [
+        "1.1 goes straight to Apple Pay from a 'Pay $10.00' button with no modal and no 'Short' line, and 1.2's sheet label is blank; this model gives 'Add $10.00 and Pay $10.00' and 'You’re $10.00 Short'. Open with design."
+      ]
+    },
+    {
+      "name": "s2-min-top-up",
+      "frames": "2.1-2.4",
+      "note": "Zero Dollars, amount under the minimum: add $5.00, pay $2.00, $3.00 stays in Dollars.",
+      "input": {
+        "amount_micros": 2000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 0,
+            "sell_fee_bps": 0
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 2000000,
+        "top_up_micros": 5000000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 2000000,
+            "fee_micros": 0,
+            "delivered_micros": 2000000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $2.00 Short",
+        "add_button": "Add $5.00 and Pay $2.00",
+        "top_up": "$5.00",
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$2.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$2.00",
+              "sublabels": [
+                "$2.00 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$2.00"
+          }
+        }
+      },
+      "divergences": [
+        "2.1 has no payment modal, so no 'Short' line is drawn; the request screen's button carries the add copy."
+      ]
+    },
+    {
+      "name": "s3-sufficient-dollars",
+      "frames": "3.2",
+      "note": "Dollars cover it; no conversion, no fee line.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 12000000,
+            "sell_fee_bps": 0
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 10000000,
+            "fee_micros": 0,
+            "delivered_micros": 10000000,
+            "from_balance_micros": 10000000,
+            "from_top_up_micros": 0
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$10.00",
+              "sublabels": []
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "s4-add-then-pay",
+      "frames": "4.2, 4.3",
+      "note": "Dollars $6.00 is $4.00 short; the $5.00 minimum leaves $1.00 of the top-up unused.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 6000000,
+            "sell_fee_bps": 0
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 4000000,
+        "top_up_micros": 5000000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 10000000,
+            "fee_micros": 0,
+            "delivered_micros": 10000000,
+            "from_balance_micros": 6000000,
+            "from_top_up_micros": 4000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $4.00 Short",
+        "add_button": "Add $5.00 and Pay $10.00",
+        "top_up": "$5.00",
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$10.00",
+              "sublabels": [
+                "$6.00 from balance",
+                "$4.00 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "s5-s6-convert-shortfall",
+      "frames": "5.2, 5.3, 6.2",
+      "note": "Dollars first, then only the $2.00 still needed is sold from Jeffy. Jeffy $6.00 is the balance section 6 implies.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 6000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 20202,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 8000000,
+            "fee_micros": 0,
+            "delivered_micros": 8000000,
+            "from_balance_micros": 8000000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 2020202,
+            "fee_micros": 20202,
+            "delivered_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.02 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$8.00",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$2.02",
+              "sublabels": [
+                "~$0.02 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.02"
+          }
+        }
+      }
+    },
+    {
+      "name": "s6-pay-in-jeffy",
+      "frames": "6.4, 6.5",
+      "note": "Same wallet, Jeffy selected: Jeffy first, then Dollars convert into Jeffy for free.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": "jeffy",
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 6000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "jeffy",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "jeffy",
+            "conversion": false,
+            "sold_micros": 6000000,
+            "fee_micros": 0,
+            "delivered_micros": 6000000
+          },
+          {
+            "source": "dollars",
+            "conversion": true,
+            "sold_micros": 4000000,
+            "fee_micros": 0,
+            "delivered_micros": 4000000,
+            "from_balance_micros": 4000000,
+            "from_top_up_micros": 0
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "no conversion fees",
+        "details": {
+          "pay": {
+            "name": "Jeffy",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Jeffy",
+              "amount": "$6.00",
+              "sublabels": []
+            },
+            {
+              "name": "Dollars",
+              "amount": "$4.00",
+              "sublabels": []
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "s7-short-under-min",
+      "frames": "7.2, 7.3",
+      "note": "Fitted wallet for section 7 alone: 11 - 6 - 0.99 x 2.99 = 2.0399, short $2.04. The $5.00 top-up makes Dollars $11.00, so nothing converts and Jeffy is untouched.",
+      "input": {
+        "amount_micros": 11000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 6000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2990000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 2039900,
+        "top_up_micros": 5000000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 11000000,
+            "fee_micros": 0,
+            "delivered_micros": 11000000,
+            "from_balance_micros": 6000000,
+            "from_top_up_micros": 5000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $2.04 Short",
+        "add_button": "Add $5.00 and Pay $11.00",
+        "top_up": "$5.00",
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$11.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$11.00",
+              "sublabels": [
+                "$6.00 from balance",
+                "$5.00 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$11.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "s8-short-over-min",
+      "frames": "8.2, 8.3",
+      "note": "Fitted wallet for section 8 alone: Jeffy + Dollars = 5.01 and an undrawn third currency Other = 3.99; 21 - 5.01 - 0.99 x 3.99 = 12.0399, short $12.04, top-up $12.04. Other is then sold partly, fee ~$0.04. Does not share a wallet with section 7.",
+      "input": {
+        "amount_micros": 21000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": "jeffy",
+        "balances": [
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 3000000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 2010000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "kind": "community",
+            "fiat_micros": 3990000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "jeffy",
+        "payable_without_top_up": false,
+        "shortfall_micros": 12039900,
+        "top_up_micros": 12040000,
+        "total_fee_micros": 39899,
+        "legs": [
+          {
+            "source": "jeffy",
+            "conversion": false,
+            "sold_micros": 3000000,
+            "fee_micros": 0,
+            "delivered_micros": 3000000
+          },
+          {
+            "source": "dollars",
+            "conversion": true,
+            "sold_micros": 14050000,
+            "fee_micros": 0,
+            "delivered_micros": 14050000,
+            "from_balance_micros": 2010000,
+            "from_top_up_micros": 12040000
+          },
+          {
+            "source": "other",
+            "conversion": true,
+            "sold_micros": 3989899,
+            "fee_micros": 39899,
+            "delivered_micros": 3950000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $12.04 Short",
+        "add_button": "Add $12.04 and Pay $21.00",
+        "top_up": "$12.04",
+        "modal_fee": "plus ~$0.04 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Jeffy",
+            "amount": "$21.00"
+          },
+          "use": [
+            {
+              "name": "Jeffy",
+              "amount": "$3.00",
+              "sublabels": []
+            },
+            {
+              "name": "Dollars",
+              "amount": "$14.05",
+              "sublabels": [
+                "$2.01 from balance",
+                "$12.04 from Apple Pay"
+              ]
+            },
+            {
+              "name": "Other",
+              "amount": "$3.99",
+              "sublabels": [
+                "~$0.04 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$21.04"
+          }
+        }
+      }
+    },
+    {
+      "name": "s9-many-small-balances",
+      "frames": "9.2, 9.3",
+      "note": "Zero Dollars and 29 community balances. Smallest first: Jeffy 29 up to Jeffy 2 drain, Jeffy 1 (balance not drawn, $1.00 here) is sold for the rest. Display runs largest first.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 0,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy-01",
+            "name": "Jeffy 1",
+            "kind": "community",
+            "fiat_micros": 1000000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-02",
+            "name": "Jeffy 2",
+            "kind": "community",
+            "fiat_micros": 610000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-03",
+            "name": "Jeffy 3",
+            "kind": "community",
+            "fiat_micros": 580000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-04",
+            "name": "Jeffy 4",
+            "kind": "community",
+            "fiat_micros": 560000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-05",
+            "name": "Jeffy 5",
+            "kind": "community",
+            "fiat_micros": 540000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-06",
+            "name": "Jeffy 6",
+            "kind": "community",
+            "fiat_micros": 520000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-07",
+            "name": "Jeffy 7",
+            "kind": "community",
+            "fiat_micros": 500000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-08",
+            "name": "Jeffy 8",
+            "kind": "community",
+            "fiat_micros": 480000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-09",
+            "name": "Jeffy 9",
+            "kind": "community",
+            "fiat_micros": 460000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-10",
+            "name": "Jeffy 10",
+            "kind": "community",
+            "fiat_micros": 440000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-11",
+            "name": "Jeffy 11",
+            "kind": "community",
+            "fiat_micros": 420000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-12",
+            "name": "Jeffy 12",
+            "kind": "community",
+            "fiat_micros": 400000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-13",
+            "name": "Jeffy 13",
+            "kind": "community",
+            "fiat_micros": 380000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-14",
+            "name": "Jeffy 14",
+            "kind": "community",
+            "fiat_micros": 360000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-15",
+            "name": "Jeffy 15",
+            "kind": "community",
+            "fiat_micros": 340000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-16",
+            "name": "Jeffy 16",
+            "kind": "community",
+            "fiat_micros": 320000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-17",
+            "name": "Jeffy 17",
+            "kind": "community",
+            "fiat_micros": 300000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-18",
+            "name": "Jeffy 18",
+            "kind": "community",
+            "fiat_micros": 280000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-19",
+            "name": "Jeffy 19",
+            "kind": "community",
+            "fiat_micros": 260000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-20",
+            "name": "Jeffy 20",
+            "kind": "community",
+            "fiat_micros": 240000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-21",
+            "name": "Jeffy 21",
+            "kind": "community",
+            "fiat_micros": 220000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-22",
+            "name": "Jeffy 22",
+            "kind": "community",
+            "fiat_micros": 200000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-23",
+            "name": "Jeffy 23",
+            "kind": "community",
+            "fiat_micros": 180000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-24",
+            "name": "Jeffy 24",
+            "kind": "community",
+            "fiat_micros": 160000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-25",
+            "name": "Jeffy 25",
+            "kind": "community",
+            "fiat_micros": 140000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-26",
+            "name": "Jeffy 26",
+            "kind": "community",
+            "fiat_micros": 130000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-27",
+            "name": "Jeffy 27",
+            "kind": "community",
+            "fiat_micros": 110000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-28",
+            "name": "Jeffy 28",
+            "kind": "community",
+            "fiat_micros": 90000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy-29",
+            "name": "Jeffy 29",
+            "kind": "community",
+            "fiat_micros": 70000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 101010,
+        "legs": [
+          {
+            "source": "jeffy-29",
+            "conversion": true,
+            "sold_micros": 70000,
+            "fee_micros": 700,
+            "delivered_micros": 69300
+          },
+          {
+            "source": "jeffy-28",
+            "conversion": true,
+            "sold_micros": 90000,
+            "fee_micros": 900,
+            "delivered_micros": 89100
+          },
+          {
+            "source": "jeffy-27",
+            "conversion": true,
+            "sold_micros": 110000,
+            "fee_micros": 1100,
+            "delivered_micros": 108900
+          },
+          {
+            "source": "jeffy-26",
+            "conversion": true,
+            "sold_micros": 130000,
+            "fee_micros": 1300,
+            "delivered_micros": 128700
+          },
+          {
+            "source": "jeffy-25",
+            "conversion": true,
+            "sold_micros": 140000,
+            "fee_micros": 1400,
+            "delivered_micros": 138600
+          },
+          {
+            "source": "jeffy-24",
+            "conversion": true,
+            "sold_micros": 160000,
+            "fee_micros": 1600,
+            "delivered_micros": 158400
+          },
+          {
+            "source": "jeffy-23",
+            "conversion": true,
+            "sold_micros": 180000,
+            "fee_micros": 1800,
+            "delivered_micros": 178200
+          },
+          {
+            "source": "jeffy-22",
+            "conversion": true,
+            "sold_micros": 200000,
+            "fee_micros": 2000,
+            "delivered_micros": 198000
+          },
+          {
+            "source": "jeffy-21",
+            "conversion": true,
+            "sold_micros": 220000,
+            "fee_micros": 2200,
+            "delivered_micros": 217800
+          },
+          {
+            "source": "jeffy-20",
+            "conversion": true,
+            "sold_micros": 240000,
+            "fee_micros": 2400,
+            "delivered_micros": 237600
+          },
+          {
+            "source": "jeffy-19",
+            "conversion": true,
+            "sold_micros": 260000,
+            "fee_micros": 2600,
+            "delivered_micros": 257400
+          },
+          {
+            "source": "jeffy-18",
+            "conversion": true,
+            "sold_micros": 280000,
+            "fee_micros": 2800,
+            "delivered_micros": 277200
+          },
+          {
+            "source": "jeffy-17",
+            "conversion": true,
+            "sold_micros": 300000,
+            "fee_micros": 3000,
+            "delivered_micros": 297000
+          },
+          {
+            "source": "jeffy-16",
+            "conversion": true,
+            "sold_micros": 320000,
+            "fee_micros": 3200,
+            "delivered_micros": 316800
+          },
+          {
+            "source": "jeffy-15",
+            "conversion": true,
+            "sold_micros": 340000,
+            "fee_micros": 3400,
+            "delivered_micros": 336600
+          },
+          {
+            "source": "jeffy-14",
+            "conversion": true,
+            "sold_micros": 360000,
+            "fee_micros": 3600,
+            "delivered_micros": 356400
+          },
+          {
+            "source": "jeffy-13",
+            "conversion": true,
+            "sold_micros": 380000,
+            "fee_micros": 3800,
+            "delivered_micros": 376200
+          },
+          {
+            "source": "jeffy-12",
+            "conversion": true,
+            "sold_micros": 400000,
+            "fee_micros": 4000,
+            "delivered_micros": 396000
+          },
+          {
+            "source": "jeffy-11",
+            "conversion": true,
+            "sold_micros": 420000,
+            "fee_micros": 4200,
+            "delivered_micros": 415800
+          },
+          {
+            "source": "jeffy-10",
+            "conversion": true,
+            "sold_micros": 440000,
+            "fee_micros": 4400,
+            "delivered_micros": 435600
+          },
+          {
+            "source": "jeffy-09",
+            "conversion": true,
+            "sold_micros": 460000,
+            "fee_micros": 4600,
+            "delivered_micros": 455400
+          },
+          {
+            "source": "jeffy-08",
+            "conversion": true,
+            "sold_micros": 480000,
+            "fee_micros": 4800,
+            "delivered_micros": 475200
+          },
+          {
+            "source": "jeffy-07",
+            "conversion": true,
+            "sold_micros": 500000,
+            "fee_micros": 5000,
+            "delivered_micros": 495000
+          },
+          {
+            "source": "jeffy-06",
+            "conversion": true,
+            "sold_micros": 520000,
+            "fee_micros": 5200,
+            "delivered_micros": 514800
+          },
+          {
+            "source": "jeffy-05",
+            "conversion": true,
+            "sold_micros": 540000,
+            "fee_micros": 5400,
+            "delivered_micros": 534600
+          },
+          {
+            "source": "jeffy-04",
+            "conversion": true,
+            "sold_micros": 560000,
+            "fee_micros": 5600,
+            "delivered_micros": 554400
+          },
+          {
+            "source": "jeffy-03",
+            "conversion": true,
+            "sold_micros": 580000,
+            "fee_micros": 5800,
+            "delivered_micros": 574200
+          },
+          {
+            "source": "jeffy-02",
+            "conversion": true,
+            "sold_micros": 610000,
+            "fee_micros": 6100,
+            "delivered_micros": 603900
+          },
+          {
+            "source": "jeffy-01",
+            "conversion": true,
+            "sold_micros": 811010,
+            "fee_micros": 8110,
+            "delivered_micros": 802900
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.10 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Jeffy 1",
+              "amount": "$0.81",
+              "sublabels": [
+                "~$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 2",
+              "amount": "$0.61",
+              "sublabels": [
+                "~$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 3",
+              "amount": "$0.58",
+              "sublabels": [
+                "~$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 4",
+              "amount": "$0.56",
+              "sublabels": [
+                "~$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 5",
+              "amount": "$0.54",
+              "sublabels": [
+                "~$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 6",
+              "amount": "$0.52",
+              "sublabels": [
+                "~$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 7",
+              "amount": "$0.50",
+              "sublabels": [
+                "~$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 8",
+              "amount": "$0.48",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 9",
+              "amount": "$0.46",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 10",
+              "amount": "$0.44",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 11",
+              "amount": "$0.42",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 12",
+              "amount": "$0.40",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 13",
+              "amount": "$0.38",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 14",
+              "amount": "$0.36",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 15",
+              "amount": "$0.34",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 16",
+              "amount": "$0.32",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 17",
+              "amount": "$0.30",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 18",
+              "amount": "$0.28",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 19",
+              "amount": "$0.26",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 20",
+              "amount": "$0.24",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 21",
+              "amount": "$0.22",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 22",
+              "amount": "$0.20",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 23",
+              "amount": "$0.18",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 24",
+              "amount": "$0.16",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 25",
+              "amount": "$0.14",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 26",
+              "amount": "$0.13",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 27",
+              "amount": "$0.11",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 28",
+              "amount": "$0.09",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Jeffy 29",
+              "amount": "$0.07",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.10"
+          }
+        }
+      },
+      "divergences": [
+        "9.3 draws the total as 'Total Used' '~$10.10' (clipped); this model gives 'Total' '$10.10' as 5.3, 6.5 and 7.3 do. Open with design."
+      ]
+    },
+    {
+      "name": "exact-dollars",
+      "frames": null,
+      "note": "Dollars equal the amount; the Jeffy balance is never touched.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 10000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 5000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 10000000,
+            "fee_micros": 0,
+            "delivered_micros": 10000000,
+            "from_balance_micros": 10000000,
+            "from_top_up_micros": 0
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$10.00",
+              "sublabels": []
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "exact-drain",
+      "frames": null,
+      "note": "Jeffy's spendable value is exactly what is left: 2.020202 - fee 0.020202 = 2.000000.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2020202,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 20202,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 8000000,
+            "fee_micros": 0,
+            "delivered_micros": 8000000,
+            "from_balance_micros": 8000000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 2020202,
+            "fee_micros": 20202,
+            "delivered_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.02 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$8.00",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$2.02",
+              "sublabels": [
+                "~$0.02 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.02"
+          }
+        }
+      }
+    },
+    {
+      "name": "one-micro-short",
+      "frames": null,
+      "note": "One micro less than exact-drain. Short by a micro, shown as $0.01, top-up $5.00, and the replan needs no conversion.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2020201,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 1,
+        "top_up_micros": 5000000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 10000000,
+            "fee_micros": 0,
+            "delivered_micros": 10000000,
+            "from_balance_micros": 8000000,
+            "from_top_up_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $0.01 Short",
+        "add_button": "Add $5.00 and Pay $10.00",
+        "top_up": "$5.00",
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$10.00",
+              "sublabels": [
+                "$8.00 from balance",
+                "$2.00 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "zero-balance-amount-at-min",
+      "frames": null,
+      "note": "No balances; the amount equals the minimum.",
+      "input": {
+        "amount_micros": 5000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": []
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 5000000,
+        "top_up_micros": 5000000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 5000000,
+            "fee_micros": 0,
+            "delivered_micros": 5000000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 5000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $5.00 Short",
+        "add_button": "Add $5.00 and Pay $5.00",
+        "top_up": "$5.00",
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$5.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$5.00",
+              "sublabels": [
+                "$5.00 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$5.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "sub-cent-fee",
+      "frames": null,
+      "note": "Selling $0.303030 costs $0.003030, shown as <$0.01.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 9700000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 5000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 3030,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 9700000,
+            "fee_micros": 0,
+            "delivered_micros": 9700000,
+            "from_balance_micros": 9700000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 303030,
+            "fee_micros": 3030,
+            "delivered_micros": 300000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus <$0.01 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$9.70",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$0.30",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "exact-cent-fee",
+      "frames": null,
+      "note": "Selling $4.00 costs exactly $0.04, so no '~'.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 6040000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 10000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 40000,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 6040000,
+            "fee_micros": 0,
+            "delivered_micros": 6040000,
+            "from_balance_micros": 6040000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 4000000,
+            "fee_micros": 40000,
+            "delivered_micros": 3960000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus $0.04 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$6.04",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$4.00",
+              "sublabels": [
+                "$0.04 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.04"
+          }
+        }
+      }
+    },
+    {
+      "name": "half-cent-tie-leg",
+      "frames": null,
+      "note": "The leg's fee is exactly $0.005 and rounds half-up to ~$0.01. The Dollars row ($9.505) and the total ($10.005) are ties too.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 9505000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 5000,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 9505000,
+            "fee_micros": 0,
+            "delivered_micros": 9505000,
+            "from_balance_micros": 9505000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 500000,
+            "fee_micros": 5000,
+            "delivered_micros": 495000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.01 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$9.51",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$0.50",
+              "sublabels": [
+                "~$0.01 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.01"
+          }
+        }
+      }
+    },
+    {
+      "name": "half-cent-tie-combined",
+      "frames": null,
+      "note": "Two legs at $0.0025 each: each row shows <$0.01, the combined $0.005 rounds to ~$0.01.",
+      "input": {
+        "amount_micros": 1000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 505000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "alpha",
+            "name": "Alpha",
+            "kind": "community",
+            "fiat_micros": 250000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "beta",
+            "name": "Beta",
+            "kind": "community",
+            "fiat_micros": 250000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 5000,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 505000,
+            "fee_micros": 0,
+            "delivered_micros": 505000,
+            "from_balance_micros": 505000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "alpha",
+            "conversion": true,
+            "sold_micros": 250000,
+            "fee_micros": 2500,
+            "delivered_micros": 247500
+          },
+          {
+            "source": "beta",
+            "conversion": true,
+            "sold_micros": 250000,
+            "fee_micros": 2500,
+            "delivered_micros": 247500
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.01 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$1.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$0.51",
+              "sublabels": []
+            },
+            {
+              "name": "Alpha",
+              "amount": "$0.25",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Beta",
+              "amount": "$0.25",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$1.01"
+          }
+        }
+      }
+    },
+    {
+      "name": "selected-zero-balance",
+      "frames": null,
+      "note": "Last paid in Jeffy, which is now empty. Jeffy stays selected; Dollars convert into it free, then Other is sold for the rest.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": "jeffy",
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 3000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 0,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "kind": "community",
+            "fiat_micros": 9000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "jeffy",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 70707,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": true,
+            "sold_micros": 3000000,
+            "fee_micros": 0,
+            "delivered_micros": 3000000,
+            "from_balance_micros": 3000000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "other",
+            "conversion": true,
+            "sold_micros": 7070707,
+            "fee_micros": 70707,
+            "delivered_micros": 7000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.07 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Jeffy",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$3.00",
+              "sublabels": []
+            },
+            {
+              "name": "Other",
+              "amount": "$7.07",
+              "sublabels": [
+                "~$0.07 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.07"
+          }
+        }
+      }
+    },
+    {
+      "name": "selected-zero-no-funds",
+      "frames": null,
+      "note": "Last paid in Jeffy, nothing held. Top up the amount, then Dollars convert into Jeffy free.",
+      "input": {
+        "amount_micros": 7500000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": "jeffy",
+        "balances": [
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 0,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "jeffy",
+        "payable_without_top_up": false,
+        "shortfall_micros": 7500000,
+        "top_up_micros": 7500000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": true,
+            "sold_micros": 7500000,
+            "fee_micros": 0,
+            "delivered_micros": 7500000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 7500000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $7.50 Short",
+        "add_button": "Add $7.50 and Pay $7.50",
+        "top_up": "$7.50",
+        "modal_fee": "no conversion fees",
+        "details": {
+          "pay": {
+            "name": "Jeffy",
+            "amount": "$7.50"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$7.50",
+              "sublabels": [
+                "$7.50 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$7.50"
+          }
+        }
+      }
+    },
+    {
+      "name": "last-paid-not-held",
+      "frames": null,
+      "note": "Last paid in a currency no longer in the wallet. It stays selected and Dollars convert into it.",
+      "input": {
+        "amount_micros": 4000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": "gone",
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 10000000,
+            "sell_fee_bps": 0
+          }
+        ]
+      },
+      "expected": {
+        "selected": "gone",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": true,
+            "sold_micros": 4000000,
+            "fee_micros": 0,
+            "delivered_micros": 4000000,
+            "from_balance_micros": 4000000,
+            "from_top_up_micros": 0
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "no conversion fees",
+        "details": {
+          "pay": {
+            "name": "gone",
+            "amount": "$4.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$4.00",
+              "sublabels": []
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$4.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "user-choice-over-last-paid",
+      "frames": null,
+      "note": "The user picked Dollars after the default (last paid Jeffy) was shown.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": "dollars",
+        "last_paid": "jeffy",
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 6000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 20202,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 8000000,
+            "fee_micros": 0,
+            "delivered_micros": 8000000,
+            "from_balance_micros": 8000000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 2020202,
+            "fee_micros": 20202,
+            "delivered_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.02 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$8.00",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$2.02",
+              "sublabels": [
+                "~$0.02 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.02"
+          }
+        }
+      }
+    },
+    {
+      "name": "equal-balances-by-id",
+      "frames": null,
+      "note": "Three equal balances fund in id order: alpha and bravo drain, charlie is sold partly.",
+      "input": {
+        "amount_micros": 1000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 0,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "charlie",
+            "name": "Charlie",
+            "kind": "community",
+            "fiat_micros": 400000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "alpha",
+            "name": "Alpha",
+            "kind": "community",
+            "fiat_micros": 400000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "bravo",
+            "name": "Bravo",
+            "kind": "community",
+            "fiat_micros": 400000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 10101,
+        "legs": [
+          {
+            "source": "alpha",
+            "conversion": true,
+            "sold_micros": 400000,
+            "fee_micros": 4000,
+            "delivered_micros": 396000
+          },
+          {
+            "source": "bravo",
+            "conversion": true,
+            "sold_micros": 400000,
+            "fee_micros": 4000,
+            "delivered_micros": 396000
+          },
+          {
+            "source": "charlie",
+            "conversion": true,
+            "sold_micros": 210101,
+            "fee_micros": 2101,
+            "delivered_micros": 208000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.01 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$1.00"
+          },
+          "use": [
+            {
+              "name": "Alpha",
+              "amount": "$0.40",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Bravo",
+              "amount": "$0.40",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Charlie",
+              "amount": "$0.21",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$1.01"
+          }
+        }
+      }
+    },
+    {
+      "name": "smallest-first-skips-largest",
+      "frames": null,
+      "note": "Small drains, Mid is sold partly, Big is never touched.",
+      "input": {
+        "amount_micros": 3000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 0,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "big",
+            "name": "Big",
+            "kind": "community",
+            "fiat_micros": 50000000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "small",
+            "name": "Small",
+            "kind": "community",
+            "fiat_micros": 1000000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "mid",
+            "name": "Mid",
+            "kind": "community",
+            "fiat_micros": 2500000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 30303,
+        "legs": [
+          {
+            "source": "small",
+            "conversion": true,
+            "sold_micros": 1000000,
+            "fee_micros": 10000,
+            "delivered_micros": 990000
+          },
+          {
+            "source": "mid",
+            "conversion": true,
+            "sold_micros": 2030303,
+            "fee_micros": 20303,
+            "delivered_micros": 2010000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.03 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$3.00"
+          },
+          "use": [
+            {
+              "name": "Mid",
+              "amount": "$2.03",
+              "sublabels": [
+                "~$0.02 conversion fee"
+              ]
+            },
+            {
+              "name": "Small",
+              "amount": "$1.00",
+              "sublabels": [
+                "$0.01 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$3.03"
+          }
+        }
+      }
+    },
+    {
+      "name": "top-up-exact-cents",
+      "frames": null,
+      "note": "No balances, an amount above the minimum with odd cents.",
+      "input": {
+        "amount_micros": 13370000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": []
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 13370000,
+        "top_up_micros": 13370000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 13370000,
+            "fee_micros": 0,
+            "delivered_micros": 13370000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 13370000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $13.37 Short",
+        "add_button": "Add $13.37 and Pay $13.37",
+        "top_up": "$13.37",
+        "modal_fee": null,
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$13.37"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$13.37",
+              "sublabels": [
+                "$13.37 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$13.37"
+          }
+        }
+      }
+    },
+    {
+      "name": "top-up-ceil-sub-cent",
+      "frames": null,
+      "note": "Short by $6.7033; the top-up rounds up to $6.71, and Jeffy is then sold partly.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 0,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 3330000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 6703300,
+        "top_up_micros": 6710000,
+        "total_fee_micros": 33232,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 6710000,
+            "fee_micros": 0,
+            "delivered_micros": 6710000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 6710000
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 3323232,
+            "fee_micros": 33232,
+            "delivered_micros": 3290000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $6.71 Short",
+        "add_button": "Add $6.71 and Pay $10.00",
+        "top_up": "$6.71",
+        "modal_fee": "plus ~$0.03 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$6.71",
+              "sublabels": [
+                "$6.71 from Apple Pay"
+              ]
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$3.32",
+              "sublabels": [
+                "~$0.03 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.03"
+          }
+        }
+      }
+    },
+    {
+      "name": "top-up-shrinks-conversion",
+      "frames": null,
+      "note": "Before the top-up Jeffy would drain ($8.00, fee $0.08). With $5.00 added only $5.050505 is sold, so the modal shows ~$0.05 from the post-top-up plan.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 2080000,
+        "top_up_micros": 5000000,
+        "total_fee_micros": 50505,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 5000000,
+            "fee_micros": 0,
+            "delivered_micros": 5000000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 5000000
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 5050505,
+            "fee_micros": 50505,
+            "delivered_micros": 5000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $2.08 Short",
+        "add_button": "Add $5.00 and Pay $10.00",
+        "top_up": "$5.00",
+        "modal_fee": "plus ~$0.05 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$5.00",
+              "sublabels": [
+                "$5.00 from Apple Pay"
+              ]
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$5.05",
+              "sublabels": [
+                "~$0.05 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.05"
+          }
+        }
+      }
+    },
+    {
+      "name": "top-up-selected-community",
+      "frames": null,
+      "note": "Paying in Jeffy: Jeffy, then Dollars (balance and top-up) convert into Jeffy free; Other is never sold.",
+      "input": {
+        "amount_micros": 6000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": "jeffy",
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2000000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 1000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "kind": "community",
+            "fiat_micros": 1000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "jeffy",
+        "payable_without_top_up": false,
+        "shortfall_micros": 2010000,
+        "top_up_micros": 5000000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "jeffy",
+            "conversion": false,
+            "sold_micros": 2000000,
+            "fee_micros": 0,
+            "delivered_micros": 2000000
+          },
+          {
+            "source": "dollars",
+            "conversion": true,
+            "sold_micros": 4000000,
+            "fee_micros": 0,
+            "delivered_micros": 4000000,
+            "from_balance_micros": 1000000,
+            "from_top_up_micros": 3000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $2.01 Short",
+        "add_button": "Add $5.00 and Pay $6.00",
+        "top_up": "$5.00",
+        "modal_fee": "no conversion fees",
+        "details": {
+          "pay": {
+            "name": "Jeffy",
+            "amount": "$6.00"
+          },
+          "use": [
+            {
+              "name": "Jeffy",
+              "amount": "$2.00",
+              "sublabels": []
+            },
+            {
+              "name": "Dollars",
+              "amount": "$4.00",
+              "sublabels": [
+                "$1.00 from balance",
+                "$3.00 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$6.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "pool-fee-250-bps",
+      "frames": null,
+      "note": "A pool that declares 250 bps: $2.051282 sold for $2.00.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "kind": "community",
+            "fiat_micros": 5000000,
+            "sell_fee_bps": 250
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 51282,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 8000000,
+            "fee_micros": 0,
+            "delivered_micros": 8000000,
+            "from_balance_micros": 8000000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "other",
+            "conversion": true,
+            "sold_micros": 2051282,
+            "fee_micros": 51282,
+            "delivered_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.05 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$8.00",
+              "sublabels": []
+            },
+            {
+              "name": "Other",
+              "amount": "$2.05",
+              "sublabels": [
+                "~$0.05 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.05"
+          }
+        }
+      }
+    },
+    {
+      "name": "pool-fee-0-bps",
+      "frames": null,
+      "note": "A pool that declares 0 bps: a conversion with no fee.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "kind": "community",
+            "fiat_micros": 5000000,
+            "sell_fee_bps": 0
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 8000000,
+            "fee_micros": 0,
+            "delivered_micros": 8000000,
+            "from_balance_micros": 8000000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "other",
+            "conversion": true,
+            "sold_micros": 2000000,
+            "fee_micros": 0,
+            "delivered_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "no conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$8.00",
+              "sublabels": []
+            },
+            {
+              "name": "Other",
+              "amount": "$2.00",
+              "sublabels": []
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "non-cent-balance-drain",
+      "frames": null,
+      "note": "Jeffy $2.993417 drains (fee $0.029934), then Other is sold for the last $0.036517: gross $0.036886, fee $0.000369.",
+      "input": {
+        "amount_micros": 5000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 2000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2993417,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "other",
+            "name": "Other",
+            "kind": "community",
+            "fiat_micros": 4000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 30303,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 2000000,
+            "fee_micros": 0,
+            "delivered_micros": 2000000,
+            "from_balance_micros": 2000000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 2993417,
+            "fee_micros": 29934,
+            "delivered_micros": 2963483
+          },
+          {
+            "source": "other",
+            "conversion": true,
+            "sold_micros": 36886,
+            "fee_micros": 369,
+            "delivered_micros": 36517
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.03 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$5.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$2.00",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$2.99",
+              "sublabels": [
+                "~$0.03 conversion fee"
+              ]
+            },
+            {
+              "name": "Other",
+              "amount": "$0.04",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$5.03"
+          }
+        }
+      }
+    },
+    {
+      "name": "non-cent-balance-partial",
+      "frames": null,
+      "note": "Jeffy $2.993417 is sold partly: $2.525253, fee $0.025253.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 7500000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2993417,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 25253,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 7500000,
+            "fee_micros": 0,
+            "delivered_micros": 7500000,
+            "from_balance_micros": 7500000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 2525253,
+            "fee_micros": 25253,
+            "delivered_micros": 2500000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.03 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$7.50",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$2.53",
+              "sublabels": [
+                "~$0.03 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.03"
+          }
+        }
+      }
+    },
+    {
+      "name": "half-micro-fee-drain",
+      "frames": null,
+      "note": "Jeffy's fee is a half-micro tie: 1% of $2.993450 is $0.0299345, rounded up to $0.029935, so Jeffy delivers exactly the $2.963515 still needed and drains. round(b x 0.99) gives $2.963516, and a partial sale of gross_up($2.963515) = $2.993449 would sell a micro less.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 7036485,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2993450,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 29935,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 7036485,
+            "fee_micros": 0,
+            "delivered_micros": 7036485,
+            "from_balance_micros": 7036485,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 2993450,
+            "fee_micros": 29935,
+            "delivered_micros": 2963515
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.03 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$7.04",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$2.99",
+              "sublabels": [
+                "~$0.03 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.03"
+          }
+        }
+      }
+    },
+    {
+      "name": "dust-skipped",
+      "frames": null,
+      "note": "Crumb $0.004999 would display as $0.00, so it is dust: no leg and no row, though it is the smallest balance. Jeffy is sold for the $2.00 as in s5-s6-convert-shortfall.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 8000000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "crumb",
+            "name": "Crumb",
+            "kind": "community",
+            "fiat_micros": 4999,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 6000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 20202,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 8000000,
+            "fee_micros": 0,
+            "delivered_micros": 8000000,
+            "from_balance_micros": 8000000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 2020202,
+            "fee_micros": 20202,
+            "delivered_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus ~$0.02 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$8.00",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$2.02",
+              "sublabels": [
+                "~$0.02 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.02"
+          }
+        }
+      }
+    },
+    {
+      "name": "dust-and-short-balance",
+      "frames": null,
+      "note": "Crumb $0.003 is dust and Jeffy $2.999999 spends $2.969999, so the shortfall is $7.030001: short $7.04, top-up $7.04, Jeffy sold partly. Counting Crumb's $0.00297 would give $7.03.",
+      "input": {
+        "amount_micros": 10000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "crumb",
+            "name": "Crumb",
+            "kind": "community",
+            "fiat_micros": 3000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2999999,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": false,
+        "shortfall_micros": 7030001,
+        "top_up_micros": 7040000,
+        "total_fee_micros": 29899,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 7040000,
+            "fee_micros": 0,
+            "delivered_micros": 7040000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 7040000
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 2989899,
+            "fee_micros": 29899,
+            "delivered_micros": 2960000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $7.04 Short",
+        "add_button": "Add $7.04 and Pay $10.00",
+        "top_up": "$7.04",
+        "modal_fee": "plus ~$0.03 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$10.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$7.04",
+              "sublabels": [
+                "$7.04 from Apple Pay"
+              ]
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$2.99",
+              "sublabels": [
+                "~$0.03 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$10.03"
+          }
+        }
+      }
+    },
+    {
+      "name": "half-cent-not-dust",
+      "frames": null,
+      "note": "Crumb is exactly $0.005, half a cent, which displays as $0.01, so it funds: it drains first (fee $0.00005), then Jeffy is sold for the last $0.00505.",
+      "input": {
+        "amount_micros": 1000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": null,
+        "balances": [
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 990000,
+            "sell_fee_bps": 0
+          },
+          {
+            "id": "crumb",
+            "name": "Crumb",
+            "kind": "community",
+            "fiat_micros": 5000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 1000000,
+            "sell_fee_bps": 100
+          }
+        ]
+      },
+      "expected": {
+        "selected": "dollars",
+        "payable_without_top_up": true,
+        "shortfall_micros": 0,
+        "top_up_micros": 0,
+        "total_fee_micros": 101,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": false,
+            "sold_micros": 990000,
+            "fee_micros": 0,
+            "delivered_micros": 990000,
+            "from_balance_micros": 990000,
+            "from_top_up_micros": 0
+          },
+          {
+            "source": "crumb",
+            "conversion": true,
+            "sold_micros": 5000,
+            "fee_micros": 50,
+            "delivered_micros": 4950
+          },
+          {
+            "source": "jeffy",
+            "conversion": true,
+            "sold_micros": 5101,
+            "fee_micros": 51,
+            "delivered_micros": 5050
+          }
+        ]
+      },
+      "display": {
+        "short_by": null,
+        "add_button": null,
+        "top_up": null,
+        "modal_fee": "plus <$0.01 of conversion fees",
+        "details": {
+          "pay": {
+            "name": "Dollars",
+            "amount": "$1.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$0.99",
+              "sublabels": []
+            },
+            {
+              "name": "Jeffy",
+              "amount": "$0.01",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            },
+            {
+              "name": "Crumb",
+              "amount": "$0.01",
+              "sublabels": [
+                "<$0.01 conversion fee"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$1.00"
+          }
+        }
+      }
+    },
+    {
+      "name": "dust-paying-and-dollars",
+      "frames": null,
+      "note": "Last paid in Jeffy, which holds $0.002, and Dollars hold $0.004: both dust. Jeffy stays selected with no Jeffy leg, the shortfall is the whole $2.00, and the Dollars row shows only the top-up, with no '$0.00 from balance'.",
+      "input": {
+        "amount_micros": 2000000,
+        "currency": "USD",
+        "minor_digits": 2,
+        "min_top_up_micros": 5000000,
+        "selected": null,
+        "last_paid": "jeffy",
+        "balances": [
+          {
+            "id": "jeffy",
+            "name": "Jeffy",
+            "kind": "community",
+            "fiat_micros": 2000,
+            "sell_fee_bps": 100
+          },
+          {
+            "id": "dollars",
+            "name": "Dollars",
+            "kind": "dollars",
+            "fiat_micros": 4000,
+            "sell_fee_bps": 0
+          }
+        ]
+      },
+      "expected": {
+        "selected": "jeffy",
+        "payable_without_top_up": false,
+        "shortfall_micros": 2000000,
+        "top_up_micros": 5000000,
+        "total_fee_micros": 0,
+        "legs": [
+          {
+            "source": "dollars",
+            "conversion": true,
+            "sold_micros": 2000000,
+            "fee_micros": 0,
+            "delivered_micros": 2000000,
+            "from_balance_micros": 0,
+            "from_top_up_micros": 2000000
+          }
+        ]
+      },
+      "display": {
+        "short_by": "You’re $2.00 Short",
+        "add_button": "Add $5.00 and Pay $2.00",
+        "top_up": "$5.00",
+        "modal_fee": "no conversion fees",
+        "details": {
+          "pay": {
+            "name": "Jeffy",
+            "amount": "$2.00"
+          },
+          "use": [
+            {
+              "name": "Dollars",
+              "amount": "$2.00",
+              "sublabels": [
+                "$2.00 from Apple Pay"
+              ]
+            }
+          ],
+          "total": {
+            "label": "Total",
+            "amount": "$2.00"
+          }
+        }
+      }
+    }
+  ],
+  "fee_display": [
+    {
+      "fee_micros": 0,
+      "conversion": false,
+      "kind": "none",
+      "rounded_minor": null,
+      "modal": null,
+      "details_sublabel": null
+    },
+    {
+      "fee_micros": 0,
+      "conversion": true,
+      "kind": "zero",
+      "rounded_minor": null,
+      "modal": "no conversion fees",
+      "details_sublabel": null
+    },
+    {
+      "fee_micros": 1,
+      "conversion": true,
+      "kind": "under_minor",
+      "rounded_minor": null,
+      "modal": "plus <$0.01 of conversion fees",
+      "details_sublabel": "<$0.01 conversion fee"
+    },
+    {
+      "fee_micros": 4999,
+      "conversion": true,
+      "kind": "under_minor",
+      "rounded_minor": null,
+      "modal": "plus <$0.01 of conversion fees",
+      "details_sublabel": "<$0.01 conversion fee"
+    },
+    {
+      "fee_micros": 5000,
+      "conversion": true,
+      "kind": "approx",
+      "rounded_minor": 1,
+      "modal": "plus ~$0.01 of conversion fees",
+      "details_sublabel": "~$0.01 conversion fee"
+    },
+    {
+      "fee_micros": 5001,
+      "conversion": true,
+      "kind": "approx",
+      "rounded_minor": 1,
+      "modal": "plus ~$0.01 of conversion fees",
+      "details_sublabel": "~$0.01 conversion fee"
+    },
+    {
+      "fee_micros": 10000,
+      "conversion": true,
+      "kind": "exact",
+      "rounded_minor": 1,
+      "modal": "plus $0.01 of conversion fees",
+      "details_sublabel": "$0.01 conversion fee"
+    },
+    {
+      "fee_micros": 14999,
+      "conversion": true,
+      "kind": "approx",
+      "rounded_minor": 1,
+      "modal": "plus ~$0.01 of conversion fees",
+      "details_sublabel": "~$0.01 conversion fee"
+    },
+    {
+      "fee_micros": 15000,
+      "conversion": true,
+      "kind": "approx",
+      "rounded_minor": 2,
+      "modal": "plus ~$0.02 of conversion fees",
+      "details_sublabel": "~$0.02 conversion fee"
+    },
+    {
+      "fee_micros": 20202,
+      "conversion": true,
+      "kind": "approx",
+      "rounded_minor": 2,
+      "modal": "plus ~$0.02 of conversion fees",
+      "details_sublabel": "~$0.02 conversion fee"
+    },
+    {
+      "fee_micros": 40000,
+      "conversion": true,
+      "kind": "exact",
+      "rounded_minor": 4,
+      "modal": "plus $0.04 of conversion fees",
+      "details_sublabel": "$0.04 conversion fee"
+    },
+    {
+      "fee_micros": 101010,
+      "conversion": true,
+      "kind": "approx",
+      "rounded_minor": 10,
+      "modal": "plus ~$0.10 of conversion fees",
+      "details_sublabel": "~$0.10 conversion fee"
+    },
+    {
+      "fee_micros": 1234567,
+      "conversion": true,
+      "kind": "approx",
+      "rounded_minor": 123,
+      "modal": "plus ~$1.23 of conversion fees",
+      "details_sublabel": "~$1.23 conversion fee"
+    }
+  ],
+  "amount_display": [
+    {
+      "micros": 2020202,
+      "text": "$2.02"
+    },
+    {
+      "micros": 9505000,
+      "text": "$9.51"
+    },
+    {
+      "micros": 10005000,
+      "text": "$10.01"
+    },
+    {
+      "micros": 10020202,
+      "text": "$10.02"
+    },
+    {
+      "micros": 10101010,
+      "text": "$10.10"
+    },
+    {
+      "micros": 12039900,
+      "text": "$12.04"
+    },
+    {
+      "micros": 1234567890,
+      "text": "$1,234.57"
+    }
+  ]
+}

@@ -2004,11 +2004,14 @@ final class ConversationController {
     /// "of …" suffix. `knownAuthors` names a group sender the chat's roster subset leaves out.
     /// `viewerAmount` restates a payment in the display currency. `requestTitle` is a payment
     /// request's title as the viewer reads it, nil while it isn't loaded or can't be opened.
+    /// `requestSubject` names a request with no title on its "sent request for …" line only, like a
+    /// collection's "$10 each".
     func lastMessagePreview(
         for conversation: Conversation,
         knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
         viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
         requestTitle: (PaymentRequestID) -> String? = { _ in nil },
+        requestSubject: (PaymentRequestID) -> String? = { _ in nil },
         currencyName: (PublicKey) -> String?
     ) -> String? {
         if isCounterpartTyping(in: conversation.id) {
@@ -2021,6 +2024,7 @@ final class ConversationController {
             knownAuthors: knownAuthors,
             viewerAmount: viewerAmount,
             requestTitle: requestTitle,
+            requestSubject: requestSubject,
             currencyName: currencyName
         )
     }
@@ -2033,6 +2037,7 @@ final class ConversationController {
         knownAuthors: KnownAuthorDirectory.Snapshot = .empty,
         viewerAmount: (ExchangedFiat) -> FiatAmount = { $0.nativeAmount },
         requestTitle: (PaymentRequestID) -> String? = { _ in nil },
+        requestSubject: (PaymentRequestID) -> String? = { _ in nil },
         attributed: Bool = true,
         currencyName: (PublicKey) -> String?
     ) -> String? {
@@ -2113,7 +2118,7 @@ final class ConversationController {
 
         case .widget(.paymentRequest(let id)):
             // A title that hasn't loaded or won't open drops the "for …" rather than blanking the line.
-            let subject = requestTitle(id).map { " for \($0)" } ?? ""
+            let subject = (requestTitle(id) ?? requestSubject(id)).map { " for \($0)" } ?? ""
             if isFromSelf { return "You sent request\(subject)" }
             guard let senderName else { return nil }
             let firstName = senderName.split(separator: " ").first.map(String.init) ?? senderName

@@ -1124,13 +1124,27 @@ final class SessionContainer {
             },
             getRequest: { [flipClient, owner = session.ownerKeyPair] id in
                 let fetched = try await flipClient.getPaymentRequest(owner: owner, id: id)
-                return (fetched.request, fetched.paymentIntentID)
+                return (fetched.request, fetched.paymentIntentID, fetched.callerPayer)
             },
             openingSeal: { [conversationController] conversationID in
                 await conversationController.openingSeal(for: conversationID)
             },
             create: { [flipClient, owner = session.ownerKeyPair] key, conversationID, split in
                 try await flipClient.createPaymentRequest(owner: owner, idempotencyKey: key, chatID: conversationID, split: split)
+            },
+            createCollection: { [flipClient, owner = session.ownerKeyPair] key, conversationID, collection in
+                try await flipClient.createPaymentRequest(owner: owner, idempotencyKey: key, chatID: conversationID, collection: collection)
+            },
+            getPaymentIntentID: { [flipClient, owner = session.ownerKeyPair] id in
+                try await flipClient.getPaymentIntentID(owner: owner, id: id)
+            },
+            getPaidPayers: { [flipClient, owner = session.ownerKeyPair] id, pageSize in
+                let page = try await flipClient.getPayersPage(owner: owner, id: id, section: .paid, pageSize: pageSize, pagingToken: nil)
+                return (page.payers, page.version)
+            },
+            showsCollections: { [weak session] in
+                guard let session else { return false }
+                return BetaFlags.shared.showsGroupMoneyUI(isStaff: BetaFlags.shared.staffStanding(of: session))
             },
             close: { [flipClient, owner = session.ownerKeyPair] id in
                 try await flipClient.closePaymentRequest(owner: owner, id: id)

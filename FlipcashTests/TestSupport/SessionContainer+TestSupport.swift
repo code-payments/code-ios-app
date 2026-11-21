@@ -40,14 +40,16 @@ extension SessionContainer {
     /// Each call produces an independent database file so tests don't
     /// share balance state.
     @MainActor
-    static func makeTest(holdings: [Holding], limits: Limits? = nil) throws -> SessionContainer {
+    /// - Parameter mints: metadata to store with no balance row, as for an account the server
+    ///   hasn't listed yet.
+    static func makeTest(holdings: [Holding], mints: [MintMetadata] = [], limits: Limits? = nil) throws -> SessionContainer {
         let database = try Database(
             url: URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("give-test-\(UUID().uuidString).sqlite")
         )
 
         let now = Date.now
-        try database.insert(mints: holdings.map { $0.mint }, date: now)
+        try database.insert(mints: holdings.map { $0.mint } + mints, date: now)
         try database.transaction { db in
             for holding in holdings {
                 try db.insertBalance(

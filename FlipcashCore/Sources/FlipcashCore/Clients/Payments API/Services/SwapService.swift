@@ -600,6 +600,49 @@ final class SwapService: Sendable {
             }
         }
     }
+
+    // MARK: - GetPendingSwaps -
+
+    /// Fetches the owner's swaps that wait on a client action, such as funding through SubmitIntent.
+    /// An owner with none gets an empty list.
+    func getPendingSwaps(
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<[SwapMetadata], ErrorGetSwap>) -> Void
+    ) {
+        logger.info("Fetching pending swaps")
+
+        var request = Ocp_Transaction_V1_GetPendingSwapsRequest()
+        request.owner = owner.publicKey.solanaAccountID
+        request.signature = request.sign(with: owner)
+
+        Task {
+            do {
+                let response = try await service.getPendingSwaps(request, options: .unaryDefault)
+                switch response.result {
+                case .ok:
+                    let swaps = response.swaps.compactMap { SwapMetadata($0) }
+                    if swaps.count != response.swaps.count {
+                        logger.error("Failed to parse pending swap metadata", metadata: [
+                            "dropped": "\(response.swaps.count - swaps.count)"
+                        ])
+                    }
+                    logger.info("Pending swaps fetched", metadata: ["count": "\(swaps.count)"])
+                    await MainActor.run { completion(.success(swaps)) }
+
+                case .notFound:
+                    await MainActor.run { completion(.success([])) }
+
+                case .UNRECOGNIZED:
+                    logger.error("Pending swaps fetch returned unknown result")
+                    await MainActor.run { completion(.failure(.unknown)) }
+                }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(ErrorGetSwap.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
 }
 
 // MARK: - Types -

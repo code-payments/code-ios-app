@@ -648,7 +648,7 @@ struct TipConversationRow: View {
         // A request's preview names its title, which only the request itself carries, sealed to the chat.
         .task(id: lastRequestID) {
             guard let lastRequestID else { return }
-            async let request: Void = sessionContainer.paymentRequests.fetchIfMissing(lastRequestID)
+            async let request: Void = sessionContainer.paymentRequests.fetchIfMissing(lastRequestID, in: conversation.id)
             async let seal: Void = sessionContainer.paymentRequests.loadSeal(for: conversation.id)
             _ = await (request, seal)
         }
@@ -674,6 +674,9 @@ struct TipConversationRow: View {
             viewerAmount: session.displayCurrency.amount,
             requestTitle: { id in
                 sessionContainer.paymentRequests.request(id).flatMap(sessionContainer.paymentRequests.text)?.title
+            },
+            requestSubject: { id in
+                sessionContainer.paymentRequests.collectionSubject(of: id, copy: PaymentRequestCopy(session.displayCurrency))
             },
             currencyName: { session.balance(for: $0)?.name }
         ) {

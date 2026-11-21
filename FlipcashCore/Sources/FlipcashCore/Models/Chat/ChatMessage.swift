@@ -518,14 +518,15 @@ public struct ChatPaymentRequestContent: Hashable, Sendable, Codable {
         public let title: String
         /// "$40 paid, $60 requested", in the viewer's amounts.
         public let progressLine: String
-        /// The paid share of the requested total, 0 through 1.
-        public let fraction: Double
-        /// "2 days left to pay", "Paid in full", and the other deadline lines.
+        /// The paid share of the requested total, 0 through 1; `nil` draws no progress bar, as for
+        /// a collection, which has no total.
+        public let fraction: Double?
+        /// "2 days left to pay", "Paid in full", and the other deadline lines; empty draws no line.
         public let statusLine: String
         /// Whether the request has ended, which greys the card.
         public let isEnded: Bool
 
-        public init(title: String, progressLine: String, fraction: Double, statusLine: String, isEnded: Bool) {
+        public init(title: String, progressLine: String, fraction: Double?, statusLine: String, isEnded: Bool) {
             self.title = title
             self.progressLine = progressLine
             self.fraction = fraction

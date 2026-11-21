@@ -29,9 +29,12 @@ nonisolated private let logger = Logger(label: "flipcash.payment-requests")
 final class PaymentRequests {
 
     typealias GetChatPage = @MainActor @Sendable (ConversationID, GroupPaymentRequest.Section, Int) async throws -> [GroupPaymentRequest]
-    typealias GetRequest = @MainActor @Sendable (PaymentRequestID) async throws -> (request: GroupPaymentRequest, paymentIntentID: Data?)
+    typealias GetRequest = @MainActor @Sendable (PaymentRequestID) async throws -> (request: GroupPaymentRequest, paymentIntentID: Data?, callerPayer: GroupPaymentRequest.Payer?)
     typealias OpeningSeal = @MainActor @Sendable (ConversationID) async -> ChatSeal?
     typealias Create = @MainActor @Sendable (_ idempotencyKey: Data, ConversationID, GroupPaymentRequest.Split) async throws -> GroupPaymentRequest
+    typealias CreateCollection = @MainActor @Sendable (_ idempotencyKey: Data, ConversationID, GroupPaymentRequest.Collection) async throws -> GroupPaymentRequest
+    typealias GetPaymentIntentID = @MainActor @Sendable (PaymentRequestID) async throws -> Data
+    typealias GetPaidPayers = @MainActor @Sendable (PaymentRequestID, _ pageSize: Int) async throws -> (payers: [GroupPaymentRequest.Payer], version: UInt64)
     typealias Close = @MainActor @Sendable (PaymentRequestID) async throws -> GroupPaymentRequest
     typealias MarkPaid = @MainActor @Sendable (PaymentRequestID, UserID) async throws -> GroupPaymentRequest
     typealias GetPage = @MainActor @Sendable (ConversationID, GroupPaymentRequest.Section, _ pageSize: Int, _ pagingToken: Data?) async throws -> (requests: [GroupPaymentRequest], nextPagingToken: Data?)
@@ -44,6 +47,8 @@ final class PaymentRequests {
     /// The first page of RESOLVED requests a chat refetch reads, which tells a held OPEN copy it ended
     /// when a live update was missed.
     static let resolvedPageSize = 20
+    /// The first page of a collection's paid payers Request details reads.
+    static let payersPageSize = 100
     /// How often an on-screen chat or details sheet refetches.
     static let pollInterval: Duration = .seconds(45)
 
@@ -54,26 +59,39 @@ final class PaymentRequests {
     }
 
     private var requests: [PaymentRequestID: GroupPaymentRequest] = [:]
-    /// Requests the server answered `DENIED` or `NOT_FOUND` for; their cards render as unsupported.
+    /// Requests the server answered `DENIED` or `NOT_FOUND` for; their cards render as unsupported
+    /// until a later read of one succeeds.
     private(set) var unavailable: Set<PaymentRequestID> = []
+    /// The chat each `unavailable` request was read for, when the read named one; that chat's refetch
+    /// reads the request again.
+    @ObservationIgnored private var unavailableChats: [PaymentRequestID: ConversationID] = [:]
     /// Bumped on every chat refetch, so a deck can return to its default order.
     private(set) var chatRefreshes: [ConversationID: Int] = [:]
 
     /// Each chat's seal for opening encrypted request text, once loaded.
     private var seals: [ConversationID: ChatSeal] = [:]
 
+    /// The collections' payers read this session.
+    let payers = CollectionPayers()
+
     @ObservationIgnored private let getChatPage: GetChatPage
     @ObservationIgnored private let getRequest: GetRequest
     @ObservationIgnored private let openingSeal: OpeningSeal
     @ObservationIgnored private let createRequest: Create
+    @ObservationIgnored private let createCollectionRequest: CreateCollection
+    @ObservationIgnored private let getPaymentIntentID: GetPaymentIntentID
+    @ObservationIgnored private let getPaidPayers: GetPaidPayers
+    /// Whether the Group Money UI is on, which is what draws collections; read on every call.
+    @ObservationIgnored let showsCollections: @MainActor () -> Bool
     @ObservationIgnored private let closeRequest: Close
     @ObservationIgnored private let markPaidShare: MarkPaid
     @ObservationIgnored private let getPage: GetPage
     @ObservationIgnored private let database: Database?
     @ObservationIgnored private var inFlight: Set<PaymentRequestID> = []
     @ObservationIgnored private var sealReads: Set<ConversationID> = []
-    /// Requests whose last read failed short of a server answer, retried on the next chat refetch.
-    @ObservationIgnored private var failedReads: Set<PaymentRequestID> = []
+    /// Requests whose last read failed short of a server answer, with the chat each was read for,
+    /// retried on the next chat refetch.
+    @ObservationIgnored private var failedReads: [PaymentRequestID: ConversationID] = [:]
     /// Chats whose last section read failed.
     @ObservationIgnored private var failedChats: Set<ConversationID> = []
 
@@ -82,6 +100,10 @@ final class PaymentRequests {
         getRequest: @escaping GetRequest,
         openingSeal: @escaping OpeningSeal = { _ in nil },
         create: @escaping Create = { _, _, _ in throw Unconfigured() },
+        createCollection: @escaping CreateCollection = { _, _, _ in throw Unconfigured() },
+        getPaymentIntentID: @escaping GetPaymentIntentID = { _ in throw Unconfigured() },
+        getPaidPayers: @escaping GetPaidPayers = { _, _ in throw Unconfigured() },
+        showsCollections: @escaping @MainActor () -> Bool = { false },
         close: @escaping Close = { _ in throw Unconfigured() },
         markPaid: @escaping MarkPaid = { _, _ in throw Unconfigured() },
         getPage: @escaping GetPage = { _, _, _, _ in throw Unconfigured() },
@@ -92,6 +114,10 @@ final class PaymentRequests {
         self.getRequest = getRequest
         self.openingSeal = openingSeal
         self.createRequest = create
+        self.createCollectionRequest = createCollection
+        self.getPaymentIntentID = getPaymentIntentID
+        self.getPaidPayers = getPaidPayers
+        self.showsCollections = showsCollections
         self.closeRequest = close
         self.markPaidShare = markPaid
         self.getPage = getPage
@@ -105,6 +131,13 @@ final class PaymentRequests {
     /// Creates a request; retrying with the same `idempotencyKey` returns the same request.
     func create(idempotencyKey: Data, in conversationID: ConversationID, split: GroupPaymentRequest.Split) async throws -> GroupPaymentRequest {
         let created = try await createRequest(idempotencyKey, conversationID, split)
+        ingest([created])
+        return created
+    }
+
+    /// Creates a collection; retrying with the same `idempotencyKey` returns the same request.
+    func create(idempotencyKey: Data, in conversationID: ConversationID, collection: GroupPaymentRequest.Collection) async throws -> GroupPaymentRequest {
+        let created = try await createCollectionRequest(idempotencyKey, conversationID, collection)
         ingest([created])
         return created
     }
@@ -143,7 +176,10 @@ final class PaymentRequests {
     ) -> PaymentRequestCardState {
         if unavailable.contains(id) { return .unsupported }
         guard let request = requests[id] else { return .loading }
-        guard request.belongs(to: conversationID, sentBy: sender), request.isDrawable else { return .unsupported }
+        guard request.belongs(to: conversationID, sentBy: sender), isDrawable(request) else { return .unsupported }
+        if request.collection != nil {
+            return ChatPaymentRequestContent.Card(collection: request, copy: copy, now: now).map { .card($0) } ?? .unsupported
+        }
         if case .encrypted = request.split?.text, seals[conversationID] == nil { return .loading }
         guard let text = text(of: request) else { return .unsupported }
         return .card(ChatPaymentRequestContent.Card(request: request, title: text.displayTitle, copy: copy, now: now))
@@ -154,34 +190,61 @@ final class PaymentRequests {
         requests[id]
     }
 
-    /// `conversationID`'s stored requests whose title the viewer can read, keyed by id: the ones a
-    /// transcript row may name.
+    /// Whether this build draws `request`: a split, or a collection while the Group Money UI is on.
+    /// Anything else draws as unsupported in the transcript and stays out of the deck and timelines.
+    /// A drawable collection's "<amount> each", which names it on the chat list's "sent request for"
+    /// line; `nil` for a split, or for a collection while the Group Money flag is off.
+    func collectionSubject(of id: PaymentRequestID, copy: PaymentRequestCopy) -> String? {
+        guard let request = requests[id], request.collection != nil, isDrawable(request) else { return nil }
+        return copy.collectionEach(request)
+    }
+
+    func isDrawable(_ request: GroupPaymentRequest) -> Bool {
+        if request.split != nil { return true }
+        return request.collection != nil && showsCollections()
+    }
+
+    /// `conversationID`'s stored requests a transcript row may tap through to, keyed by id: splits
+    /// whose title the viewer can read, and drawable collections, which have no title.
     func timelines(in conversationID: ConversationID) -> [PaymentRequestID: RequestTimeline] {
         var timelines: [PaymentRequestID: RequestTimeline] = [:]
-        for request in requests.values where request.chatID == conversationID && request.isDrawable && !unavailable.contains(request.id) {
+        for request in requests.values where request.chatID == conversationID && isDrawable(request) && !unavailable.contains(request.id) {
+            if request.collection != nil {
+                timelines[request.id] = RequestTimeline(request: request, title: nil)
+                continue
+            }
             guard let title = text(of: request)?.displayTitle else { continue }
             timelines[request.id] = RequestTimeline(request: request, title: title)
         }
         return timelines
     }
 
-    /// `conversationID`'s requests the deck shows to `viewer` as of `now`, in deck order.
+    /// `conversationID`'s requests the deck shows to `viewer` as of `now`, in deck order: splits
+    /// only, and none while the Group Money UI is on, which reaches a request only from its bubble.
     func deck(for conversationID: ConversationID, viewer: UserID?, at now: Date) -> [GroupPaymentRequest] {
-        GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID && $0.isDrawable }, viewer: viewer, at: now)
+        guard !showsCollections() else { return [] }
+        return GroupPaymentRequest.deckOrder(requests.values.filter { $0.chatID == conversationID && $0.split != nil }, viewer: viewer, at: now)
     }
 
-    /// Drops the held requests and chat seals of conversations the user has left, so a card for a
-    /// departed chat can't redraw. The database rows go with the conversation's own delete.
+    /// Drops the held requests, chat seals and refused-read marks of conversations the user has left,
+    /// so a card for a departed chat can't redraw. The database rows go with the conversation's own delete.
     func forget(conversations departed: Set<ConversationID>) {
         guard !departed.isEmpty else { return }
+        payers.forget(requests.values.filter { $0.chatID.map(departed.contains) ?? false }.map(\.id))
         requests = requests.filter { entry in entry.value.chatID.map { !departed.contains($0) } ?? true }
         for id in departed { seals[id] = nil }
+        let refused = unavailableChats.filter { departed.contains($0.value) }.keys
+        if !refused.isEmpty {
+            unavailable.subtract(refused)
+            for id in refused { unavailableChats[id] = nil }
+        }
     }
 
     /// Merges fetched copies into the store and writes them through to the database.
     func ingest(_ incoming: [GroupPaymentRequest]) {
         merge(incoming)
         unavailable.subtract(incoming.map(\.id))
+        for request in incoming { unavailableChats[request.id] = nil }
         persist(incoming)
     }
 
@@ -242,6 +305,11 @@ final class PaymentRequests {
             case .created(let request):
                 ingest([request])
             case .updates(let version, let changes):
+                let changedPayers = changes.compactMap { change -> GroupPaymentRequest.Payer? in
+                    if case .payerChanged(let payer) = change { return payer }
+                    return nil
+                }
+                payers.apply(changedPayers, version: version, to: update.id)
                 guard let held = requests[update.id] else { continue }
                 switch held.applying(version: version, updates: changes) {
                 case .ignored:
@@ -263,14 +331,15 @@ final class PaymentRequests {
         await ids.concurrentForEach { @MainActor [self] id in
             do {
                 try await self.refresh(id)
+                if self.payers.isTracking(id) { try await self.refreshPayers(id) }
             } catch {
                 logger.warning("Failed to refetch a payment request after a live update", metadata: ["error": "\(error)"])
             }
         }
     }
 
-    /// Reads `conversationID`'s OPEN and RESOLVED first pages, and its seal if not held yet. A failed
-    /// read keeps what was held.
+    /// Reads `conversationID`'s OPEN and RESOLVED first pages, its seal if not held yet, and each
+    /// request refused when read for it. A failed read keeps what was held.
     func refreshChat(_ conversationID: ConversationID) async {
         await hydrate(conversationID)
         async let sealed: Void = loadSeal(for: conversationID)
@@ -288,8 +357,24 @@ final class PaymentRequests {
             ])
         }
         await sealed
-        await failedReads.concurrentForEach { @MainActor [self] id in
-            await self.fetchIfMissing(id)
+        // Taken before the failed reads retry, so one refused there isn't read twice in a refetch.
+        let refused = unavailableChats.compactMap { $0.value == conversationID ? $0.key : nil }
+        await failedReads.concurrentForEach { @MainActor [self] read in
+            await self.fetchIfMissing(read.key, in: read.value)
+        }
+        await refused.concurrentForEach { @MainActor [self] id in
+            await self.readRefused(id)
+        }
+    }
+
+    /// Reads a refused request again; its mark lifts only when the read succeeds.
+    private func readRefused(_ id: PaymentRequestID) async {
+        guard inFlight.insert(id).inserted else { return }
+        defer { inFlight.remove(id) }
+        do {
+            try await refresh(id)
+        } catch {
+            logger.info("A refused payment request is still unreadable", metadata: ["error": "\(error)"])
         }
     }
 
@@ -324,18 +409,24 @@ final class PaymentRequests {
 
     /// Reads one request, and its chat's seal if not held yet, and merges it. Returns the intent id the
     /// viewer pays under, `nil` when the viewer has no unpaid share. Throws what the read threw.
+    ///
+    /// A `DENIED` or `NOT_FOUND` answer marks `id` unavailable; naming the `conversationID` a card for
+    /// it shows in has that chat's refetch read it again.
     @discardableResult
-    func refresh(_ id: PaymentRequestID) async throws -> Data? {
+    func refresh(_ id: PaymentRequestID, in conversationID: ConversationID? = nil) async throws -> Data? {
         if requests[id] == nil { await hydrate(id) }
         do {
             let fetched = try await getRequest(id)
             ingest([fetched.request])
+            if fetched.request.collection != nil { payers.record(caller: fetched.callerPayer, for: id) }
             if let chatID = fetched.request.chatID { await loadSeal(for: chatID) }
             return fetched.paymentIntentID
         } catch let error as ErrorGetPaymentRequest {
             switch error {
             case .denied, .notFound:
-                unavailable.insert(id)
+                // An insert of a held id still notifies, which would re-map the transcript on every refused retry.
+                if !unavailable.contains(id) { unavailable.insert(id) }
+                if let conversationID { unavailableChats[id] = conversationID }
             case .ok, .unknown, .transportFailure, .cancelled, .rejected:
                 break
             }
@@ -343,28 +434,59 @@ final class PaymentRequests {
         }
     }
 
-    /// Reads `id` when it isn't stored yet and no read of it is already running.
-    func fetchIfMissing(_ id: PaymentRequestID) async {
+    /// Reads one request for Request details: the request, and for a collection its first page of paid
+    /// payers too. Returns the split share's intent ID as ``refresh(_:)`` does. Throws what the request
+    /// read threw; a failed payers read keeps the held list.
+    @discardableResult
+    func refreshDetails(_ id: PaymentRequestID) async throws -> Data? {
+        let intentID = try await refresh(id)
+        guard requests[id]?.collection != nil else { return intentID }
+        do {
+            try await refreshPayers(id)
+        } catch {
+            logger.warning("Failed to read a collection's payers", metadata: ["error": "\(error)"])
+        }
+        return intentID
+    }
+
+    private func refreshPayers(_ id: PaymentRequestID) async throws {
+        let page = try await getPaidPayers(id, Self.payersPageSize)
+        payers.record(page: page.payers, version: page.version, for: id)
+    }
+
+    /// The intent id the viewer pays the collection `id` under. A `DENIED` or `NOT_FOUND` answer
+    /// marks `id` unavailable. Throws what the read threw.
+    func paymentIntentID(for id: PaymentRequestID) async throws -> Data {
+        do {
+            return try await getPaymentIntentID(id)
+        } catch let error as ErrorGetPaymentIntentID {
+            switch error {
+            case .denied, .notFound:
+                unavailable.insert(id)
+            case .ok, .notOpen, .notAPayer, .alreadyPaid, .unknown, .transportFailure, .cancelled, .rejected:
+                break
+            }
+            throw error
+        }
+    }
+
+    /// Reads `id`, which a card in `conversationID` shows, when it isn't stored or marked unavailable
+    /// yet and no read of it is already running. A refusal leaves the retry to that chat's refetch.
+    func fetchIfMissing(_ id: PaymentRequestID, in conversationID: ConversationID) async {
         guard requests[id] == nil, !unavailable.contains(id), inFlight.insert(id).inserted else { return }
         defer { inFlight.remove(id) }
         do {
-            try await refresh(id)
-            failedReads.remove(id)
+            try await refresh(id, in: conversationID)
+            failedReads[id] = nil
         } catch {
             if unavailable.contains(id) {
-                failedReads.remove(id)
+                failedReads[id] = nil
             } else {
-                failedReads.insert(id)
+                failedReads[id] = conversationID
             }
             logger.warning("Failed to read a payment request", metadata: ["error": "\(error)"])
         }
     }
-}
-
-extension GroupPaymentRequest {
-    /// Whether this build has UI for the request: a split. A collection, or a kind this build doesn't
-    /// know, draws as unsupported in the transcript and stays out of the deck and timelines.
-    var isDrawable: Bool { split != nil }
 }
 
 private extension GroupPaymentRequest {
@@ -386,6 +508,9 @@ enum PaymentRequestCardState: Hashable, Sendable {
 /// A payment request picked to show, as a sheet item.
 struct PaymentRequestSelection: Identifiable, Hashable {
     let id: PaymentRequestID
+    /// Whether the details run their Pay button as they open, for a Pay tapped elsewhere that adds
+    /// the money first.
+    var paysOnOpen = false
 }
 
 /// What keys the chat's request poll: it restarts when the chat changes or the app returns to the foreground.
