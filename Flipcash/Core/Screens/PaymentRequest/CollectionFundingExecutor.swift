@@ -140,6 +140,37 @@ final class CollectionFundingExecutor {
         return .short
     }
 
+    /// How settling the swaps earlier attempts kept ended.
+    enum KeptSettlement: Equatable {
+        /// No earlier attempt kept a swap, so nothing was read.
+        case nothingKept
+        /// None can still move funds, and the balances show what they delivered or returned.
+        case settled
+        /// One may still move funds; its ids stay.
+        case pending
+        /// A kept swap's state, or the balances after it, couldn't be read.
+        case failed
+    }
+
+    /// Settles every swap an earlier attempt kept for `requestID`, then reads the balances again
+    /// when there was one, so a plan read next sees what those swaps delivered or returned.
+    func settleKeptSwaps(for requestID: PaymentRequestID) async -> KeptSettlement {
+        guard !store.keptLegs(for: requestID).isEmpty else { return .nothingKept }
+        do {
+            switch try await settleKept(for: requestID) {
+            case .pending:
+                return .pending
+            case .settled:
+                // Read even when nothing moved while waited on: a swap that had already failed or
+                // been cancelled returned its funds, and the plan has to count them.
+                try await swapper.refreshBalances()
+                return .settled
+            }
+        } catch {
+            return .failed
+        }
+    }
+
     /// What a leg does with the swap its kept ids name, once the server has been asked about it.
     private enum Resume {
         /// Start a swap under these ids: the kept ones when the server never saw the swap, fresh

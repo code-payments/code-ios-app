@@ -431,8 +431,9 @@ final class PaymentRequestPayment {
     /// What the sheet's Add button does: adds `topUpMicros` of Dollars with Apple Pay, the amount
     /// the button showed, then funds and pays as soon as the Dollars land, with no second
     /// confirmation. A top-up this payment already ordered is waited on and never ordered again.
-    /// When the balances read now need a different top-up, or none can be planned, nothing is
-    /// ordered and the sheet shows the new short state.
+    /// Swaps an earlier attempt kept settle first, and nothing is ordered while one hasn't. When
+    /// the balances read then need a different top-up, or none can be planned, nothing is ordered
+    /// and the sheet shows the new short state.
     func addAndPay(topUpMicros: Int64) async -> Outcome {
         guard fundsCollection else { return .failed }
         return await joiningTopUpRun { [self] in await runAddAndPay(topUpMicros: topUpMicros) } ?? .failed
@@ -453,6 +454,24 @@ final class PaymentRequestPayment {
         }
         // Checked before Apple Pay opens, so a payment the limit stops charges nothing.
         guard !exceedsSendLimit(fiat) else { return .failed }
+        // A swap an earlier attempt kept may still land its Dollars, so it settles before the
+        // top-up is sized or its baseline read; otherwise the user pays for money on its way.
+        // The sheet closing during that wait stops the run: nothing is paid or ordered, and no
+        // dialog shows over what's on screen now.
+        switch await fundingExecutor.settleKeptSwaps(for: requestID) {
+        case .nothingKept:
+            break
+        case .settled:
+            guard !Task.isCancelled else { return .failed }
+        case .pending:
+            needsRefetch = true
+            if !Task.isCancelled { showConversionPending() }
+            return .failed
+        case .failed:
+            needsRefetch = true
+            if !Task.isCancelled { showSendError() }
+            return .failed
+        }
         let baselineUSD: Decimal
         do {
             baselineUSD = try await topUpper.dollarsBalance()
