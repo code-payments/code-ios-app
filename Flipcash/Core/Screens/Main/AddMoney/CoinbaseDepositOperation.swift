@@ -37,21 +37,26 @@ final class CoinbaseDepositOperation {
     @ObservationIgnored private let coinbaseService: CoinbaseService
     @ObservationIgnored private let session: any (AccountProviding & ProfileProviding)
     @ObservationIgnored private let idleTimer: ApplePayIdleTimer
+    @ObservationIgnored private let confirmationTimer: ApplePayIdleTimer?
     @ObservationIgnored private let timer: AddMoneyTimer
 
     @ObservationIgnored private var runTask: Task<Void, Error>?
     @ObservationIgnored private var onAuthorized: (() -> Void)?
 
+    /// `confirmationTimeout` bounds the wait for Coinbase to report a committed order complete;
+    /// past it the run ends as a cancel with ``reachedAuthorization`` set. Nil waits for the report.
     init(
         coinbaseService: CoinbaseService,
         session: any (AccountProviding & ProfileProviding),
         timer: AddMoneyTimer = AddMoneyTimer(),
-        applePayIdleTimeout: Duration = .seconds(60)
+        applePayIdleTimeout: Duration = .seconds(60),
+        confirmationTimeout: Duration? = nil
     ) {
         self.coinbaseService = coinbaseService
         self.session = session
         self.timer = timer
         self.idleTimer = ApplePayIdleTimer(timeout: applePayIdleTimeout)
+        self.confirmationTimer = confirmationTimeout.map { ApplePayIdleTimer(timeout: $0) }
     }
 
     isolated deinit {
@@ -210,7 +215,13 @@ final class CoinbaseDepositOperation {
     /// Consumes `coinbaseService.applePayEvents` until Apple Pay reaches a
     /// terminal state, throwing on cancel or error.
     private func awaitApplePayCompletion(orderId: String, rate: Rate) async throws {
-        defer { idleTimer.disarm() }
+        defer {
+            idleTimer.disarm()
+            confirmationTimer?.disarm()
+        }
+
+        // Armed before Apple Pay opens too, so a sheet that never appears can't hold the run.
+        armIdleTimer(orderId: orderId)
 
         for await event in coinbaseService.applePayEvents {
             try Task.checkCancellation()
@@ -246,13 +257,7 @@ final class CoinbaseDepositOperation {
                 )
 
             case .pendingPaymentAuth:
-                idleTimer.arm { [weak self] in
-                    logger.info("Apple Pay sheet idle timeout, cancelling", metadata: [
-                        "orderId": "\(orderId)",
-                    ])
-                    self?.didTimeOut = true
-                    self?.runTask?.cancel()
-                }
+                armIdleTimer(orderId: orderId)
 
             case .paymentAuthorized:
                 markAuthorized()
@@ -270,6 +275,13 @@ final class CoinbaseDepositOperation {
                     "event": "\(event.name)",
                 ])
                 idleTimer.disarm()
+                // Coinbase has the order by now, so stopping the wait can't undo the charge.
+                confirmationTimer?.arm { [weak self] in
+                    logger.info("Coinbase order completion not seen in time, cancelling", metadata: [
+                        "orderId": "\(orderId)",
+                    ])
+                    self?.runTask?.cancel()
+                }
 
             case .loadPending, .loadSuccess, .applePayButtonPressed, .none:
                 continue
@@ -279,6 +291,16 @@ final class CoinbaseDepositOperation {
             "orderId": "\(orderId)",
         ])
         throw CancellationError()
+    }
+
+    private func armIdleTimer(orderId: String) {
+        idleTimer.arm { [weak self] in
+            logger.info("Apple Pay sheet idle timeout, cancelling", metadata: [
+                "orderId": "\(orderId)",
+            ])
+            self?.didTimeOut = true
+            self?.runTask?.cancel()
+        }
     }
 
     private func markAuthorized() {

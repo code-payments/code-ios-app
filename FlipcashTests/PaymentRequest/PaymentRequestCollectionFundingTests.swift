@@ -42,8 +42,12 @@ struct PaymentRequestCollectionFundingTests {
         var balancesAfterStart: [PublicKey: UInt64]?
         /// What the server says of each swap; one not listed was never seen.
         var states: [SwapId: SwapState] = [:]
-        /// Cancels the waiting task inside `waitForTerminalState`, as the sheet closing does.
-        var cancelsWait = false
+        /// Runs inside `waitForTerminalState` before it answers. The wait runs in its own task under
+        /// a deadline, so closing the sheet means cancelling the run from here.
+        var whileWaiting: (() -> Void)?
+        /// Cancels the run inside `refreshBalances`, after the balances are written, as the sheet
+        /// closing just as a swap lands does.
+        var cancelsAtRefresh = false
         /// Thrown by `waitForTerminalState` in place of `waitResult`, as a poll cut short throws.
         var waitError: (any Error)?
         var refreshes = 0
@@ -77,7 +81,7 @@ struct PaymentRequestCollectionFundingTests {
         func state(of swapID: SwapId) async throws -> SwapState? { states[swapID] }
 
         func waitForTerminalState(of swapID: SwapId) async throws -> SwapState {
-            if cancelsWait { withUnsafeCurrentTask { $0?.cancel() } }
+            whileWaiting?()
             if let waitError { throw waitError }
             // A swap whose funding never landed doesn't move.
             if states[swapID] == .created { return .created }
@@ -86,6 +90,7 @@ struct PaymentRequestCollectionFundingTests {
 
         func refreshBalances() async throws {
             refreshes += 1
+            defer { if cancelsAtRefresh { withUnsafeCurrentTask { $0?.cancel() } } }
             guard let container else { return }
             try await PaymentRequestCollectionFundingTests.write(balancesAfterRefresh, to: container)
         }
@@ -206,6 +211,7 @@ struct PaymentRequestCollectionFundingTests {
         storesJeffyMetadata: Bool = false,
         fundsCollections: Bool = true,
         sendLimit: Decimal = 1000,
+        submissionTimeout: Duration = PaymentRequestPayment.submissionTimeout,
         clock: @escaping () -> Date = Date.init
     ) async throws -> Fixture {
         var holdings: [SessionContainer.Holding] = []
@@ -251,6 +257,7 @@ struct PaymentRequestCollectionFundingTests {
             topUpper: topUpper,
             fundingStore: fundingStore,
             fundsCollections: { fundsCollections },
+            submissionTimeout: submissionTimeout,
             clock: clock
         )
         return Fixture(
@@ -1161,7 +1168,7 @@ struct PaymentRequestCollectionFundingTests {
 
         f.swapper.waitResult = .finalized
         f.swapper.balancesAfterRefresh = [.usdf: 10_000_000]
-        f.swapper.cancelsWait = true
+        f.swapper.cancelsAtRefresh = true
         #expect(await Task { await f.payment.addAndPay(topUpMicros: 6_000_000) }.value == .failed)
 
         #expect(f.topUpper.orders.isEmpty)
@@ -1183,7 +1190,7 @@ struct PaymentRequestCollectionFundingTests {
         // The swap leaves $0.50 short, which still takes the $5 the user saw.
         f.swapper.waitResult = .finalized
         f.swapper.balancesAfterRefresh = [.usdf: 9_500_000]
-        f.swapper.cancelsWait = true
+        f.swapper.cancelsAtRefresh = true
         #expect(await Task { await f.payment.addAndPay(topUpMicros: 5_000_000) }.value == .failed)
 
         #expect(f.topUpper.orders.isEmpty)
@@ -1197,9 +1204,10 @@ struct PaymentRequestCollectionFundingTests {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 4_000_000, jeffy: Self.plentyOfJeffy)
         let kept = try await keepSwapInFlight(f)
 
-        f.swapper.cancelsWait = true
         f.swapper.waitError = CancellationError()
-        #expect(await Task { await f.payment.addAndPay(topUpMicros: 6_000_000) }.value == .failed)
+        let run = Task { await f.payment.addAndPay(topUpMicros: 6_000_000) }
+        f.swapper.whileWaiting = { run.cancel() }
+        #expect(await run.value == .failed)
 
         #expect(f.container.session.dialogItem == nil)
         #expect(f.topUpper.orders.isEmpty)
@@ -1240,6 +1248,36 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.payer.payments.count == 1)
         #expect(!f.payment.showsFinishing)
         #expect(!f.payment.blocksDismiss)
+    }
+
+    @Test("Finishing Payment whose submission never answers unlocks at its deadline with Payment Not Confirmed, its record gone")
+    func finishingSubmissionNeverAnswers() async throws {
+        let f = try await fixture(
+            Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil,
+            submissionTimeout: .milliseconds(200)
+        )
+        pendingFive(in: f)
+        f.topUpper.delivered = 5
+        #expect(await f.payment.prepare() == .ready)
+        f.payer.holdsPayments = true
+        defer { f.payer.answerHeldPayments() }
+        var lockedMidPay = false
+        var finishingMidPay = false
+        f.payer.whilePaying = {
+            lockedMidPay = f.payment.blocksDismiss
+            finishingMidPay = f.payment.showsFinishing
+        }
+
+        f.payment.sheetWillOpen()
+        #expect(await f.payment.resumePendingTopUp() == .failed)
+
+        #expect(lockedMidPay)
+        #expect(finishingMidPay)
+        #expect(f.payer.payments.count == 1)
+        #expect(!f.payment.showsFinishing)
+        #expect(!f.payment.blocksDismiss)
+        #expect(f.container.session.dialogItem?.title == "Payment Not Confirmed")
+        #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
     }
 
     @Test("The Request screen opens the sheet over a top-up still to pick up on Finishing Payment")

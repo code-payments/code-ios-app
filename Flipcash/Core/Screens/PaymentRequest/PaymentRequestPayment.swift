@@ -79,6 +79,9 @@ final class PaymentRequestPayment {
     /// Whether the sheet shows "Finishing Payment": added Dollars landing and paying, or a pickup due as it opens.
     var showsFinishing: Bool { isFinishing || isPickingUp }
 
+    /// How long a payment submission may go unanswered before its outcome counts as unknown.
+    static let submissionTimeout: Duration = .seconds(30)
+
     /// Whether a payment from the sheet is running or due to be picked up; the sheet can't be swiped away then.
     var blocksDismiss: Bool { isSubmitting || topUpRun != nil || isPickingUp }
 
@@ -92,6 +95,7 @@ final class PaymentRequestPayment {
     @ObservationIgnored private let fundingExecutor: CollectionFundingExecutor
     @ObservationIgnored private let fundsCollections: () -> Bool
     @ObservationIgnored private let topUpper: any CollectionTopUpping
+    @ObservationIgnored private let submissionTimeout: Duration
     @ObservationIgnored private var intentID: Data?
     /// Set after a payment whose outcome isn't known, so the next try refetches first.
     @ObservationIgnored private var needsRefetch = false
@@ -106,6 +110,7 @@ final class PaymentRequestPayment {
         topUpper: (any CollectionTopUpping)? = nil,
         fundingStore: CollectionFundingStore? = nil,
         fundsCollections: (() -> Bool)? = nil,
+        submissionTimeout: Duration = PaymentRequestPayment.submissionTimeout,
         clock: @escaping () -> Date = Date.init
     ) {
         let session = sessionContainer.session
@@ -117,6 +122,7 @@ final class PaymentRequestPayment {
         self.payer = payer ?? session
         self.resolver = resolver ?? session
         self.clock = clock
+        self.submissionTimeout = submissionTimeout
         self.fundingStore = fundingStore
         self.fundingExecutor = CollectionFundingExecutor(
             swapper: swapper ?? SessionCollectionSwapper(session: session, ratesController: sessionContainer.ratesController),
@@ -772,18 +778,36 @@ final class PaymentRequestPayment {
         }
 
         do {
-            try await payer.payRequestShare(
-                amount: amount,
-                verifiedState: pin,
-                to: creatorOwner,
-                chatID: chatID,
-                paymentRequestID: requestID,
-                intentID: intentKey
-            )
+            let payer = self.payer
+            let requestID = self.requestID
+            try await withDeadline(.now + submissionTimeout) { @MainActor in
+                try await payer.payRequestShare(
+                    amount: amount,
+                    verifiedState: pin,
+                    to: creatorOwner,
+                    chatID: chatID,
+                    paymentRequestID: requestID,
+                    intentID: intentKey
+                )
+            }
             self.intentID = nil
             Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: nil)
             _ = try? await requests.refreshDetails(requestID)
             return .success
+        } catch is CancellationError where !Task.isCancelled {
+            // The deadline passed. The next tap reads the intent ID again, so it can't pay twice.
+            let error = SubmissionError.unanswered
+            ErrorReporting.captureError(
+                error,
+                reason: "Request payment submission unanswered",
+                metadata: ["requestID": "\(requestID)"]
+            )
+            Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: error)
+            needsRefetch = true
+            showPaymentNotConfirmed()
+            // The sheet unlocks as this returns; the refetch doesn't hold it.
+            Task { [requests, requestID] in _ = try? await requests.refreshDetails(requestID) }
+            return .failed
         } catch {
             Analytics.sentCash(exchangedFiat: amount, context: .paymentRequest, error: error)
             needsRefetch = true
@@ -798,6 +822,11 @@ final class PaymentRequestPayment {
             }
             return .failed
         }
+    }
+
+    /// A payment submission the server didn't answer within ``submissionTimeout``.
+    private enum SubmissionError: Error {
+        case unanswered
     }
 
     /// Whether `priced` pays `fiat` to within half its currency's smallest unit.
@@ -876,6 +905,14 @@ final class PaymentRequestPayment {
             subtitle: "Flipcash is designed for small, every day transactions. Send limits reset daily"
         )
         return true
+    }
+
+    /// No frame draws this state; the copy says what the spec asks for.
+    private func showPaymentNotConfirmed() {
+        session.dialogItem = .info(
+            title: String(localized: "Payment Not Confirmed", comment: "Title shown when a payment submission went unanswered, so whether it landed isn't known yet"),
+            subtitle: String(localized: "We couldn’t confirm your payment yet. Check back shortly. You won’t be charged twice.", comment: "Body shown when a payment submission went unanswered, so whether it landed isn't known yet")
+        )
     }
 
     /// No frame draws this state; the copy says what the spec asks for.

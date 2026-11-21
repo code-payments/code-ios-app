@@ -89,6 +89,10 @@ nonisolated enum CollectionTopUpTarget {
 @MainActor
 final class SessionCollectionTopUpper: CollectionTopUpping {
 
+    /// How long a committed order waits for Coinbase to report it complete while the pay sheet is
+    /// locked; past it the order may still deliver and the Dollars wait takes over.
+    static let confirmationTimeout: Duration = .seconds(30)
+
     private let session: Session
     private let coinbaseService: CoinbaseService
     private let sweeper: UsdcSweepOperation
@@ -111,7 +115,12 @@ final class SessionCollectionTopUpper: CollectionTopUpping {
     func order(amountUSD: Decimal, orderRef: String, onAuthorized: @escaping () -> Void) async -> CollectionTopUpOrder {
         let timer = session.addMoneyTimer
         timer.start()
-        let operation = CoinbaseDepositOperation(coinbaseService: coinbaseService, session: session, timer: timer)
+        let operation = CoinbaseDepositOperation(
+            coinbaseService: coinbaseService,
+            session: session,
+            timer: timer,
+            confirmationTimeout: Self.confirmationTimeout
+        )
         do {
             try await operation.start(
                 amount: ExchangedFiat(nativeAmount: .usd(amountUSD), rate: .oneToOne),

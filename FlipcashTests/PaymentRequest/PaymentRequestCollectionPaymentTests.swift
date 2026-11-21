@@ -22,6 +22,7 @@ struct PaymentRequestCollectionPaymentTests {
         var intentResult: Result<Data, ErrorGetPaymentIntentID>
         var isPaid = false
         var intentReads = 0
+        var detailReads = 0
 
         init(intentResult: Result<Data, ErrorGetPaymentIntentID>) {
             self.intentResult = intentResult
@@ -48,6 +49,7 @@ struct PaymentRequestCollectionPaymentTests {
         return PaymentRequests(
             getChatPage: { _, _, _ in [] },
             getRequest: { _ in
+                server.detailReads += 1
                 let caller = server.isPaid
                     ? GroupPaymentRequest.Payer(userID: viewer, nativeAmountDue: 0, nativeAmountPaid: amount, status: .paid(paidAt: .now, settlement: .intent(Data(repeating: 9, count: 32))))
                     : nil
@@ -63,7 +65,11 @@ struct PaymentRequestCollectionPaymentTests {
     }
 
     /// A payment over `server`, with the request already held as Request details holds it.
-    private func payment(_ server: Server, amount: Double) async throws -> (PaymentRequestPayment, PaymentRequests, FakeRequestPayer, SessionContainer) {
+    private func payment(
+        _ server: Server,
+        amount: Double,
+        submissionTimeout: Duration = PaymentRequestPayment.submissionTimeout
+    ) async throws -> (PaymentRequestPayment, PaymentRequests, FakeRequestPayer, SessionContainer) {
         let container = try await SendAmountViewModelTests.makeReadyToSendContainer()
         container.ratesController.selectToken(.usdf, source: .user)
         let requests = store(server, amount: amount, viewer: container.session.userID)
@@ -76,7 +82,8 @@ struct PaymentRequestCollectionPaymentTests {
             payer: payer,
             resolver: payer,
             // Paying without Group Money's funding; PaymentRequestCollectionFundingTests covers it.
-            fundsCollections: { false }
+            fundsCollections: { false },
+            submissionTimeout: submissionTimeout
         )
         return (payment, requests, payer, container)
     }
@@ -161,6 +168,62 @@ struct PaymentRequestCollectionPaymentTests {
         #expect(payer.payments.count == 1)
     }
 
+    @Test("A payment submission waits 30 seconds before its outcome counts as unknown")
+    func submissionTimeoutIsThirtySeconds() {
+        #expect(PaymentRequestPayment.submissionTimeout == .seconds(30))
+    }
+
+    @Test("A submission that never answers unlocks the sheet at its deadline, shows Payment Not Confirmed, refetches, and sends nothing more")
+    func submit_neverAnswers_unlocksAtDeadline() async throws {
+        let server = Server(intentResult: .success(intentID))
+        let (payment, _, payer, container) = try await payment(server, amount: 10, submissionTimeout: .milliseconds(200))
+        #expect(await payment.prepare() == .ready)
+        payer.holdsPayments = true
+        defer { payer.answerHeldPayments() }
+        var lockedMidPay = false
+        payer.whilePaying = { lockedMidPay = payment.blocksDismiss }
+        let intentReadsBefore = server.intentReads
+        let detailReadsBefore = server.detailReads
+
+        let submission = Task { await payment.submit() }
+        try await waitUntil(timeout: .seconds(10)) { !payment.blocksDismiss && !payer.payments.isEmpty }
+
+        #expect(lockedMidPay)
+        #expect(await submission.value == .failed)
+        #expect(container.session.dialogItem?.title == "Payment Not Confirmed")
+        #expect(container.session.dialogItem?.subtitle == "We couldn’t confirm your payment yet. Check back shortly. You won’t be charged twice.")
+        try await waitUntil(timeout: .seconds(10)) { server.detailReads > detailReadsBefore }
+
+        // The server answers late; nothing is sent again, and the intent ID isn't read, until a tap.
+        payer.answerHeldPayments()
+        await Task.yield()
+        #expect(payer.payments.count == 1)
+        #expect(server.intentReads == intentReadsBefore)
+    }
+
+    @Test("The tap after a submission that never answered reads the intent ID again and stops on ALREADY_PAID when the first landed")
+    func submit_afterNeverAnswered_stopsOnAlreadyPaid() async throws {
+        let server = Server(intentResult: .success(intentID))
+        let (payment, _, payer, _) = try await payment(server, amount: 10, submissionTimeout: .milliseconds(200))
+        #expect(await payment.prepare() == .ready)
+        payer.holdsPayments = true
+        defer { payer.answerHeldPayments() }
+
+        let submission = Task { await payment.submit() }
+        try await waitUntil(timeout: .seconds(10)) { !payment.blocksDismiss && !payer.payments.isEmpty }
+        #expect(await submission.value == .failed)
+
+        // The first payment landed after all.
+        payer.holdsPayments = false
+        server.isPaid = true
+        server.intentResult = .failure(.alreadyPaid)
+        let readsBeforeRetry = server.intentReads
+        #expect(await payment.submit() == .success)
+
+        #expect(server.intentReads == readsBeforeRetry + 1)
+        #expect(payer.payments.count == 1)
+    }
+
     @Test("The intent ID reaches no log line through the read, a failed send, or the retry")
     func intentIDIsNeverLogged() async throws {
         let issued = Data((0..<32).map { _ in UInt8.random(in: 0...255) })
@@ -193,6 +256,10 @@ final class FakeRequestPayer: RequestedPaying, RecipientResolving {
     var failure: (any Error)?
     /// Runs inside the payment, before it returns or throws.
     var whilePaying: (() -> Void)?
+    /// When set, a payment doesn't answer until ``answerHeldPayments()``, and ignores cancellation
+    /// meanwhile, as a submission the server never answers does.
+    var holdsPayments = false
+    private var held: [CheckedContinuation<Void, Never>] = []
 
     func payRequestShare(
         amount: ExchangedFiat,
@@ -204,7 +271,17 @@ final class FakeRequestPayer: RequestedPaying, RecipientResolving {
     ) async throws {
         payments.append(Payment(amount: amount, chatID: chatID, paymentRequestID: paymentRequestID, intentID: intentID))
         whilePaying?()
+        if holdsPayments {
+            await withCheckedContinuation { held.append($0) }
+        }
         if let failure { throw failure }
+    }
+
+    /// Lets every held payment answer.
+    func answerHeldPayments() {
+        let answering = held
+        held = []
+        answering.forEach { $0.resume() }
     }
 
     func resolveContact(e164: String) async throws -> PublicKey {

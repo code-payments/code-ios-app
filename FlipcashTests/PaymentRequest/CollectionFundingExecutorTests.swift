@@ -34,10 +34,20 @@ struct CollectionFundingExecutorTests {
         var startError: Error?
         var fundError: Error?
         var onRefresh: () -> Void = {}
+        /// Calls that never answer and ignore cancellation, as a stalled stream does.
+        var unanswered: Set<Call> = []
+
+        enum Call { case start, fund, wait }
+
+        private func hangIfUnanswered(_ call: Call) async {
+            guard unanswered.contains(call) else { return }
+            await Task { try? await Task.sleep(for: .seconds(60)) }.value
+        }
 
         func start(_ swap: CollectionFundingSwap, swapID: SwapId, fundingIntentID: PublicKey) async throws {
             events.append("start \(swap.source.base58.prefix(4))")
             started.append((swap, .init(swapID: swapID, fundingIntentID: fundingIntentID)))
+            await hangIfUnanswered(.start)
             if let startError { throw startError }
         }
 
@@ -50,6 +60,7 @@ struct CollectionFundingExecutorTests {
         func fund(_ pending: PendingCollectionSwap, fundingIntentID: PublicKey, currency: CurrencyCode) async throws {
             events.append("fund")
             funded.append((pending, fundingIntentID))
+            await hangIfUnanswered(.fund)
             if let fundError { throw fundError }
         }
 
@@ -60,6 +71,7 @@ struct CollectionFundingExecutorTests {
 
         func waitForTerminalState(of swapID: SwapId) async throws -> SwapState {
             events.append("wait")
+            await hangIfUnanswered(.wait)
             return waitResult
         }
 
@@ -517,6 +529,83 @@ struct CollectionFundingExecutorTests {
 
         #expect(outcome == .failed)
         #expect(swapper.started.isEmpty)
+        #expect(store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == stored)
+    }
+
+    // MARK: - Calls that never answer
+
+    private let shortTimeout: Duration = .milliseconds(100)
+
+    @Test("Each swap call gets 30 seconds")
+    func callTimeoutIsThirtySeconds() {
+        #expect(CollectionFundingExecutor.callTimeout == .seconds(30))
+    }
+
+    @Test("A start that never answers ends failed at the deadline and keeps both ids")
+    func startNeverAnswers() async {
+        let store = makeStore()
+        let swapper = FakeSwapper()
+        swapper.unanswered = [.start]
+        let executor = CollectionFundingExecutor(swapper: swapper, store: store, timeout: shortTimeout)
+
+        let outcome = await executor.fund(requestID, currency: .usd) {
+            plan(paying: .usdf, [balance(.usdf, 4_000_000), balance(jeffy, 20_000_000)])
+        }
+
+        #expect(outcome == .failed)
+        #expect(swapper.started.count == 1)
+        #expect(!swapper.events.contains("wait"))
+        #expect(store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == swapper.started.first?.ids)
+    }
+
+    @Test("A wait that never answers ends pending at the deadline and keeps both ids")
+    func waitNeverAnswers() async {
+        let store = makeStore()
+        let swapper = FakeSwapper()
+        swapper.unanswered = [.wait]
+        let executor = CollectionFundingExecutor(swapper: swapper, store: store, timeout: shortTimeout)
+
+        let outcome = await executor.fund(requestID, currency: .usd) {
+            plan(paying: .usdf, [balance(.usdf, 4_000_000), balance(jeffy, 20_000_000)])
+        }
+
+        #expect(outcome == .pending)
+        #expect(store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == swapper.started.first?.ids)
+    }
+
+    @Test("Funding a CREATED kept swap that never answers ends failed and keeps both ids")
+    func keptFundingNeverAnswers() async {
+        let store = makeStore()
+        let stored = freshIDs()
+        store.setLegIDs(stored, for: requestID, source: jeffy.base58, destination: dollars)
+        let swapper = FakeSwapper()
+        swapper.serverStates[stored.swapID] = .created
+        swapper.pending = [pendingSwap(stored.swapID, fundingIntentID: stored.fundingIntentID)]
+        swapper.unanswered = [.fund]
+        let executor = CollectionFundingExecutor(swapper: swapper, store: store, timeout: shortTimeout)
+
+        let settlement = await executor.settleKeptSwaps(for: requestID, currency: .usd)
+
+        #expect(settlement == .failed)
+        #expect(swapper.funded.count == 1)
+        #expect(!swapper.events.contains("wait"))
+        #expect(store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == stored)
+    }
+
+    @Test("A kept swap whose wait never answers settles as pending and keeps both ids")
+    func keptWaitNeverAnswers() async {
+        let store = makeStore()
+        let stored = freshIDs()
+        store.setLegIDs(stored, for: requestID, source: jeffy.base58, destination: dollars)
+        let swapper = FakeSwapper()
+        swapper.serverStates[stored.swapID] = .funding
+        swapper.unanswered = [.wait]
+        let executor = CollectionFundingExecutor(swapper: swapper, store: store, timeout: shortTimeout)
+
+        let settlement = await executor.settleKeptSwaps(for: requestID, currency: .usd)
+
+        #expect(settlement == .pending)
+        #expect(!swapper.events.contains("refresh"))
         #expect(store.legIDs(for: requestID, source: jeffy.base58, destination: dollars) == stored)
     }
 

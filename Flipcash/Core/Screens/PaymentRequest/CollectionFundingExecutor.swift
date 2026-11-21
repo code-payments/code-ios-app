@@ -81,12 +81,18 @@ final class CollectionFundingExecutor {
     /// price moved, leaves a remainder the next round converts.
     static let maxRounds = 3
 
+    /// How long a swap's start, its funding or a wait on it gets before its outcome counts as
+    /// unknown, so the pay sheet's lock always lifts.
+    static let callTimeout: Duration = .seconds(30)
+
     private let swapper: any CollectionSwapping
     private let store: CollectionFundingStore
+    private let timeout: Duration
 
-    init(swapper: any CollectionSwapping, store: CollectionFundingStore) {
+    init(swapper: any CollectionSwapping, store: CollectionFundingStore, timeout: Duration = callTimeout) {
         self.swapper = swapper
         self.store = store
+        self.timeout = timeout
     }
 
     /// Funds `requestID`'s payment. `plan` builds a plan from the current balances; it is called
@@ -239,16 +245,19 @@ final class CollectionFundingExecutor {
             guard let fundingIntentID = ids.fundingIntentID else { return .failed }
             store.setLegIDs(ids, for: requestID, source: source, destination: destination)
             do {
-                try await swapper.start(swap, swapID: ids.swapID, fundingIntentID: fundingIntentID)
+                try await bounded { [swapper] in
+                    try await swapper.start(swap, swapID: ids.swapID, fundingIntentID: fundingIntentID)
+                }
             } catch {
                 // The outcome is unknown, so keep both ids: a retry asks the server about it first.
+                // A start left running past the deadline can't save a second swap under them.
                 return .failed
             }
         }
 
         let state: SwapState
         do {
-            state = try await swapper.waitForTerminalState(of: ids.swapID)
+            state = try await waitBounded(ids.swapID)
         } catch {
             return .failed
         }
@@ -304,14 +313,14 @@ final class CollectionFundingExecutor {
                     continue
                 }
                 _ = try await fundListed(kept.ids.swapID, currency: currency)
-                state = try await swapper.waitForTerminalState(of: kept.ids.swapID)
+                state = try await waitBounded(kept.ids.swapID)
             case .failed?, .cancelled?:
                 store.removeSwapID(for: requestID, source: kept.source, destination: kept.destination)
                 continue
             case .finalized?:
                 state = .finalized
             case .funding?, .funded?, .submitting?, .cancelling?, .unknown?:
-                state = try await swapper.waitForTerminalState(of: kept.ids.swapID)
+                state = try await waitBounded(kept.ids.swapID)
             }
             switch state {
             case .finalized, .failed, .cancelled:
@@ -342,8 +351,26 @@ final class CollectionFundingExecutor {
             return .notListed
         }
         guard let fundingIntentID = pending.fundingIntentID else { return .noFundingID }
-        try await swapper.fund(pending, fundingIntentID: fundingIntentID, currency: currency)
+        try await bounded { [swapper] in
+            try await swapper.fund(pending, fundingIntentID: fundingIntentID, currency: currency)
+        }
         return .submitted
+    }
+
+    /// Runs a swap call, throwing `CancellationError` once `timeout` passes, even when the call
+    /// ignores cancellation, as the swap and intent streams do.
+    private func bounded<T: Sendable>(_ call: @escaping @MainActor @Sendable () async throws -> T) async throws -> T {
+        try await withDeadline(.now + timeout) { @MainActor in try await call() }
+    }
+
+    /// Waits on `swapID` until `timeout`. A wait that passes it reads as still converting, as one
+    /// whose polls ran out does.
+    private func waitBounded(_ swapID: SwapId) async throws -> SwapState {
+        do {
+            return try await bounded { [swapper] in try await swapper.waitForTerminalState(of: swapID) }
+        } catch is CancellationError where !Task.isCancelled {
+            return .unknown
+        }
     }
 
     /// Decides what the leg does with the swap `stored` names. `known` is what `settleKept` read of
