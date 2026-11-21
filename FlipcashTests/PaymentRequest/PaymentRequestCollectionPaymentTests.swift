@@ -168,9 +168,9 @@ struct PaymentRequestCollectionPaymentTests {
         #expect(payer.payments.count == 1)
     }
 
-    @Test("A payment submission waits 30 seconds before its outcome counts as unknown")
-    func submissionTimeoutIsThirtySeconds() {
-        #expect(PaymentRequestPayment.submissionTimeout == .seconds(30))
+    @Test("A payment submission waits 60 seconds before its outcome counts as unknown")
+    func submissionTimeoutIsSixtySeconds() {
+        #expect(PaymentRequestPayment.submissionTimeout == .seconds(60))
     }
 
     @Test("A submission that never answers unlocks the sheet at its deadline, shows Payment Not Confirmed, refetches, and sends nothing more")

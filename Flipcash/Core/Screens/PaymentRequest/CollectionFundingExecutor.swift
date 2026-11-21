@@ -83,7 +83,7 @@ final class CollectionFundingExecutor {
 
     /// How long a swap's start, its funding or a wait on it gets before its outcome counts as
     /// unknown, so the pay sheet's lock always lifts.
-    static let callTimeout: Duration = .seconds(30)
+    static let callTimeout: Duration = .seconds(60)
 
     private let swapper: any CollectionSwapping
     private let store: CollectionFundingStore
@@ -438,7 +438,7 @@ final class SessionCollectionSwapper: CollectionSwapping {
         case rateUnavailable
     }
 
-    /// Polls at the inline swap cadence for up to 30 seconds per leg.
+    /// Polls at the inline swap cadence 120 times per leg: 30 seconds of sleeps plus one `GetSwap` call each.
     static let pollAttempts = 120
 
     private let session: Session

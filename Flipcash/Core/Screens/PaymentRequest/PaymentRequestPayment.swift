@@ -80,7 +80,7 @@ final class PaymentRequestPayment {
     var showsFinishing: Bool { isFinishing || isPickingUp }
 
     /// How long a payment submission may go unanswered before its outcome counts as unknown.
-    static let submissionTimeout: Duration = .seconds(30)
+    static let submissionTimeout: Duration = .seconds(60)
 
     /// Whether a payment from the sheet is running or due to be picked up; the sheet can't be swiped away then.
     var blocksDismiss: Bool { isSubmitting || topUpRun != nil || isPickingUp }

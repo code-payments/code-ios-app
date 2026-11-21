@@ -536,9 +536,9 @@ struct CollectionFundingExecutorTests {
 
     private let shortTimeout: Duration = .milliseconds(100)
 
-    @Test("Each swap call gets 30 seconds")
-    func callTimeoutIsThirtySeconds() {
-        #expect(CollectionFundingExecutor.callTimeout == .seconds(30))
+    @Test("Each swap call gets 60 seconds")
+    func callTimeoutIsSixtySeconds() {
+        #expect(CollectionFundingExecutor.callTimeout == .seconds(60))
     }
 
     @Test("A start that never answers ends failed at the deadline and keeps both ids")
