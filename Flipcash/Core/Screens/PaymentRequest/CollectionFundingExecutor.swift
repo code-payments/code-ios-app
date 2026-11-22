@@ -155,7 +155,7 @@ final class CollectionFundingExecutor {
             if legs.isEmpty { return .funded }
 
             let before = swapper.balanceQuarks(of: paying)
-            var landed = false
+            var landed = 0
             for leg in legs {
                 guard let source = try? PublicKey(base58: leg.source) else { return .failed }
                 let swap = CollectionFundingSwap(
@@ -164,20 +164,20 @@ final class CollectionFundingExecutor {
                     amount: FiatAmount(value: Decimal(leg.soldMicros) / 1_000_000, currency: currency)
                 )
                 switch await run(swap, source: leg.source, destination: paying.base58, for: requestID, left: left) {
-                case .landed: landed = true
+                case .landed: landed += 1
                 case .settled: continue
                 case .failed: return .failed
                 case .pending: return .pending
                 }
             }
 
-            if landed {
+            if landed > 0 {
                 // A plan read before the credit shows reads short, and a payment that stops there
                 // offers a top-up for money already on its way.
-                guard let delivered = await awaitDelivery(into: paying, above: before, for: requestID, plan: plan) else {
-                    return .pending
+                switch await awaitDelivery(of: landed, into: paying, above: before, for: requestID, plan: plan) {
+                case .shown(let delivered): next = delivered
+                case .notShown: return .pending
                 }
-                next = delivered
             } else {
                 do {
                     try await swapper.refreshBalances()
@@ -192,43 +192,65 @@ final class CollectionFundingExecutor {
         return .pending
     }
 
-    /// Reads the balances until `paying` holds more than `before` quarks and the plan covers the
-    /// payment without adding money. A rise alone isn't enough when a round ran two swaps and
-    /// only one credit shows. Returns that plan, or nil when it doesn't show within
-    /// `deliveryChecks` reads.
+    /// What the balance reads after a round's swaps showed.
+    private enum Delivery {
+        /// A credit showed; the plan read with it, which may still be short.
+        case shown(CollectionFundingPlan?)
+        /// The paying balance never rose.
+        case notShown
+    }
+
+    /// Reads the balances until `paying` holds more than `before` quarks and either the plan
+    /// covers the payment without adding money or the balance has risen once per landed swap. A
+    /// single rise isn't enough when a round ran two swaps and only one credit shows. The reads
+    /// share one `timeout`, so a stalled read can't hold the pay sheet for each read in turn.
     private func awaitDelivery(
+        of swaps: Int,
         into paying: PublicKey,
         above before: UInt64,
         for requestID: PaymentRequestID,
         plan: () -> CollectionFundingPlan?
-    ) async -> CollectionFundingPlan? {
+    ) async -> Delivery {
+        let deadline = ContinuousClock.now + timeout
         var after = before
+        var rises = 0
+        var latest: CollectionFundingPlan?
+        var reads = 0
         for check in 1...deliveryChecks {
             if check > 1 { try? await Task.sleep(for: deliveryInterval) }
+            guard !Task.isCancelled, ContinuousClock.now < deadline else { break }
+            reads = check
             do {
-                try await bounded { [swapper] in try await swapper.refreshBalances() }
+                try await withDeadline(deadline) { @MainActor [swapper] in try await swapper.refreshBalances() }
             } catch {
-                // A read that fails or stalls is skipped; the next one may answer.
+                // A read that fails is skipped; the next one may answer.
                 continue
             }
-            after = swapper.balanceQuarks(of: paying)
-            if after > before, let current = plan(), current.payableWithoutTopUp {
-                logger.info("Collection funding delivery shown", metadata: [
-                    "requestID": "\(requestID)",
-                    "before": "\(before)",
-                    "after": "\(after)",
-                    "checks": "\(check)",
-                ])
-                return current
+            let read = swapper.balanceQuarks(of: paying)
+            if read > after {
+                rises += 1
+                after = read
             }
+            guard rises > 0 else { continue }
+            latest = plan()
+            if latest?.payableWithoutTopUp == true || rises >= swaps { break }
         }
-        logger.warning("Collection funding delivery not shown", metadata: [
+        guard rises > 0 else {
+            logger.warning("Collection funding delivery not shown", metadata: [
+                "requestID": "\(requestID)",
+                "before": "\(before)",
+                "reads": "\(reads)",
+            ])
+            return .notShown
+        }
+        logger.info("Collection funding delivery shown", metadata: [
             "requestID": "\(requestID)",
             "before": "\(before)",
             "after": "\(after)",
-            "checks": "\(deliveryChecks)",
+            "reads": "\(reads)",
+            "payable": "\(latest?.payableWithoutTopUp == true)",
         ])
-        return nil
+        return .shown(latest)
     }
 
     /// How settling the swaps earlier attempts kept ended.
