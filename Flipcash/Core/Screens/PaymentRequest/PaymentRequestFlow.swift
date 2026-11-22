@@ -303,7 +303,7 @@ private struct PaymentRequestHistoryScreen: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(history.requests.text(of: request)?.title ?? "Request")
+                        Text(history.requests.text(of: request)?.displayTitle ?? PaymentRequestText.untitled)
                             .font(.appTextLarge)
                             .foregroundStyle(Color.textMain)
                             .lineLimit(1)

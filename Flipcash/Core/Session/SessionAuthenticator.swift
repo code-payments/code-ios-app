@@ -1123,7 +1123,8 @@ final class SessionContainer {
                 ).requests
             },
             getRequest: { [flipClient, owner = session.ownerKeyPair] id in
-                try await flipClient.getPaymentRequest(owner: owner, id: id)
+                let fetched = try await flipClient.getPaymentRequest(owner: owner, id: id)
+                return (fetched.request, fetched.paymentIntentID)
             },
             openingSeal: { [conversationController] conversationID in
                 await conversationController.openingSeal(for: conversationID)

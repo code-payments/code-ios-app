@@ -21,14 +21,26 @@ final class PaymentRequestService: Sendable {
 
     struct Fetched: Sendable {
         let request: GroupPaymentRequest
-        /// The intent id the caller's share payment must use; set only for a caller holding an unpaid share.
+        /// The intent id the caller's share payment must use; set only for a caller holding an unpaid
+        /// share of a split. The contract keeps it for splits only and never sets it for a collection,
+        /// whose intent id comes from ``PaymentRequestService/getPaymentIntentID(owner:id:completion:)``.
         let paymentIntentID: Data?
+        /// The caller's own part in the request, when they have one.
+        let callerPayer: GroupPaymentRequest.Payer?
     }
 
     struct ChatPage: Sendable {
         let requests: [GroupPaymentRequest]
         let pagingToken: Data
         let hasMore: Bool
+    }
+
+    struct PayersPage: Sendable {
+        let payers: [GroupPaymentRequest.Payer]
+        let pagingToken: Data
+        let hasMore: Bool
+        /// The request's version this page was read at.
+        let version: UInt64
     }
 
     /// Creates a split in a group chat. `idempotencyKey` is reused across retries; a retry returns
@@ -80,16 +92,78 @@ final class PaymentRequestService: Sendable {
                     await MainActor.run { completion(.failure(error)) }
                     return
                 }
-                guard let fetched = GroupPaymentRequest(response.paymentRequest) else {
+                guard let result = Fetched(response) else {
                     logger.error("Fetched payment request was malformed")
                     await MainActor.run { completion(.failure(.unknown)) }
                     return
                 }
-                let result = Fetched(
-                    request: fetched,
-                    paymentIntentID: response.hasPaymentIntentID ? response.paymentIntentID.value : nil
-                )
                 await MainActor.run { completion(.success(result)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// The intent id the caller pays `id` under, issued when they start to pay. It is the only source
+    /// of a collection's intent id. Every retry of one payment reuses it, so the server takes the
+    /// payment at most once.
+    func getPaymentIntentID(owner: KeyPair, id: PaymentRequestID, completion: @Sendable @escaping (Result<Data, ErrorGetPaymentIntentID>) -> Void) {
+        let request = Flipcash_Paymentrequest_V1_GetPaymentIntentIdRequest.with {
+            $0.paymentRequestID = id.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getPaymentIntentId(request, options: .unaryDefault)
+                let error = ErrorGetPaymentIntentID(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasPaymentIntentID else {
+                    logger.error("Failed to get payment request intent id", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error == .ok ? .unknown : error)) }
+                    return
+                }
+                let intentID = response.paymentIntentID.value
+                await MainActor.run { completion(.success(intentID)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// One page of `id`'s payers in `section`.
+    func getPayers(owner: KeyPair, id: PaymentRequestID, section: GroupPaymentRequest.PayerSection, pageSize: Int = 100, pagingToken: Data?, completion: @Sendable @escaping (Result<PayersPage, ErrorGetPayers>) -> Void) {
+        let request = Flipcash_Paymentrequest_V1_GetPayersRequest.with {
+            $0.paymentRequestID = id.proto
+            $0.section = section.proto
+            $0.queryOptions = .with {
+                $0.pageSize = Int32(pageSize)
+                if let pagingToken {
+                    $0.pagingToken = .with { $0.value = pagingToken }
+                }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.getPayers(request, options: .unaryDefault)
+                let error = ErrorGetPayers(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch payment request payers", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                let page = PayersPage(
+                    payers: response.payers.map(GroupPaymentRequest.Payer.init),
+                    pagingToken: response.pagingToken.value,
+                    hasMore: response.hasMore_p,
+                    version: response.version
+                )
+                await MainActor.run { completion(.success(page)) }
             } catch let error as RPCError {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
@@ -186,6 +260,18 @@ final class PaymentRequestService: Sendable {
     }
 }
 
+extension PaymentRequestService.Fetched {
+    /// The request, intent id and caller's payer an OK response carries; nil when its request is malformed.
+    init?(_ response: Flipcash_Paymentrequest_V1_GetPaymentRequestResponse) {
+        guard let request = GroupPaymentRequest(response.paymentRequest) else { return nil }
+        self.init(
+            request: request,
+            paymentIntentID: response.hasPaymentIntentID ? response.paymentIntentID.value : nil,
+            callerPayer: response.hasCallerPayer ? GroupPaymentRequest.Payer(response.callerPayer) : nil
+        )
+    }
+}
+
 // MARK: - Errors -
 
 /// Associated-value error, modelled on ``ErrorEditChat``, so `.textModerated` can carry the
@@ -200,6 +286,8 @@ public enum ErrorCreatePaymentRequest: Error, Sendable, Equatable {
     case invalidShares
     case invalidCurrency
     case textModerated(Flipcash_Moderation_V1_FlaggedCategory)
+    /// A collection's payment amount is not a whole number, at least one, of the currency's smallest unit.
+    case invalidAmount
     case unknown
     case transportFailure
     case cancelled
@@ -218,6 +306,7 @@ extension ErrorCreatePaymentRequest {
         case .invalidShares:        self = .invalidShares
         case .invalidCurrency:      self = .invalidCurrency
         case .textModerated:        self = .textModerated(flaggedCategory)
+        case .invalidAmount:        self = .invalidAmount
         case .UNRECOGNIZED:         self = .unknown
         }
     }
@@ -228,7 +317,7 @@ extension ErrorCreatePaymentRequest: ServerError, TransportClassifiableError {
         switch self {
         case .transportFailure: .suppressed
         case .cancelled: .info
-        case .denied, .chatNotSupported, .encryptionNotAllowed, .encryptionRequired, .invalidEndsAt, .invalidShares, .invalidCurrency, .textModerated: .info
+        case .denied, .chatNotSupported, .encryptionNotAllowed, .encryptionRequired, .invalidEndsAt, .invalidShares, .invalidCurrency, .textModerated, .invalidAmount: .info
         case .unknown, .rejected: .error
         }
     }
@@ -276,6 +365,29 @@ public enum ErrorMarkPaid: Int, Error {
     case rejected = -4
 }
 
+public enum ErrorGetPaymentIntentID: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case notOpen
+    case notAPayer
+    case alreadyPaid
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
+public enum ErrorGetPayers: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled = -3
+    case rejected = -4
+}
+
 extension ErrorGetPaymentRequest: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
@@ -315,6 +427,28 @@ extension ErrorMarkPaid: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notFound, .notOpen, .notAShare: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetPaymentIntentID: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .notOpen, .notAPayer, .alreadyPaid: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorGetPayers: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound: .info
         case .unknown, .rejected: .error
         }
     }

@@ -69,6 +69,28 @@ struct PaymentRequestPreviewTests {
         #expect(result.card == nil)
     }
 
+    @Test("A split with no text words the banner without a title and heads its card Request")
+    func unsetText() {
+        let result = preview(request(text: nil))
+
+        #expect(result.body == "Sam sent request · $20")
+        #expect(result.card?.title == "Request")
+    }
+
+    @Test("Unset split text reads as no title or description; an empty title draws as Request")
+    func unsetTextReading() throws {
+        let unset = try #require(PaymentRequestText(request: request(text: nil), seal: nil))
+        #expect(unset.title == "")
+        #expect(unset.description == "")
+        #expect(unset.displayTitle == "Request")
+
+        let empty = try #require(PaymentRequestText(request: request(text: .plaintext(title: "", description: "")), seal: nil))
+        #expect(empty.displayTitle == "Request")
+
+        let titled = try #require(PaymentRequestText(request: request(text: .plaintext(title: "Dinner", description: "")), seal: nil))
+        #expect(titled.displayTitle == "Dinner")
+    }
+
     @Test("Without a sender name the line opens on the request")
     func noSender() {
         let result = preview(request(text: .plaintext(title: "Dinner", description: "")), sender: nil)

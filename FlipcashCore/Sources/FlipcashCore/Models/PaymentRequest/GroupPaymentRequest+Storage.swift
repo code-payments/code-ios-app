@@ -53,8 +53,10 @@ extension GroupPaymentRequest {
                 $0.groupChat = .with {
                     $0.chatID = chatID.proto
                     if let split { $0.split = split.storedProto }
+                    if let collection { $0.collection = collection.storedProto }
                 }
             }
+            if let payerSummary { $0.payerSummary = payerSummary.storedProto }
         }
     }
 
@@ -77,6 +79,31 @@ extension GroupPaymentRequest.Split {
             $0.currency = currency
             if let endsAt { $0.endsAt = .init(date: endsAt) }
             $0.shares = shares.map(\.storedProto)
+        }
+    }
+}
+
+extension GroupPaymentRequest.Collection {
+    fileprivate var storedProto: Flipcash_Paymentrequest_V1_Collection {
+        .with {
+            $0.text = text?.collectionProto
+            $0.currency = currency
+            if let endsAt { $0.endsAt = .init(date: endsAt) }
+            switch paymentAmount {
+            case .fixed(let fixed): $0.fixed = .with { $0.nativeAmount = fixed.nativeAmount }
+            case nil:               break
+            }
+        }
+    }
+}
+
+extension GroupPaymentRequest.PayerSummary {
+    fileprivate var storedProto: Flipcash_Paymentrequest_V1_PayerSummary {
+        .with {
+            $0.payerCount = UInt32(clamping: payerCount)
+            $0.paidCount = UInt32(clamping: paidCount)
+            $0.nativeAmountDue = nativeAmountDue
+            $0.nativeAmountPaid = nativeAmountPaid
         }
     }
 }

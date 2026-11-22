@@ -84,6 +84,9 @@ public struct PaymentRequestCopy: Sendable {
             return hours == 1 ? "1 hour left to pay" : "\(hours) hours left to pay"
         case .minutesLeft(let minutes):
             return minutes == 1 ? "1 minute left to pay" : "\(minutes) minutes left to pay"
+        case .noDeadline:
+            // Placeholder until a collection, the only request with no deadline, has a design.
+            return "No deadline"
         case .paidInFull:
             return "Paid in full"
         case .closed:
@@ -102,7 +105,7 @@ public struct PaymentRequestCopy: Sendable {
             return hours == 1 ? "1 hour left" : "\(hours) hours left"
         case .minutesLeft(let minutes):
             return minutes == 1 ? "1 minute left" : "\(minutes) minutes left"
-        case .paidInFull, .closed, .expired:
+        case .noDeadline, .paidInFull, .closed, .expired:
             return statusLine(deadline)
         }
     }
