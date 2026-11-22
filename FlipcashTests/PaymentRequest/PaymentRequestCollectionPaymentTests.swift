@@ -344,34 +344,34 @@ struct PaymentRequestCollectionDetailsTests {
 
     @Test("Nobody paid yet reads $0 paid · $10.00 each, no title, no status, and No payments yet")
     func header_nobodyPaid() throws {
-        let content = try #require(content(collection()))
+        let details = try #require(content(collection()))
 
-        #expect(content.title == nil)
-        #expect(content.requestedBy == "Requested by Alex")
-        #expect(content.amounts == "$0 paid · $10.00 each")
-        #expect(content.statusLine == "")
-        #expect(content.rows.isEmpty)
-        #expect(content.emptyLine == "No payments yet")
+        #expect(details.title == nil)
+        #expect(details.requestedBy == "Requested by Alex")
+        #expect(details.amounts == "$0 paid · $10.00 each")
+        #expect(details.statusLine == "")
+        #expect(details.rows.isEmpty)
+        #expect(details.emptyLine == "No payments yet")
     }
 
     @Test("Paid payers read as rows with their amount and the viewer named You")
     func rows_paidPayers() throws {
         let other = UUID()
-        let content = try #require(content(collection(paid: 22), payers: [paid(viewer, 11), paid(other, 11)], viewerHasPaid: true))
+        let details = try #require(content(collection(paid: 22), payers: [paid(viewer, 11), paid(other, 11)], viewerHasPaid: true))
 
-        #expect(content.amounts == "$22.00 paid · $10.00 each")
-        #expect(content.rows.map(\.name) == ["You", "Jordan"])
-        #expect(content.rows.map(\.amount) == ["$11.00", "$11.00"])
-        #expect(content.rows.allSatisfy { $0.status == "✓ Paid" && $0.action == .none })
-        #expect(content.emptyLine == nil)
+        #expect(details.amounts == "$22.00 paid · $10.00 each")
+        #expect(details.rows.map(\.name) == ["You", "Jordan"])
+        #expect(details.rows.map(\.amount) == ["$11.00", "$11.00"])
+        #expect(details.rows.allSatisfy { $0.status == "✓ Paid" && $0.action == .none })
+        #expect(details.emptyLine == nil)
     }
 
     @Test("No row list read yet shows neither rows nor No payments yet")
     func rows_notReadYet() throws {
-        let content = try #require(content(collection(), payers: nil))
+        let details = try #require(content(collection(), payers: nil))
 
-        #expect(content.rows.isEmpty)
-        #expect(content.emptyLine == nil)
+        #expect(details.rows.isEmpty)
+        #expect(details.emptyLine == nil)
     }
 
     @Test("A member who hasn't paid an open collection sees Pay $10.00")
@@ -389,11 +389,11 @@ struct PaymentRequestCollectionDetailsTests {
 
     @Test("A closed collection reads Closed, and its creator can't close it again")
     func closed() throws {
-        let content = try #require(content(collection(status: .closed), as: creator))
+        let details = try #require(content(collection(status: .closed), as: creator))
 
-        #expect(content.statusLine == "Closed")
-        #expect(content.requestedBy == "Requested by you")
-        #expect(content.canClose == false)
+        #expect(details.statusLine == "Closed")
+        #expect(details.requestedBy == "Requested by you")
+        #expect(details.canClose == false)
     }
 
     @Test("The creator of an open collection can close it")
