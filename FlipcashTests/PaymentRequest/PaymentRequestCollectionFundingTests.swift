@@ -30,8 +30,8 @@ struct PaymentRequestCollectionFundingTests {
         }
     }
 
-    /// Swaps that never touch a network; a refresh writes `balancesAfterRefresh` to the database
-    /// and waits for the session to read them back.
+    /// Swaps that never touch a network; a refresh stores `balancesAfterRefresh` through the step
+    /// `Session.fetchBalance()` uses, and doesn't wait for the session to read them back.
     @MainActor
     private final class FakeSwapper: CollectionSwapping {
         var submitted: [(swap: CollectionFundingSwap, id: SwapId)] = []
@@ -53,7 +53,17 @@ struct PaymentRequestCollectionFundingTests {
         var refreshes = 0
         weak var container: SessionContainer?
 
+        /// Starts refused after this many, as the server refuses a swap whose source the earlier
+        /// ones drained ("insufficient balance").
+        var refusesStartsAfter: Int?
+        var refusedStarts = 0
+        struct InsufficientBalance: Error {}
+
         func start(_ swap: CollectionFundingSwap, swapID: SwapId, fundingIntentID: PublicKey) async throws {
+            if let refusesStartsAfter, submitted.count >= refusesStartsAfter {
+                refusedStarts += 1
+                throw InsufficientBalance()
+            }
             submitted.append((swap, swapID))
             if let balancesAfterStart { balancesAfterRefresh = balancesAfterStart }
         }
@@ -92,7 +102,7 @@ struct PaymentRequestCollectionFundingTests {
             refreshes += 1
             defer { if cancelsAtRefresh { withUnsafeCurrentTask { $0?.cancel() } } }
             guard let container else { return }
-            try await PaymentRequestCollectionFundingTests.write(balancesAfterRefresh, to: container)
+            try PaymentRequestCollectionFundingTests.store(balancesAfterRefresh, in: container)
         }
     }
 
@@ -146,23 +156,25 @@ struct PaymentRequestCollectionFundingTests {
                 self.delivered = nil
                 let held = container.session.balance(for: .usdf)?.quarks ?? 0
                 let added = NSDecimalNumber(decimal: delivered * 1_000_000).uint64Value
-                try? await PaymentRequestCollectionFundingTests.write([.usdf: held + added], to: container)
+                try? PaymentRequestCollectionFundingTests.store([.usdf: held + added], in: container)
             }
             if cancelsWait { withUnsafeCurrentTask { $0?.cancel() } }
             return ((try? await dollarsBalance()) ?? 0) >= targetUSD
         }
     }
 
-    /// Writes `balances` to the database and waits for the session to read them back.
-    fileprivate static func write(_ balances: [PublicKey: UInt64], to container: SessionContainer) async throws {
-        try container.database.transaction { db in
-            for (mint, quarks) in balances {
-                try db.insertBalance(quarks: quarks, mint: mint, costBasis: 0, date: .now)
-            }
+    /// Stores `balances` through the step a balance fetch stores what it read with.
+    fileprivate static func store(_ balances: [PublicKey: UInt64], in container: SessionContainer) throws {
+        let accounts = try balances.map { mint, quarks in
+            var proto = Ocp_Account_V1_TokenAccountInfo()
+            proto.address = mint.solanaAccountID
+            proto.mint = mint.solanaAccountID
+            proto.owner = mint.solanaAccountID
+            proto.authority = mint.solanaAccountID
+            proto.balance = quarks
+            return try AccountInfo(proto)
         }
-        for _ in 0..<500 where !balances.allSatisfy({ container.session.balance(for: $0.key)?.quarks == $0.value }) {
-            await Task.yield()
-        }
+        container.session.storeBalances(accounts, at: .now)
     }
 
     private func collection(amount: Double) -> GroupPaymentRequest {
@@ -741,6 +753,42 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.fundingStore.lastPaidCurrency == PublicKey.jeffy.base58)
     }
 
+    @Test("A top-up whose conversion drains the Dollars converts once, then pays in the picked currency")
+    func topUpConvertsOnceWhenItDrainsDollars() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 2_500_000, jeffy: Self.jeffyNearADollarFifty)
+        await priceJeffy(f)
+        f.swapper.balancesAfterStart = [.usdf: 0, .jeffy: Self.plentyOfJeffy]
+        f.swapper.refusesStartsAfter = 1
+        f.topUpper.whileOrdering = { f.topUpper.delivered = f.fundingStore.pendingTopUp(for: requestID)?.amountUSD }
+
+        #expect(await f.payment.prepare() == .ready)
+        try pick(.jeffy, in: f)
+        let plan = try #require(f.payment.fundingPlan)
+        try #require(plan.topUpMicros > 0)
+        #expect(await f.payment.addAndPay(topUpMicros: plan.topUpMicros) == .success)
+
+        #expect(f.swapper.submitted.count == 1)
+        #expect(f.swapper.refusedStarts == 0)
+        #expect(f.payer.payments.map(\.amount.mint) == [.jeffy])
+    }
+
+    @Test("A conversion that leaves Dollars over converts once, then pays in the picked currency")
+    func conversionWithDollarsLeftConvertsOnce() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 20_000_000, jeffy: Self.jeffyNearADollarFifty)
+        await priceJeffy(f)
+        f.swapper.balancesAfterStart = [.usdf: 15_000_000, .jeffy: Self.plentyOfJeffy]
+
+        #expect(await f.payment.prepare() == .ready)
+        try pick(.jeffy, in: f)
+        let plan = try #require(f.payment.fundingPlan)
+        try #require(plan.payableWithoutTopUp)
+        try #require(plan.legs.contains { $0.source == PublicKey.usdf.base58 && $0.conversion })
+        #expect(await f.payment.submit() == .success)
+
+        #expect(f.swapper.submitted.count == 1)
+        #expect(f.payer.payments.map(\.amount.mint) == [.jeffy])
+    }
+
     @Test("Relaunched between Apple Pay and the Dollars landing: the payment converts them into the picked currency and pays in it")
     func relaunchKeepsPickedCurrency() async throws {
         let server = Server(intentResult: .success(intentID))
@@ -972,7 +1020,7 @@ struct PaymentRequestCollectionFundingTests {
         #expect(await f.payment.submit() == .failed)
         #expect(f.container.session.dialogItem?.title == "Conversion Pending")
         let kept = try #require(f.swapper.submitted.first?.id)
-        try await Self.write([.jeffy: 0], to: f.container)
+        try Self.store([.jeffy: 0], in: f.container)
         f.swapper.states[kept] = .submitting
         f.container.session.dialogItem = nil
         return kept

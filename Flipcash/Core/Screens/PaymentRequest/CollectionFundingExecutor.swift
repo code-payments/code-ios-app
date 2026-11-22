@@ -6,6 +6,8 @@
 import Foundation
 import FlipcashCore
 
+nonisolated private let logger = Logger(label: "flipcash.collection-funding")
+
 /// One funding leg as a swap: sell `amount` worth of `source` into `destination`, where `amount`
 /// is what leaves the source before its sell fee, in the request's currency.
 struct CollectionFundingSwap: Equatable, Sendable {
@@ -116,10 +118,15 @@ final class CollectionFundingExecutor {
             return .failed
         }
 
-        for _ in 0..<Self.maxRounds {
+        for round in 0..<Self.maxRounds {
             guard let plan = plan(), plan.payableWithoutTopUp,
                   let paying = try? PublicKey(base58: plan.payingCurrency) else { return .short }
             let legs = plan.legs.filter { $0.conversion && $0.soldMicros > 0 }
+            logger.info("Collection funding round planned", metadata: [
+                "requestID": "\(requestID)",
+                "round": "\(round)",
+                "conversions": "\(legs.count)",
+            ])
             if legs.isEmpty { return .funded }
 
             for leg in legs {

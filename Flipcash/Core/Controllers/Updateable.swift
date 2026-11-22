@@ -46,7 +46,7 @@ final class Updateable<T: Equatable & Sendable> {
             queue: nil
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.handleDatabaseDidChange()
+                self?.refresh()
             }
         }
     }
@@ -60,7 +60,9 @@ final class Updateable<T: Equatable & Sendable> {
         }
     }
 
-    private func handleDatabaseDidChange() {
+    /// Re-evaluates the query now, so a write made just before this call is in `value` once it
+    /// returns rather than after the `.databaseDidChange` hop.
+    func refresh() {
         let newValue = valueBlock()
         guard newValue != value else { return }
         value = newValue
