@@ -707,7 +707,7 @@ struct PaymentRequestCollectionFundingTests {
     /// Prices Jeffy, so a payment in it can run.
     private func priceJeffy(_ f: Fixture) async {
         await f.container.ratesController.verifiedProtoService.saveReserveStates([
-            .freshReserve(mint: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000)
+            .freshReserve(mint: .jeffy, supplyFromBonding: UInt64(10_000) * 10_000_000_000)
         ])
     }
 
