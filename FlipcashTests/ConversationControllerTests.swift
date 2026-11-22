@@ -1879,6 +1879,19 @@ struct ConversationControllerTests {
         #expect(controller.lastMessagePreview(for: fromMe, requestTitle: { _ in "Dinner" }) { _ in nil } == "You sent request for Dinner")
     }
 
+    @Test("a request with no title previews by its subject, as a collection's \"$10 each\", and a title wins over it")
+    func requestPreviewFallsBackToSubject() {
+        let me = UUID()
+        let them = UUID()
+        let controller = makeController(MockConversations(), selfUserID: me)
+
+        let fromThem = requestConversation(from: them, members: [member(them, named: "Alice Smith")])
+        let fromMe = requestConversation(from: me, members: [])
+        #expect(controller.lastMessagePreview(for: fromThem, requestSubject: { _ in "$10 each" }) { _ in nil } == "Alice sent request for $10 each")
+        #expect(controller.lastMessagePreview(for: fromMe, requestSubject: { _ in "$10 each" }) { _ in nil } == "You sent request for $10 each")
+        #expect(controller.lastMessagePreview(for: fromMe, requestTitle: { _ in "Dinner" }, requestSubject: { _ in "$10 each" }) { _ in nil } == "You sent request for Dinner")
+    }
+
     @Test("a request whose title can't be read previews without it, and as nothing while its sender can't be named")
     func requestPreviewWithoutTitleOrSender() {
         let me = UUID()

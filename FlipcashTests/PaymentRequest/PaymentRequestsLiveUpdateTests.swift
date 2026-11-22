@@ -213,7 +213,7 @@ struct PaymentRequestsLiveUpdateTests {
     @Test("a refetch reads the request and merges the fetched copy")
     func refetchMerges() async {
         let fetched = request(version: 5, status: .closed)
-        let store = PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in (fetched, nil) })
+        let store = PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in (fetched, nil, nil) })
         store.ingest([request(version: 1)])
         await store.refetch(store.apply([updates(4, [.unknown])]))
         #expect(store.request(id)?.version == 5)

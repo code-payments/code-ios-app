@@ -93,7 +93,7 @@ struct PaymentRequestPaymentNoBalanceTests {
                 shares: [.init(userID: container.session.userID, nativeAmount: 10)]
             )
         )
-        return PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in (request, Data(repeating: 7, count: 32)) })
+        return PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in (request, Data(repeating: 7, count: 32), nil) })
     }
 
     @Test("The pay flow shows No Balance Yet and does not open the sheet when nothing is held")
@@ -187,7 +187,7 @@ struct PaymentRequestPaymentSheetSnapshotTests {
         let userID = container.session.userID
         let server = Server()
         let requests = PaymentRequests(getChatPage: { _, _, _ in [] }, getRequest: { _ in
-            (request(for: userID, paid: server.isPaid), Data(repeating: 7, count: 32))
+            (request(for: userID, paid: server.isPaid), Data(repeating: 7, count: 32), nil)
         })
         let payment = PaymentRequestPayment(requestID: requestID, sessionContainer: container, requests: requests)
 
@@ -199,7 +199,11 @@ struct PaymentRequestPaymentSheetSnapshotTests {
 
         #expect(payment.share == nil)
         #expect(payment.sheetSnapshot == opened)
-        #expect(opened.share.nativeAmount == 10)
-        #expect(opened.share.isPaid == false)
+        guard case .share(let share) = opened.payable else {
+            Issue.record("Expected a split share, got \(opened.payable)")
+            return
+        }
+        #expect(share.nativeAmount == 10)
+        #expect(share.isPaid == false)
     }
 }

@@ -84,6 +84,35 @@ public actor Coinbase {
             throw Error.decoding(error)
         }
     }
+
+    /// Reads the order `orderID` back from Coinbase.
+    public func orderStatus(orderID: String) async throws -> OnrampOrderStatusResponse {
+        let path = "onramp/orders/\(orderID)"
+        var urlRequest = URLRequest(url: config.baseURL.appendingPathComponent(path))
+        urlRequest.httpMethod = "GET"
+        let token = try await config.bearerTokenProvider("GET", "platform/v2/\(path)")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await config.urlSession.data(for: urlRequest)
+        } catch {
+            logger.error("orderStatus transport error", metadata: ["error": "\(error)"])
+            throw Error.transport(error)
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw Error.invalidResponse
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            logger.error("orderStatus http error", metadata: ["status": "\(http.statusCode)"])
+            throw Error.badStatus(code: http.statusCode, body: data)
+        }
+        do {
+            return try decoder.decode(OnrampOrderStatusResponse.self, from: data)
+        } catch {
+            throw Error.decoding(error)
+        }
+    }
 }
 
 // MARK: - Configuration -
@@ -323,6 +352,30 @@ public nonisolated struct OnrampOrderResponse: Decodable, Identifiable, Sendable
     }
     public let order: Order
     public let paymentLink: PaymentLink
+}
+
+/// An onramp order as `GET onramp/orders/{id}` returns it, read only for its outcome.
+public nonisolated struct OnrampOrderStatusResponse: Decodable, Sendable {
+
+    public struct Order: Decodable, Sendable {
+        public let status: String
+        public let txHash: String?
+    }
+
+    public let order: Order
+
+    /// Whether Coinbase ended the order without delivering it. A transaction hash means it delivered,
+    /// whatever the status says.
+    public var isFailed: Bool {
+        if let txHash = order.txHash, !txHash.isEmpty { return false }
+        return Self.isFailed(status: order.status)
+    }
+
+    /// Whether `status` is one Coinbase ends an undelivered order with.
+    static func isFailed(status: String) -> Bool {
+        let status = status.uppercased()
+        return ["FAILED", "CANCEL", "EXPIRE", "DECLINE"].contains { status.contains($0) }
+    }
 }
 
 // MARK: - Error -

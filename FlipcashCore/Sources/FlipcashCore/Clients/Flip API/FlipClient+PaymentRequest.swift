@@ -17,6 +17,13 @@ extension FlipClient {
         }
     }
 
+    /// Creates a collection in the group chat `chatID`. Reuse `idempotencyKey` across retries.
+    public func createPaymentRequest(owner: KeyPair, idempotencyKey: Data, chatID: ConversationID, collection: GroupPaymentRequest.Collection) async throws -> GroupPaymentRequest {
+        try await withCheckedThrowingContinuation { c in
+            paymentRequestService.createPaymentRequest(owner: owner, idempotencyKey: idempotencyKey, chatID: chatID, collection: collection) { c.resume(with: $0) }
+        }
+    }
+
     /// Fetches one request. `paymentIntentID` is the intent id a caller holding an unpaid share of a
     /// split must use for the payment, and `nil` for anyone else, a collection's payers included.
     /// `callerPayer` is the caller's own part in the request, when they have one.

@@ -765,7 +765,7 @@ struct ConversationScreen: View {
             paymentRequestDetails = PaymentRequestSelection(id: openRequest)
         }
         .fullScreenCover(item: $paymentRequestDetails) { selection in
-            PaymentRequestDetailsScreen(requestID: selection.id)
+            PaymentRequestDetailsScreen(requestID: selection.id, paysOnOpen: selection.paysOnOpen)
         }
         .sheet(isPresented: $isShowingMoneyActions, onDismiss: runPendingMoneyAction) {
             MoneyActionsSheet(
@@ -775,7 +775,7 @@ struct ConversationScreen: View {
         }
         .fullScreenCover(isPresented: $isShowingRequestMoney) {
             if let conversationID {
-                PaymentRequestFlow(conversationID: conversationID)
+                PaymentRequestFlow(conversationID: conversationID, kind: PaymentRequestFlowKind(showsGroupMoney: showsGroupMoney))
             }
         }
         .sheet(item: $paidReactionTarget) { target in
@@ -1164,7 +1164,13 @@ struct ConversationScreen: View {
 
     private func payRequest(_ id: PaymentRequestID) {
         afterKeyboardLowered {
-            Task { await requestPayFlow.start(id, sessionContainer: sessionContainer, router: router) }
+            Task {
+                // With no balance there is no sheet; the Request screen adds the money and pays, and
+                // shows Finishing Payment while it lands (1.1-1.3, 2.1).
+                if await requestPayFlow.start(id, sessionContainer: sessionContainer, router: router) == .fundedByTopUp {
+                    paymentRequestDetails = PaymentRequestSelection(id: id, paysOnOpen: true)
+                }
+            }
         }
     }
 

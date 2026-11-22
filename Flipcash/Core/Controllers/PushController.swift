@@ -189,7 +189,7 @@ class PushController {
         let messaging = Messaging.messaging()
         if deletingToken {
             do {
-                try await Self.withDeadline(deadline) { try await Messaging.messaging().deleteToken() }
+                try await withDeadline(deadline) { try await Messaging.messaging().deleteToken() }
             } catch {
                 ErrorReporting.captureError(error, reason: "Failed to delete local FCM token")
             }
@@ -197,7 +197,7 @@ class PushController {
 
         let token: String
         do {
-            token = try await Self.withDeadline(deadline) { try await Messaging.messaging().token() }
+            token = try await withDeadline(deadline) { try await Messaging.messaging().token() }
         } catch {
             guard !Task.isCancelled else { return .checking }
             attemptedFirebaseToken = nil
@@ -221,7 +221,7 @@ class PushController {
         do {
             let client = client
             let owner = owner
-            try await Self.withDeadline(.now + NotificationStatus.testTimeout) {
+            try await withDeadline(.now + NotificationStatus.testTimeout) {
                 try await client.sendTestPush(owner: owner)
             }
             return .sent
@@ -264,7 +264,7 @@ class PushController {
         do {
             let client = client
             let owner = owner
-            try await Self.withDeadline(deadline) {
+            try await withDeadline(deadline) {
                 try await client.addToken(
                     token: token,
                     installationID: try await Self.installationID(),
@@ -292,24 +292,6 @@ class PushController {
         return result
     }
 
-    /// Runs `operation`, throwing `CancellationError` at `deadline` or when the caller is
-    /// cancelled, even if `operation` ignores cancellation.
-    nonisolated static func withDeadline<T: Sendable>(
-        _ deadline: ContinuousClock.Instant,
-        _ operation: @escaping @Sendable () async throws -> T
-    ) async throws -> T {
-        // A task group would wait for an operation that ignores cancellation, so the result is
-        // raced through one continuation and the loser is cancelled and left behind.
-        let race = DeadlineRace<T>()
-        return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                race.start(continuation, deadline: deadline, operation: operation)
-            }
-        } onCancel: {
-            race.finish(.failure(CancellationError()))
-        }
-    }
-    
     private func deleteFirebaseToken() async throws {
         try await client.deleteTokens(
             installationID: try await Self.installationID(),
@@ -537,71 +519,4 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
 
 extension PushController {
     static let mock: PushController = PushController(owner: .mock, client: .mock)
-}
-
-// MARK: - DeadlineRace -
-
-/// Resumes one continuation with whichever of an operation, its deadline or the caller's
-/// cancellation finishes first, then cancels the rest.
-private nonisolated final class DeadlineRace<T: Sendable>: Sendable {
-
-    private struct State {
-        var continuation: CheckedContinuation<T, any Error>?
-        var result: Result<T, any Error>?
-        var tasks: [Task<Void, Never>] = []
-    }
-
-    private let state = OSAllocatedUnfairLock(initialState: State())
-
-    func start(
-        _ continuation: CheckedContinuation<T, any Error>,
-        deadline: ContinuousClock.Instant,
-        operation: @escaping @Sendable () async throws -> T
-    ) {
-        // The caller may already be cancelled, in which case `finish` ran first.
-        let early = state.withLock { state in
-            if state.result == nil { state.continuation = continuation }
-            return state.result
-        }
-        if let early {
-            continuation.resume(with: early)
-            return
-        }
-
-        let work = Task {
-            do {
-                finish(.success(try await operation()))
-            } catch {
-                finish(.failure(error))
-            }
-        }
-        let timer = Task {
-            try? await Task.sleep(until: deadline, clock: .continuous)
-            finish(.failure(CancellationError()))
-        }
-        let isFinished = state.withLock { state in
-            if state.result == nil { state.tasks = [work, timer] }
-            return state.result != nil
-        }
-        if isFinished {
-            work.cancel()
-            timer.cancel()
-        }
-    }
-
-    /// Settles the race with `result` if it has not settled yet.
-    func finish(_ result: Result<T, any Error>) {
-        let winner = state.withLock { state -> (CheckedContinuation<T, any Error>?, [Task<Void, Never>])? in
-            guard state.result == nil else { return nil }
-            state.result = result
-            defer {
-                state.continuation = nil
-                state.tasks = []
-            }
-            return (state.continuation, state.tasks)
-        }
-        guard let (continuation, tasks) = winner else { return }
-        tasks.forEach { $0.cancel() }
-        continuation?.resume(with: result)
-    }
 }

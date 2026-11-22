@@ -1,5 +1,5 @@
 //
-//  PushControllerDeadlineTests.swift
+//  DeadlineTests.swift
 //  FlipcashTests
 //
 
@@ -8,15 +8,15 @@ import os
 import Testing
 @testable import Flipcash
 
-@Suite("PushController.withDeadline")
-struct PushControllerDeadlineTests {
+@Suite("withDeadline")
+struct DeadlineTests {
 
     @Test("Throws at the deadline even when the operation ignores cancellation")
     func throwsAtDeadlineWithoutAwaitingOperation() async {
         let operation = HeldOperation()
 
         await #expect(throws: CancellationError.self) {
-            try await PushController.withDeadline(.now + .milliseconds(100)) {
+            try await withDeadline(.now + .milliseconds(100)) {
                 await operation.run()
             }
         }
@@ -27,7 +27,7 @@ struct PushControllerDeadlineTests {
 
     @Test("Returns the operation's value when it finishes before the deadline")
     func returnsValueBeforeDeadline() async throws {
-        let value = try await PushController.withDeadline(.now + .seconds(5)) { 42 }
+        let value = try await withDeadline(.now + .seconds(5)) { 42 }
         #expect(value == 42)
     }
 
@@ -35,7 +35,7 @@ struct PushControllerDeadlineTests {
     func passesErrorThrough() async {
         struct Failure: Error {}
         await #expect(throws: Failure.self) {
-            try await PushController.withDeadline(.now + .seconds(5)) { () async throws -> Int in
+            try await withDeadline(.now + .seconds(5)) { () async throws -> Int in
                 throw Failure()
             }
         }
@@ -45,7 +45,7 @@ struct PushControllerDeadlineTests {
     func throwsOnCallerCancellation() async {
         let operation = HeldOperation()
         let call = Task {
-            try await PushController.withDeadline(.now + .seconds(5)) {
+            try await withDeadline(.now + .seconds(5)) {
                 await operation.run()
             }
         }

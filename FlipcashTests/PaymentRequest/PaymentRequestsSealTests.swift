@@ -115,12 +115,12 @@ struct PaymentRequestsSealTests {
             getRequest: { _ in
                 reads += 1
                 if fails { throw ErrorGetPaymentRequest.transportFailure }
-                return (request, nil)
+                return (request, nil, nil)
             },
             openingSeal: { _ in try? Self.seal() }
         )
 
-        await store.fetchIfMissing(request.id)
+        await store.fetchIfMissing(request.id, in: chat)
         #expect(store.isSettling(chat))
 
         fails = false

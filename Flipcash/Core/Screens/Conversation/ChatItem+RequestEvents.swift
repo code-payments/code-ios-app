@@ -9,10 +9,10 @@ import Foundation
 import FlipcashCore
 
 /// A stored payment request a transcript row can name: the request and its title as the viewer
-/// reads it.
+/// reads it, `nil` for a collection, whose rows draw no title and no ring.
 nonisolated struct RequestTimeline: Hashable, Sendable {
     var request: GroupPaymentRequest
-    var title: String
+    var title: String?
 }
 
 /// One thing that happened to a request, before a run of them is collapsed into a row.
@@ -61,7 +61,8 @@ nonisolated extension RequestOccurrence {
     /// `closedAt`.
     static func stored(in requests: [PaymentRequestID: RequestTimeline]) -> [RequestOccurrence] {
         var occurrences: [RequestOccurrence] = []
-        for timeline in requests.values {
+        // A collection's rows are its payments alone.
+        for timeline in requests.values where timeline.request.split != nil {
             let request = timeline.request
             for share in request.split?.shares ?? [] {
                 guard let paidAt = share.paidAt, let userID = share.userID else { continue }
@@ -143,7 +144,7 @@ nonisolated extension RequestOccurrence {
                 caption: caption,
                 amount: total?.formattedDroppingZeroFraction(),
                 title: request?.title,
-                ringFraction: request.map { $0.request.paidFraction(asOfShareOf: last.member, fallback: last.date) },
+                ringFraction: request.flatMap { $0.title == nil ? nil : $0.request.paidFraction(asOfShareOf: last.member, fallback: last.date) },
                 requestID: request.map { $0.request.id.data },
                 serverID: serverID,
                 messageIDs: messages.map(\.stableID)

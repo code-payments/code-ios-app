@@ -475,7 +475,7 @@ struct PaymentRequestStackFace: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            PaymentRequestRing(fraction: item.card.fraction, diameter: Self.ringDiameter)
+            PaymentRequestRing(fraction: item.card.fraction ?? 0, diameter: Self.ringDiameter)
                 .paidBadge(item.viewerStatus.showsPaidBadge, diameter: Self.ringDiameter)
             .deckPart(.ring, measure)
             VStack(alignment: .leading, spacing: 2) {
@@ -541,7 +541,7 @@ private struct PaymentRequestDeckCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                PaymentRequestRing(fraction: item.card.fraction, diameter: 36)
+                PaymentRequestRing(fraction: item.card.fraction ?? 0, diameter: 36)
                     .paidBadge(item.viewerStatus.showsPaidBadge, diameter: 36)
                     .deckPart(.ring, measure)
                 VStack(alignment: .leading, spacing: 2) {
@@ -560,7 +560,7 @@ private struct PaymentRequestDeckCard: View {
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textMain)
                 .deckPart(.amounts, measure)
-            PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: false)
+            PaymentRequestProgressBar(fraction: item.card.fraction ?? 0, isEnded: false)
                 .deckPart(.bar, measure)
             PaymentRequestDeckCardFooter(item: item)
                 .deckPart(.status, measure)
@@ -756,7 +756,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
                             Text("Request").font(.appTextCaption).foregroundStyle(Color.textSecondary)
                         }
                         extra(.bar, in: box, from: cardBox, stretches: true) {
-                            PaymentRequestProgressBar(fraction: item.card.fraction, isEnded: false)
+                            PaymentRequestProgressBar(fraction: item.card.fraction ?? 0, isEnded: false)
                         }
                         extra(.status, in: box, from: cardBox, stretches: true) {
                             PaymentRequestDeckCardFooter(item: item)
@@ -778,7 +778,7 @@ private struct PaymentRequestDeckMorph: View, Animatable {
         if let from = stack[.ring], let to = card[.ring] {
             let frame = lerp(from, to, p)
             let base = p < 0.5 ? PaymentRequestStackFace.ringDiameter : Self.cardRing
-            PaymentRequestRing(fraction: item.card.fraction, diameter: base)
+            PaymentRequestRing(fraction: item.card.fraction ?? 0, diameter: base)
                 .paidBadge(item.viewerStatus.showsPaidBadge, diameter: base)
             .scaleEffect(frame.width / base)
             .frame(width: base, height: base)
@@ -888,7 +888,7 @@ extension PaymentRequests {
     }
 
     private func deckItem(_ request: GroupPaymentRequest, viewer: UserID?, copy: PaymentRequestCopy, now: Date) -> PaymentRequestDeckItem? {
-        guard request.isDrawable, let text = text(of: request) else { return nil }
+        guard request.split != nil, let text = text(of: request) else { return nil }
         let owed = viewer.flatMap { viewer in
             request.isOwed(by: viewer, at: now) ? request.share(for: viewer) : nil
         }

@@ -431,6 +431,21 @@ extension GroupPaymentRequest.Split {
     }
 }
 
+extension GroupPaymentRequest.Collection {
+    /// The wire form for `CreatePaymentRequest`.
+    var proto: Flipcash_Paymentrequest_V1_Collection {
+        .with {
+            $0.text = text?.collectionProto
+            $0.currency = currency
+            if let endsAt { $0.endsAt = .init(date: endsAt) }
+            switch paymentAmount {
+            case .fixed(let fixed): $0.fixed = .with { $0.nativeAmount = fixed.nativeAmount }
+            case nil:               break
+            }
+        }
+    }
+}
+
 extension GroupPaymentRequest {
     /// Which slice of a chat's requests to list.
     public enum Section: Hashable, Sendable {

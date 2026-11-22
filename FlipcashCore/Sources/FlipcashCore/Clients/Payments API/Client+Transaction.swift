@@ -144,7 +144,7 @@ extension Client {
     /// `amount` is the net purchase; `feeAmount`, when non-nil, is split off
     /// on-chain to the server's fee destination (the debit is `amount + feeAmount`).
     @discardableResult
-    public func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, destinationAccountExists: Bool = false) async throws -> SwapId {
+    public func buy(amount: ExchangedFiat, feeAmount: ExchangedFiat? = nil, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, destinationAccountExists: Bool = false, swapId: SwapId = .generate(), fundingIntentID: PublicKey = KeyPair.generate()!.publicKey) async throws -> SwapId {
         // Ensure the timelock vault account exists for this mint
         if !destinationAccountExists {
             try await ensureAccountExists(
@@ -155,13 +155,13 @@ extension Client {
         }
 
         return try await withCheckedThrowingContinuation { c in
-            transactionService.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
+            transactionService.buy(amount: amount, feeAmount: feeAmount, verifiedState: verifiedState, of: token, owner: owner, swapId: swapId, fundingIntentID: fundingIntentID) { c.resume(with: $0) }
         }
     }
 
     /// Buy tokens paying with another launchpad currency (Phase 1 + Phase 2).
     @discardableResult
-    public func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, destinationAccountExists: Bool = false) async throws -> SwapId {
+    public func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, destinationAccountExists: Bool = false, swapId: SwapId = .generate(), fundingIntentID: PublicKey = KeyPair.generate()!.publicKey) async throws -> SwapId {
         // Ensure the timelock vault account exists for the target mint
         if !destinationAccountExists {
             try await ensureAccountExists(
@@ -172,14 +172,14 @@ extension Client {
         }
 
         return try await withCheckedThrowingContinuation { c in
-            transactionService.buy(amount: amount, with: paymentToken, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
+            transactionService.buy(amount: amount, with: paymentToken, verifiedState: verifiedState, of: token, owner: owner, swapId: swapId, fundingIntentID: fundingIntentID) { c.resume(with: $0) }
         }
     }
 
     @discardableResult
-    public func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
+    public func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, swapId: SwapId = .generate(), fundingIntentID: PublicKey = KeyPair.generate()!.publicKey) async throws -> SwapId {
         try await withCheckedThrowingContinuation { c in
-            transactionService.sell(amount: amount, verifiedState: verifiedState, in: token, owner: owner) { c.resume(with: $0) }
+            transactionService.sell(amount: amount, verifiedState: verifiedState, in: token, owner: owner, swapId: swapId, fundingIntentID: fundingIntentID) { c.resume(with: $0) }
         }
     }
 
@@ -302,7 +302,23 @@ extension Client {
         }
     }
 
+    /// Funds a swap the server holds in CREATED under the funding intent id it recorded. See
+    /// `TransactionService.fundSwap`.
+    @discardableResult
+    public func fundSwap(swapId: SwapId, fundingIntentID: PublicKey, amount: ExchangedFiat, verifiedState: VerifiedState, fromMint: MintMetadata, toMint: MintMetadata, sourceCluster: AccountCluster) async throws -> SwapId {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.fundSwap(swapId: swapId, fundingIntentID: fundingIntentID, amount: amount, verifiedState: verifiedState, fromMint: fromMint, toMint: toMint, sourceCluster: sourceCluster) { c.resume(with: $0) }
+        }
+    }
+
     // MARK: - Swap Status -
+
+    /// Fetches the owner's swaps that wait on a client action (GetPendingSwaps). Empty when there are none.
+    public func fetchPendingSwaps(owner: KeyPair) async throws -> [SwapMetadata] {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.swapService.getPendingSwaps(owner: owner) { c.resume(with: $0) }
+        }
+    }
 
     /// Fetches the current state of a swap
     public func fetchSwapMetadata(swapId: SwapId, owner: KeyPair) async throws -> SwapMetadata {

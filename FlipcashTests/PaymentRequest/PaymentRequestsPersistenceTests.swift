@@ -146,7 +146,7 @@ struct PaymentRequestsPersistenceTests {
         store(database).ingest([request(version: 2)])
 
         let restarted = store(database)
-        await restarted.fetchIfMissing(requestID)
+        await restarted.fetchIfMissing(requestID, in: chat)
         #expect(restarted.request(requestID)?.version == 2)
     }
 
