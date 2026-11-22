@@ -115,6 +115,24 @@ jobs:
     # The app build and its 1664 tests took 22 of the previous 30 on a quiet
     # run, which leaves nothing for a slow runner.
     timeout-minutes: 60
+    # The cases "App tests" skips and "Quarantined app tests" runs, one test ID per
+    # line. Each fails every time on this runner and passes locally on Xcode 27.2:
+    # - openPanel_sitsAbovePlus: its 90 s waitUntil never sees the open panel's
+    #   pixels above the bar on Xcode 26.3 (3 of 3 tries, run 41674530406); it
+    #   passes in about 2 s on Xcode 27.2.
+    # - GroupMoneyShellSpecTests 8.34-8.37, the four barSwitch_ cases (#1293): on
+    #   the iOS 26.2 runtime, .toolbar(removing: .title) at
+    #   TipConversationsScreen.swift:218-221 leaves the .navigationTitle("Groups")
+    #   label in the tree under an alpha-0 parent, so the tests count two Groups
+    #   titles. 8.36 also sees Money's title blend into Groups with no app fade
+    #   running (GroupMoneyShellSpecTests.swift:727). Run 44959435185.
+    env:
+      QUARANTINED: |
+        FlipcashTests/AttachPanelPlacementTests/openPanel_sitsAbovePlus()
+        FlipcashTests/GroupMoneyShellSpecTests/barSwitch_fadesTitleAndSettlesOnOne(leftAligned:)
+        FlipcashTests/GroupMoneyShellSpecTests/barSwitch_backBeforeTheFadeEndsSettlesOnGroups(leftAligned:)
+        FlipcashTests/GroupMoneyShellSpecTests/barSwitch_intoPushedStackFadesNothingOnPop(leftAligned:)
+        FlipcashTests/GroupMoneyShellSpecTests/barSwitch_thenPushAndPopFadesNothing(leftAligned:)
     steps:
       - uses: actions/checkout@v4
 
@@ -207,31 +225,31 @@ jobs:
       # time is about 110 s and no case takes over 2.2 s.
       - name: App tests
         run: |
+          skips=()
+          for test in $QUARANTINED; do skips+=(-skip-testing:"$test"); done
           xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -parallel-testing-enabled NO \
             -only-testing:FlipcashTests \
-            -skip-testing:"$QUARANTINED" \
+            "${skips[@]}" \
             -resultBundlePath "${{ runner.temp }}/AppTests.xcresult"
-        env:
-          QUARANTINED: FlipcashTests/AttachPanelPlacementTests/openPanel_sitsAbovePlus()
 
-      # Cases that fail every time on this runner's Xcode and pass locally on a newer
-      # one, run on their own so they still report without failing the job. Fix and
-      # move each back into "App tests". openPanel_sitsAbovePlus: its 90 s waitUntil
-      # never sees the open panel's pixels above the bar on Xcode 26.3 (3 of 3 tries,
-      # run 41674530406); it passes in about 2 s on Xcode 27.2.
+      # The QUARANTINED cases (job env, with the reason for each), run on their own
+      # so they still report without failing the job. Fix each and delete it from
+      # QUARANTINED to move it back into "App tests".
       - name: Quarantined app tests
         id: quarantine
         continue-on-error: true
         timeout-minutes: 10
         run: |
+          only=()
+          for test in $QUARANTINED; do only+=(-only-testing:"$test"); done
           xcodebuild test-without-building -scheme Flipcash \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "$GITHUB_WORKSPACE/.derived/app" \
             -parallel-testing-enabled NO \
-            -only-testing:"FlipcashTests/AttachPanelPlacementTests/openPanel_sitsAbovePlus()" \
+            "${only[@]}" \
             -resultBundlePath "${{ runner.temp }}/Quarantined.xcresult"
 
       # FlipcashUITests needs UI-test account access keys that live in

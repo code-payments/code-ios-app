@@ -1948,7 +1948,7 @@ extension GroupMoneyShellSpecTests {
     /// rather than through the router. The small bar's item is activated as VoiceOver's double tap
     /// does. The system bar's buttons take no accessibility activation in a test host, so its tab
     /// is picked the way UIKit picks it on a tap: the delegate is asked, the tab selected, and the
-    /// delegate told.
+    /// delegate told, through whichever of the tab or view controller APIs the bar is built on.
     fileprivate static func activateBarTab(_ label: String, in window: UIWindow) throws {
         window.layoutIfNeeded()
         let bar = try #require(visibleTabBar(in: window), "no tab bar")
@@ -1960,9 +1960,28 @@ extension GroupMoneyShellSpecTests {
                     ?? tabBar.items?.firstIndex { $0.accessibilityLabel == label },
                 "no \(label) on the system bar; on it: \(tabBar.items?.compactMap(\.accessibilityLabel) ?? [])"
             )
-            let tab = controller.tabs[index]
-            let previous = try #require(controller.selectedTab, "the system bar has no tab selected")
             let delegate = controller.delegate
+            // On iOS 26.2 SwiftUI builds this bar from view controllers: `tabs` is empty and its
+            // delegate answers only the view controller calls.
+            if controller.tabs.isEmpty {
+                let viewControllers = controller.viewControllers ?? []
+                let selected = try #require(
+                    viewControllers.indices.contains(index) ? viewControllers[index] : nil,
+                    "the system bar has \(viewControllers.count) view controllers, none at \(label)'s index \(index)"
+                )
+                guard delegate?.tabBarController?(controller, shouldSelect: selected) ?? true else {
+                    Issue.record("the system bar refused \(label)")
+                    return
+                }
+                controller.selectedViewController = selected
+                delegate?.tabBarController?(controller, didSelect: selected)
+                return
+            }
+            let tab = try #require(
+                controller.tabs.indices.contains(index) ? controller.tabs[index] : nil,
+                "the system bar has \(controller.tabs.count) tabs, none at \(label)'s index \(index)"
+            )
+            let previous = try #require(controller.selectedTab, "the system bar has no tab selected")
             guard delegate?.tabBarController?(controller, shouldSelectTab: tab) ?? true else {
                 Issue.record("the system bar refused \(label)")
                 return
