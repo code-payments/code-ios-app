@@ -72,9 +72,6 @@ struct PaymentRequestDetailsScreen: View {
                 pay(topUp: payFlow.inPlaceTopUp(for: requestID))
             }
         }
-        .onChange(of: payFlow.payment?.isFinishing == true) { _, isFinishing in
-            if isFinishing { payFlow.holdFinishing() }
-        }
         .dialog(item: $dialogItem)
         .sheet(item: $verificationViewModel.cancellingOnDismiss()) { viewModel in
             VerifyInfoScreen(viewModel: viewModel)
@@ -85,11 +82,7 @@ struct PaymentRequestDetailsScreen: View {
     private var screen: some View {
         // The status line counts down, so redraw at least once a minute.
         TimelineView(.periodic(from: .now, by: 60)) { context in
-            if payFlow.showsFinishing {
-                // Money the Request button added is landing; 1.3 draws this full screen.
-                PaymentRequestFinishing()
-                    .frame(maxHeight: .infinity)
-            } else if isUnavailableCollection {
+            if isUnavailableCollection {
                 unavailable
             } else if let content = content(at: context.date) {
                 loaded(content)
@@ -121,10 +114,6 @@ struct PaymentRequestDetailsScreen: View {
                 }
             }
         }
-        // Nothing leaves the screen while the payment finishes.
-        .toolbar(payFlow.showsFinishing ? .hidden : .automatic, for: .navigationBar)
-        .navigationBarBackButtonHidden(payFlow.showsFinishing)
-        .interactiveDismissDisabled(payFlow.showsFinishing)
     }
 
     // MARK: - Content -
@@ -457,14 +446,6 @@ final class PaymentRequestPayFlow {
     /// True from a tap on the Request screen's top-up button until its run, and the refetch after
     /// a payment, are done. A second tap meanwhile does nothing.
     private(set) var isToppingUp = false
-    /// Keeps "Finishing Payment" up once it has shown, until the run ends, so the unpaid row
-    /// doesn't flash back between the payment landing and the refetch.
-    private(set) var holdsFinishing = false
-
-    /// What the Request screen draws in place of its body while money it added lands (1.3).
-    var showsFinishing: Bool {
-        isToppingUp && (payment?.isFinishing == true || holdsFinishing)
-    }
 
     /// What happened to a tap on the Request screen's top-up button.
     enum TopUpInPlaceResult: Equatable {
@@ -529,9 +510,10 @@ final class PaymentRequestPayFlow {
 
     /// The Request screen's button for a collection no balance funds, which showed adding
     /// `topUpMicros`: refetches as ``start`` does, verifies the contact Coinbase needs, then adds
-    /// that amount with Apple Pay and pays, with no sheet (1.1-1.4, 2.1). It runs the sheet's
-    /// top-up, so a top-up an earlier tap ordered is waited on and never ordered again, and the
-    /// send limit is checked before Apple Pay opens. When the plan has moved since the button drew,
+    /// that amount with Apple Pay and pays (1.1-1.4, 2.1). The swipe sheet opens on "Finishing
+    /// Payment" once Apple Pay is done, as it does for the sheet's own Add button. It runs the
+    /// sheet's top-up, so a top-up an earlier tap ordered is waited on and never ordered again, and
+    /// the send limit is checked before Apple Pay opens. When the plan has moved since the button drew,
     /// the sheet opens instead: on the swipe if a balance now funds part of it, on the short state
     /// if the top-up changed. `refreshed` refetches the screen after a payment lands.
     func topUpInPlace(
@@ -546,10 +528,7 @@ final class PaymentRequestPayFlow {
     ) async -> TopUpInPlaceResult {
         guard !isPreparing, !isToppingUp else { return .busy }
         isToppingUp = true
-        defer {
-            isToppingUp = false
-            holdsFinishing = false
-        }
+        defer { isToppingUp = false }
         let payment = payment(for: requestID, sessionContainer: sessionContainer, requests: requests, injected: injected)
         let preparation = await payment.prepare()
         guard preparation == .ready else { return .prepared(preparation) }
@@ -557,17 +536,15 @@ final class PaymentRequestPayFlow {
             return .prepared(present(payment, sessionContainer: sessionContainer, router: router))
         }
         guard await verified() else { return .notVerified }
-        // A top-up an earlier tap ordered that charged nothing lets go of "Finishing Payment"
-        // before Apple Pay opens for a new one.
-        let outcome = await payment.addAndPay(topUpMicros: topUpMicros) { [weak self] in
-            self?.holdsFinishing = false
-        }
+        let outcome = await payment.addAndPay(topUpMicros: topUpMicros, finishing: { [weak self] in
+            // The sheet opens on the run's "Finishing Payment" and joins it.
+            if self?.isPaying == false { self?.openSheet(payment) }
+        })
         switch outcome {
         case .success:
-            holdsFinishing = true
             await refreshed()
         case .short:
-            openSheet(payment)
+            if !isPaying { openSheet(payment) }
         case .failed:
             break
         }
@@ -575,7 +552,7 @@ final class PaymentRequestPayFlow {
     }
 
     /// A tap on the Request screen's button, which showed `topUp`, or Pay when nil: adds the money
-    /// and pays with no sheet when no balance funds the collection, as ``topUpInPlace`` does, and
+    /// and pays when no balance funds the collection, as ``topUpInPlace`` does, and
     /// otherwise opens the sheet as ``start`` does. A button that showed Pay over a plan no balance
     /// funds any more adds the money all the same, at the amount the refetched plan needs.
     func payFromRequestScreen(
@@ -608,11 +585,6 @@ final class PaymentRequestPayFlow {
             requests: requests,
             payment: injected
         )
-    }
-
-    /// Called as "Finishing Payment" shows, so it stays up through the refetch after the payment.
-    func holdFinishing() {
-        if isToppingUp { holdsFinishing = true }
     }
 
     /// Opens the sheet for a payable share, or the "No Balance Yet" dialog when there's nothing to
@@ -756,14 +728,14 @@ private struct PaymentRequestPaySheet: View {
         // from as the sheet opens, with no second order. It runs on every open, since it also ends
         // the "Finishing Payment" the sheet opened on when there's nothing left to pick up.
         .task {
-            await finishTopUp { await payment.resumePendingTopUp() ?? .failed }
+            await finishTopUp { await payment.resumePendingTopUp() }
         }
         .sheet(item: $verificationViewModel.cancellingOnDismiss()) { vm in
             VerifyInfoScreen(viewModel: vm)
         }
         // Hold the success checkmark briefly, then return to the details, now showing the row paid.
-        .task(id: didSucceed) {
-            guard didSucceed else { return }
+        .task(id: didSucceed || payment.hasPaidFromTopUp) {
+            guard didSucceed || payment.hasPaidFromTopUp else { return }
             try? await Task.sleep(for: PaymentSuccess.hold)
             guard !Task.isCancelled else { return }
             dismiss()
@@ -792,6 +764,7 @@ private struct PaymentRequestPaySheet: View {
         let page = CollectionPaySheetPage(
             wantsDetails: isShowingDetails,
             isFinishing: payment.showsFinishing,
+            isPaid: payment.hasPaidFromTopUp,
             content: funding
         )
         return PartialSheet(background: .clear) {
@@ -801,15 +774,20 @@ private struct PaymentRequestPaySheet: View {
                     finishingContent
                         .padding(.horizontal, 20)
                         .padding(.top, 30)
-                case .pay, .details:
+                case .pay, .details, .paid:
                     // Insets from frames 5.2 (node 13952:58) and 5.3 (node 13952:149).
                     CollectionPaySheetPager(progress: page.pagerProgress) {
-                        payContent(feeLine: funding?.feeLine, topUp: funding?.topUp)
+                        let isPaid = page == .paid
+                        payContent(
+                            feeLine: isPaid ? nil : funding?.feeLine,
+                            topUp: isPaid ? nil : funding?.topUp,
+                            isPaid: isPaid
+                        )
                             .frame(maxWidth: .infinity)
                             .padding(.horizontal, 24)
                             .padding(.top, 28)
                             .allowsHitTesting(page == .pay)
-                            .accessibilityHidden(page != .pay)
+                            .accessibilityHidden(page == .details)
                         if let funding, !funding.detailsEntries.isEmpty {
                             CollectionPaymentDetailsView(
                                 content: funding,
@@ -852,8 +830,9 @@ private struct PaymentRequestPaySheet: View {
     }
 
     /// A funded collection takes its sizes from frames 5.2 and 4.2 (nodes 13952:58, 13964:78); any
-    /// other payment keeps the shipped sheet's.
-    private func payContent(feeLine: String?, topUp: CollectionPaymentSheetContent.TopUp?) -> some View {
+    /// other payment keeps the shipped sheet's. `isPaid` puts a checkmark where the control was,
+    /// for a payment no swipe made.
+    private func payContent(feeLine: String?, topUp: CollectionPaymentSheetContent.TopUp?, isPaid: Bool = false) -> some View {
         let isCollection = payment.fundsCollection
         return VStack(spacing: isCollection ? 24 : 25) {
             VStack(spacing: 8) {
@@ -884,7 +863,14 @@ private struct PaymentRequestPaySheet: View {
                 .buttonStyle(TokenChipStyle(height: isCollection ? 42 : nil, horizontalPadding: isCollection ? 15 : 16))
                 .padding(.top, isCollection ? 0 : 4)
             }
-            if let topUp {
+            if isPaid {
+                Button {} label: {
+                    ButtonStateLabel("Paid", state: .success)
+                }
+                .buttonStyle(.filled)
+                .disabled(true)
+                .accessibilityLabel("Paid")
+            } else if let topUp {
                 VStack(spacing: 16) {
                     // Opens Payment Details as the fee line does (7.3).
                     CollectionPaymentInfoLine(text: topUp.shortBy, font: .appTextXL) { showDetails(true) }
@@ -930,11 +916,12 @@ private struct PaymentRequestPaySheet: View {
         }
     }
 
-    private func finishTopUp(_ run: () async -> PaymentRequestPayment.Outcome) async {
+    /// A payment the run makes reads paid on the model, which closes the sheet.
+    private func finishTopUp(_ run: () async -> PaymentRequestPayment.Outcome?) async {
         guard !isAdding else { return }
         isAdding = true
         defer { isAdding = false }
-        if await run() == .success { didSucceed = true }
+        _ = await run()
     }
 
     private var bottomPadding: CGFloat {
@@ -943,8 +930,8 @@ private struct PaymentRequestPaySheet: View {
     }
 }
 
-/// "Finishing Payment" while the added Dollars land and the payment runs: in the sheet (4.4, 7.5,
-/// 8.4), or in place of the Request screen when its own button added the money (1.3).
+/// "Finishing Payment" in the swipe sheet while the added Dollars land and the payment runs (1.3,
+/// 2.3, 4.4, 7.5, 8.4).
 private struct PaymentRequestFinishing: View {
     var body: some View {
         VStack(spacing: 12) {

@@ -75,6 +75,9 @@ final class PaymentRequestPayment {
     private var isPickingUp = false
     /// True while a swipe's payment runs.
     private var isSubmitting = false
+    /// True once a top-up run pays, from the Add button, the Request screen's button or a pickup as
+    /// the sheet opens. No swipe drew a checkmark then, so the sheet draws one until it closes.
+    private(set) var hasPaidFromTopUp = false
 
     /// Whether the sheet shows "Finishing Payment": added Dollars landing and paying, or a pickup due as it opens.
     var showsFinishing: Bool { isFinishing || isPickingUp }
@@ -452,18 +455,17 @@ final class PaymentRequestPayment {
     /// confirmation. A top-up this payment already ordered is waited on and never ordered again.
     /// Swaps an earlier attempt kept settle first, and nothing is ordered while one hasn't. When
     /// the balances read then need a different top-up, or none can be planned, nothing is ordered
-    /// and the sheet shows the new short state. `ordering` runs just before a new Apple Pay order
-    /// is placed.
-    func addAndPay(topUpMicros: Int64, ordering: @escaping @MainActor () -> Void = {}) async -> Outcome {
+    /// and the sheet shows the new short state. `finishing` runs as "Finishing Payment" starts.
+    func addAndPay(topUpMicros: Int64, finishing: @escaping @MainActor () -> Void = {}) async -> Outcome {
         guard fundsCollection else { return .failed }
-        return await joiningTopUpRun { [self] in await runAddAndPay(topUpMicros: topUpMicros, ordering: ordering) } ?? .failed
+        return await joiningTopUpRun { [self] in await runAddAndPay(topUpMicros: topUpMicros, finishing: finishing) } ?? .failed
     }
 
-    private func runAddAndPay(topUpMicros: Int64, ordering: @MainActor () -> Void) async -> Outcome {
+    private func runAddAndPay(topUpMicros: Int64, finishing: @MainActor () -> Void) async -> Outcome {
         if let outcome = await refetchIfNeeded() { return outcome }
 
         if let pending = fundingStore.pendingTopUp(for: requestID),
-           let outcome = await finish(pending) {
+           let outcome = await finish(pending, finishing: finishing) {
             return outcome
         }
 
@@ -509,8 +511,10 @@ final class PaymentRequestPayment {
         guard plan.topUpMicros == topUpMicros else { return .short }
 
         let amountUSD = Self.topUpOrderUSD(topUpMicros: plan.topUpMicros, rate: rate)
+        // A sheet opened on an earlier top-up's "Finishing Payment" shows the short state behind
+        // Apple Pay, as it does for the sheet's own Add button.
+        isPickingUp = false
         let orderRef = topUpper.makeOrderRef()
-        ordering()
         // Written before Apple Pay opens, so an attempt that dies mid-order leaves it behind.
         fundingStore.setPendingTopUp(
             .init(
@@ -534,7 +538,7 @@ final class PaymentRequestPayment {
         case .charged, .mayDeliver:
             fundingStore.markTopUpAuthorized(for: requestID)
             guard let pending = fundingStore.pendingTopUp(for: requestID) else { return .failed }
-            return await finish(pending, orderedThisRun: true) ?? .failed
+            return await finish(pending, orderedThisRun: true, finishing: finishing) ?? .failed
         }
     }
 
@@ -547,6 +551,7 @@ final class PaymentRequestPayment {
     /// "Finishing Payment". ``resumePendingTopUp()`` ends that, whatever it finds.
     func sheetWillOpen() {
         isPickingUp = fundsCollection && hasPendingTopUp
+        hasPaidFromTopUp = false
     }
 
     /// Picks up a top-up an earlier attempt ordered, as the sheet opens after a relaunch: waits for
@@ -579,14 +584,20 @@ final class PaymentRequestPayment {
     /// for. Returns nil when the record cleared with no Dollars seen: that top-up charged nothing,
     /// so nothing is paid without the viewer asking. Returns `.short`, paying nothing, when that
     /// currency can't be paid in any more. `orderedThisRun` is true for the order this run just
-    /// placed, which is waited on before Coinbase is asked about it.
-    private func finish(_ pending: CollectionFundingStore.PendingTopUp, orderedThisRun: Bool = false) async -> Outcome? {
+    /// placed, which is waited on before Coinbase is asked about it. `finishing` runs as
+    /// "Finishing Payment" starts.
+    private func finish(
+        _ pending: CollectionFundingStore.PendingTopUp,
+        orderedThisRun: Bool = false,
+        finishing: @MainActor () -> Void = {}
+    ) async -> Outcome? {
         // A relaunch loses the visit's pick; the record keeps the currency planned before Apple Pay.
         if pickedCurrency == nil, let recorded = pending.payingCurrency {
             pickedCurrency = try? PublicKey(base58: recorded)
         }
         isFinishing = true
         defer { isFinishing = false }
+        finishing()
         switch await settle(pending, orderedThisRun: orderedThisRun) {
         case .stopped: return .failed
         case .cleared: return nil
@@ -601,7 +612,10 @@ final class PaymentRequestPayment {
             if let asked = pickedCurrency?.base58, let plan = fundingPlan, plan.payingCurrency != asked {
                 return .short
             }
-            return await submitFundedCollection(afterTopUp: true)
+            let outcome = await submitFundedCollection(afterTopUp: true)
+            // Set before "Finishing Payment" ends, so the sheet never draws the swipe in between.
+            if outcome == .success { hasPaidFromTopUp = true }
+            return outcome
         }
     }
 
