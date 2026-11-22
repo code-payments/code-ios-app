@@ -1352,8 +1352,8 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
     }
 
-    @Test("Finishing Payment lets go before a new Apple Pay order, when the top-up it waited on charged nothing")
-    func requestScreenHoldLetsGoBeforeNewOrder() async throws {
+    @Test("The sheet leaves Finishing Payment before a new Apple Pay order, when the top-up it waited on charged nothing")
+    func requestScreenSheetLeavesFinishingBeforeNewOrder() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
         // An earlier tap's Apple Pay never reported authorized, and its Dollars never come.
         f.fundingStore.setPendingTopUp(
@@ -1362,26 +1362,25 @@ struct PaymentRequestCollectionFundingTests {
         )
         f.topUpper.holdsWait = true
         let flow = PaymentRequestPayFlow()
-        var finishingWhileOrdering: Bool?
-        var finishingAtRefresh: Bool?
+        var pageWhileOrdering: CollectionPaySheetPage?
+        var pageAtRefresh: CollectionPaySheetPage?
         f.topUpper.whileOrdering = {
-            finishingWhileOrdering = flow.showsFinishing
+            pageWhileOrdering = self.sheetPage(f.payment)
             f.topUpper.delivered = 10
         }
 
-        let tap = Task { await tapTopUp(f, flow, micros: 10_000_000, refreshed: { finishingAtRefresh = flow.showsFinishing }) }
+        let tap = Task { await tapTopUp(f, flow, micros: 10_000_000, refreshed: { pageAtRefresh = self.sheetPage(f.payment) }) }
         while f.topUpper.releaseWait == nil { await Task.yield() }
         try #require(f.payment.isFinishing)
-        // As the Request screen does when Finishing Payment shows.
-        flow.holdFinishing()
-        #expect(flow.showsFinishing)
+        #expect(flow.isPaying)
+        #expect(sheetPage(f.payment) == .finishing)
         f.topUpper.holdsWait = false
         f.topUpper.releaseWait?()
 
         #expect(await tap.value == .paid(.success))
         #expect(f.topUpper.orders.count == 1)
-        #expect(finishingWhileOrdering == false)
-        #expect(finishingAtRefresh == true)
+        #expect(pageWhileOrdering == .pay)
+        #expect(pageAtRefresh == .paid)
     }
 
     // MARK: - Holding the sheet while a payment runs
@@ -1558,7 +1557,7 @@ struct PaymentRequestCollectionFundingTests {
         )
     }
 
-    @Test("1.1: with no balance the Request button reads Pay $10.00, and a tap adds $10 and pays once with no sheet")
+    @Test("1.1: with no balance the Request button reads Pay $10.00, and a tap adds $10 and pays once, ending in the sheet")
     func requestScreenTopsUpTheAmount() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
         f.topUpper.delivered = 10
@@ -1570,7 +1569,8 @@ struct PaymentRequestCollectionFundingTests {
         let result = await tapTopUp(f, flow, micros: button.micros, refreshed: { refreshes += 1 })
 
         #expect(result == .paid(.success))
-        #expect(!flow.isPaying)
+        #expect(flow.isPaying)
+        #expect(sheetPage(f.payment) == .paid)
         #expect(f.container.session.dialogItem == nil)
         #expect(f.topUpper.orders.map(\.amountUSD) == [10])
         #expect(f.payer.payments.count == 1)
@@ -1578,7 +1578,6 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.fundingStore.pendingTopUp(for: requestID) == nil)
         #expect(refreshes == 1)
         #expect(!flow.isToppingUp)
-        #expect(!flow.showsFinishing)
     }
 
     @Test("2.1: under the Apple Pay minimum the button reads Add $5.00 and Pay $2.00 over the footnote, and a tap adds $5 and pays once")
@@ -1595,7 +1594,7 @@ struct PaymentRequestCollectionFundingTests {
         ))
         #expect(await tapTopUp(f, flow, micros: button.micros) == .paid(.success))
 
-        #expect(!flow.isPaying)
+        #expect(sheetPage(f.payment) == .paid)
         #expect(f.topUpper.orders.map(\.amountUSD) == [5])
         #expect(f.payer.payments.count == 1)
         #expect(f.payer.payments.first?.amount.nativeAmount.value == 2)
@@ -1735,35 +1734,150 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.payer.payments.first?.amount.nativeAmount == FiatAmount(value: 10, currency: .usd))
     }
 
-    @Test("1.3: Finishing Payment shows until the refetch is done, and a second tap meanwhile does nothing")
+    @Test("1.3: the sheet shows Finishing Payment, then reads paid through the refetch, and a second tap meanwhile does nothing")
     func secondTapDuringRunDoesNothing() async throws {
         let server = Server(intentResult: .success(intentID))
         let f = try await fixture(server, amount: 10, dollars: nil, jeffy: nil)
         f.topUpper.delivered = 10
         f.topUpper.holdsWait = true
         let flow = PaymentRequestPayFlow()
-        var finishingAtRefresh: Bool?
+        var pageAtRefresh: CollectionPaySheetPage?
 
-        let first = Task { await tapTopUp(f, flow, micros: 10_000_000, refreshed: { finishingAtRefresh = flow.showsFinishing }) }
+        let first = Task { await tapTopUp(f, flow, micros: 10_000_000, refreshed: { pageAtRefresh = self.sheetPage(f.payment) }) }
         while f.topUpper.releaseWait == nil { await Task.yield() }
         #expect(flow.isToppingUp)
-        #expect(flow.showsFinishing)
+        #expect(sheetPage(f.payment) == .finishing)
 
         let reads = server.intentReads
         #expect(await tapTopUp(f, flow, micros: 10_000_000) == .busy)
         #expect(await flow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment) == .failed)
         #expect(server.intentReads == reads)
-        #expect(!flow.isPaying)
 
         f.topUpper.releaseWait?()
         #expect(await first.value == .paid(.success))
 
-        #expect(finishingAtRefresh == true)
-        #expect(!flow.showsFinishing)
+        #expect(pageAtRefresh == .paid)
         #expect(!flow.isToppingUp)
         #expect(f.topUpper.orders.count == 1)
         #expect(f.topUpper.waits == 1)
         #expect(f.payer.payments.count == 1)
+    }
+
+    // MARK: - Finishing Payment in the sheet
+
+    /// The page the funded-collection sheet draws for `payment`, with Payment Details closed.
+    private func sheetPage(_ payment: PaymentRequestPayment) -> CollectionPaySheetPage {
+        CollectionPaySheetPage(
+            wantsDetails: false,
+            isFinishing: payment.showsFinishing,
+            isPaid: payment.hasPaidFromTopUp,
+            content: payment.fundingSheet
+        )
+    }
+
+    @Test("1.3: the Request button's top-up shows Finishing Payment in the swipe sheet, locked, once Apple Pay ends")
+    func requestButtonFinishesInSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        f.topUpper.delivered = 10
+        f.topUpper.holdsWait = true
+        let flow = PaymentRequestPayFlow()
+        var sheetWhileOrdering: Bool?
+        f.topUpper.whileOrdering = { sheetWhileOrdering = flow.isPaying }
+        var refetches = 0
+
+        let tap = Task { await tapTopUp(f, flow, micros: 10_000_000, refreshed: { refetches += 1 }) }
+        while f.topUpper.releaseWait == nil { await Task.yield() }
+        try #require(f.payment.isFinishing)
+
+        #expect(sheetWhileOrdering == false)
+        #expect(flow.isPaying)
+        #expect(sheetPage(f.payment) == .finishing)
+        #expect(f.payment.blocksDismiss)
+
+        // The sheet's open task joins the run rather than ordering again.
+        let sheetOpen = Task { await f.payment.resumePendingTopUp() }
+        f.topUpper.releaseWait?()
+        #expect(await tap.value == .paid(.success))
+        _ = await sheetOpen.value
+        #expect(f.topUpper.orders.count == 1)
+        #expect(f.payer.payments.count == 1)
+        #expect(refetches == 1)
+        #expect(flow.isPaying)
+        #expect(sheetPage(f.payment) == .paid)
+    }
+
+    @Test("1.1: a chat Pay with no balance shows Finishing Payment in the swipe sheet over the Request screen")
+    func chatPayFinishesInSheet() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
+        f.topUpper.delivered = 10
+        f.topUpper.holdsWait = true
+        let chatFlow = PaymentRequestPayFlow()
+        let screenFlow = PaymentRequestPayFlow()
+        #expect(await chatFlow.start(requestID, sessionContainer: f.container, router: AppRouter(), payment: f.payment) == .fundedByTopUp)
+
+        // The Request screen opens on paysOnOpen and runs its button with its own flow.
+        let tap = Task { await tapRequestButton(f, screenFlow, topUp: screenFlow.inPlaceTopUp(for: requestID)) }
+        while f.topUpper.releaseWait == nil { await Task.yield() }
+
+        #expect(!chatFlow.isPaying)
+        #expect(screenFlow.isPaying)
+        #expect(sheetPage(f.payment) == .finishing)
+
+        f.topUpper.releaseWait?()
+        #expect(await tap.value == .paid(.success))
+    }
+
+    @Test("Once the money the sheet's Add button added pays, the sheet stops drawing the swipe")
+    func sheetAddEndsOffTheSwipe() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        #expect(await f.payment.prepare() == .ready)
+        f.payment.sheetWillOpen()
+        let plan = try #require(f.payment.fundingPlan)
+        f.topUpper.delivered = Decimal(plan.topUpMicros) / 1_000_000
+
+        #expect(await f.payment.addAndPay(topUpMicros: plan.topUpMicros) == .success)
+
+        #expect(sheetPage(f.payment) == .paid)
+    }
+
+    @Test("A top-up picked up as the sheet opens stops drawing the swipe once it pays")
+    func resumedTopUpEndsOffTheSwipe() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        pendingFive(in: f)
+        f.topUpper.delivered = 5
+        #expect(await f.payment.prepare() == .ready)
+        f.payment.sheetWillOpen()
+
+        #expect(await f.payment.resumePendingTopUp() == .success)
+
+        #expect(f.payer.payments.count == 1)
+        #expect(sheetPage(f.payment) == .paid)
+    }
+
+    @Test("A swiped payment keeps the swipe page, whose own checkmark shows until the sheet closes")
+    func swipeKeepsThePayPage() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 10_000_000, jeffy: nil)
+        #expect(await f.payment.prepare() == .ready)
+        f.payment.sheetWillOpen()
+
+        #expect(await f.payment.submit() == .success)
+
+        #expect(!f.payment.hasPaidFromTopUp)
+        #expect(sheetPage(f.payment) == .pay)
+    }
+
+    @Test("Reopening the sheet after a top-up paid draws it fresh")
+    func reopenClearsPaid() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: 6_000_000, jeffy: nil)
+        pendingFive(in: f)
+        f.topUpper.delivered = 5
+        #expect(await f.payment.prepare() == .ready)
+        f.payment.sheetWillOpen()
+        #expect(await f.payment.resumePendingTopUp() == .success)
+
+        f.payment.sheetWillOpen()
+
+        #expect(!f.payment.hasPaidFromTopUp)
     }
 
     @Test("With Group Money off the Request button stays Pay and a tap orders nothing")
@@ -1801,7 +1915,7 @@ struct PaymentRequestCollectionFundingTests {
         )
     }
 
-    @Test("1.1: a chat Pay with no balance hands off to the Request screen, which orders once and pays with no sheet")
+    @Test("1.1: a chat Pay with no balance hands off to the Request screen, which orders once and pays")
     func chatPayTopsUpOnRequestScreen() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
         f.topUpper.delivered = 10
@@ -1815,7 +1929,7 @@ struct PaymentRequestCollectionFundingTests {
 
         #expect(result == .paid(.success))
         #expect(!chatFlow.isPaying)
-        #expect(!screenFlow.isPaying)
+        #expect(sheetPage(f.payment) == .paid)
         #expect(f.container.session.dialogItem == nil)
         #expect(f.topUpper.orders.map(\.amountUSD) == [10])
         #expect(f.payer.payments.count == 1)
@@ -1833,7 +1947,7 @@ struct PaymentRequestCollectionFundingTests {
         #expect(f.payer.payments.isEmpty)
     }
 
-    @Test("A Request button drawn as Pay before the balance went adds the money and pays once, with no sheet")
+    @Test("A Request button drawn as Pay before the balance went adds the money and pays once")
     func requestPayButtonOverNoBalanceTopsUp() async throws {
         let f = try await fixture(Server(intentResult: .success(intentID)), amount: 10, dollars: nil, jeffy: nil)
         f.topUpper.delivered = 10
@@ -1841,7 +1955,7 @@ struct PaymentRequestCollectionFundingTests {
 
         #expect(await tapRequestButton(f, flow, topUp: nil) == .paid(.success))
 
-        #expect(!flow.isPaying)
+        #expect(sheetPage(f.payment) == .paid)
         #expect(f.topUpper.orders.map(\.amountUSD) == [10])
         #expect(f.payer.payments.count == 1)
     }

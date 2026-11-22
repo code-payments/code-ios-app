@@ -136,11 +136,17 @@ nonisolated enum CollectionPaySheetPage: Equatable, Sendable {
     case details
     /// "Finishing Payment" while the payment runs.
     case finishing
+    /// The pay content with a checkmark in the control's place, once a top-up run has paid and
+    /// until the sheet closes.
+    case paid
 
     /// `wantsDetails` is set by the fee or short line's ⓘ and cleared by Payment Details' back
-    /// chevron. Details show only while a line can open them, and a running payment wins over both.
-    init(wantsDetails: Bool, isFinishing: Bool, content: CollectionPaymentSheetContent?) {
-        if isFinishing {
+    /// chevron. Details show only while a line can open them, a running payment wins over both,
+    /// and `isPaid` wins over everything.
+    init(wantsDetails: Bool, isFinishing: Bool, isPaid: Bool = false, content: CollectionPaymentSheetContent?) {
+        if isPaid {
+            self = .paid
+        } else if isFinishing {
             self = .finishing
         } else if wantsDetails, content?.detailsEntries.isEmpty == false {
             self = .details
@@ -152,7 +158,7 @@ nonisolated enum CollectionPaySheetPage: Equatable, Sendable {
     /// Where `CollectionPaySheetPager` stands for this page: 0 on the pay content, 1 on Payment Details.
     var pagerProgress: CGFloat {
         switch self {
-        case .pay, .finishing: 0
+        case .pay, .finishing, .paid: 0
         case .details: 1
         }
     }
