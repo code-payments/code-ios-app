@@ -1735,8 +1735,9 @@ struct PaymentRequestCollectionFundingTests {
         let flow = PaymentRequestPayFlow()
         var sheetWhileOrdering: Bool?
         f.topUpper.whileOrdering = { sheetWhileOrdering = flow.isPaying }
+        var refetches = 0
 
-        let tap = Task { await tapTopUp(f, flow, micros: 10_000_000) }
+        let tap = Task { await tapTopUp(f, flow, micros: 10_000_000, refreshed: { refetches += 1 }) }
         while f.topUpper.releaseWait == nil { await Task.yield() }
         try #require(f.payment.isFinishing)
 
@@ -1745,9 +1746,16 @@ struct PaymentRequestCollectionFundingTests {
         #expect(sheetPage(f.payment) == .finishing)
         #expect(f.payment.blocksDismiss)
 
+        // The sheet's open task joins the run rather than ordering again.
+        let sheetOpen = Task { await f.payment.resumePendingTopUp() }
         f.topUpper.releaseWait?()
         #expect(await tap.value == .paid(.success))
+        _ = await sheetOpen.value
+        #expect(f.topUpper.orders.count == 1)
         #expect(f.payer.payments.count == 1)
+        #expect(refetches == 1)
+        #expect(flow.isPaying)
+        #expect(sheetPage(f.payment) == .paid)
     }
 
     @Test("1.1: a chat Pay with no balance shows Finishing Payment in the swipe sheet over the Request screen")
