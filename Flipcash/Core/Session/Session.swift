@@ -713,7 +713,13 @@ class Session {
             mints: mintMetadata.map { $0.value },
             date: now
         )
-        
+
+        storeBalances(accounts, at: now)
+    }
+
+    /// Writes `accounts`' balances and reads them back, so `balances` shows them as soon as this
+    /// returns.
+    func storeBalances(_ accounts: [AccountInfo], at date: Date) {
         // Insert all the database in a single
         // atomic operation after the mints
         database.transaction { database in
@@ -722,10 +728,13 @@ class Session {
                     quarks: account.quarks,
                     mint: account.mint,
                     costBasis: account.usdCostBasis,
-                    date: now
+                    date: date
                 )
             }
         }
+        // A caller that plans from `balances` right after a fetch would otherwise read the
+        // previous values until the `.databaseDidChange` hop runs.
+        updateableBalances.refresh()
     }
     
     func updateBalance() {
