@@ -59,6 +59,13 @@ struct PaymentRequestCollectionFundingTests {
         var refusedStarts = 0
         struct InsufficientBalance: Error {}
 
+        /// Refreshes after a swap starts that read `balancesWhileLagging` before `balancesAfterStart`
+        /// shows: the source debited and the destination not yet credited, as the server answers
+        /// for a moment after a swap finalizes.
+        var lagsRefreshes = 0
+        var balancesWhileLagging: [PublicKey: UInt64]?
+        private var lagLeft = 0
+
         func start(_ swap: CollectionFundingSwap, swapID: SwapId, fundingIntentID: PublicKey) async throws {
             if let refusesStartsAfter, submitted.count >= refusesStartsAfter {
                 refusedStarts += 1
@@ -66,6 +73,7 @@ struct PaymentRequestCollectionFundingTests {
             }
             submitted.append((swap, swapID))
             if let balancesAfterStart { balancesAfterRefresh = balancesAfterStart }
+            lagLeft = lagsRefreshes
         }
 
         /// What GetPendingSwaps lists.
@@ -102,7 +110,16 @@ struct PaymentRequestCollectionFundingTests {
             refreshes += 1
             defer { if cancelsAtRefresh { withUnsafeCurrentTask { $0?.cancel() } } }
             guard let container else { return }
-            try PaymentRequestCollectionFundingTests.store(balancesAfterRefresh, in: container)
+            var balances = balancesAfterRefresh
+            if lagLeft > 0, let balancesWhileLagging {
+                lagLeft -= 1
+                balances = balancesWhileLagging
+            }
+            try PaymentRequestCollectionFundingTests.store(balances, in: container)
+        }
+
+        func balanceQuarks(of mint: PublicKey) -> UInt64 {
+            container?.session.balance(for: mint)?.quarks ?? 0
         }
     }
 
@@ -280,6 +297,7 @@ struct PaymentRequestCollectionFundingTests {
             fundingStore: fundingStore,
             fundsCollections: { fundsCollections },
             submissionTimeout: submissionTimeout,
+            deliveryInterval: .zero,
             clock: clock
         )
         return Fixture(
@@ -305,6 +323,7 @@ struct PaymentRequestCollectionFundingTests {
             topUpper: topUpper,
             fundingStore: f.fundingStore,
             fundsCollections: { true },
+            deliveryInterval: .zero,
             clock: clock
         )
         return Fixture(
@@ -787,6 +806,63 @@ struct PaymentRequestCollectionFundingTests {
 
         #expect(f.swapper.submitted.count == 1)
         #expect(f.payer.payments.map(\.amount.mint) == [.jeffy])
+    }
+
+    // MARK: - Waiting for a conversion's credit
+
+    @Test("A top-up whose conversion credit shows a refresh late waits for it, then pays once")
+    func topUpWaitsForLateConversionCredit() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 2_500_000, jeffy: Self.jeffyNearADollarFifty)
+        await priceJeffy(f)
+        f.swapper.balancesAfterStart = [.usdf: 0, .jeffy: Self.plentyOfJeffy]
+        f.swapper.balancesWhileLagging = [.usdf: 0, .jeffy: Self.jeffyNearADollarFifty]
+        f.swapper.lagsRefreshes = 1
+        f.topUpper.whileOrdering = { f.topUpper.delivered = f.fundingStore.pendingTopUp(for: requestID)?.amountUSD }
+
+        #expect(await f.payment.prepare() == .ready)
+        try pick(.jeffy, in: f)
+        let plan = try #require(f.payment.fundingPlan)
+        try #require(plan.topUpMicros > 0)
+        #expect(await f.payment.addAndPay(topUpMicros: plan.topUpMicros) == .success)
+
+        #expect(f.topUpper.orders.count == 1)
+        #expect(f.swapper.submitted.count == 1)
+        #expect(f.payer.payments.map(\.amount.mint) == [.jeffy])
+    }
+
+    @Test("A conversion with Dollars left over whose credit shows a refresh late converts once, then pays")
+    func conversionWaitsForLateCredit() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 20_000_000, jeffy: Self.jeffyNearADollarFifty)
+        await priceJeffy(f)
+        f.swapper.balancesAfterStart = [.usdf: 15_000_000, .jeffy: Self.plentyOfJeffy]
+        f.swapper.balancesWhileLagging = [.usdf: 15_000_000, .jeffy: Self.jeffyNearADollarFifty]
+        f.swapper.lagsRefreshes = 1
+
+        #expect(await f.payment.prepare() == .ready)
+        try pick(.jeffy, in: f)
+        try #require(f.payment.fundingPlan?.payableWithoutTopUp == true)
+        #expect(await f.payment.submit() == .success)
+
+        #expect(f.swapper.submitted.count == 1)
+        #expect(f.payer.payments.map(\.amount.mint) == [.jeffy])
+    }
+
+    @Test("A conversion whose credit never shows stops as pending, converting once and paying nothing")
+    func conversionCreditNeverShows() async throws {
+        let f = try await fixture(Server(intentResult: .success(intentID)), amount: 6, dollars: 20_000_000, jeffy: Self.jeffyNearADollarFifty)
+        await priceJeffy(f)
+        f.swapper.balancesAfterStart = [.usdf: 15_000_000, .jeffy: Self.plentyOfJeffy]
+        f.swapper.balancesWhileLagging = [.usdf: 15_000_000, .jeffy: Self.jeffyNearADollarFifty]
+        f.swapper.lagsRefreshes = 100
+
+        #expect(await f.payment.prepare() == .ready)
+        try pick(.jeffy, in: f)
+        try #require(f.payment.fundingPlan?.payableWithoutTopUp == true)
+        #expect(await f.payment.submit() == .failed)
+
+        #expect(f.swapper.submitted.count == 1)
+        #expect(f.payer.payments.isEmpty)
+        #expect(f.container.session.dialogItem?.title == "Conversion Pending")
     }
 
     @Test("Relaunched between Apple Pay and the Dollars landing: the payment converts them into the picked currency and pays in it")

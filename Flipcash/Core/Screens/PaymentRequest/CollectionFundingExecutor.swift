@@ -52,6 +52,9 @@ protocol CollectionSwapping: AnyObject {
 
     /// Reloads balances, so the next plan reads what the finished swaps delivered.
     func refreshBalances() async throws
+
+    /// The owner's balance of `mint` as last read, in quarks; zero when it holds none.
+    func balanceQuarks(of mint: PublicKey) -> UInt64
 }
 
 /// Runs a collection payment's funding legs: each conversion swaps into the paying currency and
@@ -67,13 +70,17 @@ final class CollectionFundingExecutor {
         case short
         /// A swap failed or was refused, or its outcome couldn't be read.
         case failed
-        /// A swap was started but hasn't settled. Its ids are kept, so a retry waits on it rather
-        /// than starting another conversion that could land on top of it.
+        /// A swap was started but hasn't settled, what one delivered hasn't shown in the balances
+        /// yet, or the rounds ran out. A swap still running keeps its ids, so a retry waits on it
+        /// rather than starting another conversion that could land on top of it.
         case pending
     }
 
     /// How one leg ended.
     private enum LegResult {
+        /// Its swap finalized during this attempt, so what it delivered may not show yet.
+        case landed
+        /// Nothing is left to convert for it: its swap had landed before this attempt read it.
         case settled
         case failed
         case pending
@@ -87,14 +94,31 @@ final class CollectionFundingExecutor {
     /// unknown, so the pay sheet's lock always lifts.
     static let callTimeout: Duration = .seconds(60)
 
+    /// Balance reads after a round's swaps land, waiting for what they delivered to show. The
+    /// server can answer a read from before a swap's credit for a moment after the swap finalizes.
+    static let deliveryChecks = 5
+
+    /// The pause between those reads.
+    static let deliveryInterval: Duration = .seconds(1)
+
     private let swapper: any CollectionSwapping
     private let store: CollectionFundingStore
     private let timeout: Duration
+    private let deliveryChecks: Int
+    private let deliveryInterval: Duration
 
-    init(swapper: any CollectionSwapping, store: CollectionFundingStore, timeout: Duration = callTimeout) {
+    init(
+        swapper: any CollectionSwapping,
+        store: CollectionFundingStore,
+        timeout: Duration = callTimeout,
+        deliveryChecks: Int = deliveryChecks,
+        deliveryInterval: Duration = deliveryInterval
+    ) {
         self.swapper = swapper
         self.store = store
         self.timeout = timeout
+        self.deliveryChecks = deliveryChecks
+        self.deliveryInterval = deliveryInterval
     }
 
     /// Funds `requestID`'s payment. `plan` builds a plan from the current balances; it is called
@@ -118,10 +142,11 @@ final class CollectionFundingExecutor {
             return .failed
         }
 
+        var next = plan()
         for round in 0..<Self.maxRounds {
-            guard let plan = plan(), plan.payableWithoutTopUp,
-                  let paying = try? PublicKey(base58: plan.payingCurrency) else { return .short }
-            let legs = plan.legs.filter { $0.conversion && $0.soldMicros > 0 }
+            guard let current = next, current.payableWithoutTopUp,
+                  let paying = try? PublicKey(base58: current.payingCurrency) else { return .short }
+            let legs = current.legs.filter { $0.conversion && $0.soldMicros > 0 }
             logger.info("Collection funding round planned", metadata: [
                 "requestID": "\(requestID)",
                 "round": "\(round)",
@@ -129,6 +154,8 @@ final class CollectionFundingExecutor {
             ])
             if legs.isEmpty { return .funded }
 
+            let before = swapper.balanceQuarks(of: paying)
+            var landed = false
             for leg in legs {
                 guard let source = try? PublicKey(base58: leg.source) else { return .failed }
                 let swap = CollectionFundingSwap(
@@ -137,20 +164,71 @@ final class CollectionFundingExecutor {
                     amount: FiatAmount(value: Decimal(leg.soldMicros) / 1_000_000, currency: currency)
                 )
                 switch await run(swap, source: leg.source, destination: paying.base58, for: requestID, left: left) {
+                case .landed: landed = true
                 case .settled: continue
                 case .failed: return .failed
                 case .pending: return .pending
                 }
             }
 
-            do {
-                try await swapper.refreshBalances()
-            } catch {
-                return .failed
+            if landed {
+                // A plan read before the credit shows reads short, and a payment that stops there
+                // offers a top-up for money already on its way.
+                guard let delivered = await awaitDelivery(into: paying, above: before, for: requestID, plan: plan) else {
+                    return .pending
+                }
+                next = delivered
+            } else {
+                do {
+                    try await swapper.refreshBalances()
+                } catch {
+                    return .failed
+                }
+                next = plan()
             }
         }
-        // Still converting after every round: treat it as short rather than swap without end.
-        return .short
+        // Still converting after every round. Short here would offer a top-up for a plan the
+        // balances already cover, so stop as pending rather than swap without end.
+        return .pending
+    }
+
+    /// Reads the balances until `paying` holds more than `before` quarks and the plan covers the
+    /// payment without adding money. A rise alone isn't enough when a round ran two swaps and
+    /// only one credit shows. Returns that plan, or nil when it doesn't show within
+    /// `deliveryChecks` reads.
+    private func awaitDelivery(
+        into paying: PublicKey,
+        above before: UInt64,
+        for requestID: PaymentRequestID,
+        plan: () -> CollectionFundingPlan?
+    ) async -> CollectionFundingPlan? {
+        var after = before
+        for check in 1...deliveryChecks {
+            if check > 1 { try? await Task.sleep(for: deliveryInterval) }
+            do {
+                try await bounded { [swapper] in try await swapper.refreshBalances() }
+            } catch {
+                // A read that fails or stalls is skipped; the next one may answer.
+                continue
+            }
+            after = swapper.balanceQuarks(of: paying)
+            if after > before, let current = plan(), current.payableWithoutTopUp {
+                logger.info("Collection funding delivery shown", metadata: [
+                    "requestID": "\(requestID)",
+                    "before": "\(before)",
+                    "after": "\(after)",
+                    "checks": "\(check)",
+                ])
+                return current
+            }
+        }
+        logger.warning("Collection funding delivery not shown", metadata: [
+            "requestID": "\(requestID)",
+            "before": "\(before)",
+            "after": "\(after)",
+            "checks": "\(deliveryChecks)",
+        ])
+        return nil
     }
 
     /// How settling the swaps earlier attempts kept ended.
@@ -271,7 +349,7 @@ final class CollectionFundingExecutor {
         switch state {
         case .finalized:
             store.removeSwapID(for: requestID, source: source, destination: destination)
-            return .settled
+            return .landed
         case .failed, .cancelled:
             store.removeSwapID(for: requestID, source: source, destination: destination)
             return .failed
@@ -505,6 +583,10 @@ final class SessionCollectionSwapper: CollectionSwapping {
 
     func state(of swapID: SwapId) async throws -> SwapState? {
         try await session.swapState(swapId: swapID)
+    }
+
+    func balanceQuarks(of mint: PublicKey) -> UInt64 {
+        session.balance(for: mint)?.quarks ?? 0
     }
 
     func waitForTerminalState(of swapID: SwapId) async throws -> SwapState {

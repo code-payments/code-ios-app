@@ -77,7 +77,17 @@ struct CollectionFundingExecutorTests {
 
         func refreshBalances() async throws {
             events.append("refresh")
+            refreshes += 1
             onRefresh()
+        }
+
+        /// Refreshes answered so far; the paying balance rises with each, so a swap's credit shows
+        /// on the first read after it unless `quarks` says otherwise.
+        private(set) var refreshes: UInt64 = 0
+        var quarks: ((PublicKey) -> UInt64)?
+
+        func balanceQuarks(of mint: PublicKey) -> UInt64 {
+            quarks?(mint) ?? refreshes
         }
     }
 
@@ -189,7 +199,43 @@ struct CollectionFundingExecutorTests {
         #expect(swapper.started[0].ids.fundingIntentID != swapper.started[1].ids.fundingIntentID)
     }
 
-    @Test("Rounds stop at the cap and fall back to the short state")
+    @Test("Two swaps in one round: a rise from the first credit alone doesn't end the wait; it ends once the plan is payable")
+    func twoLegsOneCreditLate() async {
+        let swapper = FakeSwapper()
+        var balances = [balance(.usdf, 2_000_000), balance(jeffy, 0), balance(bogey, 9_000_000, fee: 100)]
+        swapper.onRefresh = {
+            if swapper.refreshes == 1 {
+                // The Dollars' credit shows; the second swap's hasn't yet.
+                balances = [self.balance(.usdf, 0), self.balance(self.jeffy, 2_000_000), self.balance(self.bogey, 1_000_000, fee: 100)]
+            } else {
+                balances = [self.balance(.usdf, 0), self.balance(self.jeffy, 10_000_000), self.balance(self.bogey, 1_000_000, fee: 100)]
+            }
+        }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore(), deliveryInterval: .zero)
+
+        let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: jeffy, balances) }
+
+        #expect(outcome == .funded)
+        #expect(swapper.events == ["start \(dollars.prefix(4))", "wait", "start \(bogey.base58.prefix(4))", "wait", "refresh", "refresh"])
+        #expect(swapper.started.count == 2)
+    }
+
+    @Test("A credit that never shows stops the run as pending after every read, starting nothing more")
+    func creditNeverShows() async {
+        let swapper = FakeSwapper()
+        swapper.quarks = { _ in 5 }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore(), deliveryInterval: .zero)
+
+        let outcome = await executor.fund(requestID, currency: .usd) {
+            plan(paying: .usdf, [balance(.usdf, 4_000_000), balance(jeffy, 20_000_000)])
+        }
+
+        #expect(outcome == .pending)
+        #expect(swapper.started.count == 1)
+        #expect(swapper.refreshes == UInt64(CollectionFundingExecutor.deliveryChecks))
+    }
+
+    @Test("Rounds stop at the cap as pending, since the balances cover the plan and a top-up would add money twice")
     func roundCap() async {
         let swapper = FakeSwapper()
         let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore())
@@ -199,7 +245,7 @@ struct CollectionFundingExecutorTests {
             plan(paying: .usdf, [balance(.usdf, 4_000_000), balance(jeffy, 20_000_000)])
         }
 
-        #expect(outcome == .short)
+        #expect(outcome == .pending)
         #expect(swapper.started.count == CollectionFundingExecutor.maxRounds)
     }
 
