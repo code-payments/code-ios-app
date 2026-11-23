@@ -9,6 +9,8 @@ import Foundation
 import FlipcashCore
 import FlipcashStore
 
+nonisolated private let logger = Logger(label: "flipcash.payment-requests")
+
 /// Pays the viewer's part of one payment request to its creator: their share of a split, or a
 /// collection's fixed amount.
 ///
@@ -114,6 +116,7 @@ final class PaymentRequestPayment {
         fundingStore: CollectionFundingStore? = nil,
         fundsCollections: (() -> Bool)? = nil,
         submissionTimeout: Duration = PaymentRequestPayment.submissionTimeout,
+        deliveryInterval: Duration = CollectionFundingExecutor.deliveryInterval,
         clock: @escaping () -> Date = Date.init
     ) {
         let session = sessionContainer.session
@@ -129,7 +132,8 @@ final class PaymentRequestPayment {
         self.fundingStore = fundingStore
         self.fundingExecutor = CollectionFundingExecutor(
             swapper: swapper ?? SessionCollectionSwapper(session: session, ratesController: sessionContainer.ratesController),
-            store: fundingStore
+            store: fundingStore,
+            deliveryInterval: deliveryInterval
         )
         self.topUpper = topUpper ?? SessionCollectionTopUpper(
             session: session,
@@ -701,7 +705,12 @@ final class PaymentRequestPayment {
         }
         guard !exceedsSendLimit(fiat) else { return .failed }
 
-        switch await fundingExecutor.fund(requestID, currency: fiat.currency, plan: { self.fundingPlan }) {
+        let funding = await fundingExecutor.fund(requestID, currency: fiat.currency, plan: { self.fundingPlan })
+        logger.info("Collection funding finished", metadata: [
+            "requestID": "\(requestID)",
+            "outcome": "\(funding)",
+        ])
+        switch funding {
         case .funded:
             break
         case .short:
