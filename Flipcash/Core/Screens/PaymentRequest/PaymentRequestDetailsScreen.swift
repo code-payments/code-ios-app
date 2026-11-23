@@ -873,7 +873,8 @@ private struct PaymentRequestPaySheet: View {
             } else if let topUp {
                 VStack(spacing: 16) {
                     // Opens Payment Details as the fee line does (7.3).
-                    CollectionPaymentInfoLine(text: topUp.shortBy, font: .appTextXL) { showDetails(true) }
+                    // 7.2 (node 13966:122) draws the short line Bold in white, not secondary.
+                    CollectionPaymentInfoLine(text: topUp.shortBy, font: .appTextXL, color: .textMain) { showDetails(true) }
                     Button { addAndPay(topUp) } label: {
                         if isAdding {
                             ProgressView().progressViewStyle(.circular)

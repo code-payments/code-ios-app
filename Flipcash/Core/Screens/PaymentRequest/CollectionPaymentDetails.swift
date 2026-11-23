@@ -217,11 +217,12 @@ nonisolated struct CollectionPaySheetSides: Shape {
 }
 
 /// A pay sheet line that ends in the info affordance and opens Payment Details when tapped
-/// anywhere: the fee line, and the short line in `font`. The ⓘ draws the same on both.
+/// anywhere: the fee line, and the short line in `font` and `color`. The ⓘ draws the same size on both.
 struct CollectionPaymentInfoLine: View {
 
     let text: String
     var font: Font = .appTextCaption
+    var color: Color = .textSecondary
     let action: () -> Void
 
     var body: some View {
@@ -232,7 +233,7 @@ struct CollectionPaymentInfoLine: View {
                 Image.system(.info)
                     .font(.appTextCaption)
             }
-            .foregroundStyle(Color.textSecondary)
+            .foregroundStyle(color)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
