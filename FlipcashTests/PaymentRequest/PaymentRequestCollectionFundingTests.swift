@@ -237,6 +237,7 @@ struct PaymentRequestCollectionFundingTests {
         let container: SessionContainer
         let amount: Double
         let defaults: UserDefaults
+        let requests: PaymentRequests
     }
 
     /// A $`amount` collection payment over a wallet holding `dollars` USDF quarks and `jeffy`
@@ -302,7 +303,8 @@ struct PaymentRequestCollectionFundingTests {
         )
         return Fixture(
             payment: payment, payer: payer, swapper: swapper, topUpper: topUpper,
-            fundingStore: fundingStore, container: container, amount: amount, defaults: defaults
+            fundingStore: fundingStore, container: container, amount: amount, defaults: defaults,
+            requests: requests
         )
     }
 
@@ -328,7 +330,8 @@ struct PaymentRequestCollectionFundingTests {
         )
         return Fixture(
             payment: payment, payer: f.payer, swapper: f.swapper, topUpper: topUpper,
-            fundingStore: f.fundingStore, container: f.container, amount: f.amount, defaults: f.defaults
+            fundingStore: f.fundingStore, container: f.container, amount: f.amount, defaults: f.defaults,
+            requests: requests
         )
     }
 
@@ -518,6 +521,23 @@ struct PaymentRequestCollectionFundingTests {
 
         #expect(f.swapper.submitted.isEmpty)
         #expect(f.payer.payments.count == 1)
+    }
+
+    @Test("The pill keeps the currency paid in once the request reads paid, until the sheet closes")
+    func pillKeepsPaidCurrency() async throws {
+        let server = Server(intentResult: .success(intentID))
+        let f = try await fixture(server, amount: 10, dollars: 100_000_000, jeffy: Self.plentyOfJeffy, lastPaid: .jeffy)
+        await priceJeffy(f)
+        try #require(f.payment.payingBalance?.stored.mint == .jeffy)
+
+        #expect(await f.payment.prepare() == .ready)
+        #expect(await f.payment.submit() == .success)
+        server.isPaid = true
+        try await f.requests.refreshDetails(requestID)
+
+        // The plan ends with nothing left to pay; the success hold still draws the pill.
+        #expect(f.payment.payable == nil)
+        #expect(f.payment.payingBalance?.stored.mint == .jeffy)
     }
 
     @Test("A payment that fails records no last paid currency")
