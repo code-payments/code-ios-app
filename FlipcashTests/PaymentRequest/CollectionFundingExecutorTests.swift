@@ -176,31 +176,153 @@ struct CollectionFundingExecutorTests {
         #expect(swapper.events.isEmpty)
     }
 
-    @Test("A leg that lands short leaves a remainder the next round converts")
-    func replanAfterShortLeg() async {
+    @Test("A buy whose credit shows before the mint's new supply starts no second conversion; a read within half a cent of the payment funds it")
+    func staleSupplyAfterBuyStartsNoSecondLeg() async {
+        let swapper = FakeSwapper()
+        // The Seeker trace: $6.000177 of Jeffy, so the plan buys the other $3.999823 with Dollars.
+        var balances = [balance(.usdf, 6_000_000), balance(jeffy, 6_000_177)]
+        swapper.onRefresh = {
+            // The bought quarks show, valued at the supply from before the buy: 396 micros short.
+            balances = [self.balance(.usdf, 2_000_177), self.balance(self.jeffy, 9_999_604)]
+        }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore(), deliveryInterval: .zero)
+
+        let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: jeffy, balances) }
+
+        #expect(swapper.started.map(\.swap.amount) == [FiatAmount(value: Decimal(string: "3.999823")!, currency: .usd)])
+        #expect(outcome == .funded)
+        #expect(swapper.refreshes == 1)
+    }
+
+    @Test("A read more than half a cent short after a buy starts nothing more; the run funds once a read covers the payment")
+    func staleSupplyWaitsForCoverage() async {
+        let swapper = FakeSwapper()
+        var balances = [balance(.usdf, 6_000_000), balance(jeffy, 6_000_000)]
+        swapper.onRefresh = {
+            balances = swapper.refreshes < 3
+                // A larger buy at the old supply reads further short: $0.04 here.
+                ? [self.balance(.usdf, 2_000_000), self.balance(self.jeffy, 9_960_000)]
+                : [self.balance(.usdf, 2_000_000), self.balance(self.jeffy, 10_000_000)]
+        }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore(), deliveryInterval: .zero)
+
+        let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: jeffy, balances) }
+
+        #expect(outcome == .funded)
+        #expect(swapper.started.count == 1)
+        #expect(swapper.refreshes == 3)
+    }
+
+    @Test("A leg that lands short converts nothing more; the run stops on pending while the balances cover the plan")
+    func shortLegStopsPending() async {
         let swapper = FakeSwapper()
         var balances = [balance(.usdf, 4_000_000), balance(jeffy, 20_000_000)]
-        var refreshes = 0
         swapper.onRefresh = {
-            refreshes += 1
-            // The first sale delivered $5.90 of the $6.00 planned; the second covers the rest.
-            balances = refreshes == 1
-                ? [self.balance(.usdf, 9_900_000), self.balance(self.jeffy, 14_000_000)]
-                : [self.balance(.usdf, 10_000_000), self.balance(self.jeffy, 13_900_000)]
+            // The sale delivered $5.90 of the $6.00 planned.
+            balances = [self.balance(.usdf, 9_900_000), self.balance(self.jeffy, 14_000_000)]
         }
-        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore())
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore(), deliveryChecks: 3, deliveryInterval: .zero)
 
         let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: .usdf, balances) }
 
-        #expect(outcome == .funded)
-        #expect(swapper.started.count == 2)
-        #expect(swapper.started[0].swap.amount == FiatAmount(value: 6, currency: .usd))
-        #expect(swapper.started[1].swap.amount == FiatAmount(value: Decimal(string: "0.1")!, currency: .usd))
-        #expect(swapper.started[0].ids.swapID != swapper.started[1].ids.swapID)
-        #expect(swapper.started[0].ids.fundingIntentID != swapper.started[1].ids.fundingIntentID)
+        #expect(outcome == .pending)
+        #expect(swapper.started.map(\.swap.amount) == [FiatAmount(value: 6, currency: .usd)])
+        #expect(swapper.refreshes == 3)
     }
 
-    @Test("Two swaps in one round: a rise from the first credit alone doesn't end the wait; it ends once the plan is payable")
+    @Test("Conversions under one cent that add less than half a cent are left out, and the payment funds without them")
+    func smallLegLeftOut() async {
+        let swapper = FakeSwapper()
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore())
+
+        let outcome = await executor.fund(requestID, currency: .usd) {
+            plan(paying: jeffy, [balance(.usdf, 5_000_000), balance(jeffy, 9_996_000)])
+        }
+
+        #expect(outcome == .funded)
+        #expect(swapper.events.isEmpty)
+    }
+
+    @Test("A holding within half a cent of the payment funds it without the top-up the plan asks for")
+    func withinToleranceSkipsTopUp() async {
+        let swapper = FakeSwapper()
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore())
+
+        // A buy into an empty holding landed a micro short, with no Dollars left.
+        let outcome = await executor.fund(requestID, currency: .usd) {
+            plan(paying: jeffy, [balance(.usdf, 0), balance(jeffy, 9_999_999)])
+        }
+
+        #expect(outcome == .funded)
+        #expect(swapper.events.isEmpty)
+    }
+
+    @Test("A Dollars conversion under one cent that the payment needs is raised to one cent")
+    func smallDollarsLegRaised() async {
+        let swapper = FakeSwapper()
+        swapper.quarks = { _ in 5_000_000 }
+        var balances = [balance(.usdf, 5_000_000), balance(jeffy, 9_993_000)]
+        swapper.onRefresh = { balances = [self.balance(.usdf, 4_990_000), self.balance(self.jeffy, 10_003_000)] }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore())
+
+        let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: jeffy, balances) }
+
+        #expect(outcome == .funded)
+        #expect(swapper.started.map(\.swap.amount) == [FiatAmount(value: Decimal(string: "0.01")!, currency: .usd)])
+    }
+
+    @Test("A conversion under one cent that the payment needs and can't be raised starts nothing and fails")
+    func smallLegNotRaisable() async {
+        let swapper = FakeSwapper()
+        swapper.quarks = { _ in 7_000 }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore())
+
+        let outcome = await executor.fund(requestID, currency: .usd) {
+            plan(paying: jeffy, [balance(.usdf, 7_000), balance(jeffy, 9_993_000)])
+        }
+
+        #expect(outcome == .failed)
+        #expect(swapper.events.isEmpty)
+    }
+
+    @Test("A kept CREATED Dollars swap recorded under one cent is dropped, never funded, when kept swaps settle")
+    func createdBelowMinimumDroppedOnSettle() async {
+        let store = makeStore()
+        let stored = freshIDs()
+        store.setLegIDs(stored, for: requestID, source: dollars, destination: jeffy.base58)
+        let swapper = FakeSwapper()
+        swapper.serverStates[stored.swapID] = .created
+        swapper.pending = [PendingCollectionSwap(swapID: stored.swapID, fundingIntentID: .generate()!, fromMint: .usdf, toMint: jeffy, fundingQuarks: 396)]
+        let executor = CollectionFundingExecutor(swapper: swapper, store: store)
+
+        let settlement = await executor.settleKeptSwaps(for: requestID, currency: .usd)
+
+        #expect(settlement == .settled)
+        #expect(swapper.funded.isEmpty)
+        #expect(store.keptLegs(for: requestID).isEmpty)
+    }
+
+    @Test("A leg whose kept CREATED Dollars swap is recorded under one cent starts a swap of its own instead of funding it")
+    func createdBelowMinimumStartsFresh() async {
+        let store = makeStore()
+        let stored = freshIDs()
+        store.setLegIDs(stored, for: requestID, source: dollars, destination: jeffy.base58)
+        let swapper = FakeSwapper()
+        swapper.serverStates[stored.swapID] = .created
+        swapper.pending = [PendingCollectionSwap(swapID: stored.swapID, fundingIntentID: .generate()!, fromMint: .usdf, toMint: jeffy, fundingQuarks: 396)]
+        var balances = [balance(.usdf, 5_000_000), balance(jeffy, 9_000_000)]
+        swapper.onRefresh = { balances = [self.balance(.usdf, 4_000_000), self.balance(self.jeffy, 10_000_000)] }
+        let executor = CollectionFundingExecutor(swapper: swapper, store: store)
+
+        let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: jeffy, balances) }
+
+        #expect(outcome == .funded)
+        #expect(swapper.funded.isEmpty)
+        #expect(swapper.started.count == 1)
+        #expect(swapper.started.first?.ids.swapID != stored.swapID)
+    }
+
+    @Test("Two swaps: the first credit alone doesn't fund the payment; the run funds once a read covers it")
     func twoLegsOneCreditLate() async {
         let swapper = FakeSwapper()
         var balances = [balance(.usdf, 2_000_000), balance(jeffy, 0), balance(bogey, 9_000_000, fee: 100)]
@@ -236,7 +358,7 @@ struct CollectionFundingExecutorTests {
         #expect(swapper.refreshes == UInt64(CollectionFundingExecutor.deliveryChecks))
     }
 
-    @Test("A credit that shows but leaves the plan short ends short at that read, not pending after every read")
+    @Test("A credit that shows but leaves the plan short keeps reading, then ends short when the reads run out")
     func creditShowsShort() async {
         let swapper = FakeSwapper()
         var balances = [balance(.usdf, 4_000_000), balance(jeffy, 6_000_000)]
@@ -244,27 +366,13 @@ struct CollectionFundingExecutorTests {
             // The sale delivered $5.90 of the $6.00 planned, with nothing left to convert.
             balances = [self.balance(.usdf, 9_900_000), self.balance(self.jeffy, 0)]
         }
-        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore(), deliveryInterval: .zero)
+        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore(), deliveryChecks: 3, deliveryInterval: .zero)
 
         let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: .usdf, balances) }
 
         #expect(outcome == .short)
         #expect(swapper.started.count == 1)
-        #expect(swapper.refreshes == 1)
-    }
-
-    @Test("Rounds stop at the cap as pending, since the balances cover the plan and a top-up would add money twice")
-    func roundCap() async {
-        let swapper = FakeSwapper()
-        let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore())
-
-        // Balances never move, so every round plans the same leg again.
-        let outcome = await executor.fund(requestID, currency: .usd) {
-            plan(paying: .usdf, [balance(.usdf, 4_000_000), balance(jeffy, 20_000_000)])
-        }
-
-        #expect(outcome == .pending)
-        #expect(swapper.started.count == CollectionFundingExecutor.maxRounds)
+        #expect(swapper.refreshes == 3)
     }
 
     @Test("Both ids are kept before the swap starts")

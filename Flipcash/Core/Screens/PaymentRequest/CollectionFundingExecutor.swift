@@ -57,9 +57,9 @@ protocol CollectionSwapping: AnyObject {
     func balanceQuarks(of mint: PublicKey) -> UInt64
 }
 
-/// Runs a collection payment's funding legs: each conversion swaps into the paying currency and
-/// settles before the next starts, then the balances are read again and the plan rebuilt from
-/// them, until the paying currency covers the payment.
+/// Runs a collection payment's funding legs by one plan: each conversion swaps into the paying
+/// currency and settles before the next starts, then the balances are read until the paying
+/// currency covers the payment. A read never starts another conversion.
 @MainActor
 final class CollectionFundingExecutor {
 
@@ -70,8 +70,8 @@ final class CollectionFundingExecutor {
         case short
         /// A swap failed or was refused, or its outcome couldn't be read.
         case failed
-        /// A swap was started but hasn't settled, what one delivered hasn't shown in the balances
-        /// yet, or the rounds ran out. A swap still running keeps its ids, so a retry waits on it
+        /// A swap was started but hasn't settled, or the paying currency didn't cover the payment
+        /// by the last read while the balances still cover the plan. A swap still running keeps its ids, so a retry waits on it
         /// rather than starting another conversion that could land on top of it.
         case pending
     }
@@ -86,17 +86,15 @@ final class CollectionFundingExecutor {
         case pending
     }
 
-    /// Plans rebuilt after legs land. A leg that delivers a little less than planned, because the
-    /// price moved, leaves a remainder the next round converts.
-    static let maxRounds = 3
-
     /// How long a swap's start, its funding or a wait on it gets before its outcome counts as
     /// unknown, so the pay sheet's lock always lifts.
     static let callTimeout: Duration = .seconds(60)
 
-    /// Balance reads after a round's swaps land, waiting for what they delivered to show. The
-    /// server can answer a read from before a swap's credit for a moment after the swap finalizes.
-    static let deliveryChecks = 5
+    /// Balance reads after the legs land, waiting for the paying currency to cover the payment.
+    /// A buy's credit can show before the mint's new supply, and the new tokens valued at the old
+    /// supply read short until it does: on 2026-11-22 GetMints answered with the old supply 0.1 s
+    /// after a buy finalized and with the new one 14 s later.
+    static let deliveryChecks = 20
 
     /// The pause between those reads.
     static let deliveryInterval: Duration = .seconds(1)
@@ -121,9 +119,12 @@ final class CollectionFundingExecutor {
         self.deliveryInterval = deliveryInterval
     }
 
-    /// Funds `requestID`'s payment. `plan` builds a plan from the current balances; it is called
-    /// before the first round and after each one. Every swap an earlier attempt kept is settled
-    /// before the first plan is read, so that plan sees what those swaps delivered.
+    /// Funds `requestID`'s payment by one plan, built by `plan` from the current balances. Every
+    /// swap an earlier attempt kept is settled before the plan is read, so it sees what those swaps
+    /// delivered. The plan's legs run once, then the balances are read until the paying currency
+    /// covers the payment. A read is never planned from again: one valued at a mint's supply from
+    /// before the buy reads a fraction of a cent short, and converting that remainder started a
+    /// buy the server refused as under its minimum transfer.
     func fund(
         _ requestID: PaymentRequestID,
         currency: CurrencyCode,
@@ -142,115 +143,139 @@ final class CollectionFundingExecutor {
             return .failed
         }
 
-        var next = plan()
-        for round in 0..<Self.maxRounds {
-            guard let current = next, current.payableWithoutTopUp,
-                  let paying = try? PublicKey(base58: current.payingCurrency) else { return .short }
-            let legs = current.legs.filter { $0.conversion && $0.soldMicros > 0 }
-            logger.info("Collection funding round planned", metadata: [
+        guard let current = plan(), let paying = try? PublicKey(base58: current.payingCurrency) else { return .short }
+        let unit = Self.minorUnitMicros(currency)
+        // Checked before the top-up: a buy into an empty holding can land a micro short, and the
+        // plan asks a top-up for it that the server's tolerance makes unnecessary.
+        guard !Self.covers(current, minorUnit: unit) else {
+            logger.info("Collection funding planned", metadata: [
                 "requestID": "\(requestID)",
-                "round": "\(round)",
-                "conversions": "\(legs.count)",
+                "conversions": "0",
             ])
-            if legs.isEmpty { return .funded }
+            return .funded
+        }
+        guard current.payableWithoutTopUp else { return .short }
+        guard let swaps = legSwaps(for: current, paying: paying, currency: currency, minorUnit: unit) else {
+            logger.warning("Collection funding leg under the minimum transfer", metadata: [
+                "requestID": "\(requestID)",
+            ])
+            return .failed
+        }
+        logger.info("Collection funding planned", metadata: [
+            "requestID": "\(requestID)",
+            "conversions": "\(swaps.count)",
+        ])
 
-            let before = swapper.balanceQuarks(of: paying)
-            var landed = 0
-            for leg in legs {
-                guard let source = try? PublicKey(base58: leg.source) else { return .failed }
-                let swap = CollectionFundingSwap(
-                    source: source,
-                    destination: paying,
-                    amount: FiatAmount(value: Decimal(leg.soldMicros) / 1_000_000, currency: currency)
-                )
-                switch await run(swap, source: leg.source, destination: paying.base58, for: requestID, left: left) {
-                case .landed: landed += 1
-                case .settled: continue
-                case .failed: return .failed
-                case .pending: return .pending
-                }
-            }
-
-            if landed > 0 {
-                // A plan read before the credit shows reads short, and a payment that stops there
-                // offers a top-up for money already on its way.
-                switch await awaitDelivery(of: landed, into: paying, above: before, for: requestID, plan: plan) {
-                case .shown(let delivered): next = delivered
-                case .notShown: return .pending
-                }
-            } else {
-                do {
-                    try await swapper.refreshBalances()
-                } catch {
-                    return .failed
-                }
-                next = plan()
+        for (source, swap) in swaps {
+            switch await run(swap, source: source, destination: paying.base58, for: requestID, left: left) {
+            case .landed, .settled: continue
+            case .failed: return .failed
+            case .pending: return .pending
             }
         }
-        // Still converting after every round. Short here would offer a top-up for a plan the
-        // balances already cover, so stop as pending rather than swap without end.
-        return .pending
+        return await awaitCoverage(into: paying, minorUnit: unit, for: requestID, plan: plan)
     }
 
-    /// What the balance reads after a round's swaps showed.
-    private enum Delivery {
-        /// A credit showed; the plan read with it, which may still be short.
-        case shown(CollectionFundingPlan?)
-        /// The paying balance never rose.
-        case notShown
+    /// The plan's conversions as swaps, in plan order. The server refuses to fund a swap worth
+    /// under one minor unit, and OCP has no call to cancel the swap that refusal leaves behind,
+    /// so none starts under it:
+    /// - Legs under it that together add less than half a unit are left out. The payment covers
+    ///   to within the half unit the server allows.
+    /// - Otherwise a Dollars leg under it is raised to one unit when Dollars holds that much.
+    /// Nil when a leg under it is needed and can't be raised.
+    private func legSwaps(
+        for plan: CollectionFundingPlan,
+        paying: PublicKey,
+        currency: CurrencyCode,
+        minorUnit: Int64
+    ) -> [(source: String, swap: CollectionFundingSwap)]? {
+        let conversions = plan.legs.filter { $0.conversion && $0.soldMicros > 0 }
+        let full = conversions.filter { $0.soldMicros >= minorUnit }
+        let covered = Self.payingMicros(plan) + full.reduce(Int64(0)) { $0 + $1.deliveredMicros }
+        let needsSmall = 2 * (plan.amountMicros - covered) >= minorUnit
+
+        var swaps: [(source: String, swap: CollectionFundingSwap)] = []
+        for leg in conversions {
+            var sold = leg.soldMicros
+            if sold < minorUnit {
+                guard needsSmall else { continue }
+                // USDF has 6 decimals, so its quarks are USD micros. The minimum outside USD is
+                // unverified, so only a USD leg is raised.
+                guard leg.source == PublicKey.usdf.base58, currency == .usd,
+                      swapper.balanceQuarks(of: .usdf) >= UInt64(minorUnit) else { return nil }
+                sold = minorUnit
+            }
+            guard let source = try? PublicKey(base58: leg.source) else { return nil }
+            swaps.append((leg.source, CollectionFundingSwap(
+                source: source,
+                destination: paying,
+                amount: FiatAmount(value: Decimal(sold) / 1_000_000, currency: currency)
+            )))
+        }
+        return swaps
     }
 
-    /// Reads the balances until `paying` holds more than `before` quarks and either the plan
-    /// covers the payment without adding money or the balance has risen once per landed swap. A
-    /// single rise isn't enough when a round ran two swaps and only one credit shows. The reads
-    /// share one `timeout`, so a stalled read can't hold the pay sheet for each read in turn.
-    private func awaitDelivery(
-        of swaps: Int,
+    /// Reads the balances until the paying currency covers the payment to within half a minor
+    /// unit, up to `deliveryChecks` reads `deliveryInterval` apart that share one `timeout`, so a
+    /// stalled read can't hold the pay sheet for each read in turn. When the reads run out it
+    /// stops: pending while the balances still cover the plan, so the next tap plans again from
+    /// what then shows, and short when they don't.
+    private func awaitCoverage(
         into paying: PublicKey,
-        above before: UInt64,
+        minorUnit: Int64,
         for requestID: PaymentRequestID,
         plan: () -> CollectionFundingPlan?
-    ) async -> Delivery {
+    ) async -> Outcome {
         let deadline = ContinuousClock.now + timeout
-        var after = before
-        var rises = 0
         var latest: CollectionFundingPlan?
-        var reads = 0
         for check in 1...deliveryChecks {
             if check > 1 { try? await Task.sleep(for: deliveryInterval) }
             guard !Task.isCancelled, ContinuousClock.now < deadline else { break }
-            reads = check
             do {
                 try await withDeadline(deadline) { @MainActor [swapper] in try await swapper.refreshBalances() }
             } catch {
                 // A read that fails is skipped; the next one may answer.
                 continue
             }
-            let read = swapper.balanceQuarks(of: paying)
-            if read > after {
-                rises += 1
-                after = read
-            }
-            guard rises > 0 else { continue }
             latest = plan()
-            if latest?.payableWithoutTopUp == true || rises >= swaps { break }
-        }
-        guard rises > 0 else {
-            logger.warning("Collection funding delivery not shown", metadata: [
+            let covered = latest.map { $0.payingCurrency == paying.base58 && Self.covers($0, minorUnit: minorUnit) } ?? false
+            logger.info("Collection funding coverage read", metadata: [
                 "requestID": "\(requestID)",
-                "before": "\(before)",
-                "reads": "\(reads)",
+                "check": "\(check)",
+                "quarks": "\(swapper.balanceQuarks(of: paying))",
+                "payingMicros": "\(latest.map(Self.payingMicros) ?? 0)",
+                "amountMicros": "\(latest?.amountMicros ?? 0)",
+                "covered": "\(covered)",
             ])
-            return .notShown
+            if covered { return .funded }
         }
-        logger.info("Collection funding delivery shown", metadata: [
-            "requestID": "\(requestID)",
-            "before": "\(before)",
-            "after": "\(after)",
-            "reads": "\(reads)",
-            "payable": "\(latest?.payableWithoutTopUp == true)",
-        ])
-        return .shown(latest)
+        // No read answered, or the balances still cover the plan: what the legs delivered may not
+        // show yet.
+        guard let latest, !latest.payableWithoutTopUp else { return .pending }
+        return .short
+    }
+
+    /// What the plan takes from the paying currency already held, in micros. A Dollars leg's
+    /// share of a top-up isn't held yet, so it's left out.
+    private static func payingMicros(_ plan: CollectionFundingPlan) -> Int64 {
+        guard let leg = plan.legs.first(where: { !$0.conversion && $0.source == plan.payingCurrency }) else { return 0 }
+        return leg.deliveredMicros - (leg.dollarsSplit?.fromTopUpMicros ?? 0)
+    }
+
+    /// Whether the paying currency covers `plan`'s payment to within half a minor unit: the
+    /// tolerance the server applies to a collection payment, and the one `pay` gates on.
+    private static func covers(_ plan: CollectionFundingPlan, minorUnit: Int64) -> Bool {
+        2 * (plan.amountMicros - payingMicros(plan)) < minorUnit
+    }
+
+    /// The micros in one minor unit of `currency`: 10,000 in USD. The server refuses to fund a
+    /// transfer worth less.
+    static func minorUnitMicros(_ currency: CurrencyCode) -> Int64 {
+        var unit: Int64 = 1
+        for _ in 0..<max(0, 6 - currency.maximumFractionDigits) {
+            unit *= 10
+        }
+        return unit
     }
 
     /// How settling the swaps earlier attempts kept ended.
@@ -419,7 +444,10 @@ final class CollectionFundingExecutor {
                     left[kept.ids.swapID] = .created
                     continue
                 }
-                _ = try await fundListed(kept.ids.swapID, currency: currency)
+                if try await fundListed(kept.ids.swapID, currency: currency) == .belowMinimum {
+                    store.removeSwapID(for: requestID, source: kept.source, destination: kept.destination)
+                    continue
+                }
                 state = try await waitBounded(kept.ids.swapID)
             case .failed?, .cancelled?:
                 store.removeSwapID(for: requestID, source: kept.source, destination: kept.destination)
@@ -448,6 +476,9 @@ final class CollectionFundingExecutor {
         case noFundingID
         /// It isn't listed, so it has moved on since it was read as CREATED.
         case notListed
+        /// Its recorded funding is worth under one minor unit, which the server refuses, so
+        /// nothing was submitted. Its funds never left the source.
+        case belowMinimum
     }
 
     /// Funds `swapID`, read as CREATED, under the funding id GetPendingSwaps lists for it, which a
@@ -456,6 +487,10 @@ final class CollectionFundingExecutor {
     private func fundListed(_ swapID: SwapId, currency: CurrencyCode) async throws -> CreatedFunding {
         guard let pending = try await swapper.pendingSwaps().first(where: { $0.swapID == swapID }) else {
             return .notListed
+        }
+        // USDF has 6 decimals, so a Dollars funding's quarks are USD micros.
+        if pending.fromMint == .usdf, pending.fundingQuarks < UInt64(Self.minorUnitMicros(.usd)) {
+            return .belowMinimum
         }
         guard let fundingIntentID = pending.fundingIntentID else { return .noFundingID }
         try await bounded { [swapper] in
@@ -506,6 +541,11 @@ final class CollectionFundingExecutor {
             case .notListed:
                 // Not waiting on funding any more, so its funding may have landed since: read it again.
                 state = try await swapper.state(of: stored.swapID)
+            case .belowMinimum:
+                // Funding it only earns a refusal, and it can't be cancelled: this leg, raised to
+                // the minimum, starts a swap of its own.
+                store.removeSwapID(for: requestID, source: source, destination: destination)
+                return .start(.generate())
             }
         }
 
