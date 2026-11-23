@@ -263,9 +263,13 @@ final class PaymentRequestPayment {
 
     /// The paying currency's balance, for the sheet's pill; held at zero when conversions fund it.
     var payingBalance: ExchangedBalance? {
-        fundingPlan
-            .flatMap { try? PublicKey(base58: $0.payingCurrency) }
-            .flatMap(balanceOrZero(for:))
+        if let plan = fundingPlan {
+            return (try? PublicKey(base58: plan.payingCurrency)).flatMap(balanceOrZero(for:))
+        }
+        // A paid collection has nothing left to plan, but the sheet holds on success with the
+        // pill still drawn: keep naming the currency the payment went out in.
+        guard payable == nil, hasPaidCollection else { return nil }
+        return selectedBalance
     }
 
     /// The wallet's balance of `mint`, or a zero one while its metadata is stored.
