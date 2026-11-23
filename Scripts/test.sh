@@ -19,6 +19,8 @@
 # same bundle ID, so on a shared simulator one session's install terminates
 # another session's running test host mid-test.
 #
+# It fails when no test ran, and prints the result bundle's path and the count.
+#
 # This script intentionally does NOT support -testPlan AllTargets —
 # the full suite is run from Xcode or CI, not from here.
 
@@ -57,9 +59,33 @@ if [ -z "$sim_udid" ]; then
     sim_udid="$(xcrun simctl create "$sim_name" "iPhone 17")"
 fi
 
+tmp="${TMPDIR:-/tmp}"
+bundle="$(mktemp -d "${tmp%/}/flipcash-tests.XXXXXX")/Tests.xcresult"
+
 echo "+ xcodebuild test -scheme Flipcash -destination 'id=$sim_udid' -parallel-testing-enabled NO ${args[*]}"
+status=0
 run_xcodebuild test \
     -scheme Flipcash \
     -destination "id=$sim_udid" \
     -parallel-testing-enabled NO \
-    "${args[@]}"
+    -resultBundlePath "$bundle" \
+    "${args[@]}" || status=$?
+echo "+ result bundle: $bundle"
+[ "$status" -eq 0 ] || exit "$status"
+
+# xcodebuild exits 0 when no identifier matches a test, so a typo or a list
+# passed as one argument would otherwise read as a pass.
+count="$(xcrun xcresulttool get test-results summary --path "$bundle" --compact 2>/dev/null \
+    | grep -oE '"totalTestCount":[0-9]+' | cut -d: -f2 || true)"
+if [ -z "$count" ]; then
+    echo "error: couldn't read the test count from $bundle" >&2
+    exit 1
+fi
+if [ "$count" -eq 0 ]; then
+    cat >&2 <<EOF
+error: no tests ran. Pass each identifier as its own argument, as
+<Target>/<Suite> or <Target>/<Suite>/<test>() (Swift Testing tests end in "()").
+EOF
+    exit 1
+fi
+echo "+ $count tests ran"

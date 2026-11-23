@@ -37,7 +37,8 @@ full log. When you run `xcodebuild` directly, filter it yourself: `set -o pipefa
 - **Targeted tests (for your changes):** `./Scripts/test.sh <Target>/<Suite>[/<TestName>] [...]` — runs on this checkout's own simulator (below)
   - One suite: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests`
   - Multiple suites: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests FlipcashCoreTests/FiatTests`
-  - One test: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests/myTestCase`
+  - One test: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests/myTestCase()` (a Swift Testing test ID ends in `()`)
+  - Pass each identifier as its own argument; a list in one quoted string matches nothing. The script fails when no test ran, and prints the result bundle's path and the test count it read from it
 - **Full `AllTargets` suite is the user's job** — don't run it. If you think it's required before declaring work done, list it under **Blocked on me** in the end-of-run report and finish the rest.
 
 ### One simulator per checkout
@@ -113,6 +114,18 @@ For paired-device builds, see [Xcode MCP Server](quick-reference.md#xcode-mcp-se
 ```
 
 If the code under test is difficult to call directly, create test support extensions or mock dependencies rather than duplicating the logic.
+
+**A fake replaces only the network edge.** What it writes goes through the production store step
+(for balances, `Session.storeBalances`), and it never waits for state the live path doesn't wait
+for. A wait or poll inside a test double must point at the production line that makes it true, or
+it goes. The collection-funding fake once spin-waited for `session.balances` to catch up, which hid
+the stale read that made a device payment start the same conversion twice (#1295).
+
+**A state several entries reach gets one test per entry and one per exit.** Each entry test asserts
+where the state is presented; each exit test asserts the page shown after the state ends, through
+to the dismiss. "Finishing Payment" was tested entry by entry, and no test checked the page after
+it ended, so the Request button's full-screen version and the Swipe to Pay redraw after it both
+shipped (#1294).
 
 ## Test Support Extensions
 
