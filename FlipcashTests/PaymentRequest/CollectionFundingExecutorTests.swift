@@ -233,14 +233,16 @@ struct CollectionFundingExecutorTests {
     @Test("Conversions under one cent that add less than half a cent are left out, and the payment funds without them")
     func smallLegLeftOut() async {
         let swapper = FakeSwapper()
+        // Jeffy and Dollars leave $0.004 that only a Bogey sale under one cent could cover.
+        var balances = [balance(.usdf, 4_996_000), balance(jeffy, 5_000_000), balance(bogey, 1_000_000, fee: 100)]
+        swapper.onRefresh = { balances = [self.balance(.usdf, 0), self.balance(self.jeffy, 9_996_000), self.balance(self.bogey, 1_000_000, fee: 100)] }
         let executor = CollectionFundingExecutor(swapper: swapper, store: makeStore())
 
-        let outcome = await executor.fund(requestID, currency: .usd) {
-            plan(paying: jeffy, [balance(.usdf, 5_000_000), balance(jeffy, 9_996_000)])
-        }
+        let outcome = await executor.fund(requestID, currency: .usd) { plan(paying: jeffy, balances) }
 
         #expect(outcome == .funded)
-        #expect(swapper.events.isEmpty)
+        #expect(swapper.started.map(\.swap.source) == [.usdf])
+        #expect(swapper.started.first?.swap.amount == FiatAmount(value: Decimal(string: "4.996")!, currency: .usd))
     }
 
     @Test("A holding within half a cent of the payment funds it without the top-up the plan asks for")

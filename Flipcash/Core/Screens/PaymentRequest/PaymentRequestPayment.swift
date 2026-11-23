@@ -737,6 +737,11 @@ final class PaymentRequestPayment {
             showInsufficientFunds(shortfall: nil)
             return .failed
         }
+        guard await awaitPinCovers(fiat, mint: paying.stored.mint) else {
+            needsRefetch = true
+            showConversionPending()
+            return .failed
+        }
         selectedBalance = paying
         let outcome = await pay(fiat, as: payable, to: creator, in: chatID, intentKey: intentKey, from: paying, mayFund: false)
         if outcome == .success {
@@ -745,6 +750,34 @@ final class PaymentRequestPayment {
         }
         return outcome
     }
+
+    /// Whether the payment, priced at the signed pin it will carry, covers `fiat` to within half a
+    /// minor unit, read up to `pinChecks` times 1 s apart. Funding checked coverage at the
+    /// balances' stored supply, but the pin can still be from before a buy: the new tokens then
+    /// price short, and `pay` would call a funded payment short. True when no pin answers, so
+    /// `pay` shows its own rate error.
+    private func awaitPinCovers(_ fiat: FiatAmount, mint: PublicKey) async -> Bool {
+        var priced = false
+        for check in 0..<Self.pinChecks {
+            if check > 0 { try? await Task.sleep(for: .seconds(1)) }
+            guard !Task.isCancelled else { return false }
+            guard let (amount, pin) = await price(fiat, mint: mint) else { continue }
+            priced = true
+            let covered = covers(amount.nativeAmount, fiat)
+            logger.info("Collection payment pin read", metadata: [
+                "requestID": "\(requestID)",
+                "check": "\(check + 1)",
+                "priced": "\(amount.nativeAmount.value)",
+                "pinTimestamp": "\(pin.timestamp)",
+                "covered": "\(covered)",
+            ])
+            if covered { return true }
+        }
+        return !priced
+    }
+
+    /// Pin reads after funding, waiting for a pin that includes what the conversions delivered.
+    private static let pinChecks = 10
 
     /// What the balances fall short by, for today's short state.
     private func fundingShortfall(in currency: CurrencyCode) -> ExchangedFiat? {
