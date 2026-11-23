@@ -3,7 +3,7 @@
   "name": "flipcash",
   "label": "Flipcash",
   "ios": {
-    "team": "SC677X4LH6",
+    "team": { "from": "pbxproj", "path": "Code.xcodeproj/project.pbxproj" },
     "buildNumber": { "from": "pbxproj", "path": "Code.xcodeproj/project.pbxproj" },
     "steps": [[
       "./Scripts/build.sh", "-destination", "generic/platform=iOS",
