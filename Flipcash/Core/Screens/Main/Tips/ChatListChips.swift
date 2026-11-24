@@ -12,13 +12,13 @@ import FlipcashUI
 enum ChatListFilter: CaseIterable, Hashable {
     case all
     case unread
-    case groups
+    case dms
 
     var title: String {
         switch self {
         case .all: "All"
         case .unread: "Unread"
-        case .groups: "Groups"
+        case .dms: "DMs"
         }
     }
 
@@ -26,7 +26,7 @@ enum ChatListFilter: CaseIterable, Hashable {
         switch self {
         case .all: projection.main
         case .unread: projection.unreadChip
-        case .groups: projection.groupsChip
+        case .dms: projection.dmsChip
         }
     }
 
@@ -36,7 +36,7 @@ enum ChatListFilter: CaseIterable, Hashable {
         let count: Int = switch self {
         case .all: 0
         case .unread: projection.unreadChipCount
-        case .groups: projection.groupsChipCount
+        case .dms: projection.dmsChipCount
         }
         return count > 0 ? count : nil
     }
@@ -47,7 +47,7 @@ enum ChatListFilter: CaseIterable, Hashable {
         switch self {
         case .all: "All your chats are archived"
         case .unread: "No unread chats"
-        case .groups: "No groups"
+        case .dms: "No DMs"
         }
     }
 }
