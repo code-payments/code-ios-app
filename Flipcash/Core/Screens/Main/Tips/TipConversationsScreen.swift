@@ -10,9 +10,6 @@ import FlipcashUI
 /// The Chats tab: the list of tip conversations — tips sent and received.
 struct TipConversationsScreen: View {
 
-    /// Set once the list scrolls the large title away, handing it to the bar's inline title.
-    @State private var titleCollapsed = false
-
     @Environment(ConversationController.self) private var conversationController
     @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
@@ -58,14 +55,6 @@ struct TipConversationsScreen: View {
 
     /// A selected filter keeps the chips in view: they explain the list.
     private var showsChips: Bool { chipsRevealed || filter != .all }
-
-    /// Whether the large title is drawn as content. Only iOS 26's glass bar lets it show through;
-    /// iOS 18's opaque bar would cover it, so there the bar keeps its own inline title.
-    /// The Group Money shell draws its own title in the leading slot, so there it never shows.
-    private var drawsContentTitle: Bool {
-        guard !showsGroupMoney else { return false }
-        if #available(iOS 26, *) { return true } else { return false }
-    }
 
     var body: some View {
         let projection = self.projection
@@ -165,13 +154,6 @@ struct TipConversationsScreen: View {
                         let insets = proxy.safeAreaInsets
                         return max(insets.leading, insets.trailing) > insets.bottom
                     } action: { isTabBarOnSide = $0 }
-                    // Collapses the large title 24 pt past where the list rests, which is past the chips
-                    // while they're hidden.
-                    .onScrollGeometryChange(for: Bool.self) { geometry in
-                        geometry.contentOffset.y + geometry.contentInsets.top > (showsChips ? 0 : chipsHeight) + 24
-                    } action: { _, collapsed in
-                        withAnimation(.smooth(duration: 0.25)) { titleCollapsed = collapsed }
-                    }
                     // Over the faded system tab bar, in its pill's slot just below the list's
                     // safe area: the bar keeps its inset, so the list's bottom blur stays exactly
                     // as it is behind the tab bar.
@@ -195,30 +177,15 @@ struct TipConversationsScreen: View {
                     }
             }
         }
-        // The large title is content, not a toolbar item, so a push slides it away with the page
-        // instead of morphing it through the bar's glass.
-        .overlay(alignment: .topLeading) {
-            if drawsContentTitle {
-                Text("Chat")
-                    .font(.system(size: 34, weight: .bold))
-                    .foregroundStyle(Color.textMain)
-                    .fixedSize()
-                    .padding(.leading, 16)
-                    .offset(y: -53)
-                    // Select mode's centred "N Selected" stands in for it.
-                    .opacity(titleCollapsed || isSelecting ? 0 : 1)
-                    .allowsHitTesting(false)
-                    .accessibilityAddTraits(.isHeader)
-                    .accessibilityHidden(isSelecting)
-            }
-        }
         .tray(item: $muteTarget) { target in
             MuteChatSheet(conversationIDs: target.ids, isPresented: isPickingMuteDuration)
         }
+        // The title names the screen for VoiceOver and the back button. The bar draws it only for
+        // select mode's centred count: the shell has its own title in the leading slot, and outside
+        // the shell the tab says where you are.
         .navigationTitle(isSelecting ? "\(selection.selected.count) Selected" : showsGroupMoney ? "Groups" : "Chat")
         .toolbarTitleDisplayMode(.inline)
-        // The shell draws its title in the leading slot instead; select mode's count stays centred.
-        .toolbar(removing: showsGroupMoney && !isSelecting ? .title : nil)
+        .toolbar(removing: isSelecting ? nil : .title)
         // An archived or left chat drops out of the picks, so no action reaches a chat no longer listed.
         .onChange(of: conversationController.chatListProjection.main) { _, ids in
             selection.retain(Set(ids))
@@ -226,15 +193,6 @@ struct TipConversationsScreen: View {
         // Select mode belongs to the visible list; leaving the screen leaves it.
         .onDisappear { selection.end() }
         .toolbar {
-            if drawsContentTitle, !isSelecting {
-                ToolbarItem(placement: .principal) {
-                    Text("Chat")
-                        .font(.headline)
-                        .foregroundStyle(Color.textMain)
-                        .opacity(titleCollapsed ? 1 : 0)
-                        .accessibilityHidden(!titleCollapsed)
-                }
-            }
             if isSelecting {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { setSelecting(false) }
@@ -488,14 +446,11 @@ extension Image {
 
 // MARK: - NewChatButton -
 
-/// The Chat tab's new-chat affordance, a bar item beside the "Chat" title.
+/// The Chat tab's new-chat affordance, the bar's trailing item.
 ///
-/// The title used to be a large flush headline drawn in the content (Android
-/// parity — `screenTitleLarge`) with this button laid out next to it, which
-/// meant the tab hid its navigation bar. A scroll edge effect is drawn by the
-/// bar's background, so without a bar the list met the status bar on a hard
-/// line; the standard centred title puts the bar back and lets the list fade
-/// under it.
+/// It sits in the navigation bar rather than in the content because a scroll
+/// edge effect is drawn by the bar's background: without a bar the list met
+/// the status bar on a hard line, and with one the list fades under it.
 struct NewChatButton: View {
 
     @Environment(AppRouter.self) private var router

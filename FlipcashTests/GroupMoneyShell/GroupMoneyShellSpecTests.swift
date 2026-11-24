@@ -443,25 +443,20 @@ struct GroupMoneyShellSpecTests {
         #expect(Self.barElement(labelled: "New group", in: bar) != nil)
     }
 
-    @Test("8.2 flag off: the list keeps its \"…\" and its centred Chat title")
+    @Test("8.2 flag off: the list keeps its \"…\" and draws no Chat title")
     func chatList_titleBarKeepsOverflow() async throws {
         let (window, bar) = try await hostedChatListBar(GateFlags(showsGroupMoney: false)) {
             Self.barElement(labelled: "More", in: $0) != nil
         }
         defer { window.isHidden = true }
+        // The title stays on the item for the back button and VoiceOver; the bar doesn't draw it.
         #expect(bar.topItem?.title == "Chat")
-        let labels = Self.titleLabels(in: bar)
-        // On iOS 26 the redesign sets "Chat" as a large title in the content; the bar's centred
-        // title stays hidden until the list scrolls under it.
-        if #available(iOS 26, *) {
-            #expect(labels.isEmpty, "centred titles: \(labels)")
-        } else {
-            #expect(labels.map(\.text) == ["Chat"])
+        #expect(Self.titleLabels(in: bar).isEmpty, "centred titles: \(Self.titleLabels(in: bar))")
+        // Nor does the content: the only "Chat" left on screen is the tab, which is no header.
+        let headers = Self.elements(in: window).filter {
+            $0.accessibilityLabel == "Chat" && $0.accessibilityTraits.contains(.header)
         }
-        if let label = labels.first {
-            let frame = label.convert(label.bounds, to: bar)
-            #expect(abs(frame.midX - bar.bounds.midX) <= 1, "title \(frame) in bar \(bar.bounds)")
-        }
+        #expect(headers.isEmpty, "Chat headers: \(headers.map(\.accessibilityFrame))")
         #expect(Self.barElement(labelled: "Groups", in: bar) == nil)
     }
 
