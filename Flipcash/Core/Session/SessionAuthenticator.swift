@@ -934,7 +934,7 @@ final class SessionContainer {
         let conversationController = ConversationController(
             fetching: chatClient,
             membership: flipClient,
-            viewerSettings: flipClient,
+            viewerSettings: chatClient,
             messaging: chatClient,
             streaming: chatClient,
             contactNaming: contactSyncController,

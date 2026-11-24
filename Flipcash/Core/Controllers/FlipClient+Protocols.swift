@@ -61,9 +61,12 @@ protocol ContactSyncing: AnyObject, Sendable {
 /// Conversation read surface used by `ConversationController` — the DM and group feeds plus a
 /// single conversation by id. Maps 1:1 to the `flipcash.chat.v1.Chat` RPCs.
 protocol ConversationFetching: AnyObject, Sendable {
-    func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation]
-    /// The groups the caller is a member of. A group reached by link and not joined is not in it.
-    func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation]
+    /// The DM feed of one `folder`. A row's archive state is in its viewer state, never in the folder
+    /// it came from: a server built before archive returns the inbox for either.
+    func getDmChatFeed(owner: KeyPair, type: ConversationType, folder: ConversationFolder) async throws -> [Conversation]
+    /// The groups the caller is a member of in one `folder`. A group reached by link and not joined
+    /// is not in it. The folder note on ``getDmChatFeed(owner:type:folder:)`` applies.
+    func getGroupChatFeed(owner: KeyPair, folder: ConversationFolder) async throws -> [Conversation]
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
 }
 
@@ -84,15 +87,21 @@ protocol ConversationMembership: AnyObject, Sendable {
     func leaveChat(owner: KeyPair, conversationID: ConversationID) async throws
 }
 
-/// Per-viewer chat settings used by `ConversationController` — currently only mute. Separate from
-/// ``ConversationMembership`` because nothing here changes who is in the chat: mute is the viewer's
-/// own state, and the server keeps it per-viewer.
+/// Per-viewer chat settings used by `ConversationController`: mute and archive. Separate from
+/// ``ConversationMembership`` because nothing here changes who is in the chat: both are the viewer's
+/// own state, and the server keeps them per-viewer.
 protocol ConversationViewerSettings: AnyObject, Sendable {
     /// Mutes a chat until `mute` lapses, or forever. Returns the resulting viewer state, version
     /// included, so the caller can seat it under the same greater-value-wins rule the stream uses.
     func muteChat(owner: KeyPair, conversationID: ConversationID, mute: ConversationMuteState) async throws -> ConversationViewerState
     /// Unmutes a chat. Its own RPC rather than a zero-length mute — the contract has no such shape.
     func unmuteChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState
+    /// Archives a chat. Returns the resulting viewer state, version included, as ``muteChat(owner:conversationID:mute:)``
+    /// does. Throws `ErrorArchiveChat`, whose `.unimplemented` is a server that predates archive.
+    func archiveChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState
+    /// Unarchives a chat. Returns the resulting viewer state and the chat's current metadata when
+    /// the server sent it. Throws `ErrorUnarchiveChat`.
+    func unarchiveChat(owner: KeyPair, conversationID: ConversationID) async throws -> (viewerState: ConversationViewerState, conversation: Conversation?)
 }
 
 extension ConversationMessaging {
@@ -175,6 +184,9 @@ protocol ConversationEventStreaming: AnyObject, Sendable {
     func subscribeConversationStream(owner: KeyPair) async -> (events: AsyncStream<ConversationStreamEvent>, connectionState: AsyncStream<EventStreamConnectionState>)
     func ensureConversationStreamConnected()
     func closeConversationStream()
+    /// Asks the stream to carry, or stop carrying, archived groups' updates. The ack arrives on the
+    /// connection-state stream as `.followingArchive`. Async so successive calls keep their order.
+    func setConversationStreamFollowsArchive(_ follow: Bool) async
 }
 
 /// The chat reads that `FlipClient` exposes with a defaulted `viewMode`, restated without it.

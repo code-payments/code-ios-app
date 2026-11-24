@@ -40,8 +40,8 @@ extension ConversationRosterSummary {
     }
 }
 
-/// The signed-in user's per-viewer state for a chat — currently just mute status. See
-/// `chat.v1.ViewerState`.
+/// The signed-in user's per-viewer state for a chat: mute, archive, silence and the server-computed
+/// permissions. See `chat.v1.ViewerState`.
 public struct ConversationViewerState: Hashable, Codable, Sendable {
 
     /// Present iff the chat is muted for the viewer. Muted pushes are still delivered (so the
@@ -79,7 +79,12 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
     /// client-side. Defaults to `false`, so an unset permission always means not permitted.
     public let canPin: Bool
 
-    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false, canInvite: Bool = false, canPin: Bool = false) {
+    /// Present iff the viewer has archived this chat. Its presence is the whole signal, like
+    /// ``mute``: the server sets it on `ArchiveChat` and clears it on `UnarchiveChat`, each advancing
+    /// ``version``. The folder a feed row came from never says whether it is archived.
+    public let archive: ConversationArchiveState?
+
+    public init(mute: ConversationMuteState? = nil, canEdit: Bool = false, version: UInt64 = 0, silence: ConversationSilenceState? = nil, canSilence: Bool = false, canBan: Bool = false, canInvite: Bool = false, canPin: Bool = false, archive: ConversationArchiveState? = nil) {
         self.mute = mute
         self.canEdit = canEdit
         self.version = version
@@ -88,10 +93,11 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
         self.canBan = canBan
         self.canInvite = canInvite
         self.canPin = canPin
+        self.archive = archive
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mute, canEdit, version, silence, canSilence, canBan, canInvite, canPin
+        case mute, canEdit, version, silence, canSilence, canBan, canInvite, canPin, archive
     }
 
     /// Reads a row stored before a field existed. The synthesized decoder throws on a missing key,
@@ -107,7 +113,8 @@ public struct ConversationViewerState: Hashable, Codable, Sendable {
             canSilence: try container.decodeIfPresent(Bool.self, forKey: .canSilence) ?? false,
             canBan: try container.decodeIfPresent(Bool.self, forKey: .canBan) ?? false,
             canInvite: try container.decodeIfPresent(Bool.self, forKey: .canInvite) ?? false,
-            canPin: try container.decodeIfPresent(Bool.self, forKey: .canPin) ?? false
+            canPin: try container.decodeIfPresent(Bool.self, forKey: .canPin) ?? false,
+            archive: try container.decodeIfPresent(ConversationArchiveState.self, forKey: .archive)
         )
     }
 }
@@ -122,7 +129,8 @@ extension ConversationViewerState {
             canSilence: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canSilence : false,
             canBan: (proto.hasPermissions && proto.permissions.hasModeration) ? proto.permissions.moderation.canBan : false,
             canInvite: proto.hasPermissions ? proto.permissions.canInvite : false,
-            canPin: proto.hasPermissions ? proto.permissions.canPin : false
+            canPin: proto.hasPermissions ? proto.permissions.canPin : false,
+            archive: (proto.hasSettings && proto.settings.hasArchive) ? ConversationArchiveState(proto.settings.archive) : nil
         )
     }
 }
@@ -140,6 +148,61 @@ extension ConversationViewerState {
     /// reason as ``isMuted(at:)``: a timed silence lapses with no server signal.
     public func isSilenced(at date: Date = .now) -> Bool {
         silence?.isActive(at: date) ?? false
+    }
+
+    /// Whether the viewer has archived this chat. Unlike a mute, an archive does not lapse.
+    public var isArchived: Bool {
+        archive != nil
+    }
+
+    /// This state with ``archive`` replaced and everything else kept, version included. Used to
+    /// show a local archive or unarchive before the server answers; the server's reply carries the
+    /// version that settles it.
+    public func withArchive(_ archive: ConversationArchiveState?) -> ConversationViewerState {
+        ConversationViewerState(
+            mute: mute,
+            canEdit: canEdit,
+            version: version,
+            silence: silence,
+            canSilence: canSilence,
+            canBan: canBan,
+            canInvite: canInvite,
+            canPin: canPin,
+            archive: archive
+        )
+    }
+}
+
+/// When the signed-in user archived a chat. See `chat.v1.ArchiveState`.
+public struct ConversationArchiveState: Hashable, Codable, Sendable {
+    public let archivedAt: Date
+
+    public init(archivedAt: Date) {
+        self.archivedAt = archivedAt
+    }
+}
+
+extension ConversationArchiveState {
+    /// Falls back to the distant past when `archived_at` is unset — defensive only: the server
+    /// always stamps it, and the state's presence alone is what marks the chat archived.
+    init(_ proto: Flipcash_Chat_V1_ArchiveState) {
+        self.init(archivedAt: proto.hasArchivedAt ? proto.archivedAt.date : .distantPast)
+    }
+}
+
+/// Which folder a chat feed reads. The main list reads ``inbox``; the Archived screen and the
+/// launch snapshot read ``archived``. See `chat.v1.ChatFolder`.
+public enum ConversationFolder: Hashable, Sendable {
+    case inbox
+    case archived
+}
+
+extension ConversationFolder {
+    var proto: Flipcash_Chat_V1_ChatFolder {
+        switch self {
+        case .inbox: .inbox
+        case .archived: .archived
+        }
     }
 }
 
