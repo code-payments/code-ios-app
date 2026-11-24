@@ -99,8 +99,50 @@ struct ChatArchiveStoreTests {
     @Test("The uploaded marker persists for the account")
     func uploadedMarkerPersists() throws {
         let directory = try makeDirectory()
-        ChatArchiveStore(directory: directory, owner: owner).markUploaded()
+        let store = ChatArchiveStore(directory: directory, owner: owner)
+        store.noteServerStateLoaded()
+        store.markUploadedIfResolved()
         #expect(ChatArchiveStore(directory: directory, owner: owner).isUploaded)
+    }
+
+    @Test("The uploaded marker waits for a server read, an empty queue, and a server that answers")
+    func uploadedMarkerWaits() throws {
+        let store = ChatArchiveStore(directory: try makeDirectory(), owner: owner)
+        store.request(true, for: .test(1))
+
+        store.markUploadedIfResolved()
+        #expect(!store.isUploaded)
+
+        store.noteServerStateLoaded()
+        store.markUploadedIfResolved()
+        #expect(!store.isUploaded)
+
+        store.beginWrite(.test(1))
+        #expect(!store.canSendWrite(for: .test(1)))
+        store.resolve(.test(1), ifRequested: true)
+        store.markUploadedIfResolved()
+        #expect(!store.isUploaded)
+
+        store.endWrite(.test(1))
+        store.noteServerLacksArchive()
+        #expect(!store.canSendWrite(for: .test(2)))
+        store.markUploadedIfResolved()
+        #expect(!store.isUploaded)
+    }
+
+    @Test("Until the server answers an archive RPC, one write goes at a time")
+    func oneWriteUntilAnswered() throws {
+        let store = ChatArchiveStore(directory: try makeDirectory(), owner: owner)
+        store.request(true, for: .test(1))
+        store.request(true, for: .test(2))
+
+        #expect(store.canSendWrite(for: .test(1)))
+        store.beginWrite(.test(1))
+        #expect(!store.canSendWrite(for: .test(2)))
+
+        store.noteServerAnswersArchive()
+        #expect(store.canSendWrite(for: .test(2)))
+        #expect(!store.canSendWrite(for: .test(1)))
     }
 
     @Test("A corrupt file starts the session with nothing archived")

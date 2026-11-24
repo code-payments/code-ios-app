@@ -112,4 +112,37 @@ struct ConversationArchiveStateTests {
         let roundTrip = try JSONDecoder().decode(ConversationViewerState.self, from: JSONEncoder().encode(ConversationViewerState(version: 1, archive: archived)))
         #expect(roundTrip.archive == archived)
     }
+
+    // MARK: - Feed folders
+
+    @Test("A chat in both folder reads keeps the row with the newer viewer state, in either order")
+    func unionKeepsNewerRow() {
+        let olderInbox = conversation(1, viewerState: ConversationViewerState(version: 2))
+        let newerArchived = conversation(1, viewerState: ConversationViewerState(version: 3, archive: archived))
+        let merged = ConversationFolder.union(inbox: [olderInbox, conversation(2)], archived: [newerArchived])
+        #expect(merged.map(\.id) == [conversationID(1), conversationID(2)])
+        #expect(merged[0].viewerState?.isArchived == true)
+
+        let newerInbox = conversation(1, viewerState: ConversationViewerState(version: 4))
+        let reversed = ConversationFolder.union(inbox: [newerInbox], archived: [newerArchived])
+        #expect(reversed.count == 1)
+        #expect(reversed[0].viewerState?.isArchived == false)
+    }
+
+    @Test("An archive flip is stamped as a move after the mark; a mute change or an older event is not")
+    func archiveMovesAreStamped() {
+        var store = ConversationStore()
+        store.apply(.metadataRefresh(conversation(1, viewerState: ConversationViewerState(version: 1))))
+        let mark = store.groupFeedMark
+
+        store.applyViewerStateChanged(ConversationViewerState(mute: .forever, version: 2), in: conversationID(1))
+        #expect(store.archiveMoved(since: mark).isEmpty)
+
+        store.applyViewerStateChanged(ConversationViewerState(version: 1, archive: archived), in: conversationID(1))
+        #expect(store.archiveMoved(since: mark).isEmpty)
+
+        store.applyViewerStateChanged(ConversationViewerState(version: 3, archive: archived), in: conversationID(1))
+        #expect(store.archiveMoved(since: mark) == [conversationID(1)])
+        #expect(store.archiveMoved(since: store.groupFeedMark).isEmpty)
+    }
 }

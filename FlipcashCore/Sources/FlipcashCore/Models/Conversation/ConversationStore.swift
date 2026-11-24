@@ -45,6 +45,9 @@ public struct ConversationStore: Sendable {
     /// than trusting the feed.
     private var membershipGeneration: UInt64 = 0
     private var membershipChangedAt: [ConversationID: UInt64] = [:]
+    /// Stamps each chat whose archive state a viewer-state update flipped, on the same count, so a
+    /// feed's ``groupFeedMark`` orders these too. See ``archiveMoved(since:)``.
+    private var archiveChangedAt: [ConversationID: UInt64] = [:]
 
     /// An optimistic send plus the keys that place it in the transcript: `anchor` is the newest
     /// confirmed server id at send time (the row this send sits after), `sequence` is its send order.
@@ -552,6 +555,21 @@ public struct ConversationStore: Sendable {
     /// the response is applied.
     public var groupFeedMark: UInt64 { membershipGeneration }
 
+    /// The chats whose archive state changed after `mark`, a ``groupFeedMark`` read before a feed was
+    /// requested. The feed reads the inbox and the archived folder separately, so it may list such a
+    /// chat in neither: the inbox read after it moved, the archived read before. A replace must keep
+    /// them rather than read their absence as a departure.
+    public func archiveMoved(since mark: UInt64) -> Set<ConversationID> {
+        Set(archiveChangedAt.filter { $0.value > mark }.keys)
+    }
+
+    /// Records that `conversationID` may have changed folder on the server: an archive write for it
+    /// came back, whatever the outcome, so a reply lost after the server applied it still counts.
+    public mutating func noteArchiveMayHaveMoved(_ conversationID: ConversationID) {
+        membershipGeneration += 1
+        archiveChangedAt[conversationID] = membershipGeneration
+    }
+
     /// The groups the user has joined, for the caller to persist.
     public var joinedGroups: Set<ConversationID> {
         joinedGroupIDs
@@ -618,7 +636,12 @@ public struct ConversationStore: Sendable {
     public mutating func applyViewerStateChanged(_ viewerState: ConversationViewerState, in conversationID: ConversationID) {
         guard let index = position(of: conversationID) else { return }
         guard viewerState.version > (conversations[index].viewerState?.version ?? 0) else { return }
+        let wasArchived = conversations[index].viewerState?.isArchived ?? false
         conversations[index].viewerState = viewerState
+        if viewerState.isArchived != wasArchived {
+            membershipGeneration += 1
+            archiveChangedAt[conversationID] = membershipGeneration
+        }
     }
 
     /// Takes the viewer's permissions from a freshly fetched chat, leaving mute, silence and version as
