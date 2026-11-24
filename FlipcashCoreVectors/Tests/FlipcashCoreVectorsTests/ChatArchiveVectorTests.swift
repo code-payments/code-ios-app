@@ -59,10 +59,11 @@ struct ChatArchiveFixture: Decodable {
             let unread: Unread
         }
         struct Expect: Decodable {
-            struct Counts: Decodable { let unread: Int; let dms: Int }
+            struct Counts: Decodable { let unread: Int; let groups: Int; let dms: Int }
             struct Row: Decodable { let visible: Bool; let count: Int }
             let main: [String]
             let unreadChip: [String]
+            let groupsChip: [String]
             let dmsChip: [String]
             let archived: [String]
             let chipCounts: Counts
@@ -123,9 +124,11 @@ struct ChatArchiveVectorTests {
             let e = vector.expect
             #expect(p.main == e.main, "\(vector.name): main. \(vector.note)")
             #expect(p.unreadChip == e.unreadChip, "\(vector.name): unreadChip")
+            #expect(p.groupsChip == e.groupsChip, "\(vector.name): groupsChip")
             #expect(p.dmsChip == e.dmsChip, "\(vector.name): dmsChip")
             #expect(p.archived == e.archived, "\(vector.name): archived")
             #expect(p.unreadChipCount == e.chipCounts.unread, "\(vector.name): unread count")
+            #expect(p.groupsChipCount == e.chipCounts.groups, "\(vector.name): groups count")
             #expect(p.dmsChipCount == e.chipCounts.dms, "\(vector.name): dms count")
             #expect(p.archivedRowVisible == e.archivedRow.visible, "\(vector.name): row visible")
             #expect(p.archivedRowCount == e.archivedRow.count, "\(vector.name): row count")

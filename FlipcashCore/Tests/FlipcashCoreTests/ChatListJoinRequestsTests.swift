@@ -56,7 +56,7 @@ struct ChatListJoinRequestsTests {
         #expect(p.main == [4, 1, 2, 3])
     }
 
-    @Test("A group with only requests is unread for the Unread chip and the tab badge, and stays out of DMs")
+    @Test("A group with only requests is unread for the chips and the tab badge, and stays out of DMs")
     func requestsCountAsUnread() {
         let p = ChatListProjection.project([
             Self.entry(1, activity: 30, requests: 2, newestRequest: 30),
@@ -65,6 +65,8 @@ struct ChatListJoinRequestsTests {
         ])
         #expect(p.unreadChip == [1, 3])
         #expect(p.unreadChipCount == 2)
+        #expect(p.groupsChip == [1, 2])
+        #expect(p.groupsChipCount == 1)
         #expect(p.dmsChip == [3])
         #expect(p.dmsChipCount == 1)
         #expect(p.tabBadge == 2)

@@ -21,19 +21,31 @@ struct ChatListFilterTests {
         ])
     }
 
+    @Test("Outside the group-money UI the third chip is Groups; under it, DMs")
+    func chipsFollowTheFlag() {
+        #expect(ChatListFilter.chips(showsGroupMoney: false) == [.all, .unread, .groups])
+        #expect(ChatListFilter.chips(showsGroupMoney: true) == [.all, .unread, .dms])
+        #expect(ChatListFilter.chips(showsGroupMoney: false).map(\.title) == ["All", "Unread", "Groups"])
+        #expect(ChatListFilter.chips(showsGroupMoney: true).map(\.title) == ["All", "Unread", "DMs"])
+        #expect(ChatListFilter.groups.emptyMessage == "No groups")
+        #expect(ChatListFilter.dms.emptyMessage == "No DMs")
+    }
+
     @Test("Each filter picks its projection's ids; DMs is every chat that is not a group")
     func ids() {
         let p = projection()
         #expect(ChatListFilter.all.ids(in: p) == [1, 2, 3, 4])
         #expect(ChatListFilter.unread.ids(in: p) == [1, 3, 4])
+        #expect(ChatListFilter.groups.ids(in: p) == [2, 3])
         #expect(ChatListFilter.dms.ids(in: p) == [1, 4])
     }
 
-    @Test("All shows no count; Unread and DMs show unread counts, hiding zero")
+    @Test("All shows no count; Unread, Groups and DMs show unread counts, hiding zero")
     func counts() {
         let p = projection()
         #expect(ChatListFilter.all.badge(in: p) == nil)
         #expect(ChatListFilter.unread.badge(in: p) == 3)
+        #expect(ChatListFilter.groups.badge(in: p) == 1)
         #expect(ChatListFilter.dms.badge(in: p) == 2)
     }
 

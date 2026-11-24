@@ -85,13 +85,18 @@ public struct ChatListProjection<ID: Hashable & Sendable>: Sendable {
     public let main: [ID]
     /// `main` filtered to unread.
     public let unreadChip: [ID]
-    /// `main` filtered to every chat that is not a group. Counts toward the chip only when unread;
-    /// see `dmsChipCount`.
+    /// `main` filtered to groups, the third chip outside the group-money UI. Counts toward the chip
+    /// only when unread; see `groupsChipCount`.
+    public let groupsChip: [ID]
+    /// `main` filtered to every chat that is not a group, the third chip under the group-money UI.
+    /// Counts toward the chip only when unread; see `dmsChipCount`.
     public let dmsChip: [ID]
     /// Archived and not hidden, newest ``ChatListEntry/sortTime`` first.
     public let archived: [ID]
     /// Unread chats inside `unreadChip`.
     public let unreadChipCount: Int
+    /// Unread groups inside `groupsChip`.
+    public let groupsChipCount: Int
     /// Unread chats inside `dmsChip`.
     public let dmsChipCount: Int
     /// An archived chat exists to show.
@@ -117,14 +122,17 @@ public struct ChatListProjection<ID: Hashable & Sendable>: Sendable {
         let main = ordered(visible.filter { !$0.isArchived })
         let archived = ordered(visible.filter(\.isArchived))
         let unread = main.filter(\.isUnread)
+        let groups = main.filter { $0.type == .group }
         let dms = main.filter { $0.type != .group }
 
         return ChatListProjection(
             main: main.map(\.id),
             unreadChip: unread.map(\.id),
+            groupsChip: groups.map(\.id),
             dmsChip: dms.map(\.id),
             archived: archived.map(\.id),
             unreadChipCount: unread.count,
+            groupsChipCount: groups.count(where: \.isUnread),
             dmsChipCount: dms.count(where: \.isUnread),
             archivedRowVisible: !archived.isEmpty,
             archivedRowCount: archived.count { $0.isUnread },

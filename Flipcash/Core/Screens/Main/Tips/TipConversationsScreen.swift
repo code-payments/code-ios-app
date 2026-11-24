@@ -75,7 +75,7 @@ struct TipConversationsScreen: View {
                         // finger. The chips use a custom button style, which keeps each chip's tap
                         // its own inside the row.
                         FadingChips(fade: chipFade, isShown: showsChips) {
-                            ChatListChips(selection: $filter, projection: projection)
+                            ChatListChips(selection: $filter, projection: projection, showsGroupMoney: showsGroupMoney)
                         }
                             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                                 chipsHeight = $0
@@ -189,6 +189,10 @@ struct TipConversationsScreen: View {
         // An archived or left chat drops out of the picks, so no action reaches a chat no longer listed.
         .onChange(of: conversationController.chatListProjection.main) { _, ids in
             selection.retain(Set(ids))
+        }
+        // The flag swaps the third chip between Groups and DMs; a filter whose chip is gone resets.
+        .onChange(of: showsGroupMoney) { _, shows in
+            if !ChatListFilter.chips(showsGroupMoney: shows).contains(filter) { filter = .all }
         }
         // Select mode belongs to the visible list; leaving the screen leaves it.
         .onDisappear { selection.end() }
