@@ -33,6 +33,21 @@ final class ChatArchiveStore {
     /// resolved against the server. Persisted per account.
     private(set) var isUploaded: Bool
 
+    /// Chats with an archive RPC in flight. One per chat; a change made meanwhile goes when it lands.
+    @ObservationIgnored private(set) var writesInFlight: Set<ConversationID> = []
+
+    /// Whether an archive RPC came back `UNIMPLEMENTED` this launch. No more are sent, so the writes
+    /// stay local until a later launch tries again.
+    @ObservationIgnored private(set) var serverLacksArchive = false
+
+    /// Whether an archive RPC got an answer this launch, applied or refused. Until one does, one write
+    /// goes at a time, so a server that predates archive gets one call per launch, not one per record.
+    @ObservationIgnored private(set) var serverAnswersArchive = false
+
+    /// Whether a feed read has landed this launch. Until then an unarchived viewer state may be one
+    /// not loaded yet, so it can't settle a write, and the last launch's cache knows more.
+    @ObservationIgnored private(set) var hasServerState = false
+
     @ObservationIgnored private let directory: URL
     @ObservationIgnored private let owner: PublicKey
     @ObservationIgnored private var file: ChatArchiveFile
@@ -100,9 +115,42 @@ final class ChatArchiveStore {
         write()
     }
 
-    /// Records that every pre-server record has been resolved.
-    func markUploaded() {
-        guard !isUploaded else { return }
+    /// Whether a write for `id` may be sent now: the server isn't known to lack archive, none is in
+    /// flight for `id`, and, until the server has answered one, no other write is in flight.
+    func canSendWrite(for id: ConversationID) -> Bool {
+        guard !serverLacksArchive, !writesInFlight.contains(id) else { return false }
+        return serverAnswersArchive || writesInFlight.isEmpty
+    }
+
+    /// Records that a write for `id` was sent.
+    func beginWrite(_ id: ConversationID) {
+        writesInFlight.insert(id)
+    }
+
+    /// Records that the write for `id` came back.
+    func endWrite(_ id: ConversationID) {
+        writesInFlight.remove(id)
+    }
+
+    /// Records that the server predates archive, which stops writes until a later launch.
+    func noteServerLacksArchive() {
+        serverLacksArchive = true
+    }
+
+    /// Records that the server answered an archive RPC, which lets the other writes go together.
+    func noteServerAnswersArchive() {
+        serverAnswersArchive = true
+    }
+
+    /// Records that a feed read has landed this launch.
+    func noteServerStateLoaded() {
+        hasServerState = true
+    }
+
+    /// Records, once per account, that the server holds everything this device had archived: a feed
+    /// read has landed, the server answers archive RPCs, and no write is pending or in flight.
+    func markUploadedIfResolved() {
+        guard !isUploaded, hasServerState, !serverLacksArchive, pending.isEmpty, writesInFlight.isEmpty else { return }
         isUploaded = true
         file.uploaded = true
         write()

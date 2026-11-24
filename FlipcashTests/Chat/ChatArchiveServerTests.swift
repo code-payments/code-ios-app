@@ -29,11 +29,11 @@ struct ChatArchiveServerTests {
             fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
             contactNaming: MockDMContactNaming(),
             database: try! Database.makeTemp().database,
-            owner: .generate()!, selfUserID: me
+            owner: .generate()!, selfUserID: me,
+            archiveFollowGrace: .zero
         )
         let archive = ChatArchiveStore(directory: directory, owner: owner)
         controller.chatArchive = archive
-        controller.archiveFollowGrace = .zero
         return (controller, archive)
     }
 
@@ -69,7 +69,7 @@ struct ChatArchiveServerTests {
     }
 
     private func settled(_ controller: ConversationController) -> Bool {
-        controller.archiveWritesInFlight.isEmpty
+        controller.chatArchive?.writesInFlight.isEmpty ?? true
     }
 
     // MARK: - One-time upload (D3)
@@ -95,35 +95,83 @@ struct ChatArchiveServerTests {
         #expect(ChatArchiveReader.load(owner: owner, directory: directory)?.archivedIDs == [.test(1)])
     }
 
-    @Test("Upload: UNIMPLEMENTED keeps the records, sends nothing more this session, and a later launch retries")
+    @Test("Upload: UNIMPLEMENTED costs one call, keeps the records, sends nothing more this session, and a later launch retries")
     func uploadUnimplemented() async throws {
         let directory = try makeDirectory()
-        try writeLegacyFile([.test(1)], to: directory)
+        let ids: Set<ConversationID> = [.test(1), .test(2), .test(3)]
+        try writeLegacyFile(Array(ids), to: directory)
         let mock = MockConversations()
-        mock.feed = [dm(1)]
+        mock.feed = [dm(1), dm(2), dm(3)]
         mock.archiveError = ErrorArchiveChat.unimplemented
         let (controller, archive) = makeController(mock, directory: directory)
 
         await controller.loadFeed()
-        try await waitUntil { controller.serverLacksArchive && settled(controller) }
+        try await waitUntil { archive.serverLacksArchive && settled(controller) }
 
-        #expect(archive.pending == [.test(1): true])
+        #expect(mock.archived.count == 1)
+        #expect(archive.pending == [.test(1): true, .test(2): true, .test(3): true])
         #expect(!archive.isUploaded)
-        #expect(controller.isArchived(.test(1)))
+        #expect(ids.allSatisfy { controller.isArchived($0) })
 
         await controller.loadFeed()
-        #expect(mock.archived == [.test(1)])
+        #expect(mock.archived.count == 1)
 
         // A later launch, against a server that now stores archive state.
         mock.archiveError = nil
         let (relaunched, reloaded) = makeController(mock, directory: directory)
-        #expect(reloaded.pending == [.test(1): true])
+        #expect(reloaded.pending == [.test(1): true, .test(2): true, .test(3): true])
         await relaunched.loadFeed()
         try await waitUntil { reloaded.pending.isEmpty && settled(relaunched) }
 
-        #expect(mock.archived == [.test(1), .test(1)])
+        #expect(mock.archived.count == 4)
+        #expect(Set(mock.archived.dropFirst()) == ids)
         #expect(reloaded.isUploaded)
-        #expect(relaunched.isArchived(.test(1)))
+        #expect(ids.allSatisfy { relaunched.isArchived($0) })
+    }
+
+    @Test("A write the server never took doesn't keep a chat the feed no longer lists")
+    func unsentWriteDoesNotBlockPrune() async throws {
+        let directory = try makeDirectory()
+        try writeLegacyFile([.test(3)], to: directory)
+        let mock = MockConversations()
+        mock.groupFeed = [group(3)]
+        mock.archiveError = ErrorArchiveChat.unimplemented
+        let (controller, archive) = makeController(mock, directory: directory)
+        await controller.loadFeed()
+        try await waitUntil { archive.serverLacksArchive && settled(controller) }
+        #expect(controller.archivedConversations.map(\.id) == [.test(3)])
+
+        // Removed while the app was closed: neither read lists the group.
+        mock.groupFeed = []
+        await controller.loadFeed()
+
+        #expect(controller.conversation(withID: .test(3)).map(controller.isMember(of:)) != true)
+        #expect(controller.archivedConversations.isEmpty)
+        #expect(archive.pending.isEmpty)
+    }
+
+    @Test("Upload: a rejection other than DENIED or NOT_FOUND keeps the record for the next sync")
+    func uploadOtherRejectionKeeps() async throws {
+        let directory = try makeDirectory()
+        try writeLegacyFile([.test(1), .test(2)], to: directory)
+        let mock = MockConversations()
+        mock.feed = [dm(1), dm(2)]
+        mock.archiveErrors = [.test(1): ErrorArchiveChat.rejected, .test(2): ErrorArchiveChat.unknown]
+        let (controller, archive) = makeController(mock, directory: directory)
+
+        await controller.loadFeed()
+        try await waitUntil { mock.archived.count == 2 && settled(controller) }
+
+        #expect(archive.pending == [.test(1): true, .test(2): true])
+        #expect(!archive.isUploaded)
+        #expect(Set(controller.archivedConversations.map(\.id)) == [.test(1), .test(2)])
+
+        mock.archiveErrors = [:]
+        await controller.loadFeed()
+        try await waitUntil { archive.pending.isEmpty && settled(controller) }
+
+        #expect(archive.isUploaded)
+        #expect(Set(controller.archivedConversations.map(\.id)) == [.test(1), .test(2)])
     }
 
     @Test("Upload: a record the server already shows as archived needs no call")
@@ -251,6 +299,37 @@ struct ChatArchiveServerTests {
 
         #expect(controller.chatListConversations.isEmpty)
         #expect(controller.archivedConversations.map(\.id) == [.test(3)])
+    }
+
+    @Test("A chat moving between folders while the feed is out is kept, though neither read lists it")
+    func movingBetweenFoldersKept() async throws {
+        let mock = MockConversations()
+        mock.feed = [dm(1), dm(2)]
+        mock.groupFeed = [group(3)]
+        let (controller, archive) = makeController(mock, directory: try makeDirectory())
+        await controller.loadFeed()
+
+        // One answered write first, so the next ones go together rather than one at a time.
+        controller.archive(.test(2))
+        try await waitUntil { archive.pending.isEmpty && settled(controller) }
+        mock.archivedFeed = [dm(2, viewerState: archived(1))]
+
+        // Both archives are in flight, and the feed's inbox read already left them out while its
+        // archived read predates them: they're in neither list.
+        mock.archiveDelay = .milliseconds(300)
+        controller.archive(.test(1))
+        controller.archive(.test(3))
+        #expect(archive.writesInFlight == [.test(1), .test(3)])
+        mock.feed = []
+        mock.groupFeed = []
+        await controller.loadFeed()
+
+        #expect(controller.conversation(withID: .test(1)) != nil)
+        #expect(controller.conversation(withID: .test(3)).map(controller.isMember(of:)) == true)
+        #expect(Set(controller.archivedConversations.map(\.id)) == [.test(1), .test(2), .test(3)])
+
+        try await waitUntil(timeout: .seconds(3)) { archive.pending.isEmpty && settled(controller) }
+        #expect(Set(controller.archivedConversations.map(\.id)) == [.test(1), .test(2), .test(3)])
     }
 
     @Test("When the archived read fails, the sync keeps the archived chats it holds")
