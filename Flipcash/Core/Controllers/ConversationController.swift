@@ -847,6 +847,7 @@ final class ConversationController {
                     // The stream carries archived groups from here, so the groups read now can't
                     // miss an update. Not awaited: a reconnect queued behind it must not wait.
                     Task { await self.reloadArchivedGroups() }
+                    self.catchUpOpenArchivedGroup()
                 case .disconnected:
                     continue
                 }
@@ -1970,6 +1971,19 @@ final class ConversationController {
     /// Catches an unarchived group's transcript up from its held cursor. Its updates weren't
     /// followed while it was archived.
     private func catchUpUnarchivedGroup(_ id: ConversationID) {
+        Task { [weak self] in
+            await self?.catchUp(conversationID: id)
+        }
+    }
+
+    /// Catches the open chat up from its held cursor when it's an archived group, once the stream
+    /// follows it. Its opening page can land before the follow takes, and the stream carried nothing
+    /// for it until then. A chat holding no cursor yet waits for that page instead: a delta from zero
+    /// would re-pull its whole history.
+    private func catchUpOpenArchivedGroup() {
+        guard let id = visibleConversationID, let conversation = conversation(withID: id),
+              conversation.type == .group, isArchived(conversation),
+              store.appliedCursor(for: id) > 0 else { return }
         Task { [weak self] in
             await self?.catchUp(conversationID: id)
         }
