@@ -10,8 +10,13 @@ import Foundation
 ///
 /// Lives in the App Group container rather than Application Support, where `ChatDraftStore` writes:
 /// the extension needs archive state to decide whether a push may interrupt, and it can read only
-/// the group container. Not in `FlipcashStore` either, whose version bump deletes the store; an
-/// archive set cannot be re-fetched until the server stores it.
+/// the group container. Not in `FlipcashStore` either, whose version bump deletes the store; the
+/// pending writes and the records not yet uploaded cannot be re-fetched from the server.
+///
+/// The server holds archive state now (`ViewerState.settings.archive`), and the file is its cache:
+/// ``archived`` is what the app last showed as archived, for the extensions to read. ``pending`` and
+/// ``uploaded`` are the app's alone. Both are optional and the version stays 1, so a file written
+/// before the server held archive state still reads, and its records become the first upload.
 public struct ChatArchiveFile: Codable, Equatable, Sendable {
 
     public static let version = 1
@@ -20,13 +25,48 @@ public struct ChatArchiveFile: Codable, Equatable, Sendable {
     /// The viewer's lowercase handle, so the extension can recognise an @mention of the viewer
     /// without access to the app's profile. `nil` until the profile has loaded.
     public var viewerUsername: String?
-    /// Archived chats by ``key(_:)``, with when each was archived.
+    /// Archived chats by ``key(_:)``, with when each was archived: the server's archived chats with
+    /// the pending writes laid over them.
     public var archived: [String: Date]
+    /// Archive (`true`) and unarchive (`false`) requests by ``key(_:)`` that the server has not
+    /// confirmed. `nil` only in a file written before the server held archive state; read it
+    /// through ``pendingWrites``.
+    public var pending: [String: Bool]?
+    /// Set once every record this device held before the server stored archive state has been
+    /// resolved against the server. From then on the server's state wins.
+    public var uploaded: Bool?
 
-    public init(viewerUsername: String? = nil, archived: [String: Date] = [:]) {
+    public init(viewerUsername: String? = nil, archived: [String: Date] = [:], pending: [String: Bool]? = [:], uploaded: Bool? = nil) {
         self.version = Self.version
         self.viewerUsername = viewerUsername
         self.archived = archived
+        self.pending = pending
+        self.uploaded = uploaded
+    }
+
+    /// The writes the server has not confirmed. A file written before the server held archive state
+    /// has no ``pending``, and each of its records is an archive still to upload.
+    public var pendingWrites: [ConversationID: Bool] {
+        guard let pending else {
+            guard uploaded != true else { return [:] }
+            return Dictionary(archivedIDs.map { ($0, true) }, uniquingKeysWith: { first, _ in first })
+        }
+        return Dictionary(pending.compactMap { key, desired in Self.id(key).map { ($0, desired) } }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Replaces ``pending`` with `writes`.
+    public mutating func setPendingWrites(_ writes: [ConversationID: Bool]) {
+        pending = Dictionary(writes.map { (Self.key($0.key), $0.value) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Replaces ``archived`` with `archived`, keeping the date already recorded for a chat that
+    /// stays archived.
+    public mutating func setArchived(_ archived: [ConversationID: Date]) {
+        let current = self.archived
+        self.archived = Dictionary(archived.map { id, date in
+            let key = Self.key(id)
+            return (key, current[key] ?? date)
+        }, uniquingKeysWith: { first, _ in first })
     }
 
     public func isArchived(_ id: ConversationID) -> Bool {
@@ -44,7 +84,11 @@ public struct ChatArchiveFile: Codable, Equatable, Sendable {
 
     /// Every archived chat's id. Keys that do not decode are dropped.
     public var archivedIDs: Set<ConversationID> {
-        Set(archived.keys.compactMap { Data(base64Encoded: $0).map(ConversationID.init(data:)) })
+        Set(archived.keys.compactMap(Self.id))
+    }
+
+    private static func id(_ key: String) -> ConversationID? {
+        Data(base64Encoded: key).map(ConversationID.init(data:))
     }
 
     /// Base64 of the id's own bytes, as `ChatDraftStore` keys drafts: `base64URLEncoded` decodes only

@@ -517,7 +517,10 @@ struct ConversationControllerTests {
         #expect(controller.chatListConversations.map(\.id) == [.test(1)])
         #expect(controller.archivedConversations.map(\.id) == [.test(2)])
         #expect(controller.unreadChatListCount == 1)
-        #expect(archive.isArchived(.test(2)))
+        #expect(archive.pending == [.test(2): true])
+        try await waitUntil { archive.pending.isEmpty }
+        #expect(mock.archived == [.test(2)])
+        #expect(controller.isArchived(.test(2)))
     }
 
     @Test("Unarchiving returns the chat to the list")
@@ -535,16 +538,18 @@ struct ConversationControllerTests {
         #expect(controller.archivedConversations.isEmpty)
     }
 
-    @Test("Leaving a group clears its archive record")
+    @Test("Leaving a group drops its archive write and sends no unarchive")
     func leaveClearsArchive() async throws {
         let mock = MockConversations()
         let controller = makeController(mock)
         let archive = try attachArchive(to: controller)
-        archive.archive(.test(9))
+        archive.request(true, for: .test(9))
 
         try await controller.leave(conversationID: .test(9))
 
-        #expect(!archive.isArchived(.test(9)))
+        #expect(archive.pending.isEmpty)
+        #expect(!controller.isArchived(.test(9)))
+        #expect(mock.unarchived.isEmpty)
     }
 
     @Test("A hidden archived chat appears nowhere")
@@ -563,7 +568,7 @@ struct ConversationControllerTests {
         let controller = makeController(mock, selfUserID: me)
         controller.blockedUserIDs = { [blocked] }
         let archive = try attachArchive(to: controller)
-        archive.archive(.test(1))
+        archive.request(true, for: .test(1))
         await controller.loadFeed()
 
         #expect(controller.chatListConversations.isEmpty)

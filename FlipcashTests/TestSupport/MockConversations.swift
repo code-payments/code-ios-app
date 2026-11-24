@@ -70,6 +70,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     private var _archivedFeed: [Conversation] = []
     private var _archivedGroupFeed: [Conversation] = []
     private var _archivedFeedCalls: [ConversationFolderRead] = []
+    private var _archivedFeedError: Error?
     private var _archived: [ConversationID] = []
     private var _unarchived: [ConversationID] = []
     private var _archiveErrors: [ConversationID: Error] = [:]
@@ -161,6 +162,11 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     var archivedGroupFeed: [Conversation] {
         get { lock.withLock { _archivedGroupFeed } }
         set { lock.withLock { _archivedGroupFeed = newValue } }
+    }
+    /// Thrown by every ARCHIVED-folder read; INBOX reads are unaffected.
+    var archivedFeedError: Error? {
+        get { lock.withLock { _archivedFeedError } }
+        set { lock.withLock { _archivedFeedError = newValue } }
     }
     /// Every ARCHIVED-folder read, in order. INBOX reads count in ``dmFeedCalls`` and ``groupFeedCalls``.
     var archivedFeedCalls: [ConversationFolderRead] { lock.withLock { _archivedFeedCalls } }
@@ -377,8 +383,9 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
 
     func getDmChatFeed(owner: KeyPair, type: ConversationType, folder: ConversationFolder) async throws -> [Conversation] {
         if folder == .archived {
-            return lock.withLock {
+            return try lock.withLock {
                 _archivedFeedCalls.append(.dm(type))
+                if let error = _archivedFeedError { throw error }
                 return _archivedFeed.filter { $0.type == type }
             }
         }
@@ -413,8 +420,9 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
 
     func getGroupChatFeed(owner: KeyPair, folder: ConversationFolder) async throws -> [Conversation] {
         if folder == .archived {
-            return lock.withLock {
+            return try lock.withLock {
                 _archivedFeedCalls.append(.group)
+                if let error = _archivedFeedError { throw error }
                 return _archivedGroupFeed
             }
         }
