@@ -108,6 +108,8 @@ struct TransportClassificationTests {
     @Test func errorLeaveChat() { assertClassifies(ErrorLeaveChat.self) }
     @Test func errorMuteChat() { assertClassifies(ErrorMuteChat.self) }
     @Test func errorUnmuteChat() { assertClassifies(ErrorUnmuteChat.self) }
+    @Test func errorArchiveChat() { assertClassifies(ErrorArchiveChat.self) }
+    @Test func errorUnarchiveChat() { assertClassifies(ErrorUnarchiveChat.self) }
     @Test func errorSilenceUser() { assertClassifies(ErrorSilenceUser.self) }
     @Test func errorUnsilenceUser() { assertClassifies(ErrorUnsilenceUser.self) }
     @Test func errorBanUser() { assertClassifies(ErrorBanUser.self) }
@@ -234,6 +236,28 @@ struct TransportClassificationTests {
     func errorGetRosterMapsResult() {
         #expect(ErrorGetRoster(.denied) == .denied)
         #expect(ErrorGetRoster(.notFound) == .notFound)
+    }
+
+    // The archive upload keeps a local record on UNIMPLEMENTED and drops it on DENIED or NOT_FOUND,
+    // so the three must not share a case. `from(transportError:)` alone folds UNIMPLEMENTED into
+    // `.rejected`, which is why the archive calls map it first.
+    @Test("Archive and unarchive errors map their results explicitly and keep UNIMPLEMENTED apart")
+    func archiveErrorsMapResults() {
+        #expect(ErrorArchiveChat(.denied) == .denied)
+        #expect(ErrorArchiveChat(.notFound) == .notFound)
+        #expect(ErrorArchiveChat(.ok) == .unknown)
+        #expect(ErrorUnarchiveChat(.denied) == .denied)
+        #expect(ErrorUnarchiveChat(.notFound) == .notFound)
+        #expect(ErrorUnarchiveChat(.ok) == .unknown)
+
+        let unimplemented = RPCError(code: .unimplemented, message: "")
+        #expect(ErrorArchiveChat.from(transportError: unimplemented) == .rejected)
+        #expect(ErrorArchiveChat.from(archiveTransportError: unimplemented) == .unimplemented)
+        #expect(ErrorUnarchiveChat.from(archiveTransportError: unimplemented) == .unimplemented)
+        #expect(ErrorArchiveChat.from(archiveTransportError: RPCError(code: .unavailable, message: "")) == .transportFailure)
+        #expect(ErrorArchiveChat.from(archiveTransportError: RPCError(code: .permissionDenied, message: "")) == .rejected)
+        #expect(!ErrorArchiveChat.unimplemented.isRetryable)
+        #expect(ErrorArchiveChat.unimplemented.reportingLevel == .info)
     }
 
     @Test("ErrorGetMentionSuggestions maps GetMentionSuggestionsResponse.Result explicitly")

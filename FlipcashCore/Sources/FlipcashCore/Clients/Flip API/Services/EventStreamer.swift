@@ -20,6 +20,10 @@ public enum EventStreamConnectionState: Sendable {
     case live
     /// The stream was torn down — a drop being reconnected, or a stop.
     case disconnected
+    /// The server acknowledged the latest `FollowArchive(true)` on this connection: archived groups'
+    /// updates flow from here on, and any before it went unsent, so re-read the archived groups.
+    /// Reported again after a reconnect, whose re-sent follow is acknowledged anew.
+    case followingArchive
 }
 
 /// Owns the single per-user bidirectional event stream (`event.v1 StreamEvents`)
@@ -66,6 +70,8 @@ public actor EventStreamer {
     /// per-ping liveness proof into a single `.live` per connection, and gates
     /// the matching `.disconnected` on teardown.
     private var isConnectionLive = false
+    /// The `FollowArchive` requests of the current stream and what the client wants across streams.
+    private var followArchive = FollowArchiveTracker()
 
     init(service: EventStreamingService) {
         self.service = service
@@ -121,6 +127,14 @@ public actor EventStreamer {
         openStream()
     }
 
+    /// Asks the server to carry, or stop carrying, archived groups' updates on this user's stream.
+    /// Sends only when the wanted state changes; what is wanted outlives a reconnect, which re-sends
+    /// the follow right after `Params`. The ack arrives as ``EventStreamConnectionState/followingArchive``.
+    public func setFollowArchive(_ follow: Bool) {
+        guard let request = followArchive.setFollow(follow, streamIsOpen: isStreaming && streamReference != nil) else { return }
+        send(request)
+    }
+
     /// A live stream that has received a ping recently. Wall-clock based via
     /// `PingTracker`, so it stays accurate across app suspension.
     private var isLikelyHealthy: Bool {
@@ -140,6 +154,7 @@ public actor EventStreamer {
         reconnectTask = nil
         streamReference?.cancel()
         streamReference = nil
+        followArchive.reset()
         logger.debug("Stopped event stream")
     }
 
@@ -182,6 +197,12 @@ public actor EventStreamer {
 
         self.streamReference = reference
 
+        // A seq numbers one stream's requests, so it restarts here; a client still following re-sends
+        // the follow right after `Params`, since every stream starts unfollowed.
+        if let follow = followArchive.streamOpened() {
+            send(follow)
+        }
+
         schedulePingTimeout(seconds: pingTracker.timeoutSeconds)
         // Treat open as a liveness signal so `ensureConnected` doesn't tear down
         // a fresh stream that hasn't received its first ping yet.
@@ -201,6 +222,8 @@ public actor EventStreamer {
             }
         case .error(let error):
             handleStreamError(error)
+        case .followArchiveAck(let ack):
+            handleFollowArchiveAck(ack)
         case nil:
             logger.warning("Received empty event stream response")
         }
@@ -210,6 +233,29 @@ public actor EventStreamer {
         for streamEvent in ConversationStreamEvent.decode(event) {
             continuation.yield(streamEvent)
         }
+    }
+
+    private func handleFollowArchiveAck(_ ack: Flipcash_Event_V1_StreamEventsResponse.FollowArchiveAck) {
+        switch followArchive.acknowledge(seq: ack.seq) {
+        case .following:
+            logger.info("Event stream following the archive", metadata: ["seq": "\(ack.seq)"])
+            connectionStateContinuation.yield(.followingArchive)
+        case .notFollowing:
+            logger.debug("Event stream stopped following the archive", metadata: ["seq": "\(ack.seq)"])
+        case .stale:
+            // An ack for a request since replaced: the state it confirms no longer stands.
+            logger.debug("Ignoring a stale follow-archive ack", metadata: ["seq": "\(ack.seq)"])
+        }
+    }
+
+    private func send(_ follow: FollowArchiveTracker.Request) {
+        let request = Flipcash_Event_V1_StreamEventsRequest.with {
+            $0.followArchive = .with {
+                $0.follow = follow.follow
+                $0.seq = follow.seq
+            }
+        }
+        streamReference?.sendMessage(request)
     }
 
     private func handlePing(_ ping: Flipcash_Event_V1_ServerPing) {

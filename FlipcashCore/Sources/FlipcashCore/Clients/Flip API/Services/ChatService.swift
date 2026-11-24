@@ -25,7 +25,7 @@ final class ChatService: Sendable {
         let hasMore: Bool
     }
 
-    func getDmChatFeed(owner: KeyPair, type: ConversationType, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<DmFeedPage, ErrorGetDmChatFeed>) -> Void) {
+    func getDmChatFeed(owner: KeyPair, type: ConversationType, folder: ConversationFolder = .inbox, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<DmFeedPage, ErrorGetDmChatFeed>) -> Void) {
         let request = Flipcash_Chat_V1_GetDmChatFeedRequest.with {
             $0.queryOptions = .with {
                 $0.pageSize = Int32(pageSize)
@@ -34,6 +34,7 @@ final class ChatService: Sendable {
                 }
             }
             $0.dmChatType = type.proto
+            $0.folder = folder.proto
             $0.auth = owner.authFor(message: $0)
         }
 
@@ -90,7 +91,7 @@ final class ChatService: Sendable {
         let hasMore: Bool
     }
 
-    func getGroupChatFeed(owner: KeyPair, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<GroupFeedPage, ErrorGetGroupChatFeed>) -> Void) {
+    func getGroupChatFeed(owner: KeyPair, folder: ConversationFolder = .inbox, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<GroupFeedPage, ErrorGetGroupChatFeed>) -> Void) {
         let request = Flipcash_Chat_V1_GetGroupChatFeedRequest.with {
             $0.queryOptions = .with {
                 $0.pageSize = Int32(pageSize)
@@ -98,6 +99,7 @@ final class ChatService: Sendable {
                     $0.pagingToken = .with { $0.value = pagingToken }
                 }
             }
+            $0.folder = folder.proto
             $0.auth = owner.authFor(message: $0)
         }
 
@@ -526,6 +528,78 @@ final class ChatService: Sendable {
                 await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
                 await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
+    /// Archives a chat for the signed-in user. A server built before archive existed answers
+    /// `UNIMPLEMENTED`, which maps to ``ErrorArchiveChat/unimplemented`` rather than folding into
+    /// ``ErrorArchiveChat/rejected``: the caller keeps the local record and asks again later.
+    func archiveChat(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<ConversationViewerState, ErrorArchiveChat>) -> Void) {
+        let request = Flipcash_Chat_V1_ArchiveChatRequest.with {
+            $0.chatID = conversationID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.archiveChat(request, options: .unaryDefault)
+                guard response.result == .ok else {
+                    logger.error("Failed to archive chat")
+                    await MainActor.run { completion(.failure(ErrorArchiveChat(response.result))) }
+                    return
+                }
+                guard response.hasViewerState else {
+                    logger.error("Archive chat succeeded without a viewer state")
+                    await MainActor.run { completion(.failure(.unknown)) }
+                    return
+                }
+                await MainActor.run { completion(.success(ConversationViewerState(response.viewerState))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(archiveTransportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.from(unexpectedError: error))) }
+            }
+        }
+    }
+
+    /// What a successful `UnarchiveChat` returns: the viewer state that settles the toggle and, when
+    /// the server sent it, the chat's current metadata to apply.
+    struct UnarchivedChat: Sendable {
+        let viewerState: ConversationViewerState
+        let conversation: Conversation?
+    }
+
+    /// Unarchives a chat for the signed-in user. `OK` includes the no-op of a chat that was not
+    /// archived. `UNIMPLEMENTED` maps as in ``archiveChat(owner:conversationID:completion:)``.
+    func unarchiveChat(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<UnarchivedChat, ErrorUnarchiveChat>) -> Void) {
+        let request = Flipcash_Chat_V1_UnarchiveChatRequest.with {
+            $0.chatID = conversationID.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.unarchiveChat(request, options: .unaryDefault)
+                guard response.result == .ok else {
+                    logger.error("Failed to unarchive chat")
+                    await MainActor.run { completion(.failure(ErrorUnarchiveChat(response.result))) }
+                    return
+                }
+                guard response.hasViewerState else {
+                    logger.error("Unarchive chat succeeded without a viewer state")
+                    await MainActor.run { completion(.failure(.unknown)) }
+                    return
+                }
+                let unarchived = UnarchivedChat(
+                    viewerState: ConversationViewerState(response.viewerState),
+                    conversation: response.hasChat ? Conversation(response.chat) : nil
+                )
+                await MainActor.run { completion(.success(unarchived)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(archiveTransportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.from(unexpectedError: error))) }
             }
         }
     }
@@ -1283,6 +1357,33 @@ public enum ErrorUnmuteChat: Int, Error {
     case rejected = -4
 }
 
+/// No `.ok` case: a success resolves to the viewer state in `ChatService.archiveChat`'s `Result`.
+/// Mapped explicitly from `ArchiveChatResponse.Result`, like ``ErrorGetRoster``.
+///
+/// ``unimplemented`` is the gRPC `UNIMPLEMENTED` of a server that predates archive. It is kept apart
+/// from ``rejected`` because it is the one deterministic failure worth asking again later: the local
+/// record stays and is uploaded once the server answers.
+public enum ErrorArchiveChat: Error, Sendable, Equatable {
+    case denied
+    case notFound
+    case unimplemented
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
+}
+
+/// No `.ok` case, as ``ErrorArchiveChat``. Mapped explicitly from `UnarchiveChatResponse.Result`.
+public enum ErrorUnarchiveChat: Error, Sendable, Equatable {
+    case denied
+    case notFound
+    case unimplemented
+    case unknown
+    case transportFailure
+    case cancelled
+    case rejected
+}
+
 /// No `.ok` case: a success response resolves to `RosterFeedPage` in `ChatService.getRoster`'s `Result`,
 /// it never reaches this type. Mapped explicitly from `GetRosterResponse.Result` — see
 /// `ErrorGetRoster.init(_:)` — rather than via positional `rawValue:`, per this repo's convention for
@@ -1713,6 +1814,62 @@ extension ErrorGetKeyEnvelope: ServerError, TransportClassifiableError {
         case .denied, .notFound, .noEnvelope: .info
         case .unknown, .rejected: .error
         }
+    }
+}
+
+extension ErrorArchiveChat: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .unimplemented: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorArchiveChat {
+    /// Maps a non-`.ok` `ArchiveChatResponse.Result`, total over the proto enum like
+    /// ``ErrorGetRoster/init(_:)``.
+    init(_ result: Flipcash_Chat_V1_ArchiveChatResponse.Result) {
+        switch result {
+        case .ok, .UNRECOGNIZED: self = .unknown
+        case .denied: self = .denied
+        case .notFound: self = .notFound
+        }
+    }
+
+    /// ``TransportClassifiableError/from(transportError:)`` with `UNIMPLEMENTED` split out of the
+    /// deterministic rejections it would otherwise join.
+    static func from(archiveTransportError error: RPCError) -> Self {
+        error.code == .unimplemented ? .unimplemented : .from(transportError: error)
+    }
+}
+
+extension ErrorUnarchiveChat: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .transportFailure: .suppressed
+        case .cancelled: .info
+        case .denied, .notFound, .unimplemented: .info
+        case .unknown, .rejected: .error
+        }
+    }
+}
+
+extension ErrorUnarchiveChat {
+    /// Maps a non-`.ok` `UnarchiveChatResponse.Result`, as ``ErrorArchiveChat/init(_:)``.
+    init(_ result: Flipcash_Chat_V1_UnarchiveChatResponse.Result) {
+        switch result {
+        case .ok, .UNRECOGNIZED: self = .unknown
+        case .denied: self = .denied
+        case .notFound: self = .notFound
+        }
+    }
+
+    /// As ``ErrorArchiveChat/from(archiveTransportError:)``.
+    static func from(archiveTransportError error: RPCError) -> Self {
+        error.code == .unimplemented ? .unimplemented : .from(transportError: error)
     }
 }
 

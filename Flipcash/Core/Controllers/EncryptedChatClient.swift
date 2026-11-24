@@ -100,17 +100,17 @@ final class EncryptedChatClient: Sendable {
 
 extension EncryptedChatClient: ConversationFetching {
 
-    func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] {
+    func getDmChatFeed(owner: KeyPair, type: ConversationType, folder: ConversationFolder) async throws -> [Conversation] {
         var feed: [Conversation] = []
-        for conversation in try await client.getDmChatFeed(owner: owner, type: type) {
+        for conversation in try await client.getDmChatFeed(owner: owner, type: type, folder: folder) {
             feed.append(await opened(conversation))
         }
         return feed
     }
 
-    func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] {
+    func getGroupChatFeed(owner: KeyPair, folder: ConversationFolder) async throws -> [Conversation] {
         var feed: [Conversation] = []
-        for conversation in try await client.getGroupChatFeed(owner: owner) {
+        for conversation in try await client.getGroupChatFeed(owner: owner, folder: folder) {
             feed.append(await opened(conversation))
         }
         return feed
@@ -118,6 +118,31 @@ extension EncryptedChatClient: ConversationFetching {
 
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
         await opened(try await client.getChat(owner: owner, conversationID: conversationID))
+    }
+}
+
+// MARK: - ConversationViewerSettings -
+
+/// Forwards to the client, opening the chat `UnarchiveChat` returns the way a feed row is opened, so
+/// an encrypted preview doesn't land sealed.
+extension EncryptedChatClient: ConversationViewerSettings {
+
+    func muteChat(owner: KeyPair, conversationID: ConversationID, mute: ConversationMuteState) async throws -> ConversationViewerState {
+        try await client.muteChat(owner: owner, conversationID: conversationID, mute: mute)
+    }
+
+    func unmuteChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState {
+        try await client.unmuteChat(owner: owner, conversationID: conversationID)
+    }
+
+    func archiveChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState {
+        try await client.archiveChat(owner: owner, conversationID: conversationID)
+    }
+
+    func unarchiveChat(owner: KeyPair, conversationID: ConversationID) async throws -> (viewerState: ConversationViewerState, conversation: Conversation?) {
+        let unarchived = try await client.unarchiveChat(owner: owner, conversationID: conversationID)
+        guard let conversation = unarchived.conversation else { return unarchived }
+        return (unarchived.viewerState, await opened(conversation))
     }
 }
 
@@ -286,6 +311,10 @@ extension EncryptedChatClient: ConversationEventStreaming {
 
     func closeConversationStream() {
         client.closeConversationStream()
+    }
+
+    func setConversationStreamFollowsArchive(_ follow: Bool) async {
+        await client.setConversationStreamFollowsArchive(follow)
     }
 
     private func open(_ event: ConversationStreamEvent, owner: KeyPair) async -> ConversationStreamEvent {

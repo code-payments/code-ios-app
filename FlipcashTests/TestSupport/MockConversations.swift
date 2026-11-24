@@ -67,6 +67,17 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     private var _unmuted: [ConversationID] = []
     private var _viewerStateResult: ConversationViewerState?
     private var _muteError: Error?
+    private var _archivedFeed: [Conversation] = []
+    private var _archivedGroupFeed: [Conversation] = []
+    private var _archivedFeedCalls: [ConversationFolderRead] = []
+    private var _archived: [ConversationID] = []
+    private var _unarchived: [ConversationID] = []
+    private var _archiveErrors: [ConversationID: Error] = [:]
+    private var _archiveError: Error?
+    private var _archiveVersion: UInt64 = 0
+    private var _unarchiveChatResult: Conversation??
+    private var _archiveDelay: Duration = .zero
+    private var _follows: [Bool] = []
     private var _messages: [ConversationMessage] = []
     private var _olderMessages: [ConversationMessage] = []
     private var _olderQueries: [MessageID] = []
@@ -140,6 +151,48 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         get { lock.withLock { _muteError } }
         set { lock.withLock { _muteError = newValue } }
     }
+
+    /// What an ARCHIVED-folder DM read returns; an INBOX read returns ``feed``.
+    var archivedFeed: [Conversation] {
+        get { lock.withLock { _archivedFeed } }
+        set { lock.withLock { _archivedFeed = newValue } }
+    }
+    /// What an ARCHIVED-folder group read returns; an INBOX read returns ``groupFeed``.
+    var archivedGroupFeed: [Conversation] {
+        get { lock.withLock { _archivedGroupFeed } }
+        set { lock.withLock { _archivedGroupFeed = newValue } }
+    }
+    /// Every ARCHIVED-folder read, in order. INBOX reads count in ``dmFeedCalls`` and ``groupFeedCalls``.
+    var archivedFeedCalls: [ConversationFolderRead] { lock.withLock { _archivedFeedCalls } }
+    var archived: [ConversationID] { lock.withLock { _archived } }
+    var unarchived: [ConversationID] { lock.withLock { _unarchived } }
+    /// Thrown by `archiveChat`/`unarchiveChat` for one chat, ahead of ``archiveError``.
+    var archiveErrors: [ConversationID: Error] {
+        get { lock.withLock { _archiveErrors } }
+        set { lock.withLock { _archiveErrors = newValue } }
+    }
+    /// Thrown by every `archiveChat`/`unarchiveChat` without an entry in ``archiveErrors``.
+    var archiveError: Error? {
+        get { lock.withLock { _archiveError } }
+        set { lock.withLock { _archiveError = newValue } }
+    }
+    /// The version of the last viewer state an archive call returned; each call returns one higher.
+    var archiveVersion: UInt64 {
+        get { lock.withLock { _archiveVersion } }
+        set { lock.withLock { _archiveVersion = newValue } }
+    }
+    /// The chat `unarchiveChat` returns. Unset, it returns the chat as ``feed`` or ``groupFeed`` holds it.
+    var unarchiveChatResult: Conversation?? {
+        get { lock.withLock { _unarchiveChatResult } }
+        set { lock.withLock { _unarchiveChatResult = newValue } }
+    }
+    /// Held on every archive call before it answers, so a test can toggle again mid-flight.
+    var archiveDelay: Duration {
+        get { lock.withLock { _archiveDelay } }
+        set { lock.withLock { _archiveDelay = newValue } }
+    }
+    /// Every `setConversationStreamFollowsArchive` value, in order.
+    var follows: [Bool] { lock.withLock { _follows } }
     var messages: [ConversationMessage] {
         get { lock.withLock { _messages } }
         set { lock.withLock { _messages = newValue } }
@@ -322,7 +375,13 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
     }
     private var _feedDelay: Duration = .zero
 
-    func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] {
+    func getDmChatFeed(owner: KeyPair, type: ConversationType, folder: ConversationFolder) async throws -> [Conversation] {
+        if folder == .archived {
+            return lock.withLock {
+                _archivedFeedCalls.append(.dm(type))
+                return _archivedFeed.filter { $0.type == type }
+            }
+        }
         lock.withLock { _dmFeedCalls += 1 }
         // Read on arrival: like the server, the answer reflects the state when the request was made.
         let feed = feed
@@ -352,7 +411,13 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         for waiter in waiters { waiter.resume() }
     }
 
-    func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] {
+    func getGroupChatFeed(owner: KeyPair, folder: ConversationFolder) async throws -> [Conversation] {
+        if folder == .archived {
+            return lock.withLock {
+                _archivedFeedCalls.append(.group)
+                return _archivedGroupFeed
+            }
+        }
         lock.withLock { _groupFeedCalls += 1 }
         await withCheckedContinuation { continuation in
             let parked = lock.withLock { () -> Bool in
@@ -406,6 +471,24 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         lock.withLock { _unmuted.append(conversationID) }
         if let muteError { throw muteError }
         return viewerStateResult ?? ConversationViewerState(mute: nil, version: 1)
+    }
+
+    func archiveChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState {
+        lock.withLock { _archived.append(conversationID) }
+        if archiveDelay > .zero { try? await Task.sleep(for: archiveDelay) }
+        if let error = lock.withLock({ _archiveErrors[conversationID] ?? _archiveError }) { throw error }
+        let version = lock.withLock { () -> UInt64 in _archiveVersion += 1; return _archiveVersion }
+        return ConversationViewerState(mute: nil, version: version, archive: ConversationArchiveState(archivedAt: .now))
+    }
+
+    func unarchiveChat(owner: KeyPair, conversationID: ConversationID) async throws -> (viewerState: ConversationViewerState, conversation: Conversation?) {
+        lock.withLock { _unarchived.append(conversationID) }
+        if archiveDelay > .zero { try? await Task.sleep(for: archiveDelay) }
+        if let error = lock.withLock({ _archiveErrors[conversationID] ?? _archiveError }) { throw error }
+        let version = lock.withLock { () -> UInt64 in _archiveVersion += 1; return _archiveVersion }
+        let viewerState = ConversationViewerState(mute: nil, version: version)
+        let conversation = unarchiveChatResult ?? (groupFeed + feed + archivedGroupFeed + archivedFeed).first { $0.id == conversationID }
+        return (viewerState, conversation)
     }
 
     // MARK: - ConversationMessaging
@@ -653,6 +736,13 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
 
     func ensureConversationStreamConnected() { lock.withLock { _didEnsure = true } }
     func closeConversationStream() { lock.withLock { _didClose = true } }
+    func setConversationStreamFollowsArchive(_ follow: Bool) async { lock.withLock { _follows.append(follow) } }
+}
+
+/// One ARCHIVED-folder feed read, as ``MockConversations/archivedFeedCalls`` records it.
+enum ConversationFolderRead: Equatable {
+    case dm(ConversationType)
+    case group
 }
 
 @MainActor

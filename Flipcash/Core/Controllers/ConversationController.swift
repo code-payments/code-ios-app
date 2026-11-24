@@ -1403,7 +1403,7 @@ final class ConversationController {
 
     private func fetchGroupFeed() async -> [Conversation]? {
         do {
-            return try await fetching.getGroupChatFeed(owner: owner)
+            return try await fetching.getGroupChatFeed(owner: owner, folder: .inbox)
         } catch {
             logger.error("Failed to load group chat feed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to load group chat feed")
@@ -1439,7 +1439,7 @@ final class ConversationController {
 
     private func fetchFeed(type: ConversationType) async -> [Conversation]? {
         do {
-            return try await fetching.getDmChatFeed(owner: owner, type: type)
+            return try await fetching.getDmChatFeed(owner: owner, type: type, folder: .inbox)
         } catch {
             logger.error("Failed to load conversation feed", metadata: [
                 "type": "\(type)",

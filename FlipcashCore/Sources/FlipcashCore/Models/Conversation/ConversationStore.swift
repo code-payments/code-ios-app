@@ -77,10 +77,13 @@ public struct ConversationStore: Sendable {
     /// Replace one type's conversations from that type's paged feed load,
     /// leaving the other types' conversations in place. Rows of a different
     /// type are ignored — the call describes exactly one type's set.
+    ///
+    /// Viewer state is ordered by version, as the group feed's upsert orders it: a feed row older
+    /// than a stream event or an archive reply would otherwise undo it.
     public mutating func setFeed(_ conversations: [Conversation], type: ConversationType) {
         // Only the incoming rows are merged: re-merging the other types against themselves would
         // read the store's own copy as the server acknowledging an unsynced READ pointer.
-        let incoming = conversations.filter { $0.type == type }.map { keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0))))) }
+        let incoming = conversations.filter { $0.type == type }.map { keepingViewerState(keepingPinSummary(keepingCoverPicture(keepingNewerActivity(keepingSelfReadPointer(seated($0)))))) }
         self.conversations = (self.conversations.filter { $0.type != type } + incoming)
             .sorted { $0.lastActivity > $1.lastActivity }
         reindex()
@@ -622,7 +625,8 @@ public struct ConversationStore: Sendable {
             canSilence: fetched.canSilence,
             canBan: fetched.canBan,
             canInvite: fetched.canInvite,
-            canPin: fetched.canPin
+            canPin: fetched.canPin,
+            archive: current.archive
         )
         return true
     }
@@ -785,7 +789,8 @@ public struct ConversationStore: Sendable {
                 canSilence: incoming.canSilence || held.canSilence,
                 canBan: incoming.canBan || held.canBan,
                 canInvite: incoming.canInvite || held.canInvite,
-                canPin: incoming.canPin || held.canPin
+                canPin: incoming.canPin || held.canPin,
+                archive: incoming.archive
             )
         }
         return conversation

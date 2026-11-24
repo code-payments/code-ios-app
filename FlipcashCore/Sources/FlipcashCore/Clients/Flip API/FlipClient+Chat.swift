@@ -12,13 +12,18 @@ extension FlipClient {
     /// Page the DM chat feed to exhaustion against a single pinned snapshot.
     /// The caller must already be consuming its `subscribeConversationStream` events so updates
     /// that land mid-pagination aren't lost.
-    public func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] {
+    ///
+    /// `folder` picks the inbox (the main list) or the archive. The paging token lives in this call,
+    /// so each folder pages on its own. A server built before archive ignores the field and returns
+    /// the inbox for either, so a caller must read a row's archive state from its viewer state, never
+    /// from the folder it asked for.
+    public func getDmChatFeed(owner: KeyPair, type: ConversationType, folder: ConversationFolder = .inbox) async throws -> [Conversation] {
         var all: [Conversation] = []
         var pagingToken: Data?
 
         while true {
             let page = try await withCheckedThrowingContinuation { c in
-                chatService.getDmChatFeed(owner: owner, type: type, pagingToken: pagingToken) { c.resume(with: $0) }
+                chatService.getDmChatFeed(owner: owner, type: type, folder: folder, pagingToken: pagingToken) { c.resume(with: $0) }
             }
             all.append(contentsOf: page.conversations)
             if !page.hasMore { break }
@@ -48,6 +53,23 @@ extension FlipClient {
         try await withCheckedThrowingContinuation { c in
             chatService.unmuteChat(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
         }
+    }
+
+    /// Archives `conversationID` for `owner`. Returns the resulting viewer state, version-stamped
+    /// like ``muteChat(owner:conversationID:mute:)``'s. Throws ``ErrorArchiveChat``.
+    public func archiveChat(owner: KeyPair, conversationID: ConversationID) async throws -> ConversationViewerState {
+        try await withCheckedThrowingContinuation { c in
+            chatService.archiveChat(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+    }
+
+    /// Unarchives `conversationID` for `owner`. Returns the resulting viewer state and, when the
+    /// server sent it, the chat's current metadata. Throws ``ErrorUnarchiveChat``.
+    public func unarchiveChat(owner: KeyPair, conversationID: ConversationID) async throws -> (viewerState: ConversationViewerState, conversation: Conversation?) {
+        let unarchived = try await withCheckedThrowingContinuation { c in
+            chatService.unarchiveChat(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
+        }
+        return (unarchived.viewerState, unarchived.conversation)
     }
 
     // MARK: - Moderation -
@@ -121,14 +143,15 @@ extension FlipClient {
 
     /// Page the group chat feed to exhaustion against a single pinned snapshot. Unlike a DM feed, the
     /// caller's own membership can change mid-read (a join or a leave lands as a `rosterChanged`
-    /// stream event, not a feed mutation) — the same live-stream caveat as `getDmChatFeed` applies.
-    public func getGroupChatFeed(owner: KeyPair) async throws -> [Conversation] {
+    /// stream event, not a feed mutation) — the same live-stream caveat as `getDmChatFeed` applies,
+    /// and so does its note on `folder`.
+    public func getGroupChatFeed(owner: KeyPair, folder: ConversationFolder = .inbox) async throws -> [Conversation] {
         var all: [Conversation] = []
         var pagingToken: Data?
 
         while true {
             let page = try await withCheckedThrowingContinuation { c in
-                chatService.getGroupChatFeed(owner: owner, pagingToken: pagingToken) { c.resume(with: $0) }
+                chatService.getGroupChatFeed(owner: owner, folder: folder, pagingToken: pagingToken) { c.resume(with: $0) }
             }
             all.append(contentsOf: page.conversations)
             if !page.hasMore { break }
@@ -462,6 +485,13 @@ extension FlipClient {
 
     public nonisolated func closeConversationStream() {
         Task { await eventStreamer.stop() }
+    }
+
+    /// Asks the server to carry, or stop carrying, archived groups' updates on the event stream.
+    /// Async so a caller can order successive calls; the ack arrives on the connection-state stream
+    /// as `EventStreamConnectionState.followingArchive`.
+    public nonisolated func setConversationStreamFollowsArchive(_ follow: Bool) async {
+        await eventStreamer.setFollowArchive(follow)
     }
 
     // MARK: - Private chats -
