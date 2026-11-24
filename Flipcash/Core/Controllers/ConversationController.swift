@@ -101,8 +101,9 @@ final class ConversationController {
     /// The one place `Conversation` becomes the list rules' input. The list, the chips, the Archived
     /// row and the tab badge all read this, so none can disagree about which chats count.
     var chatListProjection: ChatListProjection<ConversationID> {
-        // Reading the store's tracked set here is what makes archiving re-render the list.
-        let archived = chatArchive?.archivedIDs ?? []
+        // Reading the tracked pending writes here, with the store's viewer states below, is what
+        // makes archiving re-render the list.
+        let pending = chatArchive?.pending ?? [:]
         // Same for the marks: reading the tracked set re-renders rows, chips and the badge.
         let marked = chatMarkedUnread?.markedIDs ?? []
         let entries = chatListSource.map { conversation in
@@ -110,7 +111,7 @@ final class ConversationController {
                 id: conversation.id,
                 type: conversation.type,
                 lastActivity: conversation.lastActivity,
-                isArchived: archived.contains(conversation.id),
+                isArchived: pending[conversation.id] ?? conversation.viewerState?.isArchived ?? false,
                 isMuted: conversation.isMuted(at: .now),
                 isHidden: conversation.isHidden,
                 unread: chatListUnread(for: conversation, isMarked: marked.contains(conversation.id)),
@@ -164,17 +165,25 @@ final class ConversationController {
         chatListProjection.tabBadge
     }
 
+    /// Whether the chat shows as archived: the server's archive state, with a write the server has
+    /// not confirmed laid over it.
     func isArchived(_ id: ConversationID) -> Bool {
-        chatArchive?.isArchived(id) ?? false
+        chatArchive?.pending[id] ?? conversation(withID: id)?.viewerState?.isArchived ?? false
     }
 
-    /// Archives the chat. Local only; no event ever calls this except the user (rule 4).
+    private func isArchived(_ conversation: Conversation) -> Bool {
+        chatArchive?.pending[conversation.id] ?? conversation.viewerState?.isArchived ?? false
+    }
+
+    /// Archives the chat. It shows as archived at once, and `ArchiveChat` is sent; see
+    /// ``requestArchive(_:for:)``. No event ever calls this except the user (rule 4).
     func archive(_ id: ConversationID) {
-        chatArchive?.archive(id)
+        requestArchive(true, for: id)
     }
 
+    /// Unarchives the chat, as ``archive(_:)`` archives it.
     func unarchive(_ id: ConversationID) {
-        chatArchive?.unarchive(id)
+        requestArchive(false, for: id)
     }
 
     /// Archives every chat in `ids`.
@@ -469,7 +478,19 @@ final class ConversationController {
     /// it's visible and cleared when it leaves. Read by the push delegate to
     /// suppress foreground banners for the open chat; never drives a view, so
     /// it's excluded from observation.
-    @ObservationIgnored var visibleConversationID: ConversationID?
+    @ObservationIgnored var visibleConversationID: ConversationID? {
+        didSet { updateArchiveFollow() }
+    }
+
+    /// Whether the Archived screen is on screen, set by it while visible. With
+    /// ``visibleConversationID`` it decides whether the stream follows archived groups.
+    @ObservationIgnored var isArchiveScreenVisible = false {
+        didSet { updateArchiveFollow() }
+    }
+
+    /// How long following stays on after the user leaves the archive. Covers a push from the Archived
+    /// screen into a chat, which may clear one before it sets the other. Tests set it to zero.
+    @ObservationIgnored var archiveFollowGrace: Duration = .milliseconds(500)
 
     /// Raises the in-app pill for reactions on the user's own messages; wired at session setup.
     @ObservationIgnored var reactionAlerts: ReactionAlertController?
@@ -770,6 +791,8 @@ final class ConversationController {
         streamTask = Task { [weak self] in
             for await event in events {
                 guard let self else { return }
+                // Before the apply, the only point the held state still says archived.
+                let leavingArchive = self.groupLeavingArchive(event)
                 let gap = self.store.apply(event)
                 // Same turn as the store write, so the transcript's next push carries the dots
                 // leaving and the message arriving as one change.
@@ -790,6 +813,12 @@ final class ConversationController {
                 if case .needsCatchUp(let conversationID, _) = gap {
                     self.scheduleGapCatchUp(conversationID)
                 }
+                if case .viewerStateChanged = event {
+                    self.syncArchiveCache()
+                }
+                if let leavingArchive, self.conversation(withID: leavingArchive)?.viewerState?.isArchived == false {
+                    self.catchUpUnarchivedGroup(leavingArchive)
+                }
             }
         }
         observeConnectionState(states)
@@ -806,11 +835,19 @@ final class ConversationController {
         connectionStateTask = Task { [weak self] in
             for await state in states {
                 guard let self else { return }
-                guard state == .live else { continue }
-                if self.hasSeenStreamLive {
-                    await self.refetchAfterReconnect()
-                } else {
-                    self.hasSeenStreamLive = true
+                switch state {
+                case .live:
+                    if self.hasSeenStreamLive {
+                        await self.refetchAfterReconnect()
+                    } else {
+                        self.hasSeenStreamLive = true
+                    }
+                case .followingArchive:
+                    // The stream carries archived groups from here, so the groups read now can't
+                    // miss an update. Not awaited: a reconnect queued behind it must not wait.
+                    Task { await self.reloadArchivedGroups() }
+                case .disconnected:
+                    continue
                 }
             }
         }
@@ -1266,6 +1303,8 @@ final class ConversationController {
         }
         let task = Task { [self] in
             let loaded = await loadFeeds()
+            // Every feed sync retries the archive writes the server hasn't confirmed.
+            flushArchiveWrites()
             // Outside the loading flag, and after the list has been reconciled: backfill only
             // changes a row whose newest message is newer than the one it holds.
             await backfillMessages(for: loaded)
@@ -1401,20 +1440,50 @@ final class ConversationController {
         return groups
     }
 
+    /// The joined groups in both folders. ``applyGroupFeed(_:requestedAt:)`` treats a joined group
+    /// the list omits as left, and the inbox no longer lists archived groups.
     private func fetchGroupFeed() async -> [Conversation]? {
+        async let archivedRead = fetchArchivedFolder("group") {
+            try await self.fetching.getGroupChatFeed(owner: self.owner, folder: .archived)
+        }
+        let inbox: [Conversation]
         do {
-            return try await fetching.getGroupChatFeed(owner: owner, folder: .inbox)
+            inbox = try await fetching.getGroupChatFeed(owner: owner, folder: .inbox)
         } catch {
             logger.error("Failed to load group chat feed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to load group chat feed")
             return nil
         }
+        let archived = await archivedRead ?? heldArchived { $0.type == .group && store.isMember(of: $0) }
+        return ConversationFolder.union(inbox: inbox, archived: archived)
+    }
+
+    /// One feed's archived folder, or `nil` when the read failed.
+    private func fetchArchivedFolder(_ feed: String, _ read: () async throws -> [Conversation]) async -> [Conversation]? {
+        do {
+            return try await read()
+        } catch {
+            logger.warning("Failed to load archived chats, keeping the archived chats held", metadata: [
+                "feed": "\(feed)",
+                "error": "\(error)",
+            ])
+            return nil
+        }
+    }
+
+    /// The held chats that show as archived among those `matching`, standing in for an archived
+    /// folder that failed to load so the replace doesn't drop them.
+    private func heldArchived(_ matching: (Conversation) -> Bool) -> [Conversation] {
+        store.conversations.filter { matching($0) && isArchived($0) }
     }
 
     private func applyGroupFeed(_ groups: [Conversation], requestedAt mark: UInt64) {
         let departed = store.setGroupFeed(groups, requestedAt: mark)
         reconcileHidden()
         paymentRequests?.forget(conversations: departed)
+        // Left or removed elsewhere: the server cleared the archive with the membership.
+        departed.forEach { chatArchive?.drop($0) }
+        noteArchiveStateSynced()
         persistChanges(operation: "replace-group-feed") {
             // Only the groups the store still counts as joined are recorded as joined: a group
             // the user left after this feed was requested is listed by it, but is not a member.
@@ -1437,9 +1506,16 @@ final class ConversationController {
         return conversations
     }
 
+    /// One DM type's chats in both folders, for the same reason as ``fetchGroupFeed()``:
+    /// ``applyFeed(_:type:)`` replaces the type's rows.
     private func fetchFeed(type: ConversationType) async -> [Conversation]? {
+        async let archivedRead = fetchArchivedFolder("\(type)") {
+            try await self.fetching.getDmChatFeed(owner: self.owner, type: type, folder: .archived)
+        }
         do {
-            return try await fetching.getDmChatFeed(owner: owner, type: type, folder: .inbox)
+            let inbox = try await fetching.getDmChatFeed(owner: owner, type: type, folder: .inbox)
+            let archived = await archivedRead ?? heldArchived { $0.type == type }
+            return ConversationFolder.union(inbox: inbox, archived: archived)
         } catch {
             logger.error("Failed to load conversation feed", metadata: [
                 "type": "\(type)",
@@ -1453,6 +1529,7 @@ final class ConversationController {
     private func applyFeed(_ conversations: [Conversation], type: ConversationType) {
         store.setFeed(conversations, type: type)
         reconcileHidden()
+        noteArchiveStateSynced()
         persistChanges(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
         resendUnsyncedReadPointers()
         // The store refuses a tombstone as a preview, so a chat whose newest message is deleted
@@ -1593,8 +1670,10 @@ final class ConversationController {
         persistConversation(conversationID)
         chatDrafts?.remove(for: conversationID)
         // The server clears archive with mute on leave, so the local record is stale the moment the
-        // leave lands. A hidden chat's record is deliberately left alone elsewhere (rule 5).
-        chatArchive?.unarchive(conversationID)
+        // leave lands, and there is nothing to send. A hidden chat's record is deliberately left alone
+        // elsewhere (rule 5).
+        chatArchive?.drop(conversationID)
+        syncArchiveCache()
         chatMarkedUnread?.clear(conversationID)
     }
 
@@ -1623,6 +1702,12 @@ final class ConversationController {
                 guard userID == selfUserID else { continue }
                 store.setMembership(false, in: conversationID)
                 persistMembership(false, in: conversationID)
+                // A leave elsewhere, a removal and a ban all arrive as the user's own leave. The server
+                // clears mute and archive with the membership, as on a leave from here.
+                store.clearViewerState(in: conversationID)
+                persistConversation(conversationID)
+                chatArchive?.drop(conversationID)
+                syncArchiveCache()
             case .membershipChanged:
                 // Names no user, so there is no own-membership change to record; the store has
                 // already applied the summary.
@@ -1680,6 +1765,242 @@ final class ConversationController {
     private func applyViewerState(_ viewerState: ConversationViewerState, in conversationID: ConversationID) {
         store.applyViewerStateChanged(viewerState, in: conversationID)
         persistConversation(conversationID)
+    }
+
+    // MARK: - Archive
+
+    /// What an archive or unarchive RPC came to.
+    private enum ArchiveWriteOutcome {
+        /// The server took it and returned the viewer state, and for an unarchive the chat.
+        case applied(ConversationViewerState, Conversation?)
+        /// The server predates archive (`UNIMPLEMENTED`). The write stays for a later launch.
+        case serverLacksArchive
+        /// The server refused it for good: `DENIED`, `NOT_FOUND`, or another definite no.
+        case refused
+        /// It didn't reach the server, or the answer didn't come back. The next feed sync retries.
+        case retryLater
+    }
+
+    /// Chats with an archive RPC in flight. One per chat; a change made meanwhile goes when it lands.
+    @ObservationIgnored private(set) var archiveWritesInFlight: Set<ConversationID> = []
+    /// Set when an archive RPC came back `UNIMPLEMENTED`. No more are sent this session, so the
+    /// writes stay local until a later launch tries again.
+    @ObservationIgnored private(set) var serverLacksArchive = false
+    /// Set once a feed read has landed this session. Until then an unarchived viewer state may be one
+    /// not loaded yet, so it can't settle a write.
+    @ObservationIgnored private var hasSyncedArchiveState = false
+
+    /// Shows the change at once and sends it. The write stays pending in ``chatArchive`` until the
+    /// server confirms it, so a send that fails offline is retried by the next feed sync.
+    ///
+    /// Mute has no offline path to share: it moves nothing until the server answers. Archive must
+    /// show at once and survive a failed send, so it keeps its own pending writes.
+    private func requestArchive(_ archive: Bool, for id: ConversationID) {
+        guard let chatArchive else { return }
+        chatArchive.request(archive, for: id)
+        syncArchiveCache()
+        sendArchiveWrite(for: id)
+    }
+
+    private func noteArchiveStateSynced() {
+        hasSyncedArchiveState = true
+        syncArchiveCache()
+    }
+
+    /// Sends every write the server hasn't confirmed. Runs after each feed sync: that retries a write
+    /// that failed offline, and uploads the records this device kept before the server stored
+    /// archive state.
+    private func flushArchiveWrites() {
+        guard let chatArchive else { return }
+        for id in chatArchive.pending.keys {
+            sendArchiveWrite(for: id)
+        }
+        markArchiveUploadedIfResolved()
+    }
+
+    private func sendArchiveWrite(for id: ConversationID) {
+        guard let chatArchive, let archive = chatArchive.pending[id] else { return }
+        guard !serverLacksArchive, !archiveWritesInFlight.contains(id) else { return }
+        // The server already agrees, so there is nothing to send: a record the server already shows
+        // as archived, or an unarchive of a chat it never archived.
+        if hasSyncedArchiveState, (conversation(withID: id)?.viewerState?.isArchived ?? false) == archive {
+            chatArchive.resolve(id, ifRequested: archive)
+            syncArchiveCache()
+            return
+        }
+        archiveWritesInFlight.insert(id)
+        Task { [weak self] in
+            guard let outcome = await self?.performArchiveWrite(archive, for: id), let self else { return }
+            self.archiveWritesInFlight.remove(id)
+            self.finishArchiveWrite(archive, for: id, outcome: outcome)
+        }
+    }
+
+    private func performArchiveWrite(_ archive: Bool, for id: ConversationID) async -> ArchiveWriteOutcome {
+        do {
+            guard archive else {
+                let unarchived = try await viewerSettings.unarchiveChat(owner: owner, conversationID: id)
+                return .applied(unarchived.viewerState, unarchived.conversation)
+            }
+            return .applied(try await viewerSettings.archiveChat(owner: owner, conversationID: id), nil)
+        } catch let error as ErrorArchiveChat {
+            return archiveWriteOutcome(error, isUnimplemented: error == .unimplemented, isTransient: error == .transportFailure || error == .cancelled, in: id)
+        } catch let error as ErrorUnarchiveChat {
+            return archiveWriteOutcome(error, isUnimplemented: error == .unimplemented, isTransient: error == .transportFailure || error == .cancelled, in: id)
+        } catch {
+            logger.warning("Archive write failed, retrying on the next sync", metadata: ["conversationID": "\(id)", "error": "\(error)"])
+            return .retryLater
+        }
+    }
+
+    private func archiveWriteOutcome(_ error: any Error, isUnimplemented: Bool, isTransient: Bool, in id: ConversationID) -> ArchiveWriteOutcome {
+        if isUnimplemented {
+            logger.info("Server predates archive, keeping archive writes local", metadata: ["conversationID": "\(id)"])
+            return .serverLacksArchive
+        }
+        if isTransient {
+            logger.info("Archive write didn't reach the server, retrying on the next sync", metadata: ["conversationID": "\(id)", "error": "\(error)"])
+            return .retryLater
+        }
+        logger.info("Server refused archive write, dropping it", metadata: ["conversationID": "\(id)", "error": "\(error)"])
+        return .refused
+    }
+
+    private func finishArchiveWrite(_ archive: Bool, for id: ConversationID, outcome: ArchiveWriteOutcome) {
+        guard let chatArchive else { return }
+        switch outcome {
+        case .applied(let viewerState, let chat):
+            if let chat {
+                store.apply(.metadataRefresh(chat))
+                persistConversation(chat)
+            }
+            applyViewerState(viewerState, in: id)
+            chatArchive.resolve(id, ifRequested: archive)
+            // An archived group's updates weren't followed, so its transcript is behind.
+            if !archive, conversation(withID: id)?.type == .group {
+                catchUpUnarchivedGroup(id)
+            }
+        case .serverLacksArchive:
+            serverLacksArchive = true
+        case .refused:
+            chatArchive.resolve(id, ifRequested: archive)
+        case .retryLater:
+            break
+        }
+        syncArchiveCache()
+        // The user changed their mind while this one was in flight.
+        if let next = chatArchive.pending[id], next != archive {
+            sendArchiveWrite(for: id)
+        }
+        markArchiveUploadedIfResolved()
+    }
+
+    /// Records, once per account, that the server holds everything this device had archived.
+    private func markArchiveUploadedIfResolved() {
+        guard let chatArchive, !chatArchive.isUploaded, hasSyncedArchiveState, !serverLacksArchive,
+              chatArchive.pending.isEmpty, archiveWritesInFlight.isEmpty else { return }
+        chatArchive.markUploaded()
+    }
+
+    /// Writes the chats the list shows as archived to the cache the extensions read, and moves
+    /// FollowArchive if the open chat's archive state changed.
+    private func syncArchiveCache() {
+        defer { updateArchiveFollow() }
+        guard let chatArchive else { return }
+        var archived: [ConversationID: Date] = [:]
+        for conversation in chatListSource where isArchived(conversation) {
+            archived[conversation.id] = conversation.viewerState?.archive?.archivedAt ?? .now
+        }
+        for (id, archive) in chatArchive.pending where archive && archived[id] == nil {
+            archived[id] = .now
+        }
+        // Before a server read, the last session's cache knows more than a chat list not loaded yet.
+        if !hasSyncedArchiveState {
+            for id in chatArchive.cachedIDs where chatArchive.pending[id] != false && archived[id] == nil {
+                archived[id] = .now
+            }
+        }
+        chatArchive.updateCache(archived)
+    }
+
+    /// The group `event` unarchives, if any: a viewer state without archive for a group held as
+    /// archived. Read before the store applies the event.
+    private func groupLeavingArchive(_ event: ConversationStreamEvent) -> ConversationID? {
+        guard case .viewerStateChanged(let id, let viewerState) = event, !viewerState.isArchived,
+              let held = conversation(withID: id), held.type == .group,
+              held.viewerState?.isArchived == true else { return nil }
+        return id
+    }
+
+    /// Catches an unarchived group's transcript up from its held cursor. Its updates weren't
+    /// followed while it was archived.
+    private func catchUpUnarchivedGroup(_ id: ConversationID) {
+        Task { [weak self] in
+            await self?.catchUp(conversationID: id)
+        }
+    }
+
+    // MARK: - FollowArchive
+
+    /// What the stream was last asked for.
+    @ObservationIgnored private var followsArchive = false
+    /// The sends, chained so they reach the stream in the order they were decided.
+    @ObservationIgnored private var archiveFollowSend: Task<Void, Never>?
+    /// The pending OFF, cancelled if the user comes back within ``archiveFollowGrace``.
+    @ObservationIgnored private var archiveFollowOff: Task<Void, Never>?
+
+    /// ON while the Archived screen or an archived group's chat is on screen.
+    private var wantsArchiveFollow: Bool {
+        if isArchiveScreenVisible { return true }
+        guard let id = visibleConversationID, let conversation = conversation(withID: id) else { return false }
+        return conversation.type == .group && isArchived(conversation)
+    }
+
+    private func updateArchiveFollow() {
+        guard wantsArchiveFollow else {
+            guard followsArchive, archiveFollowOff == nil else { return }
+            archiveFollowOff = Task { [weak self, grace = archiveFollowGrace] in
+                try? await Task.sleep(for: grace)
+                guard let self, !Task.isCancelled else { return }
+                self.archiveFollowOff = nil
+                if !self.wantsArchiveFollow {
+                    self.setArchiveFollow(false)
+                }
+            }
+            return
+        }
+        archiveFollowOff?.cancel()
+        archiveFollowOff = nil
+        setArchiveFollow(true)
+    }
+
+    private func setArchiveFollow(_ follow: Bool) {
+        guard followsArchive != follow else { return }
+        followsArchive = follow
+        let previous = archiveFollowSend
+        archiveFollowSend = Task { [streaming] in
+            await previous?.value
+            await streaming.setConversationStreamFollowsArchive(follow)
+        }
+    }
+
+    /// Re-reads the archived groups once the stream follows them, so none is behind an update sent
+    /// before the follow took. Merges without pruning: the archived folder alone says nothing about
+    /// the groups it omits.
+    private func reloadArchivedGroups() async {
+        let mark = store.groupFeedMark
+        let groups: [Conversation]
+        do {
+            groups = try await fetching.getGroupChatFeed(owner: owner, folder: .archived)
+        } catch {
+            logger.warning("Failed to reload archived groups", metadata: ["error": "\(error)"])
+            return
+        }
+        store.mergeGroupFeed(groups, requestedAt: mark)
+        persistChanges(operation: "merge-archived-groups") {
+            try database.replaceGroupFeed(groups.filter { store.isMember(of: $0) }.map(withStoreMembers), departed: [])
+        }
+        syncArchiveCache()
     }
 
     // MARK: - Backfill

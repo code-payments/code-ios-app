@@ -154,23 +154,6 @@ extension ConversationViewerState {
     public var isArchived: Bool {
         archive != nil
     }
-
-    /// This state with ``archive`` replaced and everything else kept, version included. Used to
-    /// show a local archive or unarchive before the server answers; the server's reply carries the
-    /// version that settles it.
-    public func withArchive(_ archive: ConversationArchiveState?) -> ConversationViewerState {
-        ConversationViewerState(
-            mute: mute,
-            canEdit: canEdit,
-            version: version,
-            silence: silence,
-            canSilence: canSilence,
-            canBan: canBan,
-            canInvite: canInvite,
-            canPin: canPin,
-            archive: archive
-        )
-    }
 }
 
 /// When the signed-in user archived a chat. See `chat.v1.ArchiveState`.
@@ -198,6 +181,29 @@ public enum ConversationFolder: Hashable, Sendable {
 }
 
 extension ConversationFolder {
+
+    /// One feed's inbox and archived reads as the single list a feed replace takes.
+    ///
+    /// A replace drops the held chats its list omits, and the inbox no longer lists archived chats,
+    /// so the replace needs both folders. A chat in both reads moved between the two requests; the
+    /// row with the newer viewer state wins. A server built before archive answers either folder with
+    /// the inbox, which this reduces to the inbox once.
+    public static func union(inbox: [Conversation], archived: [Conversation]) -> [Conversation] {
+        var order: [ConversationID] = []
+        var rows: [ConversationID: Conversation] = [:]
+        for row in inbox + archived {
+            guard let held = rows[row.id] else {
+                order.append(row.id)
+                rows[row.id] = row
+                continue
+            }
+            if (row.viewerState?.version ?? 0) > (held.viewerState?.version ?? 0) {
+                rows[row.id] = row
+            }
+        }
+        return order.compactMap { rows[$0] }
+    }
+
     var proto: Flipcash_Chat_V1_ChatFolder {
         switch self {
         case .inbox: .inbox

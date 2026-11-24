@@ -58,6 +58,9 @@ struct ArchivedChatsScreen: View {
         }
         .navigationTitle("Archived")
         .toolbarTitleDisplayMode(.inline)
+        // The stream follows archived groups while this screen is up, so its rows stay current.
+        .onAppear { conversationController.isArchiveScreenVisible = true }
+        .onDisappear { conversationController.isArchiveScreenVisible = false }
         .tray(item: $muteTarget) { target in
             MuteChatSheet(
                 conversationID: target.id,

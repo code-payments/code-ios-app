@@ -56,4 +56,35 @@ struct ChatArchiveFileTests {
         let other = try PublicKey(Data(repeating: 8, count: 32))
         #expect(ChatArchiveReader.load(owner: other, directory: directory) == nil)
     }
+
+    @Test("A file written before the server held archive state reads, and its records are archives to upload")
+    func preServerFile() throws {
+        let directory = try makeDirectory()
+        let url = directory.appendingPathComponent(ChatArchiveFile.filename(owner: owner))
+        let key = ChatArchiveFile.key(id(1))
+        try Data(#"{"version":1,"viewerUsername":"ana","archived":{"\#(key)":0}}"#.utf8).write(to: url)
+
+        let file = try #require(ChatArchiveReader.load(owner: owner, directory: directory))
+        #expect(file.isArchived(id(1)))
+        #expect(file.viewerUsername == "ana")
+        #expect(file.pending == nil)
+        #expect(file.pendingWrites == [id(1): true])
+    }
+
+    @Test("Once uploaded, a file without pending writes has nothing to upload")
+    func uploadedFileHasNothingToUpload() {
+        var file = ChatArchiveFile(pending: nil, uploaded: true)
+        file.archive(id(1), at: .now)
+        #expect(file.pendingWrites.isEmpty)
+    }
+
+    @Test("Recording the cache keeps the date a chat that stays archived already had")
+    func setArchivedKeepsDates() {
+        var file = ChatArchiveFile()
+        let first = Date(timeIntervalSince1970: 100)
+        file.setArchived([id(1): first])
+        file.setArchived([id(1): Date(timeIntervalSince1970: 200), id(2): first])
+        #expect(file.archived[ChatArchiveFile.key(id(1))] == first)
+        #expect(file.archivedIDs == [id(1), id(2)])
+    }
 }

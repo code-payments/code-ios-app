@@ -122,6 +122,22 @@ public struct ConversationStore: Sendable {
         return departed
     }
 
+    /// Upserts `groups` and marks each joined, dropping nothing.
+    ///
+    /// For a read that lists only some joined groups, such as the archived folder on its own: it says
+    /// nothing about the groups it omits, so ``setGroupFeed(_:requestedAt:)`` would read their absence
+    /// as departures. A group left after `requestedAt` stays un-joined, as there.
+    public mutating func mergeGroupFeed(_ groups: [Conversation], requestedAt mark: UInt64? = nil) {
+        let mark = mark ?? membershipGeneration
+        let leftSince = Set(membershipChangedAt.filter { $0.value > mark }.keys).subtracting(joinedGroupIDs)
+        for group in groups where group.type == .group {
+            upsert(group)
+            if !leftSince.contains(group.id) {
+                joinedGroupIDs.insert(group.id)
+            }
+        }
+    }
+
     /// How far apart an incoming server copy and a pending optimistic send may be (in either
     /// direction, to absorb client/server clock skew) and still be treated as the same message. Wide
     /// enough for skew, tight enough that an unrelated old history message with identical text never
