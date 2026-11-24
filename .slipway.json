@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "flipcash",
+  "label": "Flipcash",
+  "ios": {
+    "team": { "from": "pbxproj", "path": "Code.xcodeproj/project.pbxproj" },
+    "buildNumber": { "from": "pbxproj", "path": "Code.xcodeproj/project.pbxproj" },
+    "steps": [[
+      "./Scripts/build.sh", "-destination", "generic/platform=iOS",
+      "-configuration", "{configuration}", "-derivedDataPath", "{derivedData}",
+      "CURRENT_PROJECT_VERSION={buildNumber}"
+    ]],
+    "app": "{derivedData}/Build/Products/{configuration}-iphoneos/Flipcash.app"
+  }
+}
