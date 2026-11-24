@@ -400,6 +400,50 @@ struct ChatArchiveServerTests {
         try await waitUntil { mock.follows == [true, false, true, false] }
     }
 
+    @Test("An archived group open when the follow takes is caught up from its held cursor")
+    func openArchivedGroupCatchesUpOnFollow() async throws {
+        let mock = MockConversations()
+        mock.groupFeed = [group(3)]
+        mock.archivedGroupFeed = [group(4, viewerState: archived(1))]
+        let (controller, _) = makeController(mock, directory: try makeDirectory())
+        controller.start()
+        try await waitUntil { mock.streamOpened && mock.connectionStateStreamOpened }
+        await controller.loadFeed()
+        mock.deltaHead = 5
+        await controller.catchUp(conversationID: .test(4))
+        let catchUpsBefore = mock.deltaAfterSequences.count
+
+        controller.visibleConversationID = .test(4)
+        try await waitUntil { mock.follows == [true] }
+        mock.emitConnectionState(.followingArchive)
+        try await waitUntil { mock.deltaAfterSequences.count > catchUpsBefore }
+
+        #expect(mock.deltaAfterSequences.last == 5)
+    }
+
+    @Test("The follow taking doesn't catch up an open inbox group")
+    func openInboxGroupNotCaughtUpOnFollow() async throws {
+        let mock = MockConversations()
+        mock.groupFeed = [group(3)]
+        mock.archivedGroupFeed = [group(4, viewerState: archived(1))]
+        let (controller, _) = makeController(mock, directory: try makeDirectory())
+        controller.start()
+        try await waitUntil { mock.streamOpened && mock.connectionStateStreamOpened }
+        await controller.loadFeed()
+        mock.deltaHead = 5
+        await controller.catchUp(conversationID: .test(3))
+        let catchUpsBefore = mock.deltaAfterSequences.count
+        let readsBefore = mock.archivedFeedCalls.filter { $0 == .group }.count
+
+        controller.isArchiveScreenVisible = true
+        controller.visibleConversationID = .test(3)
+        try await waitUntil { mock.follows == [true] }
+        mock.emitConnectionState(.followingArchive)
+        try await waitUntil { mock.archivedFeedCalls.filter { $0 == .group }.count > readsBefore }
+
+        #expect(mock.deltaAfterSequences.count == catchUpsBefore)
+    }
+
     // MARK: - Unarchive catch-up (D6)
 
     @Test("Unarchiving a group applies the returned chat and catches its transcript up")
