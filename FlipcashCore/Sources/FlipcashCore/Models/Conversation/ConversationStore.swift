@@ -92,6 +92,16 @@ public struct ConversationStore: Sendable {
         reindex()
     }
 
+    /// Upserts one type's conversations, dropping none. Rows of a different type are ignored.
+    ///
+    /// For a feed read that may omit chats the user still has, such as an inbox read whose archived
+    /// folder failed to load: ``setFeed(_:type:)`` would delete every held chat it omits.
+    public mutating func mergeFeed(_ conversations: [Conversation], type: ConversationType) {
+        for conversation in conversations where conversation.type == type {
+            upsert(conversation)
+        }
+    }
+
     /// Merge the group feed in, and returns the groups the user is no longer in.
     ///
     /// Deliberately not ``setFeed(_:type:)``: the group feed carries only the groups the user has

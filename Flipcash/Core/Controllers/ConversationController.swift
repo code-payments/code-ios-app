@@ -1359,7 +1359,7 @@ final class ConversationController {
                 if arrivals.isClosed {
                     guard let feed else { return }
                     withTransaction(Self.unanimated) { applyFeed(feed, from: source, groupFeedMark: groupFeedMark) }
-                    await backfillMessages(for: feed)
+                    await backfillMessages(for: feed.conversations)
                 } else {
                     arrivals.arrive(source, feed)
                 }
@@ -1372,7 +1372,8 @@ final class ConversationController {
         }
         guard !Task.isCancelled else { return [] }
 
-        await resolveUnreadCounts(in: landed.values.flatMap { $0 })
+        let landedConversations: [Conversation] = landed.values.flatMap(\.conversations)
+        await resolveUnreadCounts(in: landedConversations)
 
         withTransaction(Self.unanimated) {
             for (source, feed) in landed {
@@ -1380,7 +1381,7 @@ final class ConversationController {
             }
             watermarkStamps.release()
         }
-        return landed.values.flatMap { $0 }
+        return landedConversations
     }
 
     private static var unanimated: Transaction {
@@ -1413,14 +1414,14 @@ final class ConversationController {
 
     @ObservationIgnored private var unresolvedUnreadQueue: [Conversation] = []
 
-    private func fetchFeed(_ source: FeedArrivals.Source) async -> [Conversation]? {
+    private func fetchFeed(_ source: FeedArrivals.Source) async -> FolderedFeed? {
         switch source {
         case .dm(let type): await fetchFeed(type: type)
         case .groups:       await fetchGroupFeed()
         }
     }
 
-    private func applyFeed(_ feed: [Conversation], from source: FeedArrivals.Source, groupFeedMark: UInt64) {
+    private func applyFeed(_ feed: FolderedFeed, from source: FeedArrivals.Source, groupFeedMark: UInt64) {
         switch source {
         case .dm(let type): applyFeed(feed, type: type, requestedAt: groupFeedMark)
         case .groups:       applyGroupFeed(feed, requestedAt: groupFeedMark)
@@ -1437,14 +1438,14 @@ final class ConversationController {
     @discardableResult
     func loadGroupFeed() async -> [Conversation] {
         let mark = store.groupFeedMark
-        guard let groups = await fetchGroupFeed() else { return [] }
-        applyGroupFeed(groups, requestedAt: mark)
-        return groups
+        guard let feed = await fetchGroupFeed() else { return [] }
+        applyGroupFeed(feed, requestedAt: mark)
+        return feed.conversations
     }
 
     /// The joined groups in both folders. ``applyGroupFeed(_:requestedAt:)`` treats a joined group
     /// the list omits as left, and the inbox no longer lists archived groups.
-    private func fetchGroupFeed() async -> [Conversation]? {
+    private func fetchGroupFeed() async -> FolderedFeed? {
         async let archivedRead = fetchArchivedFolder("group") {
             try await self.fetching.getGroupChatFeed(owner: self.owner, folder: .archived)
         }
@@ -1456,8 +1457,8 @@ final class ConversationController {
             ErrorReporting.captureError(error, reason: "Failed to load group chat feed")
             return nil
         }
-        let archived = await archivedRead ?? heldArchived { $0.type == .group && store.isMember(of: $0) }
-        return ConversationFolder.union(inbox: inbox, archived: archived)
+        let archived: [Conversation]? = await archivedRead
+        return Self.foldered(inbox: inbox, archived: archived)
     }
 
     /// One feed's archived folder, or `nil` when the read failed.
@@ -1465,7 +1466,7 @@ final class ConversationController {
         do {
             return try await read()
         } catch {
-            logger.warning("Failed to load archived chats, keeping the archived chats held", metadata: [
+            logger.warning("Failed to load archived chats, skipping the prune", metadata: [
                 "feed": "\(feed)",
                 "error": "\(error)",
             ])
@@ -1474,10 +1475,13 @@ final class ConversationController {
         }
     }
 
-    /// The held chats that show as archived among those `matching`, standing in for an archived
-    /// folder that failed to load so the replace doesn't drop them.
-    private func heldArchived(_ matching: (Conversation) -> Bool) -> [Conversation] {
-        store.conversations.filter { matching($0) && isArchived($0) }
+    /// The union of a feed's two folders, marked incomplete when the archived read failed.
+    private static func foldered(inbox: [Conversation], archived: [Conversation]?) -> FolderedFeed {
+        guard let archived else {
+            return FolderedFeed(conversations: inbox, includesArchived: false)
+        }
+        let union: [Conversation] = ConversationFolder.union(inbox: inbox, archived: archived)
+        return FolderedFeed(conversations: union, includesArchived: true)
     }
 
     /// The held chats among those `matching` that `feed` may omit only because they moved between
@@ -1496,18 +1500,27 @@ final class ConversationController {
         }
     }
 
-    private func applyGroupFeed(_ feed: [Conversation], requestedAt mark: UInt64) {
-        let groups = feed + movingBetweenFolders(absentFrom: feed, since: mark) { $0.type == .group && store.isMember(of: $0) }
-        let departed = store.setGroupFeed(groups, requestedAt: mark)
-        reconcileHidden()
-        paymentRequests?.forget(conversations: departed)
-        // Left or removed elsewhere: the server cleared the archive with the membership.
-        departed.forEach { chatArchive?.drop($0) }
-        noteArchiveStateSynced()
-        persistChanges(operation: "replace-group-feed") {
-            // Only the groups the store still counts as joined are recorded as joined: a group
-            // the user left after this feed was requested is listed by it, but is not a member.
-            try database.replaceGroupFeed(groups.filter { store.isMember(of: $0) }.map(withStoreMembers), departed: departed)
+    private func applyGroupFeed(_ feed: FolderedFeed, requestedAt mark: UInt64) {
+        let groups: [Conversation]
+        if feed.includesArchived {
+            groups = feed.conversations + movingBetweenFolders(absentFrom: feed.conversations, since: mark) { $0.type == .group && store.isMember(of: $0) }
+            let departed = store.setGroupFeed(groups, requestedAt: mark)
+            reconcileHidden()
+            paymentRequests?.forget(conversations: departed)
+            // Left or removed elsewhere: the server cleared the archive with the membership.
+            departed.forEach { chatArchive?.drop($0) }
+            noteArchiveStateSynced()
+            persistChanges(operation: "replace-group-feed") {
+                // Only the groups the store still counts as joined are recorded as joined: a group
+                // the user left after this feed was requested is listed by it, but is not a member.
+                try database.replaceGroupFeed(groups.filter { store.isMember(of: $0) }.map(withStoreMembers), departed: departed)
+            }
+        } else {
+            // A group the inbox omits may have been archived elsewhere rather than left, so none
+            // departs. The next sync that reads both folders settles them.
+            groups = feed.conversations
+            mergeGroups(groups, requestedAt: mark, operation: "merge-group-inbox")
+            reconcileHidden()
         }
         resendUnsyncedReadPointers()
         // Same repair the DM feeds need: the store refuses a tombstone as a preview, so a chat whose
@@ -1522,21 +1535,21 @@ final class ConversationController {
     @discardableResult
     func loadFeed(type: ConversationType) async -> [Conversation] {
         let mark = store.groupFeedMark
-        guard let conversations = await fetchFeed(type: type) else { return [] }
-        applyFeed(conversations, type: type, requestedAt: mark)
-        return conversations
+        guard let feed = await fetchFeed(type: type) else { return [] }
+        applyFeed(feed, type: type, requestedAt: mark)
+        return feed.conversations
     }
 
     /// One DM type's chats in both folders, for the same reason as ``fetchGroupFeed()``:
-    /// ``applyFeed(_:type:)`` replaces the type's rows.
-    private func fetchFeed(type: ConversationType) async -> [Conversation]? {
+    /// ``applyFeed(_:type:requestedAt:)`` replaces the type's rows.
+    private func fetchFeed(type: ConversationType) async -> FolderedFeed? {
         async let archivedRead = fetchArchivedFolder("\(type)") {
             try await self.fetching.getDmChatFeed(owner: self.owner, type: type, folder: .archived)
         }
         do {
             let inbox = try await fetching.getDmChatFeed(owner: owner, type: type, folder: .inbox)
-            let archived = await archivedRead ?? heldArchived { $0.type == type }
-            return ConversationFolder.union(inbox: inbox, archived: archived)
+            let archived: [Conversation]? = await archivedRead
+            return Self.foldered(inbox: inbox, archived: archived)
         } catch {
             logger.error("Failed to load conversation feed", metadata: [
                 "type": "\(type)",
@@ -1547,12 +1560,30 @@ final class ConversationController {
         }
     }
 
-    private func applyFeed(_ feed: [Conversation], type: ConversationType, requestedAt mark: UInt64) {
-        let conversations = feed + movingBetweenFolders(absentFrom: feed, since: mark) { $0.type == type }
-        store.setFeed(conversations, type: type)
-        reconcileHidden()
-        noteArchiveStateSynced()
-        persistChanges(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
+    private func applyFeed(_ feed: FolderedFeed, type: ConversationType, requestedAt mark: UInt64) {
+        let conversations: [Conversation]
+        if feed.includesArchived {
+            conversations = feed.conversations + movingBetweenFolders(absentFrom: feed.conversations, since: mark) { $0.type == type }
+            store.setFeed(conversations, type: type)
+            reconcileHidden()
+            noteArchiveStateSynced()
+            persistChanges(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
+        } else {
+            // A chat the inbox omits may have been archived elsewhere rather than removed, so none
+            // is dropped. The next sync that reads both folders settles them.
+            conversations = feed.conversations
+            store.mergeFeed(conversations, type: type)
+            reconcileHidden()
+            syncArchiveCache()
+            persistChanges(operation: "merge-inbox-feed") {
+                var changed = false
+                for conversation in conversations where conversation.type == type {
+                    let rowChanged: Bool = try database.upsertConversation(conversation)
+                    changed = changed || rowChanged
+                }
+                return changed
+            }
+        }
         resendUnsyncedReadPointers()
         // The store refuses a tombstone as a preview, so a chat whose newest message is deleted
         // seats blank here. Fill it from the newest visible message already cached — the feed
@@ -2013,8 +2044,14 @@ final class ConversationController {
             ErrorReporting.captureError(error, reason: "Failed to reload archived groups")
             return
         }
+        mergeGroups(groups, requestedAt: mark, operation: "merge-archived-groups")
+    }
+
+    /// Upserts `groups` and records them as joined, dropping none: for a read that may omit groups
+    /// the user is still in.
+    private func mergeGroups(_ groups: [Conversation], requestedAt mark: UInt64, operation: String) {
         store.mergeGroupFeed(groups, requestedAt: mark)
-        persistChanges(operation: "merge-archived-groups") {
+        persistChanges(operation: operation) {
             try database.replaceGroupFeed(groups.filter { store.isMember(of: $0) }.map(withStoreMembers), departed: [])
         }
         syncArchiveCache()
