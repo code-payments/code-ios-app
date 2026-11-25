@@ -662,6 +662,7 @@ final class ConversationController {
         typingStoppedLinger: Duration = ConversationTyping.defaultStoppedLinger,
         typingExpiryClock: TypingExpiryClock = .continuous,
         archiveFollowGrace: Duration = .milliseconds(500),
+        archiveFollowAckTimeout: Duration = .seconds(5),
         reconcileTiming: FeedReconcileTiming = .launch,
         receipts: ConversationReceiptReporter? = nil,
         backgroundTasks: any BackgroundTaskAsserting = UIApplicationBackgroundTasks(name: "chat.photo.send")
@@ -689,7 +690,11 @@ final class ConversationController {
             stoppedLinger: typingStoppedLinger,
             expiryClock: typingExpiryClock
         )
-        self.archiveFollow = ConversationArchiveFollow(streaming: streaming, grace: archiveFollowGrace)
+        self.archiveFollow = ConversationArchiveFollow(
+            streaming: streaming,
+            grace: archiveFollowGrace,
+            ackTimeout: archiveFollowAckTimeout
+        )
         self.reactions = ConversationReactions(
             messaging: messaging,
             database: database,
@@ -701,6 +706,7 @@ final class ConversationController {
             self?.noteMessageWrite(.messages(messageIDs, in: conversationID))
         }
         pins.didChange = { [weak self] in self?.bumpMessageRevision() }
+        archiveFollow.onUnanswered = { [weak self] in self?.readArchivedGroupsUnanswered() }
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
@@ -844,6 +850,7 @@ final class ConversationController {
                         self.hasSeenStreamLive = true
                     }
                 case .followingArchive:
+                    self.archiveFollow.noteFollowAcknowledged()
                     // The stream carries archived groups from here, so the groups read now can't
                     // miss an update. Not awaited: a reconnect queued behind it must not wait.
                     Task { await self.reloadArchivedGroups() }
@@ -2029,6 +2036,14 @@ final class ConversationController {
             return
         }
         archiveFollow.isArchivedGroupVisible = conversation.type == .group && isArchived(conversation)
+    }
+
+    /// Reads the archived groups anyway when a follow goes unanswered, so a server that never acks
+    /// leaves them no staler than the read. Catches up no open chat: without an ack, nothing says
+    /// the stream carries it.
+    private func readArchivedGroupsUnanswered() {
+        logger.info("Archive follow unanswered, reading the archived groups anyway")
+        Task { await reloadArchivedGroups() }
     }
 
     /// Re-reads the archived groups once the stream follows them, so none is behind an update sent
