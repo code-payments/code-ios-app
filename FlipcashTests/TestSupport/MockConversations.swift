@@ -187,7 +187,7 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         get { lock.withLock { _archiveVersion } }
         set { lock.withLock { _archiveVersion = newValue } }
     }
-    /// The chat `unarchiveChat` returns. Unset, it returns the chat as ``feed`` or ``groupFeed`` holds it.
+    /// The chat `unarchiveChat` returns. Unset, it returns the chat as ``groupFeed``, ``feed``, ``archivedGroupFeed`` or ``archivedFeed`` holds it.
     var unarchiveChatResult: Conversation?? {
         get { lock.withLock { _unarchiveChatResult } }
         set { lock.withLock { _unarchiveChatResult = newValue } }
@@ -495,7 +495,13 @@ final class MockConversations: ConversationFetching, ConversationMembership, Con
         if let error = lock.withLock({ _archiveErrors[conversationID] ?? _archiveError }) { throw error }
         let version = lock.withLock { () -> UInt64 in _archiveVersion += 1; return _archiveVersion }
         let viewerState = ConversationViewerState(mute: nil, version: version)
-        let conversation = unarchiveChatResult ?? (groupFeed + feed + archivedGroupFeed + archivedFeed).first { $0.id == conversationID }
+        let conversation: Conversation?
+        if let scripted = unarchiveChatResult {
+            conversation = scripted
+        } else {
+            let known: [Conversation] = [groupFeed, feed, archivedGroupFeed, archivedFeed].flatMap { $0 }
+            conversation = known.first { $0.id == conversationID }
+        }
         return (viewerState, conversation)
     }
 
