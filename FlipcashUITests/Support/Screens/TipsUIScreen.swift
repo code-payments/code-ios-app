@@ -25,9 +25,10 @@ struct TipsUIScreen {
     /// The Chat tab on the tab bar.
     var tab: XCUIElement { app.tabBars.buttons["Chat"].firstMatch }
 
-    /// The tab's navigation-bar title — its presence means the list has
-    /// rendered, whether or not the account has a conversation.
-    var title: XCUIElement { app.staticTexts["Chat"] }
+    /// The bar's new-chat button — its presence means the list has rendered,
+    /// whether or not the account has a conversation. The bar draws no title,
+    /// so the button is what marks the screen in both shells.
+    var newChatButton: XCUIElement { app.buttons["new-chat-button"] }
 
     /// The empty state, shown until the first tip conversation exists.
     var emptyState: XCUIElement { app.staticTexts["No Chats Yet"] }
@@ -43,7 +44,7 @@ struct TipsUIScreen {
     func open(from testCase: BaseUITestCase) {
         testCase.waitAndTap(tab)
         XCTAssertTrue(
-            title.waitForExistence(timeout: 30),
+            newChatButton.waitForExistence(timeout: 30),
             "Expected the Chat tab's conversation list"
         )
     }

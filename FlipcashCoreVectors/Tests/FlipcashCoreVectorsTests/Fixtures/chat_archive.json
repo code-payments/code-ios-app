@@ -317,10 +317,14 @@
           "b",
           "c"
         ],
+        "dmsChip": [
+          "a"
+        ],
         "archived": [],
         "chipCounts": {
           "unread": 2,
-          "groups": 1
+          "groups": 1,
+          "dms": 1
         },
         "archivedRow": {
           "visible": false,
@@ -328,7 +332,7 @@
         },
         "tabBadge": 2
       },
-      "note": "No archive row when nothing is archived. Groups counts unread groups (c), not all groups."
+      "note": "No archive row when nothing is archived. Groups counts unread groups (c), not all groups. DMs, the third chip under the group-money UI, holds every chat that is not a group and counts the unread ones."
     },
     {
       "name": "archived-leaves-main-chips-and-badge",
@@ -360,12 +364,16 @@
           "a"
         ],
         "groupsChip": [],
+        "dmsChip": [
+          "a"
+        ],
         "archived": [
           "b"
         ],
         "chipCounts": {
           "unread": 1,
-          "groups": 0
+          "groups": 0,
+          "dms": 1
         },
         "archivedRow": {
           "visible": true,
@@ -412,13 +420,17 @@
         ],
         "unreadChip": [],
         "groupsChip": [],
+        "dmsChip": [
+          "c"
+        ],
         "archived": [
           "a",
           "b"
         ],
         "chipCounts": {
           "unread": 0,
-          "groups": 0
+          "groups": 0,
+          "dms": 0
         },
         "archivedRow": {
           "visible": true,
@@ -460,10 +472,15 @@
           "b"
         ],
         "groupsChip": [],
+        "dmsChip": [
+          "a",
+          "b"
+        ],
         "archived": [],
         "chipCounts": {
           "unread": 2,
-          "groups": 0
+          "groups": 0,
+          "dms": 2
         },
         "archivedRow": {
           "visible": false,
@@ -503,12 +520,16 @@
           "a"
         ],
         "groupsChip": [],
+        "dmsChip": [
+          "a"
+        ],
         "archived": [
           "b"
         ],
         "chipCounts": {
           "unread": 1,
-          "groups": 0
+          "groups": 0,
+          "dms": 1
         },
         "archivedRow": {
           "visible": true,
@@ -546,10 +567,14 @@
         ],
         "unreadChip": [],
         "groupsChip": [],
+        "dmsChip": [
+          "b"
+        ],
         "archived": [],
         "chipCounts": {
           "unread": 0,
-          "groups": 0
+          "groups": 0,
+          "dms": 0
         },
         "archivedRow": {
           "visible": false,
@@ -585,13 +610,15 @@
         "main": [],
         "unreadChip": [],
         "groupsChip": [],
+        "dmsChip": [],
         "archived": [
           "a",
           "b"
         ],
         "chipCounts": {
           "unread": 0,
-          "groups": 0
+          "groups": 0,
+          "dms": 0
         },
         "archivedRow": {
           "visible": true,
@@ -651,13 +678,18 @@
           "old"
         ],
         "groupsChip": [],
+        "dmsChip": [
+          "new",
+          "old"
+        ],
         "archived": [
           "arch-new",
           "arch-old"
         ],
         "chipCounts": {
           "unread": 2,
-          "groups": 0
+          "groups": 0,
+          "dms": 2
         },
         "archivedRow": {
           "visible": true,
