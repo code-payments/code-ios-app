@@ -24,13 +24,20 @@ struct ChatArchiveServerTests {
         return url
     }
 
-    private func makeController(_ mock: MockConversations, directory: URL) -> (ConversationController, ChatArchiveStore) {
+    /// `followAckTimeout` defaults past any test's length, so only a test that passes one sees the
+    /// unanswered-follow read.
+    private func makeController(
+        _ mock: MockConversations,
+        directory: URL,
+        followAckTimeout: Duration = .seconds(3600)
+    ) -> (ConversationController, ChatArchiveStore) {
         let controller = ConversationController(
             fetching: mock, membership: mock, viewerSettings: mock, messaging: mock, streaming: mock,
             contactNaming: MockDMContactNaming(),
             database: try! Database.makeTemp().database,
             owner: .generate()!, selfUserID: me,
-            archiveFollowGrace: .zero
+            archiveFollowGrace: .zero,
+            archiveFollowAckTimeout: followAckTimeout
         )
         let archive = ChatArchiveStore(directory: directory, owner: owner)
         controller.chatArchive = archive
@@ -472,6 +479,73 @@ struct ChatArchiveServerTests {
         try await waitUntil { mock.archivedFeedCalls.filter { $0 == .group }.count > readsBefore }
 
         #expect(mock.deltaAfterSequences.count == catchUpsBefore)
+    }
+
+    private func archivedGroupReads(_ mock: MockConversations) -> Int {
+        let reads: [ConversationFolderRead] = mock.archivedFeedCalls.filter { $0 == .group }
+        return reads.count
+    }
+
+    @Test("A follow nothing answers re-reads archived groups once the wait runs out, and catches up no open chat")
+    func unansweredFollowRereads() async throws {
+        let mock = MockConversations()
+        mock.groupFeed = [group(3)]
+        mock.archivedGroupFeed = [group(4, viewerState: archived(1))]
+        let (controller, _) = makeController(mock, directory: try makeDirectory(), followAckTimeout: .milliseconds(50))
+        controller.start()
+        try await waitUntil { mock.streamOpened && mock.connectionStateStreamOpened }
+        await controller.loadFeed()
+        mock.deltaHead = 5
+        await controller.catchUp(conversationID: .test(4))
+        let catchUpsBefore: Int = mock.deltaAfterSequences.count
+        let readsBefore: Int = archivedGroupReads(mock)
+        mock.archivedGroupFeed = [group(4, viewerState: archived(1)), group(5, viewerState: archived(1))]
+
+        controller.visibleConversationID = .test(4)
+        try await waitUntil { mock.follows == [true] }
+        try await waitUntil { controller.archivedConversations.count == 2 }
+
+        #expect(archivedGroupReads(mock) == readsBefore + 1)
+        #expect(mock.deltaAfterSequences.count == catchUpsBefore)
+
+        // A late ack still re-reads: it says the stream carries the groups from now on.
+        mock.emitConnectionState(.followingArchive)
+        try await waitUntil { archivedGroupReads(mock) == readsBefore + 2 }
+    }
+
+    @Test("A follow answered in time reads the archived groups once, not again when the wait would have run out")
+    func answeredFollowSkipsFallback() async throws {
+        let mock = MockConversations()
+        mock.archivedGroupFeed = [group(4, viewerState: archived(1))]
+        let (controller, _) = makeController(mock, directory: try makeDirectory(), followAckTimeout: .seconds(1))
+        controller.start()
+        try await waitUntil { mock.streamOpened && mock.connectionStateStreamOpened }
+        await controller.loadFeed()
+        let readsBefore: Int = archivedGroupReads(mock)
+
+        controller.isArchiveScreenVisible = true
+        try await waitUntil { mock.follows == [true] }
+        mock.emitConnectionState(.followingArchive)
+        try await waitUntil { archivedGroupReads(mock) == readsBefore + 1 }
+        try await Task.sleep(for: .milliseconds(1500))
+
+        #expect(archivedGroupReads(mock) == readsBefore + 1)
+    }
+
+    @Test("A follow turned off before the wait runs out reads nothing")
+    func followTurnedOffSkipsFallback() async throws {
+        let mock = MockConversations()
+        mock.archivedGroupFeed = [group(4, viewerState: archived(1))]
+        let (controller, _) = makeController(mock, directory: try makeDirectory(), followAckTimeout: .seconds(1))
+        await controller.loadFeed()
+        let readsBefore: Int = archivedGroupReads(mock)
+
+        controller.isArchiveScreenVisible = true
+        controller.isArchiveScreenVisible = false
+        try await waitUntil { mock.follows == [true, false] }
+        try await Task.sleep(for: .milliseconds(1500))
+
+        #expect(archivedGroupReads(mock) == readsBefore)
     }
 
     // MARK: - Unarchive catch-up (D6)
