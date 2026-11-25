@@ -76,6 +76,27 @@ struct ConversationArchiveStateTests {
         #expect(store.conversations[0].viewerState?.isArchived == false)
     }
 
+    @Test("A merged DM feed drops no held chat, ignores other types and keeps the newer viewer state")
+    func mergeFeedDropsNothing() {
+        var store = ConversationStore()
+        store.setFeed([
+            conversation(1, type: .tipDm, viewerState: ConversationViewerState(version: 2, archive: archived)),
+            conversation(2, type: .tipDm),
+        ], type: .tipDm)
+
+        store.mergeFeed([
+            conversation(1, type: .tipDm, viewerState: ConversationViewerState(version: 1)),
+            conversation(3, type: .tipDm),
+            conversation(4, type: .contactDm),
+        ], type: .tipDm)
+
+        let ids: Set<ConversationID> = Set(store.conversations.map(\.id))
+        #expect(ids == [conversationID(1), conversationID(2), conversationID(3)])
+        let first: Conversation? = store.conversation(withID: conversationID(1))
+        #expect(first?.viewerState?.isArchived == true)
+        #expect(first?.viewerState?.version == 2)
+    }
+
     @Test("A group feed row older than the held viewer state does not undo an unarchive")
     func groupFeedRowKeepsNewerUnarchive() {
         var store = ConversationStore()

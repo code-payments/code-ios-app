@@ -66,6 +66,14 @@ final class BoundedWait {
     }
 }
 
+/// One feed's chats from both folders, and whether the archived folder was among them.
+struct FolderedFeed {
+    let conversations: [Conversation]
+    /// False when the archived read failed. The inbox alone can't tell a chat that left from one
+    /// archived elsewhere, so a feed without its archived folder must not prune.
+    let includesArchived: Bool
+}
+
 /// The three feeds' results as they land, with the wait for them. A feed that failed settles
 /// without a result.
 @MainActor
@@ -76,7 +84,7 @@ final class FeedArrivals {
         case groups
     }
 
-    private var feeds: [Source: [Conversation]] = [:]
+    private var feeds: [Source: FolderedFeed] = [:]
     private let wait: BoundedWait
 
     init(expecting count: Int) {
@@ -87,13 +95,13 @@ final class FeedArrivals {
     var isClosed: Bool { wait.isClosed }
 
     /// Records a feed's result, `nil` when it failed.
-    func arrive(_ source: Source, _ feed: [Conversation]?) {
+    func arrive(_ source: Source, _ feed: FolderedFeed?) {
         if let feed { feeds[source] = feed }
         wait.signal()
     }
 
     /// The feeds that landed once all have settled or `cap` has passed.
-    func wait(upTo cap: Duration) async -> [Source: [Conversation]] {
+    func wait(upTo cap: Duration) async -> [Source: FolderedFeed] {
         await wait.wait(upTo: cap)
         return feeds
     }

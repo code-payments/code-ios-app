@@ -347,6 +347,36 @@ struct ChatArchiveServerTests {
         #expect(Set(controller.archivedConversations.map(\.id)) == [.test(2), .test(4)])
     }
 
+    @Test("A failed archived read skips the prune: a chat the inbox stops listing stays until both folders are read")
+    func failedArchivedReadSkipsPrune() async throws {
+        let mock = MockConversations()
+        mock.feed = [dm(1)]
+        mock.groupFeed = [group(3)]
+        let (controller, _) = makeController(mock, directory: try makeDirectory())
+        await controller.loadFeed()
+        #expect(Set(controller.chatListConversations.map(\.id)) == [.test(1), .test(3)])
+
+        // Archived on another device: the inbox stops listing both, and the archived read that
+        // would list them fails.
+        mock.feed = []
+        mock.groupFeed = []
+        mock.archivedFeed = [dm(1, viewerState: archived(2))]
+        mock.archivedGroupFeed = [group(3, viewerState: archived(2))]
+        mock.archivedFeedError = ErrorArchiveChat.transportFailure
+
+        // The reconcile of a held list, then each feed loaded on its own.
+        await controller.loadFeed()
+        await controller.loadFeed(type: .tipDm)
+        await controller.loadGroupFeed()
+        #expect(controller.conversation(withID: .test(1)) != nil)
+        #expect(controller.conversation(withID: .test(3)).map(controller.isMember(of:)) == true)
+
+        mock.archivedFeedError = nil
+        await controller.loadFeed()
+        #expect(controller.chatListConversations.isEmpty)
+        #expect(Set(controller.archivedConversations.map(\.id)) == [.test(1), .test(3)])
+    }
+
     // MARK: - FollowArchive (D5)
 
     @Test("The Archived screen turns following on; the ack re-reads archived groups without dropping the inbox")
